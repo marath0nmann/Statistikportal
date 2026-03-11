@@ -1354,7 +1354,9 @@ if ($res === 'rekorde') {
 
         $nameExpr = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
         $joinVer  = "JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id";
-        $akExpr   = "CASE
+        $mergeAK  = ($_GET['merge_ak'] ?? '1') !== '0';
+        $akExpr   = $mergeAK
+            ? "CASE
                 WHEN e.altersklasse IN ('MHK','M','MU8','MU10-12','MU18','MU20','MU23','mJB','mjA','mjB','U18')
                      OR (e.altersklasse REGEXP '^M[0-9]+$' AND CAST(SUBSTRING(e.altersklasse,2) AS UNSIGNED) < 30)
                   THEN 'MHK'
@@ -1362,7 +1364,8 @@ if ($res === 'rekorde') {
                      OR (e.altersklasse REGEXP '^W[0-9]+$' AND CAST(SUBSTRING(e.altersklasse,2) AS UNSIGNED) < 30)
                   THEN 'WHK'
                 ELSE e.altersklasse
-              END";
+              END"
+            : "e.altersklasse";
 
         $sortCol   = ($fmt === 'm') ? "e.resultat_num" : "e.resultat";
         // Legacy-Tabellen haben resultat als VARCHAR oder FLOAT je nach Tabelle

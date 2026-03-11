@@ -1,7 +1,3 @@
-v212: Medaillen-Badges für Platz 1–3
+v214: AK-Grid breiter (340px Minimum statt 260px)
 
-- Neue CSS-Klasse .medal-badge: gefüllte Kreise Gold/Silber/Bronze + .rank für 4+
-- medalBadge(n) Hilfsfunktion, platzBadge() als Alias beibehalten
-- Bestleistungen-Tabelle: top-rank Kreise → medal-badge
-- AK-Platzierungen in Veranstaltungen: bereits über platzBadge() abgedeckt
-- Dark-Mode-Varianten für alle drei Medaillen-Farben
+- Weniger Tabellen pro Zeile, mehr Platz für Medaillen-Badges

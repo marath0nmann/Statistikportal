@@ -731,7 +731,7 @@ tr:hover td { background: var(--surf2); }
   .profile-mini-stats { grid-template-columns: repeat(2,1fr); }
 }
 
-.rek-ak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.rek-ak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
 .rek-ak-card { background: #fff; border-radius: 10px; border: 1px solid var(--border); overflow: hidden; }
 .rek-ak-header { background: var(--btn-bg); color: var(--on-btn); font-weight: 600; font-size: 13px;
   padding: 8px 14px; letter-spacing: .04em; }
