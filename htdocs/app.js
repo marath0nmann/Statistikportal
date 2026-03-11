@@ -2706,13 +2706,14 @@ async function rrFetch() {
           if (!_rrDebug.dataFields.length) _rrDebug.dataFields = df.slice();
           for (var fi=0; fi<df.length; fi++) {
             var f = df[fi].toLowerCase();
-            if (f.indexOf('anzeigename') >= 0 || f === 'name') iName = fi;
-            else if (f === 'club' || f === 'verein') iClub = fi;
-            else if (f.indexOf('agegroup') >= 0 || f.indexOf('alters') >= 0) iAK = fi;
-            else if (f === 'ziel.gun' || f === 'gun') iZeit = fi;
-            else if (f === 'ziel.chip' || f === 'chip') iNetto = fi;
+            if (f.indexOf('anzeigename') >= 0 || f === 'name' || f === 'fullname' || f === 'participant') iName = fi;
+            else if (f === 'club' || f === 'verein' || f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
+            else if (f.indexOf('agegroup') >= 0 || f.indexOf('alters') >= 0 || f.indexOf('ak') >= 0) iAK = fi;
+            else if (f === 'ziel.gun' || f === 'gun' || f.indexOf('brutto') >= 0) iZeit = fi;
+            else if (f === 'ziel.chip' || f === 'chip' || f.indexOf('netto') >= 0) iNetto = fi;
           }
           _rrDebug.iClub = iClub;
+          _rrDebug.iName = iName;
         }
 
         // Eventname + Datum aus HeadLine der ersten erfolgreichen Antwort
@@ -2738,8 +2739,30 @@ async function rrFetch() {
         // Debug: rohe Top-Level Keys + erste Daten-Struktur
         if (ci === 0 && !_rrDebug.dataFields.length) {
           _rrDebug.topKeys = Object.keys(payload);
-          var firstKey = Object.keys(payload)[0];
           _rrDebug.firstVal = JSON.stringify(payload).slice(0, 400);
+        }
+        // Wenn DataFields fehlen: Name-Spalte heuristisch aus erster Datenzeile bestimmen
+        // Suche Spalte mit längstem String der Komma oder Leerzeichen enthält (= Name)
+        if (!payload.DataFields || !payload.DataFields.length) {
+          var dataObjTmp = payload.data || payload.Data || {};
+          if (Array.isArray(dataObjTmp)) dataObjTmp = { '_': dataObjTmp };
+          var dkTmp = Object.keys(dataObjTmp);
+          for (var dkt=0; dkt<dkTmp.length && iName===3; dkt++) {
+            var rowsTmp = dataObjTmp[dkTmp[dkt]];
+            if (!Array.isArray(rowsTmp) || !rowsTmp.length) continue;
+            var firstRow = rowsTmp[0];
+            if (!Array.isArray(firstRow)) continue;
+            var bestLen = 0;
+            for (var fj=0; fj<firstRow.length; fj++) {
+              var v = String(firstRow[fj] || '');
+              // Name: enthält Leerzeichen oder Komma, keine Zahl, mind. 4 Zeichen
+              if (v.length > bestLen && /[, ]/.test(v) && !/^[\d.:]+$/.test(v)) {
+                bestLen = v.length; iName = fj;
+              }
+            }
+            _rrDebug.iName = iName;
+            break;
+          }
         }
         // RaceResult kann data als Objekt {gruppe: [rows]} oder direkt als Array liefern
         var dataObj = payload.data || payload.Data || payload.result || payload.Result || payload.list && payload.list.data || {};
@@ -2845,7 +2868,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
 
   // System-Disziplinen aus datalist lesen
   // Disziplinen aus state (von API)
-  var diszList = state.disziplinen.map(function(d) { return d.disziplin; });
+  var diszList = (state.disziplinen || []).map(function(d) { return typeof d === 'object' ? d.disziplin : d; }).filter(Boolean);
   if (!diszList.length) {
     var dlOpts = document.querySelectorAll("#disz-list option");
     for (var di = 0; di < dlOpts.length; di++) diszList.push(dlOpts[di].value);
@@ -2886,7 +2909,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
         '<td style="padding:4px 6px"><select class="rr-athlet" class="bk-input-sel">' + athOptHtml + '</select></td>' +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + name + '</td>' +
         '<td style="padding:4px 6px">' + (function(sel){ var s = '<select class="rr-disz" class="bk-input-sel">';s += '<option value="">' + (sel ? '' : '\u2013 bitte w\u00e4hlen \u2013') + '</option>';for(var oi=0;oi<diszList.length;oi++){s += '<option value="'+diszList[oi]+'"'+(diszList[oi]===sel?' selected':'')+'>'+diszList[oi]+'</option>';}s += '</select>'; return s; })(disz) + '</td>' +
-        '<td style="padding:4px 6px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:14px;color:var(--btn-bg)">' + (netto || zeit) + '</td>' +
+        '<td style="padding:4px 6px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:14px;color:var(--result-color)">' + (netto || zeit) + '</td>' +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + ak + '</td>' +
         '<td style="padding:4px 6px;font-size:11px;color:var(--text2)">' + club + '</td>' +
       '</tr>';
