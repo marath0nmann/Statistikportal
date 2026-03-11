@@ -1,0 +1,271 @@
+<?php
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/totp.php';
+
+class Auth {
+
+    // ============================================================
+    // Session
+    // ============================================================
+    public static function startSession(): void {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_name(SESSION_NAME);
+            session_set_cookie_params([
+                'lifetime' => SESSION_LIFETIME,
+                'path'     => '/',
+                'secure'   => isset($_SERVER['HTTPS']),
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]);
+            session_start();
+        }
+    }
+
+    // ============================================================
+    // Login Schritt 1: Passwort prüfen
+    // Gibt zurück:
+    //   ['ok'=>false, 'fehler'=>'...']
+    //   ['ok'=>true,  'totp_required'=>false, 'rolle'=>'...', 'name'=>'...']  // kein 2FA
+    //   ['ok'=>true,  'totp_required'=>true,  'totp_setup'=>false]            // Code eingeben
+    //   ['ok'=>true,  'totp_required'=>true,  'totp_setup'=>true]             // Setup nötig
+    // ============================================================
+    public static function loginStep1(string $benutzername, string $passwort): array {
+        // Brute-Force: max 10 Versuche in 15 min pro IP
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+        $versuche = DB::fetchOne(
+            "SELECT COUNT(*) AS n FROM " . DB::tbl('login_versuche') . "
+             WHERE ip = ? AND erfolg = 0 AND erstellt_am > DATE_SUB(NOW(), INTERVAL 15 MINUTE)",
+            [$ip]
+        );
+        if (($versuche['n'] ?? 0) >= 10) {
+            return ['ok' => false, 'fehler' => 'Zu viele Fehlversuche. Bitte 15 Minuten warten.'];
+        }
+
+        $user = DB::fetchOne(
+            'SELECT * FROM ' . DB::tbl('benutzer') . ' WHERE (benutzername = ? OR email = ?) AND aktiv = 1',
+            [$benutzername, $benutzername]
+        );
+
+        if (!$user || !password_verify($passwort, $user['passwort'])) {
+            DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg) VALUES (?, ?, 0)',
+                [$benutzername, $ip]);
+            return ['ok' => false, 'fehler' => 'Benutzername oder Passwort falsch.'];
+        }
+
+        // Erfolgreicher Passwort-Check – Versuch loggen
+        DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg) VALUES (?, ?, 1)',
+            [$user['benutzername'], $ip]);
+
+        // 2FA nur für Admins
+        if ($user['rolle'] === 'admin') {
+            if (!empty($user['totp_aktiv'])) {
+                // TOTP aktiv → pending session setzen, noch NICHT einloggen
+                $_SESSION['totp_pending_user'] = $user['id'];
+                session_regenerate_id(true);
+                return ['ok' => true, 'totp_required' => true, 'totp_setup' => false];
+            } else {
+                // TOTP noch nicht eingerichtet → Setup erzwingen
+                $_SESSION['totp_pending_user'] = $user['id'];
+                session_regenerate_id(true);
+                return ['ok' => true, 'totp_required' => true, 'totp_setup' => true];
+            }
+        }
+
+        // Kein Admin → direkt einloggen
+        return self::finalizeLogin($user);
+    }
+
+    // ============================================================
+    // Login Schritt 2a: TOTP-Code prüfen (nach Passwort-OK)
+    // ============================================================
+    public static function loginStep2(string $code): array {
+        if (empty($_SESSION['totp_pending_user'])) {
+            return ['ok' => false, 'fehler' => 'Keine ausstehende Anmeldung.'];
+        }
+        $uid  = (int)$_SESSION['totp_pending_user'];
+        $user = DB::fetchOne('SELECT * FROM ' . DB::tbl('benutzer') . ' WHERE id = ? AND aktiv = 1', [$uid]);
+        if (!$user) return ['ok' => false, 'fehler' => 'Benutzer nicht gefunden.'];
+
+        // Backup-Code prüfen
+        $code = trim($code);
+        if (strlen($code) === 8 && preg_match('/^[A-Fa-f0-9]{8}$/', $code)) {
+            if (self::useBackupCode($user, strtoupper($code))) {
+                unset($_SESSION['totp_pending_user']);
+                return self::finalizeLogin($user);
+            }
+            return ['ok' => false, 'fehler' => 'Ungültiger Backup-Code.'];
+        }
+
+        // TOTP prüfen
+        if (!TOTP::verify($user['totp_secret'], $code)) {
+            return ['ok' => false, 'fehler' => 'Ungültiger Code. Bitte erneut versuchen.'];
+        }
+        unset($_SESSION['totp_pending_user']);
+        return self::finalizeLogin($user);
+    }
+
+    // ============================================================
+    // Setup Schritt 1: Neuen Secret erzeugen, QR zurückgeben
+    // ============================================================
+    public static function totpSetupInit(): array {
+        if (empty($_SESSION['totp_pending_user'])) {
+            return ['ok' => false, 'fehler' => 'Nicht autorisiert.'];
+        }
+        $uid  = (int)$_SESSION['totp_pending_user'];
+        $user = DB::fetchOne('SELECT benutzername, email FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$uid]);
+        if (!$user) return ['ok' => false, 'fehler' => 'Benutzer nicht gefunden.'];
+
+        $secret = TOTP::generateSecret();
+        // Pending speichern (noch nicht aktiv)
+        DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET totp_pending = ? WHERE id = ?', [$secret, $uid]);
+
+        $account = $user['email'] ?: $user['benutzername'];
+        $uri     = TOTP::getUri($secret, $account);
+        $qrUrl   = TOTP::getQrUrl($uri);
+
+        return [
+            'ok'     => true,
+            'secret' => $secret,
+            'qr_url' => $qrUrl,
+            'uri'    => $uri,
+        ];
+    }
+
+    // ============================================================
+    // Setup Schritt 2: Code bestätigen, 2FA aktivieren
+    // ============================================================
+    public static function totpSetupConfirm(string $code): array {
+        if (empty($_SESSION['totp_pending_user'])) {
+            return ['ok' => false, 'fehler' => 'Nicht autorisiert.'];
+        }
+        $uid  = (int)$_SESSION['totp_pending_user'];
+        $user = DB::fetchOne('SELECT * FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$uid]);
+        if (!$user || empty($user['totp_pending'])) {
+            return ['ok' => false, 'fehler' => 'Setup nicht initialisiert.'];
+        }
+
+        if (!TOTP::verify($user['totp_pending'], $code)) {
+            return ['ok' => false, 'fehler' => 'Code falsch. Bitte erneut versuchen.'];
+        }
+
+        // Backup-Codes generieren + hashen
+        $plain   = TOTP::generateBackupCodes();
+        $hashed  = array_map(function($c) { return password_hash($c, PASSWORD_BCRYPT, ['cost' => 10]); }, $plain);
+
+        DB::query(
+            'UPDATE ' . DB::tbl('benutzer') . ' SET totp_secret = ?, totp_aktiv = 1, totp_pending = NULL, totp_backup = ? WHERE id = ?',
+            [$user['totp_pending'], json_encode($hashed), $uid]
+        );
+
+        // Jetzt einloggen
+        $user = DB::fetchOne('SELECT * FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$uid]);
+        unset($_SESSION['totp_pending_user']);
+        $result = self::finalizeLogin($user);
+        $result['backup_codes'] = $plain; // einmalig zurückgeben
+        return $result;
+    }
+
+    // ============================================================
+    // 2FA deaktivieren (nur eingeloggter Admin für sich selbst)
+    // ============================================================
+    public static function totpDisable(int $userId): void {
+        DB::query(
+            'UPDATE ' . DB::tbl('benutzer') . ' SET totp_secret = NULL, totp_aktiv = 0, totp_pending = NULL, totp_backup = NULL WHERE id = ?',
+            [$userId]
+        );
+    }
+
+    // ============================================================
+    // Backup-Code einlösen
+    // ============================================================
+    private static function useBackupCode(array $user, string $code): bool {
+        if (empty($user['totp_backup'])) return false;
+        $codes = json_decode($user['totp_backup'], true);
+        if (!is_array($codes)) return false;
+        foreach ($codes as $i => $hash) {
+            if (password_verify($code, $hash)) {
+                // Code verbraucht
+                array_splice($codes, $i, 1);
+                DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET totp_backup = ? WHERE id = ?',
+                    [json_encode($codes), $user['id']]);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ============================================================
+    // Session setzen nach erfolgreichem Login
+    // ============================================================
+    private static function finalizeLogin(array $user): array {
+        DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_login = NOW() WHERE id = ?', [$user['id']]);
+        $_SESSION['user_id']    = $user['id'];
+        $_SESSION['user_name']  = $user['benutzername'];
+        $_SESSION['user_rolle'] = $user['rolle'];
+        session_regenerate_id(true);
+        return ['ok' => true, 'totp_required' => false, 'rolle' => $user['rolle'], 'name' => $user['benutzername']];
+    }
+
+    // ============================================================
+    // Logout
+    // ============================================================
+    public static function logout(): void {
+        session_unset();
+        session_destroy();
+    }
+
+    // ============================================================
+    // Session prüfen
+    // ============================================================
+    public static function check(): ?array {
+        if (empty($_SESSION['user_id'])) return null;
+        return [
+            'id'    => $_SESSION['user_id'],
+            'name'  => $_SESSION['user_name'],
+            'rolle' => $_SESSION['user_rolle'],
+        ];
+    }
+
+    public static function requireLogin(): array {
+        $user = self::check();
+        if (!$user) {
+            http_response_code(401);
+            echo json_encode(['fehler' => 'Nicht eingeloggt.']);
+            exit;
+        }
+        return $user;
+    }
+
+    public static function requireAdmin(): array {
+        $user = self::requireLogin();
+        if ($user['rolle'] !== 'admin') {
+            http_response_code(403);
+            echo json_encode(['fehler' => 'Keine Berechtigung.']);
+            exit;
+        }
+        return $user;
+    }
+
+    public static function requireEditor(): array {
+        $user = self::requireLogin();
+        if (!in_array($user['rolle'], ['admin','editor'])) {
+            http_response_code(403);
+            echo json_encode(['fehler' => 'Keine Berechtigung.']);
+            exit;
+        }
+        return $user;
+    }
+
+    public static function isAdmin(): bool {
+        return ($_SESSION['user_rolle'] ?? '') === 'admin';
+    }
+
+    public static function isEditor(): bool {
+        return in_array($_SESSION['user_rolle'] ?? '', ['admin','editor']);
+    }
+
+    public static function hashPasswort(string $pw): string {
+        return password_hash($pw, PASSWORD_BCRYPT, ['cost' => 12]);
+    }
+}

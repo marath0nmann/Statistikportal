@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#cc0000" id="meta-theme-color">
+<title>Leichtathletik-Statistik</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css?v=208">
+</head>
+<body>
+
+<!-- Login-Screen -->
+<div id="login-screen" class="login-wrap" style="display:none" onclick="loginBackdropClick(event)">
+    <div class="login-card">
+      <img src=""
+           class="login-logo" alt="TuS Oedt Logo"
+           onerror="this.style.display='none'">
+      <div class="login-title"></div>
+      <div class="login-sub"></div>
+      <div class="login-err" id="login-err"></div>
+      <div class="form-group">
+        <label>Benutzername oder E-Mail</label>
+        <input type="text" id="login-user" placeholder="Benutzername" autocomplete="username"/>
+      </div>
+      <div class="form-group">
+        <label>Passwort</label>
+        <input type="password" id="login-pw" placeholder="" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <button class="btn-login" onclick="doLogin()">Anmelden</button>
+      <button class="btn-login-cancel" onclick="hideLogin()">Abbrechen</button>
+      <div style="text-align:center;margin-top:14px;font-size:13px;color:rgba(0,0,0,.45)">
+        Noch kein Konto? <span style="color:var(--blau);cursor:pointer;font-weight:600" onclick="showRegister()">Registrieren</span>
+      </div>
+    </div>
+</div>
+
+<!-- App -->
+<div id="app-screen">
+  <header>
+    <div class="header-top">
+      <div class="logo-wrap" onclick="navigate('dashboard')" style="cursor:pointer" title="Startseite">
+        <img src=""
+             class="logo-img" alt="TuS Oedt"
+             onerror="this.style.display='none'">
+        <div class="logo-text">
+          <div class="logo-main"><span></span></div>
+          <div class="logo-sub"><span></span> <span id="header-version" style="opacity:.55;font-size:.85em">v208</span></div>
+        </div>
+      </div>
+      <nav id="main-nav"></nav>
+      <div class="header-right">
+        <button class="burger-btn" id="burger-btn" onclick="toggleBurgerMenu()" aria-label="Menü" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <div style="display:none;align-items:center;gap:8px" id="user-btn">
+          <div class="user-badge" onclick="showUserMenu()" title="Konto &amp; Passwort">
+            <div class="user-avatar" id="user-avatar">?</div>
+            <div>
+              <div class="user-name" id="user-name-disp">–</div>
+              <div class="user-rolle" id="user-rolle-disp">–</div>
+            </div>
+          </div>
+          <button class="btn-logout-header" onclick="logout()" title="Abmelden">&#x23FB;</button>
+        </div>
+      </div>
+    </div>
+    <div class="header-stripe"></div>
+  </header>
+  <main id="main-content"></main>
+</div>
+
+<!-- Mobile Nav -->
+<div id="mobile-nav-overlay" onclick="closeBurgerMenu()"></div>
+<div id="mobile-nav-drawer" style="visibility:hidden">
+  <div class="mobile-nav-logo">
+    <img src=""
+         alt="TuS Oedt" onerror="this.style.display='none'">
+    <div class="mobile-nav-logo-text"></div>
+  </div>
+  <div class="mobile-nav-items" id="mobile-nav-items"></div>
+  <div class="mobile-nav-footer"></div>
+</div>
+
+<div id="modal-container"></div>
+<div id="notification-container"></div>
+
+<div id="setup-screen" style="display:none;min-height:100vh;align-items:center;justify-content:center;padding:24px;background:var(--bg)">
+  <div id="setup-box" style="width:100%;max-width:520px"></div>
+</div>
+
+<script src="app.js?v=208"></script>
+
+
+
+<datalist id="disz-list"><option value="5km Straße"/><option value="10km Straße"/><option value="15km Straße"/><option value="Halbmarathon"/><option value="Marathon"/><option value="800m Straße"/><option value="30km Straße"/><option value="50km"/><option value="100km"/><option value="100m"/><option value="200m"/><option value="400m"/><option value="800m"/><option value="1500m"/><option value="3000m"/><option value="5000m Bahn"/><option value="10000m Bahn"/><option value="Weitsprung"/><option value="Hochsprung"/><option value="Kugelstoß"/><option value="Speerwurf"/><option value="Diskuswurf"/><option value="Hammerwurf"/></datalist>
+</body>
+</html>
