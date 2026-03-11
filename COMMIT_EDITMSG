@@ -1,4 +1,1 @@
-v220: RaceResult Debug-Ausgabe bei leerem Ergebnis
-
-- Fehlermeldung zeigt: Gesamtzeilen geladen, DataFields, iClub-Index,
-  Suchbegriff, und bis zu 10 Club-Werte aus den echten Daten
+v221: RaceResult tieferes Debugging (Top-Level Keys + Raw)
