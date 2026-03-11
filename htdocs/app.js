@@ -2637,21 +2637,36 @@ async function rrFetch() {
     // listname aus Config ermitteln: cfg.list ist Objekt mit Keys = Listennamen
     // z.B. { "02-ERGEBNISSE|Ergebnisse_Ges": { ... }, "03-...": { ... } }
     var listName = '';
+    // lists kann sein: Objekt {"02-ERGEBNIS|xyz": {...}} oder Array [{name:"02-ERGEBNIS|xyz",...}]
     var listSource = cfg.list || cfg.lists || {};
-    if (listSource && Object.keys(listSource).length) {
+    var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','OVERALL','EINZEL'];
+    if (Array.isArray(listSource)) {
+      // Array-Form: [{name: "02-ERGEBNISSE|Ergebnisse_Ges", ...}, ...]
+      for (var lk = 0; lk < listSource.length && !listName; lk++) {
+        var entry = listSource[lk];
+        var lkey = (entry.name || entry.Name || entry.listname || String(lk)).toUpperCase();
+        for (var lp = 0; lp < listPrio.length; lp++) {
+          if (lkey.indexOf(listPrio[lp]) >= 0) { listName = entry.name || entry.Name || entry.listname; break; }
+        }
+      }
+      if (!listName && listSource.length) {
+        var e0 = listSource[0];
+        listName = e0.name || e0.Name || e0.listname || '';
+      }
+      _rrDebug.listsRaw = JSON.stringify(listSource).slice(0, 200);
+    } else if (listSource && typeof listSource === 'object') {
+      // Objekt-Form: {"02-ERGEBNISSE|xyz": {...}}
       var listKeys = Object.keys(listSource);
-      // Erste Ergebnisliste wählen: nach diversen Namensmustern
-      var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','OVERALL','EINZEL'];
       for (var lk = 0; lk < listKeys.length && !listName; lk++) {
         var lkey = listKeys[lk].toUpperCase();
         for (var lp = 0; lp < listPrio.length; lp++) {
           if (lkey.indexOf(listPrio[lp]) >= 0) { listName = listKeys[lk]; break; }
         }
       }
-      // Fallback: erste Liste nehmen
       if (!listName && listKeys.length) listName = listKeys[0];
+      _rrDebug.listsRaw = JSON.stringify(Object.keys(listSource)).slice(0, 200);
     }
-    // Absoluter Fallback: bekanntes Format aus cURL
+    // Absoluter Fallback
     if (!listName) listName = '02-ERGEBNISSE|Ergebnisse_Ges';
 
     // Spaltenindizes: bekannte Positionen aus dem echten DataFields-Format
@@ -2775,6 +2790,7 @@ async function rrFetch() {
             'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine') + '<br>' +
             'Contests: ' + (_rrDebug.contestSample||'?') + '<br>' +
             'ListName aus Config: ' + (_rrDebug.listName||'?') + '<br>' +
+            'lists-Raw: ' + (_rrDebug.listsRaw||'?') + '<br>' +
             '<details><summary style="cursor:pointer">Raw (400 Zeichen)</summary><pre style="font-size:10px;overflow:auto;max-height:120px">' + (_rrDebug.firstVal||'') + '</pre></details>' +
           '</div>' +
         '</div>';
