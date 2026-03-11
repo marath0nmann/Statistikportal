@@ -1,7 +1,4 @@
-Merge branch 'master'
+v209: ZIP-Bereinigung
 
-# Conflicts:
-#	htdocs/app.css
-#	htdocs/app.js
-#	htdocs/index.html
-#	includes/settings.php
+- .git/ und commit.sh nicht mehr in der ZIP enthalten
+- COMMIT_EDITMSG liegt jetzt im Hauptverzeichnis
