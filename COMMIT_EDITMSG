@@ -1,4 +1,5 @@
-v210: API-Whitelist um adressleiste_farbe und dashboard_layout ergänzt
+v211: Papierkorb-Filter in Bestleistungen/Rekorde-Queries
 
-- Fehler "Keine gültigen Felder." beim Speichern des Dashboard-Layouts behoben
-- adressleiste_farbe war ebenfalls nicht in der Whitelist
+- Rekorde-Endpoint: alle 4 Queries (gesamt, männer, frauen, AK) filtern jetzt
+  gelöschte Ergebnisse, Athleten und Veranstaltungen (geloescht_am IS NULL)
+- Top-Disziplinen und Disziplinen-Counts ebenfalls gefiltert
