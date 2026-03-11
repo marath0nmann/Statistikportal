@@ -283,8 +283,7 @@ th.sorted { color: var(--primary); }
 td { padding: 10px 14px; border-bottom: 1px solid #edf0f7; white-space: nowrap; vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: var(--surf2); }
-.champ-row td { background: rgba(var(--accent-rgb, 0,48,135),.04); }
-.champ-row:hover td { background: rgba(var(--accent-rgb, 0,48,135),.09); }
+
 .row-even td { background: var(--surface); }
 .row-odd  td { background: var(--surf2); }
 .row-even:hover td, .row-odd:hover td { background: var(--surf2); }

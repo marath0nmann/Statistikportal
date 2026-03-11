@@ -2343,21 +2343,10 @@ function renderEintragen() {
   var isRR = sub === 'raceresult';
   var isBulk = sub === 'bulk';
 
-  var tabs = [
-    { id:'bulk',        label:'&#x1F4CB; Bulk-Eintragen' },
-    { id:'raceresult',  label:'&#x1F30D; RaceResult-Import' },
-  ];
-  var tabHtml = '';
-  for (var i = 0; i < tabs.length; i++) {
-    var t = tabs[i];
-    tabHtml += '<div class="subtab ' + (sub === t.id ? 'active' : '') + '" onclick="setSubTab(\'' + t.id + '\')">' + t.label + '</div>';
-  }
-
-  var athOptHtml = '<option value="">&#x2013; w&auml;hlen &#x2013;</option>';
-  for (var i = 0; i < state.athleten.length; i++) {
-    var a = state.athleten[i];
-    athOptHtml += '<option value="' + a.id + '">' + a.name_nv + (a.ak_aktuell ? ' (' + a.ak_aktuell + ')' : '') + '</option>';
-  }
+  var tabHtml = '<div class="subtabs" style="margin-bottom:20px">' +
+    '<button class="subtab' + (sub==='bulk'       ? ' active' : '') + '" onclick="setSubTab(\'bulk\')">📋︎ Bulk-Eintragen</button>' +
+    '<button class="subtab' + (sub==='raceresult' ? ' active' : '') + '" onclick="setSubTab(\'raceresult\')">🌍︎ RaceResult-Import</button>' +
+  '</div>';
 
   var today = new Date().toISOString().slice(0, 10);
 
@@ -2466,11 +2455,20 @@ async function bkLoadVeranstOptions() {
 }
 
 // Disziplin-Optionen für Bulk-Dropdown
+function bkAkOpts(geschlecht) {
+  var wAKs = ['WHK','W8','W9','W10','W11','W12','W13','W14','W15','WU18','WU23','wjA','wjB','W30','W35','W40','W45','W50','W55','W60','W65','W70','W75','W80'];
+  var mAKs = ['MHK','M8','M9','M10','M11','M12','M13','M14','M15','MU18','MU23','mjA','mjB','M30','M35','M40','M45','M50','M55','M60','M65','M70','M75','M80'];
+  var list = geschlecht === 'W' ? wAKs : geschlecht === 'M' ? mAKs : wAKs.concat(mAKs);
+  var opts = '<option value="">– optional –</option>';
+  for (var i = 0; i < list.length; i++) opts += '<option value="' + list[i] + '">' + list[i] + '</option>';
+  return opts;
+}
 function bkDiszOpts() {
   var opts = '<option value="">– wählen –</option>';
   var list = state.disziplinen || [];
   for (var i = 0; i < list.length; i++) {
-    opts += '<option value="' + list[i] + '">' + list[i] + '</option>';
+    var d = (typeof list[i] === 'object') ? list[i].disziplin : list[i];
+    opts += '<option value="' + d + '">' + d + '</option>';
   }
   return opts;
 }
@@ -2510,20 +2508,31 @@ function bulkRowHtml(idx) {
   var athOptHtml = '<option value="">&#x2013; w&auml;hlen &#x2013;</option>';
   for (var i = 0; i < state.athleten.length; i++) {
     var a = state.athleten[i];
-    athOptHtml += '<option value="' + a.id + '">' + a.name_nv + (a.ak_aktuell ? ' (' + a.ak_aktuell + ')' : '') + '</option>';
+    var g = a.geschlecht || '';
+    athOptHtml += '<option value="' + a.id + '" data-g="' + g + '">' + a.name_nv + '</option>';
   }
   return '<tr id="bkrow-' + idx + '" style="border-bottom:1px solid var(--border)">' +
     '<td style="padding:6px;color:var(--text2);font-size:12px">' + (idx+1) + '</td>' +
-    '<td style="padding:4px 6px"><select class="bk-athlet" class="bk-input-sel">' + athOptHtml + '</select></td>' +
-    '<td style="padding:4px 6px"><select class="bk-disz" class="bk-input-sel">' + bkDiszOpts() + '</select></td>' +
-    '<td style="padding:4px 6px"><input class="bk-res"  type="text" placeholder="00:45:00" class="bk-input-res"/></td>' +
-    '<td style="padding:4px 6px"><input class="bk-ak"   type="text" placeholder="M40" class="bk-input-ak"/></td>' +
-    '<td style="padding:4px 6px"><input class="bk-platz" type="number" placeholder="1" class="bk-input-platz" min="1"/></td>' +
+    '<td style="padding:4px 6px"><select class="bk-athlet" onchange="bkUpdateAK(this,' + idx + ')">' + athOptHtml + '</select></td>' +
+    '<td style="padding:4px 6px"><select class="bk-disz">' + bkDiszOpts() + '</select></td>' +
+    '<td style="padding:4px 6px"><input class="bk-res" type="text" placeholder="00:45:00"/></td>' +
+    '<td style="padding:4px 6px"><select class="bk-ak" id="bk-ak-' + idx + '">' + bkAkOpts('') + '</select></td>' +
+    '<td style="padding:4px 6px"><input class="bk-platz" type="number" placeholder="1" min="1"/></td>' +
     '<td style="padding:4px 6px"><button onclick="bulkRemoveRow(' + idx + ')" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;padding:2px 4px" title="Zeile entfernen">&#x2715;</button></td>' +
   '</tr>';
 }
 
 var _bulkRowCount = 0;
+function bkUpdateAK(athSel, idx) {
+  var opt = athSel.options[athSel.selectedIndex];
+  var g = opt ? (opt.dataset.g || '') : '';
+  var akSel = document.getElementById('bk-ak-' + idx);
+  if (!akSel) return;
+  var prev = akSel.value;
+  akSel.innerHTML = bkAkOpts(g);
+  // vorherigen Wert wiederherstellen falls noch passt
+  if (prev) { for (var i=0;i<akSel.options.length;i++) { if (akSel.options[i].value===prev) { akSel.value=prev; break; } } }
+}
 function bulkAddRow() {
   var tbody = document.getElementById('bulk-rows');
   if (!tbody) return;
@@ -2618,11 +2627,12 @@ async function rrFetch() {
     var listName = '';
     if (cfg.list) {
       var listKeys = Object.keys(cfg.list);
-      // Erste Ergebnisliste wählen (enthält "ERGEBNIS" oder "Result")
-      for (var lk = 0; lk < listKeys.length; lk++) {
+      // Erste Ergebnisliste wählen: nach diversen Namensmustern
+      var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','OVERALL','EINZEL'];
+      for (var lk = 0; lk < listKeys.length && !listName; lk++) {
         var lkey = listKeys[lk].toUpperCase();
-        if (lkey.indexOf('ERGEBNIS') >= 0 || lkey.indexOf('RESULT') >= 0) {
-          listName = listKeys[lk]; break;
+        for (var lp = 0; lp < listPrio.length; lp++) {
+          if (lkey.indexOf(listPrio[lp]) >= 0) { listName = listKeys[lk]; break; }
         }
       }
       // Fallback: erste Liste nehmen
@@ -2650,7 +2660,7 @@ async function rrFetch() {
           '&listname=' + encodeURIComponent(listName) +
           '&page=results&contest=' + cid +
           '&r=search&l=9999&openedGroups=%7B%7D' +
-          '&term='     + encodeURIComponent(appConfig.verein_name || 'Mein Verein e.V.');
+          '&term='     + encodeURIComponent(appConfig.verein_kuerzel || appConfig.verein_name || 'TuS Oedt');
         var resp = await fetch(url, { headers: hdrs });
         if (!resp.ok) continue;
         var payload = await resp.json();
@@ -2693,9 +2703,15 @@ async function rrFetch() {
         for (var dk=0; dk<dataKeys.length; dk++) {
           var rows = dataObj[dataKeys[dk]];
           if (!Array.isArray(rows)) continue;
+          var clubFilter = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().split(/[\s.]+/).filter(function(w){return w.length>2;});
           for (var ri=0; ri<rows.length; ri++) {
             var row = rows[ri];
             if (!Array.isArray(row) || row.length < 4) continue;
+            // Club-Spalte auf Vereinsbezug prüfen (bei &term= kommen eigentlich nur Vereinstreffer)
+            var clubVal = String(row[iClub] || '').toLowerCase();
+            var clubOk = !clubFilter.length;
+            for (var cf=0; cf<clubFilter.length; cf++) { if (clubVal.indexOf(clubFilter[cf]) >= 0) { clubOk=true; break; } }
+            if (!clubOk) continue;
             allResults.push({ raw: row, contestName: cname,
               iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto });
           }
