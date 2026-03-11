@@ -2704,7 +2704,15 @@ async function rrFetch() {
         }
 
 
-        var dataObj = payload.data || {};
+        // Debug: rohe Top-Level Keys + erste Daten-Struktur
+        if (ci === 0 && !_rrDebug.dataFields.length) {
+          _rrDebug.topKeys = Object.keys(payload);
+          var firstKey = Object.keys(payload)[0];
+          _rrDebug.firstVal = JSON.stringify(payload).slice(0, 400);
+        }
+        // RaceResult kann data als Objekt {gruppe: [rows]} oder direkt als Array liefern
+        var dataObj = payload.data || payload.Data || payload.result || payload.Result || payload.list && payload.list.data || {};
+        if (Array.isArray(dataObj)) { var tmp = {}; tmp['_'] = dataObj; dataObj = tmp; }
         var dataKeys = Object.keys(dataObj);
         for (var dk=0; dk<dataKeys.length; dk++) {
           var rows = dataObj[dataKeys[dk]];
@@ -2744,7 +2752,9 @@ async function rrFetch() {
             'DataFields: ' + (_rrDebug.dataFields.join(', ') || '(keine)') + '<br>' +
             'iClub-Index: ' + _rrDebug.iClub + '<br>' +
             'Suchbegriff: &ldquo;' + vereinRaw2 + '&rdquo;<br>' +
-            'Club-Werte in Daten (Sample): ' + dbgClubs +
+            'Club-Werte in Daten (Sample): ' + dbgClubs + '<br>' +
+            'Top-Level Keys: ' + ((_rrDebug.topKeys||[]).join(', ')||'?') + '<br>' +
+            '<details><summary style="cursor:pointer">Raw (400 Zeichen)</summary><pre style="font-size:10px;overflow:auto;max-height:120px">' + (_rrDebug.firstVal||'') + '</pre></details>' +
           '</div>' +
         '</div>';
       return;
