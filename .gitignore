@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# PHP-Konfiguration (enthält DB-Zugangsdaten)
+includes/config.php
+
+# Uploads (nutzergenerierte Inhalte, nicht im Repo)
+htdocs/uploads/*
+!htdocs/uploads/.gitkeep
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo

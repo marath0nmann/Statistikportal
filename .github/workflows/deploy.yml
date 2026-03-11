@@ -1,0 +1,26 @@
+name: Deploy to all-inkl.com
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./          # Welcher lokale Ordner hochgeladen wird
+          server-dir: /     # Zielpfad auf all-inkl (anpassen!)
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/config.php
+            **/*.zip
