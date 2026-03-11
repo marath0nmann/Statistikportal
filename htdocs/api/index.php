@@ -431,6 +431,7 @@ if ($res === 'einstellungen') {
                 'email_domain','noreply_email',
                 'farbe_primary','farbe_accent',
                 'dashboard_timeline_limit','version_nur_admins',
+                'adressleiste_farbe','dashboard_layout',
             ];
             $save = [];
             foreach ($erlaubt as $k) {

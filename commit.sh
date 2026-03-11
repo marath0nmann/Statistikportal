@@ -55,4 +55,4 @@ git commit -F .git/COMMIT_EDITMSG
 echo ""
 echo "✅ Committed: $MSG"
 echo ""
-echo "Zum Pushen: git push"
+git push

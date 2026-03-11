@@ -1,4 +1,4 @@
-v209: ZIP-Bereinigung
+v210: API-Whitelist um adressleiste_farbe und dashboard_layout ergänzt
 
-- .git/ und commit.sh nicht mehr in der ZIP enthalten
-- COMMIT_EDITMSG liegt jetzt im Hauptverzeichnis
+- Fehler "Keine gültigen Felder." beim Speichern des Dashboard-Layouts behoben
+- adressleiste_farbe war ebenfalls nicht in der Whitelist
