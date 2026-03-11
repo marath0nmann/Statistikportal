@@ -2653,6 +2653,7 @@ async function rrFetch() {
     var hdrs  = { 'Origin': 'https://my.raceresult.com', 'Referer': 'https://my.raceresult.com/' };
     var allResults = [];
     var eventOrt = "";
+    var _rrDebug = { totalRows: 0, clubSamples: [], dataFields: [], iClub: 7 };
 
     for (var ci = 0; ci < contestIds.length; ci++) {
       var cid   = contestIds[ci];
@@ -2671,6 +2672,7 @@ async function rrFetch() {
         // DataFields beim ersten Treffer kalibrieren
         if (payload.DataFields && payload.DataFields.length) {
           var df = payload.DataFields;
+          if (!_rrDebug.dataFields.length) _rrDebug.dataFields = df.slice();
           for (var fi=0; fi<df.length; fi++) {
             var f = df[fi].toLowerCase();
             if (f.indexOf('anzeigename') >= 0 || f === 'name') iName = fi;
@@ -2679,6 +2681,7 @@ async function rrFetch() {
             else if (f === 'ziel.gun' || f === 'gun') iZeit = fi;
             else if (f === 'ziel.chip' || f === 'chip') iNetto = fi;
           }
+          _rrDebug.iClub = iClub;
         }
 
         // Eventname + Datum aus HeadLine der ersten erfolgreichen Antwort
@@ -2712,8 +2715,12 @@ async function rrFetch() {
           for (var ri=0; ri<rows.length; ri++) {
             var row = rows[ri];
             if (!Array.isArray(row) || row.length < 4) continue;
+            _rrDebug.totalRows++;
+            // Club-Samples für Debug
+            var clubSample = String(row[iClub] || '').trim();
+            if (clubSample && _rrDebug.clubSamples.indexOf(clubSample) < 0 && _rrDebug.clubSamples.length < 20) _rrDebug.clubSamples.push(clubSample);
             if (clubWords.length) {
-              var clubVal = String(row[iClub] || '').toLowerCase();
+              var clubVal = clubSample.toLowerCase();
               var clubOk = false;
               for (var cf=0; cf<clubWords.length; cf++) { if (clubVal.indexOf(clubWords[cf]) >= 0) { clubOk=true; break; } }
               if (!clubOk) continue;
@@ -2726,10 +2733,19 @@ async function rrFetch() {
     }
 
     if (!allResults.length) {
+      var dbgClubs = _rrDebug.clubSamples.length ? _rrDebug.clubSamples.slice(0,10).join(', ') : '(keine)';
+      var vereinRaw2 = (appConfig.verein_kuerzel || appConfig.verein_name || '');
       preview.innerHTML =
         '<div style="background:var(--surf2);border-radius:10px;padding:16px">' +
           '<strong>&#x274C; Keine TuS-Oedt-Ergebnisse gefunden.</strong><br>' +
-          '<span style="font-size:12px;color:var(--text2)">' + contestIds.length + ' Contest(s) &bull; Listname: ' + listName + '</span>' +
+          '<div style="font-size:12px;color:var(--text2);margin-top:8px;line-height:1.7">' +
+            contestIds.length + ' Contest(s) &bull; Listname: ' + listName + '<br>' +
+            'Gesamt-Zeilen geladen: ' + _rrDebug.totalRows + '<br>' +
+            'DataFields: ' + (_rrDebug.dataFields.join(', ') || '(keine)') + '<br>' +
+            'iClub-Index: ' + _rrDebug.iClub + '<br>' +
+            'Suchbegriff: &ldquo;' + vereinRaw2 + '&rdquo;<br>' +
+            'Club-Werte in Daten (Sample): ' + dbgClubs +
+          '</div>' +
         '</div>';
       return;
     }
