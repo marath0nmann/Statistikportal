@@ -1,3 +1,6 @@
-v215: AK-Sortierung: Frauen vor Männer
+v216: AK-Sortierung korrigiert + Papierkorb-Disziplinen ausgeblendet
 
-- rank()-Funktion: WHK/W* auf Präfix 1_, MHK/M* auf 2_
+- Neue numerische AK-Sortierfunktion: W8–W15, WU18, WU23, wjA/wjB, WHK, W30+
+  analog für Männer: M8–M15, mjA/mjB, MHK, M30+
+- Admin → Disziplinen: Disziplinen aus dem Papierkorb (geloescht_am IS NOT NULL)
+  tauchen nicht mehr in der Liste auf

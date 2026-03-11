@@ -1583,7 +1583,7 @@ if ($res === 'disziplin-mapping') {
         // Alle bekannten Disziplinen aus der einheitlichen Ergebnistabelle
         $all_disz = [];
         try {
-            $rows = DB::fetchAll("SELECT DISTINCT disziplin FROM " . DB::tbl('ergebnisse') . " WHERE disziplin IS NOT NULL AND disziplin != '' ORDER BY disziplin");
+            $rows = DB::fetchAll("SELECT DISTINCT disziplin FROM " . DB::tbl('ergebnisse') . " WHERE disziplin IS NOT NULL AND disziplin != '' AND geloescht_am IS NULL ORDER BY disziplin");
             foreach ($rows as $r) {
                 $d = $r['disziplin'];
                 $all_disz[$d] = ['disziplin' => $d, 'kategorie_id' => null, 'kategorie_name' => null, 'anzeige_name' => null, 'fmt_override' => null, 'kat_fmt' => null];
