@@ -2167,10 +2167,10 @@ async function renderRekorde() {
   var akKeys = Object.keys(byAk);
   akKeys.sort(function(a, b) {
     function rank(k) {
-      if (k === 'MHK') return '1_000_MHK';
-      if (/^M/.test(k)) return '1_' + k;
-      if (k === 'WHK') return '2_000_WHK';
-      if (/^W/.test(k)) return '2_' + k;
+      if (k === 'WHK') return '1_000_WHK';
+      if (/^W/.test(k)) return '1_' + k;
+      if (k === 'MHK') return '2_000_MHK';
+      if (/^M/.test(k)) return '2_' + k;
       return '3_' + k;
     }
     return rank(a) < rank(b) ? -1 : 1;
