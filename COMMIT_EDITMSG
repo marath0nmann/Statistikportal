@@ -1,7 +1,7 @@
-v228: RaceResult Name-Erkennung + Disziplin-Fix + Zeitfarbe
+v229: RaceResult: PlatzAK, 5.000m-Matching, Eventname-Fix, Zeitfarbe
 
-- Netto-Zeit: --btn-bg → --result-color (Dark Mode lesbar)
-- Name-Spalte: heuristisch bestimmt wenn DataFields fehlen
-  (längster String mit Komma/Leerzeichen = Name)
-- DataFields-Matching: robustere Keywords für Name/Club/AK/Zeit
-- diszList: .disziplin korrekt aus Objekt-Array extrahiert
+- Platz AK: neue Spalte in Vorschau + wird beim Import mitgespeichert
+- Disziplin: "5.000 m" wird korrekt als "5km" erkannt (Tausenderpunkt)
+- Eventname: trailing " am" wird abgeschnitten
+- Netto-Zeit: --result-color statt --btn-bg (Dark Mode lesbar)
+- Name-Heuristik: längster "Name-artiger" String wenn DataFields fehlen
