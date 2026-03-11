@@ -43,13 +43,6 @@ MSG=$(grep -v '^#' .git/COMMIT_EDITMSG | sed '/^$/d' | head -1)
 echo "💬 Commit-Message: $MSG"
 echo ""
 
-# Bestätigung
-read -p "➡️  Alles committen? [j/N] " confirm
-if [[ "$confirm" != "j" && "$confirm" != "J" ]]; then
-  echo "Abgebrochen."
-  exit 0
-fi
-
 git add -A
 git commit -F .git/COMMIT_EDITMSG
 echo ""

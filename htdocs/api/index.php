@@ -1321,7 +1321,7 @@ if ($res === 'rekorde') {
         $counts = [];
         foreach ($disz as $d) {
             $tbl = $getTblForDisz($d);
-            $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin=?", [$d]);
+            $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin=? AND geloescht_am IS NULL", [$d]);
             $counts[] = ['disziplin' => $d, 'cnt' => $cnt ? (int)$cnt['c'] : 0];
         }
         usort($counts, function($a,$b){ return $b['cnt'] - $a['cnt']; });
@@ -1335,7 +1335,7 @@ if ($res === 'rekorde') {
         $result = [];
         foreach ($disz as $d) {
             $tbl = $getTblForDisz($d);
-            $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin=?", [$d]);
+            $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin=? AND geloescht_am IS NULL", [$d]);
             $result[] = ['disziplin' => $d, 'cnt' => $cnt ? (int)$cnt['c'] : 0];
         }
         usort($result, function($a,$b){ return $b['cnt'] - $a['cnt']; });
@@ -1373,25 +1373,34 @@ if ($res === 'rekorde') {
             "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
              FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
-             WHERE e.disziplin=? ORDER BY $sortCol $dir LIMIT 50", [$disz]);
+             WHERE e.disziplin=? AND e.geloescht_am IS NULL
+               AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
+             ORDER BY $sortCol $dir LIMIT 50", [$disz]);
 
         $top_m = DB::fetchAll(
             "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id
              FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
-             WHERE e.disziplin=? AND (a.geschlecht='M' OR (a.geschlecht IS NULL AND e.altersklasse LIKE 'M%'))
+             WHERE e.disziplin=? AND e.geloescht_am IS NULL
+               AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
+               AND (a.geschlecht='M' OR (a.geschlecht IS NULL AND e.altersklasse LIKE 'M%'))
              ORDER BY $sortCol $dir LIMIT 50", [$disz]);
 
         $top_w = DB::fetchAll(
             "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id
              FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
-             WHERE e.disziplin=? AND (a.geschlecht='W' OR (a.geschlecht IS NULL AND (e.altersklasse LIKE 'W%' OR e.altersklasse LIKE 'F%')))
+             WHERE e.disziplin=? AND e.geloescht_am IS NULL
+               AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
+               AND (a.geschlecht='W' OR (a.geschlecht IS NULL AND (e.altersklasse LIKE 'W%' OR e.altersklasse LIKE 'F%')))
              ORDER BY $sortCol $dir LIMIT 50", [$disz]);
 
         $aks_rows = DB::fetchAll(
             "SELECT DISTINCT $akExpr AS altersklasse FROM $tbl e
+             JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
+             JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
              WHERE e.disziplin=? AND e.altersklasse IS NOT NULL AND e.altersklasse != ''
+               AND e.geloescht_am IS NULL AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
              ORDER BY altersklasse", [$disz]);
         $all_ak = [];
         foreach ($aks_rows as $ak_row) {
@@ -1401,6 +1410,7 @@ if ($res === 'rekorde') {
                         $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
                  FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
                  WHERE e.disziplin=? AND $akExpr=?
+                   AND e.geloescht_am IS NULL AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
                  ORDER BY $sortCol $dir LIMIT 50", [$disz, $ak_val]);
             $all_ak[$ak_val] = $ak_results;
         }
