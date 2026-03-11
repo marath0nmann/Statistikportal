@@ -2166,14 +2166,44 @@ async function renderRekorde() {
   var byAk = d.by_ak || {};
   var akKeys = Object.keys(byAk);
   akKeys.sort(function(a, b) {
+    // Gibt einen sortierbaren String zurück
+    // Reihenfolge: W-Jugend, W-Senior (aufsteigend), wjB, wjA, WU23, WU18, WHK, W30+
+    //              M-Jugend, M-Senior (aufsteigend), mjB, mjA, MHK, M30+
     function rank(k) {
-      if (k === 'WHK') return '1_000_WHK';
-      if (/^W/.test(k)) return '1_' + k;
-      if (k === 'MHK') return '2_000_MHK';
-      if (/^M/.test(k)) return '2_' + k;
-      return '3_' + k;
+      // Numerische AK extrahieren: M35 → 35, W10 → 10
+      var numMatch = k.match(/^([MW])(\d+)$/);
+      if (numMatch) {
+        var g = numMatch[1] === 'W' ? '1' : '2';
+        var n = parseInt(numMatch[2], 10);
+        // Jugend (< 20) vor HK-Bereich (20-29) vor Masters (30+)
+        // Jugend: 0100–0119, HK-Bereich (MHK-Slot): 0120–0129, Masters: 0130+
+        var slot = n < 20 ? (100 + n) : n < 30 ? (200 + n) : (300 + n);
+        return g + '_' + String(slot).padStart(4, '0');
+      }
+      // Sonderfälle Frauen
+      if (k === 'WU8')      return '1_0108';
+      if (k === 'WU10-U12') return '1_0110';
+      if (k === 'WU18')     return '1_0118';
+      if (k === 'WU23')     return '1_0123';
+      if (k === 'wjB')      return '1_0214'; // vor mjA/MHK-Slot
+      if (k === 'wjA')      return '1_0215';
+      if (k === 'WHK')      return '1_0220';
+      if (k === 'F' || k === 'W') return '1_0221';
+      // Sonderfälle Männer
+      if (k === 'MU8')      return '2_0108';
+      if (k === 'MU10-12')  return '2_0110';
+      if (k === 'MU18')     return '2_0118';
+      if (k === 'MU20')     return '2_0120';
+      if (k === 'MU23')     return '2_0123';
+      if (k === 'mjB')      return '2_0214';
+      if (k === 'mjA')      return '2_0215';
+      if (k === 'MHK' || k === 'M') return '2_0220';
+      if (k === 'U18')      return '1_0118'; // unklar → W-Seite
+      // Unbekannte hinten
+      return '9_' + k;
     }
-    return rank(a) < rank(b) ? -1 : 1;
+    var ra = rank(a), rb = rank(b);
+    return ra < rb ? -1 : ra > rb ? 1 : 0;
   });
 
   sectionHtml += rekSectionHead('Nach Altersklasse');
