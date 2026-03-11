@@ -131,12 +131,14 @@ function mstrLabel(val) {
   var n = parseInt(val, 10);
   return MSTR_MAP[n] || ('MS ' + val);
 }
-function platzBadge(platz) {
-  if (!platz) return '';
-  var n = parseInt(platz, 10);
-  var cls = n === 1 ? 'gold' : n === 2 ? 'silver' : n === 3 ? 'bronze' : '';
-  return '<span class="top-rank ' + cls + '" style="font-size:14px;min-width:0">' + n + '</span>';
+function medalBadge(n) {
+  if (!n) return '';
+  n = parseInt(n, 10);
+  var cls = n === 1 ? 'gold' : n === 2 ? 'silver' : n === 3 ? 'bronze' : 'rank';
+  return '<span class="medal-badge ' + cls + '">' + n + '</span>';
 }
+// Alias für AK-Platzierungen
+function platzBadge(platz) { return medalBadge(platz); }
 
 function mstrBadge(val) {
   if (!val) return '';
@@ -2264,7 +2266,7 @@ function buildRekTable(rows, fmt, compact, showPace, athletLabel) {
     if (rs2.highlightCurYear  && rowYear === curYear2)     rowCls = ' hl-cur-year';
     if (rs2.highlightPrevYear && rowYear === curYear2 - 1) rowCls = ' hl-prev-year';
     html += '<tr class="' + rowCls.trim() + '">';
-    html += '<td><span class="top-rank ' + rankCls + '" style="width:30px;height:30px;font-size:13px;font-weight:600">'+(i+1)+'</span></td>';
+    html += '<td>' + medalBadge(i + 1) + '</td>';
     var athletInner = r.athlet_id ? '<span class="athlet-link" data-athlet-id="' + r.athlet_id + '">' + (r.athlet || '&ndash;') + '</span>' : (r.athlet || '&ndash;');
     html += '<td style="font-weight:600">' + athletInner + '</td>';
     html += '<td class="result">' + result + '</td>';
