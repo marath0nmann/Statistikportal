@@ -2629,14 +2629,17 @@ async function rrFetch() {
     var contestObj = cfg.contests || cfg.Contests || {};
     _rrDebug.cfgKeys = Object.keys(cfg).slice(0, 15);
     _rrDebug.cfgKey = apiKey;
+    _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
+    _rrDebug.listName = listName;
     var contestIds = Object.keys(contestObj);
     if (!contestIds.length) contestIds = ['1'];
 
     // listname aus Config ermitteln: cfg.list ist Objekt mit Keys = Listennamen
     // z.B. { "02-ERGEBNISSE|Ergebnisse_Ges": { ... }, "03-...": { ... } }
     var listName = '';
-    if (cfg.list) {
-      var listKeys = Object.keys(cfg.list);
+    var listSource = cfg.list || cfg.lists || {};
+    if (listSource && Object.keys(listSource).length) {
+      var listKeys = Object.keys(listSource);
       // Erste Ergebnisliste wählen: nach diversen Namensmustern
       var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','OVERALL','EINZEL'];
       for (var lk = 0; lk < listKeys.length && !listName; lk++) {
@@ -2669,7 +2672,7 @@ async function rrFetch() {
           '?key='      + apiKey +
           '&listname=' + encodeURIComponent(listName) +
           '&page=results&contest=' + cid +
-          '&r=all&l=9999&openedGroups=%7B%7D';
+          '&r=search&l=9999&openedGroups=%7B%7D&term=';
         var resp = await fetch(url, { headers: hdrs });
         if (!resp.ok) {
           if (!_rrDebug.errors) _rrDebug.errors = [];
@@ -2770,6 +2773,8 @@ async function rrFetch() {
             'Config-Keys: ' + ((_rrDebug.cfgKeys||[]).join(', ')||'?') + '<br>' +
             'API-Key: &ldquo;' + (_rrDebug.cfgKey||'leer') + '&rdquo;<br>' +
             'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine') + '<br>' +
+            'Contests: ' + (_rrDebug.contestSample||'?') + '<br>' +
+            'ListName aus Config: ' + (_rrDebug.listName||'?') + '<br>' +
             '<details><summary style="cursor:pointer">Raw (400 Zeichen)</summary><pre style="font-size:10px;overflow:auto;max-height:120px">' + (_rrDebug.firstVal||'') + '</pre></details>' +
           '</div>' +
         '</div>';
