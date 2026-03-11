@@ -1,0 +1,7 @@
+Merge branch 'master'
+
+# Conflicts:
+#	htdocs/app.css
+#	htdocs/app.js
+#	htdocs/index.html
+#	includes/settings.php

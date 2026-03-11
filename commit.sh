@@ -14,6 +14,8 @@ echo "📋 Geänderte Dateien:"
 git status --short
 echo ""
 
+cp COMMIT_EDITMSG .git/COMMIT_EDITMSG
+
 # Commit-Message aus COMMIT_EDITMSG lesen (erste nicht-leere Zeile)
 MSG=$(grep -v '^#' .git/COMMIT_EDITMSG | sed '/^$/d' | head -1)
 echo "💬 Commit-Message: $MSG"
