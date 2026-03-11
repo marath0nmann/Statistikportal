@@ -2022,6 +2022,7 @@ async function renderRekorde() {
   if (rs.unique === undefined) rs.unique = true;
   if (rs.highlightCurYear  === undefined) rs.highlightCurYear  = true;
   if (rs.highlightPrevYear === undefined) rs.highlightPrevYear = false;
+  if (rs.mergeAK           === undefined) rs.mergeAK           = true;
   var el = document.getElementById('main-content');
 
   // Kategorien dynamisch laden (nur mit Einträgen)
@@ -2118,7 +2119,7 @@ async function renderRekorde() {
 
   el.innerHTML = catHtml + topHtml + diszHtml + '<div class="loading" style="padding:32px"><div class="spinner"></div>Lade Rekorde&hellip;</div>';
 
-  var r = await apiGet('rekorde?kat=' + rs.kat + '&disz=' + encodeURIComponent(rs.disz));
+  var r = await apiGet('rekorde?kat=' + rs.kat + '&disz=' + encodeURIComponent(rs.disz) + '&merge_ak=' + (rs.mergeAK ? '1' : '0'));
   if (!r || !r.ok) {
     el.innerHTML = catHtml + topHtml + diszHtml + '<div class="panel" style="padding:24px;text-align:center;color:var(--accent)">' + (r && r.fehler ? r.fehler : 'Fehler') + '</div>';
     return;
@@ -2148,16 +2149,16 @@ async function renderRekorde() {
   // ── 2. MÄNNER / FRAUEN ────────────────────────────────────
   var mRows = uniqueRows(d.maenner || []);
   var wRows = uniqueRows(d.frauen  || []);
-  sectionHtml += rekSectionHead('M&auml;nner / Frauen');
+  sectionHtml += rekSectionHead('Frauen / M&auml;nner');
   sectionHtml +=
     '<div class="mw-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:28px">' +
-      '<div class="rek-ak-card">' +
-        '<div class="rek-ak-header">&#x2642;&#xFE0F; M&auml;nner</div>' +
-        buildRekTable(mRows, fmt, false, rs.kat === 'strasse', 'Athlet') +
-      '</div>' +
       '<div class="rek-ak-card" style="border-top:3px solid var(--primary)">' +
-        '<div class="rek-ak-header" style="background:var(--primary)">&#x2640;&#xFE0F; Frauen</div>' +
+        '<div class="rek-ak-header" style="background:var(--primary)">Frauen</div>' +
         buildRekTable(wRows, fmt, false, rs.kat === 'strasse', 'Athletin') +
+      '</div>' +
+      '<div class="rek-ak-card">' +
+        '<div class="rek-ak-header">M&auml;nner</div>' +
+        buildRekTable(mRows, fmt, false, rs.kat === 'strasse', 'Athlet') +
       '</div>' +
     '</div>';
 
@@ -2222,6 +2223,10 @@ async function renderRekorde() {
         '<input type="checkbox" id="rek-hl-prev"' + (rs.highlightPrevYear ? ' checked' : '') + ' onchange="toggleRekHl(\'prev\',this.checked)" style="width:15px;height:15px;accent-color:#4070c0;cursor:pointer">' +
         (curYear - 1) + ' hervorheben' +
       '</label>' +
+      '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2)">' +
+        '<input type="checkbox" id="rek-merge-ak"' + (rs.mergeAK ? ' checked' : '') + ' onchange="toggleRekMergeAK(this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg);cursor:pointer">' +
+        'Jugend-AK zu MHK/WHK zusammenfassen' +
+      '</label>' +
     '</div>';
 
   el.innerHTML = catHtml + topHtml + diszHtml +
@@ -2236,6 +2241,10 @@ function rekSectionHead(label) {
          label + '</div>';
 }
 
+function toggleRekMergeAK(val) {
+  state.rekState.mergeAK = val;
+  renderRekorde();
+}
 function toggleRekUnique(val) {
   state.rekState.unique = val;
   renderRekorde();
