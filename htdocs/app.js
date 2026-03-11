@@ -2619,10 +2619,12 @@ async function rrFetch() {
     if (!cfgResp.ok) throw new Error('HTTP ' + cfgResp.status + ' bei config');
     var cfg = await cfgResp.json();
 
-    var apiKey     = cfg.key || '';
+    var apiKey     = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
     var eventName  = cfg.EventName || cfg.Name || '';
     var eventDate  = cfg.EventDate || cfg.Date || '';
-    var contestObj = cfg.contests || {};
+    var contestObj = cfg.contests || cfg.Contests || {};
+    _rrDebug.cfgKeys = Object.keys(cfg).slice(0, 15);
+    _rrDebug.cfgKey = apiKey;
     var contestIds = Object.keys(contestObj);
     if (!contestIds.length) contestIds = ['1'];
 
@@ -2649,7 +2651,7 @@ async function rrFetch() {
     // ["BIB","ID","MitStatus([GesPlp])","AnzeigeName","YEAR","[GeschlechtMW]","[AGEGROUP1.NAMESHORT]","CLUB","Ziel.GUN","Ziel.CHIP"]
     var iName=3; var iClub=7; var iAK=6; var iZeit=8; var iNetto=9;
 
-    var base4 = 'https://my4.raceresult.com/' + eventId + '/RRPublish/data/list';
+    var base4 = 'https://my.raceresult.com/' + eventId + '/RRPublish/data/list';
     var hdrs  = { 'Origin': 'https://my.raceresult.com', 'Referer': 'https://my.raceresult.com/' };
     var allResults = [];
     var eventOrt = "";
@@ -2666,9 +2668,14 @@ async function rrFetch() {
           '&page=results&contest=' + cid +
           '&r=all&l=9999&openedGroups=%7B%7D';
         var resp = await fetch(url, { headers: hdrs });
-        if (!resp.ok) { _rrDebug.firstVal = 'HTTP ' + resp.status + ' ' + resp.statusText + ' für Contest ' + cid; continue; }
+        if (!resp.ok) {
+          if (!_rrDebug.errors) _rrDebug.errors = [];
+          _rrDebug.errors.push('HTTP ' + resp.status + ' Contest ' + cid);
+          if (!_rrDebug.firstVal) _rrDebug.firstVal = 'HTTP ' + resp.status + ' für Contest ' + cid + ' | URL: ' + url.slice(0,200);
+          continue;
+        }
         var rawText = await resp.text();
-        if (ci === 0) _rrDebug.firstVal = rawText.slice(0, 600);
+        if (!_rrDebug.firstVal) _rrDebug.firstVal = rawText.slice(0, 600);
         var payload;
         try { payload = JSON.parse(rawText); } catch(pe) { _rrDebug.firstVal = 'JSON-Parse-Fehler: ' + pe.message + ' | Raw: ' + rawText.slice(0,300); continue; }
 
@@ -2757,6 +2764,9 @@ async function rrFetch() {
             'Suchbegriff: &ldquo;' + vereinRaw2 + '&rdquo;<br>' +
             'Club-Werte in Daten (Sample): ' + dbgClubs + '<br>' +
             'Top-Level Keys: ' + ((_rrDebug.topKeys||[]).join(', ')||'?') + '<br>' +
+            'Config-Keys: ' + ((_rrDebug.cfgKeys||[]).join(', ')||'?') + '<br>' +
+            'API-Key: &ldquo;' + (_rrDebug.cfgKey||'leer') + '&rdquo;<br>' +
+            'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine') + '<br>' +
             '<details><summary style="cursor:pointer">Raw (400 Zeichen)</summary><pre style="font-size:10px;overflow:auto;max-height:120px">' + (_rrDebug.firstVal||'') + '</pre></details>' +
           '</div>' +
         '</div>';
