@@ -2617,7 +2617,10 @@ async function rrFetch() {
   try {
     var cfgResp = await fetch('https://my.raceresult.com/' + eventId + '/RRPublish/data/config?lang=de&page=results&noVisitor=1');
     if (!cfgResp.ok) throw new Error('HTTP ' + cfgResp.status + ' bei config');
-    var cfg = await cfgResp.json();
+    var cfgText = await cfgResp.text();
+    var cfg;
+    try { cfg = JSON.parse(cfgText); } catch(e) { throw new Error('Config kein JSON: ' + cfgText.slice(0, 200)); }
+    if (!cfg || typeof cfg !== 'object') throw new Error('Config ungültig: ' + cfgText.slice(0, 200));
 
     var apiKey     = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
     var eventName  = cfg.EventName || cfg.Name || '';
@@ -2653,9 +2656,9 @@ async function rrFetch() {
 
     var base4 = 'https://my.raceresult.com/' + eventId + '/RRPublish/data/list';
     var hdrs  = { 'Origin': 'https://my.raceresult.com', 'Referer': 'https://my.raceresult.com/' };
+    var _rrDebug = { totalRows: 0, clubSamples: [], dataFields: [], iClub: 7, cfgKeys: [], cfgKey: '', errors: [] };
     var allResults = [];
     var eventOrt = "";
-    var _rrDebug = { totalRows: 0, clubSamples: [], dataFields: [], iClub: 7 };
 
     for (var ci = 0; ci < contestIds.length; ci++) {
       var cid   = contestIds[ci];
