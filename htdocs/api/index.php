@@ -1592,7 +1592,7 @@ if ($res === 'disziplin-mapping') {
             // Fallback auf alte Tabellen falls Migration noch nicht gelaufen
             foreach ($_sys as $skey => $stbl) {
                 try {
-                    $rows = DB::fetchAll("SELECT DISTINCT disziplin FROM $stbl WHERE disziplin IS NOT NULL AND disziplin != '' ORDER BY disziplin");
+                    $rows = DB::fetchAll("SELECT DISTINCT disziplin FROM $stbl WHERE disziplin IS NOT NULL AND disziplin != '' AND (geloescht_am IS NULL OR geloescht_am = '') ORDER BY disziplin");
                     foreach ($rows as $r) {
                         $d = $r['disziplin'];
                         if (!isset($all_disz[$d])) $all_disz[$d] = ['disziplin'=>$d,'kategorie_id'=>null,'kategorie_name'=>null,'anzeige_name'=>null,'fmt_override'=>null,'kat_fmt'=>null];
@@ -1600,18 +1600,21 @@ if ($res === 'disziplin-mapping') {
                 } catch (Exception $e2) {}
             }
         }
-        // Mappings drauflegen
+        // Mappings drauflegen – auch Disziplinen die nur im Mapping stehen (keine aktiven Ergebnisse)
         $mappings = DB::fetchAll(
             "SELECT m.disziplin, m.kategorie_id, m.anzeige_name, m.fmt_override, k.name AS kategorie_name, k.fmt AS kat_fmt
              FROM " . DB::tbl('disziplin_mapping') . " m JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id");
         foreach ($mappings as $m) {
-            if (isset($all_disz[$m['disziplin']])) {
-                $all_disz[$m['disziplin']]['kategorie_id']   = $m['kategorie_id'];
-                $all_disz[$m['disziplin']]['kategorie_name'] = $m['kategorie_name'];
-                $all_disz[$m['disziplin']]['anzeige_name']   = $m['anzeige_name'];
-                $all_disz[$m['disziplin']]['fmt_override']   = $m['fmt_override'];
-                $all_disz[$m['disziplin']]['kat_fmt']        = $m['kat_fmt'];
+            // Falls die Disziplin nicht in all_disz ist (nur Mapping, keine aktiven Ergebnisse),
+            // trotzdem aufnehmen damit sie in Admin gelöscht werden kann
+            if (!isset($all_disz[$m['disziplin']])) {
+                $all_disz[$m['disziplin']] = ['disziplin' => $m['disziplin'], 'kategorie_id' => null, 'kategorie_name' => null, 'anzeige_name' => null, 'fmt_override' => null, 'kat_fmt' => null, 'nur_mapping' => true];
             }
+            $all_disz[$m['disziplin']]['kategorie_id']   = $m['kategorie_id'];
+            $all_disz[$m['disziplin']]['kategorie_name'] = $m['kategorie_name'];
+            $all_disz[$m['disziplin']]['anzeige_name']   = $m['anzeige_name'];
+            $all_disz[$m['disziplin']]['fmt_override']   = $m['fmt_override'];
+            $all_disz[$m['disziplin']]['kat_fmt']        = $m['kat_fmt'];
         }
         ksort($all_disz);
         jsonOk(array_values($all_disz));

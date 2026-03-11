@@ -2152,8 +2152,8 @@ async function renderRekorde() {
   sectionHtml += rekSectionHead('Frauen / M&auml;nner');
   sectionHtml +=
     '<div class="mw-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:28px">' +
-      '<div class="rek-ak-card" style="border-top:3px solid var(--primary)">' +
-        '<div class="rek-ak-header" style="background:var(--primary)">Frauen</div>' +
+      '<div class="rek-ak-card">' +
+        '<div class="rek-ak-header" style="background:var(--primary);color:var(--on-primary)">Frauen</div>' +
         buildRekTable(wRows, fmt, false, rs.kat === 'strasse', 'Athletin') +
       '</div>' +
       '<div class="rek-ak-card">' +
@@ -2215,7 +2215,7 @@ async function renderRekorde() {
     var grids = [[]];
     for (var aki = 0; aki < akKeys.length; aki++) {
       var ak = akKeys[aki];
-      var isW = /^W/.test(ak) || ak === 'WHK';
+      var isW = /^W/.test(ak) || ak === 'WHK' || ak === 'wjA' || ak === 'wjB';
       var curGender = isW ? 'w' : 'm';
       if (prevGender !== null && prevGender !== curGender) { grids.push([]); }
       grids[grids.length - 1].push({ ak: ak, isW: isW });
@@ -2228,8 +2228,8 @@ async function renderRekorde() {
         var item = grids[gi][ai];
         var ak = item.ak; var isW = item.isW;
         var rows = uniqueRows(byAk[ak] || []);
-        sectionHtml += '<div class="rek-ak-card" style="' + (isW ? 'border-top:3px solid var(--primary)' : '') + '">';
-        sectionHtml += '<div class="rek-ak-header" style="' + (isW ? 'background:var(--primary)' : '') + '">' + ak + '</div>';
+        sectionHtml += '<div class="rek-ak-card">';
+        sectionHtml += '<div class="rek-ak-header" style="' + (isW ? 'background:var(--primary);color:var(--on-primary)' : '') + '">' + ak + '</div>';
         sectionHtml += buildRekTable(rows, fmt, true, false);
         sectionHtml += '</div>';
       }
@@ -2242,6 +2242,10 @@ async function renderRekorde() {
   var uniqueHtml =
     '<div style="margin-top:24px;padding-top:14px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:16px;align-items:center">' +
       '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2)">' +
+        '<input type="checkbox" id="rek-merge-ak"' + (rs.mergeAK ? ' checked' : '') + ' onchange="toggleRekMergeAK(this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg);cursor:pointer">' +
+        'Jugend-AK zu MHK/WHK zusammenfassen' +
+      '</label>' +
+      '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2)">' +
         '<input type="checkbox" id="rek-unique"' + (rs.unique ? ' checked' : '') + ' onchange="toggleRekUnique(this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg);cursor:pointer">' +
         'Jede*r Athlet*in nur einmal (beste Leistung)' +
       '</label>' +
@@ -2252,10 +2256,6 @@ async function renderRekorde() {
       '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:#205090">' +
         '<input type="checkbox" id="rek-hl-prev"' + (rs.highlightPrevYear ? ' checked' : '') + ' onchange="toggleRekHl(\'prev\',this.checked)" style="width:15px;height:15px;accent-color:#4070c0;cursor:pointer">' +
         (curYear - 1) + ' hervorheben' +
-      '</label>' +
-      '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2)">' +
-        '<input type="checkbox" id="rek-merge-ak"' + (rs.mergeAK ? ' checked' : '') + ' onchange="toggleRekMergeAK(this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg);cursor:pointer">' +
-        'Jugend-AK zu MHK/WHK zusammenfassen' +
       '</label>' +
     '</div>';
 
