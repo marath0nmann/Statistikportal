@@ -1,1 +1,1 @@
-v225: RaceResult _rrDebug-Init vor try-Block (war nach cfgKeys-Zugriff)
+v226: RaceResult r=all→r=search, cfg.lists, Contest-Debug
