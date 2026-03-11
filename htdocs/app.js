@@ -2833,9 +2833,16 @@ function rrBestDisz(rrName, diszList) {
     .replace(/lauf|rennen|wettbewerb|gesamt|einzel|lauf-/gi, '')
     .replace(/\s+/g, ' ').trim();
 
-  // Zahl + Einheit extrahieren: "5 km" -> "5km", "10 km" -> "10km"
-  var numMatch = q.match(/(\d+[,.]?\d*)\s*(km|m\b)/);
-  var numKey = numMatch ? (numMatch[1].replace(',','.') + numMatch[2]) : '';
+  // Zahl + Einheit extrahieren: "5.000 m" / "5 km" -> "5km"
+  var qNorm = q.replace(/(\d)\.(\d{3})\b/g, '$1$2'); // 5.000 → 5000
+  var numMatch = qNorm.match(/(\d+[,.]?\d*)\s*(km|m\b)/);
+  var numKey = '';
+  if (numMatch) {
+    var numVal = parseFloat(numMatch[1].replace(',','.'));
+    var numUnit = numMatch[2];
+    if (numUnit === 'm' && numVal >= 1000) { numVal = numVal / 1000; numUnit = 'km'; }
+    numKey = numVal + numUnit;
+  }
 
   var best = ''; var bestScore = -1;
   for (var i = 0; i < diszList.length; i++) {
@@ -2934,6 +2941,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
           '<th style="padding:6px;text-align:left">Disziplin</th>' +
           '<th style="padding:6px;text-align:left">Netto-Zeit</th>' +
           '<th style="padding:6px;text-align:left">AK</th>' +
+          '<th style="padding:6px;text-align:left">Platz AK</th>' +
           '<th style="padding:6px;text-align:left">Verein</th>' +
         '</tr></thead>' +
         '<tbody>' + rows + '</tbody>' +
@@ -2972,12 +2980,14 @@ async function rrImport() {
     var athletId = aths[i] ? parseInt(aths[i].value) || null : null;
     var disziplin = diszInputs[i] ? diszInputs[i].value.trim() : '';
     if (!athletId || !disziplin) continue;
-    var zeit  = String(raw[r.iNetto] || raw[r.iZeit] || '').trim();
-    var ak    = String(raw[r.iAK]    || '').trim();
+    var zeit     = String(raw[r.iNetto] || raw[r.iZeit] || '').trim();
+    var ak       = String(raw[r.iAK]  || '').trim();
+    var platzAKv = r.iPlatz >= 0 ? parseInt(raw[r.iPlatz]) || null : null;
     items.push({
       datum: datum, ort: ort, veranstaltung_name: evname,
       athlet_id: athletId, disziplin: disziplin,
       resultat: zeit, altersklasse: ak,
+      ak_platzierung: platzAKv,
       import_quelle: 'raceresult:' + eventId
     });
   }
