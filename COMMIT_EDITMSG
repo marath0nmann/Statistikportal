@@ -1,9 +1,6 @@
-v218: Eintragen-Fixes + champ-row + RaceResult-Verbesserungen
+v219: Eintragen direkt Bulk + RaceResult Club-Filter Fix
 
-- Ergebnisse: champ-row Hintergrundfarbe entfernt
-- Eintragen: Sub-Tabs als Buttons (Admin-Stil)
-- Bulk: Disziplin-Select zeigt korrekte Namen statt [object Object]
-- Bulk: Athleten ohne AK-Klammer; AK als Select, gefiltert nach Geschlecht des Athleten
-- RaceResult: sucht nach verein_kuerzel statt vollem Vereinsnamen
-- RaceResult: Listname-Erkennung um GESAMT/FINISH/ZIEL/OVERALL erweitert
-- RaceResult: Nachfilter auf Vereinsname nach Laden der Daten
+- navigate(): Eintragen-Tab öffnet jetzt direkt Bulk-Eintragen (subTab='bulk')
+- RaceResult: &term= (Namenssuche) entfernt - lud falsche/keine Ergebnisse
+  Stattdessen: alle Ergebnisse laden (&r=all), dann clientseitig nach
+  Club-Spalte auf Vereinsname filtern
