@@ -1,1 +1,7 @@
-v227: RaceResult lists-Array korrekt parsen + listsRaw Debug
+v228: RaceResult Name-Erkennung + Disziplin-Fix + Zeitfarbe
+
+- Netto-Zeit: --btn-bg → --result-color (Dark Mode lesbar)
+- Name-Spalte: heuristisch bestimmt wenn DataFields fehlen
+  (längster String mit Komma/Leerzeichen = Name)
+- DataFields-Matching: robustere Keywords für Name/Club/AK/Zeit
+- diszList: .disziplin korrekt aus Objekt-Array extrahiert
