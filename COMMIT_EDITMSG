@@ -1,6 +1,9 @@
-v216: AK-Sortierung korrigiert + Papierkorb-Disziplinen ausgeblendet
+v217: Bestleistungen: wjA/wjB weiblich, einheitliche Header, mergeAK zuerst, 5km fix
 
-- Neue numerische AK-Sortierfunktion: W8–W15, WU18, WU23, wjA/wjB, WHK, W30+
-  analog für Männer: M8–M15, mjA/mjB, MHK, M30+
-- Admin → Disziplinen: Disziplinen aus dem Papierkorb (geloescht_am IS NOT NULL)
-  tauchen nicht mehr in der Liste auf
+- wjA und wjB als weiblich erkannt (isW-Check) → korrekte Farbe + Grid-Zuordnung
+- Frauen-Cards: border-top entfernt → optisch gleich wie Männer-Cards
+- Frauen-Header: background:primary ohne zusätzlichen border → kein "doppelter" Rand
+- Option "Jugend-AK zu MHK/WHK zusammenfassen" an erste Stelle in Optionsleiste
+- Disziplin-Mapping: nur-Mapping-Einträge (keine aktiven Ergebnisse) erscheinen
+  ebenfalls in Admin-Liste → können dort gelöscht werden
+- Legacy-Tabellen-Fallback filtert geloescht_am
