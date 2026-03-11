@@ -1191,7 +1191,11 @@ function navigate(tab) {
   state.tab    = tab;
   state.page   = 1;
   state.veranstPage = 1;
-  state.subTab = 'strasse';
+  // subTab nur für Tabs mit eigenen Sub-Tabs zurücksetzen
+  if (tab === 'ergebnisse') state.subTab = 'strasse';
+  else if (tab === 'eintragen') state.subTab = 'bulk';
+  else if (tab === 'admin') { /* subTab bleibt */ }
+  else state.subTab = '';
   state.filters = {};
   buildNav();
   renderPage();
@@ -2659,8 +2663,7 @@ async function rrFetch() {
           '?key='      + apiKey +
           '&listname=' + encodeURIComponent(listName) +
           '&page=results&contest=' + cid +
-          '&r=search&l=9999&openedGroups=%7B%7D' +
-          '&term='     + encodeURIComponent(appConfig.verein_kuerzel || appConfig.verein_name || 'TuS Oedt');
+          '&r=all&l=9999&openedGroups=%7B%7D';
         var resp = await fetch(url, { headers: hdrs });
         if (!resp.ok) continue;
         var payload = await resp.json();
@@ -2703,15 +2706,18 @@ async function rrFetch() {
         for (var dk=0; dk<dataKeys.length; dk++) {
           var rows = dataObj[dataKeys[dk]];
           if (!Array.isArray(rows)) continue;
-          var clubFilter = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().split(/[\s.]+/).filter(function(w){return w.length>2;});
+          // Club-Filter: Vereinsname/Kürzel in Club-Spalte suchen
+          var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '');
+          var clubWords = vereinRaw.toLowerCase().split(/[\s.]+/).filter(function(w){return w.length>2;});
           for (var ri=0; ri<rows.length; ri++) {
             var row = rows[ri];
             if (!Array.isArray(row) || row.length < 4) continue;
-            // Club-Spalte auf Vereinsbezug prüfen (bei &term= kommen eigentlich nur Vereinstreffer)
-            var clubVal = String(row[iClub] || '').toLowerCase();
-            var clubOk = !clubFilter.length;
-            for (var cf=0; cf<clubFilter.length; cf++) { if (clubVal.indexOf(clubFilter[cf]) >= 0) { clubOk=true; break; } }
-            if (!clubOk) continue;
+            if (clubWords.length) {
+              var clubVal = String(row[iClub] || '').toLowerCase();
+              var clubOk = false;
+              for (var cf=0; cf<clubWords.length; cf++) { if (clubVal.indexOf(clubWords[cf]) >= 0) { clubOk=true; break; } }
+              if (!clubOk) continue;
+            }
             allResults.push({ raw: row, contestName: cname,
               iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto });
           }
