@@ -2666,8 +2666,11 @@ async function rrFetch() {
           '&page=results&contest=' + cid +
           '&r=all&l=9999&openedGroups=%7B%7D';
         var resp = await fetch(url, { headers: hdrs });
-        if (!resp.ok) continue;
-        var payload = await resp.json();
+        if (!resp.ok) { _rrDebug.firstVal = 'HTTP ' + resp.status + ' ' + resp.statusText + ' für Contest ' + cid; continue; }
+        var rawText = await resp.text();
+        if (ci === 0) _rrDebug.firstVal = rawText.slice(0, 600);
+        var payload;
+        try { payload = JSON.parse(rawText); } catch(pe) { _rrDebug.firstVal = 'JSON-Parse-Fehler: ' + pe.message + ' | Raw: ' + rawText.slice(0,300); continue; }
 
         // DataFields beim ersten Treffer kalibrieren
         if (payload.DataFields && payload.DataFields.length) {
