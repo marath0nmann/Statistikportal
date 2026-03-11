@@ -2614,6 +2614,7 @@ async function rrFetch() {
   var preview = document.getElementById('rr-preview');
   preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; Lade Konfiguration&hellip;</div>';
 
+  var _rrDebug = { totalRows: 0, clubSamples: [], dataFields: [], iClub: 7, cfgKeys: [], cfgKey: '', errors: [] };
   try {
     var cfgResp = await fetch('https://my.raceresult.com/' + eventId + '/RRPublish/data/config?lang=de&page=results&noVisitor=1');
     if (!cfgResp.ok) throw new Error('HTTP ' + cfgResp.status + ' bei config');
@@ -2656,7 +2657,6 @@ async function rrFetch() {
 
     var base4 = 'https://my.raceresult.com/' + eventId + '/RRPublish/data/list';
     var hdrs  = { 'Origin': 'https://my.raceresult.com', 'Referer': 'https://my.raceresult.com/' };
-    var _rrDebug = { totalRows: 0, clubSamples: [], dataFields: [], iClub: 7, cfgKeys: [], cfgKey: '', errors: [] };
     var allResults = [];
     var eventOrt = "";
 

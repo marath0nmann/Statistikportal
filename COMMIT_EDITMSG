@@ -1,1 +1,1 @@
-v224: RaceResult cfg-Null-Fix + _rrDebug vor Config-Fetch
+v225: RaceResult _rrDebug-Init vor try-Block (war nach cfgKeys-Zugriff)
