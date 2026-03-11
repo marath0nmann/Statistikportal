@@ -1,6 +1,4 @@
-v219: Eintragen direkt Bulk + RaceResult Club-Filter Fix
+v220: RaceResult Debug-Ausgabe bei leerem Ergebnis
 
-- navigate(): Eintragen-Tab öffnet jetzt direkt Bulk-Eintragen (subTab='bulk')
-- RaceResult: &term= (Namenssuche) entfernt - lud falsche/keine Ergebnisse
-  Stattdessen: alle Ergebnisse laden (&r=all), dann clientseitig nach
-  Club-Spalte auf Vereinsname filtern
+- Fehlermeldung zeigt: Gesamtzeilen geladen, DataFields, iClub-Index,
+  Suchbegriff, und bis zu 10 Club-Werte aus den echten Daten
