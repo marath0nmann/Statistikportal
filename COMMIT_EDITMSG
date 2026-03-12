@@ -1,5 +1,5 @@
-v243: Disziplin löschen: onclick-Quoting-Bug behoben
+v244: Dashboard Timeline: Disziplin verlinkt zu Bestleistungen
 
-- JSON.stringify() im onclick-Attribut erzeugte ungültiges HTML
-  (Anführungszeichen brachen das Attribut → Klick ohne Funktion)
-- Fix: data-disz Attribut + this.dataset.disz im onclick
+- Disziplin-Name im Timeline-Widget ist jetzt klickbar
+- Klick navigiert zu Bestleistungen und wählt die Disziplin direkt vor
+- navigateToDisz() ermittelt die Kategorie automatisch aus state.disziplinen
