@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS athleten (
     nachname      VARCHAR(80)  NOT NULL,
     vorname       VARCHAR(80)  NOT NULL,
     geschlecht    ENUM('M','W','') DEFAULT '',
-    geburtsdatum  DATE         NULL,
+    geburtsjahr   SMALLINT     NULL,
     ak_aktuell    VARCHAR(20)  NULL,
     gruppe        VARCHAR(60)  NULL,
     aktiv         TINYINT(1)   NOT NULL DEFAULT 1,
