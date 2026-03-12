@@ -1,6 +1,6 @@
-v236: Veranstaltungsname-Feld korrekt verbreitert
+v237: RaceResult Eventname, Ort, Athleten-Matching
 
-- flex:1 auf das wrapper-<div> gesetzt (nicht auf den <input>)
-- <input> selbst width:100% damit er das div ausfüllt
-- Vorher hatte flex:1 am Input keine Wirkung weil der Input kein
-  direktes Kind des Flex-Containers war
+- Eventname: trailing " am", " vom", " bei" etc. wird abgeschnitten
+- Ort: letztes Wort des Eventnamens (z.B. "Wachtendonk") statt Wort vor Datum
+- Athleten-Matching: erst exakter Vergleich (normalisiert), dann
+  Wortgrenze-Regex statt indexOf → "Daniel" trifft nicht mehr "Daniela"
