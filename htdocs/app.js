@@ -3195,6 +3195,13 @@ function calcDlvAK(jahrgang, geschlecht, eventJahr) {
   return g + stufe;
 }
 
+function _rrRefreshPreview() {
+  var s = window._rrState;
+  if (s && s.results) {
+    rrRenderPreview(s.results, s.eventId, s.eventName, null, s.contestObj, s.eventOrt, window._rrAllRowsForAK);
+  }
+}
+
 function calcAKPlatz(ak, zeitStr, eventJahr) {
   var allRowsForAK = window._rrAllRowsForAK || [];
   if (!ak || !zeitStr || !allRowsForAK.length) return null;
@@ -3227,8 +3234,14 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   var preview = document.getElementById('rr-preview');
   var today = new Date().toISOString().slice(0,10);
   var guessDate = eventDate ? eventDate.slice(0,10) : '';
+  // rr-datum-Feld auslesen falls bereits manuell befüllt (Format TT.MM.JJJJ oder YYYY-MM-DD)
+  var _datumFeld = ((document.getElementById('rr-datum') || {}).value || '').trim();
+  if (_datumFeld && !guessDate) {
+    var _dpf = _datumFeld.match(/(\d{4})/);
+    if (_dpf) guessDate = _dpf[1] + '-01-01';
+  }
   var _rrEventJahr = parseInt((guessDate || '').slice(0,4)) || new Date().getFullYear();
-  window._rrState = { results: results, eventId: eventId };
+  window._rrState = { results: results, eventId: eventId, eventName: eventName, contestObj: contestObj, eventOrt: eventOrt };
 
   // System-Disziplinen aus datalist lesen
   // Disziplinen aus state (von API)
@@ -3286,7 +3299,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var _chk0 = document.querySelector('.rr-chk[data-idx="0"]');
     var _ath0 = _chk0 ? _chk0.closest('tr').querySelector('.rr-athlet') : null;
     var _athId0 = _ath0 ? parseInt(_ath0.value)||0 : 0;
-    if (_athId0) { for (var _si=0; _si<state.athleten.length; _si++) { if (state.athleten[_si].id==_athId0) { _g0=state.athleten[_si].geschlecht||''; break; } } }
+    if (_athId0) { var _dbgA0 = state._athletenMap && state._athletenMap[_athId0]; if (_dbgA0) _g0 = _dbgA0.geschlecht||''; }
     var _ak0 = (_yr0 && _g0) ? calcDlvAK(_yr0, _g0, _rrEventJahr) : '(kein Jahr/Geschlecht: yr='+_yr0+' g='+_g0+')';
     var _platz0 = calcAKPlatz(_ak0, _netto0, _rrEventJahr);
     var _gs0sample = _ak4debug.length ? _ak4debug.filter(function(x){return !!x.geschlecht;}).length : 0;
@@ -3300,11 +3313,11 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
       var _chk1 = document.querySelector('.rr-chk[data-idx="1"]');
       var _ath1 = _chk1 ? _chk1.closest('tr').querySelector('.rr-athlet') : null;
       var _athId1 = _ath1 ? parseInt(_ath1.value)||0 : 0;
-      if (_athId1) { for (var _si1=0; _si1<state.athleten.length; _si1++) { if (state.athleten[_si1].id==_athId1) { _g1=state.athleten[_si1].geschlecht||''; break; } } }
+      if (_athId1) { var _dbgA1 = state._athletenMap && state._athletenMap[_athId1]; if (_dbgA1) _g1 = _dbgA1.geschlecht||''; }
       var _ak1 = (_yr1 && _g1) ? calcDlvAK(_yr1, _g1, _rrEventJahr) : '(fehlt: yr='+_yr1+' g='+_g1+')';
       var _platz1 = calcAKPlatz(_ak1, _netto1, _rrEventJahr);
       // Wie viele W45-Rows gibt es?
-      var _w45count = _ak4debug.filter(function(x){ return x.geschlecht==='W' && x.year && (2026-parseInt(x.year))>=45 && (2026-parseInt(x.year))<50; }).length;
+      var _w45count = _ak4debug.filter(function(x){ return x.geschlecht==='W' && x.year && (_rrEventJahr-parseInt(x.year))>=45 && (_rrEventJahr-parseInt(x.year))<50; }).length;
       _akPlatzTest += '\nAK-Test[1]: year=' + _yr1 + ' g=' + _g1 + ' → ak=' + _ak1 + ' netto=' + _netto1 + ' → Platz ' + _platz1 + ' | W45-Rows(2026): ' + _w45count;
     }
   }
@@ -3408,7 +3421,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
       '<div style="flex:1;min-width:200px"><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Veranstaltungsname</div>' +
         '<input id="rr-evname" type="text" value="' + eventName + '" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:100%"/></div>' +
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Datum</div>' +
-        '<input id="rr-datum" type="text" value="' + (guessDate ? guessDate.split('-').reverse().join('.') : '') + '" placeholder="TT.MM.JJJJ" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
+        '<input id="rr-datum" type="text" value="' + (guessDate ? guessDate.split('-').reverse().join('.') : '') + '" placeholder="TT.MM.JJJJ" oninput="_rrRefreshPreview()" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Ort</div>' +
         '<input id="rr-ort" type="text" value="' + (eventOrt||'') + '" placeholder="z.B. D\u00fcsseldorf" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:min(150px,100%)"/></div>' +
       '<span style="font-size:12px;color:var(--text2);align-self:center">&#x2705; ' + results.length + ' TuS-Oedt-Ergebnis(se) &bull; Event ' + eventId + '</span>' +

@@ -1,5 +1,10 @@
-v299: Fix AK-Platz: Geschlecht aus _athletenMap statt veraltetem state.athleten-Cache
+v300: Fix AK-Platz: eventJahr=2026 statt 2025 weil Datum leer war
 
-state.athleten wird nur beim Login geladen – Änderungen an Geschlecht/Geburtsjahr
-danach werden dort nicht reflektiert. _athletenMap wird jetzt überall bevorzugt
-und in loadAthleten() synchron mitbefüllt.
+Wenn kein Datum aus RaceResult kommt und das rr-datum-Feld leer ist,
+wurde new Date().getFullYear()=2026 verwendet. Jahrgang-1981-Frauen
+werden dadurch fälschlicherweise als W45 statt W40 gezählt → zu hoher Platz.
+
+Fix: _rrEventJahr liest jetzt auch das manuell befüllte rr-datum-Feld aus.
+Außerdem: rr-datum oninput → Preview-Refresh (AK-Plätze aktualisieren sich
+sofort wenn das Datum eingetippt wird).
+Debug-Code: _athletenMap statt veraltetem state.athleten für Geschlecht.
