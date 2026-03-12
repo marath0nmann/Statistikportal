@@ -1,4 +1,5 @@
-v329: Bulk-Eintragen: Kategorie filtert nur Disziplin-Liste
+v330: Bulk-Eintragen: AK wird nach Athleten-Auswahl automatisch vorbelegt
 
-Kategorie ist kein Pflichtfeld und wird nicht gesendet.
-Wechsel der Kategorie aktualisiert alle bk-disz-Selects per bkKatChanged().
+calcDlvAK() mit Geburtsjahr + Geschlecht aus den Athleten-Daten und
+dem Jahr der gewählten Veranstaltung (bzw. heutigem Jahr als Fallback).
+Vorhandener AK-Wert wird nicht überschrieben.
