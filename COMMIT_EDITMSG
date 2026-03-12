@@ -1,4 +1,5 @@
-v260: Club-Filter: AND-Wort-Fallback wieder entfernt
+v261: RaceResult: openedGroups entfernt + Contest-Fallback rückgängig
 
-War ein Irrtum - der Phrase-Filter aus v256 funktioniert korrekt.
-Problem war contest=0 der nur eine Gruppe liefert, nicht der Filter.
+- openedGroups={} aus URL entfernt → RaceResult liefert alle Gruppen
+  statt nur die erste (war Ursache für nur 21 Zeilen)
+- Einzel-Contest-Fallback aus v259 wieder entfernt (unnötig + 404s)

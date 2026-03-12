@@ -2762,13 +2762,7 @@ async function rrFetch() {
     // Contest=0 bedeutet: Liste gilt für alle Contests auf einmal → nur einen Request
     var contestIds = Object.keys(contestObj);
     if (!contestIds.length) contestIds = ['1'];
-    // contest=0: Liste gilt für alle Contests gleichzeitig.
-    // Manche Events liefern dabei nur einen Ausschnitt (eine Gruppe) →
-    // alle echten Contest-IDs als Fallback anhängen
-    if (listContest === '0') {
-      var _indivIds = Object.keys(contestObj);
-      contestIds = ['0'].concat(_indivIds);
-    }
+    if (listContest === '0') contestIds = ['0'];
 
     _rrDebug.cfgOrt = eventOrtCfg;
     _rrDebug.cfgKey = apiKey;
@@ -2788,11 +2782,8 @@ async function rrFetch() {
     var allResults = [];
     var eventOrt = eventOrtCfg || "";
 
-    var _foundViaZero = false;
     for (var ci = 0; ci < contestIds.length; ci++) {
       var cid   = contestIds[ci];
-      // Wenn contest=0 bereits Ergebnisse lieferte → Einzel-Contests überspringen
-      if (_foundViaZero && cid !== '0') continue;
       var cname = contestObj[cid] || ('Contest ' + cid);
       preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; ' + (ci+1) + '/' + contestIds.length + ': ' + cname + '&hellip;</div>';
       try {
@@ -2800,7 +2791,7 @@ async function rrFetch() {
           '?key='      + apiKey +
           '&listname=' + encodeURIComponent(listName) +
           '&page=results&contest=' + cid +
-          '&r=search&l=9999&openedGroups=%7B%7D&term=';
+          '&r=search&l=9999&term=';
         var resp = await fetch(urlSearch, { headers: hdrs });
         if (!resp.ok) {
           if (!_rrDebug.errors) _rrDebug.errors = [];
@@ -2841,7 +2832,7 @@ async function rrFetch() {
             '?key='      + apiKey +
             '&listname=' + encodeURIComponent(listName) +
             '&page=results&contest=' + cid +
-            '&r=all&l=9999';
+            '&r=all&l=9999&splitSearch=0';
           var respAll = await fetch(urlAll, { headers: hdrs });
           if (respAll.ok) {
             var rawAll = await respAll.text();
@@ -2994,7 +2985,6 @@ async function rrFetch() {
               iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
           }
         }
-      if (cid === '0' && allResults.length > 0) _foundViaZero = true;
       } catch(e2) { continue; }
     }
 
