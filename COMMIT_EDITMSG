@@ -1,8 +1,7 @@
-v274: RaceResult: Contest-Loop radikal vereinfacht
+v275: RaceResult Metadaten + Name-Matching
 
-- contest=0 komplett entfernt (hängt immer)
-- Nur echte Contest-IDs aus cfg.contests
-- r=search mit leerem term= (wie vor v264)
-- 12s Timeout pro Request
-- Kein Extra-Request-Block mehr
-- Loop von 283 auf 77 Zeilen reduziert
+- eventName: cfg.eventname als Fallback
+- Datum-Fallback "heute" entfernt (Feld bleibt leer wenn unbekannt)
+- Ort: aus letztem Wort der HeadLine extrahiert
+- Name-Matching: SS↔ß, Umlaute (ä→ae etc.), Komma/Bindestrich ignoriert
+  → "HEISS Simon" matcht jetzt "Heiß, Simon"
