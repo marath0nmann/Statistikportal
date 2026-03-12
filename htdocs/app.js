@@ -3426,6 +3426,8 @@ async function rrImport() {
   var diszInputs = document.querySelectorAll('.rr-disz');
   var items = [];
 
+  var gjUpdates = []; // { athletId, name, jahrRR } — Geburtsjahr-Vorschläge
+
   for (var i = 0; i < chks.length; i++) {
     if (!chks[i].checked) continue;
     var idx = parseInt(chks[i].getAttribute('data-idx'), 10);
@@ -3434,6 +3436,19 @@ async function rrImport() {
     var athletId = aths[i] ? parseInt(aths[i].value) || null : null;
     var disziplin = diszInputs[i] ? diszInputs[i].value.trim() : '';
     if (!athletId || !disziplin) continue;
+
+    // Geburtsjahr aus RR-Daten — prüfen ob DB-Athlet noch keines hat
+    var _rrYear = r.iYear >= 0 ? parseInt(String(raw[r.iYear] || '').trim()) : 0;
+    if (_rrYear > 1900 && _rrYear < 2020) {
+      var _dbAthlet = state._athletenMap && state._athletenMap[athletId];
+      if (_dbAthlet && !_dbAthlet.geburtsjahr) {
+        // Noch nicht in gjUpdates?
+        var _alreadyQueued = gjUpdates.some(function(u) { return u.athletId === athletId; });
+        if (!_alreadyQueued) {
+          gjUpdates.push({ athletId: athletId, name: _dbAthlet.name_nv || '', jahrRR: _rrYear });
+        }
+      }
+    }
     var zeit     = String(raw[r.iNetto] || raw[r.iZeit] || '').trim();
     var ak = '';
     if (r.iAK >= 0) {
@@ -3480,9 +3495,66 @@ async function rrImport() {
     if (r2.data.skipped) msg += ', ' + r2.data.skipped + ' Duplikate \u00fcbersprungen';
     notify(msg, 'ok');
     document.getElementById('rr-status').innerHTML = '&#x2705; ' + msg;
+    // Geburtsjahr-Vorschläge anzeigen falls vorhanden
+    if (gjUpdates.length > 0) {
+      setTimeout(function() { _rrShowGjModal(gjUpdates); }, 400);
+    }
   } else {
     notify((r2 && r2.fehler) ? r2.fehler : 'Fehler', 'err');
     document.getElementById('rr-status').innerHTML = '';
+  }
+}
+
+function _rrShowGjModal(updates) {
+  var rows = '';
+  for (var i = 0; i < updates.length; i++) {
+    var u = updates[i];
+    rows +=
+      '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:6px 8px">' + u.name + '</td>' +
+        '<td style="padding:6px 8px;text-align:center;font-weight:700;color:var(--primary)">' + u.jahrRR + '</td>' +
+        '<td style="padding:6px 8px;text-align:center">' +
+          '<input type="checkbox" data-gj-id="' + u.athletId + '" data-gj-year="' + u.jahrRR + '" checked style="width:15px;height:15px;cursor:pointer"/>' +
+        '</td>' +
+      '</tr>';
+  }
+  showModal(
+    '<h2>&#x1F382; Geburtsjahr übernehmen? <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<p style="font-size:13px;color:var(--text2);margin-bottom:10px">' +
+      'Für folgende Athleten wurde in den RaceResult-Daten ein Geburtsjahr gefunden, ' +
+      'das noch nicht in der Datenbank hinterlegt ist. Welche sollen übernommen werden?' +
+    '</p>' +
+    '<div class="table-scroll" style="margin-bottom:12px">' +
+      '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+        '<thead><tr style="border-bottom:2px solid var(--border)">' +
+          '<th style="text-align:left;padding:6px 8px">Athlet</th>' +
+          '<th style="padding:6px 8px">Jahrgang</th>' +
+          '<th style="padding:6px 8px">&#x2713; Übern.</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Überspringen</button>' +
+      '<button class="btn btn-primary" onclick="_rrSaveGj()">&#x1F4BE; Geburtsjahr speichern</button>' +
+    '</div>'
+  );
+}
+
+async function _rrSaveGj() {
+  var chks = document.querySelectorAll('[data-gj-id]');
+  var ok = 0;
+  for (var i = 0; i < chks.length; i++) {
+    if (!chks[i].checked) continue;
+    var aid  = parseInt(chks[i].getAttribute('data-gj-id'));
+    var jahr = parseInt(chks[i].getAttribute('data-gj-year'));
+    var res = await apiPut('athleten/' + aid, { geburtsjahr: jahr });
+    if (res && res.ok) ok++;
+  }
+  closeModal();
+  if (ok > 0) {
+    notify(ok + ' Geburtsjahr' + (ok > 1 ? 'e' : '') + ' gespeichert.', 'ok');
+    await loadAthleten();
   }
 }
 

@@ -1,7 +1,5 @@
-v293: Geburtsjahr-Bulk-Import für Athleten
+v294: RaceResult-Import: Geburtsjahr-Vorschlag nach Import
 
-Modal mit CSV-Paste (Semikolon-getrennt: "Athlet NV;Geburtsdatum").
-Unterstützt Excel-Seriennummern (z.B. 40179 → 2010-01-01 → Jg. 2010),
-TT.MM.JJJJ, JJJJ-MM-TT und reine Jahreszahlen.
-Live-Vorschau zeigt Athleten-Match und errechneten Jahrgang vor dem Import.
-Name-Matching nutzt _normN() (SS↔ß, Umlaute etc.).
+Wenn ein importierter Athlet in der DB noch kein Geburtsjahr hat,
+aber RaceResult eines liefert: Follow-up-Modal mit Checkbox-Liste
+zum selektiven Übernehmen. Nutzt iYear-Spalte aus DataFields.
