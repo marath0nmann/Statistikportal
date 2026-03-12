@@ -2867,15 +2867,25 @@ function rrBestDisz(rrName, diszList) {
     .replace(/lauf|rennen|wettbewerb|gesamt|einzel|lauf-/gi, '')
     .replace(/\s+/g, ' ').trim();
 
-  // Zahl + Einheit extrahieren: "5.000 m" / "5 km" -> "5km"
+  // Zahl + Einheit extrahieren und in Meter normalisieren
   var qNorm = q.replace(/(\d)\.(\d{3})\b/g, '$1$2'); // 5.000 → 5000
   var numMatch = qNorm.match(/(\d+[,.]?\d*)\s*(km|m\b)/);
-  var numKey = '';
+  var numKey = ''; var numMeters = null;
   if (numMatch) {
     var numVal = parseFloat(numMatch[1].replace(',','.'));
     var numUnit = numMatch[2];
-    if (numUnit === 'm' && numVal >= 1000) { numVal = numVal / 1000; numUnit = 'km'; }
-    numKey = numVal + numUnit;
+    numMeters = numUnit === 'km' ? numVal * 1000 : numVal;
+    // Kanonische Darstellung: >= 1000m als km
+    if (numMeters >= 1000) { numKey = (numMeters / 1000) + 'km'; }
+    else { numKey = numMeters + 'm'; }
+  }
+
+  // Hilfsfunktion: Meterzahl aus Disziplin-String extrahieren
+  function diszToMeters(s) {
+    var m = s.replace(/(\d)\.(\d{3})\b/g, '$1$2').match(/(\d+[,.]?\d*)\s*(km|m\b)/);
+    if (!m) return null;
+    var v = parseFloat(m[1].replace(',','.'));
+    return m[2] === 'km' ? v * 1000 : v;
   }
 
   var best = ''; var bestScore = -1;
@@ -2883,9 +2893,12 @@ function rrBestDisz(rrName, diszList) {
     var d = diszList[i]; var dl = d.toLowerCase(); var score = 0;
     // Exakter Treffer
     if (dl === q) return d;
-    // Zahl+Einheit stimmt überein
-    if (numKey && dl.indexOf(numKey) >= 0) {
-      if (dl === numKey) score += 20; else score += 10;
+    // Meter-Vergleich: 300m == 0,3km
+    if (numMeters !== null) {
+      var dMeters = diszToMeters(dl);
+      if (dMeters !== null && Math.abs(dMeters - numMeters) < 0.01) {
+        score += (dl === numKey) ? 20 : 15;
+      }
     }
     // Einzelne Wörter matchen
     var words = q.split(/\s+/);
@@ -4143,6 +4156,19 @@ function mstrEditSave(idx) {
   _mstrSave(function() { closeModal(); });
 }
 
+async function deleteDisziplin(disz) {
+  if (!confirm('Disziplin \u201e' + disz + '\u201c wirklich l\u00f6schen?')) return;
+  var r = await apiDel('disziplin-mapping/' + encodeURIComponent(disz));
+  if (r && r.ok) {
+    notify('Disziplin gel\u00f6scht.', 'ok');
+    state.disziplinen = null;
+    await loadDisziplinen();
+    await renderAdminDisziplinen();
+  } else {
+    notify((r && r.fehler) ? r.fehler : 'Fehler beim L\u00f6schen.', 'err');
+  }
+}
+
 async function renderAdminDisziplinen() {
   var el = document.getElementById('main-content');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
@@ -4201,11 +4227,18 @@ async function renderAdminDisziplinen() {
       'data-fmt="' + (d.fmt_override||'').replace(/"/g,'&quot;') + '" ' +
       'data-katfmt="' + (d.kat_fmt||'').replace(/"/g,'&quot;') + '" ' +
       'onclick="showDiszEditModal(this)">&#x270F;&#xFE0F;</button>';
+    var anz = d.ergebnis_anzahl || 0;
+    var anzBadge = '<span class="badge" style="background:' + (anz > 0 ? 'var(--surf2);color:var(--text2)' : 'var(--green);color:#fff') + ';font-size:11px">' + anz + '</span>';
+    var delBtn = anz === 0
+      ? '<button class="btn btn-danger btn-sm" title="Disziplin löschen" onclick="deleteDisziplin(' + JSON.stringify(d.disziplin) + ')">&#x2715;</button>'
+      : '<button class="btn btn-ghost btn-sm" disabled title="' + anz + ' Ergebnis(se) vorhanden">&#x1F512;</button>';
     mapRows +=
       '<tr>' +
         '<td style="font-weight:600">' + d.disziplin + anzeige + '</td>' +
         '<td><span class="badge" style="background:var(--surf2);color:var(--text2);font-size:11px">' + (d.quelle_tbl || '') + '</span> ' + fmtLabel + '</td>' +
         '<td style="white-space:nowrap">' + selHtml + editBtn + '</td>' +
+        '<td style="text-align:right;padding-right:12px">' + anzBadge + '</td>' +
+        '<td>' + delBtn + '</td>' +
       '</tr>';
   }
 
@@ -4222,7 +4255,7 @@ async function renderAdminDisziplinen() {
         '<div class="panel-header"><div class="panel-title">&#x1F4CB; Disziplin-Zuordnung</div></div>' +
         '<div style="font-size:12px;color:var(--text2);padding:0 20px 12px">Weise jeder Disziplin eine Kategorie zu. Die Zuordnung beeinflusst die Anzeige unter Ergebnisse &amp; Rekorde.</div>' +
         '<div class="table-scroll">' +
-          '<table><thead><tr><th>Disziplin</th><th>Quelle / Format</th><th>Kategorie &amp; Aktionen</th></tr></thead>' +
+          '<table><thead><tr><th>Disziplin</th><th>Quelle / Format</th><th>Kategorie &amp; Aktionen</th><th style="text-align:right">Ergebnisse</th><th></th></tr></thead>' +
           '<tbody>' + mapRows + '</tbody></table>' +
         '</div>' +
       '</div>' +

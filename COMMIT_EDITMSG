@@ -1,7 +1,8 @@
-v239: RaceResult Kategorie-Pflichtfeld vollständig verdrahtet
+v242: Admin Disziplinen: Ergebnisanzahl + Löschen-Button
 
-- Kategorie-Dropdown bereits vorhanden, aber Verdrahtung unvollständig:
-  - rrKatChanged() prüft jetzt URL + Kategorie (beide Pflicht für Button-Freigabe)
-  - URL-Feld: oninput="rrKatChanged()" damit Button auch bei URL-Eingabe reagiert
-  - _rrState speichert rrKatKey für Import
-  - diszList in rrRenderPreview filtert auf gewählte Kategorie (war schon via _kat)
+- API: disziplin-mapping GET liefert jetzt ergebnis_anzahl pro Disziplin
+- API: DELETE disziplin-mapping/:name — löscht Mapping, prüft vorher ob
+  noch Ergebnisse vorhanden (409 wenn ja)
+- UI: Neue Spalte "Ergebnisse" mit Badge (grün = 0, grau = >0)
+- UI: Löschen-Button (×) wenn 0 Ergebnisse, Schloss-Icon wenn Ergebnisse vorhanden
+- Nach Löschen: disziplinen neu geladen + Admin-Ansicht aktualisiert
