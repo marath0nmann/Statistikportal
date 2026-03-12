@@ -2762,22 +2762,47 @@ async function rrFetch() {
       var cname = contestObj[cid] || ('Contest ' + cid);
       preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; ' + (ci+1) + '/' + contestIds.length + ': ' + cname + '&hellip;</div>';
       try {
-        var url = base4 +
+        var urlSearch = base4 +
           '?key='      + apiKey +
           '&listname=' + encodeURIComponent(listName) +
           '&page=results&contest=' + cid +
           '&r=search&l=9999&openedGroups=%7B%7D&term=';
-        var resp = await fetch(url, { headers: hdrs });
+        var resp = await fetch(urlSearch, { headers: hdrs });
         if (!resp.ok) {
           if (!_rrDebug.errors) _rrDebug.errors = [];
           _rrDebug.errors.push('HTTP ' + resp.status + ' Contest ' + cid);
-          if (!_rrDebug.firstVal) _rrDebug.firstVal = 'HTTP ' + resp.status + ' für Contest ' + cid + ' | URL: ' + url.slice(0,200);
+          if (!_rrDebug.firstVal) _rrDebug.firstVal = 'HTTP ' + resp.status + ' für Contest ' + cid + ' | URL: ' + urlSearch.slice(0,200);
           continue;
         }
         var rawText = await resp.text();
         if (!_rrDebug.firstVal) _rrDebug.firstVal = rawText.slice(0, 600);
         var payload;
         try { payload = JSON.parse(rawText); } catch(pe) { _rrDebug.firstVal = 'JSON-Parse-Fehler: ' + pe.message + ' | Raw: ' + rawText.slice(0,300); continue; }
+
+        // Wenn r=search keine Daten liefert: r=all als Fallback
+        var hasData = false;
+        var tmpData = payload.data || payload.Data || {};
+        if (Array.isArray(tmpData)) { hasData = tmpData.length > 0; }
+        else { var tmpKeys = Object.keys(tmpData); for (var tk=0; tk<tmpKeys.length; tk++) { if (Array.isArray(tmpData[tmpKeys[tk]]) && tmpData[tmpKeys[tk]].length) { hasData = true; break; } } }
+        if (!hasData) {
+          var urlAll = base4 +
+            '?key='      + apiKey +
+            '&listname=' + encodeURIComponent(listName) +
+            '&page=results&contest=' + cid +
+            '&r=all&l=9999';
+          var respAll = await fetch(urlAll, { headers: hdrs });
+          if (respAll.ok) {
+            var rawAll = await respAll.text();
+            try {
+              var payloadAll = JSON.parse(rawAll);
+              // r=all erfolgreich und hat Daten → verwenden
+              var tmpAll = payloadAll.data || payloadAll.Data || {};
+              var hasAll = Array.isArray(tmpAll) ? tmpAll.length > 0 :
+                Object.keys(tmpAll).some(function(k){ return Array.isArray(tmpAll[k]) && tmpAll[k].length; });
+              if (hasAll) { payload = payloadAll; if (!_rrDebug.fetchMode) _rrDebug.fetchMode = 'r=all'; }
+            } catch(e) {}
+          }
+        }
 
         // DataFields beim ersten Treffer kalibrieren
         if (payload.DataFields && payload.DataFields.length) {
@@ -2893,7 +2918,7 @@ async function rrFetch() {
             'API-Key: &ldquo;' + (_rrDebug.cfgKey||'leer') + '&rdquo;<br>' +
             'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine') + '<br>' +
             'Contests: ' + (_rrDebug.contestSample||'?') + '<br>' +
-            'ListName aus Config: ' + (_rrDebug.listName||'?') + (_rrDebug.listContest !== undefined ? ' (Contest=' + _rrDebug.listContest + ')' : '') + '<br>' +
+            'ListName aus Config: ' + (_rrDebug.listName||'?') + (_rrDebug.listContest !== undefined ? ' (Contest=' + _rrDebug.listContest + ')' : '') + (_rrDebug.fetchMode ? ' [' + _rrDebug.fetchMode + ']' : '') + '<br>' +
             'lists-Raw: ' + (_rrDebug.listsRaw||'?') + '<br>' +
             '<details><summary style="cursor:pointer">Raw (400 Zeichen)</summary><pre style="font-size:10px;overflow:auto;max-height:120px">' + (_rrDebug.firstVal||'') + '</pre></details>' +
           '</div>' +
