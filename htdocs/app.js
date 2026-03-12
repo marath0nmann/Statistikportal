@@ -3201,7 +3201,7 @@ async function rrImport() {
     } else {
       var _jahrgang2 = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
       var _geschlecht2 = '';
-      var _selAthlet = document.querySelectorAll('.rr-athlet')[_idx];
+      var _selAthlet = document.querySelectorAll('.rr-athlet')[i];
       var _athId2 = _selAthlet ? parseInt(_selAthlet.value) || 0 : 0;
       if (_athId2) {
         for (var _si2=0; _si2<state.athleten.length; _si2++) {

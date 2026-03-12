@@ -1,6 +1,1 @@
-v282: Datum-Suche erweitert + Aufräumen
-
-- cfg.eventDatum, cfg.datestring u.a. als weitere Datumsfelder gesucht
-- Excel-Epoch (cfg.Time) entfernt: ist bei RaceResult keine Datumsangabe
-- cfg.Time aus Debug entfernt
-- DataFields-Kalibrierung greift jetzt korrekt (window._rrDebug-Fix aus v281)
+v283: Fix: rrImport _idx → i (Import-Button war kaputt)
