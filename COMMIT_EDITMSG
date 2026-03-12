@@ -1,5 +1,6 @@
-v266: RaceResult: clubPhrase vor Contest-Loop definieren
+v268: RaceResult: Extra-Requests mit numerischen Contest-IDs
 
-clubPhrase wurde erst in Zeile 2968 definiert, aber im URL-Build
-bei Zeile 2795 bereits gebraucht → term= war immer leer.
-Jetzt vor dem Loop definiert → term=tus+oedt greift korrekt.
+groupFilter-Parameter existiert nicht in RRPublish-API.
+Stattdessen: Contest-Namen aus groupFilters[Type=1].Values
+werden gegen contestObj gematcht → numerische Contest-IDs
+→ pro ID ein eigener r=search&term=tus+oedt Request.

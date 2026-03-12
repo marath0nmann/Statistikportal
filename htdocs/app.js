@@ -2811,7 +2811,58 @@ async function rrFetch() {
 
         // Top-Level Keys immer loggen
         _rrDebug.topKeys = Object.keys(payload);
-        if (!_rrDebug.groupFilters) _rrDebug.groupFilters = JSON.stringify(payload.groupFilters || payload.GroupFilters || '').slice(0,400);
+        var gf = payload.groupFilters || payload.GroupFilters || [];
+        if (!_rrDebug.groupFilters) _rrDebug.groupFilters = JSON.stringify(gf).slice(0,400);
+        // groupFilters Type=1 → weitere Contest-Namen → numerische IDs aus contestObj suchen
+        // → pro ID einen eigenen r=search Request
+        if (cid === '0' && Array.isArray(gf)) {
+          var gfType1 = null;
+          for (var gfi=0; gfi<gf.length; gfi++) { if (gf[gfi].Type === 1) { gfType1 = gf[gfi]; break; } }
+          if (gfType1 && Array.isArray(gfType1.Values) && gfType1.Values.length > 1) {
+            // Andere Contest-Namen → numerische IDs aus contestObj
+            var extraNames = gfType1.Values.filter(function(v){ return v !== gfType1.Value && v !== ''; });
+            var extraIds = [];
+            for (var eni=0; eni<extraNames.length; eni++) {
+              var eName = extraNames[eni];
+              // contestObj durchsuchen: Name → ID
+              var eId = null;
+              var coKeys = Object.keys(contestObj);
+              for (var cok=0; cok<coKeys.length; cok++) {
+                if (contestObj[coKeys[cok]] === eName) { eId = coKeys[cok]; break; }
+              }
+              if (eId) extraIds.push({ id: eId, name: eName });
+            }
+            _rrDebug.extraContests = extraIds.map(function(e){ return e.id + ':' + e.name; });
+            for (var eci=0; eci<extraIds.length; eci++) {
+              var eContest = extraIds[eci];
+              var urlExtra = base4 +
+                '?key=' + apiKey +
+                '&listname=' + encodeURIComponent(listName) +
+                '&page=results&contest=' + eContest.id +
+                '&r=search&l=9999&term=' + encodeURIComponent(clubPhrase || '');
+              try {
+                var respExtra = await fetch(urlExtra, { headers: hdrs });
+                if (!respExtra.ok) { _rrDebug.extraContests.push('HTTP ' + respExtra.status + ' für ' + eContest.name); continue; }
+                var payloadExtra = JSON.parse(await respExtra.text());
+                var dRawExtra = payloadExtra.data || {};
+                var dkExtra = Object.keys(dRawExtra);
+                for (var dke=0; dke<dkExtra.length; dke++) {
+                  var subExtra = dRawExtra[dkExtra[dke]];
+                  var subKeys = (typeof subExtra === 'object' && !Array.isArray(subExtra)) ? Object.keys(subExtra) : [];
+                  if (subKeys.length > 0) {
+                    for (var ske=0; ske<subKeys.length; ske++) {
+                      if (Array.isArray(subExtra[subKeys[ske]])) {
+                        flatData[eContest.name + '/' + dkExtra[dke] + '/' + subKeys[ske]] = subExtra[subKeys[ske]];
+                      }
+                    }
+                  } else if (Array.isArray(subExtra)) {
+                    flatData[eContest.name + '/' + dkExtra[dke]] = subExtra;
+                  }
+                }
+              } catch(ee) { _rrDebug.extraContests.push('Fehler: ' + ee.message); }
+            }
+          }
+        }
 
         // Hilfsfunktion: prüft ob payload Datenzeilen enthält
         function payloadHasRows(p) {
@@ -3020,6 +3071,7 @@ async function rrFetch() {
             'Contests: ' + (_rrDebug.contestSample||'?') + '<br>' +
             'groupFilters: ' + (_rrDebug.groupFilters||'–') + '<br>' +
             'searchRaw: ' + (_rrDebug.searchRaw||'–') + '<br>' +
+            'extraContests: ' + JSON.stringify(_rrDebug.extraContests||[]) + '<br>' +
             'data-Keys: ' + (_rrDebug.dataKeys||'–') + '<br>' +
             'firstGroupKeys: ' + (_rrDebug.firstGroupKeys||'–') + '<br>' +
             'ListName aus Config: ' + (_rrDebug.listName||'?') + (_rrDebug.listContest !== undefined ? ' (Contest=' + _rrDebug.listContest + ')' : '') + (_rrDebug.fetchMode ? ' [' + _rrDebug.fetchMode + ']' : '') + '<br>' +
