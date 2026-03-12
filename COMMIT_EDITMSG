@@ -1,5 +1,7 @@
-v302: Datum-Warnung: Position und Farbe korrigiert
+v303: Athleten-Tabelle sortierbar + Spalte "Letzte Aktivität"
 
-- Warnung aus dem Flex-Metadaten-Container raus (verdrängte Veranstaltungsname-Feld)
-- Eigene Zeile zwischen Metadaten und Tabelle
-- Farbe: hardcoded #ffb347 auf #7c3a00 statt var(--accent) (war im Darkmode blau)
+- Klick auf Tabellenkopf sortiert auf-/absteigend (▲/▼), aktive Spalte in Primärfarbe
+- Sortierbar nach: Name, Vorname, Geschlecht, Jahrgang, AK, Gruppen, Ergebnisse,
+  Letzte Aktivität, Status
+- Neue Spalte "Letzte Akt." zeigt Jahr des neuesten Ergebnisses über alle Kategorien
+- API: GREATEST(MAX(datum)...) über alle 4 Ergebnis-Tabellen, NULL wenn keine Ergebnisse

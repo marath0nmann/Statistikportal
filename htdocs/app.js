@@ -1770,6 +1770,54 @@ async function doGeburtjahrImport() {
 
 
 var _athLetenCache = { alleAthleten: [], alleGruppen: [] };
+var _athSort = { col: 'name', dir: 1 }; // col: 'name'|'vorname'|'geschlecht'|'jahrgang'|'ak'|'ergebnisse'|'aktiv'|'letzte', dir: 1|-1
+
+function _athSortHeader() {
+  var cols = [
+    { key: 'name',       label: 'Name' },
+    { key: 'vorname',    label: 'Vorname' },
+    { key: 'geschlecht', label: 'Gesch.' },
+    { key: 'jahrgang',   label: 'Jahrgang' },
+    { key: 'ak',         label: 'AK' },
+    { key: 'gruppen',    label: 'Gruppen' },
+    { key: 'ergebnisse', label: 'Erg.' },
+    { key: 'letzte',     label: 'Letzte Akt.' },
+    { key: 'aktiv',      label: 'Status' },
+    { key: '',           label: '' },
+  ];
+  return cols.map(function(c) {
+    if (!c.key) return '<th></th>';
+    var arrow = _athSort.col === c.key ? (_athSort.dir === 1 ? ' ▲' : ' ▼') : '';
+    var style = 'cursor:pointer;user-select:none;white-space:nowrap' + (_athSort.col === c.key ? ';color:var(--primary)' : '');
+    return '<th style="' + style + '" onclick="_athSetSort(\'' + c.key + '\')">'+c.label+arrow+'</th>';
+  }).join('');
+}
+
+function _athSetSort(col) {
+  if (_athSort.col === col) _athSort.dir *= -1;
+  else { _athSort.col = col; _athSort.dir = 1; }
+  _renderAthletenTable();
+}
+
+function _athSortRows(athleten, jetzt) {
+  var col = _athSort.col, dir = _athSort.dir;
+  return athleten.slice().sort(function(a, b) {
+    var va, vb;
+    if (col === 'name')       { va = (a.nachname||'').toLowerCase(); vb = (b.nachname||'').toLowerCase(); }
+    else if (col === 'vorname')    { va = (a.vorname||'').toLowerCase(); vb = (b.vorname||'').toLowerCase(); }
+    else if (col === 'geschlecht') { va = a.geschlecht||''; vb = b.geschlecht||''; }
+    else if (col === 'jahrgang')   { va = a.geburtsjahr||0; vb = b.geburtsjahr||0; }
+    else if (col === 'ak')         { va = (a.geschlecht&&a.geburtsjahr)?calcDlvAK(a.geburtsjahr,a.geschlecht,jetzt):''; vb = (b.geschlecht&&b.geburtsjahr)?calcDlvAK(b.geburtsjahr,b.geschlecht,jetzt):''; }
+    else if (col === 'ergebnisse') { va = parseInt(a.anz_ergebnisse)||0; vb = parseInt(b.anz_ergebnisse)||0; }
+    else if (col === 'letzte')     { va = parseInt(a.letzte_aktivitaet)||0; vb = parseInt(b.letzte_aktivitaet)||0; }
+    else if (col === 'aktiv')      { va = a.aktiv?1:0; vb = b.aktiv?1:0; }
+    else                           { va = (a.name_nv||'').toLowerCase(); vb = (b.name_nv||'').toLowerCase(); }
+    if (va < vb) return -dir;
+    if (va > vb) return dir;
+    return 0;
+  });
+}
+
 
 async function _renderAthletenTable() {
   var s = state.filters.suche || '';
@@ -1790,10 +1838,12 @@ async function _renderAthletenTable() {
     });
   }
   state._athletenMap = {};
+  // Erst _athletenMap befüllen (für AK-Berechnung bei Sortierung)
+  for (var i = 0; i < athleten.length; i++) state._athletenMap[athleten[i].id] = athleten[i];
+  var sorted = _athSortRows(athleten, jetzt);
   var rows = '';
-  for (var i = 0; i < athleten.length; i++) {
-    var a = athleten[i];
-    state._athletenMap[a.id] = a;
+  for (var i = 0; i < sorted.length; i++) {
+    var a = sorted[i];
     var canDel = currentUser && currentUser.rolle === 'admin' && parseInt(a.anz_ergebnisse) === 0;
     var aktuellAK = (a.geschlecht && a.geburtsjahr) ? calcDlvAK(a.geburtsjahr, a.geschlecht, jetzt) : '';
     rows +=
@@ -1806,6 +1856,7 @@ async function _renderAthletenTable() {
         '<td>' + renderGruppenInline(a.gruppen) + '</td>' +
         '<td><span class="badge badge-platz">' + a.anz_ergebnisse + '</span></td>' +
         '<td>' + (a.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>') + '</td>' +
+        '<td style="color:var(--text2);font-size:13px;text-align:center">' + (a.letzte_aktivitaet || '–') + '</td>' +
         '<td style="white-space:nowrap">' +
           (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showAthletEditModal(' + a.id + ')">&#x270F;&#xFE0E;</button>' : '') +
           (canDel ? _mkDelBtn(a.id, a.name_nv||'') : '') +
@@ -1858,7 +1909,7 @@ async function renderAthleten() {
     '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">&#x1F464; Alle Athleten</div><div class="panel-count" id="athlet-count"></div></div>' +
       '<div class="table-scroll"><table id="athlet-tabelle">' +
-        '<thead><tr><th>Name</th><th>Vorname</th><th>Geschlecht</th><th>Jahrgang</th><th>AK</th><th>Gruppen</th><th>Ergebnisse</th><th>Status</th><th></th></tr></thead>' +
+        '<thead><tr>' + _athSortHeader() + '</tr></thead>' +
         '<tbody></tbody>' +
       '</table></div>' +
     '</div>';
