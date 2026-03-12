@@ -1299,7 +1299,7 @@ async function renderDashboard() {
     var lbl = rek.label || '';
     var athletName = rek.athlet || '';
     var labelCls = (lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
-                   (lbl === 'PB' || lbl.indexOf('Persönliche') >= 0) ? 'badge badge-pb' :
+                   (lbl === 'PB') ? 'badge badge-pb' :
                    'badge badge-silver';
     var dotStyle = rek.extern ? 'background:var(--accent);' : '';
     if (!athletName) continue;
@@ -1514,7 +1514,9 @@ async function loadErgebnisseData() {
           editBtn.dataset.editAk,
           editBtn.dataset.editAkp,
           editBtn.dataset.editMstr,
-          editBtn.dataset.editFmt
+          editBtn.dataset.editFmt,
+          editBtn.dataset.editAthletId,
+          editBtn.dataset.editAthletName
         );
       }
       if (delBtn) deleteErgebnis(delBtn.dataset.delTab, delBtn.dataset.delId);
@@ -1556,7 +1558,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
     if (canEdit) {
       cells +=
         '<td style="white-space:nowrap">' +
-          '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-edit-id="' + rr.id + '" data-edit-tab="' + subTab + '" data-edit-disz="' + (rr.disziplin||'') + '" data-edit-res="' + (rr.resultat||'') + '" data-edit-ak="' + (rr.altersklasse||'') + '" data-edit-akp="' + (rr.ak_platzierung||'') + '" data-edit-mstr="' + (rr.meisterschaft||'') + '" data-edit-fmt="' + (rr.fmt||'') + '">&#x270E;</button>' +
+          '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-edit-id="' + rr.id + '" data-edit-tab="' + subTab + '" data-edit-disz="' + (rr.disziplin||'') + '" data-edit-res="' + (rr.resultat||'') + '" data-edit-ak="' + (rr.altersklasse||'') + '" data-edit-akp="' + (rr.ak_platzierung||'') + '" data-edit-mstr="' + (rr.meisterschaft||'') + '" data-edit-fmt="' + (rr.fmt||'') + '" data-edit-athlet-id="' + (rr.athlet_id||'') + '" data-edit-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '">&#x270E;</button>' +
           '<button class="btn btn-danger btn-sm" data-del-id="' + rr.id + '" data-del-tab="' + subTab + '">&#x2715;</button>' +
         '</td>';
     }
@@ -1565,7 +1567,36 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
   return '<table id="ergebnisse-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table>';
 }
 
-function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt) {
+var _editAthletTimer = null;
+function _editAthletSearch(val) {
+  clearTimeout(_editAthletTimer);
+  var box = document.getElementById('edit-athlet-suggestions');
+  if (!box) return;
+  if (!val || val.length < 2) { box.innerHTML = ''; return; }
+  _editAthletTimer = setTimeout(async function() {
+    var r = await apiGet('autocomplete/athleten?q=' + encodeURIComponent(val));
+    if (!r || !r.ok) return;
+    var items = r.data || [];
+    if (!items.length) { box.innerHTML = '<div style="padding:6px 10px;color:var(--text2);font-size:13px">Keine Treffer</div>'; return; }
+    var html = '<div style="position:absolute;z-index:100;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);width:100%;max-height:200px;overflow-y:auto;margin-top:2px">';
+    for (var i = 0; i < items.length; i++) {
+      var a = items[i];
+      html += '<div style="padding:8px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border)" onmousedown="_editAthletPick(' + a.id + ',\'' + (a.name_nv||'').replace(/'/g, "\\'") + '\')">' + a.name_nv + '</div>';
+    }
+    html += '</div>';
+    box.innerHTML = html;
+  }, 200);
+}
+function _editAthletPick(id, name) {
+  var inp = document.getElementById('edit-athlet-name');
+  var hid = document.getElementById('edit-athlet-id');
+  var box = document.getElementById('edit-athlet-suggestions');
+  if (inp) inp.value = name;
+  if (hid) hid.value = id;
+  if (box) box.innerHTML = '';
+}
+
+function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, athletName) {
   mstr = parseInt(mstr, 10) || '';
   var diszOptHtml = '';
   var diszList = state.disziplinen || [];
@@ -1577,9 +1608,17 @@ function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt) {
   }
   if (!found && disz) diszOptHtml = '<option value="' + disz + '" selected>' + disz + '</option>' + diszOptHtml;
 
+  var isAdmin = currentUser && currentUser.rolle === 'admin';
   var html =
     '<h3 style="margin:0 0 20px;font-size:17px">Ergebnis bearbeiten</h3>' +
     '<div class="form-grid">' +
+      (isAdmin ?
+        '<div class="form-group full" style="position:relative"><label>Athlet*in</label>' +
+          '<input type="text" id="edit-athlet-name" value="' + (athletName||'') + '" placeholder="Name suchen…" autocomplete="off" oninput="_editAthletSearch(this.value)"/>' +
+          '<input type="hidden" id="edit-athlet-id" value="' + (athletId||'') + '"/>' +
+          '<div id="edit-athlet-suggestions"></div>' +
+        '</div>'
+      : '') +
       '<div class="form-group full"><label>Disziplin</label>' +
         '<select id="edit-disz" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">' + diszOptHtml + '</select>' +
       '</div>' +

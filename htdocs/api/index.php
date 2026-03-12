@@ -719,7 +719,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                 $bestByAthlet[$aid] = $val;
                 if (empty($labels)) {
                     $isFirst = $prevByAthlet[$aid] === null;
-                    $labels[] = $isFirst ? 'Deb&uuml;t' : 'Pers&ouml;nliche Bestleistung';
+                    $labels[] = $isFirst ? 'Deb&uuml;t' : 'PB';
                     if ($vorher === null) $vorher = $prevByAthlet[$aid];
                 }
             }
@@ -727,7 +727,7 @@ if ($res === 'dashboard' && $method === 'GET') {
             if (!empty($labels)) {
                 $prio = (in_array('Gesamtbestleistung', $labels) || in_array('Erste Gesamtleistung', $labels)) ? 0
                       : (in_array('Bestleistung Männer', $labels) || in_array('Bestleistung Frauen', $labels) || in_array('Erstes Ergebnis M', $labels) || in_array('Erstes Ergebnis W', $labels) ? 1
-                      : (in_array('Pers&ouml;nliche Bestleistung', $labels) || in_array('Deb&uuml;t', $labels) ? 3 : 2));
+                      : (in_array('PB', $labels) || in_array('Deb&uuml;t', $labels) ? 3 : 2));
                 // vorher_resultat: numerischen Wert zurück in Rohformat umrechnen ist komplex –
                 // wir geben stattdessen den val-Wert (Sekunden/Meter) zurück; Frontend formatiert ihn
                 $timelineEvents[] = [
@@ -770,7 +770,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                 'athlet'    => $pb['athlet'],
                 'athlet_id' => $pb['athlet_id'],
                 'resultat'  => $pb['resultat'],
-                'label'     => 'Pers&ouml;nliche Bestleistung',
+                'label'     => 'PB',
                 'fmt'       => $fmt,
                 'priority'  => 1,
                 'extern'    => true,
@@ -849,7 +849,18 @@ if (in_array($res, $ergebnisTabellen)) {
             $where[] = 'e.meisterschaft IS NOT NULL';
         }
 
-        $sort   = 'v.datum DESC, e.id DESC';
+        $sortMap = [
+            'datum'    => 'v.datum',
+            'athlet'   => 'a.name_nv',
+            'ak'       => 'e.altersklasse',
+            'disziplin'=> 'e.disziplin',
+            'resultat' => 'e.resultat_num',
+            'platz'    => 'e.ak_platzierung',
+        ];
+        $sortKey = $_GET['sort'] ?? 'datum';
+        $sortDir = strtoupper($_GET['dir'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
+        $sortCol = $sortMap[$sortKey] ?? 'v.datum';
+        $sort    = "$sortCol $sortDir, e.id DESC";
         $limit  = min((int)($_GET['limit'] ?? 100), 500);
         $offset = (int)($_GET['offset'] ?? 0);
 
@@ -1022,6 +1033,10 @@ if (in_array($res, $ergebnisTabellen)) {
         if (!Auth::isAdmin() && $row['erstellt_von'] != $user['id'])
             jsonErr('Keine Berechtigung.', 403);
         $felder = []; $params = [];
+        if (isset($body['athlet_id']) && Auth::isAdmin()) {
+            $aid = (int)$body['athlet_id'];
+            if ($aid > 0) { $felder[] = 'athlet_id=?'; $params[] = $aid; }
+        }
         if (isset($body['altersklasse']))  { $felder[] = 'altersklasse=?';  $params[] = sanitize($body['altersklasse']); }
         if (isset($body['disziplin']))     { $felder[] = 'disziplin=?';     $params[] = sanitize($body['disziplin']); }
         if (isset($body['resultat'])) {
