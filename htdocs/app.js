@@ -2863,14 +2863,6 @@ async function rrFetch() {
               if (clubVal && _rrDebug.clubSamples.indexOf(clubVal) < 0 && _rrDebug.clubSamples.length < 20)
                 _rrDebug.clubSamples.push(clubVal);
               // Alle Rows für AK-Platz-Berechnung speichern (Zeit + AK oder Jahr+Geschlecht)
-              var _zeit4ak = String(row[iNetto] || row[iZeit] || '').trim();
-              if (_zeit4ak) {
-                var _ak4 = iAK >= 0 ? String(row[iAK]||'').trim() : '';
-                var _yr4 = iYear >= 0 ? String(row[iYear]||'').trim() : '';
-                var _gs4 = iGeschlecht >= 0 ? String(row[iGeschlecht]||'').toUpperCase().trim() : '';
-                allRowsForAK.push({ ak: _ak4, zeit: _zeit4ak, year: _yr4, geschlecht: _gs4 });
-              }
-              if (clubPhrase && clubVal.toLowerCase().indexOf(clubPhrase) < 0) return;
               var gkey = k2 ? (k + '/' + k2) : k;
               var gParts = gkey.split('/');
               var _akFromGroup = '';
@@ -2878,7 +2870,20 @@ async function rrFetch() {
                 var gk = gParts[gParts.length-1].replace(/^#[0-9]+_/, '').trim();
                 if (/männl|male|herren/i.test(gk)) _akFromGroup = 'M';
                 else if (/weibl|female|frauen/i.test(gk)) _akFromGroup = 'W';
+                // AK direkt aus Gruppen-Key lesen (z.B. "M35", "W45")
+                var _akMatch = gk.match(/^([MW]\d{2}|[MW]U\d{2}|[MW])$/i);
+                if (_akMatch) _akFromGroup = _akMatch[1].toUpperCase();
               }
+              var _zeit4ak = String(row[iNetto] || row[iZeit] || '').trim();
+              if (_zeit4ak) {
+                var _ak4 = iAK >= 0 ? String(row[iAK]||'').trim() : '';
+                var _yr4 = iYear >= 0 ? String(row[iYear]||'').trim() : '';
+                var _gs4 = iGeschlecht >= 0 ? String(row[iGeschlecht]||'').toUpperCase().trim() : '';
+                // Geschlecht aus Gruppen-Key als Fallback
+                if (!_gs4 && _akFromGroup) _gs4 = _akFromGroup[0]; // 'M' oder 'W'
+                allRowsForAK.push({ ak: _ak4, zeit: _zeit4ak, year: _yr4, geschlecht: _gs4 });
+              }
+              if (clubPhrase && clubVal.toLowerCase().indexOf(clubPhrase) < 0) return;
               allResults.push({ raw: row, contestName: cname, akFromGroup: _akFromGroup,
                 iYear: iYear, iGeschlecht: iGeschlecht,
                 iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
@@ -3077,19 +3082,21 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   _dbgLines.push('totalRows: ' + (_dbg.totalRows||0) + ' | Treffer: ' + results.length);
   var _ak4debug = window._rrAllRowsForAK || [];
   var _ak4sample = _ak4debug.length ? JSON.stringify(_ak4debug[0]) + ' … (' + _ak4debug.length + ' rows)' : '(leer!)';
-  // Testlauf calcAKPlatz für ersten Treffer
   var _akPlatzTest = '';
   if (results.length) {
     var _r0 = results[0]; var _raw0 = _r0.raw;
     var _netto0 = String(_raw0[_r0.iNetto]||'').trim();
     var _yr0 = _r0.iYear >= 0 ? String(_raw0[_r0.iYear]||'').trim() : '';
     var _g0 = '';
-    for (var _si=0; _si<state.athleten.length; _si++) {
-      if (state.athleten[_si].name_nv && state.athleten[_si].name_nv.toLowerCase().indexOf('hei') >= 0) { _g0 = state.athleten[_si].geschlecht||''; break; }
-    }
-    var _ak0 = _yr0 && _g0 ? calcDlvAK(_yr0, _g0, _rrEventJahr) : '(kein Jahr/Geschlecht)';
+    // Geschlecht aus Athleten-Profil des gematchten Athleten
+    var _chk0 = document.querySelector('.rr-chk[data-idx="0"]');
+    var _ath0 = _chk0 ? _chk0.closest('tr').querySelector('.rr-athlet') : null;
+    var _athId0 = _ath0 ? parseInt(_ath0.value)||0 : 0;
+    if (_athId0) { for (var _si=0; _si<state.athleten.length; _si++) { if (state.athleten[_si].id==_athId0) { _g0=state.athleten[_si].geschlecht||''; break; } } }
+    var _ak0 = (_yr0 && _g0) ? calcDlvAK(_yr0, _g0, _rrEventJahr) : '(kein Jahr/Geschlecht: yr='+_yr0+' g='+_g0+')';
     var _platz0 = calcAKPlatz(_ak0, _netto0, _rrEventJahr);
-    _akPlatzTest = 'AK-Test: year=' + _yr0 + ' geschlecht=' + _g0 + ' → ak=' + _ak0 + ' netto=' + _netto0 + ' → Platz ' + _platz0;
+    var _gs0sample = _ak4debug.length ? _ak4debug.filter(function(x){return !!x.geschlecht;}).length : 0;
+    _akPlatzTest = 'AK-Test: year=' + _yr0 + ' geschlecht=' + _g0 + ' → ak=' + _ak0 + ' netto=' + _netto0 + ' → Platz ' + _platz0 + ' | rows mit geschlecht: ' + _gs0sample;
   }
   _dbgLines.push('allRowsForAK[0]: ' + _ak4sample);
   _dbgLines.push(_akPlatzTest);
