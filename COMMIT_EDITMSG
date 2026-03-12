@@ -1,1 +1,6 @@
-v283: Fix: rrImport _idx → i (Import-Button war kaputt)
+v284: AK-Platz selbst berechnen statt AUTORANKP (Gesamtplatz)
+
+AUTORANKP in DataFields ist der Gesamtplatz, nicht der AK-Platz.
+Neue Lösung: alle Rows (inkl. nicht-TuS-Oedt) werden gesammelt,
+calcAKPlatz() zählt wie viele Starter gleicher AK eine bessere Zeit haben.
+→ Simon Heiß: Platz 6 statt Platz 19
