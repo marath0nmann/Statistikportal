@@ -2679,17 +2679,24 @@ async function rrFetch() {
     var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.Time || '';
     var eventDate = '';
     if (_cfgDateRaw) {
-      // Unix-Timestamp (Sekunden)?
-      if (/^\d{9,10}$/.test(String(_cfgDateRaw))) {
-        var _d = new Date(parseInt(_cfgDateRaw) * 1000);
-        eventDate = _d.toISOString().slice(0,10);
+      var _ds = String(_cfgDateRaw).trim();
       // ISO oder YYYY-MM-DD?
-      } else if (/^\d{4}-\d{2}-\d{2}/.test(String(_cfgDateRaw))) {
-        eventDate = String(_cfgDateRaw).slice(0,10);
+      if (/^\d{4}-\d{2}-\d{2}/.test(_ds)) {
+        eventDate = _ds.slice(0,10);
       // DD.MM.YYYY?
-      } else if (/^\d{2}\.\d{2}\.\d{4}/.test(String(_cfgDateRaw))) {
-        var _p = String(_cfgDateRaw).match(/(\d{2})\.(\d{2})\.(\d{4})/);
+      } else if (/^\d{2}\.\d{2}\.\d{4}/.test(_ds)) {
+        var _p = _ds.match(/(\d{2})\.(\d{2})\.(\d{4})/);
         eventDate = _p[3]+'-'+_p[2]+'-'+_p[1];
+      // Unix-Timestamp (Sekunden, 9-10 Stellen)?
+      } else if (/^\d{9,10}$/.test(_ds)) {
+        var _d = new Date(parseInt(_ds) * 1000);
+        eventDate = _d.toISOString().slice(0,10);
+      // Excel-Epoch (Tage seit 1899-12-30, kleine Ganzzahl < 100000)?
+      } else if (/^\d{4,6}$/.test(_ds)) {
+        var _excelDays = parseInt(_ds);
+        var _excelEpoch = new Date(1899, 11, 30); // 1899-12-30
+        var _excelDate = new Date(_excelEpoch.getTime() + _excelDays * 86400000);
+        eventDate = _excelDate.toISOString().slice(0,10);
       }
     }
     var eventOrtCfg = cfg.City || cfg.city || cfg.Location || cfg.location || cfg.Place || cfg.place || cfg.Venue || cfg.venue || cfg.Ort || cfg.ort || '';
@@ -2954,10 +2961,17 @@ async function rrFetch() {
             _rrDebug.totalRows++;
             // Club-Samples für Debug
             var clubSample = String(row[iClub] || '').trim();
-            if (clubSample && _rrDebug.clubSamples.indexOf(clubSample) < 0 && _rrDebug.clubSamples.length < 20) _rrDebug.clubSamples.push(clubSample);
+            if (clubSample && _rrDebug.clubSamples.indexOf(clubSample) < 0 && _rrDebug.clubSamples.length < 50) _rrDebug.clubSamples.push(clubSample);
             if (clubPhrase) {
               var clubVal = clubSample.toLowerCase();
-              if (clubVal.indexOf(clubPhrase) < 0) continue;
+              // Erst exakter Phrase-Match
+              var _clubOk = clubVal.indexOf(clubPhrase) >= 0;
+              // Fallback: alle Wörter des Vereinsnamens müssen vorkommen (AND)
+              if (!_clubOk) {
+                var _cWords = clubPhrase.split(/\s+/).filter(function(w){return w.length>1;});
+                _clubOk = _cWords.length > 0 && _cWords.every(function(w){ return clubVal.indexOf(w) >= 0; });
+              }
+              if (!_clubOk) continue;
             }
             // Gruppen-Key auswerten für Disziplin und AK-Geschlecht
             var groupKey = dataKeys[dk];

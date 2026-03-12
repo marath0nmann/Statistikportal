@@ -1,8 +1,9 @@
-v257: RaceResult: AK aus Jahrgang + Geschlecht berechnen (DLV-Schema)
+v258: RaceResult: Excel-Epoch Datum + Club-Debug
 
-- calcDlvAK(jahrgang, geschlecht, eventJahr): berechnet DLV-AK
-  U12–U23, Hauptklasse (M/W), M30/W30 bis M75/W75
-- iYear + iGeschlecht werden aus DataFields erkannt (YEAR, [GeschlechtMW])
-- Priorität: 1. Athletenprofil-Geschlecht, 2. [GeschlechtMW]-Feld, 3. Gruppen-Key
-- Gilt für Preview und Import
-- API liefert jetzt geschlecht mit im Athleten-Response
+Datum:
+- cfg.Time = 74107 ist Excel-Epoch (Tage seit 1899-12-30)
+- Alle Formate: ISO, DD.MM.YYYY, Unix-Sekunden, Excel-Tage
+
+Club-Filter:
+- AND-Wortmatch als Fallback wenn Phrase nicht trifft
+- Club-Sample auf 50 erhöht um alle Clubs zu sehen
