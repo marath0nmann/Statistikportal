@@ -2678,7 +2678,7 @@ async function rrFetch() {
     _rrDebug.cfgRaw = JSON.stringify(cfg).slice(0, 800);
     var apiKey     = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
     var eventName  = cfg.EventName || cfg.Name || cfg.eventname || '';
-    var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.StartDate || cfg.start_date || '';
+    var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.eventDatum || cfg.StartDate || cfg.start_date || cfg.datestring || cfg.Datestring || '';
     var eventDate = '';
     if (_cfgDateRaw) {
       var _ds = String(_cfgDateRaw).trim();
@@ -2693,12 +2693,6 @@ async function rrFetch() {
       } else if (/^\d{9,10}$/.test(_ds)) {
         var _d = new Date(parseInt(_ds) * 1000);
         eventDate = _d.toISOString().slice(0,10);
-      // Excel-Epoch (Tage seit 1899-12-30, kleine Ganzzahl < 100000)?
-      } else if (/^\d{4,6}$/.test(_ds)) {
-        var _excelDays = parseInt(_ds);
-        var _excelEpoch = new Date(1899, 11, 30); // 1899-12-30
-        var _excelDate = new Date(_excelEpoch.getTime() + _excelDays * 86400000);
-        eventDate = _excelDate.toISOString().slice(0,10);
       }
     }
     var eventOrtCfg = cfg.City || cfg.city || cfg.Location || cfg.location || cfg.Place || cfg.place || cfg.Venue || cfg.venue || cfg.Ort || cfg.ort || '';
@@ -3024,7 +3018,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   }
   // Event-Metadaten
   _dbgLines.push('eventName: ' + (eventName||'–') + ' | eventDate: ' + (eventDate||'leer') + ' | eventOrt: ' + (eventOrt||'leer'));
-  _dbgLines.push('cfgDateRaw: ' + JSON.stringify(_dbg.cfgDateRaw||'') + ' | cfg.eventname: ' + (_dbg.cfgEventName||'–') + ' | cfg.Time: ' + (_dbg.cfgTime||'–'));
+  _dbgLines.push('cfgDateRaw: ' + JSON.stringify(_dbg.cfgDateRaw||'') + ' | cfg.eventname: ' + (_dbg.cfgEventName||'–'));
   _dbgLines.push('cfg-Keys: ' + (_dbg.cfgAllKeys||'–'));
   _dbgLines.push('cfg (roh): ' + (_dbg.cfgRaw||'–'));
   // Contest-Infos
