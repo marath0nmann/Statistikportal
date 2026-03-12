@@ -2779,12 +2779,20 @@ async function rrFetch() {
         var payload;
         try { payload = JSON.parse(rawText); } catch(pe) { _rrDebug.firstVal = 'JSON-Parse-Fehler: ' + pe.message + ' | Raw: ' + rawText.slice(0,300); continue; }
 
+        // Top-Level Keys immer loggen
+        _rrDebug.topKeys = Object.keys(payload);
+
+        // Hilfsfunktion: prüft ob payload Datenzeilen enthält
+        function payloadHasRows(p) {
+          var d = p.data || p.Data || p.result || p.Result || {};
+          if (Array.isArray(d)) return d.length > 0;
+          var ks = Object.keys(d);
+          for (var i=0; i<ks.length; i++) { if (Array.isArray(d[ks[i]]) && d[ks[i]].length) return true; }
+          return false;
+        }
+
         // Wenn r=search keine Daten liefert: r=all als Fallback
-        var hasData = false;
-        var tmpData = payload.data || payload.Data || {};
-        if (Array.isArray(tmpData)) { hasData = tmpData.length > 0; }
-        else { var tmpKeys = Object.keys(tmpData); for (var tk=0; tk<tmpKeys.length; tk++) { if (Array.isArray(tmpData[tmpKeys[tk]]) && tmpData[tmpKeys[tk]].length) { hasData = true; break; } } }
-        if (!hasData) {
+        if (!payloadHasRows(payload)) {
           var urlAll = base4 +
             '?key='      + apiKey +
             '&listname=' + encodeURIComponent(listName) +
@@ -2793,14 +2801,18 @@ async function rrFetch() {
           var respAll = await fetch(urlAll, { headers: hdrs });
           if (respAll.ok) {
             var rawAll = await respAll.text();
+            _rrDebug.firstVal = 'r=all raw: ' + rawAll.slice(0, 600);
             try {
               var payloadAll = JSON.parse(rawAll);
-              // r=all erfolgreich und hat Daten → verwenden
-              var tmpAll = payloadAll.data || payloadAll.Data || {};
-              var hasAll = Array.isArray(tmpAll) ? tmpAll.length > 0 :
-                Object.keys(tmpAll).some(function(k){ return Array.isArray(tmpAll[k]) && tmpAll[k].length; });
-              if (hasAll) { payload = payloadAll; if (!_rrDebug.fetchMode) _rrDebug.fetchMode = 'r=all'; }
-            } catch(e) {}
+              _rrDebug.topKeys = Object.keys(payloadAll);
+              if (payloadHasRows(payloadAll)) {
+                payload = payloadAll;
+                if (!_rrDebug.fetchMode) _rrDebug.fetchMode = 'r=all';
+              } else {
+                // Auch r=all hat keine Daten: alle Keys + rohen Inhalt zeigen
+                if (!_rrDebug.fetchMode) _rrDebug.fetchMode = 'r=all (leer)';
+              }
+            } catch(e) { _rrDebug.firstVal += ' | Parse-Fehler: ' + e.message; }
           }
         }
 
@@ -2841,11 +2853,8 @@ async function rrFetch() {
         }
 
 
-        // Debug: rohe Top-Level Keys + erste Daten-Struktur
-        if (ci === 0 && !_rrDebug.dataFields.length) {
-          _rrDebug.topKeys = Object.keys(payload);
-          _rrDebug.firstVal = JSON.stringify(payload).slice(0, 400);
-        }
+        // firstVal Fallback falls noch nicht gesetzt
+        if (!_rrDebug.firstVal) _rrDebug.firstVal = JSON.stringify(payload).slice(0, 600);
         // Wenn DataFields fehlen: Name-Spalte heuristisch aus erster Datenzeile bestimmen
         // Suche Spalte mit längstem String der Komma oder Leerzeichen enthält (= Name)
         if (!payload.DataFields || !payload.DataFields.length) {
