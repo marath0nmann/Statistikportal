@@ -2674,6 +2674,7 @@ async function rrFetch() {
     try { cfg = JSON.parse(cfgText); } catch(e) { throw new Error('Config kein JSON: ' + cfgText.slice(0, 200)); }
     if (!cfg || typeof cfg !== 'object') throw new Error('Config ungültig: ' + cfgText.slice(0, 200));
 
+    _rrDebug.cfgRaw = JSON.stringify(cfg).slice(0, 800);
     var apiKey     = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
     var eventName  = cfg.EventName || cfg.Name || cfg.eventname || '';
     var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.StartDate || cfg.start_date || '';
@@ -3024,6 +3025,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   _dbgLines.push('eventName: ' + (eventName||'–') + ' | eventDate: ' + (eventDate||'leer') + ' | eventOrt: ' + (eventOrt||'leer'));
   _dbgLines.push('cfgDateRaw: ' + JSON.stringify(_dbg.cfgDateRaw||'') + ' | cfg.eventname: ' + (_dbg.cfgEventName||'–') + ' | cfg.Time: ' + (_dbg.cfgTime||'–'));
   _dbgLines.push('cfg-Keys: ' + (_dbg.cfgAllKeys||'–'));
+  _dbgLines.push('cfg (roh): ' + (_dbg.cfgRaw||'–'));
   // Contest-Infos
   _dbgLines.push('contests: ' + JSON.stringify(contestObj).slice(0,200));
   _dbgLines.push('listName: ' + (_dbg.listName||'–') + ' | listContest: ' + (_dbg.listContest||'–'));
