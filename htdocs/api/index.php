@@ -1058,27 +1058,15 @@ if (in_array($res, $ergebnisTabellen)) {
 // ATHLETEN
 // ============================================================
 if ($res === 'athleten-aktivitaet' && $method === 'GET') {
-    // Liefert {athlet_id => letztes_Jahr} für alle Athleten - separater Query damit
-    // der Haupt-Athleten-Endpunkt nicht durch viele Subqueries verlangsamt wird
-    $tbl = DB::tbl('athleten');
-    if ($unified) {
-        $rows = DB::fetchAll(
-            "SELECT athlet_id, YEAR(MAX(datum)) AS letzte_aktivitaet
-             FROM " . DB::tbl('ergebnisse') . "
-             WHERE datum IS NOT NULL AND geloescht_am IS NULL
-             GROUP BY athlet_id");
-    } else {
-        $rows = DB::fetchAll(
-            "SELECT athlet_id, YEAR(MAX(datum)) AS letzte_aktivitaet FROM (
-               SELECT athlet_id, datum FROM " . DB::tbl('ergebnisse_strasse') . " WHERE datum IS NOT NULL
-               UNION ALL
-               SELECT athlet_id, datum FROM " . DB::tbl('ergebnisse_sprint') . " WHERE datum IS NOT NULL
-               UNION ALL
-               SELECT athlet_id, datum FROM " . DB::tbl('ergebnisse_mittelstrecke') . " WHERE datum IS NOT NULL
-               UNION ALL
-               SELECT athlet_id, datum FROM " . DB::tbl('ergebnisse_sprungwurf') . " WHERE datum IS NOT NULL
-             ) t GROUP BY athlet_id");
-    }
+    // datum liegt in veranstaltungen, nicht in ergebnisse → JOIN nötig
+    $eT = DB::tbl('ergebnisse');
+    $vT = DB::tbl('veranstaltungen');
+    $rows = DB::fetchAll(
+        "SELECT e.athlet_id, YEAR(MAX(v.datum)) AS letzte_aktivitaet
+         FROM $eT e
+         JOIN $vT v ON v.id = e.veranstaltung_id
+         WHERE e.geloescht_am IS NULL AND v.datum IS NOT NULL
+         GROUP BY e.athlet_id");
     $map = [];
     foreach ($rows as $r) { $map[(int)$r['athlet_id']] = (int)$r['letzte_aktivitaet']; }
     jsonOk($map);
