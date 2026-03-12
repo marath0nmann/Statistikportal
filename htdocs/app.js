@@ -2791,13 +2791,17 @@ async function rrFetch() {
       var cname = contestObj[cid] || ('Contest ' + cid);
       preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; ' + (ci+1) + '/' + contestIds.length + ': ' + cname + '&hellip;</div>';
       try {
-        // term= mit Vereinsname befüllen → server-seitige Suche über alle Gruppen
         var urlSearch = base4 +
           '?key='      + apiKey +
           '&listname=' + encodeURIComponent(listName) +
           '&page=results&contest=' + cid +
-          '&r=search&l=9999&term=' + encodeURIComponent(clubPhrase || '');
-        var resp = await fetch(urlSearch, { headers: hdrs });
+          '&r=search&l=9999&term=';
+        var _ac1 = new AbortController();
+        var _t1 = setTimeout(function(){ _ac1.abort(); }, 8000);
+        var resp;
+        try { resp = await fetch(urlSearch, { headers: hdrs, signal: _ac1.signal }); }
+        catch(fe) { clearTimeout(_t1); _rrDebug.errors = _rrDebug.errors || []; _rrDebug.errors.push('Timeout/Fehler r=search: ' + fe.message); continue; }
+        clearTimeout(_t1);
         if (!resp.ok) {
           if (!_rrDebug.errors) _rrDebug.errors = [];
           _rrDebug.errors.push('HTTP ' + resp.status + ' Contest ' + cid);
@@ -2896,13 +2900,13 @@ async function rrFetch() {
           return false;
         }
 
-        // Wenn r=search keine Daten liefert: r=all als Fallback
-        if (!payloadHasRows(payload)) {
+        // r=all als primären Daten-Request (r=search liefert nur gefilterte Gruppe)
+        if (true || !payloadHasRows(payload)) {
           var urlAll = base4 +
             '?key='      + apiKey +
             '&listname=' + encodeURIComponent(listName) +
             '&page=results&contest=' + cid +
-            '&r=all&l=9999&splitSearch=0';
+            '&r=all&l=9999';
           var _ac2 = new AbortController(); var _t2 = setTimeout(function(){ _ac2.abort(); }, 10000);
           var respAll = await fetch(urlAll, { headers: hdrs, signal: _ac2.signal }).finally(function(){ clearTimeout(_t2); });
           if (respAll.ok) {

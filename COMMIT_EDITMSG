@@ -1,5 +1,6 @@
-v270: RaceResult: Timeouts + activefilter statt gf
+v271: RaceResult: r=all primär, term= entfernt, Timeouts
 
-- 10s AbortController-Timeout für alle fetch-Calls (verhindert Hänger)
-- gf-Parameter hat Server zum Hängen gebracht → entfernt
-- Versuch mit activefilter=<Contest-Name> Parameter
+- term=tus+oedt hängt RaceResult-Server → entfernt
+- r=all immer als Daten-Request (nicht nur Fallback)
+- 8s Timeout auf r=search, 10s auf r=all und Extra-Requests
+- Client-seitiger Club-Filter bleibt wie gehabt
