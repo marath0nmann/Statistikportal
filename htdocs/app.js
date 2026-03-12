@@ -2806,6 +2806,7 @@ async function rrFetch() {
 
         // Top-Level Keys immer loggen
         _rrDebug.topKeys = Object.keys(payload);
+        if (!_rrDebug.groupFilters) _rrDebug.groupFilters = JSON.stringify(payload.groupFilters || payload.GroupFilters || '').slice(0,400);
 
         // Hilfsfunktion: prüft ob payload Datenzeilen enthält
         function payloadHasRows(p) {
@@ -2840,6 +2841,15 @@ async function rrFetch() {
             try {
               var payloadAll = JSON.parse(rawAll);
               _rrDebug.topKeys = Object.keys(payloadAll);
+          _rrDebug.groupFilters = JSON.stringify(payloadAll.groupFilters || payloadAll.GroupFilters || '–').slice(0,400);
+          // data-Schlüssel zeigen (Gruppen-Namen)
+          var _dKeys = payloadAll.data ? Object.keys(payloadAll.data) : [];
+          _rrDebug.dataKeys = JSON.stringify(_dKeys).slice(0,600);
+          // Erste Gruppe: deren Unter-Keys zeigen
+          if (_dKeys.length > 0) {
+            var _firstGroup = payloadAll.data[_dKeys[0]];
+            _rrDebug.firstGroupKeys = JSON.stringify(typeof _firstGroup === 'object' ? Object.keys(_firstGroup) : _firstGroup).slice(0,400);
+          }
               if (payloadHasRows(payloadAll)) {
                 payload = payloadAll;
                 if (!_rrDebug.fetchMode) _rrDebug.fetchMode = 'r=all';
@@ -3006,6 +3016,9 @@ async function rrFetch() {
             'API-Key: &ldquo;' + (_rrDebug.cfgKey||'leer') + '&rdquo; | Datum-Raw: ' + JSON.stringify(_rrDebug.cfgDateRaw||'(leer)') + ' → ' + (_rrDebug.eventDate||'leer') + ' | cfg.eventname: ' + (_rrDebug.cfgEventName||'–') + ' | HeadLine: ' + (_rrDebug.headLine||'–') + '<br>' +
             'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine') + '<br>' +
             'Contests: ' + (_rrDebug.contestSample||'?') + '<br>' +
+            'groupFilters: ' + (_rrDebug.groupFilters||'–') + '<br>' +
+            'data-Keys: ' + (_rrDebug.dataKeys||'–') + '<br>' +
+            'firstGroupKeys: ' + (_rrDebug.firstGroupKeys||'–') + '<br>' +
             'ListName aus Config: ' + (_rrDebug.listName||'?') + (_rrDebug.listContest !== undefined ? ' (Contest=' + _rrDebug.listContest + ')' : '') + (_rrDebug.fetchMode ? ' [' + _rrDebug.fetchMode + ']' : '') + '<br>' +
             'lists-Raw: ' + (_rrDebug.listsRaw||'?') + '<br>' +
             '<details><summary style="cursor:pointer">Raw (400 Zeichen)</summary><pre style="font-size:10px;overflow:auto;max-height:120px">' + (_rrDebug.firstVal||'') + '</pre></details>' +
