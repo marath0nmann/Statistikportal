@@ -2676,7 +2676,22 @@ async function rrFetch() {
 
     var apiKey     = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
     var eventName  = cfg.EventName || cfg.Name || '';
-    var eventDate  = cfg.EventDate || cfg.Date || '';
+    var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.Time || '';
+    var eventDate = '';
+    if (_cfgDateRaw) {
+      // Unix-Timestamp (Sekunden)?
+      if (/^\d{9,10}$/.test(String(_cfgDateRaw))) {
+        var _d = new Date(parseInt(_cfgDateRaw) * 1000);
+        eventDate = _d.toISOString().slice(0,10);
+      // ISO oder YYYY-MM-DD?
+      } else if (/^\d{4}-\d{2}-\d{2}/.test(String(_cfgDateRaw))) {
+        eventDate = String(_cfgDateRaw).slice(0,10);
+      // DD.MM.YYYY?
+      } else if (/^\d{2}\.\d{2}\.\d{4}/.test(String(_cfgDateRaw))) {
+        var _p = String(_cfgDateRaw).match(/(\d{2})\.(\d{2})\.(\d{4})/);
+        eventDate = _p[3]+'-'+_p[2]+'-'+_p[1];
+      }
+    }
     var eventOrtCfg = cfg.City || cfg.city || cfg.Location || cfg.location || cfg.Place || cfg.place || cfg.Venue || cfg.venue || cfg.Ort || cfg.ort || '';
     // Komma und Land abschneiden: "Wachtendonk, Deutschland" → "Wachtendonk"
     if (eventOrtCfg) eventOrtCfg = eventOrtCfg.split(',')[0].trim();
@@ -2832,37 +2847,42 @@ async function rrFetch() {
         if (payload.DataFields && payload.DataFields.length) {
           var df = payload.DataFields;
           if (!_rrDebug.dataFields.length) _rrDebug.dataFields = df.slice();
+          iAK = -1; // Zurücksetzen — nur setzen wenn echtes AK-Feld gefunden
           for (var fi=0; fi<df.length; fi++) {
             var f = df[fi].toLowerCase();
             if (f.indexOf('anzeigename') >= 0 || f === 'name' || f === 'fullname') iName = fi;
             else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
             else if (f.indexOf('agegroup') >= 0 || f.indexOf('altersklasse') >= 0 || f === 'ak' || f === '[agegroup1.nameshort]') iAK = fi;
+            else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* überspringen */ }
             else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
             else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0) iZeit = fi;
-            else if ((f.indexOf('plp') >= 0 && f.indexOf('ges') < 0) || f.indexOf('akplatz') >= 0) iPlatz = fi;
+            else if ((f.indexOf('plp') >= 0 && f.indexOf('ges') < 0) || f.indexOf('akplatz') >= 0 || f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0) iPlatz = fi;
           }
           if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
           _rrDebug.iClub = iClub; _rrDebug.iName = iName; _rrDebug.iPlatz = iPlatz;
         }
 
         // Eventname + Datum aus HeadLine der ersten erfolgreichen Antwort
-        if (payload.list && !eventName) {
+        if (payload.list && (!eventName || !eventOrt)) {
           var hl = payload.list.HeadLine1 || payload.list.HeadLine2 || "";
           var dm = hl.match(/(\d{2})\.(\d{2})\.(\d{4})/);
           if (dm) {
             if (!eventDate) eventDate = dm[3] + "-" + dm[2] + "-" + dm[1];
-            eventName = hl.replace(dm[0], "").trim();
-            // Trailing " am", " vom", " - " entfernen
-            eventName = eventName.replace(/\s+(am|vom|bei|in|-)\s*$/i, "").trim();
-            // Letztes Wort des Eventnamens als Ort-Fallback (nur wenn cfg keinen Ort liefert)
-            if (!eventOrt && eventName) {
-              var nameWords = eventName.split(/\s+/);
-              eventOrt = nameWords[nameWords.length - 1].replace(/[^\wäöüÄÖÜß]/g, "").trim();
+            if (!eventName) {
+              eventName = hl.replace(dm[0], "").trim();
+              eventName = eventName.replace(/\s+(am|vom|bei|in|-)\s*$/i, "").trim();
             }
           } else {
-            eventName = hl;
+            if (!eventName) eventName = hl;
+          }
+          // Letztes Wort des Eventnamens als Ort-Fallback
+          if (!eventOrt && eventName) {
+            var nameWords = eventName.split(/\s+/);
+            eventOrt = nameWords[nameWords.length - 1].replace(/[^\wäöüÄÖÜß]/g, "").trim();
           }
         }
+        // cfg.eventname als Fallback für eventName
+        if (!eventName && cfg.eventname) eventName = cfg.eventname;
 
 
         // firstVal Fallback falls noch nicht gesetzt
@@ -2923,7 +2943,10 @@ async function rrFetch() {
           if (!Array.isArray(rows)) continue;
           // Club-Filter: Vereinsname/Kürzel in Club-Spalte suchen
           var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '');
-          var clubWords = vereinRaw.toLowerCase().split(/[\s.]+/).filter(function(w){return w.length>2;});
+          // Alle Wörter >= 2 Zeichen (auch "TuS"), aber Einzel-Buchstaben ausschließen
+          var clubWords = vereinRaw.toLowerCase().split(/[\s.]+/).filter(function(w){return w.length>1;});
+          // Sicherheit: wenn clubWords leer → nichts importieren statt alles
+          if (!clubWords.length) { _rrDebug.errors.push('Vereinsname nicht konfiguriert'); }
           for (var ri=0; ri<rows.length; ri++) {
             var row = rows[ri];
             if (!Array.isArray(row) || row.length < 4) continue;
