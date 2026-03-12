@@ -1,7 +1,9 @@
-v303: Athleten-Tabelle sortierbar + Spalte "Letzte Aktivität"
+v304: Fix Endlos-Ladeschleife in Athleten-Liste
 
-- Klick auf Tabellenkopf sortiert auf-/absteigend (▲/▼), aktive Spalte in Primärfarbe
-- Sortierbar nach: Name, Vorname, Geschlecht, Jahrgang, AK, Gruppen, Ergebnisse,
-  Letzte Aktivität, Status
-- Neue Spalte "Letzte Akt." zeigt Jahr des neuesten Ergebnisses über alle Kategorien
-- API: GREATEST(MAX(datum)...) über alle 4 Ergebnis-Tabellen, NULL wenn keine Ergebnisse
+_renderAthletenTable machte bei jedem Aufruf einen eigenen apiGet() —
+auch beim Sortier-Klick. Das führte zu Race Conditions und Loop.
+
+Fix: Klare Trennung:
+- renderAthleten() lädt Daten und befüllt _athLetenCache
+- _renderAthletenTable() ist jetzt synchron, nutzt nur den Cache
+- setAthletSuche() lädt bei Suche neu und ruft dann _renderAthletenTable()
