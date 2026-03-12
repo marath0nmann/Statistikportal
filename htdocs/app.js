@@ -2862,9 +2862,14 @@ async function rrFetch() {
               var clubVal = iClub >= 0 ? String(row[iClub] || '').trim() : '';
               if (clubVal && _rrDebug.clubSamples.indexOf(clubVal) < 0 && _rrDebug.clubSamples.length < 20)
                 _rrDebug.clubSamples.push(clubVal);
-              // Alle Rows für AK-Platz-Berechnung speichern (Zeit + AK)
+              // Alle Rows für AK-Platz-Berechnung speichern (Zeit + AK oder Jahr+Geschlecht)
               var _zeit4ak = String(row[iNetto] || row[iZeit] || '').trim();
-              if (_zeit4ak) allRowsForAK.push({ ak: iAK >= 0 ? String(row[iAK]||'').trim() : '', zeit: _zeit4ak, year: iYear >= 0 ? String(row[iYear]||'').trim() : '', geschlecht: iGeschlecht >= 0 ? String(row[iGeschlecht]||'').toUpperCase().trim() : '' });
+              if (_zeit4ak) {
+                var _ak4 = iAK >= 0 ? String(row[iAK]||'').trim() : '';
+                var _yr4 = iYear >= 0 ? String(row[iYear]||'').trim() : '';
+                var _gs4 = iGeschlecht >= 0 ? String(row[iGeschlecht]||'').toUpperCase().trim() : '';
+                allRowsForAK.push({ ak: _ak4, zeit: _zeit4ak, year: _yr4, geschlecht: _gs4 });
+              }
               if (clubPhrase && clubVal.toLowerCase().indexOf(clubPhrase) < 0) return;
               var gkey = k2 ? (k + '/' + k2) : k;
               var gParts = gkey.split('/');
@@ -2991,7 +2996,7 @@ function calcDlvAK(jahrgang, geschlecht, eventJahr) {
   return g + stufe;
 }
 
-function calcAKPlatz(ak, zeitStr) {
+function calcAKPlatz(ak, zeitStr, eventJahr) {
   var allRowsForAK = window._rrAllRowsForAK || [];
   if (!ak || !zeitStr || !allRowsForAK.length) return null;
   function toSec(s) {
@@ -3005,7 +3010,12 @@ function calcAKPlatz(ak, zeitStr) {
   var besser = 0;
   for (var _i = 0; _i < allRowsForAK.length; _i++) {
     var r = allRowsForAK[_i];
-    if (r.ak !== ak) continue;
+    // AK aus Feld oder aus Jahr+Geschlecht berechnen
+    var rAk = r.ak;
+    if (!rAk && r.year && r.geschlecht && eventJahr) {
+      rAk = calcDlvAK(r.year, r.geschlecht, eventJahr);
+    }
+    if (rAk !== ak) continue;
     var rZeit = toSec(r.zeit);
     if (rZeit > 0 && rZeit < eigeneZeit) besser++;
   }
@@ -3018,6 +3028,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   var preview = document.getElementById('rr-preview');
   var today = new Date().toISOString().slice(0,10);
   var guessDate = eventDate ? eventDate.slice(0,10) : '';
+  var _rrEventJahr = parseInt((guessDate || '').slice(0,4)) || new Date().getFullYear();
   window._rrState = { results: results, eventId: eventId };
 
   // System-Disziplinen aus datalist lesen
@@ -3091,8 +3102,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
       }
       if (!_geschlecht) _geschlecht = r.akFromGroup === 'W' ? 'W' : r.akFromGroup === 'M' ? 'M' : '';
       if (_jahrgang && _geschlecht) {
-        var _eventJahr = parseInt((guessDate || '').slice(0,4)) || new Date().getFullYear();
-        ak = calcDlvAK(_jahrgang, _geschlecht, _eventJahr);
+        ak = calcDlvAK(_jahrgang, _geschlecht, _rrEventJahr);
       } else {
         ak = r.akFromGroup || '';
       }
@@ -3100,7 +3110,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var zeit  = String(raw[r.iZeit]  || '').trim();
     var netto = String(raw[r.iNetto] || '').trim();
     // iPlatz zeigt auf AUTORANKP (Gesamtplatz) — AK-Platz selbst berechnen
-    var platzAKnum = calcAKPlatz(ak, netto || zeit) || '';
+    var platzAKnum = calcAKPlatz(ak, netto || zeit, _rrEventJahr) || '';
     var disz  = rrBestDisz(r.contestName || '', diszList);
 
     // Athlet-Matching: Name normalisieren (SS↔ß, Umlaute, Komma, Groß/Klein)
@@ -3250,7 +3260,7 @@ async function rrImport() {
         ak = r.akFromGroup || '';
       }
     }
-    var platzAKv = calcAKPlatz(ak, String(raw[r.iNetto] || raw[r.iZeit] || '').trim()) || null;
+    var platzAKv = calcAKPlatz(ak, String(raw[r.iNetto] || raw[r.iZeit] || '').trim(), _eventJahr2) || null;
     items.push({
       datum: datum, ort: ort, veranstaltung_name: evname,
       athlet_id: athletId, disziplin: disziplin,
