@@ -1,5 +1,9 @@
-v231: RaceResult Spalten-Debug + Eventname-Feld 440px
+v232: RaceResult Spaltenindizes korrigiert + Eventname 600px
 
-- Debug-Block "🔍 Spalten-Debug" jetzt tatsächlich in Preview eingefügt
-  (zeigt iName/iClub/iAK/iNetto/iPlatz + erste Rohdaten-Zeile)
-- Eventname-Eingabefeld: 220px → 440px
+Aus Debug-Daten: ["2437","462","8.","1.","M55","Walter, Jens","1966","TuS Oedt","19:47"]
+- iName: 3→5 (Name mit Komma)
+- iAK:   6→4 (Altersklasse)
+- iPlatz: -1→3 (AK-Platzierung "1.")
+- iZeit/iNetto: 9→8 (letzte Zeit-Spalte)
+- Default-Indizes korrigiert + Heuristik verbessert (Zeit-Erkennung per Regex)
+- Eventname-Feld: 440→600px
