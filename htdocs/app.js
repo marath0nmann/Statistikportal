@@ -1447,6 +1447,15 @@ async function renderErgebnisse() {
   await loadErgebnisseData();
 }
 var _ergSort = { col: 'datum', dir: 'DESC' };
+var _ergAthletTimer = null;
+function _ergAthletFilter(v) {
+  clearTimeout(_ergAthletTimer);
+  _ergAthletTimer = setTimeout(function() {
+    state.filters.athlet = v;
+    state.page = 1;
+    loadErgebnisseData();
+  }, 300);
+}
 
 function _ergSetSort(col) {
   if (_ergSort.col === col) {
@@ -1501,6 +1510,7 @@ async function loadErgebnisseData() {
 
   document.getElementById('main-content').innerHTML =
     '<div class="filter-bar">' +
+      '<div class="fg"><label>Athlet</label><input type="text" id="erg-athlet-filter" placeholder="Name…" value="' + (state.filters.athlet||'') + '" oninput="_ergAthletFilter(this.value)" style="min-width:0;width:100%"/></div>' +
       '<div class="fg"><label>Kategorie</label><select onchange="setFilter(\'kategorie\',this.value)">' + katOptHtml + '</select></div>' +
       '<div class="fg"><label>Disziplin</label><select onchange="setFilter(\'disziplin\',this.value)">' + diszOptHtml + '</select></div>' +
       '<div class="fg"><label>Altersklasse</label><select onchange="setFilter(\'ak\',this.value)">' + akOptHtml + '</select></div>' +
@@ -1622,7 +1632,7 @@ function _editAthletPick(id, name) {
   if (box) box.innerHTML = '';
 }
 
-function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, athletName) {
+async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, athletName) {
   mstr = parseInt(mstr, 10) || '';
   var diszOptHtml = '';
   var diszList = state.disziplinen || [];
@@ -1635,16 +1645,21 @@ function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, a
   if (!found && disz) diszOptHtml = '<option value="' + disz + '" selected>' + disz + '</option>' + diszOptHtml;
 
   var isAdmin = currentUser && currentUser.rolle === 'admin';
+  var athletSelectHtml = '';
+  if (isAdmin) {
+    var rAth = await apiGet('athleten');
+    var athList = (rAth && rAth.ok) ? rAth.data : [];
+    var opts = '';
+    for (var ai = 0; ai < athList.length; ai++) {
+      var sel = String(athList[ai].id) === String(athletId) ? ' selected' : '';
+      opts += '<option value="' + athList[ai].id + '"' + sel + '>' + athList[ai].name_nv + '</option>';
+    }
+    athletSelectHtml = '<div class="form-group full"><label>Athlet*in</label><select id="edit-athlet-id" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">' + opts + '</select></div>';
+  }
   var html =
     '<h3 style="margin:0 0 20px;font-size:17px">Ergebnis bearbeiten</h3>' +
     '<div class="form-grid">' +
-      (isAdmin ?
-        '<div class="form-group full" style="position:relative"><label>Athlet*in</label>' +
-          '<input type="text" id="edit-athlet-name" value="' + (athletName||'') + '" placeholder="Name suchen…" autocomplete="off" oninput="_editAthletSearch(this.value)"/>' +
-          '<input type="hidden" id="edit-athlet-id" value="' + (athletId||'') + '"/>' +
-          '<div id="edit-athlet-suggestions"></div>' +
-        '</div>'
-      : '') +
+      athletSelectHtml +
       '<div class="form-group full"><label>Disziplin</label>' +
         '<select id="edit-disz" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">' + diszOptHtml + '</select>' +
       '</div>' +

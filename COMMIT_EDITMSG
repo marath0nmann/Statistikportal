@@ -1,7 +1,6 @@
-v315: Ergebnisse sortierbar + Athlet-Zuweisung beim Bearbeiten
+v317: Ergebnisse: Athlet-Dropdown im Edit + Athlet-Filter
 
-- Klick auf Datum, Athlet, AK, Disziplin, Ergebnis, Platz AK sortiert
-  auf-/absteigend (▲/▼, aktive Spalte in Primärfarbe)
-- Sortierung wird serverseitig ausgeführt (sort= + dir= Parameter)
-- Edit-Modal: Athlet*in-Feld (nur Admin) sendet athlet_id jetzt mit;
-  API-PUT akzeptierte athlet_id bereits
+- Edit-Modal (Admin): Athlet*in als <select> statt Texteingabe mit
+  Autocomplete; alle aktiven Athleten werden alphabetisch geladen
+- Filter-Bar: neues Textfeld "Athlet" mit 300ms Debounce,
+  filtert serverseitig über den bestehenden athlet-Parameter
