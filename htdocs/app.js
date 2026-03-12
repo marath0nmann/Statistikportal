@@ -4066,8 +4066,6 @@ async function saveAthlet(id) {
 }
 
 async function toggleAthletAktiv(id, aktiv) {
-  var label = aktiv ? 'aktivieren' : 'deaktivieren';
-  if (!confirm('Athlet wirklich ' + label + '?')) return;
   var r = await apiPut('athleten/' + id, { aktiv: aktiv });
   if (r && r.ok) {
     notify('Athlet ' + (aktiv ? 'aktiviert' : 'deaktiviert') + '.', 'ok');
