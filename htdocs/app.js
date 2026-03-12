@@ -2759,6 +2759,8 @@ async function rrFetch() {
 
     _rrDebug.cfgOrt = eventOrtCfg;
     _rrDebug.cfgKey = apiKey;
+    _rrDebug.cfgDateRaw = _cfgDateRaw;
+    _rrDebug.eventDate = eventDate;
     _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
     _rrDebug.listName = listName;
     _rrDebug.listContest = listContest;
@@ -2943,10 +2945,9 @@ async function rrFetch() {
           if (!Array.isArray(rows)) continue;
           // Club-Filter: Vereinsname/Kürzel in Club-Spalte suchen
           var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '');
-          // Alle Wörter >= 2 Zeichen (auch "TuS"), aber Einzel-Buchstaben ausschließen
-          var clubWords = vereinRaw.toLowerCase().split(/[\s.]+/).filter(function(w){return w.length>1;});
-          // Sicherheit: wenn clubWords leer → nichts importieren statt alles
-          if (!clubWords.length) { _rrDebug.errors.push('Vereinsname nicht konfiguriert'); }
+          var clubPhrase = vereinRaw.toLowerCase().trim();
+          // Sicherheit: wenn kein Vereinsname konfiguriert → nichts durchlassen
+          if (!clubPhrase) { _rrDebug.errors.push('Vereinsname nicht konfiguriert'); }
           for (var ri=0; ri<rows.length; ri++) {
             var row = rows[ri];
             if (!Array.isArray(row) || row.length < 4) continue;
@@ -2954,11 +2955,9 @@ async function rrFetch() {
             // Club-Samples für Debug
             var clubSample = String(row[iClub] || '').trim();
             if (clubSample && _rrDebug.clubSamples.indexOf(clubSample) < 0 && _rrDebug.clubSamples.length < 20) _rrDebug.clubSamples.push(clubSample);
-            if (clubWords.length) {
+            if (clubPhrase) {
               var clubVal = clubSample.toLowerCase();
-              var clubOk = false;
-              for (var cf=0; cf<clubWords.length; cf++) { if (clubVal.indexOf(clubWords[cf]) >= 0) { clubOk=true; break; } }
-              if (!clubOk) continue;
+              if (clubVal.indexOf(clubPhrase) < 0) continue;
             }
             allResults.push({ raw: row, contestName: cname,
               iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
@@ -2969,7 +2968,7 @@ async function rrFetch() {
 
     if (!allResults.length) {
       var dbgClubs = _rrDebug.clubSamples.length ? _rrDebug.clubSamples.slice(0,10).join(', ') : '(keine)';
-      var vereinRaw2 = (appConfig.verein_kuerzel || appConfig.verein_name || '');
+      var vereinRaw2 = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
       preview.innerHTML =
         '<div style="background:var(--surf2);border-radius:10px;padding:16px">' +
           '<strong>&#x274C; Keine TuS-Oedt-Ergebnisse gefunden.</strong><br>' +
@@ -2982,7 +2981,7 @@ async function rrFetch() {
             'Club-Werte in Daten (Sample): ' + dbgClubs + '<br>' +
             'Top-Level Keys: ' + ((_rrDebug.topKeys||[]).join(', ')||'?') + '<br>' +
             'Config-Keys: ' + ((_rrDebug.cfgKeys||[]).join(', ')||'?') + '<br>' +
-            'API-Key: &ldquo;' + (_rrDebug.cfgKey||'leer') + '&rdquo;<br>' +
+            'API-Key: &ldquo;' + (_rrDebug.cfgKey||'leer') + '&rdquo; | Datum-Raw: ' + JSON.stringify(_rrDebug.cfgDateRaw||'') + ' → ' + (_rrDebug.eventDate||'leer') + '<br>' +
             'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine') + '<br>' +
             'Contests: ' + (_rrDebug.contestSample||'?') + '<br>' +
             'ListName aus Config: ' + (_rrDebug.listName||'?') + (_rrDebug.listContest !== undefined ? ' (Contest=' + _rrDebug.listContest + ')' : '') + (_rrDebug.fetchMode ? ' [' + _rrDebug.fetchMode + ']' : '') + '<br>' +

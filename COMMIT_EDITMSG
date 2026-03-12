@@ -1,18 +1,9 @@
-v254: RaceResult: Club-Filter, DataFields, Datum/Ort fixes
+v255: RaceResult: Club-Filter Phrase-Match + Datum-Debug
 
 Club-Filter:
-- clubWords-Mindestlänge von >2 auf >1 (damit "TuS" als Wort zählt)
-- Wenn clubWords leer (kein Vereinsname konfiguriert): nicht alles durchlassen
+- Statt OR über einzelne Wörter: Phrase-Match auf den vollständigen
+  Vereinsnamen ("tus oedt" muss als Substring in Club-Spalte vorkommen)
+- "TuS Bergziege" enthält nicht "tus oedt" → wird korrekt gefiltert
 
-DataFields-Kalibrierung:
-- iAK wird auf -1 zurückgesetzt vor Kalibrierung (verhindert falschen Default)
-- NATION.FLAG / nation wird explizit übersprungen
-- MitStatus([AUTORANKP]) wird als Platz-Spalte erkannt
-
-Datum:
-- cfg.Time als weiterer Fallback für Datum
-- Unix-Timestamp, ISO, DD.MM.YYYY alle unterstützt
-
-Ort/Name:
-- HeadLine ohne Datum: letztes Wort trotzdem als Ort-Fallback
-- cfg.eventname als Name-Fallback
+Datum-Debug:
+- Datum-Raw und geparstes Datum werden im Debug angezeigt
