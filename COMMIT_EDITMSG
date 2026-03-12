@@ -1,6 +1,5 @@
-v284: AK-Platz selbst berechnen statt AUTORANKP (Gesamtplatz)
+v285: AK-Platz: AK aus Jahrgang+Geschlecht für alle 1628 Rows berechnen
 
-AUTORANKP in DataFields ist der Gesamtplatz, nicht der AK-Platz.
-Neue Lösung: alle Rows (inkl. nicht-TuS-Oedt) werden gesammelt,
-calcAKPlatz() zählt wie viele Starter gleicher AK eine bessere Zeit haben.
-→ Simon Heiß: Platz 6 statt Platz 19
+Wenn iAK=-1: AK wird in calcAKPlatz für jeden Vergleichs-Row via
+calcDlvAK(year, geschlecht, eventJahr) on-the-fly berechnet.
+→ M35-Vergleich funktioniert jetzt korrekt (Platz 6 statt 1)
