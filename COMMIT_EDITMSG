@@ -1,6 +1,1 @@
-v320: Athleten: Deaktivieren/Aktivieren-Button direkt in der Zeile
-
-- Nur für Admins sichtbar
-- Aktive Athleten: ⏼-Button (grau) → deaktivieren
-- Inaktive Athleten: ⏻-Button (grün) → reaktivieren
-- Bestätigung per confirm(), dann PUT aktiv=0/1
+v321: btn-sm: einheitliche Höhe (height: 30px)

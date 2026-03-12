@@ -255,7 +255,7 @@ main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
 .btn-rot:hover { background: var(--accent2); }
 .btn-ghost  { background: var(--surf2); color: var(--text); border: 1.5px solid var(--border); }
 .btn-ghost:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
-.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-sm { padding: 5px 12px; font-size: 12px; height: 30px; box-sizing: border-box; line-height: 1; }
 .btn-danger { background: var(--surf2); color: var(--text); border: 1.5px solid var(--border); }
 .btn-danger:hover { background: #c0392b; color: #fff; border-color: #c0392b; }
 
