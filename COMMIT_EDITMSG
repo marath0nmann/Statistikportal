@@ -1,5 +1,1 @@
-v285: AK-Platz: AK aus Jahrgang+Geschlecht für alle 1628 Rows berechnen
-
-Wenn iAK=-1: AK wird in calcAKPlatz für jeden Vergleichs-Row via
-calcDlvAK(year, geschlecht, eventJahr) on-the-fly berechnet.
-→ M35-Vergleich funktioniert jetzt korrekt (Platz 6 statt 1)
+v286: Debug: AK-Platz-Berechnung tracen
