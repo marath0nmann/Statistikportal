@@ -1,7 +1,8 @@
-v273: RaceResult: Fallback auf echte Contest-IDs wenn contest=0 hängt
+v274: RaceResult: Contest-Loop radikal vereinfacht
 
-contest=0 + r=all hängt bei diesem Event (kein Response).
-Neue Strategie:
-- contest=0 mit 5s Timeout probieren
-- Bei Timeout: alle echten IDs aus cfg.contests einzeln versuchen
-- Echte Contests mit 15s Timeout
+- contest=0 komplett entfernt (hängt immer)
+- Nur echte Contest-IDs aus cfg.contests
+- r=search mit leerem term= (wie vor v264)
+- 12s Timeout pro Request
+- Kein Extra-Request-Block mehr
+- Loop von 283 auf 77 Zeilen reduziert

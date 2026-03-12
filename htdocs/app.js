@@ -2795,158 +2795,76 @@ async function rrFetch() {
       var cname = contestObj[cid] || ('Contest ' + cid);
       preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; ' + (ci+1) + '/' + contestIds.length + ': ' + cname + '&hellip;</div>';
       try {
-        // Direkt r=all — r=search hängt bei manchen Events
-        var urlAll = base4 +
+        var url = base4 +
           '?key='      + apiKey +
           '&listname=' + encodeURIComponent(listName) +
           '&page=results&contest=' + cid +
-          '&r=all&l=9999';
-        var _acA = new AbortController();
-        var _timeoutMs = (cid === '0') ? 5000 : 15000;
-        var _tA = setTimeout(function(){ _acA.abort(); }, _timeoutMs);
-        var respA;
-        try { respA = await fetch(urlAll, { headers: hdrs, signal: _acA.signal }); }
-        catch(fe) {
-          clearTimeout(_tA);
-          _rrDebug.errors = _rrDebug.errors || [];
-          _rrDebug.errors.push('Timeout/Fehler r=all Contest ' + cid + ': ' + fe.message);
-          continue;
-        }
-        clearTimeout(_tA);
-        if (!respA.ok) {
-          _rrDebug.errors = _rrDebug.errors || [];
-          _rrDebug.errors.push('HTTP ' + respA.status + ' Contest ' + cid);
-          continue;
-        }
-        var rawA = await respA.text();
-        _rrDebug.searchRaw = 'r=all URL: ' + urlAll.slice(-100) + ' | Raw: ' + rawA.slice(0, 300);
-        var payloadA;
-        try { payloadA = JSON.parse(rawA); }
-        catch(pe) { _rrDebug.errors = _rrDebug.errors || []; _rrDebug.errors.push('JSON-Fehler: ' + pe.message); continue; }
+          '&r=search&l=9999&term=';
+        var _ac = new AbortController();
+        var _t  = setTimeout(function(){ _ac.abort(); }, 12000);
+        var resp;
+        try { resp = await fetch(url, { headers: hdrs, signal: _ac.signal }); }
+        catch(fe) { clearTimeout(_t); continue; }
+        clearTimeout(_t);
+        if (!resp.ok) continue;
 
-        _rrDebug.topKeys = Object.keys(payloadA);
-        var gf = payloadA.groupFilters || payloadA.GroupFilters || [];
-        if (!_rrDebug.groupFilters) _rrDebug.groupFilters = JSON.stringify(gf).slice(0, 400);
+        var payload = JSON.parse(await resp.text());
+        _rrDebug.topKeys = Object.keys(payload);
 
-        // DataFields aus r=all Response lesen
-        var df = payloadA.DataFields || [];
+        // DataFields kalibrieren
+        var df = payload.DataFields || [];
         if (Array.isArray(df) && df.length > 0) {
-          iYear = -1; iGeschlecht = -1;
-          iAK = -1;
+          iAK = -1; iYear = -1; iGeschlecht = -1;
           for (var fi = 0; fi < df.length; fi++) {
             var f = df[fi].toLowerCase();
-            if (f.indexOf('anzeigename') >= 0 || f === 'name' || f === 'fullname') iName = fi;
+            if (f.indexOf('anzeigename') >= 0) iName = fi;
             else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
-            else if (f.indexOf('agegroup') >= 0 || f.indexOf('altersklasse') >= 0 || f === 'ak' || f === '[agegroup1.nameshort]') iAK = fi;
-            else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* überspringen */ }
-            else if (f === 'year' || f === 'geburtsjahr' || f === 'birthyear' || f === 'yob') iYear = fi;
-            else if (f.indexOf('geschlechtmw') >= 0 || f === '[geschlechtmw]' || f === 'sex' || f === 'gender') iGeschlecht = fi;
+            else if (f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]') iAK = fi;
+            else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* skip */ }
+            else if (f === 'year' || f === 'yob' || f === 'birthyear') iYear = fi;
+            else if (f.indexOf('geschlechtmw') >= 0) iGeschlecht = fi;
             else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
             else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0) iZeit = fi;
-            else if ((f.indexOf('plp') >= 0 && f.indexOf('ges') < 0) || f.indexOf('akplatz') >= 0 || f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0) iPlatz = fi;
+            else if (f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0) iPlatz = fi;
           }
           if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
-          _rrDebug.iClub = iClub; _rrDebug.iName = iName; _rrDebug.iPlatz = iPlatz;
-          _rrDebug.dfLog = df.join(', ');
+          _rrDebug.iClub = iClub; _rrDebug.dfLog = df.join(', ');
         }
 
-        // Daten flachmachen: {Contest: {Gruppe: [rows]}} → {Contest/Gruppe: [rows]}
-        var flatData = {};
-        var dRaw = payloadA.data || {};
-        var dKeys = Object.keys(dRaw);
-        _rrDebug.dataKeys = JSON.stringify(dKeys).slice(0, 300);
-        for (var dk = 0; dk < dKeys.length; dk++) {
-          var sub = dRaw[dKeys[dk]];
-          if (Array.isArray(sub)) {
-            flatData[dKeys[dk]] = sub;
-          } else if (sub && typeof sub === 'object') {
-            var subKeys = Object.keys(sub);
-            _rrDebug.firstGroupKeys = JSON.stringify(subKeys).slice(0, 200);
-            for (var sk = 0; sk < subKeys.length; sk++) {
-              if (Array.isArray(sub[subKeys[sk]])) {
-                flatData[dKeys[dk] + '/' + subKeys[sk]] = sub[subKeys[sk]];
+        // Daten flachmachen: {Contest: {Gruppe: [rows]}} -> {Contest/Gruppe: [rows]}
+        var dRaw = payload.data || {};
+        var _dks = Object.keys(dRaw);
+        if (!_rrDebug.dataKeys) _rrDebug.dataKeys = JSON.stringify(_dks).slice(0, 200);
+        var gf = payload.groupFilters || [];
+        if (!_rrDebug.groupFilters) _rrDebug.groupFilters = JSON.stringify(gf).slice(0, 200);
+
+        _dks.forEach(function(k) {
+          var v = dRaw[k];
+          var groups = Array.isArray(v) ? { '': v } : (v && typeof v === 'object' ? v : {});
+          Object.keys(groups).forEach(function(k2) {
+            var rows = groups[k2];
+            if (!Array.isArray(rows)) return;
+            rows.forEach(function(row) {
+              if (!Array.isArray(row) || row.length < 4) return;
+              _rrDebug.totalRows++;
+              var clubVal = iClub >= 0 ? String(row[iClub] || '').trim() : '';
+              if (clubVal && _rrDebug.clubSamples.indexOf(clubVal) < 0 && _rrDebug.clubSamples.length < 20)
+                _rrDebug.clubSamples.push(clubVal);
+              if (clubPhrase && clubVal.toLowerCase().indexOf(clubPhrase) < 0) return;
+              var gkey = k2 ? (k + '/' + k2) : k;
+              var gParts = gkey.split('/');
+              var _akFromGroup = '';
+              if (iAK < 0 && gParts.length > 1) {
+                var gk = gParts[gParts.length-1].replace(/^#[0-9]+_/, '').trim();
+                if (/männl|male|herren/i.test(gk)) _akFromGroup = 'M';
+                else if (/weibl|female|frauen/i.test(gk)) _akFromGroup = 'W';
               }
-            }
-          }
-        }
-
-        // groupFilters Type=1: weitere Contest-Gruppen via Extra-Requests laden
-        if (cid === '0' && Array.isArray(gf)) {
-          var gfType1 = null;
-          for (var gfi = 0; gfi < gf.length; gfi++) { if (gf[gfi].Type === 1) { gfType1 = gf[gfi]; break; } }
-          if (gfType1 && Array.isArray(gfType1.Values) && gfType1.Values.length > 1) {
-            var extraNames = gfType1.Values.filter(function(v) { return v !== gfType1.Value && v !== ''; });
-            _rrDebug.extraContests = extraNames;
-            for (var eci = 0; eci < extraNames.length; eci++) {
-              var eName = extraNames[eci];
-              var urlEx = base4 +
-                '?key=' + apiKey +
-                '&listname=' + encodeURIComponent(listName) +
-                '&page=results&contest=0' +
-                '&activefilter=' + encodeURIComponent(eName) +
-                '&r=all&l=9999';
-              try {
-                var _acE = new AbortController();
-                var _tE = setTimeout(function(){ _acE.abort(); }, 10000);
-                var respEx;
-                try { respEx = await fetch(urlEx, { headers: hdrs, signal: _acE.signal }); }
-                catch(fe2) { clearTimeout(_tE); _rrDebug.extraContests.push(eName + ':Timeout'); continue; }
-                clearTimeout(_tE);
-                if (!respEx.ok) { _rrDebug.extraContests.push(eName + ':HTTP' + respEx.status); continue; }
-                var payEx = JSON.parse(await respEx.text());
-                var dRawEx = payEx.data || {};
-                var dkEx = Object.keys(dRawEx);
-                _rrDebug.extraContests.push(eName + ':data-keys=' + JSON.stringify(dkEx).slice(0, 80));
-                for (var dke = 0; dke < dkEx.length; dke++) {
-                  var subEx = dRawEx[dkEx[dke]];
-                  if (Array.isArray(subEx)) {
-                    flatData[eName + '/' + dkEx[dke]] = subEx;
-                  } else if (subEx && typeof subEx === 'object') {
-                    var skEx = Object.keys(subEx);
-                    for (var ske = 0; ske < skEx.length; ske++) {
-                      if (Array.isArray(subEx[skEx[ske]])) {
-                        flatData[eName + '/' + dkEx[dke] + '/' + skEx[ske]] = subEx[skEx[ske]];
-                      }
-                    }
-                  }
-                }
-              } catch(ee) { _rrDebug.extraContests.push(eName + ':Fehler:' + ee.message); }
-            }
-          }
-        }
-
-        var dataKeys = Object.keys(flatData);
-        for (var dk2 = 0; dk2 < dataKeys.length; dk2++) {
-          var rows = flatData[dataKeys[dk2]];
-          if (!Array.isArray(rows)) continue;
-          if (!clubPhrase) { _rrDebug.errors = _rrDebug.errors || []; _rrDebug.errors.push('Vereinsname nicht konfiguriert'); }
-          for (var ri = 0; ri < rows.length; ri++) {
-            var row = rows[ri];
-            if (!Array.isArray(row) || row.length < 4) continue;
-            _rrDebug.totalRows++;
-            var clubSample = iClub >= 0 ? String(row[iClub] || '').trim() : '';
-            if (clubSample && _rrDebug.clubSamples.indexOf(clubSample) < 0 && _rrDebug.clubSamples.length < 50) _rrDebug.clubSamples.push(clubSample);
-            if (clubPhrase) {
-              var clubVal = clubSample.toLowerCase();
-              if (clubVal.indexOf(clubPhrase) < 0) continue;
-            }
-            // Gruppen-Key auswerten für Disziplin und AK-Geschlecht
-            var groupKey = dataKeys[dk2];
-            var groupParts = groupKey.split('/');
-            var _cname2 = cname !== ('Contest ' + cid) ? cname :
-              (groupParts[0] || '').replace(/^#\d+_/, '').trim() || cname;
-            var _akFromGroup = '';
-            if (iAK < 0 && groupParts.length > 1) {
-              var gk = (groupParts[groupParts.length-1] || '').replace(/^#\d+_/, '').trim();
-              if (/männl|maennl|male|herren/i.test(gk)) _akFromGroup = 'M';
-              else if (/weibl|female|frauen|damen/i.test(gk)) _akFromGroup = 'W';
-              else _akFromGroup = gk;
-            }
-            allResults.push({ raw: row, contestName: _cname2, akFromGroup: _akFromGroup,
-              iYear: iYear, iGeschlecht: iGeschlecht,
-              iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
-          }
-        }
+              allResults.push({ raw: row, contestName: cname, akFromGroup: _akFromGroup,
+                iYear: iYear, iGeschlecht: iGeschlecht,
+                iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
+            });
+          });
+        });
       } catch(e2) { continue; }
     }
     if (!allResults.length) {
