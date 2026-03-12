@@ -2760,7 +2760,15 @@ function renderEintragen() {
         '<div id="bk-neu-form" class="form-grid" style="margin-bottom:16px">' +
           '<div class="form-group"><label>Datum *</label><input type="date" id="bk-datum" value="' + today + '"/></div>' +
           '<div class="form-group"><label>Ort *</label><input type="text" id="bk-ort" placeholder="z.B. D&uuml;sseldorf"/></div>' +
-          '<div class="form-group full"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. D&uuml;sseldorf Marathon"/></div>' +
+          '<div class="form-group"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. Düsseldorf Marathon"/></div>' +
+          '<div class="form-group"><label>Kategorie</label><select id="bk-kat" style="width:100%" onchange="bkKatChanged()">' + (function(){
+            var seen={}, opts='<option value="">Alle Kategorien</option>';
+            var disz=state.disziplinen||[];
+            var kats=[];
+            for(var i=0;i<disz.length;i++){var d=disz[i];if(d.tbl_key&&!seen[d.tbl_key]){seen[d.tbl_key]=true;kats.push({key:d.tbl_key,name:d.kategorie});}}
+            for(var ki=0;ki<kats.length;ki++){opts+='<option value="'+kats[ki].key+'">'+kats[ki].name+'</option>';}
+            return opts;
+          })() + '</select></div>' +
         '</div>' +
         '<div id="bk-best-form" style="display:none;margin-bottom:16px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Veranstaltung *</label>' +
@@ -2827,8 +2835,6 @@ function renderEintragen() {
 
   if (isBulk) {
     bulkAddRow();
-    bulkAddRow();
-    bulkAddRow();
     bkLoadVeranstOptions();
   }
 }
@@ -2879,14 +2885,26 @@ function bkAkOpts(geschlecht) {
   for (var i = 0; i < list.length; i++) opts += '<option value="' + list[i] + '">' + list[i] + '</option>';
   return opts;
 }
-function bkDiszOpts() {
+function bkDiszOpts(kat) {
   var opts = '<option value="">– wählen –</option>';
   var list = state.disziplinen || [];
   for (var i = 0; i < list.length; i++) {
-    var d = (typeof list[i] === 'object') ? list[i].disziplin : list[i];
+    var item = list[i];
+    var d = (typeof item === 'object') ? item.disziplin : item;
+    var k = (typeof item === 'object') ? item.tbl_key : '';
+    if (kat && k && k !== kat) continue;
     opts += '<option value="' + d + '">' + d + '</option>';
   }
   return opts;
+}
+
+function bkKatChanged() {
+  var kat = (document.getElementById('bk-kat') || {}).value || '';
+  document.querySelectorAll('#bulk-rows .bk-disz').forEach(function(sel) {
+    var prev = sel.value;
+    sel.innerHTML = bkDiszOpts(kat);
+    if (prev) { for (var i = 0; i < sel.options.length; i++) { if (sel.options[i].value === prev) { sel.value = prev; break; } } }
+  });
 }
 
 // Pace berechnen: Disziplin-Name → Distanz in km → min:sec/km
@@ -2939,14 +2957,15 @@ function bulkRowHtml(idx) {
     var g = a.geschlecht || '';
     athOptHtml += '<option value="' + a.id + '" data-g="' + g + '">' + a.name_nv + '</option>';
   }
+  var fld = 'box-sizing:border-box;height:34px;padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;background:var(--surf2);color:var(--text);font-family:Barlow,sans-serif;font-size:13px;outline:none;width:100%';
   return '<tr id="bkrow-' + idx + '" style="border-bottom:1px solid var(--border)">' +
     '<td style="padding:6px;color:var(--text2);font-size:12px">' + (idx+1) + '</td>' +
-    '<td style="padding:4px 6px"><select class="bk-athlet" onchange="bkUpdateAK(this,' + idx + ')">' + athOptHtml + '</select></td>' +
-    '<td style="padding:4px 6px"><select class="bk-disz">' + bkDiszOpts() + '</select></td>' +
-    '<td style="padding:4px 6px"><input class="bk-res" type="text" placeholder="00:45:00"/></td>' +
-    '<td style="padding:4px 6px"><select class="bk-ak" id="bk-ak-' + idx + '">' + bkAkOpts('') + '</select></td>' +
-    '<td style="padding:4px 6px"><input class="bk-platz" type="number" placeholder="1" min="1"/></td>' +
-    '<td style="padding:4px 6px"><button onclick="bulkRemoveRow(' + idx + ')" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;padding:2px 4px" title="Zeile entfernen">&#x2715;</button></td>' +
+    '<td style="padding:4px 6px"><select class="bk-athlet" onchange="bkUpdateAK(this,' + idx + ')" style="' + fld + '">' + athOptHtml + '</select></td>' +
+    '<td style="padding:4px 6px"><select class="bk-disz" style="' + fld + '">' + bkDiszOpts((document.getElementById('bk-kat')||{}).value||'') + '</select></td>' +
+    '<td style="padding:4px 6px"><input class="bk-res" type="text" placeholder="00:45:00" style="' + fld + '"/></td>' +
+    '<td style="padding:4px 6px"><select class="bk-ak" id="bk-ak-' + idx + '" style="' + fld + '">' + bkAkOpts('') + '</select></td>' +
+    '<td style="padding:4px 6px"><input class="bk-platz" type="number" placeholder="1" min="1" style="' + fld + '"/></td>' +
+    '<td style="padding:4px 6px;text-align:center"><button onclick="bulkRemoveRow(' + idx + ')" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;padding:2px 4px" title="Zeile entfernen">&#x2715;</button></td>' +
   '</tr>';
 }
 

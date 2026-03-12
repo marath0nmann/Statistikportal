@@ -568,7 +568,7 @@ if ($res === 'dashboard' && $method === 'GET') {
     if ($unified) {
         $stats = [
             'gesamt'   => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse') . ' WHERE geloescht_am IS NULL')['c'],
-            'athleten' => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('athleten') . ' WHERE aktiv=1 AND geloescht_am IS NULL')['c'],
+            'athleten' => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('athleten') . ' WHERE geloescht_am IS NULL')['c'],
             'rekorde'  => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('vereinsrekorde') . '')['c'],
         ];
     } else {
@@ -577,7 +577,7 @@ if ($res === 'dashboard' && $method === 'GET') {
             'sprint'        => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_sprint') . '')['c'],
             'mittelstrecke' => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_mittelstrecke') . '')['c'],
             'sprungwurf'    => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_sprungwurf') . '')['c'],
-            'athleten'      => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('athleten') . ' WHERE aktiv=1')['c'],
+            'athleten'      => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('athleten') . '')['c'],
             'rekorde'       => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('vereinsrekorde') . '')['c'],
         ];
     }
