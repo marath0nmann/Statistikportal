@@ -1,6 +1,7 @@
-v251: RaceResult Debug: topKeys immer setzen + r=all Raw anzeigen
+v253: RaceResult: zwei-Ebenen-Datenstruktur unterstützen
 
-- topKeys wurde nie gesetzt wenn DataFields vorhanden waren → immer "?"
-- r=all Fallback zeigt jetzt den rohen Response im Debug
-- payloadHasRows() Hilfsfunktion vereinheitlicht die Daten-Prüfung
-- fetchMode zeigt jetzt auch "r=all (leer)" wenn beide Endpoints leer sind
+Daten kommen als {"#1_Contest": {"#1_Gruppe": [[row],[row]]}}
+statt flach als {gruppe: [[row],[row]]}.
+- payloadHasRows() schaut jetzt zwei Ebenen tief
+- Daten-Extraktion flacht beide Ebenen vor dem Row-Loop ab
+- Heuristische Name-Erkennung ebenfalls angepasst
