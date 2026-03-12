@@ -2773,23 +2773,24 @@ async function rrFetch() {
     _rrDebug.cfgDateRaw = _cfgDateRaw;
     _rrDebug.eventDate = eventDate;
     _rrDebug.cfgEventName = cfg.eventname || '';
-    // Ort: letztes Wort des Veranstaltungsnamens (z.B. "STADTWERKE Halbmarathon Bochum" → "Bochum")
-    if (!eventOrt && eventName) {
-      var _enWords = eventName.trim().split(/\s+/);
-      if (_enWords.length > 1) eventOrt = _enWords[_enWords.length - 1];
-    }
     _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
     _rrDebug.listName = listName;
     _rrDebug.listContest = listContest;
 
-    // Spaltenindizes: bekannte Positionen aus dem echten DataFields-Format
-    // ["BIB","ID","MitStatus([GesPlp])","AnzeigeName","YEAR","[GeschlechtMW]","[AGEGROUP1.NAMESHORT]","CLUB","Ziel.GUN","Ziel.CHIP"]
-    var iName=5; var iClub=7; var iAK=4; var iZeit=8; var iNetto=8; var iPlatz=3;
+    // Spaltenindizes: Defaults, werden per DataFields überschrieben
+    var iName=3; var iClub=6; var iAK=-1; var iZeit=8; var iNetto=7; var iPlatz=2;
+    var iYear=-1; var iGeschlecht=-1;
 
     var base4 = 'https://my.raceresult.com/' + eventId + '/RRPublish/data/list';
     var hdrs  = { 'Origin': 'https://my.raceresult.com', 'Referer': 'https://my.raceresult.com/' };
     var allResults = [];
-    var eventOrt = eventOrtCfg || "";
+    // eventOrt HIER deklarieren (vor dem Extraktionsblock der weiter oben steht → wird durch Hoisting korrekt)
+    var eventOrt = eventOrtCfg || '';
+    // Ort aus Veranstaltungsname wenn noch leer
+    if (!eventOrt && eventName) {
+      var _enWords = eventName.trim().split(/\s+/);
+      if (_enWords.length > 1) eventOrt = _enWords[_enWords.length - 1];
+    }
 
     // clubPhrase vor dem Loop definieren damit es im URL-Build verfügbar ist
     var vereinRawGlobal = (appConfig.verein_kuerzel || appConfig.verein_name || '');
@@ -2797,7 +2798,7 @@ async function rrFetch() {
 
     for (var ci = 0; ci < contestIds.length; ci++) {
       var cid   = contestIds[ci];
-      var cname = contestObj[cid] || ('Contest ' + cid);
+      var cname = contestObj[cid] || (cid === '0' ? '' : ('Contest ' + cid));
       preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; ' + (ci+1) + '/' + contestIds.length + ': ' + cname + '&hellip;</div>';
       try {
         var url = base4 +
@@ -2815,6 +2816,12 @@ async function rrFetch() {
 
         var payload = JSON.parse(await resp.text());
         _rrDebug.topKeys = Object.keys(payload);
+
+        // cname für contest=0 aus groupFilters aktiven Filter ableiten
+        if (!cname) {
+          var _gfActive = (payload.groupFilters || []).filter(function(g){ return g.Type === 1 && g.Value; });
+          cname = _gfActive.length ? _gfActive[0].Value : ('Contest ' + cid);
+        }
 
         // DataFields kalibrieren
         var df = payload.DataFields || [];
@@ -3004,6 +3011,8 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   var _dbgRaw = _dbgFirst ? JSON.stringify(_dbgFirst.raw) : '(leer)';
   var _dbg = window._rrDebug || {};
   var _dbgLines = [];
+  var _appVer = (document.getElementById('header-version') || {}).textContent || '';
+  _dbgLines.push('App: ' + _appVer + ' | ' + new Date().toLocaleString('de-DE'));
   // Spaltenindizes
   if (_dbgFirst) {
     _dbgLines.push('Spalten: iName='+_dbgFirst.iName+' iClub='+_dbgFirst.iClub+' iAK='+_dbgFirst.iAK+' iNetto='+_dbgFirst.iNetto+' iPlatz='+_dbgFirst.iPlatz+' iYear='+_dbgFirst.iYear+' iGeschlecht='+_dbgFirst.iGeschlecht);
@@ -3115,7 +3124,11 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   }
 
   preview.innerHTML =
-    '<details style="margin-bottom:12px"><summary style="cursor:pointer;font-size:12px;color:var(--text2);padding:4px 0">&#x1F50D; Spalten-Debug</summary><pre style="font-size:10px;overflow-x:auto;background:var(--surf2);padding:8px;border-radius:6px;white-space:pre-wrap;color:var(--text2)">' + _dbgIdx + '\n' + _dbgRaw + '</pre></details>' +
+    '<details style="margin-bottom:12px"><summary style="cursor:pointer;font-size:12px;color:var(--text2);padding:4px 0">&#x1F50D; Spalten-Debug</summary>' +
+      '<div style="position:relative">' +
+        '<button onclick="(function(){var el=document.getElementById(\'rr-dbg-pre\');var txt=el.innerText||el.textContent;if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){var b=el.parentNode.querySelector(\'button\');var old=b.textContent;b.textContent=\'&#x2713; Kopiert!\';setTimeout(function(){b.textContent=old;},2000);});}else{var r=document.createRange();r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}})()" style="position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer">&#x1F4CB; Kopieren</button>' +
+        '<pre id="rr-dbg-pre" style="font-size:10px;overflow-x:auto;background:var(--surf2);padding:8px 8px 8px 8px;padding-right:80px;border-radius:6px;white-space:pre-wrap;color:var(--text2)">' + _dbgIdx + '\n' + _dbgRaw + '</pre>' +
+      '</div></details>' +
     '<div style="background:var(--surf2);border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end">' +
       '<div style="flex:1;min-width:200px"><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Veranstaltungsname</div>' +
         '<input id="rr-evname" type="text" value="' + eventName + '" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:100%"/></div>' +
