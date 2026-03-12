@@ -1,5 +1,1 @@
-v296: Fix Geburtsjahr-Import: athletenMap wird jetzt beim Öffnen des Modals geladen
-
-state._athletenMap war leer wenn die Athleten-Seite noch nicht besucht wurde
-→ alle Matches scheiterten, Import tat nichts. Behoben durch explizites
-apiGet('athleten') beim Öffnen des Modals und als Fallback in doGeburtjahrImport.
+v298: Fix _normN: war lokale Funktion in rrFetch, jetzt global verfügbar
