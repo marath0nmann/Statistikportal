@@ -2782,6 +2782,10 @@ async function rrFetch() {
     var allResults = [];
     var eventOrt = eventOrtCfg || "";
 
+    // clubPhrase vor dem Loop definieren damit es im URL-Build verfügbar ist
+    var vereinRawGlobal = (appConfig.verein_kuerzel || appConfig.verein_name || '');
+    var clubPhrase = vereinRawGlobal.toLowerCase().trim();
+
     for (var ci = 0; ci < contestIds.length; ci++) {
       var cid   = contestIds[ci];
       var cname = contestObj[cid] || ('Contest ' + cid);
@@ -2963,10 +2967,7 @@ async function rrFetch() {
         for (var dk=0; dk<dataKeys.length; dk++) {
           var rows = flatData[dataKeys[dk]];
           if (!Array.isArray(rows)) continue;
-          // Club-Filter: Vereinsname/Kürzel in Club-Spalte suchen
-          var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '');
-          var clubPhrase = vereinRaw.toLowerCase().trim();
-          // Sicherheit: wenn kein Vereinsname konfiguriert → nichts durchlassen
+          // Club-Filter: clubPhrase ist oben global definiert
           if (!clubPhrase) { _rrDebug.errors.push('Vereinsname nicht konfiguriert'); }
           for (var ri=0; ri<rows.length; ri++) {
             var row = rows[ri];

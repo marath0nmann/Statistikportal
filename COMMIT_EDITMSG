@@ -1,5 +1,5 @@
-v265: RaceResult Debug: Search-URL + Raw-Response immer anzeigen
+v266: RaceResult: clubPhrase vor Contest-Loop definieren
 
-firstVal wurde vom Konfig-Request überschrieben bevor der
-Such-Response ankam. Neues searchRaw zeigt URL + Response
-des eigentlichen Daten-Requests.
+clubPhrase wurde erst in Zeile 2968 definiert, aber im URL-Build
+bei Zeile 2795 bereits gebraucht → term= war immer leer.
+Jetzt vor dem Loop definiert → term=tus+oedt greift korrekt.
