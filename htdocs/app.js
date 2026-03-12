@@ -2801,7 +2801,7 @@ async function rrFetch() {
           continue;
         }
         var rawText = await resp.text();
-        if (!_rrDebug.firstVal) _rrDebug.firstVal = rawText.slice(0, 600);
+        _rrDebug.searchRaw = 'URL: ' + urlSearch.slice(-120) + ' | Raw: ' + rawText.slice(0, 500);
         var payload;
         try { payload = JSON.parse(rawText); } catch(pe) { _rrDebug.firstVal = 'JSON-Parse-Fehler: ' + pe.message + ' | Raw: ' + rawText.slice(0,300); continue; }
 
@@ -3018,6 +3018,7 @@ async function rrFetch() {
             'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine') + '<br>' +
             'Contests: ' + (_rrDebug.contestSample||'?') + '<br>' +
             'groupFilters: ' + (_rrDebug.groupFilters||'–') + '<br>' +
+            'searchRaw: ' + (_rrDebug.searchRaw||'–') + '<br>' +
             'data-Keys: ' + (_rrDebug.dataKeys||'–') + '<br>' +
             'firstGroupKeys: ' + (_rrDebug.firstGroupKeys||'–') + '<br>' +
             'ListName aus Config: ' + (_rrDebug.listName||'?') + (_rrDebug.listContest !== undefined ? ' (Contest=' + _rrDebug.listContest + ')' : '') + (_rrDebug.fetchMode ? ' [' + _rrDebug.fetchMode + ']' : '') + '<br>' +
