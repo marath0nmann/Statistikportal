@@ -2773,15 +2773,10 @@ async function rrFetch() {
     _rrDebug.cfgDateRaw = _cfgDateRaw;
     _rrDebug.eventDate = eventDate;
     _rrDebug.cfgEventName = cfg.eventname || '';
-    // Ort aus HeadLine: letztes Wort wenn kein Ort aus Config
-    if (!eventOrt && _rrDebug.headLine) {
-      var _hlWords = _rrDebug.headLine.trim().split(/\s+/);
-      if (_hlWords.length > 1) eventOrt = _hlWords[_hlWords.length - 1];
-    }
-    // Ort aus HeadLine extrahieren wenn nicht aus Config
-    if (!eventOrt && _rrDebug.headLine) {
-      var _hlWords = _rrDebug.headLine.trim().split(/\s+/);
-      if (_hlWords.length > 1) eventOrt = _hlWords[_hlWords.length - 1];
+    // Ort: letztes Wort des Veranstaltungsnamens (z.B. "STADTWERKE Halbmarathon Bochum" → "Bochum")
+    if (!eventOrt && eventName) {
+      var _enWords = eventName.trim().split(/\s+/);
+      if (_enWords.length > 1) eventOrt = _enWords[_enWords.length - 1];
     }
     _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
     _rrDebug.listName = listName;
@@ -3007,7 +3002,34 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   // Debug
   var _dbgFirst = results.length ? results[0] : null;
   var _dbgRaw = _dbgFirst ? JSON.stringify(_dbgFirst.raw) : '(leer)';
-  var _dbgIdx = (_dbgFirst ? ('iName='+_dbgFirst.iName+' iClub='+_dbgFirst.iClub+' iAK='+_dbgFirst.iAK+' iNetto='+_dbgFirst.iNetto+' iPlatz='+_dbgFirst.iPlatz) : '') + (window._rrDebug && window._rrDebug.resolvedDate ? ' | Datum: '+window._rrDebug.resolvedDate+' (Raw: '+JSON.stringify(window._rrDebug.cfgDateRaw||'')+')' : '');
+  var _dbg = window._rrDebug || {};
+  var _dbgLines = [];
+  // Spaltenindizes
+  if (_dbgFirst) {
+    _dbgLines.push('Spalten: iName='+_dbgFirst.iName+' iClub='+_dbgFirst.iClub+' iAK='+_dbgFirst.iAK+' iNetto='+_dbgFirst.iNetto+' iPlatz='+_dbgFirst.iPlatz+' iYear='+_dbgFirst.iYear+' iGeschlecht='+_dbgFirst.iGeschlecht);
+    _dbgLines.push('DataFields: ' + (_dbg.dfLog || '–'));
+  }
+  // Event-Metadaten
+  _dbgLines.push('eventName: ' + (eventName||'–') + ' | eventDate: ' + (eventDate||'leer') + ' | eventOrt: ' + (eventOrt||'leer'));
+  _dbgLines.push('cfgDateRaw: ' + JSON.stringify(_dbg.cfgDateRaw||'') + ' | cfg.eventname: ' + (_dbg.cfgEventName||'–'));
+  // Contest-Infos
+  _dbgLines.push('contests: ' + JSON.stringify(contestObj).slice(0,200));
+  _dbgLines.push('listName: ' + (_dbg.listName||'–') + ' | listContest: ' + (_dbg.listContest||'–'));
+  // Disziplin-Mapping
+  _dbgLines.push('diszList ('+diszList.length+'): ' + diszList.slice(0,20).join(', ') + (diszList.length>20?' …':''));
+  if (_dbgFirst) {
+    var _cname = _dbgFirst.contestName || '';
+    _dbgLines.push('contestName[0]: "' + _cname + '" → rrBestDisz: "' + rrBestDisz(_cname, diszList) + '"');
+    // Alle einzigartigen contestNames
+    var _cnames = {}; results.forEach(function(r){ if(r.contestName) _cnames[r.contestName]=1; });
+    _dbgLines.push('alle contestNames: ' + Object.keys(_cnames).join(', '));
+  }
+  // Club-Samples
+  _dbgLines.push('clubSamples (' + (_dbg.clubSamples||[]).length + '): ' + (_dbg.clubSamples||[]).slice(0,10).join(', '));
+  _dbgLines.push('totalRows: ' + (_dbg.totalRows||0) + ' | Treffer: ' + results.length);
+  // Rohdaten erster Treffer
+  if (_dbgFirst) _dbgLines.push('raw[0]: ' + _dbgRaw);
+  var _dbgIdx = _dbgLines.join('\n');
 
   var rows = '';
   for (var i = 0; i < results.length; i++) {
@@ -3098,7 +3120,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
       '<div style="flex:1;min-width:200px"><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Veranstaltungsname</div>' +
         '<input id="rr-evname" type="text" value="' + eventName + '" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:100%"/></div>' +
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Datum</div>' +
-        '<input id="rr-datum" type="date" value="' + guessDate + '" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)"/></div>' +
+        '<input id="rr-datum" type="text" value="' + (guessDate ? guessDate.split('-').reverse().join('.') : '') + '" placeholder="TT.MM.JJJJ" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Ort</div>' +
         '<input id="rr-ort" type="text" value="' + (eventOrt||'') + '" placeholder="z.B. D\u00fcsseldorf" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:min(150px,100%)"/></div>' +
       '<span style="font-size:12px;color:var(--text2);align-self:center">&#x2705; ' + results.length + ' TuS-Oedt-Ergebnis(se) &bull; Event ' + eventId + '</span>' +
@@ -3130,7 +3152,14 @@ function rrToggleAll(val) {
 }
 
 async function rrImport() {
-  var datum  = ((document.getElementById('rr-datum')  || {}).value || '').trim();
+  var _datumRaw = ((document.getElementById('rr-datum') || {}).value || '').trim();
+  // TT.MM.JJJJ → YYYY-MM-DD
+  var datum = '';
+  if (_datumRaw) {
+    var _dp = _datumRaw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (_dp) datum = _dp[3] + '-' + _dp[2].padStart(2,'0') + '-' + _dp[1].padStart(2,'0');
+    else datum = _datumRaw; // bereits YYYY-MM-DD oder ähnlich
+  }
   var ort    = ((document.getElementById('rr-ort')    || {}).value || '').trim();
   var evname = ((document.getElementById('rr-evname') || {}).value || '').trim();
   if (!datum) { notify("Bitte Datum ausfüllen!", "err"); return; }
@@ -3172,8 +3201,9 @@ async function rrImport() {
       }
       if (!_geschlecht2) _geschlecht2 = r.akFromGroup === 'W' ? 'W' : r.akFromGroup === 'M' ? 'M' : '';
       if (_jahrgang2 && _geschlecht2) {
-        var _datum = (document.getElementById('rr-datum') || {}).value || '';
-        var _eventJahr2 = parseInt(_datum.slice(0,4)) || new Date().getFullYear();
+        var _datum = ((document.getElementById('rr-datum') || {}).value || '').trim();
+        var _dp2 = _datum.match(/(\d{4})/); // Jahr aus beliebigem Format
+        var _eventJahr2 = _dp2 ? parseInt(_dp2[1]) : new Date().getFullYear();
         ak = calcDlvAK(_jahrgang2, _geschlecht2, _eventJahr2);
       } else {
         ak = r.akFromGroup || '';
