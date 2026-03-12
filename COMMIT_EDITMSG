@@ -1,10 +1,7 @@
-v300: Fix AK-Platz: eventJahr=2026 statt 2025 weil Datum leer war
+v301: Fix Datum-Feld Fokus-Bug; Warnung wenn Datum fehlt
 
-Wenn kein Datum aus RaceResult kommt und das rr-datum-Feld leer ist,
-wurde new Date().getFullYear()=2026 verwendet. Jahrgang-1981-Frauen
-werden dadurch fälschlicherweise als W45 statt W40 gezählt → zu hoher Platz.
-
-Fix: _rrEventJahr liest jetzt auch das manuell befüllte rr-datum-Feld aus.
-Außerdem: rr-datum oninput → Preview-Refresh (AK-Plätze aktualisieren sich
-sofort wenn das Datum eingetippt wird).
-Debug-Code: _athletenMap statt veraltetem state.athleten für Geschlecht.
+- oninput → onchange: Refresh feuert erst nach Verlassen des Feldes
+- Refresh überschreibt nur die AK/Platz-Zellen, nicht das komplette
+  innerHTML (kein Fokus-Verlust mehr)
+- Orangefarbene Warnung "Bitte Datum eintragen" wenn kein Datum gesetzt,
+  da es die AK-Platzierung beeinflusst
