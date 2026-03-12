@@ -2724,12 +2724,12 @@ async function rrFetch() {
           if (dm) {
             if (!eventDate) eventDate = dm[3] + "-" + dm[2] + "-" + dm[1];
             eventName = hl.replace(dm[0], "").trim();
-            // Letztes Wort vor Datum als Ort-Kandidat
-            var beforeDate = hl.split(dm[0])[0] || "";
-            var words = beforeDate.trim().split(/\s+/);
-            if (!eventOrt && words.length > 0) {
-              var lastWord = words[words.length - 1];
-              eventOrt = lastWord.replace(/[^\w\s]/g, "").trim();
+            // Trailing " am", " vom", " - " entfernen
+            eventName = eventName.replace(/\s+(am|vom|bei|in|-)\s*$/i, "").trim();
+            // Letztes Wort des Eventnamens als Ort (z.B. "Stadtlauf Wachtendonk" → "Wachtendonk")
+            if (!eventOrt && eventName) {
+              var nameWords = eventName.split(/\s+/);
+              eventOrt = nameWords[nameWords.length - 1].replace(/[^\wäöüÄÖÜß]/g, "").trim();
             }
           } else {
             eventName = hl;
@@ -2901,15 +2901,28 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var platzAKnum = parseInt(platzAKraw) || '';
     var disz  = rrBestDisz(r.contestName || '', diszList);
 
-    // Athlet fuzzy-matchen: erst Nachname, dann Vorname
+    // Athlet-Matching: Name aufteilen (Format "Nachname, Vorname" oder "Vorname Nachname")
     var athletId = '';
-    var parts = name.split(/\s+/);
-    for (var pi = parts.length - 1; pi >= 0 && !athletId; pi--) {
-      var part = parts[pi].toLowerCase();
-      if (part.length < 3) continue;
-      for (var ai = 0; ai < state.athleten.length; ai++) {
+    var nameLow = name.toLowerCase().replace(/,/g, ' ');
+    var parts = nameLow.split(/\s+/).filter(function(p) { return p.length >= 3; });
+    // Exakter Treffer zuerst: kompletter name_nv-Vergleich
+    for (var ai = 0; ai < state.athleten.length && !athletId; ai++) {
+      var a = state.athleten[ai];
+      if (!a.name_nv) continue;
+      var aNorm = a.name_nv.toLowerCase().replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+      var nNorm = nameLow.replace(/\s+/g, ' ').trim();
+      if (aNorm === nNorm) { athletId = a.id; }
+    }
+    // Fallback: alle Namensteile müssen als ganzes Wort vorkommen
+    if (!athletId) {
+      for (var ai = 0; ai < state.athleten.length && !athletId; ai++) {
         var a = state.athleten[ai];
-        if (a.name_nv && a.name_nv.toLowerCase().indexOf(part) >= 0) { athletId = a.id; break; }
+        if (!a.name_nv) continue;
+        var aNorm = a.name_nv.toLowerCase().replace(/,/g, ' ');
+        var allMatch = parts.length > 0 && parts.every(function(p) {
+          return new RegExp('\\b' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(aNorm);
+        });
+        if (allMatch) { athletId = a.id; }
       }
     }
 
