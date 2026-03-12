@@ -1310,7 +1310,8 @@ async function renderDashboard() {
     timelineHtml += '<div class="timeline-item">';
     timelineHtml += '<div class="timeline-date">' + formatDate(rek.datum) + '</div>';
     timelineHtml += '<div class="timeline-body">';
-    timelineHtml += '<div class="timeline-disz">' + rek.disziplin + ' <span class="' + labelCls + '">' + lbl + '</span></div>';
+    var diszLink = '<span class="athlet-link" style="color:var(--text);font-weight:600;cursor:pointer" data-rek-disz="' + rek.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + rek.disziplin + '</span>';
+    timelineHtml += '<div class="timeline-disz">' + diszLink + ' <span class="' + labelCls + '">' + lbl + '</span></div>';
     timelineHtml += '<div class="timeline-athlet">' + athLink + '</div>';
     timelineHtml += '<div class="timeline-result">' + res + vorherHtml + '</div>';
     timelineHtml += '</div></div>';
@@ -2333,6 +2334,18 @@ function setRekDisz(disz) {
   state.rekState.disz = disz;
   state.rekState.view = 'gesamt';
   renderRekorde();
+}
+function navigateToDisz(disz) {
+  // Kategorie der Disziplin ermitteln
+  var kat = null;
+  var diszArr = state.disziplinen || [];
+  for (var i = 0; i < diszArr.length; i++) {
+    if (diszArr[i].disziplin === disz && diszArr[i].tbl_key) { kat = diszArr[i].tbl_key; break; }
+  }
+  if (kat) state.rekState.kat = kat;
+  state.rekState.disz = disz;
+  state.rekState.view = 'gesamt';
+  navigate('rekorde');
 }
 function setRekView(v) {
   state.rekState.view = v;
