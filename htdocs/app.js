@@ -1616,6 +1616,58 @@ async function saveEditErgebnis(id, subTab) {
 // ── ATHLETEN ───────────────────────────────────────────────
 
 /* ── 05_athleten.js ── */
+var _athLetenCache = { alleAthleten: [], alleGruppen: [] };
+
+async function _renderAthletenTable() {
+  var s = state.filters.suche || '';
+  var aktGruppe = state.filters.gruppe || '';
+  var rA = await apiGet(s ? 'athleten?suche=' + encodeURIComponent(s) : 'athleten');
+  if (!rA || !rA.ok) return;
+  _athLetenCache.alleAthleten = rA.data;
+  var alleAthleten = rA.data;
+  var canEdit = currentUser.rolle === 'admin' || currentUser.rolle === 'editor';
+  var jetzt = new Date().getFullYear();
+
+  var athleten = alleAthleten;
+  if (aktGruppe) {
+    athleten = alleAthleten.filter(function(a) {
+      var gs = a.gruppen || [];
+      for (var gi = 0; gi < gs.length; gi++) { if (gs[gi].name === aktGruppe) return true; }
+      return false;
+    });
+  }
+  state._athletenMap = {};
+  var rows = '';
+  for (var i = 0; i < athleten.length; i++) {
+    var a = athleten[i];
+    state._athletenMap[a.id] = a;
+    var canDel = currentUser && currentUser.rolle === 'admin' && parseInt(a.anz_ergebnisse) === 0;
+    var aktuellAK = (a.geschlecht && a.geburtsjahr) ? calcDlvAK(a.geburtsjahr, a.geschlecht, jetzt) : '';
+    rows +=
+      '<tr>' +
+        '<td><span class="athlet-link" onclick="openAthletById(' + a.id + ')">' + a.nachname + '</span></td>' +
+        '<td>' + (a.vorname || '') + '</td>' +
+        '<td>' + akBadge(a.geschlecht) + '</td>' +
+        '<td style="color:var(--text2);font-size:13px">' + (a.geburtsjahr || '') + '</td>' +
+        '<td><span style="font-size:12px;font-weight:600;color:var(--primary)">' + aktuellAK + '</span></td>' +
+        '<td>' + renderGruppenInline(a.gruppen) + '</td>' +
+        '<td><span class="badge badge-platz">' + a.anz_ergebnisse + '</span></td>' +
+        '<td>' + (a.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>') + '</td>' +
+        '<td style="white-space:nowrap">' +
+          (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showAthletEditModal(' + a.id + ')">&#x270F;&#xFE0E;</button>' : '') +
+          (canDel ? ' <button class="btn btn-danger btn-sm" onclick="deleteAthlet(' + a.id + ','' + (a.name_nv||'').replace(/'/g,"\'") + '')">&#x2715;</button>' : '') +
+        '</td>' +
+      '</tr>';
+  }
+  var tbody = document.querySelector('#athlet-tabelle tbody');
+  var count = document.getElementById('athlet-count');
+  if (tbody) tbody.innerHTML = rows;
+  if (count) count.textContent = athleten.length + ' Athleten';
+  // Fokus auf Suchfeld wiederherstellen
+  var sf = document.getElementById('athlet-suche');
+  if (sf && document.activeElement !== sf) { /* nicht stören */ }
+}
+
 async function renderAthleten() {
   var s = state.filters.suche || '';
   var aktGruppe = state.filters.gruppe || '';
@@ -1636,27 +1688,6 @@ async function renderAthleten() {
     });
   }
 
-  var rows = '';
-  state._athletenMap = {};
-  for (var i = 0; i < athleten.length; i++) {
-    var a = athleten[i];
-    state._athletenMap[a.id] = a;
-    var canDel = currentUser && currentUser.rolle === 'admin' && parseInt(a.anz_ergebnisse) === 0;
-    rows +=
-      '<tr>' +
-        '<td><span class="athlet-link" onclick="openAthletById(' + a.id + ')">' + a.nachname + '</span></td>' +
-        '<td>' + (a.vorname || '') + '</td>' +
-        '<td>' + akBadge(a.geschlecht) + '</td>' +
-        '<td>' + renderGruppenInline(a.gruppen) + '</td>' +
-        '<td><span class="badge badge-platz">' + a.anz_ergebnisse + '</span></td>' +
-        '<td>' + (a.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>') + '</td>' +
-        '<td style="white-space:nowrap">' +
-          (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showAthletEditModal(' + a.id + ')">&#x270F;&#xFE0F;</button>' : '') +
-          (canDel ? ' <button class="btn btn-danger btn-sm" onclick="deleteAthlet(' + a.id + ',\'' + (a.name_nv||'').replace(/'/g,"\\'") + '\')">&#x2715;</button>' : '') +
-        '</td>' +
-      '</tr>';
-  }
-
   // Gruppen-Buttons
   var gruppenBtns = '<button class="rek-cat-btn' + (!aktGruppe ? ' active' : '') + '" onclick="state.filters.gruppe=\'\';renderAthleten()">Alle</button>';
   for (var gi = 0; gi < alleGruppen.length; gi++) {
@@ -1667,16 +1698,17 @@ async function renderAthleten() {
   document.getElementById('main-content').innerHTML =
     '<div class="rek-cat-tabs" style="margin-bottom:16px">' + gruppenBtns + '</div>' +
     '<div class="filter-bar">' +
-      '<div class="fg"><label>Suche</label><input type="text" placeholder="Name suchen&hellip;" value="' + s + '" oninput="setFilter(\'suche\',this.value)" style="min-width:0;width:100%"/></div>' +
+      '<div class="fg"><label>Suche</label><input type="text" id="athlet-suche" placeholder="Name suchen&hellip;" value="' + s + '" oninput="setAthletSuche(this.value)" style="min-width:0;width:100%"/></div>' +
       (canEdit ? '<button class="btn btn-primary btn-sm" onclick="showNeuerAthletModal()">+ Neuer Athlet</button>' : '') +
     '</div>' +
     '<div class="panel">' +
-      '<div class="panel-header"><div class="panel-title">&#x1F464; Alle Athleten</div><div class="panel-count">' + athleten.length + ' Athleten</div></div>' +
-      '<div class="table-scroll"><table>' +
-        '<thead><tr><th>Name</th><th>Vorname</th><th>Geschlecht</th><th>Gruppen</th><th>Ergebnisse</th><th>Status</th><th></th></tr></thead>' +
-        '<tbody>' + rows + '</tbody>' +
+      '<div class="panel-header"><div class="panel-title">&#x1F464; Alle Athleten</div><div class="panel-count" id="athlet-count"></div></div>' +
+      '<div class="table-scroll"><table id="athlet-tabelle">' +
+        '<thead><tr><th>Name</th><th>Vorname</th><th>Geschlecht</th><th>Jahrgang</th><th>AK</th><th>Gruppen</th><th>Ergebnisse</th><th>Status</th><th></th></tr></thead>' +
+        '<tbody></tbody>' +
       '</table></div>' +
     '</div>';
+  await _renderAthletenTable();
 }
 
 // Athleten-Profil State
@@ -1835,7 +1867,12 @@ async function openAthletById(id) {
       '<div>' +
         '<div style="font-size:20px;font-weight:700">' + (athlet.vorname || '') + ' ' + (athlet.nachname || '') + '</div>' +
         (gruppenTags ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">' + gruppenTags + '</div>' : '') +
-        '<div style="margin-top:4px"><span class="badge badge-ak">' + totalErg + ' Wettkämpfe</span></div>' +
+        '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">' +
+          '<span class="badge badge-ak">' + totalErg + ' Wettkämpfe</span>' +
+          (athlet.geschlecht ? '<span class="badge" style="background:var(--surf2);color:var(--text)">' + (athlet.geschlecht === 'M' ? '♂ Männlich' : '♀ Weiblich') + '</span>' : '') +
+          (athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jg. ' + athlet.geburtsjahr + '</span>' : '') +
+          (function(){ var _ak = (athlet.geschlecht && athlet.geburtsjahr) ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : ''; return _ak ? '<span class="badge" style="background:var(--primary);color:var(--on-primary);font-weight:700">' + _ak + ' ' + new Date().getFullYear() + '</span>' : ''; })() +
+        '</div>' +
       '</div>' +
     '</div>' +
     '<div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:2px solid var(--border);padding-bottom:0">' +
@@ -3521,7 +3558,7 @@ async function createAthlet() {
 function showAthletEditModal(id) {
   var a = state._athletenMap && state._athletenMap[id];
   if (!a) return;
-  var geb = (a.geburtsdatum || '').slice(0, 10);
+  var gebJahr = a.geburtsjahr ? String(a.geburtsjahr) : '';
   var curGruppen = (a.gruppen || []).map(function(g) { return g.name; }).join(', ');
   showModal(
     '<h2>&#x270F;&#xFE0F; Athlet bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
@@ -3533,7 +3570,7 @@ function showAthletEditModal(id) {
         '<option value="M"' + (a.geschlecht==='M'?' selected':'') + '>M\u00e4nnlich</option>' +
         '<option value="W"' + (a.geschlecht==='W'?' selected':'') + '>Weiblich</option>' +
       '</select></div>' +
-      '<div class="form-group"><label>Geburtsdatum</label><input type="date" id="ea-geb" value="' + geb + '"/></div>' +
+      '<div class="form-group"><label>Geburtsjahr</label><input type="number" id="ea-gebj" value="' + gebJahr + '" min="1930" max="2020" placeholder="z.B. 1988" style="width:120px"/></div>' +
       '<div class="form-group full"><label>Gruppen <span style="font-size:11px;color:var(--text2)">(kommagetrennt)</span></label><input type="text" id="ea-gr" value="' + curGruppen + '" placeholder="z.B. Senioren, Masters"/></div>' +
       '<div class="form-group"><label>Status</label><select id="ea-aktiv">' +
         '<option value="1"' + (a.aktiv?' selected':'') + '>Aktiv</option>' +
@@ -3555,7 +3592,7 @@ async function saveAthlet(id) {
     vorname:     vn,
     name_nv:     nn + (vn ? ', ' + vn : ''),
     geschlecht:  document.getElementById('ea-g').value,
-    geburtsdatum:document.getElementById('ea-geb').value || null,
+    geburtsjahr: document.getElementById('ea-gebj').value ? parseInt(document.getElementById('ea-gebj').value) : null,
     gruppen:     gruppen,
     aktiv:       parseInt(document.getElementById('ea-aktiv').value),
   });
@@ -4655,6 +4692,16 @@ async function updateDisz(btn) {
 function setSubTab(t) { state.subTab = t; state.page = 1; state.filters = {}; state.diszFilter = null; renderPage(); }
 function setDiszFilter(d) { state.diszFilter = d; state.page = 1; loadErgebnisseData(); }
 function setDiszTabFilter(cat, disz) { state.subTab = cat; state.diszFilter = disz; state.page = 1; state.filters = {}; loadErgebnisseData(); }
+
+var _athSucheTimer = null;
+function setAthletSuche(v) {
+  state.filters.suche = v;
+  clearTimeout(_athSucheTimer);
+  _athSucheTimer = setTimeout(function() {
+    // Nur Tabellen-Body neu rendern, nicht das ganze innerHTML
+    _renderAthletenTable();
+  }, 250);
+}
 
 function setFilter(k, v) {
   state.filters[k] = v; state.page = 1;

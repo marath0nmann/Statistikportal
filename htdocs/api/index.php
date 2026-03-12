@@ -1215,7 +1215,7 @@ if ($res === 'athleten') {
         if (isset($body['geschlecht']))  { $felder[] = 'geschlecht=?';  $params[] = sanitize($body['geschlecht']); }
         if (isset($body['ak_aktuell']))  { $felder[] = 'ak_aktuell=?';  $params[] = sanitize($body['ak_aktuell']); }
         if (isset($body['gruppe']))      { $felder[] = 'gruppe=?';      $params[] = sanitize($body['gruppe']); }
-        if (isset($body['geburtsdatum'])){ $felder[] = 'geburtsdatum=?';$params[] = $body['geburtsdatum'] ?: null; }
+        if (isset($body['geburtsjahr'])){ $felder[] = 'geburtsjahr=?';$params[] = ($body['geburtsjahr'] ? intval($body['geburtsjahr']) : null); }
         if (isset($body['aktiv']))       { $felder[] = 'aktiv=?';       $params[] = (int)$body['aktiv']; }
         if (!$felder) jsonErr('Keine Änderungen.');
         $params[] = $id;

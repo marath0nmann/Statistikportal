@@ -1,1 +1,7 @@
-v289: Debug: AK-Test für beide Treffer (Diagnose Tanja Koppers)
+v291: Athleten-Tabelle: Jahrgang + AK-Spalte, Suchfokus-Bug behoben; Profil: AK-Badge
+
+- Neue Spalten "Jahrgang" und "AK" (aktuell) in Athleten-Tabelle
+- AK wird aus Geschlecht + Geburtsjahr per calcDlvAK() berechnet
+- Suchfeld-Bug: oninput löst kein komplettes Re-Render mehr aus,
+  tbody wird separat aktualisiert → Fokus bleibt erhalten (250ms Debounce)
+- Athleten-Profil-Header: Badges für Geschlecht, Jahrgang und aktuelle AK
