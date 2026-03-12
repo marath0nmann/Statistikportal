@@ -2787,7 +2787,17 @@ async function rrFetch() {
           var d = p.data || p.Data || p.result || p.Result || {};
           if (Array.isArray(d)) return d.length > 0;
           var ks = Object.keys(d);
-          for (var i=0; i<ks.length; i++) { if (Array.isArray(d[ks[i]]) && d[ks[i]].length) return true; }
+          for (var i=0; i<ks.length; i++) {
+            var v = d[ks[i]];
+            if (Array.isArray(v) && v.length) return true;
+            // Zwei Ebenen tief: {"#1_Contest": {"#1_Gruppe": [[...]]}}
+            if (v && typeof v === 'object' && !Array.isArray(v)) {
+              var ks2 = Object.keys(v);
+              for (var j=0; j<ks2.length; j++) {
+                if (Array.isArray(v[ks2[j]]) && v[ks2[j]].length) return true;
+              }
+            }
+          }
           return false;
         }
 
@@ -2858,13 +2868,19 @@ async function rrFetch() {
         // firstVal Fallback falls noch nicht gesetzt
         if (!_rrDebug.firstVal) _rrDebug.firstVal = JSON.stringify(payload).slice(0, 600);
         // Wenn DataFields fehlen: Name-Spalte heuristisch aus erster Datenzeile bestimmen
-        // Suche Spalte mit längstem String der Komma oder Leerzeichen enthält (= Name)
         if (!payload.DataFields || !payload.DataFields.length) {
           var dataObjTmp = payload.data || payload.Data || {};
           if (Array.isArray(dataObjTmp)) dataObjTmp = { '_': dataObjTmp };
-          var dkTmp = Object.keys(dataObjTmp);
+          // Zwei-Ebenen flachmachen
+          var flatTmp = {};
+          Object.keys(dataObjTmp).forEach(function(k) {
+            var v = dataObjTmp[k];
+            if (Array.isArray(v)) flatTmp[k] = v;
+            else if (v && typeof v === 'object') Object.keys(v).forEach(function(k2){ if (Array.isArray(v[k2])) flatTmp[k+'/'+k2] = v[k2]; });
+          });
+          var dkTmp = Object.keys(flatTmp);
           for (var dkt=0; dkt<dkTmp.length; dkt++) {
-            var rowsTmp = dataObjTmp[dkTmp[dkt]];
+            var rowsTmp = flatTmp[dkTmp[dkt]];
             if (!Array.isArray(rowsTmp) || !rowsTmp.length) continue;
             var firstRow = rowsTmp[0];
             if (!Array.isArray(firstRow)) continue;
@@ -2881,12 +2897,29 @@ async function rrFetch() {
             break;
           }
         }
-        // RaceResult kann data als Objekt {gruppe: [rows]} oder direkt als Array liefern
+        // RaceResult kann data als verschiedene Strukturen liefern:
+        // 1. Array [[...], [...]]
+        // 2. Objekt {gruppe: [[...], [...]]}
+        // 3. Zwei Ebenen: {"#1_Contest": {"#1_Gruppe": [[...], [...]]}}
         var dataObj = payload.data || payload.Data || payload.result || payload.Result || payload.list && payload.list.data || {};
         if (Array.isArray(dataObj)) { var tmp = {}; tmp['_'] = dataObj; dataObj = tmp; }
-        var dataKeys = Object.keys(dataObj);
+        // Zwei-Ebenen-Struktur flachmachen
+        var flatData = {};
+        var dataKeys0 = Object.keys(dataObj);
+        for (var dk0=0; dk0<dataKeys0.length; dk0++) {
+          var val0 = dataObj[dataKeys0[dk0]];
+          if (Array.isArray(val0)) {
+            flatData[dataKeys0[dk0]] = val0;
+          } else if (val0 && typeof val0 === 'object') {
+            var subKeys = Object.keys(val0);
+            for (var sk=0; sk<subKeys.length; sk++) {
+              if (Array.isArray(val0[subKeys[sk]])) flatData[dataKeys0[dk0] + '/' + subKeys[sk]] = val0[subKeys[sk]];
+            }
+          }
+        }
+        var dataKeys = Object.keys(flatData);
         for (var dk=0; dk<dataKeys.length; dk++) {
-          var rows = dataObj[dataKeys[dk]];
+          var rows = flatData[dataKeys[dk]];
           if (!Array.isArray(rows)) continue;
           // Club-Filter: Vereinsname/Kürzel in Club-Spalte suchen
           var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '');
