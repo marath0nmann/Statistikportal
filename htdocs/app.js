@@ -1624,12 +1624,22 @@ function _mkDelBtn(id, name) {
   return btn.outerHTML;
 }
 
-function showGeburtjahrImportModal() {
+async function showGeburtjahrImportModal() {
+  // Athleten vorladen damit Vorschau und Import funktionieren
+  if (!state._athletenMap || Object.keys(state._athletenMap).length === 0) {
+    var rA = await apiGet('athleten');
+    if (rA && rA.ok) {
+      state._athletenMap = {};
+      for (var ai = 0; ai < rA.data.length; ai++) {
+        state._athletenMap[rA.data[ai].id] = rA.data[ai];
+      }
+    }
+  }
   showModal(
     '<h2>&#x1F4C5; Geburtsjahr-Import <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<p style="font-size:13px;color:var(--text2);margin-bottom:8px">CSV mit Semikolon, erste Zeile = Header. Spalten: <code>Athlet NV;Geburtsdatum</code><br>' +
     'Geburtsdatum als Excel-Seriennummer (z.B. <code>40179</code>) oder TT.MM.JJJJ oder JJJJ-MM-TT.</p>' +
-    '<textarea id="gj-csv" style="width:100%;height:220px;font-family:monospace;font-size:12px;box-sizing:border-box;padding:8px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius)" placeholder="Athlet NV;Geburtsdatum\nAmbrosius, Romy;40179\nMuster, Max;1988-05-12"></textarea>' +
+    '<textarea id="gj-csv" style="width:100%;height:220px;font-family:monospace;font-size:12px;box-sizing:border-box;padding:8px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius)" placeholder="Athlet NV;Geburtsdatum\nMustermann, Erika;40179\nMuster, Max;1988-05-12"></textarea>' +
     '<div id="gj-preview" style="margin-top:10px;font-size:12px;max-height:180px;overflow-y:auto"></div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -1717,6 +1727,16 @@ async function doGeburtjahrImport() {
   var raw = document.getElementById('gj-csv').value;
   var rows = _gjParseCSV(raw);
   if (!rows.length) { notify('Keine Daten gefunden.', 'err'); return; }
+  // Athleten laden falls _athletenMap noch nicht befüllt
+  if (!state._athletenMap || Object.keys(state._athletenMap).length === 0) {
+    var rA = await apiGet('athleten');
+    if (rA && rA.ok) {
+      state._athletenMap = {};
+      for (var ai = 0; ai < rA.data.length; ai++) {
+        state._athletenMap[rA.data[ai].id] = rA.data[ai];
+      }
+    }
+  }
   var ok = 0, skip = 0, err = 0;
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];

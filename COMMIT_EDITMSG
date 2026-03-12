@@ -1,5 +1,5 @@
-v294: RaceResult-Import: Geburtsjahr-Vorschlag nach Import
+v296: Fix Geburtsjahr-Import: athletenMap wird jetzt beim Öffnen des Modals geladen
 
-Wenn ein importierter Athlet in der DB noch kein Geburtsjahr hat,
-aber RaceResult eines liefert: Follow-up-Modal mit Checkbox-Liste
-zum selektiven Übernehmen. Nutzt iYear-Spalte aus DataFields.
+state._athletenMap war leer wenn die Athleten-Seite noch nicht besucht wurde
+→ alle Matches scheiterten, Import tat nichts. Behoben durch explizites
+apiGet('athleten') beim Öffnen des Modals und als Fallback in doGeburtjahrImport.
