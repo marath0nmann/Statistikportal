@@ -2809,8 +2809,10 @@ async function rrFetch() {
                 payload = payloadAll;
                 if (!_rrDebug.fetchMode) _rrDebug.fetchMode = 'r=all';
               } else {
-                // Auch r=all hat keine Daten: alle Keys + rohen Inhalt zeigen
+                // Auch r=all hat keine Daten: data-Struktur zeigen
                 if (!_rrDebug.fetchMode) _rrDebug.fetchMode = 'r=all (leer)';
+                var dRaw = payloadAll.data || payloadAll.Data || {};
+                _rrDebug.firstVal = 'r=all data-Key: ' + JSON.stringify(dRaw).slice(0, 800);
               }
             } catch(e) { _rrDebug.firstVal += ' | Parse-Fehler: ' + e.message; }
           }
