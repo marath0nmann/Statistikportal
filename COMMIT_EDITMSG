@@ -1,5 +1,5 @@
-v269: RaceResult: gf-Parameter statt contest=ID für Extra-Requests
+v270: RaceResult: Timeouts + activefilter statt gf
 
-contest=3/7 liefert 404 — Liste existiert nur für contest=0.
-Versuch: contest=0 + gf=[{"Type":1,"Value":"VIACTIV 10 km-Lauf"}]
-um groupFilters server-seitig umzuschalten.
+- 10s AbortController-Timeout für alle fetch-Calls (verhindert Hänger)
+- gf-Parameter hat Server zum Hängen gebracht → entfernt
+- Versuch mit activefilter=<Contest-Name> Parameter

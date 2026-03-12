@@ -2837,15 +2837,22 @@ async function rrFetch() {
             for (var eci=0; eci<extraNames.length; eci++) {
               var eName = extraNames[eci];
               // gf als JSON-kodiertes Array — RRPublish-interne Konvention
-              var gfParam = JSON.stringify([{"Type":1,"Value":eName}]);
+              // listid aus cfg.lists suchen (ID-Feld)
+              var _listId = '';
+              if (Array.isArray(cfg.lists)) {
+                for (var _li=0; _li<cfg.lists.length; _li++) {
+                  if ((cfg.lists[_li].Name||'') === listName) { _listId = cfg.lists[_li].ID || ''; break; }
+                }
+              }
               var urlExtra = base4 +
                 '?key=' + apiKey +
                 '&listname=' + encodeURIComponent(listName) +
                 '&page=results&contest=0' +
-                '&gf=' + encodeURIComponent(gfParam) +
+                '&activefilter=' + encodeURIComponent(eName) +
                 '&r=search&l=9999&term=' + encodeURIComponent(clubPhrase || '');
               try {
-                var respExtra = await fetch(urlExtra, { headers: hdrs });
+                var _ac3 = new AbortController(); var _t3 = setTimeout(function(){ _ac3.abort(); }, 10000);
+                var respExtra = await fetch(urlExtra, { headers: hdrs, signal: _ac3.signal }).finally(function(){ clearTimeout(_t3); });
                 if (!respExtra.ok) { _rrDebug.extraContests.push(eName + ':HTTP' + respExtra.status); continue; }
                 var payloadExtra = JSON.parse(await respExtra.text());
                 // Gruppen-Anzahl als Debug
@@ -2896,7 +2903,8 @@ async function rrFetch() {
             '&listname=' + encodeURIComponent(listName) +
             '&page=results&contest=' + cid +
             '&r=all&l=9999&splitSearch=0';
-          var respAll = await fetch(urlAll, { headers: hdrs });
+          var _ac2 = new AbortController(); var _t2 = setTimeout(function(){ _ac2.abort(); }, 10000);
+          var respAll = await fetch(urlAll, { headers: hdrs, signal: _ac2.signal }).finally(function(){ clearTimeout(_t2); });
           if (respAll.ok) {
             var rawAll = await respAll.text();
             _rrDebug.firstVal = 'r=all raw: ' + rawAll.slice(0, 600);
