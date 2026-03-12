@@ -1,5 +1,6 @@
-v235: Veranstaltungsname-Feld flex:1 (füllt verfügbaren Platz)
+v236: Veranstaltungsname-Feld korrekt verbreitert
 
-- width:min(600px) funktionierte nicht weil Flex-Container das Feld
-  auf die Breite der anderen Elemente beschränkt hat
-- flex:1 lässt das Feld den gesamten verbleibenden Platz einnehmen
+- flex:1 auf das wrapper-<div> gesetzt (nicht auf den <input>)
+- <input> selbst width:100% damit er das div ausfüllt
+- Vorher hatte flex:1 am Input keine Wirkung weil der Input kein
+  direktes Kind des Flex-Containers war
