@@ -1,5 +1,5 @@
-v264: RaceResult: term= mit Vereinsname befüllen
+v265: RaceResult Debug: Search-URL + Raw-Response immer anzeigen
 
-groupFilters zeigt dass r=search mit leerem term nur die erste
-Gruppe liefert (21 Zeilen). Mit term=tus+oedt sucht RaceResult
-server-seitig über alle Gruppen/Contests → alle TuS-Oedt-Treffer.
+firstVal wurde vom Konfig-Request überschrieben bevor der
+Such-Response ankam. Neues searchRaw zeigt URL + Response
+des eigentlichen Daten-Requests.
