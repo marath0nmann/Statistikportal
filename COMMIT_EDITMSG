@@ -1,8 +1,5 @@
-v242: Admin Disziplinen: Ergebnisanzahl + Löschen-Button
+v243: Disziplin löschen: onclick-Quoting-Bug behoben
 
-- API: disziplin-mapping GET liefert jetzt ergebnis_anzahl pro Disziplin
-- API: DELETE disziplin-mapping/:name — löscht Mapping, prüft vorher ob
-  noch Ergebnisse vorhanden (409 wenn ja)
-- UI: Neue Spalte "Ergebnisse" mit Badge (grün = 0, grau = >0)
-- UI: Löschen-Button (×) wenn 0 Ergebnisse, Schloss-Icon wenn Ergebnisse vorhanden
-- Nach Löschen: disziplinen neu geladen + Admin-Ansicht aktualisiert
+- JSON.stringify() im onclick-Attribut erzeugte ungültiges HTML
+  (Anführungszeichen brachen das Attribut → Klick ohne Funktion)
+- Fix: data-disz Attribut + this.dataset.disz im onclick
