@@ -1913,7 +1913,8 @@ async function renderAthleten() {
 
 async function _loadLetzteAktivitaet() {
   var r = await apiGet('athleten-aktivitaet');
-  if (!r || !r.ok) return;
+  console.log('[LetzteAkt] API response:', JSON.stringify(r).slice(0, 300));
+  if (!r || !r.ok) { console.log('[LetzteAkt] API failed:', r); return; }
   var map = r.data; // { athlet_id: jahr } — Keys kommen als Strings aus JSON
   // Cache aktualisieren (String-Key-Lookup mit explizitem Cast)
   var arr = _athLetenCache.alleAthleten || [];
@@ -1934,6 +1935,7 @@ async function _loadLetzteAktivitaet() {
     var aid = m[1]; // String
     var val = map[aid];
     var td = trs[i].querySelectorAll('td')[7];
+    console.log('[LetzteAkt] tr', i, 'aid=', aid, 'val=', val, 'td=', !!td);
     if (td) td.textContent = val || '–';
   }
 }

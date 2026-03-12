@@ -1,5 +1,1 @@
-v309: Fix "Letzte Akt." bleibt leer
-
-JSON-Keys sind immer Strings, map[id] mit numerischer id schlug
-lautlos fehl. Fix: String(arr[i].id) für den Lookup.
-DOM-Update jetzt ID-basiert (aus onclick-Attribut) statt Index-basiert.
+v310: Debug-Logs in _loadLetzteAktivitaet (temporär)
