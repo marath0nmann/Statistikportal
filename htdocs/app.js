@@ -2682,38 +2682,52 @@ async function rrFetch() {
     if (eventOrtCfg) eventOrtCfg = eventOrtCfg.split(',')[0].trim();
     var contestObj = cfg.contests || cfg.Contests || {};
     _rrDebug.cfgKeys = Object.keys(cfg).slice(0, 20);
-    _rrDebug.cfgOrt = eventOrtCfg;
-    _rrDebug.cfgKey = apiKey;
-    _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
-    _rrDebug.listName = listName;
-    var contestIds = Object.keys(contestObj);
-    if (!contestIds.length) contestIds = ['1'];
-
-    // listname aus Config ermitteln: cfg.list ist Objekt mit Keys = Listennamen
-    // z.B. { "02-ERGEBNISSE|Ergebnisse_Ges": { ... }, "03-...": { ... } }
+    // listname aus Config ermitteln
+    // lists kann sein: Array [{Name:"01_Ergebnislisten|Final", Contest:"0", ...}]
+    //                  oder Objekt {"02-ERGEBNISSE|xyz": {...}}
     var listName = '';
-    // lists kann sein: Objekt {"02-ERGEBNIS|xyz": {...}} oder Array [{name:"02-ERGEBNIS|xyz",...}]
+    var listContest = null; // Contest-Einschränkung aus List-Eintrag ("0" = alle)
     var listSource = cfg.list || cfg.lists || {};
-    var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','OVERALL','EINZEL'];
+    var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','OVERALL','EINZEL','FINAL'];
     if (Array.isArray(listSource)) {
-      // Array-Form: [{name: "02-ERGEBNISSE|Ergebnisse_Ges", ...}, ...]
+      // Prio-Suche: Einzelergebnisse bevorzugen
       for (var lk = 0; lk < listSource.length && !listName; lk++) {
         var entry = listSource[lk];
-        var lkey = (entry.name || entry.Name || entry.listname || String(lk)).toUpperCase();
+        var ename = entry.Name || entry.name || entry.listname || '';
+        var lkey = ename.toUpperCase();
+        // Staffel-Listen überspringen
+        if (lkey.indexOf('STAFF') >= 0 || lkey.indexOf('RELAY') >= 0) continue;
         for (var lp = 0; lp < listPrio.length; lp++) {
-          if (lkey.indexOf(listPrio[lp]) >= 0) { listName = entry.name || entry.Name || entry.listname; break; }
+          if (lkey.indexOf(listPrio[lp]) >= 0) {
+            listName = ename;
+            listContest = entry.Contest !== undefined ? String(entry.Contest) : null;
+            break;
+          }
+        }
+      }
+      // Fallback: ersten Nicht-Staffel-Eintrag nehmen
+      if (!listName) {
+        for (var lk = 0; lk < listSource.length; lk++) {
+          var entry = listSource[lk];
+          var ename = entry.Name || entry.name || entry.listname || '';
+          if (ename.toUpperCase().indexOf('STAFF') < 0 && ename.toUpperCase().indexOf('RELAY') < 0) {
+            listName = ename;
+            listContest = entry.Contest !== undefined ? String(entry.Contest) : null;
+            break;
+          }
         }
       }
       if (!listName && listSource.length) {
         var e0 = listSource[0];
-        listName = e0.name || e0.Name || e0.listname || '';
+        listName = e0.Name || e0.name || e0.listname || '';
+        listContest = e0.Contest !== undefined ? String(e0.Contest) : null;
       }
       _rrDebug.listsRaw = JSON.stringify(listSource).slice(0, 200);
     } else if (listSource && typeof listSource === 'object') {
-      // Objekt-Form: {"02-ERGEBNISSE|xyz": {...}}
       var listKeys = Object.keys(listSource);
       for (var lk = 0; lk < listKeys.length && !listName; lk++) {
         var lkey = listKeys[lk].toUpperCase();
+        if (lkey.indexOf('STAFF') >= 0 || lkey.indexOf('RELAY') >= 0) continue;
         for (var lp = 0; lp < listPrio.length; lp++) {
           if (lkey.indexOf(listPrio[lp]) >= 0) { listName = listKeys[lk]; break; }
         }
@@ -2721,8 +2735,18 @@ async function rrFetch() {
       if (!listName && listKeys.length) listName = listKeys[0];
       _rrDebug.listsRaw = JSON.stringify(Object.keys(listSource)).slice(0, 200);
     }
-    // Absoluter Fallback
     if (!listName) listName = '02-ERGEBNISSE|Ergebnisse_Ges';
+
+    // Contest=0 bedeutet: Liste gilt für alle Contests auf einmal → nur einen Request
+    var contestIds = Object.keys(contestObj);
+    if (!contestIds.length) contestIds = ['1'];
+    if (listContest === '0') contestIds = ['0'];
+
+    _rrDebug.cfgOrt = eventOrtCfg;
+    _rrDebug.cfgKey = apiKey;
+    _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
+    _rrDebug.listName = listName;
+    _rrDebug.listContest = listContest;
 
     // Spaltenindizes: bekannte Positionen aus dem echten DataFields-Format
     // ["BIB","ID","MitStatus([GesPlp])","AnzeigeName","YEAR","[GeschlechtMW]","[AGEGROUP1.NAMESHORT]","CLUB","Ziel.GUN","Ziel.CHIP"]
@@ -2869,7 +2893,7 @@ async function rrFetch() {
             'API-Key: &ldquo;' + (_rrDebug.cfgKey||'leer') + '&rdquo;<br>' +
             'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine') + '<br>' +
             'Contests: ' + (_rrDebug.contestSample||'?') + '<br>' +
-            'ListName aus Config: ' + (_rrDebug.listName||'?') + '<br>' +
+            'ListName aus Config: ' + (_rrDebug.listName||'?') + (_rrDebug.listContest !== undefined ? ' (Contest=' + _rrDebug.listContest + ')' : '') + '<br>' +
             'lists-Raw: ' + (_rrDebug.listsRaw||'?') + '<br>' +
             '<details><summary style="cursor:pointer">Raw (400 Zeichen)</summary><pre style="font-size:10px;overflow:auto;max-height:120px">' + (_rrDebug.firstVal||'') + '</pre></details>' +
           '</div>' +
