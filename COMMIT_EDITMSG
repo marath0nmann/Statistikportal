@@ -1,7 +1,5 @@
-v308: Fix Athleten-Tabelle: Spaltenreihenfolge + Sortierpfeil
+v309: Fix "Letzte Akt." bleibt leer
 
-- Spalten "Letzte Akt." und "Status" waren in den Rows vertauscht
-  (Kopf: letzte→status, Rows: status→letzte)
-- td-Index in _loadLetzteAktivitaet entsprechend korrigiert (8→7)
-- Sortierpfeil im Kopf blieb immer bei "Name" stehen:
-  _athSetSort aktualisiert jetzt auch den thead per innerHTML
+JSON-Keys sind immer Strings, map[id] mit numerischer id schlug
+lautlos fehl. Fix: String(arr[i].id) für den Lookup.
+DOM-Update jetzt ID-basiert (aus onclick-Attribut) statt Index-basiert.

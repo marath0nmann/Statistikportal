@@ -1914,22 +1914,27 @@ async function renderAthleten() {
 async function _loadLetzteAktivitaet() {
   var r = await apiGet('athleten-aktivitaet');
   if (!r || !r.ok) return;
-  var map = r.data; // { athlet_id: jahr }
-  // In Cache eintragen
+  var map = r.data; // { athlet_id: jahr } — Keys kommen als Strings aus JSON
+  // Cache aktualisieren (String-Key-Lookup mit explizitem Cast)
   var arr = _athLetenCache.alleAthleten || [];
   for (var i = 0; i < arr.length; i++) {
-    var id = arr[i].id;
-    if (map[id] !== undefined) arr[i].letzte_aktivitaet = map[id];
+    var val = map[String(arr[i].id)];
+    if (val !== undefined) arr[i].letzte_aktivitaet = val;
   }
-  // Nur Spalte aktualisieren falls Tabelle noch sichtbar
+  // DOM aktualisieren: jede tr per data-athlet-id zuordnen statt per Index
   var tbody = document.querySelector('#athlet-tabelle tbody');
   if (!tbody) return;
   var trs = tbody.querySelectorAll('tr');
-  var sorted = _athLetenCache._lastSorted || arr;
-  for (var i = 0; i < trs.length && i < sorted.length; i++) {
-    // letzte_aktivitaet ist die 8. td (index 7, 0-basiert)
+  for (var i = 0; i < trs.length; i++) {
+    // athlet-id aus dem Link im ersten td lesen
+    var link = trs[i].querySelector('.athlet-link[onclick]');
+    if (!link) continue;
+    var m = (link.getAttribute('onclick') || '').match(/openAthletById\((\d+)\)/);
+    if (!m) continue;
+    var aid = m[1]; // String
+    var val = map[aid];
     var td = trs[i].querySelectorAll('td')[7];
-    if (td) td.textContent = sorted[i].letzte_aktivitaet || '–';
+    if (td) td.textContent = val || '–';
   }
 }
 
