@@ -1,6 +1,6 @@
-v317: Ergebnisse: Athlet-Dropdown im Edit + Athlet-Filter
+v320: Athleten: Deaktivieren/Aktivieren-Button direkt in der Zeile
 
-- Edit-Modal (Admin): Athlet*in als <select> statt Texteingabe mit
-  Autocomplete; alle aktiven Athleten werden alphabetisch geladen
-- Filter-Bar: neues Textfeld "Athlet" mit 300ms Debounce,
-  filtert serverseitig über den bestehenden athlet-Parameter
+- Nur für Admins sichtbar
+- Aktive Athleten: ⏼-Button (grau) → deaktivieren
+- Inaktive Athleten: ⏻-Button (grün) → reaktivieren
+- Bestätigung per confirm(), dann PUT aktiv=0/1

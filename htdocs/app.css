@@ -238,6 +238,7 @@ main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
   background: var(--surf2); border: 1.5px solid var(--border);
   color: var(--text); border-radius: 7px; padding: 8px 10px;
   font-family: 'Barlow', sans-serif; font-size: 13px; outline: none; transition: border .15s;
+  box-sizing: border-box; height: 38px;
 }
 .fg select:focus, .fg input:focus { border-color: var(--primary); }
 

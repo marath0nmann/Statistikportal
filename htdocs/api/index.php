@@ -846,7 +846,18 @@ if (in_array($res, $ergebnisTabellen)) {
             $params = array_merge($params, [$s,$s,$s]);
         }
         if (!empty($_GET['meisterschaft'])) {
-            $where[] = 'e.meisterschaft IS NOT NULL';
+            $mstrRaw = $_GET['meisterschaft'];
+            if ($mstrRaw === '1') {
+                // Legacy: nur "hat Meisterschaft"
+                $where[] = 'e.meisterschaft IS NOT NULL';
+            } else {
+                // Kommagetrennte IDs: z.B. "1,3,5"
+                $mstrIds = array_filter(array_map('intval', explode(',', $mstrRaw)));
+                if ($mstrIds) {
+                    $where[] = 'e.meisterschaft IN (' . implode(',', array_fill(0, count($mstrIds), '?')) . ')';
+                    $params  = array_merge($params, $mstrIds);
+                }
+            }
         }
 
         $sortMap = [
