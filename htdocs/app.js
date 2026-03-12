@@ -1616,6 +1616,14 @@ async function saveEditErgebnis(id, subTab) {
 // ── ATHLETEN ───────────────────────────────────────────────
 
 /* ── 05_athleten.js ── */
+function _mkDelBtn(id, name) {
+  var btn = document.createElement('button');
+  btn.className = 'btn btn-danger btn-sm';
+  btn.textContent = '✕';
+  btn.onclick = function() { deleteAthlet(id, name); };
+  return btn.outerHTML;
+}
+
 var _athLetenCache = { alleAthleten: [], alleGruppen: [] };
 
 async function _renderAthletenTable() {
@@ -1655,7 +1663,7 @@ async function _renderAthletenTable() {
         '<td>' + (a.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>') + '</td>' +
         '<td style="white-space:nowrap">' +
           (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showAthletEditModal(' + a.id + ')">&#x270F;&#xFE0E;</button>' : '') +
-          (canDel ? ' <button class="btn btn-danger btn-sm" onclick="deleteAthlet(' + a.id + ','' + (a.name_nv||'').replace(/'/g,"\'") + '')">&#x2715;</button>' : '') +
+          (canDel ? _mkDelBtn(a.id, a.name_nv||'') : '') +
         '</td>' +
       '</tr>';
   }
@@ -3151,8 +3159,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
       var _platz1 = calcAKPlatz(_ak1, _netto1, _rrEventJahr);
       // Wie viele W45-Rows gibt es?
       var _w45count = _ak4debug.filter(function(x){ return x.geschlecht==='W' && x.year && (2026-parseInt(x.year))>=45 && (2026-parseInt(x.year))<50; }).length;
-      _akPlatzTest += '
-AK-Test[1]: year=' + _yr1 + ' g=' + _g1 + ' → ak=' + _ak1 + ' netto=' + _netto1 + ' → Platz ' + _platz1 + ' | W45-Rows(2026): ' + _w45count;
+      _akPlatzTest += '\nAK-Test[1]: year=' + _yr1 + ' g=' + _g1 + ' → ak=' + _ak1 + ' netto=' + _netto1 + ' → Platz ' + _platz1 + ' | W45-Rows(2026): ' + _w45count;
     }
   }
   // Erste 5 eindeutige Gruppen-Keys aus den rohen Daten
