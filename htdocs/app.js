@@ -1796,6 +1796,9 @@ function _athSortHeader() {
 function _athSetSort(col) {
   if (_athSort.col === col) _athSort.dir *= -1;
   else { _athSort.col = col; _athSort.dir = 1; }
+  // thead aktualisieren (Pfeile)
+  var thead = document.querySelector('#athlet-tabelle thead tr');
+  if (thead) thead.innerHTML = _athSortHeader();
   _renderAthletenTable();
 }
 
@@ -1852,8 +1855,8 @@ function _renderAthletenTable() {
         '<td><span style="font-size:12px;font-weight:600;color:var(--primary)">' + aktuellAK + '</span></td>' +
         '<td>' + renderGruppenInline(a.gruppen) + '</td>' +
         '<td><span class="badge badge-platz">' + a.anz_ergebnisse + '</span></td>' +
-        '<td>' + (a.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>') + '</td>' +
         '<td style="color:var(--text2);font-size:13px;text-align:center">' + (a.letzte_aktivitaet || '–') + '</td>' +
+        '<td>' + (a.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>') + '</td>' +
         '<td style="white-space:nowrap">' +
           (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showAthletEditModal(' + a.id + ')">&#x270F;&#xFE0E;</button>' : '') +
           (canDel ? _mkDelBtn(a.id, a.name_nv||'') : '') +
@@ -1924,8 +1927,8 @@ async function _loadLetzteAktivitaet() {
   var trs = tbody.querySelectorAll('tr');
   var sorted = _athLetenCache._lastSorted || arr;
   for (var i = 0; i < trs.length && i < sorted.length; i++) {
-    // letzte_aktivitaet ist die 9. td (index 8, 0-basiert)
-    var td = trs[i].querySelectorAll('td')[8];
+    // letzte_aktivitaet ist die 8. td (index 7, 0-basiert)
+    var td = trs[i].querySelectorAll('td')[7];
     if (td) td.textContent = sorted[i].letzte_aktivitaet || '–';
   }
 }
