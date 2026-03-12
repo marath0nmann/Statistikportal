@@ -1,6 +1,5 @@
-v325: Fix Löschen-Button Athleten; Modal-Felder gleich hoch
+v326: Fix Löschen-Button Athleten (Name-Escaping-Problem)
 
-- _mkDelBtn: onclick als HTML-Attribut-String (outerHTML serialisiert
-  keine DOM-Event-Listener → Button war stumm)
-- form-group input/select: height: 40px + box-sizing: border-box
-  (textarea ausgenommen)
+Athleten-Namen mit Sonderzeichen/Anführungszeichen brachen den
+onclick-String. Lösung: _mkDelBtn bettet keinen Namen mehr ein,
+deleteAthletById() liest den Namen sicher aus dem Cache.
