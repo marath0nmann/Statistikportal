@@ -1616,6 +1616,19 @@ if ($res === 'disziplin-mapping') {
             $all_disz[$m['disziplin']]['fmt_override']   = $m['fmt_override'];
             $all_disz[$m['disziplin']]['kat_fmt']        = $m['kat_fmt'];
         }
+        // Ergebnisanzahl pro Disziplin (nicht gelöschte)
+        try {
+            $counts = DB::fetchAll(
+                "SELECT disziplin, COUNT(*) AS anz FROM " . DB::tbl('ergebnisse') .
+                " WHERE geloescht_am IS NULL GROUP BY disziplin"
+            );
+            $countMap = [];
+            foreach ($counts as $c) $countMap[$c['disziplin']] = (int)$c['anz'];
+        } catch (Exception $e) { $countMap = []; }
+        foreach ($all_disz as $d => &$row) {
+            $row['ergebnis_anzahl'] = $countMap[$d] ?? 0;
+        }
+        unset($row);
         ksort($all_disz);
         jsonOk(array_values($all_disz));
     }
@@ -1627,6 +1640,18 @@ if ($res === 'disziplin-mapping') {
         if (!$disziplin || !$kategorie_id) jsonErr('disziplin und kategorie_id erforderlich.', 400);
         DB::query("INSERT INTO " . DB::tbl('disziplin_mapping') . " (disziplin, kategorie_id) VALUES (?,?)
                  ON DUPLICATE KEY UPDATE kategorie_id=VALUES(kategorie_id)", [$disziplin, $kategorie_id]);
+        jsonOk(null);
+    }
+
+    // DELETE Disziplin (nur wenn keine Ergebnisse)
+    if ($method === 'DELETE' && $id) {
+        $disziplin = urldecode($id);
+        $anz = DB::fetchOne(
+            "SELECT COUNT(*) AS c FROM " . DB::tbl('ergebnisse') .
+            " WHERE disziplin=? AND geloescht_am IS NULL", [$disziplin]
+        );
+        if ($anz && $anz['c'] > 0) jsonErr('Disziplin hat noch ' . $anz['c'] . ' Ergebnis(se).', 409);
+        DB::query("DELETE FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
         jsonOk(null);
     }
 
