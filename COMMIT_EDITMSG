@@ -1,8 +1,7 @@
-v272: RaceResult: r=search komplett entfernt, nur noch r=all
+v273: RaceResult: Fallback auf echte Contest-IDs wenn contest=0 hängt
 
-r=search hängt bei diesem Event unabhängig von Parametern.
-Contest-Loop komplett neu geschrieben:
-- Einziger Request: r=all mit 15s Timeout
-- DataFields aus r=all Response
-- groupFilters-Extra-Requests bleiben (mit Timeout)
-- Kein r=search mehr
+contest=0 + r=all hängt bei diesem Event (kein Response).
+Neue Strategie:
+- contest=0 mit 5s Timeout probieren
+- Bei Timeout: alle echten IDs aus cfg.contests einzeln versuchen
+- Echte Contests mit 15s Timeout

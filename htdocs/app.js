@@ -2762,7 +2762,11 @@ async function rrFetch() {
     // Contest=0 bedeutet: Liste gilt für alle Contests auf einmal → nur einen Request
     var contestIds = Object.keys(contestObj);
     if (!contestIds.length) contestIds = ['1'];
-    if (listContest === '0') contestIds = ['0'];
+    if (listContest === '0') {
+      // Fallback-IDs: alle echten Contest-IDs aus cfg.contests
+      var _fallbackIds = Object.keys(contestObj).filter(function(k){ return k !== '0'; });
+      contestIds = ['0'].concat(_fallbackIds);
+    }
 
     _rrDebug.cfgOrt = eventOrtCfg;
     _rrDebug.cfgKey = apiKey;
@@ -2798,7 +2802,8 @@ async function rrFetch() {
           '&page=results&contest=' + cid +
           '&r=all&l=9999';
         var _acA = new AbortController();
-        var _tA = setTimeout(function(){ _acA.abort(); }, 15000);
+        var _timeoutMs = (cid === '0') ? 5000 : 15000;
+        var _tA = setTimeout(function(){ _acA.abort(); }, _timeoutMs);
         var respA;
         try { respA = await fetch(urlAll, { headers: hdrs, signal: _acA.signal }); }
         catch(fe) {
