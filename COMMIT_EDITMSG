@@ -1,5 +1,1 @@
-v287: AK-Platz: Geschlecht aus Gruppen-Key für allRowsForAK
-
-- gkey/akFromGroup-Berechnung vor allRowsForAK.push verschoben
-- Geschlecht aus Gruppen-Key als Fallback (M/W aus "M35", "W45" etc.)
-- Debug: rows mit geschlecht zählen, Geschlecht aus Athleten-Profil
+v288: Debug: Gruppen-Keys anzeigen (AK-Platz Tanja Koppers)
