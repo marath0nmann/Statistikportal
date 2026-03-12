@@ -1,5 +1,5 @@
-v261: RaceResult: openedGroups entfernt + Contest-Fallback rückgängig
+v262: RaceResult Debug: groupFilters anzeigen
 
-- openedGroups={} aus URL entfernt → RaceResult liefert alle Gruppen
-  statt nur die erste (war Ursache für nur 21 Zeilen)
-- Einzel-Contest-Fallback aus v259 wieder entfernt (unnötig + 404s)
+groupFilters im Top-Level-Response zeigen um zu verstehen
+wie die Gruppen-Struktur aufgebaut ist und wie man alle
+Gruppen laden kann.
