@@ -690,7 +690,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                     if (!in_array('Gesamtbestleistung', $labels) && !in_array('Erste Gesamtleistung', $labels)) {
                         $isFirst = $prevByG[$g] === null;
                         $labels[] = $isFirst
-                            ? (($g === 'M') ? 'Erstes Ergebnis Männer' : 'Erstes Ergebnis Frauen')
+                            ? (($g === 'M') ? 'Erstes Ergebnis M' : 'Erstes Ergebnis W')
                             : (($g === 'M') ? 'Bestleistung Männer' : 'Bestleistung Frauen');
                         if ($vorher === null) $vorher = $prevByG[$g];
                     }
@@ -726,7 +726,7 @@ if ($res === 'dashboard' && $method === 'GET') {
 
             if (!empty($labels)) {
                 $prio = (in_array('Gesamtbestleistung', $labels) || in_array('Erste Gesamtleistung', $labels)) ? 0
-                      : (in_array('Bestleistung Männer', $labels) || in_array('Bestleistung Frauen', $labels) || in_array('Erstes Ergebnis Männer', $labels) || in_array('Erstes Ergebnis Frauen', $labels) ? 1
+                      : (in_array('Bestleistung Männer', $labels) || in_array('Bestleistung Frauen', $labels) || in_array('Erstes Ergebnis M', $labels) || in_array('Erstes Ergebnis W', $labels) ? 1
                       : (in_array('Pers&ouml;nliche Bestleistung', $labels) || in_array('Deb&uuml;t', $labels) ? 3 : 2));
                 // vorher_resultat: numerischen Wert zurück in Rohformat umrechnen ist komplex –
                 // wir geben stattdessen den val-Wert (Sekunden/Meter) zurück; Frontend formatiert ihn
@@ -1057,6 +1057,33 @@ if (in_array($res, $ergebnisTabellen)) {
 // ============================================================
 // ATHLETEN
 // ============================================================
+if ($res === 'athleten-aktivitaet' && $method === 'GET') {
+    // Liefert {athlet_id => letztes_Jahr} für alle Athleten - separater Query damit
+    // der Haupt-Athleten-Endpunkt nicht durch viele Subqueries verlangsamt wird
+    $tbl = DB::tbl('athleten');
+    if ($unified) {
+        $rows = DB::fetchAll(
+            "SELECT athlet_id, YEAR(MAX(datum)) AS letzte_aktivitaet
+             FROM " . DB::tbl('ergebnisse') . "
+             WHERE datum IS NOT NULL AND geloescht_am IS NULL
+             GROUP BY athlet_id");
+    } else {
+        $rows = DB::fetchAll(
+            "SELECT athlet_id, YEAR(MAX(datum)) AS letzte_aktivitaet FROM (
+               SELECT athlet_id, datum FROM " . DB::tbl('ergebnisse_strasse') . " WHERE datum IS NOT NULL
+               UNION ALL
+               SELECT athlet_id, datum FROM " . DB::tbl('ergebnisse_sprint') . " WHERE datum IS NOT NULL
+               UNION ALL
+               SELECT athlet_id, datum FROM " . DB::tbl('ergebnisse_mittelstrecke') . " WHERE datum IS NOT NULL
+               UNION ALL
+               SELECT athlet_id, datum FROM " . DB::tbl('ergebnisse_sprungwurf') . " WHERE datum IS NOT NULL
+             ) t GROUP BY athlet_id");
+    }
+    $map = [];
+    foreach ($rows as $r) { $map[(int)$r['athlet_id']] = (int)$r['letzte_aktivitaet']; }
+    jsonOk($map);
+}
+
 if ($res === 'athleten') {
     // GET ist öffentlich; schreibende Methoden erfordern Login
     if ($method !== 'GET') Auth::requireLogin();
@@ -1116,17 +1143,8 @@ if ($res === 'athleten') {
                +(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse_sprint') . " WHERE athlet_id=a.id)
                +(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse_mittelstrecke') . " WHERE athlet_id=a.id)
                +(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse_sprungwurf') . " WHERE athlet_id=a.id)";
-        $letzteAktSql = $unified
-            ? "COALESCE((SELECT MAX(datum) FROM " . DB::tbl('ergebnisse') . " WHERE athlet_id=a.id), '1900-01-01')"
-            : "GREATEST(
-               COALESCE((SELECT MAX(datum) FROM " . DB::tbl('ergebnisse_strasse') . "     WHERE athlet_id=a.id), '1900-01-01'),
-               COALESCE((SELECT MAX(datum) FROM " . DB::tbl('ergebnisse_sprint') . "      WHERE athlet_id=a.id), '1900-01-01'),
-               COALESCE((SELECT MAX(datum) FROM " . DB::tbl('ergebnisse_mittelstrecke') . " WHERE athlet_id=a.id), '1900-01-01'),
-               COALESCE((SELECT MAX(datum) FROM " . DB::tbl('ergebnisse_sprungwurf') . "  WHERE athlet_id=a.id), '1900-01-01')
-            )";
         $rows = DB::fetchAll(
-            "SELECT a.*, $anzSql AS anz_ergebnisse,
-                    NULLIF(YEAR($letzteAktSql), 1900) AS letzte_aktivitaet
+            "SELECT a.*, $anzSql AS anz_ergebnisse
              FROM " . DB::tbl('athleten') . " a WHERE $baseWhere ORDER BY a.name_nv", $params);
         // Gruppen je Athlet hinzufügen (defensiv: Tabelle könnte noch fehlen)
         try {
