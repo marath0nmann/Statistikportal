@@ -1732,9 +1732,15 @@ async function saveEditErgebnis(id, subTab) {
 // ── ATHLETEN ───────────────────────────────────────────────
 
 /* ── 05_athleten.js ── */
-function _mkDelBtn(id, name) {
-  var esc = name.replace(/'/g, "\\'");
-  return '<button class="btn btn-danger btn-sm" onclick="deleteAthlet(' + id + ',\'' + esc + '\')" title="Löschen">&#x2715;</button>';
+function _mkDelBtn(id) {
+  return '<button class="btn btn-danger btn-sm" onclick="deleteAthletById(' + id + ')" title="Löschen">&#x2715;</button>';
+}
+
+function deleteAthletById(id) {
+  var cached = _athLetenCache.alleAthleten || [];
+  var name = '';
+  for (var i = 0; i < cached.length; i++) { if (cached[i].id == id) { name = cached[i].name_nv || ''; break; } }
+  deleteAthlet(id, name);
 }
 
 function _normN(s) {
@@ -1968,7 +1974,7 @@ function _renderAthletenTable() {
           (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showAthletEditModal(' + a.id + ')">&#x270F;&#xFE0E;</button>' : '') +
           (isAdmin && a.aktiv ? '<button class="btn btn-ghost btn-sm" title="Deaktivieren" style="color:var(--text2)" onclick="toggleAthletAktiv(' + a.id + ',0)">&#x23FC;&#xFE0E;</button>' : '') +
           (isAdmin && !a.aktiv ? '<button class="btn btn-ghost btn-sm" title="Aktivieren" style="color:var(--green)" onclick="toggleAthletAktiv(' + a.id + ',1)">&#x23FB;&#xFE0E;</button>' : '') +
-          (canDel ? _mkDelBtn(a.id, a.name_nv||'') : '') +
+          (canDel ? _mkDelBtn(a.id) : '') +
         '</td>' +
       '</tr>';
   }
