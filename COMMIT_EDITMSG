@@ -1,1 +1,6 @@
-v281: Fix: _rrDebug auf window gesetzt (Debug-Daten waren immer leer)
+v282: Datum-Suche erweitert + Aufräumen
+
+- cfg.eventDatum, cfg.datestring u.a. als weitere Datumsfelder gesucht
+- Excel-Epoch (cfg.Time) entfernt: ist bei RaceResult keine Datumsangabe
+- cfg.Time aus Debug entfernt
+- DataFields-Kalibrierung greift jetzt korrekt (window._rrDebug-Fix aus v281)
