@@ -2959,7 +2959,20 @@ async function rrFetch() {
               var clubVal = clubSample.toLowerCase();
               if (clubVal.indexOf(clubPhrase) < 0) continue;
             }
-            allResults.push({ raw: row, contestName: cname,
+            // Gruppen-Key auswerten für Disziplin und AK-Geschlecht
+            var groupKey = dataKeys[dk];
+            var groupParts = groupKey.split('/');
+            var _cname = cname !== ('Contest ' + cid) ? cname :
+              (groupParts[0] || '').replace(/^#\d+_/, '').trim() || cname;
+            var _akFromGroup = '';
+            if (iAK < 0 && groupParts.length > 1) {
+              var gk = (groupParts[groupParts.length-1] || '').replace(/^#\d+_/, '').trim();
+              if (/männl|maennl|male|herren/i.test(gk)) _akFromGroup = 'M';
+              else if (/weibl|female|frauen|damen/i.test(gk)) _akFromGroup = 'W';
+              else _akFromGroup = gk;
+            }
+            allResults.push({ raw: row, contestName: _cname, akFromGroup: _akFromGroup,
+              iYear: iYear, iGeschlecht: iGeschlecht,
               iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
           }
         }
@@ -2991,6 +3004,7 @@ async function rrFetch() {
         '</div>';
       return;
     }
+    _rrDebug.resolvedDate = eventDate;
     rrRenderPreview(allResults, eventId, eventName, eventDate, contestObj, eventOrt);
 
   } catch(e) {
@@ -3002,6 +3016,7 @@ async function rrFetch() {
 function rrBestDisz(rrName, diszList) {
   // Extrahiert Schlüsselbegriffe aus dem RR-Namen und sucht besten Treffer in System-Disziplinen
   var q = rrName.toLowerCase()
+    .replace(/^#\d+_/, '')  // "#1_STADTWERKE Halbmarathon" → "stadtwerke halbmarathon"
     .replace(/lauf|rennen|wettbewerb|gesamt|einzel|lauf-/gi, '')
     .replace(/\s+/g, ' ').trim();
 
@@ -3052,6 +3067,22 @@ function rrBestDisz(rrName, diszList) {
   return bestScore > 0 ? best : '';
 }
 
+function calcDlvAK(jahrgang, geschlecht, eventJahr) {
+  var alter = eventJahr - parseInt(jahrgang);
+  if (isNaN(alter) || alter < 5) return '';
+  var g = (geschlecht || '').toUpperCase() === 'W' ? 'W' : 'M';
+  if (alter < 13) return g + 'U12';
+  if (alter < 15) return g + 'U14';
+  if (alter < 17) return g + 'U16';
+  if (alter < 19) return g + 'U18';
+  if (alter < 21) return g + 'U20';
+  if (alter < 23) return g + 'U23';
+  if (alter < 30) return g;  // Hauptklasse: M / W
+  var stufe = Math.floor(alter / 5) * 5;
+  if (stufe > 75) stufe = 75;
+  return g + stufe;
+}
+
 function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eventOrt) {
   var preview = document.getElementById('rr-preview');
   var today = new Date().toISOString().slice(0,10);
@@ -3073,7 +3104,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   // Debug
   var _dbgFirst = results.length ? results[0] : null;
   var _dbgRaw = _dbgFirst ? JSON.stringify(_dbgFirst.raw) : '(leer)';
-  var _dbgIdx = _dbgFirst ? ('iName='+_dbgFirst.iName+' iClub='+_dbgFirst.iClub+' iAK='+_dbgFirst.iAK+' iNetto='+_dbgFirst.iNetto+' iPlatz='+_dbgFirst.iPlatz) : '';
+  var _dbgIdx = (_dbgFirst ? ('iName='+_dbgFirst.iName+' iClub='+_dbgFirst.iClub+' iAK='+_dbgFirst.iAK+' iNetto='+_dbgFirst.iNetto+' iPlatz='+_dbgFirst.iPlatz) : '') + (window._rrDebug && window._rrDebug.resolvedDate ? ' | Datum: '+window._rrDebug.resolvedDate+' (Raw: '+JSON.stringify(window._rrDebug.cfgDateRaw||'')+')' : '');
 
   var rows = '';
   for (var i = 0; i < results.length; i++) {
@@ -3081,7 +3112,29 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var raw = r.raw;
     var name  = String(raw[r.iName]  || '').trim();
     var club  = String(raw[r.iClub]  || '').trim();
-    var ak    = String(raw[r.iAK]    || '').trim();
+    var ak = '';
+    if (r.iAK >= 0) {
+      ak = String(raw[r.iAK] || '').trim();
+    } else {
+      var _jahrgang = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
+      var _geschlecht = '';
+      if (athletId) {
+        for (var _si=0; _si<state.athleten.length; _si++) {
+          if (state.athleten[_si].id == athletId) { _geschlecht = state.athleten[_si].geschlecht || ''; break; }
+        }
+      }
+      if (!_geschlecht && r.iGeschlecht >= 0) {
+        var _gv = String(raw[r.iGeschlecht] || '').toUpperCase();
+        _geschlecht = (_gv === 'W' || _gv === 'F' || _gv === 'FEMALE') ? 'W' : (_gv === 'M' || _gv === 'MALE') ? 'M' : '';
+      }
+      if (!_geschlecht) _geschlecht = r.akFromGroup === 'W' ? 'W' : r.akFromGroup === 'M' ? 'M' : '';
+      if (_jahrgang && _geschlecht) {
+        var _eventJahr = parseInt((guessDate || '').slice(0,4)) || new Date().getFullYear();
+        ak = calcDlvAK(_jahrgang, _geschlecht, _eventJahr);
+      } else {
+        ak = r.akFromGroup || '';
+      }
+    }
     var zeit  = String(raw[r.iZeit]  || '').trim();
     var netto = String(raw[r.iNetto] || '').trim();
     var platzAKraw = r.iPlatz >= 0 ? String(raw[r.iPlatz] || '').trim() : '';
@@ -3193,7 +3246,32 @@ async function rrImport() {
     var disziplin = diszInputs[i] ? diszInputs[i].value.trim() : '';
     if (!athletId || !disziplin) continue;
     var zeit     = String(raw[r.iNetto] || raw[r.iZeit] || '').trim();
-    var ak       = String(raw[r.iAK]  || '').trim();
+    var ak = '';
+    if (r.iAK >= 0) {
+      ak = String(raw[r.iAK] || '').trim();
+    } else {
+      var _jahrgang2 = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
+      var _geschlecht2 = '';
+      var _selAthlet = document.querySelectorAll('.rr-athlet')[_idx];
+      var _athId2 = _selAthlet ? parseInt(_selAthlet.value) || 0 : 0;
+      if (_athId2) {
+        for (var _si2=0; _si2<state.athleten.length; _si2++) {
+          if (state.athleten[_si2].id == _athId2) { _geschlecht2 = state.athleten[_si2].geschlecht || ''; break; }
+        }
+      }
+      if (!_geschlecht2 && r.iGeschlecht >= 0) {
+        var _gv2 = String(raw[r.iGeschlecht] || '').toUpperCase();
+        _geschlecht2 = (_gv2 === 'W' || _gv2 === 'F') ? 'W' : (_gv2 === 'M') ? 'M' : '';
+      }
+      if (!_geschlecht2) _geschlecht2 = r.akFromGroup === 'W' ? 'W' : r.akFromGroup === 'M' ? 'M' : '';
+      if (_jahrgang2 && _geschlecht2) {
+        var _datum = (document.getElementById('rr-datum') || {}).value || '';
+        var _eventJahr2 = parseInt(_datum.slice(0,4)) || new Date().getFullYear();
+        ak = calcDlvAK(_jahrgang2, _geschlecht2, _eventJahr2);
+      } else {
+        ak = r.akFromGroup || '';
+      }
+    }
     var platzAKv = r.iPlatz >= 0 ? parseInt(String(raw[r.iPlatz] || '')) || null : null;
     items.push({
       datum: datum, ort: ort, veranstaltung_name: evname,
