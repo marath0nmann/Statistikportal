@@ -1,9 +1,8 @@
-v255: RaceResult: Club-Filter Phrase-Match + Datum-Debug
+v257: RaceResult: AK aus Jahrgang + Geschlecht berechnen (DLV-Schema)
 
-Club-Filter:
-- Statt OR über einzelne Wörter: Phrase-Match auf den vollständigen
-  Vereinsnamen ("tus oedt" muss als Substring in Club-Spalte vorkommen)
-- "TuS Bergziege" enthält nicht "tus oedt" → wird korrekt gefiltert
-
-Datum-Debug:
-- Datum-Raw und geparstes Datum werden im Debug angezeigt
+- calcDlvAK(jahrgang, geschlecht, eventJahr): berechnet DLV-AK
+  U12–U23, Hauptklasse (M/W), M30/W30 bis M75/W75
+- iYear + iGeschlecht werden aus DataFields erkannt (YEAR, [GeschlechtMW])
+- Priorität: 1. Athletenprofil-Geschlecht, 2. [GeschlechtMW]-Feld, 3. Gruppen-Key
+- Gilt für Preview und Import
+- API liefert jetzt geschlecht mit im Athleten-Response

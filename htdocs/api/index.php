@@ -474,7 +474,7 @@ if ($res === 'benutzer') {
                  FROM ' . DB::tbl('benutzer') . ' ORDER BY benutzername'
             );
         }
-        $athleten = DB::fetchAll('SELECT id, name_nv FROM ' . DB::tbl('athleten') . ' WHERE aktiv=1 ORDER BY name_nv');
+        $athleten = DB::fetchAll('SELECT id, name_nv, geschlecht FROM ' . DB::tbl('athleten') . ' WHERE aktiv=1 ORDER BY name_nv');
         jsonOk(['benutzer' => $rows, 'athleten' => $athleten]);
     }
     if ($method === 'POST') {
