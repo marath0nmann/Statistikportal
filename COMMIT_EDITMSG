@@ -1,1 +1,5 @@
-v298: Fix _normN: war lokale Funktion in rrFetch, jetzt global verfügbar
+v299: Fix AK-Platz: Geschlecht aus _athletenMap statt veraltetem state.athleten-Cache
+
+state.athleten wird nur beim Login geladen – Änderungen an Geschlecht/Geburtsjahr
+danach werden dort nicht reflektiert. _athletenMap wird jetzt überall bevorzugt
+und in loadAthleten() synchron mitbefüllt.
