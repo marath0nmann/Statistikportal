@@ -1220,7 +1220,14 @@ async function loadDisziplinen() {
 
 async function loadAthleten() {
   var r = await apiGet('athleten');
-  if (r && r.ok) state.athleten = r.data;
+  if (r && r.ok) {
+    state.athleten = r.data;
+    // _athletenMap synchron halten
+    state._athletenMap = {};
+    for (var _li = 0; _li < r.data.length; _li++) {
+      state._athletenMap[r.data[_li].id] = r.data[_li];
+    }
+  }
 }
 
 // ── PAGE ROUTER ─────────────────────────────────────────────
@@ -3322,8 +3329,14 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
       var _jahrgang = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
       var _geschlecht = '';
       if (athletId) {
-        for (var _si=0; _si<state.athleten.length; _si++) {
-          if (state.athleten[_si].id == athletId) { _geschlecht = state.athleten[_si].geschlecht || ''; break; }
+        // _athletenMap bevorzugen (aktueller als state.athleten-Cache)
+        var _ath = (state._athletenMap && state._athletenMap[athletId]);
+        if (_ath) {
+          _geschlecht = _ath.geschlecht || '';
+        } else {
+          for (var _si=0; _si<state.athleten.length; _si++) {
+            if (state.athleten[_si].id == athletId) { _geschlecht = state.athleten[_si].geschlecht || ''; break; }
+          }
         }
       }
       if (!_geschlecht && r.iGeschlecht >= 0) {
@@ -3481,8 +3494,13 @@ async function rrImport() {
       var _selAthlet = document.querySelectorAll('.rr-athlet')[i];
       var _athId2 = _selAthlet ? parseInt(_selAthlet.value) || 0 : 0;
       if (_athId2) {
-        for (var _si2=0; _si2<state.athleten.length; _si2++) {
-          if (state.athleten[_si2].id == _athId2) { _geschlecht2 = state.athleten[_si2].geschlecht || ''; break; }
+        var _ath2 = (state._athletenMap && state._athletenMap[_athId2]);
+        if (_ath2) {
+          _geschlecht2 = _ath2.geschlecht || '';
+        } else {
+          for (var _si2=0; _si2<state.athleten.length; _si2++) {
+            if (state.athleten[_si2].id == _athId2) { _geschlecht2 = state.athleten[_si2].geschlecht || ''; break; }
+          }
         }
       }
       if (!_geschlecht2 && r.iGeschlecht >= 0) {
