@@ -2676,7 +2676,7 @@ async function rrFetch() {
 
     var apiKey     = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
     var eventName  = cfg.EventName || cfg.Name || '';
-    var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.Time || '';
+    var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.StartDate || cfg.start_date || '';
     var eventDate = '';
     if (_cfgDateRaw) {
       var _ds = String(_cfgDateRaw).trim();
@@ -2762,12 +2762,19 @@ async function rrFetch() {
     // Contest=0 bedeutet: Liste gilt für alle Contests auf einmal → nur einen Request
     var contestIds = Object.keys(contestObj);
     if (!contestIds.length) contestIds = ['1'];
-    if (listContest === '0') contestIds = ['0'];
+    // contest=0: Liste gilt für alle Contests gleichzeitig.
+    // Manche Events liefern dabei nur einen Ausschnitt (eine Gruppe) →
+    // alle echten Contest-IDs als Fallback anhängen
+    if (listContest === '0') {
+      var _indivIds = Object.keys(contestObj);
+      contestIds = ['0'].concat(_indivIds);
+    }
 
     _rrDebug.cfgOrt = eventOrtCfg;
     _rrDebug.cfgKey = apiKey;
     _rrDebug.cfgDateRaw = _cfgDateRaw;
     _rrDebug.eventDate = eventDate;
+    _rrDebug.cfgEventName = cfg.eventname || '';
     _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
     _rrDebug.listName = listName;
     _rrDebug.listContest = listContest;
@@ -2781,8 +2788,11 @@ async function rrFetch() {
     var allResults = [];
     var eventOrt = eventOrtCfg || "";
 
+    var _foundViaZero = false;
     for (var ci = 0; ci < contestIds.length; ci++) {
       var cid   = contestIds[ci];
+      // Wenn contest=0 bereits Ergebnisse lieferte → Einzel-Contests überspringen
+      if (_foundViaZero && cid !== '0') continue;
       var cname = contestObj[cid] || ('Contest ' + cid);
       preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; ' + (ci+1) + '/' + contestIds.length + ': ' + cname + '&hellip;</div>';
       try {
@@ -2874,6 +2884,7 @@ async function rrFetch() {
         // Eventname + Datum aus HeadLine der ersten erfolgreichen Antwort
         if (payload.list && (!eventName || !eventOrt)) {
           var hl = payload.list.HeadLine1 || payload.list.HeadLine2 || "";
+          _rrDebug.headLine = hl;
           var dm = hl.match(/(\d{2})\.(\d{2})\.(\d{4})/);
           if (dm) {
             if (!eventDate) eventDate = dm[3] + "-" + dm[2] + "-" + dm[1];
@@ -2964,14 +2975,7 @@ async function rrFetch() {
             if (clubSample && _rrDebug.clubSamples.indexOf(clubSample) < 0 && _rrDebug.clubSamples.length < 50) _rrDebug.clubSamples.push(clubSample);
             if (clubPhrase) {
               var clubVal = clubSample.toLowerCase();
-              // Erst exakter Phrase-Match
-              var _clubOk = clubVal.indexOf(clubPhrase) >= 0;
-              // Fallback: alle Wörter des Vereinsnamens müssen vorkommen (AND)
-              if (!_clubOk) {
-                var _cWords = clubPhrase.split(/\s+/).filter(function(w){return w.length>1;});
-                _clubOk = _cWords.length > 0 && _cWords.every(function(w){ return clubVal.indexOf(w) >= 0; });
-              }
-              if (!_clubOk) continue;
+              if (clubVal.indexOf(clubPhrase) < 0) continue;
             }
             // Gruppen-Key auswerten für Disziplin und AK-Geschlecht
             var groupKey = dataKeys[dk];
@@ -2990,6 +2994,7 @@ async function rrFetch() {
               iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
           }
         }
+      if (cid === '0' && allResults.length > 0) _foundViaZero = true;
       } catch(e2) { continue; }
     }
 
@@ -3008,7 +3013,7 @@ async function rrFetch() {
             'Club-Werte in Daten (Sample): ' + dbgClubs + '<br>' +
             'Top-Level Keys: ' + ((_rrDebug.topKeys||[]).join(', ')||'?') + '<br>' +
             'Config-Keys: ' + ((_rrDebug.cfgKeys||[]).join(', ')||'?') + '<br>' +
-            'API-Key: &ldquo;' + (_rrDebug.cfgKey||'leer') + '&rdquo; | Datum-Raw: ' + JSON.stringify(_rrDebug.cfgDateRaw||'') + ' → ' + (_rrDebug.eventDate||'leer') + '<br>' +
+            'API-Key: &ldquo;' + (_rrDebug.cfgKey||'leer') + '&rdquo; | Datum-Raw: ' + JSON.stringify(_rrDebug.cfgDateRaw||'(leer)') + ' → ' + (_rrDebug.eventDate||'leer') + ' | cfg.eventname: ' + (_rrDebug.cfgEventName||'–') + ' | HeadLine: ' + (_rrDebug.headLine||'–') + '<br>' +
             'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine') + '<br>' +
             'Contests: ' + (_rrDebug.contestSample||'?') + '<br>' +
             'ListName aus Config: ' + (_rrDebug.listName||'?') + (_rrDebug.listContest !== undefined ? ' (Contest=' + _rrDebug.listContest + ')' : '') + (_rrDebug.fetchMode ? ' [' + _rrDebug.fetchMode + ']' : '') + '<br>' +
