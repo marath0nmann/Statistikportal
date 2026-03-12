@@ -2782,6 +2782,8 @@ async function rrFetch() {
     var base4 = 'https://my.raceresult.com/' + eventId + '/RRPublish/data/list';
     var hdrs  = { 'Origin': 'https://my.raceresult.com', 'Referer': 'https://my.raceresult.com/' };
     var allResults = [];
+    var allRowsForAK = [];
+    window._rrAllRowsForAK = allRowsForAK;
     // eventOrt HIER deklarieren (vor dem Extraktionsblock der weiter oben steht → wird durch Hoisting korrekt)
     var eventOrt = eventOrtCfg || '';
     // Ort aus Veranstaltungsname wenn noch leer
@@ -2860,6 +2862,9 @@ async function rrFetch() {
               var clubVal = iClub >= 0 ? String(row[iClub] || '').trim() : '';
               if (clubVal && _rrDebug.clubSamples.indexOf(clubVal) < 0 && _rrDebug.clubSamples.length < 20)
                 _rrDebug.clubSamples.push(clubVal);
+              // Alle Rows für AK-Platz-Berechnung speichern (Zeit + AK)
+              var _zeit4ak = String(row[iNetto] || row[iZeit] || '').trim();
+              if (_zeit4ak) allRowsForAK.push({ ak: iAK >= 0 ? String(row[iAK]||'').trim() : '', zeit: _zeit4ak, year: iYear >= 0 ? String(row[iYear]||'').trim() : '', geschlecht: iGeschlecht >= 0 ? String(row[iGeschlecht]||'').toUpperCase().trim() : '' });
               if (clubPhrase && clubVal.toLowerCase().indexOf(clubPhrase) < 0) return;
               var gkey = k2 ? (k + '/' + k2) : k;
               var gParts = gkey.split('/');
@@ -2908,7 +2913,7 @@ async function rrFetch() {
       return;
     }
     _rrDebug.resolvedDate = eventDate;
-    rrRenderPreview(allResults, eventId, eventName, eventDate, contestObj, eventOrt);
+    rrRenderPreview(allResults, eventId, eventName, eventDate, contestObj, eventOrt, allRowsForAK);
 
   } catch(e) {
     preview.innerHTML =
@@ -2986,7 +2991,30 @@ function calcDlvAK(jahrgang, geschlecht, eventJahr) {
   return g + stufe;
 }
 
-function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eventOrt) {
+function calcAKPlatz(ak, zeitStr) {
+  var allRowsForAK = window._rrAllRowsForAK || [];
+  if (!ak || !zeitStr || !allRowsForAK.length) return null;
+  function toSec(s) {
+    var p = s.replace(/[^0-9:]/g, '').split(':').map(Number);
+    if (p.length === 3) return p[0]*3600 + p[1]*60 + p[2];
+    if (p.length === 2) return p[0]*60 + p[1];
+    return p[0] || 0;
+  }
+  var eigeneZeit = toSec(zeitStr);
+  if (!eigeneZeit) return null;
+  var besser = 0;
+  for (var _i = 0; _i < allRowsForAK.length; _i++) {
+    var r = allRowsForAK[_i];
+    if (r.ak !== ak) continue;
+    var rZeit = toSec(r.zeit);
+    if (rZeit > 0 && rZeit < eigeneZeit) besser++;
+  }
+  return besser + 1;
+}
+
+function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eventOrt, allRowsForAK) {
+  // allRowsForAK auch auf window setzen damit calcAKPlatz es findet
+  if (allRowsForAK) window._rrAllRowsForAK = allRowsForAK;
   var preview = document.getElementById('rr-preview');
   var today = new Date().toISOString().slice(0,10);
   var guessDate = eventDate ? eventDate.slice(0,10) : '';
@@ -3071,8 +3099,8 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     }
     var zeit  = String(raw[r.iZeit]  || '').trim();
     var netto = String(raw[r.iNetto] || '').trim();
-    var platzAKraw = r.iPlatz >= 0 ? String(raw[r.iPlatz] || '').trim() : '';
-    var platzAKnum = parseInt(platzAKraw) || '';
+    // iPlatz zeigt auf AUTORANKP (Gesamtplatz) — AK-Platz selbst berechnen
+    var platzAKnum = calcAKPlatz(ak, netto || zeit) || '';
     var disz  = rrBestDisz(r.contestName || '', diszList);
 
     // Athlet-Matching: Name normalisieren (SS↔ß, Umlaute, Komma, Groß/Klein)
@@ -3222,7 +3250,7 @@ async function rrImport() {
         ak = r.akFromGroup || '';
       }
     }
-    var platzAKv = r.iPlatz >= 0 ? parseInt(String(raw[r.iPlatz] || '')) || null : null;
+    var platzAKv = calcAKPlatz(ak, String(raw[r.iNetto] || raw[r.iZeit] || '').trim()) || null;
     items.push({
       datum: datum, ort: ort, veranstaltung_name: evname,
       athlet_id: athletId, disziplin: disziplin,
