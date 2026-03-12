@@ -1,6 +1,7 @@
-v238: RaceResult Ort aus cfg + Feld-Befüllung
+v239: RaceResult Kategorie-Pflichtfeld vollständig verdrahtet
 
-- Ort wird aus cfg.City / cfg.Location / cfg.Place / cfg.Venue / cfg.Ort gelesen
-- "Wachtendonk, Deutschland" → Komma+Land wird abgeschnitten → "Wachtendonk"
-- Ort-Heuristik (letztes Wort des Namens) bleibt als Fallback
-- rr-ort Input-Feld wird jetzt mit value="" befüllt (war bisher immer leer)
+- Kategorie-Dropdown bereits vorhanden, aber Verdrahtung unvollständig:
+  - rrKatChanged() prüft jetzt URL + Kategorie (beide Pflicht für Button-Freigabe)
+  - URL-Feld: oninput="rrKatChanged()" damit Button auch bei URL-Eingabe reagiert
+  - _rrState speichert rrKatKey für Import
+  - diszList in rrRenderPreview filtert auf gewählte Kategorie (war schon via _kat)

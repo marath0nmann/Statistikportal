@@ -2401,11 +2401,31 @@ function renderEintragen() {
       '<div class="panel" style="padding:24px">' +
         '<div class="panel-title" style="margin-bottom:4px">&#x1F30D; RaceResult-Import</div>' +
         '<div style="color:var(--text2);font-size:13px;margin-bottom:20px">Ergebnisse direkt von <strong>my.raceresult.com</strong> importieren. Alle TuS&nbsp;Oedt-Starter werden automatisch gefunden.</div>' +
+        '<div style="margin-bottom:14px">' +
+          '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Kategorie <span style="color:var(--accent)">*</span></label>' +
+          '<select id="rr-kat" onchange="rrKatChanged()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);min-width:220px">' +
+            '<option value="">&#x2013; bitte w\u00e4hlen &#x2013;</option>' +
+            (function() {
+              var seen = {}, opts = '';
+              var disz = state.disziplinen || [];
+              // Kategorien in ihrer Reihenfolge sammeln
+              var kats = [];
+              for (var i = 0; i < disz.length; i++) {
+                var d = disz[i];
+                if (d.tbl_key && !seen[d.tbl_key]) { seen[d.tbl_key] = true; kats.push({ key: d.tbl_key, name: d.kategorie }); }
+              }
+              for (var ki = 0; ki < kats.length; ki++) {
+                opts += '<option value="' + kats[ki].key + '">' + kats[ki].name + '</option>';
+              }
+              return opts;
+            })() +
+          '</select>' +
+        '</div>' +
         '<div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:20px">' +
           '<div style="flex:1"><label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">RaceResult-URL oder Event-ID</label>' +
             '<input type="text" id="rr-url" placeholder="https://my.raceresult.com/354779/" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text)"/>' +
           '</div>' +
-          '<button class="btn btn-primary" onclick="rrFetch()" style="white-space:nowrap">&#x1F50D; Ergebnisse laden</button>' +
+          '<button class="btn btn-primary" id="rr-load-btn" onclick="rrFetch()" style="white-space:nowrap" disabled>&#x1F50D; Ergebnisse laden</button>' +
         '</div>' +
         '<div id="rr-preview"></div>' +
       '</div>';
@@ -2605,6 +2625,14 @@ async function bulkSubmit() {
 }
 
 // ── RACERESULT-IMPORT ──────────────────────────────────────
+function rrKatChanged() {
+  var kat = (document.getElementById('rr-kat') || {}).value || '';
+  var btn = document.getElementById('rr-load-btn');
+  if (btn) btn.disabled = !kat;
+  // Gewählte Kategorie merken für Disziplin-Filterung in der Preview
+  window._rrKat = kat;
+}
+
 async function rrFetch() {
   var raw = ((document.getElementById('rr-url') || {}).value || '').trim();
   if (!raw) { notify('Bitte URL oder Event-ID eingeben.', 'err'); return; }
@@ -2881,7 +2909,11 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
 
   // System-Disziplinen aus datalist lesen
   // Disziplinen aus state (von API)
-  var diszList = (state.disziplinen || []).map(function(d) { return typeof d === 'object' ? d.disziplin : d; }).filter(Boolean);
+  var _kat = window._rrKat || '';
+  var diszList = (state.disziplinen || [])
+    .filter(function(d) { return !_kat || d.tbl_key === _kat; })
+    .map(function(d) { return typeof d === 'object' ? d.disziplin : d; })
+    .filter(Boolean);
   if (!diszList.length) {
     var dlOpts = document.querySelectorAll("#disz-list option");
     for (var di = 0; di < dlOpts.length; di++) diszList.push(dlOpts[di].value);
@@ -2995,6 +3027,7 @@ async function rrImport() {
 
   var rrState = window._rrState;
   var eventId = (rrState && rrState.eventId) || "";
+  var rrKatKey = (window._rrState && window._rrState.rrKatKey) || '';
   var chks = document.querySelectorAll('.rr-chk');
   var aths = document.querySelectorAll('.rr-athlet');
   var diszInputs = document.querySelectorAll('.rr-disz');
