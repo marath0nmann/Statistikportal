@@ -1,1 +1,1 @@
-v280: Debug: cfg roh ausgeben (Datum-Suche)
+v281: Fix: _rrDebug auf window gesetzt (Debug-Daten waren immer leer)
