@@ -1,7 +1,6 @@
-v229: RaceResult: PlatzAK, 5.000m-Matching, Eventname-Fix, Zeitfarbe
+v230: RaceResult: Platz AK, Debug-Raw, Eventname-Feld breiter
 
-- Platz AK: neue Spalte in Vorschau + wird beim Import mitgespeichert
-- Disziplin: "5.000 m" wird korrekt als "5km" erkannt (Tausenderpunkt)
-- Eventname: trailing " am" wird abgeschnitten
-- Netto-Zeit: --result-color statt --btn-bg (Dark Mode lesbar)
-- Name-Heuristik: längster "Name-artiger" String wenn DataFields fehlen
+- Platz AK Spalte korrekt in Tabellenzeile eingefügt (Header war da, Zelle fehlte)
+- iPlatz aus DataFields gelesen (platz/plp Keywords ohne ges/gun)
+- Eventname-Feld: 380px statt 220px
+- Debug-Block "Spalten-Debug" in Preview (aufklappbar) zeigt Indizes + erste Rohdaten

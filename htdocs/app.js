@@ -2671,7 +2671,7 @@ async function rrFetch() {
 
     // Spaltenindizes: bekannte Positionen aus dem echten DataFields-Format
     // ["BIB","ID","MitStatus([GesPlp])","AnzeigeName","YEAR","[GeschlechtMW]","[AGEGROUP1.NAMESHORT]","CLUB","Ziel.GUN","Ziel.CHIP"]
-    var iName=3; var iClub=7; var iAK=6; var iZeit=8; var iNetto=9;
+    var iName=3; var iClub=7; var iAK=6; var iZeit=8; var iNetto=9; var iPlatz=-1;
 
     var base4 = 'https://my.raceresult.com/' + eventId + '/RRPublish/data/list';
     var hdrs  = { 'Origin': 'https://my.raceresult.com', 'Referer': 'https://my.raceresult.com/' };
@@ -2711,9 +2711,11 @@ async function rrFetch() {
             else if (f.indexOf('agegroup') >= 0 || f.indexOf('alters') >= 0 || f.indexOf('ak') >= 0) iAK = fi;
             else if (f === 'ziel.gun' || f === 'gun' || f.indexOf('brutto') >= 0) iZeit = fi;
             else if (f === 'ziel.chip' || f === 'chip' || f.indexOf('netto') >= 0) iNetto = fi;
+            else if (f.indexOf('akplatz') >= 0 || f.indexOf('ak_platz') >= 0 || (f.indexOf('platz') >= 0 && f.indexOf('ges') < 0) || (f.indexOf('plp') >= 0 && f.indexOf('ges') < 0)) iPlatz = fi;
           }
           _rrDebug.iClub = iClub;
           _rrDebug.iName = iName;
+          _rrDebug.iPlatz = iPlatz;
         }
 
         // Eventname + Datum aus HeadLine der ersten erfolgreichen Antwort
@@ -2788,7 +2790,7 @@ async function rrFetch() {
               if (!clubOk) continue;
             }
             allResults.push({ raw: row, contestName: cname,
-              iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto });
+              iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
           }
         }
       } catch(e2) { continue; }
@@ -2890,6 +2892,8 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var ak    = String(raw[r.iAK]    || '').trim();
     var zeit  = String(raw[r.iZeit]  || '').trim();
     var netto = String(raw[r.iNetto] || '').trim();
+    var platzAKraw = r.iPlatz >= 0 ? String(raw[r.iPlatz] || '').trim() : '';
+    var platzAKnum = parseInt(platzAKraw) || '';
     var disz  = rrBestDisz(r.contestName || '', diszList);
 
     // Athlet fuzzy-matchen: erst Nachname, dann Vorname
@@ -2918,6 +2922,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
         '<td style="padding:4px 6px">' + (function(sel){ var s = '<select class="rr-disz" class="bk-input-sel">';s += '<option value="">' + (sel ? '' : '\u2013 bitte w\u00e4hlen \u2013') + '</option>';for(var oi=0;oi<diszList.length;oi++){s += '<option value="'+diszList[oi]+'"'+(diszList[oi]===sel?' selected':'')+'>'+diszList[oi]+'</option>';}s += '</select>'; return s; })(disz) + '</td>' +
         '<td style="padding:4px 6px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:14px;color:var(--result-color)">' + (netto || zeit) + '</td>' +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + ak + '</td>' +
+        '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + (platzAKnum || '–') + '</td>' +
         '<td style="padding:4px 6px;font-size:11px;color:var(--text2)">' + club + '</td>' +
       '</tr>';
   }
@@ -2982,7 +2987,7 @@ async function rrImport() {
     if (!athletId || !disziplin) continue;
     var zeit     = String(raw[r.iNetto] || raw[r.iZeit] || '').trim();
     var ak       = String(raw[r.iAK]  || '').trim();
-    var platzAKv = r.iPlatz >= 0 ? parseInt(raw[r.iPlatz]) || null : null;
+    var platzAKv = r.iPlatz >= 0 ? parseInt(String(raw[r.iPlatz] || '')) || null : null;
     items.push({
       datum: datum, ort: ort, veranstaltung_name: evname,
       athlet_id: athletId, disziplin: disziplin,
