@@ -312,6 +312,8 @@ tr:hover td { background: var(--surf2); }
 .badge-gold   { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; letter-spacing:.4px; background:#fff3cd; color:#856404; border:1px solid #ffc107; }
 .badge-blue   { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; letter-spacing:.4px; background:#ddeaff; color:#003087; border:1px solid #99bbff; }
 .badge-ak     { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; letter-spacing:.4px; background:#eef1f7; color:#5a6a8a; border:1px solid #c0cce0; }
+.badge-silver { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; letter-spacing:.4px; background:#f0f0f0; color:#555; border:1px solid #bbb; }
+.badge-pb     { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; letter-spacing:.4px; background:rgba(26,138,58,.12); color:#1a8a3a; border:1px solid rgba(26,138,58,.3); }
 .timeline-disz .badge-gold, .timeline-disz .badge-blue, .timeline-disz .badge-ak { font-weight:600; }
 .badge-inaktiv { background: #fde8e8; color: var(--accent); }
 
@@ -1151,6 +1153,8 @@ tr:hover td { background: var(--surf2); }
   color: #7baeff;
   border-color: #0a3070 !important;
 }
+[data-theme="dark"] .badge-silver { background:rgba(255,255,255,.08); color:#ccc; border-color:rgba(255,255,255,.2); }
+[data-theme="dark"] .badge-pb     { background:rgba(26,138,58,.2); color:#4cd97a; border-color:rgba(26,138,58,.4); }
 [data-theme="dark"] .badge-ak {
   background: #1a1f2e;
   color: #8fa3c0;
@@ -1163,6 +1167,8 @@ tr:hover td { background: var(--surf2); }
   :root:not([data-theme="light"]) .badge-blue {
     background: #001840; color: #7baeff; border-color: #0a3070 !important;
   }
+  :root:not([data-theme="light"]) .badge-silver { background:rgba(255,255,255,.08); color:#ccc; border-color:rgba(255,255,255,.2); }
+  :root:not([data-theme="light"]) .badge-pb     { background:rgba(26,138,58,.2); color:#4cd97a; border-color:rgba(26,138,58,.4); }
   :root:not([data-theme="light"]) .badge-ak {
     background: #1a1f2e; color: #8fa3c0; border-color: #2e3a50 !important;
   }

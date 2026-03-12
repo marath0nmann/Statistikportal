@@ -1298,9 +1298,9 @@ async function renderDashboard() {
     var res = fmt === 'm' ? fmtMeter(rek.resultat) : fmtTime(rek.resultat, fmt === 's' ? 's' : undefined);
     var lbl = rek.label || '';
     var athletName = rek.athlet || '';
-    var labelCls = rek.extern ? 'badge badge-blue' :
-                   (lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
-                   (lbl.indexOf('nner') >= 0 || lbl.indexOf('Frauen') >= 0) ? 'badge badge-blue' : 'badge badge-ak';
+    var labelCls = (lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
+                   (lbl === 'PB' || lbl.indexOf('Persönliche') >= 0) ? 'badge badge-pb' :
+                   'badge badge-silver';
     var dotStyle = rek.extern ? 'background:var(--accent);' : '';
     if (!athletName) continue;
     var athLink = rek.athlet_id ? '<span class="athlet-link" style="color:var(--primary);font-weight:600" data-athlet-id="' + rek.athlet_id + '">' + athletName + '</span>' : '<span style="color:var(--primary);font-weight:600">' + athletName + '</span>';
