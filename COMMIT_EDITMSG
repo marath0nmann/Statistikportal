@@ -1,5 +1,4 @@
-v326: Fix Löschen-Button Athleten (Name-Escaping-Problem)
+v329: Bulk-Eintragen: Kategorie filtert nur Disziplin-Liste
 
-Athleten-Namen mit Sonderzeichen/Anführungszeichen brachen den
-onclick-String. Lösung: _mkDelBtn bettet keinen Namen mehr ein,
-deleteAthletById() liest den Namen sicher aus dem Cache.
+Kategorie ist kein Pflichtfeld und wird nicht gesendet.
+Wechsel der Kategorie aktualisiert alle bk-disz-Selects per bkKatChanged().
