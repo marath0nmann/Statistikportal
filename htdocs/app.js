@@ -3195,10 +3195,45 @@ function calcDlvAK(jahrgang, geschlecht, eventJahr) {
   return g + stufe;
 }
 
-function _rrRefreshPreview() {
+function _rrRefreshAKPlatz() {
+  // Nur AK-Platz-Spalten neu berechnen ohne das Datum-Feld zu überschreiben
   var s = window._rrState;
-  if (s && s.results) {
-    rrRenderPreview(s.results, s.eventId, s.eventName, null, s.contestObj, s.eventOrt, window._rrAllRowsForAK);
+  if (!s || !s.results) return;
+  var _datumFeld = ((document.getElementById('rr-datum') || {}).value || '').trim();
+  var _dpf = _datumFeld.match(/(\d{4})/);
+  var _jahr = _dpf ? parseInt(_dpf[1]) : new Date().getFullYear();
+  // Warnhinweis ausblenden wenn Datum gesetzt
+  var warnEl = document.getElementById('rr-datum-warn');
+  if (warnEl) warnEl.style.display = _datumFeld ? 'none' : '';
+  // AK-Platz-Zellen (7. td, Index 6) in jeder Tabellenzeile aktualisieren
+  var trs = document.querySelectorAll('#rr-tabelle tbody tr');
+  for (var i = 0; i < trs.length; i++) {
+    var r = s.results[i];
+    if (!r) continue;
+    var raw = r.raw;
+    var netto = String(raw[r.iNetto] || raw[r.iZeit] || '').trim();
+    var _jahrgang = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
+    var _geschlecht = '';
+    var selEl = trs[i].querySelector('.rr-athlet');
+    var _athId = selEl ? parseInt(selEl.value) || 0 : 0;
+    if (_athId) {
+      var _ath = state._athletenMap && state._athletenMap[_athId];
+      if (_ath) _geschlecht = _ath.geschlecht || '';
+    }
+    if (!_geschlecht) _geschlecht = r.akFromGroup === 'W' ? 'W' : r.akFromGroup === 'M' ? 'M' : '';
+    var ak = '';
+    if (r.iAK >= 0) {
+      ak = String(raw[r.iAK] || '').trim();
+    } else if (_jahrgang && _geschlecht) {
+      ak = calcDlvAK(_jahrgang, _geschlecht, _jahr);
+    } else {
+      ak = r.akFromGroup || '';
+    }
+    var platz = calcAKPlatz(ak, netto, _jahr) || '–';
+    // AK = 6. td (Index 5), Platz = 7. td (Index 6)
+    var tds = trs[i].querySelectorAll('td');
+    if (tds[5]) tds[5].textContent = ak;
+    if (tds[6]) tds[6].textContent = platz;
   }
 }
 
@@ -3421,12 +3456,13 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
       '<div style="flex:1;min-width:200px"><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Veranstaltungsname</div>' +
         '<input id="rr-evname" type="text" value="' + eventName + '" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:100%"/></div>' +
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Datum</div>' +
-        '<input id="rr-datum" type="text" value="' + (guessDate ? guessDate.split('-').reverse().join('.') : '') + '" placeholder="TT.MM.JJJJ" oninput="_rrRefreshPreview()" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
+        '<input id="rr-datum" type="text" value="' + (guessDate ? guessDate.split('-').reverse().join('.') : '') + '" placeholder="TT.MM.JJJJ" onchange="_rrRefreshAKPlatz()" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Ort</div>' +
         '<input id="rr-ort" type="text" value="' + (eventOrt||'') + '" placeholder="z.B. D\u00fcsseldorf" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:min(150px,100%)"/></div>' +
       '<span style="font-size:12px;color:var(--text2);align-self:center">&#x2705; ' + results.length + ' TuS-Oedt-Ergebnis(se) &bull; Event ' + eventId + '</span>' +
+      (!guessDate ? '<span id="rr-datum-warn" style="font-size:12px;color:var(--accent);font-weight:600">&#x26A0;&#xFE0E; Bitte Datum eintragen &mdash; es beeinflusst die AK-Platzierung!</span>' : '<span id="rr-datum-warn"></span>') +
     '</div>' +
-    '<div style="overflow-x:auto;margin-bottom:12px">' +
+    '<div id="rr-tabelle" style="overflow-x:auto;margin-bottom:12px">' +
       '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
         '<thead><tr style="color:var(--text2);border-bottom:2px solid var(--border)">' +
           '<th style="padding:6px;width:30px"><input type="checkbox" checked onclick="rrToggleAll(this.checked)" style="cursor:pointer"/></th>' +
