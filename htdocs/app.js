@@ -3460,8 +3460,9 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Ort</div>' +
         '<input id="rr-ort" type="text" value="' + (eventOrt||'') + '" placeholder="z.B. D\u00fcsseldorf" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:min(150px,100%)"/></div>' +
       '<span style="font-size:12px;color:var(--text2);align-self:center">&#x2705; ' + results.length + ' TuS-Oedt-Ergebnis(se) &bull; Event ' + eventId + '</span>' +
-      (!guessDate ? '<span id="rr-datum-warn" style="font-size:12px;color:var(--accent);font-weight:600">&#x26A0;&#xFE0E; Bitte Datum eintragen &mdash; es beeinflusst die AK-Platzierung!</span>' : '<span id="rr-datum-warn"></span>') +
+      '' +
     '</div>' +
+    (!guessDate ? '<div id="rr-datum-warn" style="margin-bottom:10px;padding:8px 12px;background:#7c3a00;color:#ffb347;border-radius:7px;font-size:13px;font-weight:600">&#x26A0;&#xFE0E; Bitte Datum eintragen — es beeinflusst die AK-Platzierung!</div>' : '<div id="rr-datum-warn" style="display:none"></div>') +
     '<div id="rr-tabelle" style="overflow-x:auto;margin-bottom:12px">' +
       '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
         '<thead><tr style="color:var(--text2);border-bottom:2px solid var(--border)">' +

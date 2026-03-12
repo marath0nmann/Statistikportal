@@ -1,7 +1,5 @@
-v301: Fix Datum-Feld Fokus-Bug; Warnung wenn Datum fehlt
+v302: Datum-Warnung: Position und Farbe korrigiert
 
-- oninput → onchange: Refresh feuert erst nach Verlassen des Feldes
-- Refresh überschreibt nur die AK/Platz-Zellen, nicht das komplette
-  innerHTML (kein Fokus-Verlust mehr)
-- Orangefarbene Warnung "Bitte Datum eintragen" wenn kein Datum gesetzt,
-  da es die AK-Platzierung beeinflusst
+- Warnung aus dem Flex-Metadaten-Container raus (verdrängte Veranstaltungsname-Feld)
+- Eigene Zeile zwischen Metadaten und Tabelle
+- Farbe: hardcoded #ffb347 auf #7c3a00 statt var(--accent) (war im Darkmode blau)
