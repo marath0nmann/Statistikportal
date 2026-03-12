@@ -1448,6 +1448,29 @@ async function renderErgebnisse() {
 }
 var _ergSort = { col: 'datum', dir: 'DESC' };
 var _ergAthletTimer = null;
+
+function _buildMstrFilterHtml() {
+  if (!MSTR_LIST || !MSTR_LIST.length) return '';
+  var active = state.filters.meisterschaften || {};  // { id: true }
+  var boxes = '';
+  for (var i = 0; i < MSTR_LIST.length; i++) {
+    var m = MSTR_LIST[i];
+    var chk = active[String(m.id)] ? ' checked' : '';
+    boxes += '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;white-space:nowrap">' +
+      '<input type="checkbox" value="' + m.id + '"' + chk + ' onchange="_mstrFilterToggle(' + m.id + ',this.checked)">' +
+      m.label + '</label>';
+  }
+  return '<div class="fg" style="min-width:0"><label>Meisterschaften</label>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px 12px;padding:6px 0">' + boxes + '</div></div>';
+}
+
+function _mstrFilterToggle(id, checked) {
+  if (!state.filters.meisterschaften) state.filters.meisterschaften = {};
+  if (checked) state.filters.meisterschaften[String(id)] = true;
+  else delete state.filters.meisterschaften[String(id)];
+  state.page = 1;
+  loadErgebnisseData();
+}
 function _ergAthletFilter(v) {
   clearTimeout(_ergAthletTimer);
   _ergAthletTimer = setTimeout(function() {
@@ -1474,8 +1497,12 @@ async function loadErgebnisseData() {
   params += '&sort=' + _ergSort.col + '&dir=' + _ergSort.dir;
   if (state.diszFilter) params += '&disziplin=' + encodeURIComponent(state.diszFilter);
   for (var k in state.filters) {
+    if (k === 'meisterschaften') continue; // separat behandelt
     if (state.filters[k]) params += '&' + k + '=' + encodeURIComponent(state.filters[k]);
   }
+  // Meisterschafts-Checkboxen: kommagetrennte IDs
+  var mstrIds = Object.keys(state.filters.meisterschaften || {});
+  if (mstrIds.length) params += '&meisterschaft=' + encodeURIComponent(mstrIds.join(','));
   var r = await apiGet(state.subTab + '?' + params);
   if (!r || !r.ok) {
     var el = document.getElementById('main-content');
@@ -1515,7 +1542,7 @@ async function loadErgebnisseData() {
       '<div class="fg"><label>Disziplin</label><select onchange="setFilter(\'disziplin\',this.value)">' + diszOptHtml + '</select></div>' +
       '<div class="fg"><label>Altersklasse</label><select onchange="setFilter(\'ak\',this.value)">' + akOptHtml + '</select></div>' +
       '<div class="fg"><label>Jahr</label><select onchange="setFilter(\'jahr\',this.value)">' + jahrOptHtml + '</select></div>' +
-      '<div class="fg"><label>Nur Meisterschaften</label><select onchange="setFilter(\'meisterschaft\',this.value)"><option value="">Alle</option><option value="1"' + (state.filters.meisterschaft ? ' selected' : '') + '>Nur Meisterschaften</option></select></div>' +
+      _buildMstrFilterHtml() +
       '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">&#x21BA; Reset</button>' +
     '</div>' +
     '<div class="panel">' +
@@ -1908,6 +1935,7 @@ function _renderAthletenTable() {
   var aktGruppe = state.filters.gruppe || '';
   var alleAthleten = _athLetenCache.alleAthleten || [];
   var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
+  var isAdmin = currentUser && currentUser.rolle === 'admin';
   var jetzt = new Date().getFullYear();
 
   var athleten = alleAthleten;
@@ -1941,6 +1969,8 @@ function _renderAthletenTable() {
         '<td>' + (a.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>') + '</td>' +
         '<td style="white-space:nowrap">' +
           (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showAthletEditModal(' + a.id + ')">&#x270F;&#xFE0E;</button>' : '') +
+          (isAdmin && a.aktiv ? '<button class="btn btn-ghost btn-sm" title="Deaktivieren" style="color:var(--text2)" onclick="toggleAthletAktiv(' + a.id + ',0)">&#x23FC;&#xFE0E;</button>' : '') +
+          (isAdmin && !a.aktiv ? '<button class="btn btn-ghost btn-sm" title="Aktivieren" style="color:var(--green)" onclick="toggleAthletAktiv(' + a.id + ',1)">&#x23FB;&#xFE0E;</button>' : '') +
           (canDel ? _mkDelBtn(a.id, a.name_nv||'') : '') +
         '</td>' +
       '</tr>';
@@ -4033,6 +4063,19 @@ async function saveAthlet(id) {
   });
   if (r && r.ok) { closeModal(); notify('Gespeichert.', 'ok'); await loadAthleten(); await renderAthleten(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
+}
+
+async function toggleAthletAktiv(id, aktiv) {
+  var label = aktiv ? 'aktivieren' : 'deaktivieren';
+  if (!confirm('Athlet wirklich ' + label + '?')) return;
+  var r = await apiPut('athleten/' + id, { aktiv: aktiv });
+  if (r && r.ok) {
+    notify('Athlet ' + (aktiv ? 'aktiviert' : 'deaktiviert') + '.', 'ok');
+    await loadAthleten();
+    renderAthleten();
+  } else {
+    notify((r && r.fehler) || 'Fehler', 'err');
+  }
 }
 
 async function deleteAthlet(id, name) {
