@@ -1,5 +1,4 @@
-v312: Timeline-Badges: PB grün, Bestleistungen silber
+v313: Fix PB-Label - HTML-Entity verhinderte Erkennung
 
-- "Persönliche Bestleistung" → "PB" (schon in v306 via PHP) + badge-pb (grün)
-- Alle anderen Bestleistungen (M/W, AK, extern) → badge-silver (grau-silber)
-- Gesamtbestleistung bleibt badge-gold
+PHP lieferte 'Pers&ouml;nliche Bestleistung' statt 'PB' →
+JS-indexOf('Persönliche') schlug fehl. PHP-Label direkt auf 'PB' geändert.
