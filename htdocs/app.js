@@ -2955,7 +2955,8 @@ function bulkRowHtml(idx) {
   for (var i = 0; i < state.athleten.length; i++) {
     var a = state.athleten[i];
     var g = a.geschlecht || '';
-    athOptHtml += '<option value="' + a.id + '" data-g="' + g + '">' + a.name_nv + '</option>';
+    var gebj = a.geburtsjahr ? String(a.geburtsjahr) : '';
+    athOptHtml += '<option value="' + a.id + '" data-g="' + g + '" data-gebj="' + gebj + '">' + a.name_nv + '</option>';
   }
   var fld = 'box-sizing:border-box;height:34px;padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;background:var(--surf2);color:var(--text);font-family:Barlow,sans-serif;font-size:13px;outline:none;width:100%';
   return '<tr id="bkrow-' + idx + '" style="border-bottom:1px solid var(--border)">' +
@@ -2972,13 +2973,35 @@ function bulkRowHtml(idx) {
 var _bulkRowCount = 0;
 function bkUpdateAK(athSel, idx) {
   var opt = athSel.options[athSel.selectedIndex];
-  var g = opt ? (opt.dataset.g || '') : '';
+  var g    = opt ? (opt.dataset.g    || '') : '';
+  var gebj = opt ? (opt.dataset.gebj || '') : '';
   var akSel = document.getElementById('bk-ak-' + idx);
   if (!akSel) return;
   var prev = akSel.value;
   akSel.innerHTML = bkAkOpts(g);
+  // AK automatisch vorbelegen wenn noch kein Wert gesetzt
+  if (!prev && g && gebj) {
+    var eventJahr = _bkEventJahr();
+    var ak = calcDlvAK(parseInt(gebj), g, eventJahr);
+    if (ak) { akSel.value = ak; return; }
+  }
   // vorherigen Wert wiederherstellen falls noch passt
   if (prev) { for (var i=0;i<akSel.options.length;i++) { if (akSel.options[i].value===prev) { akSel.value=prev; break; } } }
+}
+
+function _bkEventJahr() {
+  // Datum aus "neue Veranstaltung"-Formular oder heutigem Jahr
+  if (_bkVeranstModus === 'best') {
+    var sel = document.getElementById('bk-veranst-sel');
+    if (sel && sel.value) {
+      var opt = sel.options[sel.selectedIndex];
+      var d = opt && opt.dataset.datum;
+      if (d) return parseInt(d.substring(0, 4));
+    }
+  }
+  var datEl = document.getElementById('bk-datum');
+  if (datEl && datEl.value) return parseInt(datEl.value.substring(0, 4));
+  return new Date().getFullYear();
 }
 function bulkAddRow() {
   var tbody = document.getElementById('bulk-rows');
