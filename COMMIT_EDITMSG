@@ -1,9 +1,7 @@
-v249: RaceResult: listName-Bug + Contest=0-Unterstützung
+v250: RaceResult: r=all als Fallback wenn r=search keine Daten liefert
 
-- Bug: _rrDebug.listName wurde vor var listName = '' gesetzt → immer "?"
-- listName-Erkennung jetzt korrekt vor contestIds-Berechnung
-- Contest=0 in List-Config: eine Liste gilt für alle Contests gemeinsam
-  → nur ein Request mit contest=0 statt 8× HTTP 404
-- "FINAL" als zusätzliches Prio-Keyword für listname-Erkennung
-- Staffel-Listen (STAFF/RELAY) werden bei Einzel-Suche übersprungen
-- Debug zeigt jetzt auch Contest-Wert der gewählten Liste
+Manche RaceResult-Events unterstützen keinen Search-Endpoint →
+0 Zeilen trotz gültiger Antwort. Neues Verhalten:
+1. Erst r=search versuchen
+2. Wenn 0 Zeilen → r=all als Fallback
+Debug zeigt jetzt "[r=all]" wenn Fallback aktiv war
