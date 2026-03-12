@@ -1,6 +1,5 @@
-v230: RaceResult: Platz AK, Debug-Raw, Eventname-Feld breiter
+v231: RaceResult Spalten-Debug + Eventname-Feld 440px
 
-- Platz AK Spalte korrekt in Tabellenzeile eingefügt (Header war da, Zelle fehlte)
-- iPlatz aus DataFields gelesen (platz/plp Keywords ohne ges/gun)
-- Eventname-Feld: 380px statt 220px
-- Debug-Block "Spalten-Debug" in Preview (aufklappbar) zeigt Indizes + erste Rohdaten
+- Debug-Block "🔍 Spalten-Debug" jetzt tatsächlich in Preview eingefügt
+  (zeigt iName/iClub/iAK/iNetto/iPlatz + erste Rohdaten-Zeile)
+- Eventname-Eingabefeld: 220px → 440px
