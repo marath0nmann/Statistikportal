@@ -2706,16 +2706,15 @@ async function rrFetch() {
           if (!_rrDebug.dataFields.length) _rrDebug.dataFields = df.slice();
           for (var fi=0; fi<df.length; fi++) {
             var f = df[fi].toLowerCase();
-            if (f.indexOf('anzeigename') >= 0 || f === 'name' || f === 'fullname' || f === 'participant') iName = fi;
-            else if (f === 'club' || f === 'verein' || f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
-            else if (f.indexOf('agegroup') >= 0 || f.indexOf('alters') >= 0 || f.indexOf('ak') >= 0) iAK = fi;
-            else if (f === 'ziel.gun' || f === 'gun' || f.indexOf('brutto') >= 0) iZeit = fi;
-            else if (f === 'ziel.chip' || f === 'chip' || f.indexOf('netto') >= 0) iNetto = fi;
-            else if (f.indexOf('akplatz') >= 0 || f.indexOf('ak_platz') >= 0 || (f.indexOf('platz') >= 0 && f.indexOf('ges') < 0) || (f.indexOf('plp') >= 0 && f.indexOf('ges') < 0)) iPlatz = fi;
+            if (f.indexOf('anzeigename') >= 0 || f === 'name' || f === 'fullname') iName = fi;
+            else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
+            else if (f.indexOf('agegroup') >= 0 || f.indexOf('altersklasse') >= 0 || f === 'ak' || f === '[agegroup1.nameshort]') iAK = fi;
+            else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
+            else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0) iZeit = fi;
+            else if ((f.indexOf('plp') >= 0 && f.indexOf('ges') < 0) || f.indexOf('akplatz') >= 0) iPlatz = fi;
           }
-          _rrDebug.iClub = iClub;
-          _rrDebug.iName = iName;
-          _rrDebug.iPlatz = iPlatz;
+          if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
+          _rrDebug.iClub = iClub; _rrDebug.iName = iName; _rrDebug.iPlatz = iPlatz;
         }
 
         // Eventname + Datum aus HeadLine der ersten erfolgreichen Antwort
@@ -2749,7 +2748,7 @@ async function rrFetch() {
           var dataObjTmp = payload.data || payload.Data || {};
           if (Array.isArray(dataObjTmp)) dataObjTmp = { '_': dataObjTmp };
           var dkTmp = Object.keys(dataObjTmp);
-          for (var dkt=0; dkt<dkTmp.length && iName===3; dkt++) {
+          for (var dkt=0; dkt<dkTmp.length; dkt++) {
             var rowsTmp = dataObjTmp[dkTmp[dkt]];
             if (!Array.isArray(rowsTmp) || !rowsTmp.length) continue;
             var firstRow = rowsTmp[0];
@@ -2757,12 +2756,13 @@ async function rrFetch() {
             var bestLen = 0;
             for (var fj=0; fj<firstRow.length; fj++) {
               var v = String(firstRow[fj] || '');
-              // Name: enthält Leerzeichen oder Komma, keine Zahl, mind. 4 Zeichen
-              if (v.length > bestLen && /[, ]/.test(v) && !/^[\d.:]+$/.test(v)) {
-                bestLen = v.length; iName = fj;
-              }
+              if (v.length > bestLen && /[, ]/.test(v) && !/^[\d.:]+$/.test(v)) { bestLen = v.length; iName = fj; }
             }
-            _rrDebug.iName = iName;
+            for (var fj=firstRow.length-1; fj>=0; fj--) {
+              var v = String(firstRow[fj] || '');
+              if (/^\d+:\d{2}(:\d{2})?$/.test(v)) { iNetto = fj; iZeit = fj; break; }
+            }
+            _rrDebug.iName = iName; _rrDebug.iNetto = iNetto;
             break;
           }
         }
