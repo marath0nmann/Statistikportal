@@ -4230,7 +4230,7 @@ async function renderAdminDisziplinen() {
     var anz = d.ergebnis_anzahl || 0;
     var anzBadge = '<span class="badge" style="background:' + (anz > 0 ? 'var(--surf2);color:var(--text2)' : 'var(--green);color:#fff') + ';font-size:11px">' + anz + '</span>';
     var delBtn = anz === 0
-      ? '<button class="btn btn-danger btn-sm" title="Disziplin löschen" onclick="deleteDisziplin(' + JSON.stringify(d.disziplin) + ')">&#x2715;</button>'
+      ? '<button class="btn btn-danger btn-sm" title="Disziplin l\u00f6schen" data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" onclick="deleteDisziplin(this.dataset.disz)">&#x2715;</button>'
       : '<button class="btn btn-ghost btn-sm" disabled title="' + anz + ' Ergebnis(se) vorhanden">&#x1F512;</button>';
     mapRows +=
       '<tr>' +
