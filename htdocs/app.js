@@ -1733,11 +1733,8 @@ async function saveEditErgebnis(id, subTab) {
 
 /* ── 05_athleten.js ── */
 function _mkDelBtn(id, name) {
-  var btn = document.createElement('button');
-  btn.className = 'btn btn-danger btn-sm';
-  btn.textContent = '✕';
-  btn.onclick = function() { deleteAthlet(id, name); };
-  return btn.outerHTML;
+  var esc = name.replace(/'/g, "\\'");
+  return '<button class="btn btn-danger btn-sm" onclick="deleteAthlet(' + id + ',\'' + esc + '\')" title="Löschen">&#x2715;</button>';
 }
 
 function _normN(s) {
@@ -4003,7 +4000,7 @@ function showNeuerAthletModal() {
       '<div class="form-group full"><label>Gruppen <span style="font-size:11px;color:var(--text2)">(kommagetrennt)</span></label><input type="text" id="na-gr" placeholder="z.B. Senioren, Masters"/></div>' +
     '</div>' +
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button><button class="btn btn-primary" onclick="createAthlet()">Erstellen</button></div>'
-  );
+  , false, true);
 }
 
 async function createAthlet() {
@@ -4043,7 +4040,7 @@ function showAthletEditModal(id) {
       '</select></div>' +
     '</div>' +
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button><button class="btn btn-primary" onclick="saveAthlet(' + id + ')">Speichern</button></div>'
-  );
+  , false, true);
 }
 
 async function saveAthlet(id) {

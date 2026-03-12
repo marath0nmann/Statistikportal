@@ -1,1 +1,6 @@
-v323: Athlet deaktivieren ohne Bestätigungs-Dialog
+v325: Fix Löschen-Button Athleten; Modal-Felder gleich hoch
+
+- _mkDelBtn: onclick als HTML-Attribut-String (outerHTML serialisiert
+  keine DOM-Event-Listener → Button war stumm)
+- form-group input/select: height: 40px + box-sizing: border-box
+  (textarea ausgenommen)

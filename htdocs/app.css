@@ -377,7 +377,9 @@ tr:hover td { background: var(--surf2); }
   background: var(--surf2); border: 1.5px solid var(--border);
   color: var(--text); border-radius: 7px; padding: 9px 12px;
   font-family: 'Barlow', sans-serif; font-size: 13px; outline: none; transition: border .15s;
+  box-sizing: border-box; height: 40px;
 }
+.form-group textarea { height: auto; }
 .form-group input:focus, .form-group select:focus { border-color: var(--primary); }
 .form-group input.error { border-color: var(--accent); }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
