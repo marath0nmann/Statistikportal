@@ -1624,6 +1624,13 @@ function _mkDelBtn(id, name) {
   return btn.outerHTML;
 }
 
+function _normN(s) {
+  return s.toLowerCase()
+    .replace(/ß/g, 'ss')
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+    .replace(/[,.\-]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 async function showGeburtjahrImportModal() {
   // Athleten vorladen damit Vorschau und Import funktionieren
   if (!state._athletenMap || Object.keys(state._athletenMap).length === 0) {
@@ -1643,10 +1650,11 @@ async function showGeburtjahrImportModal() {
     '<div id="gj-preview" style="margin-top:10px;font-size:12px;max-height:180px;overflow-y:auto"></div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-      '<button class="btn btn-primary" onclick="doGeburtjahrImport()">&#x1F4BE; Importieren</button>' +
+      '<button class="btn btn-primary" id="gj-import-btn">&#x1F4BE; Importieren</button>' +
     '</div>'
   );
   document.getElementById('gj-csv').addEventListener('input', _gjPreview);
+  document.getElementById('gj-import-btn').addEventListener('click', doGeburtjahrImport);
 }
 
 function _excelDateToYear(val) {
@@ -3337,12 +3345,6 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
 
     // Athlet-Matching: Name normalisieren (SS↔ß, Umlaute, Komma, Groß/Klein)
     var athletId = '';
-    function _normN(s) {
-      return s.toLowerCase()
-        .replace(/ß/g, 'ss').replace(/ss/g, 'ss') // ß→ss (einheitlich)
-        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
-        .replace(/[,.\-]/g, ' ').replace(/\s+/g, ' ').trim();
-    }
     var nNorm = _normN(name);
     var parts = nNorm.split(' ').filter(function(p) { return p.length >= 3; });
     // Exakter Treffer (nach Normalisierung)
