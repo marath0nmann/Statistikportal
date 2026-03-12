@@ -2675,7 +2675,7 @@ async function rrFetch() {
     if (!cfg || typeof cfg !== 'object') throw new Error('Config ungültig: ' + cfgText.slice(0, 200));
 
     var apiKey     = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
-    var eventName  = cfg.EventName || cfg.Name || '';
+    var eventName  = cfg.EventName || cfg.Name || cfg.eventname || '';
     var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.StartDate || cfg.start_date || '';
     var eventDate = '';
     if (_cfgDateRaw) {
@@ -2773,6 +2773,16 @@ async function rrFetch() {
     _rrDebug.cfgDateRaw = _cfgDateRaw;
     _rrDebug.eventDate = eventDate;
     _rrDebug.cfgEventName = cfg.eventname || '';
+    // Ort aus HeadLine: letztes Wort wenn kein Ort aus Config
+    if (!eventOrt && _rrDebug.headLine) {
+      var _hlWords = _rrDebug.headLine.trim().split(/\s+/);
+      if (_hlWords.length > 1) eventOrt = _hlWords[_hlWords.length - 1];
+    }
+    // Ort aus HeadLine extrahieren wenn nicht aus Config
+    if (!eventOrt && _rrDebug.headLine) {
+      var _hlWords = _rrDebug.headLine.trim().split(/\s+/);
+      if (_hlWords.length > 1) eventOrt = _hlWords[_hlWords.length - 1];
+    }
     _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
     _rrDebug.listName = listName;
     _rrDebug.listContest = listContest;
@@ -2979,7 +2989,7 @@ function calcDlvAK(jahrgang, geschlecht, eventJahr) {
 function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eventOrt) {
   var preview = document.getElementById('rr-preview');
   var today = new Date().toISOString().slice(0,10);
-  var guessDate = eventDate ? eventDate.slice(0,10) : today;
+  var guessDate = eventDate ? eventDate.slice(0,10) : '';
   window._rrState = { results: results, eventId: eventId };
 
   // System-Disziplinen aus datalist lesen
@@ -3034,26 +3044,30 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var platzAKnum = parseInt(platzAKraw) || '';
     var disz  = rrBestDisz(r.contestName || '', diszList);
 
-    // Athlet-Matching: Name aufteilen (Format "Nachname, Vorname" oder "Vorname Nachname")
+    // Athlet-Matching: Name normalisieren (SS↔ß, Umlaute, Komma, Groß/Klein)
     var athletId = '';
-    var nameLow = name.toLowerCase().replace(/,/g, ' ');
-    var parts = nameLow.split(/\s+/).filter(function(p) { return p.length >= 3; });
-    // Exakter Treffer zuerst: kompletter name_nv-Vergleich
+    function _normN(s) {
+      return s.toLowerCase()
+        .replace(/ß/g, 'ss').replace(/ss/g, 'ss') // ß→ss (einheitlich)
+        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+        .replace(/[,.\-]/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    var nNorm = _normN(name);
+    var parts = nNorm.split(' ').filter(function(p) { return p.length >= 3; });
+    // Exakter Treffer (nach Normalisierung)
     for (var ai = 0; ai < state.athleten.length && !athletId; ai++) {
       var a = state.athleten[ai];
       if (!a.name_nv) continue;
-      var aNorm = a.name_nv.toLowerCase().replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
-      var nNorm = nameLow.replace(/\s+/g, ' ').trim();
-      if (aNorm === nNorm) { athletId = a.id; }
+      if (_normN(a.name_nv) === nNorm) { athletId = a.id; }
     }
-    // Fallback: alle Namensteile müssen als ganzes Wort vorkommen
+    // Fallback: alle Namensteile vorhanden (Wortgrenze)
     if (!athletId) {
       for (var ai = 0; ai < state.athleten.length && !athletId; ai++) {
         var a = state.athleten[ai];
         if (!a.name_nv) continue;
-        var aNorm = a.name_nv.toLowerCase().replace(/,/g, ' ');
+        var aNorm = _normN(a.name_nv);
         var allMatch = parts.length > 0 && parts.every(function(p) {
-          return new RegExp('\\b' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(aNorm);
+          return aNorm.indexOf(p) >= 0;
         });
         if (allMatch) { athletId = a.id; }
       }
