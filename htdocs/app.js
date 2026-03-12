@@ -2832,34 +2832,40 @@ async function rrFetch() {
               }
               if (eId) extraIds.push({ id: eId, name: eName });
             }
-            _rrDebug.extraContests = extraIds.map(function(e){ return e.id + ':' + e.name; });
-            for (var eci=0; eci<extraIds.length; eci++) {
-              var eContest = extraIds[eci];
+            _rrDebug.extraContests = extraNames;
+            // contest=0 mit gf-Parameter (groupfilter zurücksetzen auf anderen Contest-Namen)
+            for (var eci=0; eci<extraNames.length; eci++) {
+              var eName = extraNames[eci];
+              // gf als JSON-kodiertes Array — RRPublish-interne Konvention
+              var gfParam = JSON.stringify([{"Type":1,"Value":eName}]);
               var urlExtra = base4 +
                 '?key=' + apiKey +
                 '&listname=' + encodeURIComponent(listName) +
-                '&page=results&contest=' + eContest.id +
+                '&page=results&contest=0' +
+                '&gf=' + encodeURIComponent(gfParam) +
                 '&r=search&l=9999&term=' + encodeURIComponent(clubPhrase || '');
               try {
                 var respExtra = await fetch(urlExtra, { headers: hdrs });
-                if (!respExtra.ok) { _rrDebug.extraContests.push('HTTP ' + respExtra.status + ' für ' + eContest.name); continue; }
+                if (!respExtra.ok) { _rrDebug.extraContests.push(eName + ':HTTP' + respExtra.status); continue; }
                 var payloadExtra = JSON.parse(await respExtra.text());
+                // Gruppen-Anzahl als Debug
                 var dRawExtra = payloadExtra.data || {};
                 var dkExtra = Object.keys(dRawExtra);
+                _rrDebug.extraContests.push(eName + ':data-keys=' + JSON.stringify(dkExtra).slice(0,100));
                 for (var dke=0; dke<dkExtra.length; dke++) {
                   var subExtra = dRawExtra[dkExtra[dke]];
                   var subKeys = (typeof subExtra === 'object' && !Array.isArray(subExtra)) ? Object.keys(subExtra) : [];
                   if (subKeys.length > 0) {
                     for (var ske=0; ske<subKeys.length; ske++) {
                       if (Array.isArray(subExtra[subKeys[ske]])) {
-                        flatData[eContest.name + '/' + dkExtra[dke] + '/' + subKeys[ske]] = subExtra[subKeys[ske]];
+                        flatData[eName + '/' + dkExtra[dke] + '/' + subKeys[ske]] = subExtra[subKeys[ske]];
                       }
                     }
                   } else if (Array.isArray(subExtra)) {
-                    flatData[eContest.name + '/' + dkExtra[dke]] = subExtra;
+                    flatData[eName + '/' + dkExtra[dke]] = subExtra;
                   }
                 }
-              } catch(ee) { _rrDebug.extraContests.push('Fehler: ' + ee.message); }
+              } catch(ee) { _rrDebug.extraContests.push(eName + ':Fehler:' + ee.message); }
             }
           }
         }

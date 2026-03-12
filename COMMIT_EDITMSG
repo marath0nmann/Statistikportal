@@ -1,6 +1,5 @@
-v268: RaceResult: Extra-Requests mit numerischen Contest-IDs
+v269: RaceResult: gf-Parameter statt contest=ID für Extra-Requests
 
-groupFilter-Parameter existiert nicht in RRPublish-API.
-Stattdessen: Contest-Namen aus groupFilters[Type=1].Values
-werden gegen contestObj gematcht → numerische Contest-IDs
-→ pro ID ein eigener r=search&term=tus+oedt Request.
+contest=3/7 liefert 404 — Liste existiert nur für contest=0.
+Versuch: contest=0 + gf=[{"Type":1,"Value":"VIACTIV 10 km-Lauf"}]
+um groupFilters server-seitig umzuschalten.
