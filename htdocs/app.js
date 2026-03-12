@@ -2865,6 +2865,9 @@ async function rrFetch() {
               // Alle Rows für AK-Platz-Berechnung speichern (Zeit + AK oder Jahr+Geschlecht)
               var gkey = k2 ? (k + '/' + k2) : k;
               var gParts = gkey.split('/');
+              // Gruppen-Keys für Debug sammeln
+              if (!_rrDebug.groupKeysSample) _rrDebug.groupKeysSample = {};
+              if (Object.keys(_rrDebug.groupKeysSample).length < 10) _rrDebug.groupKeysSample[gkey] = 1;
               var _akFromGroup = '';
               if (iAK < 0 && gParts.length > 1) {
                 var gk = gParts[gParts.length-1].replace(/^#[0-9]+_/, '').trim();
@@ -3098,7 +3101,9 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var _gs0sample = _ak4debug.length ? _ak4debug.filter(function(x){return !!x.geschlecht;}).length : 0;
     _akPlatzTest = 'AK-Test: year=' + _yr0 + ' geschlecht=' + _g0 + ' → ak=' + _ak0 + ' netto=' + _netto0 + ' → Platz ' + _platz0 + ' | rows mit geschlecht: ' + _gs0sample;
   }
-  _dbgLines.push('allRowsForAK[0]: ' + _ak4sample);
+  // Erste 5 eindeutige Gruppen-Keys aus den rohen Daten
+  var _gkSample = Object.keys((window._rrDebug||{}).groupKeysSample||{}).slice(0,8).join(' | ');
+  _dbgLines.push('allRowsForAK[0]: ' + _ak4sample + ' | Gruppen-Keys: ' + (_gkSample||'–'));
   _dbgLines.push(_akPlatzTest);
   // Rohdaten erster Treffer
   if (_dbgFirst) _dbgLines.push('raw[0]: ' + _dbgRaw);
