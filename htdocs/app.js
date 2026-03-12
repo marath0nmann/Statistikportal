@@ -4071,8 +4071,12 @@ async function toggleAthletAktiv(id, aktiv) {
   var r = await apiPut('athleten/' + id, { aktiv: aktiv });
   if (r && r.ok) {
     notify('Athlet ' + (aktiv ? 'aktiviert' : 'deaktiviert') + '.', 'ok');
-    await loadAthleten();
-    renderAthleten();
+    // Cache direkt aktualisieren – kein vollständiger Rebuild, Sortierung bleibt erhalten
+    var cached = _athLetenCache.alleAthleten || [];
+    for (var ci = 0; ci < cached.length; ci++) {
+      if (cached[ci].id === id) { cached[ci].aktiv = aktiv; break; }
+    }
+    _renderAthletenTable();
   } else {
     notify((r && r.fehler) || 'Fehler', 'err');
   }
