@@ -1,7 +1,9 @@
-v246: pace nicht mehr speichern, aus DB löschen
+v249: RaceResult: listName-Bug + Contest=0-Unterstützung
 
-- JS: pace wird nicht mehr an die API gesendet (Einzeleintragen, Bulk, RR-Import)
-- JS: Alle Anzeige-Stellen nutzen nur noch calcPace() on-the-fly
-- API: pace aus allen INSERT/UPDATE-Statements entfernt
-- Migration: migration_pace_remove.sql leert bestehende pace-Werte in beiden Tabellen
-  (Spalte bleibt für Schema-Kompatibilität, wird nicht mehr befüllt)
+- Bug: _rrDebug.listName wurde vor var listName = '' gesetzt → immer "?"
+- listName-Erkennung jetzt korrekt vor contestIds-Berechnung
+- Contest=0 in List-Config: eine Liste gilt für alle Contests gemeinsam
+  → nur ein Request mit contest=0 statt 8× HTTP 404
+- "FINAL" als zusätzliches Prio-Keyword für listname-Erkennung
+- Staffel-Listen (STAFF/RELAY) werden bei Einzel-Suche übersprungen
+- Debug zeigt jetzt auch Contest-Wert der gewählten Liste
