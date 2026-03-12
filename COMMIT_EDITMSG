@@ -1,10 +1,7 @@
-v307: Fix Athleten-Liste hängt beim Laden (GREATEST-Query zu langsam)
+v308: Fix Athleten-Tabelle: Spaltenreihenfolge + Sortierpfeil
 
-Ursache: letzte_aktivitaet wurde per GREATEST über 4×N Subqueries
-pro Athlet berechnet → bei 195 Athleten 780 Subqueries in einem Request
-→ Timeout/Hänger auf Shared Hosting.
-
-Fix: Zwei-Phasen-Laden
-1. Haupt-Query ohne letzte_aktivitaet → Tabelle erscheint sofort
-2. Separater Endpunkt athleten-aktivitaet mit GROUP BY (1 Query statt N)
-   → nachladen, Spalte direkt in DOM aktualisieren ohne Tabellenrebuild
+- Spalten "Letzte Akt." und "Status" waren in den Rows vertauscht
+  (Kopf: letzte→status, Rows: status→letzte)
+- td-Index in _loadLetzteAktivitaet entsprechend korrigiert (8→7)
+- Sortierpfeil im Kopf blieb immer bei "Name" stehen:
+  _athSetSort aktualisiert jetzt auch den thead per innerHTML
