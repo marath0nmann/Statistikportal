@@ -3075,6 +3075,24 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   // Club-Samples
   _dbgLines.push('clubSamples (' + (_dbg.clubSamples||[]).length + '): ' + (_dbg.clubSamples||[]).slice(0,10).join(', '));
   _dbgLines.push('totalRows: ' + (_dbg.totalRows||0) + ' | Treffer: ' + results.length);
+  var _ak4debug = window._rrAllRowsForAK || [];
+  var _ak4sample = _ak4debug.length ? JSON.stringify(_ak4debug[0]) + ' … (' + _ak4debug.length + ' rows)' : '(leer!)';
+  // Testlauf calcAKPlatz für ersten Treffer
+  var _akPlatzTest = '';
+  if (results.length) {
+    var _r0 = results[0]; var _raw0 = _r0.raw;
+    var _netto0 = String(_raw0[_r0.iNetto]||'').trim();
+    var _yr0 = _r0.iYear >= 0 ? String(_raw0[_r0.iYear]||'').trim() : '';
+    var _g0 = '';
+    for (var _si=0; _si<state.athleten.length; _si++) {
+      if (state.athleten[_si].name_nv && state.athleten[_si].name_nv.toLowerCase().indexOf('hei') >= 0) { _g0 = state.athleten[_si].geschlecht||''; break; }
+    }
+    var _ak0 = _yr0 && _g0 ? calcDlvAK(_yr0, _g0, _rrEventJahr) : '(kein Jahr/Geschlecht)';
+    var _platz0 = calcAKPlatz(_ak0, _netto0, _rrEventJahr);
+    _akPlatzTest = 'AK-Test: year=' + _yr0 + ' geschlecht=' + _g0 + ' → ak=' + _ak0 + ' netto=' + _netto0 + ' → Platz ' + _platz0;
+  }
+  _dbgLines.push('allRowsForAK[0]: ' + _ak4sample);
+  _dbgLines.push(_akPlatzTest);
   // Rohdaten erster Treffer
   if (_dbgFirst) _dbgLines.push('raw[0]: ' + _dbgRaw);
   var _dbgIdx = _dbgLines.join('\n');
