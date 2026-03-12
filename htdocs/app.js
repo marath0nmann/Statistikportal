@@ -2626,8 +2626,12 @@ async function rrFetch() {
     var apiKey     = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
     var eventName  = cfg.EventName || cfg.Name || '';
     var eventDate  = cfg.EventDate || cfg.Date || '';
+    var eventOrtCfg = cfg.City || cfg.city || cfg.Location || cfg.location || cfg.Place || cfg.place || cfg.Venue || cfg.venue || cfg.Ort || cfg.ort || '';
+    // Komma und Land abschneiden: "Wachtendonk, Deutschland" → "Wachtendonk"
+    if (eventOrtCfg) eventOrtCfg = eventOrtCfg.split(',')[0].trim();
     var contestObj = cfg.contests || cfg.Contests || {};
-    _rrDebug.cfgKeys = Object.keys(cfg).slice(0, 15);
+    _rrDebug.cfgKeys = Object.keys(cfg).slice(0, 20);
+    _rrDebug.cfgOrt = eventOrtCfg;
     _rrDebug.cfgKey = apiKey;
     _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
     _rrDebug.listName = listName;
@@ -2676,7 +2680,7 @@ async function rrFetch() {
     var base4 = 'https://my.raceresult.com/' + eventId + '/RRPublish/data/list';
     var hdrs  = { 'Origin': 'https://my.raceresult.com', 'Referer': 'https://my.raceresult.com/' };
     var allResults = [];
-    var eventOrt = "";
+    var eventOrt = eventOrtCfg || "";
 
     for (var ci = 0; ci < contestIds.length; ci++) {
       var cid   = contestIds[ci];
@@ -2726,7 +2730,7 @@ async function rrFetch() {
             eventName = hl.replace(dm[0], "").trim();
             // Trailing " am", " vom", " - " entfernen
             eventName = eventName.replace(/\s+(am|vom|bei|in|-)\s*$/i, "").trim();
-            // Letztes Wort des Eventnamens als Ort (z.B. "Stadtlauf Wachtendonk" → "Wachtendonk")
+            // Letztes Wort des Eventnamens als Ort-Fallback (nur wenn cfg keinen Ort liefert)
             if (!eventOrt && eventName) {
               var nameWords = eventName.split(/\s+/);
               eventOrt = nameWords[nameWords.length - 1].replace(/[^\wäöüÄÖÜß]/g, "").trim();
@@ -2953,7 +2957,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Datum</div>' +
         '<input id="rr-datum" type="date" value="' + guessDate + '" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)"/></div>' +
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Ort</div>' +
-        '<input id="rr-ort" type="text" placeholder="z.B. D\u00fcsseldorf" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:min(150px,100%)"/></div>' +
+        '<input id="rr-ort" type="text" value="' + (eventOrt||'') + '" placeholder="z.B. D\u00fcsseldorf" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:min(150px,100%)"/></div>' +
       '<span style="font-size:12px;color:var(--text2);align-self:center">&#x2705; ' + results.length + ' TuS-Oedt-Ergebnis(se) &bull; Event ' + eventId + '</span>' +
     '</div>' +
     '<div style="overflow-x:auto;margin-bottom:12px">' +

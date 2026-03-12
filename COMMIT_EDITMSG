@@ -1,6 +1,6 @@
-v237: RaceResult Eventname, Ort, Athleten-Matching
+v238: RaceResult Ort aus cfg + Feld-Befüllung
 
-- Eventname: trailing " am", " vom", " bei" etc. wird abgeschnitten
-- Ort: letztes Wort des Eventnamens (z.B. "Wachtendonk") statt Wort vor Datum
-- Athleten-Matching: erst exakter Vergleich (normalisiert), dann
-  Wortgrenze-Regex statt indexOf → "Daniel" trifft nicht mehr "Daniela"
+- Ort wird aus cfg.City / cfg.Location / cfg.Place / cfg.Venue / cfg.Ort gelesen
+- "Wachtendonk, Deutschland" → Komma+Land wird abgeschnitten → "Wachtendonk"
+- Ort-Heuristik (letztes Wort des Namens) bleibt als Fallback
+- rr-ort Input-Feld wird jetzt mit value="" befüllt (war bisher immer leer)
