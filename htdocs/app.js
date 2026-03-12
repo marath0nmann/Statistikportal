@@ -1819,14 +1819,10 @@ function _athSortRows(athleten, jetzt) {
 }
 
 
-async function _renderAthletenTable() {
-  var s = state.filters.suche || '';
+function _renderAthletenTable() {
   var aktGruppe = state.filters.gruppe || '';
-  var rA = await apiGet(s ? 'athleten?suche=' + encodeURIComponent(s) : 'athleten');
-  if (!rA || !rA.ok) return;
-  _athLetenCache.alleAthleten = rA.data;
-  var alleAthleten = rA.data;
-  var canEdit = currentUser.rolle === 'admin' || currentUser.rolle === 'editor';
+  var alleAthleten = _athLetenCache.alleAthleten || [];
+  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
   var jetzt = new Date().getFullYear();
 
   var athleten = alleAthleten;
@@ -1881,16 +1877,9 @@ async function renderAthleten() {
   var alleAthleten = rA.data;
   var alleGruppen = (rG && rG.ok) ? rG.data : [];
   var canEdit = currentUser.rolle === 'admin' || currentUser.rolle === 'editor';
-
-  // Gruppen-Filter anwenden
-  var athleten = alleAthleten;
-  if (aktGruppe) {
-    athleten = alleAthleten.filter(function(a) {
-      var gs = a.gruppen || [];
-      for (var gi = 0; gi < gs.length; gi++) { if (gs[gi].name === aktGruppe) return true; }
-      return false;
-    });
-  }
+  // Cache befüllen für _renderAthletenTable
+  _athLetenCache.alleAthleten = alleAthleten;
+  _athLetenCache.alleGruppen = alleGruppen;
 
   // Gruppen-Buttons
   var gruppenBtns = '<button class="rek-cat-btn' + (!aktGruppe ? ' active' : '') + '" onclick="state.filters.gruppe=\'\';renderAthleten()">Alle</button>';
@@ -5028,9 +5017,15 @@ var _athSucheTimer = null;
 function setAthletSuche(v) {
   state.filters.suche = v;
   clearTimeout(_athSucheTimer);
-  _athSucheTimer = setTimeout(function() {
-    // Nur Tabellen-Body neu rendern, nicht das ganze innerHTML
+  _athSucheTimer = setTimeout(async function() {
+    // Suche ist serverseitig → neu laden, dann rendern
+    var s = state.filters.suche || '';
+    var rA = await apiGet(s ? 'athleten?suche=' + encodeURIComponent(s) : 'athleten');
+    if (rA && rA.ok) { _athLetenCache.alleAthleten = rA.data; }
     _renderAthletenTable();
+    // Suchfeld-Fokus erhalten
+    var sf = document.getElementById('athlet-suche');
+    if (sf) sf.focus();
   }, 250);
 }
 
