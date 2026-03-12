@@ -1,6 +1,11 @@
-v277: Datum als Textfeld + erweiterter Debug
+v278: RaceResult Bug-Fixes + Debug-Erweiterung
 
-- Datum: type=text statt type=date → bleibt wirklich leer wenn kein Datum von RaceResult
-- Format TT.MM.JJJJ, wird beim Import zu YYYY-MM-DD konvertiert
-- Debug stark erweitert: DataFields, alle Spaltenindizes, eventName/Date/Ort,
-  cfg-Rohdaten, alle Contest-Namen, diszList, rrBestDisz-Ergebnis, clubSamples
+Bugs:
+- eventOrt-Deklaration war nach dem Extraktionsblock → Variable wurde überschrieben
+- Hard-coded Spaltenindizes waren falsch (iName=5 statt 3 etc.)
+- contestName war "Contest 0" weil cid=0 nicht in contestObj → jetzt aus groupFilters.Value
+- Doppelter Ort-Extraktionsblock entfernt
+
+Debug:
+- Versionsnummer + Zeitstempel als erste Zeile
+- "Kopieren"-Button kopiert kompletten Debug-Text in Zwischenablage
