@@ -1446,8 +1446,23 @@ async function renderErgebnisse() {
   }
   await loadErgebnisseData();
 }
+var _ergSort = { col: 'datum', dir: 'DESC' };
+
+function _ergSetSort(col) {
+  if (_ergSort.col === col) {
+    _ergSort.dir = _ergSort.dir === 'ASC' ? 'DESC' : 'ASC';
+  } else {
+    _ergSort.col = col;
+    // Ergebnisse standardmäßig absteigend, außer Athlet/Disziplin
+    _ergSort.dir = (col === 'athlet' || col === 'disziplin' || col === 'ak') ? 'ASC' : 'DESC';
+  }
+  state.page = 1;
+  loadErgebnisseData();
+}
+
 async function loadErgebnisseData() {
   var params = 'limit=' + state.limit + '&offset=' + ((state.page - 1) * state.limit);
+  params += '&sort=' + _ergSort.col + '&dir=' + _ergSort.dir;
   if (state.diszFilter) params += '&disziplin=' + encodeURIComponent(state.diszFilter);
   for (var k in state.filters) {
     if (state.filters[k]) params += '&' + k + '=' + encodeURIComponent(state.filters[k]);
@@ -1534,8 +1549,19 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
   headers.push('Veranstaltung','Eingetragen');
   if (canEdit) headers.push('');
 
+  // Sortierbare Spalten: key → API-sort-Parameter
+  var sortKeys = { 'Datum': 'datum', 'Athlet*in': 'athlet', 'AK': 'ak', 'Disziplin': 'disziplin', 'Ergebnis': 'resultat', 'Platz AK': 'platz' };
   var thead = '<tr>';
-  for (var i = 0; i < headers.length; i++) thead += '<th>' + headers[i] + '</th>';
+  for (var i = 0; i < headers.length; i++) {
+    var sk = sortKeys[headers[i]];
+    if (sk) {
+      var arrow = _ergSort.col === sk ? (_ergSort.dir === 'ASC' ? ' ▲' : ' ▼') : '';
+      var active = _ergSort.col === sk ? ';color:var(--primary)' : '';
+      thead += '<th style="cursor:pointer;user-select:none;white-space:nowrap' + active + '" onclick="_ergSetSort(\'' + sk + '\')">'+headers[i]+arrow+'</th>';
+    } else {
+      thead += '<th>' + headers[i] + '</th>';
+    }
+  }
   thead += '</tr>';
 
   var tbody = '';
@@ -1646,9 +1672,11 @@ async function saveEditErgebnis(id, subTab) {
   var akp  = ((document.getElementById('edit-akp') || {}).value || '').trim();
   var mstr = ((document.getElementById('edit-mstr') || {}).value || '').trim();
   if (!disz || !res) { notify('Disziplin und Ergebnis sind Pflicht!', 'err'); return; }
+  var newAthletId = ((document.getElementById('edit-athlet-id') || {}).value || '').trim();
   var body = { disziplin: disz, resultat: res, altersklasse: ak, pace: calcPace(disz, res) };
   if (akp)  body.ak_platzierung = parseInt(akp);
   if (mstr) body.meisterschaft = parseInt(mstr);
+  if (newAthletId) body.athlet_id = parseInt(newAthletId);
   var r = await apiPut(subTab + '/' + id, body);
   if (r && r.ok) {
     closeModal();
