@@ -1,9 +1,4 @@
-v258: RaceResult: Excel-Epoch Datum + Club-Debug
+v260: Club-Filter: AND-Wort-Fallback wieder entfernt
 
-Datum:
-- cfg.Time = 74107 ist Excel-Epoch (Tage seit 1899-12-30)
-- Alle Formate: ISO, DD.MM.YYYY, Unix-Sekunden, Excel-Tage
-
-Club-Filter:
-- AND-Wortmatch als Fallback wenn Phrase nicht trifft
-- Club-Sample auf 50 erhöht um alle Clubs zu sehen
+War ein Irrtum - der Phrase-Filter aus v256 funktioniert korrekt.
+Problem war contest=0 der nur eine Gruppe liefert, nicht der Filter.
