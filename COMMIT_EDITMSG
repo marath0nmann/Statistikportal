@@ -1,5 +1,7 @@
-v244: Dashboard Timeline: Disziplin verlinkt zu Bestleistungen
+v246: pace nicht mehr speichern, aus DB löschen
 
-- Disziplin-Name im Timeline-Widget ist jetzt klickbar
-- Klick navigiert zu Bestleistungen und wählt die Disziplin direkt vor
-- navigateToDisz() ermittelt die Kategorie automatisch aus state.disziplinen
+- JS: pace wird nicht mehr an die API gesendet (Einzeleintragen, Bulk, RR-Import)
+- JS: Alle Anzeige-Stellen nutzen nur noch calcPace() on-the-fly
+- API: pace aus allen INSERT/UPDATE-Statements entfernt
+- Migration: migration_pace_remove.sql leert bestehende pace-Werte in beiden Tabellen
+  (Spalte bleibt für Schema-Kompatibilität, wird nicht mehr befüllt)

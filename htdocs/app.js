@@ -1340,7 +1340,7 @@ async function renderDashboard() {
         var e2 = ergs[ei2];
         var vfmt = e2.fmt || '';
         var vres = vfmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, vfmt === 's' ? 's' : undefined);
-        var _vPace = e2.pace || calcPace(e2.disziplin, e2.resultat);
+        var _vPace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
         var vShowPace = _vPace && _vPace !== '00:00' && vfmt !== 'm' && vfmt !== 's';
         vrows +=
           '<tr>' +
@@ -1540,7 +1540,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
       '<td>' + akBadge(rr.altersklasse) + '</td>' +
       '<td class="disziplin-text">' + rr.disziplin + '</td>' +
       '<td class="result">' + ergebnis + '</td>';
-    var paceVal = rr.pace || calcPace(rr.disziplin, rr.resultat);
+    var paceVal = diszKm(rr.disziplin) >= 1 ? calcPace(rr.disziplin, rr.resultat) : '';
     if (hasPace) cells += '<td class="ort-text">' + (paceVal ? fmtTime(paceVal, 'min/km') : '') + '</td>';
     cells += '<td>' + platzBadge(rr.ak_platzierung) + '</td>';
     if (subTab !== 'mittelstrecke') cells += '<td>' + (rr.meisterschaft ? mstrBadge(rr.meisterschaft) : '') + '</td>';
@@ -1778,7 +1778,7 @@ function _apRender() {
   for (var i = 0; i < filteredErgs.length; i++) {
     var e = filteredErgs[i];
     var resStr = _apFmtRes(e, fmt);
-    var paceStr = (showPace && (e.pace || calcPace(e.disziplin, e.resultat))) ? fmtTime(e.pace || calcPace(e.disziplin, e.resultat), 'min/km') : '';
+    var paceStr = (showPace && diszKm(e.disziplin) >= 1) ? fmtTime(calcPace(e.disziplin, e.resultat), 'min/km') : '';
     var ort = (e.veranstaltung || '').split(' ').slice(1).join(' ');
     rows += '<tr>' +
       '<td>' + formatDate(e.datum) + '</td>' +
@@ -2314,7 +2314,7 @@ function buildRekTable(rows, fmt, compact, showPace, athletLabel) {
     var athletInner = r.athlet_id ? '<span class="athlet-link" data-athlet-id="' + r.athlet_id + '">' + (r.athlet || '&ndash;') + '</span>' : (r.athlet || '&ndash;');
     html += '<td style="font-weight:600">' + athletInner + '</td>';
     html += '<td class="result">' + result + '</td>';
-    if (showPace) html += '<td class="ort-text">' + (r.pace ? fmtTime(r.pace, 'min/km') : '&ndash;') + '</td>';
+    if (showPace) html += '<td class="ort-text">' + (diszKm(r.disz) >= 1 && calcPace(r.disz, r.resultat) ? fmtTime(calcPace(r.disz, r.resultat), 'min/km') : '&ndash;') + '</td>';
     if (!compact) html += '<td>' + akBadge(r.altersklasse) + '</td>';
     html += '<td class="ort-text">' + formatDate(r.datum) + '</td>';
     html += '</tr>';
@@ -2511,6 +2511,18 @@ function bkDiszOpts() {
 }
 
 // Pace berechnen: Disziplin-Name → Distanz in km → min:sec/km
+function diszKm(disz) {
+  if (!disz) return 0;
+  var dl = disz.toLowerCase();
+  if (dl.indexOf('marathon') >= 0 && dl.indexOf('halb') >= 0) return 21.0975;
+  if (dl.indexOf('marathon') >= 0) return 42.195;
+  var m = dl.match(/(\d+[\.,]?\d*)\s*km/);
+  if (m) return parseFloat(m[1].replace(',', '.'));
+  var mm = dl.match(/(\d+[\.,]?\d*)\s*m\b/);
+  if (mm) return parseFloat(mm[1].replace(',', '.')) / 1000;
+  return 0;
+}
+
 function calcPace(disz, resultat) {
   if (!disz || !resultat) return '';
   // Distanz aus Disziplinname extrahieren (z.B. "Halbmarathon"→21.0975, "10km"→10, "5 km"→5)
@@ -2615,8 +2627,6 @@ async function bulkSubmit() {
       veranstaltung_id: veranstId ? parseInt(veranstId) : null,
       athlet_id: parseInt(athlet_id) || null,
       disziplin: disziplin, resultat: resultat,
-      pace: calcPace(row.querySelector('.bk-disz') ? row.querySelector('.bk-disz').value.trim() : '',
-                     row.querySelector('.bk-res') ? row.querySelector('.bk-res').value.trim() : ''),
       altersklasse: row.querySelector('.bk-ak') ? row.querySelector('.bk-ak').value.trim() : '',
       ak_platzierung: row.querySelector('.bk-platz') && row.querySelector('.bk-platz').value ? parseInt(row.querySelector('.bk-platz').value) : null,
     });
@@ -4650,7 +4660,7 @@ async function renderVeranstaltungen() {
         var e2 = ergs[ei2];
         var fmt = e2.fmt || '';
         var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : undefined);
-        var _ePace = e2.pace || calcPace(e2.disziplin, e2.resultat);
+        var _ePace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
         var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
         rows +=
           '<tr>' +

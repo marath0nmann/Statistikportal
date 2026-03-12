@@ -527,7 +527,7 @@ if ($res === 'benutzer') {
             $ak       = sanitize($item['altersklasse'] ?? '');
             $disziplin= sanitize($item['disziplin'] ?? '');
             $resultat = sanitize($item['resultat'] ?? '');
-            $pace     = sanitize($item['pace'] ?? '');
+            // pace wird nicht mehr gespeichert (wird on-the-fly berechnet)
             $akp      = intOrNull($item['ak_platzierung'] ?? null);
             $mstr     = intOrNull($item['meisterschaft'] ?? null);
             if (!$datum || !$ort || !$aid || !$disziplin || !$resultat) {
@@ -545,8 +545,8 @@ if ($res === 'benutzer') {
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,pace,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$resultat,$pace,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
             $imported++;
         }
         jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
@@ -953,16 +953,16 @@ if (in_array($res, $ergebnisTabellen)) {
         $mstr     = intOrNull($body['meisterschaft'] ?? null);
         if (!$disziplin || !$resultat) jsonErr('Disziplin und Ergebnis erforderlich.');
 
-        $pace    = sanitize($body['pace'] ?? '');
+        // pace wird nicht mehr gespeichert
         $distanz = floatOrNull($body['distanz'] ?? null);
         $akpm    = intOrNull($body['ak_platz_meisterschaft'] ?? null);
         $rnum    = ($res === 'sprungwurf') ? floatOrNull($body['resultat'] ?? null) : null;
         if ($unified) {
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,distanz,resultat,resultat_num,pace,ak_platzierung,meisterschaft,ak_platz_meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$distanz,$resultat,$rnum,$pace,$akp,$mstr,$akpm,$user['id']]);
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,distanz,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$distanz,$resultat,$rnum,$akp,$mstr,$akpm,$user['id']]);
         } elseif ($res === 'strasse') {
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse_strasse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,distanz,resultat,pace,ak_platzierung,meisterschaft,ak_platz_meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$distanz,$resultat,$pace,$akp,$mstr,$akpm,$user['id']]);
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse_strasse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,distanz,resultat,ak_platzierung,meisterschaft,ak_platz_meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$distanz,$resultat,$akp,$mstr,$akpm,$user['id']]);
         } elseif ($res === 'sprint') {
             DB::query("INSERT INTO " . DB::tbl('ergebnisse_sprint') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,distanz,resultat,ak_platzierung,meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)",
                 [$vid,$aid,$ak,$disziplin,$distanz,$resultat,$akp,$mstr,$user['id']]);
@@ -990,7 +990,7 @@ if (in_array($res, $ergebnisTabellen)) {
             $ak       = sanitize($item['altersklasse'] ?? '');
             $disziplin= sanitize($item['disziplin'] ?? '');
             $resultat = sanitize($item['resultat'] ?? '');
-            $pace     = sanitize($item['pace'] ?? '');
+            // pace wird nicht mehr gespeichert (wird on-the-fly berechnet)
             $akp      = intOrNull($item['ak_platzierung'] ?? null);
             $mstr     = intOrNull($item['meisterschaft'] ?? null);
             if (!$datum || !$ort || !$aid || !$disziplin || !$resultat) {
@@ -1008,8 +1008,8 @@ if (in_array($res, $ergebnisTabellen)) {
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,pace,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$resultat,$pace,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
             $imported++;
         }
         jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
@@ -1033,7 +1033,7 @@ if (in_array($res, $ergebnisTabellen)) {
             } else $rnum = floatOrNull($rv);
             $felder[] = 'resultat_num=?'; $params[] = $rnum;
         }
-        if (isset($body['pace']))          { $felder[] = 'pace=?';          $params[] = sanitize($body['pace']); }
+        // pace wird nicht mehr aktualisiert
         if (isset($body['ak_platzierung'])){ $felder[] = 'ak_platzierung=?';$params[] = intOrNull($body['ak_platzierung']); }
         if (isset($body['meisterschaft'])) { $felder[] = 'meisterschaft=?'; $params[] = intOrNull($body['meisterschaft']); }
         if (!$felder) jsonErr('Keine Felder zum Aktualisieren.');
@@ -1509,7 +1509,7 @@ if ($res === 'kategorien') {
             $ak       = sanitize($item['altersklasse'] ?? '');
             $disziplin= sanitize($item['disziplin'] ?? '');
             $resultat = sanitize($item['resultat'] ?? '');
-            $pace     = sanitize($item['pace'] ?? '');
+            // pace wird nicht mehr gespeichert (wird on-the-fly berechnet)
             $akp      = intOrNull($item['ak_platzierung'] ?? null);
             $mstr     = intOrNull($item['meisterschaft'] ?? null);
             if (!$datum || !$ort || !$aid || !$disziplin || !$resultat) {
@@ -1527,8 +1527,8 @@ if ($res === 'kategorien') {
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,pace,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$resultat,$pace,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
             $imported++;
         }
         jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
@@ -1702,7 +1702,7 @@ if ($res === 'disziplin-mapping') {
             $ak       = sanitize($item['altersklasse'] ?? '');
             $disziplin= sanitize($item['disziplin'] ?? '');
             $resultat = sanitize($item['resultat'] ?? '');
-            $pace     = sanitize($item['pace'] ?? '');
+            // pace wird nicht mehr gespeichert (wird on-the-fly berechnet)
             $akp      = intOrNull($item['ak_platzierung'] ?? null);
             $mstr     = intOrNull($item['meisterschaft'] ?? null);
             if (!$datum || !$ort || !$aid || !$disziplin || !$resultat) {
@@ -1720,8 +1720,8 @@ if ($res === 'disziplin-mapping') {
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,pace,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$resultat,$pace,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
             $imported++;
         }
         jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
