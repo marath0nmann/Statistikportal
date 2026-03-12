@@ -1837,6 +1837,7 @@ function _renderAthletenTable() {
   // Erst _athletenMap befüllen (für AK-Berechnung bei Sortierung)
   for (var i = 0; i < athleten.length; i++) state._athletenMap[athleten[i].id] = athleten[i];
   var sorted = _athSortRows(athleten, jetzt);
+  _athLetenCache._lastSorted = sorted;
   var rows = '';
   for (var i = 0; i < sorted.length; i++) {
     var a = sorted[i];
@@ -1902,7 +1903,31 @@ async function renderAthleten() {
         '<tbody></tbody>' +
       '</table></div>' +
     '</div>';
-  await _renderAthletenTable();
+  _renderAthletenTable();
+  // letzte_aktivitaet asynchron nachladen (separater Query, hält Hauptliste nicht auf)
+  _loadLetzteAktivitaet();
+}
+
+async function _loadLetzteAktivitaet() {
+  var r = await apiGet('athleten-aktivitaet');
+  if (!r || !r.ok) return;
+  var map = r.data; // { athlet_id: jahr }
+  // In Cache eintragen
+  var arr = _athLetenCache.alleAthleten || [];
+  for (var i = 0; i < arr.length; i++) {
+    var id = arr[i].id;
+    if (map[id] !== undefined) arr[i].letzte_aktivitaet = map[id];
+  }
+  // Nur Spalte aktualisieren falls Tabelle noch sichtbar
+  var tbody = document.querySelector('#athlet-tabelle tbody');
+  if (!tbody) return;
+  var trs = tbody.querySelectorAll('tr');
+  var sorted = _athLetenCache._lastSorted || arr;
+  for (var i = 0; i < trs.length && i < sorted.length; i++) {
+    // letzte_aktivitaet ist die 9. td (index 8, 0-basiert)
+    var td = trs[i].querySelectorAll('td')[8];
+    if (td) td.textContent = sorted[i].letzte_aktivitaet || '–';
+  }
 }
 
 // Athleten-Profil State

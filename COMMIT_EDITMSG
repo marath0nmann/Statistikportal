@@ -1,9 +1,10 @@
-v305: Fix Athleten-Liste hängt bei Laden (Spinner endlos)
+v307: Fix Athleten-Liste hängt beim Laden (GREATEST-Query zu langsam)
 
-$letzteAktSql referenzierte immer die vier alten Einzel-Tabellen,
-auch wenn $unified=true → SQL-Fehler auf Instanzen mit einheitlicher
-ergebnisse-Tabelle → API-Call schlug fehl → Spinner blieb stehen.
+Ursache: letzte_aktivitaet wurde per GREATEST über 4×N Subqueries
+pro Athlet berechnet → bei 195 Athleten 780 Subqueries in einem Request
+→ Timeout/Hänger auf Shared Hosting.
 
-Fix: $letzteAktSql jetzt wie $anzSql mit $unified-Branch:
-- unified: MAX(datum) FROM ergebnisse
-- non-unified: GREATEST(MAX über alle 4 Tabellen)
+Fix: Zwei-Phasen-Laden
+1. Haupt-Query ohne letzte_aktivitaet → Tabelle erscheint sofort
+2. Separater Endpunkt athleten-aktivitaet mit GROUP BY (1 Query statt N)
+   → nachladen, Spalte direkt in DOM aktualisieren ohne Tabellenrebuild
