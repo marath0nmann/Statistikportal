@@ -1624,6 +1624,116 @@ function _mkDelBtn(id, name) {
   return btn.outerHTML;
 }
 
+function showGeburtjahrImportModal() {
+  showModal(
+    '<h2>&#x1F4C5; Geburtsjahr-Import <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<p style="font-size:13px;color:var(--text2);margin-bottom:8px">CSV mit Semikolon, erste Zeile = Header. Spalten: <code>Athlet NV;Geburtsdatum</code><br>' +
+    'Geburtsdatum als Excel-Seriennummer (z.B. <code>40179</code>) oder TT.MM.JJJJ oder JJJJ-MM-TT.</p>' +
+    '<textarea id="gj-csv" style="width:100%;height:220px;font-family:monospace;font-size:12px;box-sizing:border-box;padding:8px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:var(--radius)" placeholder="Athlet NV;Geburtsdatum\nAmbrosius, Romy;40179\nMuster, Max;1988-05-12"></textarea>' +
+    '<div id="gj-preview" style="margin-top:10px;font-size:12px;max-height:180px;overflow-y:auto"></div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="doGeburtjahrImport()">&#x1F4BE; Importieren</button>' +
+    '</div>'
+  );
+  document.getElementById('gj-csv').addEventListener('input', _gjPreview);
+}
+
+function _excelDateToYear(val) {
+  var s = String(val).trim();
+  // Reine Zahl → Excel-Seriennummer
+  if (/^\d{4,6}$/.test(s)) {
+    var n = parseInt(s);
+    // Excel-Epoch: 30.12.1899
+    var d = new Date(Date.UTC(1899, 11, 30) + n * 86400000);
+    return d.getUTCFullYear();
+  }
+  // TT.MM.JJJJ
+  var m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) return parseInt(m[3]);
+  // JJJJ-MM-TT oder JJJJ/MM/TT
+  var m2 = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+  if (m2) return parseInt(m2[1]);
+  // Nur Jahreszahl
+  if (/^\d{4}$/.test(s)) return parseInt(s);
+  return null;
+}
+
+function _gjParseCSV(raw) {
+  var lines = raw.trim().split(/\r?\n/);
+  var rows = [];
+  var start = 0;
+  // Header überspringen wenn erste Zeile kein Datum enthält
+  if (lines.length > 0 && /athlet|name|geburt/i.test(lines[0])) start = 1;
+  for (var i = start; i < lines.length; i++) {
+    var parts = lines[i].split(';');
+    if (parts.length < 2) continue;
+    var nv = parts[0].trim();
+    var rawDate = parts[1].trim();
+    if (!nv || !rawDate) continue;
+    var jahr = _excelDateToYear(rawDate);
+    rows.push({ nv: nv, rawDate: rawDate, jahr: jahr });
+  }
+  return rows;
+}
+
+function _gjPreview() {
+  var raw = document.getElementById('gj-csv').value;
+  var rows = _gjParseCSV(raw);
+  if (!rows.length) { document.getElementById('gj-preview').innerHTML = ''; return; }
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
+    '<thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:2px 6px">Athlet NV</th><th style="padding:2px 6px">Roh</th><th style="padding:2px 6px">Jahrgang</th><th style="padding:2px 6px">Match</th></tr></thead><tbody>';
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    // Besten Athleten-Match finden
+    var match = _gjFindAthlet(r.nv);
+    var matchCell = match
+      ? '<span style="color:var(--green)">\u2713 ' + match.name_nv + '</span>'
+      : '<span style="color:var(--accent)">? nicht gefunden</span>';
+    var jahrCell = r.jahr
+      ? '<strong>' + r.jahr + '</strong>'
+      : '<span style="color:var(--accent)">?</span>';
+    html += '<tr style="border-bottom:1px solid var(--border)"><td style="padding:2px 6px">' + r.nv + '</td><td style="padding:2px 6px;color:var(--text2)">' + r.rawDate + '</td><td style="text-align:center;padding:2px 6px">' + jahrCell + '</td><td style="padding:2px 6px">' + matchCell + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  document.getElementById('gj-preview').innerHTML = html;
+}
+
+function _gjFindAthlet(nv) {
+  if (!state._athletenMap) return null;
+  var norm = _normN(nv);
+  var best = null;
+  var ids = Object.keys(state._athletenMap);
+  for (var i = 0; i < ids.length; i++) {
+    var a = state._athletenMap[ids[i]];
+    if (_normN(a.name_nv || '') === norm) return a;
+    // Teilmatch als Fallback
+    if (!best && _normN(a.name_nv || '').indexOf(norm) >= 0) best = a;
+  }
+  return best;
+}
+
+async function doGeburtjahrImport() {
+  var raw = document.getElementById('gj-csv').value;
+  var rows = _gjParseCSV(raw);
+  if (!rows.length) { notify('Keine Daten gefunden.', 'err'); return; }
+  var ok = 0, skip = 0, err = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (!r.jahr) { skip++; continue; }
+    var ath = _gjFindAthlet(r.nv);
+    if (!ath) { skip++; continue; }
+    var res = await apiPut('athleten/' + ath.id, { geburtsjahr: r.jahr });
+    if (res && res.ok) ok++; else err++;
+  }
+  var msg = ok + ' aktualisiert';
+  if (skip) msg += ', ' + skip + ' übersprungen';
+  if (err)  msg += ', ' + err + ' Fehler';
+  notify(msg, err ? 'err' : 'ok');
+  if (ok > 0) { closeModal(); await loadAthleten(); await renderAthleten(); }
+}
+
+
 var _athLetenCache = { alleAthleten: [], alleGruppen: [] };
 
 async function _renderAthletenTable() {
@@ -1708,6 +1818,7 @@ async function renderAthleten() {
     '<div class="filter-bar">' +
       '<div class="fg"><label>Suche</label><input type="text" id="athlet-suche" placeholder="Name suchen&hellip;" value="' + s + '" oninput="setAthletSuche(this.value)" style="min-width:0;width:100%"/></div>' +
       (canEdit ? '<button class="btn btn-primary btn-sm" onclick="showNeuerAthletModal()">+ Neuer Athlet</button>' : '') +
+      (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showGeburtjahrImportModal()" title="Geburtsjahr-Bulk-Import">&#x1F4C5; Geburtsjahr importieren</button>' : '') +
     '</div>' +
     '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">&#x1F464; Alle Athleten</div><div class="panel-count" id="athlet-count"></div></div>' +
