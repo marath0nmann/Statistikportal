@@ -2771,6 +2771,8 @@ async function rrFetch() {
     _rrDebug.cfgOrt = eventOrtCfg;
     _rrDebug.cfgKey = apiKey;
     _rrDebug.cfgDateRaw = _cfgDateRaw;
+    _rrDebug.cfgAllKeys = JSON.stringify(Object.keys(cfg)).slice(0, 300);
+    _rrDebug.cfgTime = cfg.Time !== undefined ? String(cfg.Time) : '–';
     _rrDebug.eventDate = eventDate;
     _rrDebug.cfgEventName = cfg.eventname || '';
     _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
@@ -3020,7 +3022,8 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   }
   // Event-Metadaten
   _dbgLines.push('eventName: ' + (eventName||'–') + ' | eventDate: ' + (eventDate||'leer') + ' | eventOrt: ' + (eventOrt||'leer'));
-  _dbgLines.push('cfgDateRaw: ' + JSON.stringify(_dbg.cfgDateRaw||'') + ' | cfg.eventname: ' + (_dbg.cfgEventName||'–'));
+  _dbgLines.push('cfgDateRaw: ' + JSON.stringify(_dbg.cfgDateRaw||'') + ' | cfg.eventname: ' + (_dbg.cfgEventName||'–') + ' | cfg.Time: ' + (_dbg.cfgTime||'–'));
+  _dbgLines.push('cfg-Keys: ' + (_dbg.cfgAllKeys||'–'));
   // Contest-Infos
   _dbgLines.push('contests: ' + JSON.stringify(contestObj).slice(0,200));
   _dbgLines.push('listName: ' + (_dbg.listName||'–') + ' | listContest: ' + (_dbg.listContest||'–'));
