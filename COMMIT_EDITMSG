@@ -1,7 +1,6 @@
-v275: RaceResult Metadaten + Name-Matching
+v277: Datum als Textfeld + erweiterter Debug
 
-- eventName: cfg.eventname als Fallback
-- Datum-Fallback "heute" entfernt (Feld bleibt leer wenn unbekannt)
-- Ort: aus letztem Wort der HeadLine extrahiert
-- Name-Matching: SS↔ß, Umlaute (ä→ae etc.), Komma/Bindestrich ignoriert
-  → "HEISS Simon" matcht jetzt "Heiß, Simon"
+- Datum: type=text statt type=date → bleibt wirklich leer wenn kein Datum von RaceResult
+- Format TT.MM.JJJJ, wird beim Import zu YYYY-MM-DD konvertiert
+- Debug stark erweitert: DataFields, alle Spaltenindizes, eventName/Date/Ort,
+  cfg-Rohdaten, alle Contest-Namen, diszList, rrBestDisz-Ergebnis, clubSamples
