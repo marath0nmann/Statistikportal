@@ -1,5 +1,5 @@
-v262: RaceResult Debug: groupFilters anzeigen
+v264: RaceResult: term= mit Vereinsname befüllen
 
-groupFilters im Top-Level-Response zeigen um zu verstehen
-wie die Gruppen-Struktur aufgebaut ist und wie man alle
-Gruppen laden kann.
+groupFilters zeigt dass r=search mit leerem term nur die erste
+Gruppe liefert (21 Zeilen). Mit term=tus+oedt sucht RaceResult
+server-seitig über alle Gruppen/Contests → alle TuS-Oedt-Treffer.

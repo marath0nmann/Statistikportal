@@ -2787,11 +2787,12 @@ async function rrFetch() {
       var cname = contestObj[cid] || ('Contest ' + cid);
       preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; ' + (ci+1) + '/' + contestIds.length + ': ' + cname + '&hellip;</div>';
       try {
+        // term= mit Vereinsname befüllen → server-seitige Suche über alle Gruppen
         var urlSearch = base4 +
           '?key='      + apiKey +
           '&listname=' + encodeURIComponent(listName) +
           '&page=results&contest=' + cid +
-          '&r=search&l=9999&term=';
+          '&r=search&l=9999&term=' + encodeURIComponent(clubPhrase || '');
         var resp = await fetch(urlSearch, { headers: hdrs });
         if (!resp.ok) {
           if (!_rrDebug.errors) _rrDebug.errors = [];
