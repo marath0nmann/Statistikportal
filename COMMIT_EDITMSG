@@ -1,6 +1,8 @@
-v271: RaceResult: r=all primär, term= entfernt, Timeouts
+v272: RaceResult: r=search komplett entfernt, nur noch r=all
 
-- term=tus+oedt hängt RaceResult-Server → entfernt
-- r=all immer als Daten-Request (nicht nur Fallback)
-- 8s Timeout auf r=search, 10s auf r=all und Extra-Requests
-- Client-seitiger Club-Filter bleibt wie gehabt
+r=search hängt bei diesem Event unabhängig von Parametern.
+Contest-Loop komplett neu geschrieben:
+- Einziger Request: r=all mit 15s Timeout
+- DataFields aus r=all Response
+- groupFilters-Extra-Requests bleiben (mit Timeout)
+- Kein r=search mehr
