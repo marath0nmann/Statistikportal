@@ -1116,8 +1116,15 @@ if ($res === 'athleten') {
                +(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse_sprint') . " WHERE athlet_id=a.id)
                +(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse_mittelstrecke') . " WHERE athlet_id=a.id)
                +(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse_sprungwurf') . " WHERE athlet_id=a.id)";
+        $letzteAktSql = "GREATEST(
+               COALESCE((SELECT MAX(datum) FROM " . DB::tbl('ergebnisse_strasse') . "     WHERE athlet_id=a.id), '1900-01-01'),
+               COALESCE((SELECT MAX(datum) FROM " . DB::tbl('ergebnisse_sprint') . "      WHERE athlet_id=a.id), '1900-01-01'),
+               COALESCE((SELECT MAX(datum) FROM " . DB::tbl('ergebnisse_mittelstrecke') . " WHERE athlet_id=a.id), '1900-01-01'),
+               COALESCE((SELECT MAX(datum) FROM " . DB::tbl('ergebnisse_sprungwurf') . "  WHERE athlet_id=a.id), '1900-01-01')
+            )";
         $rows = DB::fetchAll(
-            "SELECT a.*, $anzSql AS anz_ergebnisse
+            "SELECT a.*, $anzSql AS anz_ergebnisse,
+                    NULLIF(YEAR($letzteAktSql), 1900) AS letzte_aktivitaet
              FROM " . DB::tbl('athleten') . " a WHERE $baseWhere ORDER BY a.name_nv", $params);
         // Gruppen je Athlet hinzufügen (defensiv: Tabelle könnte noch fehlen)
         try {
