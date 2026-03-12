@@ -2791,89 +2791,118 @@ async function rrFetch() {
       var cname = contestObj[cid] || ('Contest ' + cid);
       preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; ' + (ci+1) + '/' + contestIds.length + ': ' + cname + '&hellip;</div>';
       try {
-        var urlSearch = base4 +
+        // Direkt r=all — r=search hängt bei manchen Events
+        var urlAll = base4 +
           '?key='      + apiKey +
           '&listname=' + encodeURIComponent(listName) +
           '&page=results&contest=' + cid +
-          '&r=search&l=9999&term=';
-        var _ac1 = new AbortController();
-        var _t1 = setTimeout(function(){ _ac1.abort(); }, 8000);
-        var resp;
-        try { resp = await fetch(urlSearch, { headers: hdrs, signal: _ac1.signal }); }
-        catch(fe) { clearTimeout(_t1); _rrDebug.errors = _rrDebug.errors || []; _rrDebug.errors.push('Timeout/Fehler r=search: ' + fe.message); continue; }
-        clearTimeout(_t1);
-        if (!resp.ok) {
-          if (!_rrDebug.errors) _rrDebug.errors = [];
-          _rrDebug.errors.push('HTTP ' + resp.status + ' Contest ' + cid);
-          if (!_rrDebug.firstVal) _rrDebug.firstVal = 'HTTP ' + resp.status + ' für Contest ' + cid + ' | URL: ' + urlSearch.slice(0,200);
+          '&r=all&l=9999';
+        var _acA = new AbortController();
+        var _tA = setTimeout(function(){ _acA.abort(); }, 15000);
+        var respA;
+        try { respA = await fetch(urlAll, { headers: hdrs, signal: _acA.signal }); }
+        catch(fe) {
+          clearTimeout(_tA);
+          _rrDebug.errors = _rrDebug.errors || [];
+          _rrDebug.errors.push('Timeout/Fehler r=all Contest ' + cid + ': ' + fe.message);
           continue;
         }
-        var rawText = await resp.text();
-        _rrDebug.searchRaw = 'URL: ' + urlSearch.slice(-120) + ' | Raw: ' + rawText.slice(0, 500);
-        var payload;
-        try { payload = JSON.parse(rawText); } catch(pe) { _rrDebug.firstVal = 'JSON-Parse-Fehler: ' + pe.message + ' | Raw: ' + rawText.slice(0,300); continue; }
+        clearTimeout(_tA);
+        if (!respA.ok) {
+          _rrDebug.errors = _rrDebug.errors || [];
+          _rrDebug.errors.push('HTTP ' + respA.status + ' Contest ' + cid);
+          continue;
+        }
+        var rawA = await respA.text();
+        _rrDebug.searchRaw = 'r=all URL: ' + urlAll.slice(-100) + ' | Raw: ' + rawA.slice(0, 300);
+        var payloadA;
+        try { payloadA = JSON.parse(rawA); }
+        catch(pe) { _rrDebug.errors = _rrDebug.errors || []; _rrDebug.errors.push('JSON-Fehler: ' + pe.message); continue; }
 
-        // Top-Level Keys immer loggen
-        _rrDebug.topKeys = Object.keys(payload);
-        var gf = payload.groupFilters || payload.GroupFilters || [];
-        if (!_rrDebug.groupFilters) _rrDebug.groupFilters = JSON.stringify(gf).slice(0,400);
-        // groupFilters Type=1 → weitere Contest-Namen → numerische IDs aus contestObj suchen
-        // → pro ID einen eigenen r=search Request
+        _rrDebug.topKeys = Object.keys(payloadA);
+        var gf = payloadA.groupFilters || payloadA.GroupFilters || [];
+        if (!_rrDebug.groupFilters) _rrDebug.groupFilters = JSON.stringify(gf).slice(0, 400);
+
+        // DataFields aus r=all Response lesen
+        var df = payloadA.DataFields || [];
+        if (Array.isArray(df) && df.length > 0) {
+          iYear = -1; iGeschlecht = -1;
+          iAK = -1;
+          for (var fi = 0; fi < df.length; fi++) {
+            var f = df[fi].toLowerCase();
+            if (f.indexOf('anzeigename') >= 0 || f === 'name' || f === 'fullname') iName = fi;
+            else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
+            else if (f.indexOf('agegroup') >= 0 || f.indexOf('altersklasse') >= 0 || f === 'ak' || f === '[agegroup1.nameshort]') iAK = fi;
+            else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* überspringen */ }
+            else if (f === 'year' || f === 'geburtsjahr' || f === 'birthyear' || f === 'yob') iYear = fi;
+            else if (f.indexOf('geschlechtmw') >= 0 || f === '[geschlechtmw]' || f === 'sex' || f === 'gender') iGeschlecht = fi;
+            else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
+            else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0) iZeit = fi;
+            else if ((f.indexOf('plp') >= 0 && f.indexOf('ges') < 0) || f.indexOf('akplatz') >= 0 || f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0) iPlatz = fi;
+          }
+          if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
+          _rrDebug.iClub = iClub; _rrDebug.iName = iName; _rrDebug.iPlatz = iPlatz;
+          _rrDebug.dfLog = df.join(', ');
+        }
+
+        // Daten flachmachen: {Contest: {Gruppe: [rows]}} → {Contest/Gruppe: [rows]}
+        var flatData = {};
+        var dRaw = payloadA.data || {};
+        var dKeys = Object.keys(dRaw);
+        _rrDebug.dataKeys = JSON.stringify(dKeys).slice(0, 300);
+        for (var dk = 0; dk < dKeys.length; dk++) {
+          var sub = dRaw[dKeys[dk]];
+          if (Array.isArray(sub)) {
+            flatData[dKeys[dk]] = sub;
+          } else if (sub && typeof sub === 'object') {
+            var subKeys = Object.keys(sub);
+            _rrDebug.firstGroupKeys = JSON.stringify(subKeys).slice(0, 200);
+            for (var sk = 0; sk < subKeys.length; sk++) {
+              if (Array.isArray(sub[subKeys[sk]])) {
+                flatData[dKeys[dk] + '/' + subKeys[sk]] = sub[subKeys[sk]];
+              }
+            }
+          }
+        }
+
+        // groupFilters Type=1: weitere Contest-Gruppen via Extra-Requests laden
         if (cid === '0' && Array.isArray(gf)) {
           var gfType1 = null;
-          for (var gfi=0; gfi<gf.length; gfi++) { if (gf[gfi].Type === 1) { gfType1 = gf[gfi]; break; } }
+          for (var gfi = 0; gfi < gf.length; gfi++) { if (gf[gfi].Type === 1) { gfType1 = gf[gfi]; break; } }
           if (gfType1 && Array.isArray(gfType1.Values) && gfType1.Values.length > 1) {
-            // Andere Contest-Namen → numerische IDs aus contestObj
-            var extraNames = gfType1.Values.filter(function(v){ return v !== gfType1.Value && v !== ''; });
-            var extraIds = [];
-            for (var eni=0; eni<extraNames.length; eni++) {
-              var eName = extraNames[eni];
-              // contestObj durchsuchen: Name → ID
-              var eId = null;
-              var coKeys = Object.keys(contestObj);
-              for (var cok=0; cok<coKeys.length; cok++) {
-                if (contestObj[coKeys[cok]] === eName) { eId = coKeys[cok]; break; }
-              }
-              if (eId) extraIds.push({ id: eId, name: eName });
-            }
+            var extraNames = gfType1.Values.filter(function(v) { return v !== gfType1.Value && v !== ''; });
             _rrDebug.extraContests = extraNames;
-            // contest=0 mit gf-Parameter (groupfilter zurücksetzen auf anderen Contest-Namen)
-            for (var eci=0; eci<extraNames.length; eci++) {
+            for (var eci = 0; eci < extraNames.length; eci++) {
               var eName = extraNames[eci];
-              // gf als JSON-kodiertes Array — RRPublish-interne Konvention
-              // listid aus cfg.lists suchen (ID-Feld)
-              var _listId = '';
-              if (Array.isArray(cfg.lists)) {
-                for (var _li=0; _li<cfg.lists.length; _li++) {
-                  if ((cfg.lists[_li].Name||'') === listName) { _listId = cfg.lists[_li].ID || ''; break; }
-                }
-              }
-              var urlExtra = base4 +
+              var urlEx = base4 +
                 '?key=' + apiKey +
                 '&listname=' + encodeURIComponent(listName) +
                 '&page=results&contest=0' +
                 '&activefilter=' + encodeURIComponent(eName) +
-                '&r=search&l=9999&term=' + encodeURIComponent(clubPhrase || '');
+                '&r=all&l=9999';
               try {
-                var _ac3 = new AbortController(); var _t3 = setTimeout(function(){ _ac3.abort(); }, 10000);
-                var respExtra = await fetch(urlExtra, { headers: hdrs, signal: _ac3.signal }).finally(function(){ clearTimeout(_t3); });
-                if (!respExtra.ok) { _rrDebug.extraContests.push(eName + ':HTTP' + respExtra.status); continue; }
-                var payloadExtra = JSON.parse(await respExtra.text());
-                // Gruppen-Anzahl als Debug
-                var dRawExtra = payloadExtra.data || {};
-                var dkExtra = Object.keys(dRawExtra);
-                _rrDebug.extraContests.push(eName + ':data-keys=' + JSON.stringify(dkExtra).slice(0,100));
-                for (var dke=0; dke<dkExtra.length; dke++) {
-                  var subExtra = dRawExtra[dkExtra[dke]];
-                  var subKeys = (typeof subExtra === 'object' && !Array.isArray(subExtra)) ? Object.keys(subExtra) : [];
-                  if (subKeys.length > 0) {
-                    for (var ske=0; ske<subKeys.length; ske++) {
-                      if (Array.isArray(subExtra[subKeys[ske]])) {
-                        flatData[eName + '/' + dkExtra[dke] + '/' + subKeys[ske]] = subExtra[subKeys[ske]];
+                var _acE = new AbortController();
+                var _tE = setTimeout(function(){ _acE.abort(); }, 10000);
+                var respEx;
+                try { respEx = await fetch(urlEx, { headers: hdrs, signal: _acE.signal }); }
+                catch(fe2) { clearTimeout(_tE); _rrDebug.extraContests.push(eName + ':Timeout'); continue; }
+                clearTimeout(_tE);
+                if (!respEx.ok) { _rrDebug.extraContests.push(eName + ':HTTP' + respEx.status); continue; }
+                var payEx = JSON.parse(await respEx.text());
+                var dRawEx = payEx.data || {};
+                var dkEx = Object.keys(dRawEx);
+                _rrDebug.extraContests.push(eName + ':data-keys=' + JSON.stringify(dkEx).slice(0, 80));
+                for (var dke = 0; dke < dkEx.length; dke++) {
+                  var subEx = dRawEx[dkEx[dke]];
+                  if (Array.isArray(subEx)) {
+                    flatData[eName + '/' + dkEx[dke]] = subEx;
+                  } else if (subEx && typeof subEx === 'object') {
+                    var skEx = Object.keys(subEx);
+                    for (var ske = 0; ske < skEx.length; ske++) {
+                      if (Array.isArray(subEx[skEx[ske]])) {
+                        flatData[eName + '/' + dkEx[dke] + '/' + skEx[ske]] = subEx[skEx[ske]];
                       }
                     }
-                  } else if (Array.isArray(subExtra)) {
-                    flatData[eName + '/' + dkExtra[dke]] = subExtra;
                   }
                 }
               } catch(ee) { _rrDebug.extraContests.push(eName + ':Fehler:' + ee.message); }
@@ -2881,178 +2910,25 @@ async function rrFetch() {
           }
         }
 
-        // Hilfsfunktion: prüft ob payload Datenzeilen enthält
-        function payloadHasRows(p) {
-          var d = p.data || p.Data || p.result || p.Result || {};
-          if (Array.isArray(d)) return d.length > 0;
-          var ks = Object.keys(d);
-          for (var i=0; i<ks.length; i++) {
-            var v = d[ks[i]];
-            if (Array.isArray(v) && v.length) return true;
-            // Zwei Ebenen tief: {"#1_Contest": {"#1_Gruppe": [[...]]}}
-            if (v && typeof v === 'object' && !Array.isArray(v)) {
-              var ks2 = Object.keys(v);
-              for (var j=0; j<ks2.length; j++) {
-                if (Array.isArray(v[ks2[j]]) && v[ks2[j]].length) return true;
-              }
-            }
-          }
-          return false;
-        }
-
-        // r=all als primären Daten-Request (r=search liefert nur gefilterte Gruppe)
-        if (true || !payloadHasRows(payload)) {
-          var urlAll = base4 +
-            '?key='      + apiKey +
-            '&listname=' + encodeURIComponent(listName) +
-            '&page=results&contest=' + cid +
-            '&r=all&l=9999';
-          var _ac2 = new AbortController(); var _t2 = setTimeout(function(){ _ac2.abort(); }, 10000);
-          var respAll = await fetch(urlAll, { headers: hdrs, signal: _ac2.signal }).finally(function(){ clearTimeout(_t2); });
-          if (respAll.ok) {
-            var rawAll = await respAll.text();
-            _rrDebug.firstVal = 'r=all raw: ' + rawAll.slice(0, 600);
-            try {
-              var payloadAll = JSON.parse(rawAll);
-              _rrDebug.topKeys = Object.keys(payloadAll);
-          _rrDebug.groupFilters = JSON.stringify(payloadAll.groupFilters || payloadAll.GroupFilters || '–').slice(0,400);
-          // data-Schlüssel zeigen (Gruppen-Namen)
-          var _dKeys = payloadAll.data ? Object.keys(payloadAll.data) : [];
-          _rrDebug.dataKeys = JSON.stringify(_dKeys).slice(0,600);
-          // Erste Gruppe: deren Unter-Keys zeigen
-          if (_dKeys.length > 0) {
-            var _firstGroup = payloadAll.data[_dKeys[0]];
-            _rrDebug.firstGroupKeys = JSON.stringify(typeof _firstGroup === 'object' ? Object.keys(_firstGroup) : _firstGroup).slice(0,400);
-          }
-              if (payloadHasRows(payloadAll)) {
-                payload = payloadAll;
-                if (!_rrDebug.fetchMode) _rrDebug.fetchMode = 'r=all';
-              } else {
-                // Auch r=all hat keine Daten: data-Struktur zeigen
-                if (!_rrDebug.fetchMode) _rrDebug.fetchMode = 'r=all (leer)';
-                var dRaw = payloadAll.data || payloadAll.Data || {};
-                _rrDebug.firstVal = 'r=all data-Key: ' + JSON.stringify(dRaw).slice(0, 800);
-              }
-            } catch(e) { _rrDebug.firstVal += ' | Parse-Fehler: ' + e.message; }
-          }
-        }
-
-        // DataFields beim ersten Treffer kalibrieren
-        if (payload.DataFields && payload.DataFields.length) {
-          var df = payload.DataFields;
-          if (!_rrDebug.dataFields.length) _rrDebug.dataFields = df.slice();
-          iAK = -1; // Zurücksetzen — nur setzen wenn echtes AK-Feld gefunden
-          for (var fi=0; fi<df.length; fi++) {
-            var f = df[fi].toLowerCase();
-            if (f.indexOf('anzeigename') >= 0 || f === 'name' || f === 'fullname') iName = fi;
-            else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
-            else if (f.indexOf('agegroup') >= 0 || f.indexOf('altersklasse') >= 0 || f === 'ak' || f === '[agegroup1.nameshort]') iAK = fi;
-            else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* überspringen */ }
-            else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
-            else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0) iZeit = fi;
-            else if ((f.indexOf('plp') >= 0 && f.indexOf('ges') < 0) || f.indexOf('akplatz') >= 0 || f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0) iPlatz = fi;
-          }
-          if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
-          _rrDebug.iClub = iClub; _rrDebug.iName = iName; _rrDebug.iPlatz = iPlatz;
-        }
-
-        // Eventname + Datum aus HeadLine der ersten erfolgreichen Antwort
-        if (payload.list && (!eventName || !eventOrt)) {
-          var hl = payload.list.HeadLine1 || payload.list.HeadLine2 || "";
-          _rrDebug.headLine = hl;
-          var dm = hl.match(/(\d{2})\.(\d{2})\.(\d{4})/);
-          if (dm) {
-            if (!eventDate) eventDate = dm[3] + "-" + dm[2] + "-" + dm[1];
-            if (!eventName) {
-              eventName = hl.replace(dm[0], "").trim();
-              eventName = eventName.replace(/\s+(am|vom|bei|in|-)\s*$/i, "").trim();
-            }
-          } else {
-            if (!eventName) eventName = hl;
-          }
-          // Letztes Wort des Eventnamens als Ort-Fallback
-          if (!eventOrt && eventName) {
-            var nameWords = eventName.split(/\s+/);
-            eventOrt = nameWords[nameWords.length - 1].replace(/[^\wäöüÄÖÜß]/g, "").trim();
-          }
-        }
-        // cfg.eventname als Fallback für eventName
-        if (!eventName && cfg.eventname) eventName = cfg.eventname;
-
-
-        // firstVal Fallback falls noch nicht gesetzt
-        if (!_rrDebug.firstVal) _rrDebug.firstVal = JSON.stringify(payload).slice(0, 600);
-        // Wenn DataFields fehlen: Name-Spalte heuristisch aus erster Datenzeile bestimmen
-        if (!payload.DataFields || !payload.DataFields.length) {
-          var dataObjTmp = payload.data || payload.Data || {};
-          if (Array.isArray(dataObjTmp)) dataObjTmp = { '_': dataObjTmp };
-          // Zwei-Ebenen flachmachen
-          var flatTmp = {};
-          Object.keys(dataObjTmp).forEach(function(k) {
-            var v = dataObjTmp[k];
-            if (Array.isArray(v)) flatTmp[k] = v;
-            else if (v && typeof v === 'object') Object.keys(v).forEach(function(k2){ if (Array.isArray(v[k2])) flatTmp[k+'/'+k2] = v[k2]; });
-          });
-          var dkTmp = Object.keys(flatTmp);
-          for (var dkt=0; dkt<dkTmp.length; dkt++) {
-            var rowsTmp = flatTmp[dkTmp[dkt]];
-            if (!Array.isArray(rowsTmp) || !rowsTmp.length) continue;
-            var firstRow = rowsTmp[0];
-            if (!Array.isArray(firstRow)) continue;
-            var bestLen = 0;
-            for (var fj=0; fj<firstRow.length; fj++) {
-              var v = String(firstRow[fj] || '');
-              if (v.length > bestLen && /[, ]/.test(v) && !/^[\d.:]+$/.test(v)) { bestLen = v.length; iName = fj; }
-            }
-            for (var fj=firstRow.length-1; fj>=0; fj--) {
-              var v = String(firstRow[fj] || '');
-              if (/^\d+:\d{2}(:\d{2})?$/.test(v)) { iNetto = fj; iZeit = fj; break; }
-            }
-            _rrDebug.iName = iName; _rrDebug.iNetto = iNetto;
-            break;
-          }
-        }
-        // RaceResult kann data als verschiedene Strukturen liefern:
-        // 1. Array [[...], [...]]
-        // 2. Objekt {gruppe: [[...], [...]]}
-        // 3. Zwei Ebenen: {"#1_Contest": {"#1_Gruppe": [[...], [...]]}}
-        var dataObj = payload.data || payload.Data || payload.result || payload.Result || payload.list && payload.list.data || {};
-        if (Array.isArray(dataObj)) { var tmp = {}; tmp['_'] = dataObj; dataObj = tmp; }
-        // Zwei-Ebenen-Struktur flachmachen
-        var flatData = {};
-        var dataKeys0 = Object.keys(dataObj);
-        for (var dk0=0; dk0<dataKeys0.length; dk0++) {
-          var val0 = dataObj[dataKeys0[dk0]];
-          if (Array.isArray(val0)) {
-            flatData[dataKeys0[dk0]] = val0;
-          } else if (val0 && typeof val0 === 'object') {
-            var subKeys = Object.keys(val0);
-            for (var sk=0; sk<subKeys.length; sk++) {
-              if (Array.isArray(val0[subKeys[sk]])) flatData[dataKeys0[dk0] + '/' + subKeys[sk]] = val0[subKeys[sk]];
-            }
-          }
-        }
         var dataKeys = Object.keys(flatData);
-        for (var dk=0; dk<dataKeys.length; dk++) {
-          var rows = flatData[dataKeys[dk]];
+        for (var dk2 = 0; dk2 < dataKeys.length; dk2++) {
+          var rows = flatData[dataKeys[dk2]];
           if (!Array.isArray(rows)) continue;
-          // Club-Filter: clubPhrase ist oben global definiert
-          if (!clubPhrase) { _rrDebug.errors.push('Vereinsname nicht konfiguriert'); }
-          for (var ri=0; ri<rows.length; ri++) {
+          if (!clubPhrase) { _rrDebug.errors = _rrDebug.errors || []; _rrDebug.errors.push('Vereinsname nicht konfiguriert'); }
+          for (var ri = 0; ri < rows.length; ri++) {
             var row = rows[ri];
             if (!Array.isArray(row) || row.length < 4) continue;
             _rrDebug.totalRows++;
-            // Club-Samples für Debug
-            var clubSample = String(row[iClub] || '').trim();
+            var clubSample = iClub >= 0 ? String(row[iClub] || '').trim() : '';
             if (clubSample && _rrDebug.clubSamples.indexOf(clubSample) < 0 && _rrDebug.clubSamples.length < 50) _rrDebug.clubSamples.push(clubSample);
             if (clubPhrase) {
               var clubVal = clubSample.toLowerCase();
               if (clubVal.indexOf(clubPhrase) < 0) continue;
             }
             // Gruppen-Key auswerten für Disziplin und AK-Geschlecht
-            var groupKey = dataKeys[dk];
+            var groupKey = dataKeys[dk2];
             var groupParts = groupKey.split('/');
-            var _cname = cname !== ('Contest ' + cid) ? cname :
+            var _cname2 = cname !== ('Contest ' + cid) ? cname :
               (groupParts[0] || '').replace(/^#\d+_/, '').trim() || cname;
             var _akFromGroup = '';
             if (iAK < 0 && groupParts.length > 1) {
@@ -3061,14 +2937,13 @@ async function rrFetch() {
               else if (/weibl|female|frauen|damen/i.test(gk)) _akFromGroup = 'W';
               else _akFromGroup = gk;
             }
-            allResults.push({ raw: row, contestName: _cname, akFromGroup: _akFromGroup,
+            allResults.push({ raw: row, contestName: _cname2, akFromGroup: _akFromGroup,
               iYear: iYear, iGeschlecht: iGeschlecht,
               iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
           }
         }
       } catch(e2) { continue; }
     }
-
     if (!allResults.length) {
       var dbgClubs = _rrDebug.clubSamples.length ? _rrDebug.clubSamples.slice(0,10).join(', ') : '(keine)';
       var vereinRaw2 = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
