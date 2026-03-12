@@ -1,9 +1,9 @@
-v304: Fix Endlos-Ladeschleife in Athleten-Liste
+v305: Fix Athleten-Liste hängt bei Laden (Spinner endlos)
 
-_renderAthletenTable machte bei jedem Aufruf einen eigenen apiGet() —
-auch beim Sortier-Klick. Das führte zu Race Conditions und Loop.
+$letzteAktSql referenzierte immer die vier alten Einzel-Tabellen,
+auch wenn $unified=true → SQL-Fehler auf Instanzen mit einheitlicher
+ergebnisse-Tabelle → API-Call schlug fehl → Spinner blieb stehen.
 
-Fix: Klare Trennung:
-- renderAthleten() lädt Daten und befüllt _athLetenCache
-- _renderAthletenTable() ist jetzt synchron, nutzt nur den Cache
-- setAthletSuche() lädt bei Suche neu und ruft dann _renderAthletenTable()
+Fix: $letzteAktSql jetzt wie $anzSql mit $unified-Branch:
+- unified: MAX(datum) FROM ergebnisse
+- non-unified: GREATEST(MAX über alle 4 Tabellen)
