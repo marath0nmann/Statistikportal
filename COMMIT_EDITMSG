@@ -1,4 +1,5 @@
-v311: Fix "Letzte Akt." - datum liegt in veranstaltungen, nicht ergebnisse
+v312: Timeline-Badges: PB grün, Bestleistungen silber
 
-Der Query hat direkt auf ergebnisse.datum zugegriffen - das Feld
-existiert dort nicht. datum liegt in veranstaltungen → JOIN nötig.
+- "Persönliche Bestleistung" → "PB" (schon in v306 via PHP) + badge-pb (grün)
+- Alle anderen Bestleistungen (M/W, AK, extern) → badge-silver (grau-silber)
+- Gesamtbestleistung bleibt badge-gold
