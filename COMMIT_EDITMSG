@@ -1,4 +1,7 @@
-v292: Bugfix schwarze Seite (Syntaxfehler in JS behoben)
+v293: Geburtsjahr-Bulk-Import für Athleten
 
-- Mehrzeiliger String-Literal in AK-Debug (v289-Rest) gefixt
-- deleteAthlet-Button: Quote-Escaping-Problem durch _mkDelBtn()-Hilfsfunktion gelöst
+Modal mit CSV-Paste (Semikolon-getrennt: "Athlet NV;Geburtsdatum").
+Unterstützt Excel-Seriennummern (z.B. 40179 → 2010-01-01 → Jg. 2010),
+TT.MM.JJJJ, JJJJ-MM-TT und reine Jahreszahlen.
+Live-Vorschau zeigt Athleten-Match und errechneten Jahrgang vor dem Import.
+Name-Matching nutzt _normN() (SS↔ß, Umlaute etc.).
