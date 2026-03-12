@@ -3099,7 +3099,24 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var _ak0 = (_yr0 && _g0) ? calcDlvAK(_yr0, _g0, _rrEventJahr) : '(kein Jahr/Geschlecht: yr='+_yr0+' g='+_g0+')';
     var _platz0 = calcAKPlatz(_ak0, _netto0, _rrEventJahr);
     var _gs0sample = _ak4debug.length ? _ak4debug.filter(function(x){return !!x.geschlecht;}).length : 0;
-    _akPlatzTest = 'AK-Test: year=' + _yr0 + ' geschlecht=' + _g0 + ' → ak=' + _ak0 + ' netto=' + _netto0 + ' → Platz ' + _platz0 + ' | rows mit geschlecht: ' + _gs0sample;
+    _akPlatzTest = 'AK-Test[0]: year=' + _yr0 + ' g=' + _g0 + ' → ak=' + _ak0 + ' netto=' + _netto0 + ' → Platz ' + _platz0 + ' | rows mit g: ' + _gs0sample;
+    // Test für zweiten Treffer (Tanja)
+    if (results.length > 1) {
+      var _r1 = results[1]; var _raw1 = _r1.raw;
+      var _netto1 = String(_raw1[_r1.iNetto]||'').trim();
+      var _yr1 = _r1.iYear >= 0 ? String(_raw1[_r1.iYear]||'').trim() : '';
+      var _g1 = '';
+      var _chk1 = document.querySelector('.rr-chk[data-idx="1"]');
+      var _ath1 = _chk1 ? _chk1.closest('tr').querySelector('.rr-athlet') : null;
+      var _athId1 = _ath1 ? parseInt(_ath1.value)||0 : 0;
+      if (_athId1) { for (var _si1=0; _si1<state.athleten.length; _si1++) { if (state.athleten[_si1].id==_athId1) { _g1=state.athleten[_si1].geschlecht||''; break; } } }
+      var _ak1 = (_yr1 && _g1) ? calcDlvAK(_yr1, _g1, _rrEventJahr) : '(fehlt: yr='+_yr1+' g='+_g1+')';
+      var _platz1 = calcAKPlatz(_ak1, _netto1, _rrEventJahr);
+      // Wie viele W45-Rows gibt es?
+      var _w45count = _ak4debug.filter(function(x){ return x.geschlecht==='W' && x.year && (2026-parseInt(x.year))>=45 && (2026-parseInt(x.year))<50; }).length;
+      _akPlatzTest += '
+AK-Test[1]: year=' + _yr1 + ' g=' + _g1 + ' → ak=' + _ak1 + ' netto=' + _netto1 + ' → Platz ' + _platz1 + ' | W45-Rows(2026): ' + _w45count;
+    }
   }
   // Erste 5 eindeutige Gruppen-Keys aus den rohen Daten
   var _gkSample = Object.keys((window._rrDebug||{}).groupKeysSample||{}).slice(0,8).join(' | ');
