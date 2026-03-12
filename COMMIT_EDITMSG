@@ -1,11 +1,1 @@
-v278: RaceResult Bug-Fixes + Debug-Erweiterung
-
-Bugs:
-- eventOrt-Deklaration war nach dem Extraktionsblock → Variable wurde überschrieben
-- Hard-coded Spaltenindizes waren falsch (iName=5 statt 3 etc.)
-- contestName war "Contest 0" weil cid=0 nicht in contestObj → jetzt aus groupFilters.Value
-- Doppelter Ort-Extraktionsblock entfernt
-
-Debug:
-- Versionsnummer + Zeitstempel als erste Zeile
-- "Kopieren"-Button kopiert kompletten Debug-Text in Zwischenablage
+v279: Debug: alle cfg-Keys + cfg.Time anzeigen (Datum-Suche)
