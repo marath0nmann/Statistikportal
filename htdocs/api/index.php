@@ -418,43 +418,74 @@ if ($res === 'upload' && $id === 'avatar') {
     $user = Auth::requireLogin();
     if ($method !== 'POST' && $method !== 'DELETE') jsonErr('Methode nicht erlaubt.', 405);
 
-    $uid = (int)$user['id'];
-    $prefix = 'avatar_' . $uid . '_';
+    $uid    = (int)$user['id'];
+    $prefix = 'avatar_' . $uid;
 
     if ($method === 'DELETE') {
-        // Alte Avatare löschen
-        foreach (['png','jpg','webp'] as $e) {
-            $f = __DIR__ . '/../uploads/' . $prefix . $e;
+        foreach (['png','jpg','webp','jpeg'] as $e) {
+            $f = __DIR__ . '/../uploads/' . $prefix . '.' . $e;
             if (file_exists($f)) @unlink($f);
         }
-        // Spalte leeren (defensiv gegen fehlende Spalte)
         try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET avatar_pfad = NULL WHERE id = ?', [$uid]); } catch (\Exception $e) {}
         jsonOk('Avatar gelöscht.');
     }
 
     $file = $_FILES['avatar'] ?? null;
-    if (!$file || $file['error'] !== UPLOAD_ERR_OK) jsonErr('Kein Bild empfangen oder Upload-Fehler.');
+    if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
+        $errMsg = ['','Datei zu groß (PHP)','Datei zu groß (HTML)','Teilweise hochgeladen','Keine Datei','','Kein temp-Verzeichnis','Schreibfehler'];
+        jsonErr('Upload-Fehler: ' . ($errMsg[$file['error'] ?? 0] ?? 'Unbekannt'));
+    }
 
-    // Nur PNG, JPG, WebP – kein SVG/GIF für Avatare
-    $erlaubteTypes = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'];
+    // Nur Rastergrafiken (kein SVG)
+    $erlaubteTypes = ['image/png'=>'png','image/jpeg'=>'jpg','image/webp'=>'webp','image/gif'=>'gif'];
     $mime = mime_content_type($file['tmp_name']);
-    if (!isset($erlaubteTypes[$mime])) jsonErr('Nur PNG, JPG und WebP sind erlaubt.');
+    if (!isset($erlaubteTypes[$mime])) jsonErr('Nur PNG, JPG, WebP oder GIF sind erlaubt.');
 
-    // Max 1 MB
-    if ($file['size'] > 1 * 1024 * 1024) jsonErr('Datei zu groß (max. 1 MB).');
+    // Max 10 MB
+    if ($file['size'] > 10 * 1024 * 1024) jsonErr('Datei zu groß (max. 10 MB).');
 
-    $ext  = $erlaubteTypes[$mime];
-    $ziel = __DIR__ . '/../uploads/' . $prefix . $ext;
-
-    // Alte Avatare dieses Nutzers löschen
-    foreach (['png','jpg','webp'] as $e) {
-        $alt = __DIR__ . '/../uploads/' . $prefix . $e;
+    // Alte Avatare löschen
+    foreach (['png','jpg','webp','jpeg','gif'] as $e) {
+        $alt = __DIR__ . '/../uploads/' . $prefix . '.' . $e;
         if (file_exists($alt)) @unlink($alt);
     }
 
-    if (!move_uploaded_file($file['tmp_name'], $ziel)) jsonErr('Speichern fehlgeschlagen.');
+    // Bild optimieren mit GD (auf 400×400 verkleinern, als JPEG speichern)
+    $ziel = __DIR__ . '/../uploads/' . $prefix . '.jpg';
+    $saved = false;
+    if (function_exists('imagecreatefromstring')) {
+        $src = @imagecreatefromstring(file_get_contents($file['tmp_name']));
+        if ($src) {
+            $ow = imagesx($src); $oh = imagesy($src);
+            $maxSize = 400;
+            // Crop-Koordinaten aus POST (optional, vom Frontend-Cropper)
+            $cx = isset($_POST['cx']) ? (int)$_POST['cx'] : 0;
+            $cy = isset($_POST['cy']) ? (int)$_POST['cy'] : 0;
+            $cw = isset($_POST['cw']) ? (int)$_POST['cw'] : $ow;
+            $ch = isset($_POST['ch']) ? (int)$_POST['ch'] : $oh;
+            // Sicherstellen dass Crop-Werte valide
+            $cx = max(0, min($cx, $ow-1));
+            $cy = max(0, min($cy, $oh-1));
+            $cw = max(1, min($cw, $ow-$cx));
+            $ch = max(1, min($ch, $oh-$cy));
+            // Zielgröße: quadratisch, max 400px
+            $outSize = min($cw, $ch, $maxSize);
+            $dst = imagecreatetruecolor($outSize, $outSize);
+            imagecopyresampled($dst, $src, 0, 0, $cx, $cy, $outSize, $outSize, $cw, $ch);
+            imagedestroy($src);
+            if (@imagejpeg($dst, $ziel, 88)) $saved = true;
+            imagedestroy($dst);
+        }
+    }
+    // Fallback: Datei direkt speichern ohne Optimierung
+    if (!$saved) {
+        $ext  = $erlaubteTypes[$mime];
+        $ziel = __DIR__ . '/../uploads/' . $prefix . '.' . $ext;
+        if (!move_uploaded_file($file['tmp_name'], $ziel)) jsonErr('Speichern fehlgeschlagen.');
+    }
 
-    $pfad = 'uploads/' . $prefix . $ext;
+    $pfad = 'uploads/' . $prefix . '.jpg';
+    if (!$saved) $pfad = 'uploads/' . $prefix . '.' . ($erlaubteTypes[$mime] ?? 'jpg');
     try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET avatar_pfad = ? WHERE id = ?', [$pfad, $uid]); } catch (\Exception $e) {}
     jsonOk(['pfad' => $pfad]);
 }
@@ -772,7 +803,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                 $bestByAthlet[$aid] = $val;
                 if (empty($labels)) {
                     $isFirst = $prevByAthlet[$aid] === null;
-                    $labels[] = $isFirst ? 'Débüt' : 'PB';
+                    $labels[] = $isFirst ? 'Debüt' : 'PB';
                     if ($vorher === null) $vorher = $prevByAthlet[$aid];
                 }
             }
@@ -780,7 +811,7 @@ if ($res === 'dashboard' && $method === 'GET') {
             if (!empty($labels)) {
                 $prio = (in_array('Gesamtbestleistung', $labels) || in_array('Erste Gesamtleistung', $labels)) ? 0
                       : (in_array('Bestleistung Männer', $labels) || in_array('Bestleistung Frauen', $labels) || in_array('Erstes Ergebnis M', $labels) || in_array('Erstes Ergebnis W', $labels) ? 1
-                      : (in_array('PB', $labels) || in_array('Débüt', $labels) ? 3 : 2));
+                      : (in_array('PB', $labels) || in_array('Debüt', $labels) ? 3 : 2));
                 // vorher_resultat: numerischen Wert zurück in Rohformat umrechnen ist komplex –
                 // wir geben stattdessen den val-Wert (Sekunden/Meter) zurück; Frontend formatiert ihn
                 $timelineEvents[] = [

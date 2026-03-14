@@ -1106,35 +1106,132 @@ function showUserMenu() {
 async function uploadAvatar(input) {
   var file = input.files[0];
   if (!file) return;
-  var allowed = ['image/png','image/jpeg','image/webp'];
-  if (allowed.indexOf(file.type) < 0) { notify('Nur PNG, JPG oder WebP erlaubt.', 'err'); return; }
-  if (file.size > 1 * 1024 * 1024) { notify('Datei zu groß (max. 1 MB).', 'err'); return; }
+  var allowed = ['image/png','image/jpeg','image/webp','image/gif'];
+  if (allowed.indexOf(file.type) < 0) { notify('Nur PNG, JPG, WebP oder GIF erlaubt.', 'err'); return; }
+  if (file.size > 10 * 1024 * 1024) { notify('Datei zu groß (max. 10 MB).', 'err'); return; }
+  // Crop-Dialog öffnen
+  var reader = new FileReader();
+  reader.onload = function(e) { showAvatarCropModal(e.target.result, file); };
+  reader.readAsDataURL(file);
+}
+
+function showAvatarCropModal(dataUrl, file) {
+  showModal(
+    '<h2>Avatar zuschneiden <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<p style="font-size:13px;color:var(--text2);margin:0 0 12px">Verschiebe und vergrößere den Ausschnitt, dann speichern.</p>' +
+    '<div style="position:relative;overflow:hidden;background:#111;border-radius:8px;margin-bottom:14px;touch-action:none" id="crop-wrap">' +
+      '<img id="crop-img" src="' + dataUrl + '" style="display:block;max-width:100%;max-height:340px;margin:0 auto;user-select:none;-webkit-user-drag:none">' +
+      '<div id="crop-box" style="position:absolute;border:3px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.55);box-sizing:border-box;cursor:move;border-radius:50%"></div>' +
+    '</div>' +
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">' +
+      '<span style="font-size:12px;color:var(--text2)">Größe</span>' +
+      '<input type="range" id="crop-size" min="40" max="100" value="80" style="flex:1" oninput="_cropResize()">' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="_cropSave()">&#x1F4BE; Speichern</button>' +
+    '</div>'
+  , false, true);
+  // Crop-Logik initialisieren nach DOM-Ready
+  requestAnimationFrame(function() { _cropInit(file); });
+}
+
+var _cropFile = null;
+var _cropState = { x: 0, y: 0, size: 0, imgW: 0, imgH: 0, scaleX: 1, scaleY: 1 };
+
+function _cropInit(file) {
+  _cropFile = file;
+  var img = document.getElementById('crop-img');
+  var box = document.getElementById('crop-box');
+  var wrap = document.getElementById('crop-wrap');
+  if (!img || !box || !wrap) return;
+  img.onload = function() {};
+  // Natürliche vs. angezeigte Größe
+  var r = img.getBoundingClientRect();
+  var s = _cropState;
+  s.imgW = r.width; s.imgH = r.height;
+  s.scaleX = img.naturalWidth / r.width;
+  s.scaleY = img.naturalHeight / r.height;
+  // Startgröße: 80% der kleineren Seite
+  s.size = Math.round(Math.min(r.width, r.height) * 0.8);
+  s.x = Math.round((r.width  - s.size) / 2);
+  s.y = Math.round((r.height - s.size) / 2);
+  _cropDraw();
+  // Drag
+  var dragging = false, startX, startY, startCX, startCY;
+  box.addEventListener('pointerdown', function(e) {
+    dragging = true; startX = e.clientX; startY = e.clientY;
+    startCX = s.x; startCY = s.y; e.preventDefault();
+    box.setPointerCapture(e.pointerId);
+  });
+  window.addEventListener('pointermove', function(e) {
+    if (!dragging) return;
+    s.x = Math.max(0, Math.min(startCX + (e.clientX - startX), s.imgW - s.size));
+    s.y = Math.max(0, Math.min(startCY + (e.clientY - startY), s.imgH - s.size));
+    _cropDraw();
+  });
+  window.addEventListener('pointerup', function() { dragging = false; });
+}
+
+function _cropDraw() {
+  var box = document.getElementById('crop-box');
+  var img = document.getElementById('crop-img');
+  if (!box || !img) return;
+  var r = img.getBoundingClientRect();
+  var wrapR = document.getElementById('crop-wrap').getBoundingClientRect();
+  var s = _cropState;
+  box.style.left   = (r.left - wrapR.left + s.x) + 'px';
+  box.style.top    = (r.top  - wrapR.top  + s.y) + 'px';
+  box.style.width  = s.size + 'px';
+  box.style.height = s.size + 'px';
+}
+
+function _cropResize() {
+  var slider = document.getElementById('crop-size');
+  var img = document.getElementById('crop-img');
+  if (!slider || !img) return;
+  var s = _cropState;
+  var pct = parseInt(slider.value) / 100;
+  var newSize = Math.round(Math.min(s.imgW, s.imgH) * pct);
+  s.x = Math.max(0, Math.min(s.x + (s.size - newSize) / 2, s.imgW - newSize));
+  s.y = Math.max(0, Math.min(s.y + (s.size - newSize) / 2, s.imgH - newSize));
+  s.size = newSize;
+  _cropDraw();
+}
+
+async function _cropSave() {
+  var s = _cropState;
+  if (!_cropFile) return;
+  var btn = document.querySelector('#modal-container .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Lädt…'; }
   var fd = new FormData();
-  fd.append('avatar', file);
+  fd.append('avatar', _cropFile);
+  fd.append('cx', Math.round(s.x * s.scaleX));
+  fd.append('cy', Math.round(s.y * s.scaleY));
+  fd.append('cw', Math.round(s.size * s.scaleX));
+  fd.append('ch', Math.round(s.size * s.scaleY));
   try {
-    var resp = await fetch('api/index.php?res=upload&id=avatar', { method: 'POST', body: fd });
+    var resp = await fetch('api/index.php?_route=' + encodeURIComponent('upload/avatar'), { method: 'POST', credentials: 'same-origin', body: fd });
     var data = await resp.json();
     if (data.ok) {
       currentUser.avatar = data.data.pfad;
-      notify('Avatar gespeichert.', 'ok');
-      // Header + Modal sofort aktualisieren
       var avatarEl = document.getElementById('user-avatar');
-      if (avatarEl) {
-        avatarEl.innerHTML = '<img src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
-      }
-      var img = document.getElementById('konto-avatar-img');
-      if (img) img.src = currentUser.avatar + '?v=' + Date.now();
-      // Modal neu öffnen damit "Avatar entfernen"-Button erscheint
+      if (avatarEl) avatarEl.innerHTML = '<img src="' + currentUser.avatar + '?v=' + Date.now() + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
       closeModal(); showUserMenu();
+      notify('Avatar gespeichert.', 'ok');
     } else {
       notify(data.fehler || 'Fehler beim Hochladen.', 'err');
+      if (btn) { btn.disabled = false; btn.innerHTML = '&#x1F4BE; Speichern'; }
     }
-  } catch(e) { notify('Upload fehlgeschlagen.', 'err'); }
+  } catch(e) {
+    notify('Upload fehlgeschlagen.', 'err');
+    if (btn) { btn.disabled = false; btn.innerHTML = '&#x1F4BE; Speichern'; }
+  }
 }
 
 async function deleteAvatar() {
   try {
-    var resp = await fetch('api/index.php?res=upload&id=avatar', { method: 'DELETE' });
+    var resp = await fetch('api/index.php?_route=' + encodeURIComponent('upload/avatar'), { method: 'DELETE', credentials: 'same-origin' });
     var data = await resp.json();
     if (data.ok) {
       currentUser.avatar = null;
@@ -1201,8 +1298,8 @@ function buildFooter() {
     var target = url ? ' target="_blank"' : '';
     return '<a href="' + href + '"' + target + ' style="' + linkStyle + '">' + label + '</a>';
   }
-  var legalLine = footerLink(dsUrl,  '#/datenschutz', 'Datenschutz') + ' &nbsp;/&nbsp; ' +
-                  footerLink(nuUrl,  '#/nutzung',     'Nutzungsbedingungen') + ' &nbsp;/&nbsp; ' +
+  var legalLine = footerLink(dsUrl,  '#/datenschutz', 'Datenschutz') + ' &nbsp;&middot;&nbsp; ' +
+                  footerLink(nuUrl,  '#/nutzung',     'Nutzungsbedingungen') + ' &nbsp;&middot;&nbsp; ' +
                   footerLink(impUrl, '#/impressum',   'Impressum');
   el.innerHTML =
     '<div>Powered by <a href="' + ghUrl + '" target="_blank" style="' + linkStyle + '">Statistikportal</a> &copy; 2026 <a href="' + authorUrl + '" target="_blank" style="' + linkStyle + '">Daniel Weyers</a></div>' +
@@ -1487,7 +1584,7 @@ async function renderDashboard() {
     var lbl = rek.label || '';
     var athletName = rek.athlet || '';
     var labelCls = (lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
-                   (lbl === 'PB' || lbl === 'Débüt') ? 'badge badge-pb' :
+                   (lbl === 'PB' || lbl === 'Debüt') ? 'badge badge-pb' :
                    'badge badge-silver';
     var dotStyle = rek.extern ? 'background:var(--accent);' : '';
     if (!athletName) continue;
@@ -1652,7 +1749,7 @@ async function renderDashboard() {
           var fFmt  = fItem.fmt || '';
           var fRes  = fFmt === 'm' ? fmtMeter(fItem.resultat) : fmtTime(fItem.resultat, fFmt === 's' ? 's' : undefined);
           var fLblCls = (fLbl.indexOf('Gesamtbestleistung') >= 0 || fLbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
-                        (fLbl === 'PB' || fLbl === 'Débüt') ? 'badge badge-pb' : 'badge badge-silver';
+                        (fLbl === 'PB' || fLbl === 'Debüt') ? 'badge badge-pb' : 'badge badge-silver';
           var fAthLink = fItem.athlet_id
             ? '<span class="athlet-link" style="color:var(--primary);font-weight:600" data-athlet-id="' + fItem.athlet_id + '">' + fItem.athlet + '</span>'
             : '<span style="color:var(--primary);font-weight:600">' + fItem.athlet + '</span>';
@@ -4817,7 +4914,7 @@ var TIMELINE_TYPE_DEFS = [
   { id: 'gesamt',  label: 'Gesamtbestleistung',  desc: 'Beste Leistung aller Athleten in einer Disziplin',  prio: 0 },
   { id: 'gender',  label: 'Bestleistung M / W',  desc: 'Beste Leistung je Geschlecht',                     prio: 1 },
   { id: 'ak',      label: 'Bestleistung AK',      desc: 'Beste Leistung je Altersklasse',                   prio: 2 },
-  { id: 'pb',      label: 'Persönliche Bestleistung (PB)', desc: 'Persönliche Bestleistung / Débüt',        prio: 3 },
+  { id: 'pb',      label: 'Persönliche Bestleistung (PB)', desc: 'Persönliche Bestleistung / Debüt',        prio: 3 },
 ];
 
 function timelineLabelType(lbl) {
@@ -4825,7 +4922,7 @@ function timelineLabelType(lbl) {
   if (lbl === 'Gesamtbestleistung' || lbl === 'Erste Gesamtleistung') return 'gesamt';
   if (lbl === 'Bestleistung Männer' || lbl === 'Bestleistung Frauen' ||
       lbl === 'Erstes Ergebnis M'   || lbl === 'Erstes Ergebnis W') return 'gender';
-  if (lbl === 'PB' || lbl === 'Débüt') return 'pb';
+  if (lbl === 'PB' || lbl === 'Debüt') return 'pb';
   if (lbl.indexOf('Bestleistung') >= 0 || lbl.indexOf('Erste Leistung') >= 0) return 'ak';
   return 'pb'; // Fallback
 }

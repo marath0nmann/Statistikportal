@@ -430,18 +430,18 @@ tr:hover td { background: var(--surf2); }
   font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700;
   line-height: 1; flex-shrink: 0;
 }
-.medal-badge.gold   { background: #f5c518; color: #5a3e00; border: 1.5px solid #c8a000; }
-.medal-badge.silver { background: #d0d0d0; color: #2a2a2a; border: 1.5px solid #909090; }
-.medal-badge.bronze { background: #cd7f32; color: #fff;    border: 1.5px solid #a05000; }
+.medal-badge.gold   { background: #fff8e0; color: #7a5200; border: 1.5px solid #f5c518; }
+.medal-badge.silver { background: #f4f4f4; color: #555;    border: 1.5px solid #d0d0d0; }
+.medal-badge.bronze { background: #fdf0e6; color: #7a3d00; border: 1.5px solid #cd7f32; }
 .medal-badge.rank   { background: var(--surf2); color: var(--text2); border: 1.5px solid var(--border); font-size: 12px; }
 
 /* Dark Mode */
-[data-theme="dark"] .medal-badge.gold   { background: #7a5c00; color: #ffd87a; border-color: #c8a000; }
-[data-theme="dark"] .medal-badge.silver { background: #484848; color: #d8d8d8; border-color: #909090; }
-[data-theme="dark"] .medal-badge.bronze { background: #7a3d00; color: #f0b070; border-color: #a05000; }
-:root:not([data-theme="light"]) .medal-badge.gold   { background: #7a5c00; color: #ffd87a; border-color: #c8a000; }
-:root:not([data-theme="light"]) .medal-badge.silver { background: #484848; color: #d8d8d8; border-color: #909090; }
-:root:not([data-theme="light"]) .medal-badge.bronze { background: #7a3d00; color: #f0b070; border-color: #a05000; }
+[data-theme="dark"] .medal-badge.gold   { background: #2a1f00; color: #ffd87a; border-color: #7a5c00; }
+[data-theme="dark"] .medal-badge.silver { background: #1e1e1e; color: #d8d8d8; border-color: #484848; }
+[data-theme="dark"] .medal-badge.bronze { background: #1f0e00; color: #f0b070; border-color: #7a3d00; }
+:root:not([data-theme="light"]) .medal-badge.gold   { background: #2a1f00; color: #ffd87a; border-color: #7a5c00; }
+:root:not([data-theme="light"]) .medal-badge.silver { background: #1e1e1e; color: #d8d8d8; border-color: #484848; }
+:root:not([data-theme="light"]) .medal-badge.bronze { background: #1f0e00; color: #f0b070; border-color: #7a3d00; }
 .top-info { flex: 1; }
 .top-name { font-weight: 600; font-size: 14px; }
 .top-detail { font-size: 11px; color: var(--text2); margin-top: 2px; }
