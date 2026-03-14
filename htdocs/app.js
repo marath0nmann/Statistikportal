@@ -128,6 +128,10 @@ function avatarFallback(initial, size, fontSize) {
   return '<span style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;flex-shrink:0;background:var(--accent);color:var(--on-accent);display:inline-flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:' + fs + 'px;font-weight:600;">' + initial + '</span>';
 }
 
+var FOOTER_DEFAULT_DS  = "# Datenschutzerkl\u00e4rung\n\n**Stand: 2026**\n\n## 1. Verantwortlicher\nVerantwortlich f\u00fcr diese Anwendung ist der Verein TuS Oedt e.V.\n\n## 2. Erhobene Daten\nDiese Anwendung verarbeitet ausschlie\u00dflich Daten, die zur Darstellung von Leichtathletik-Ergebnissen und Vereinsstatistiken erforderlich sind:\n- Athleten-Namen und Wettkampfergebnisse (\u00f6ffentlich zug\u00e4nglich)\n- Benutzerdaten registrierter Nutzer (Name, E-Mail-Adresse) zur Authentifizierung\n\n## 3. Keine Weitergabe an Dritte\nPersonenbezogene Daten werden nicht an Dritte weitergegeben.\n\n## 4. Hosting\nDie Anwendung wird auf Servern von all-inkl.com (ALL-INKL.COM \u2013 Neue Medien M\u00fcnnich) in Deutschland betrieben.\n\n## 5. Kontakt\nBei Fragen zur Datenverarbeitung wenden Sie sich bitte an die Vereinsverantwortlichen.";
+var FOOTER_DEFAULT_NU  = "# Nutzungsbedingungen\n\n**Stand: 2026**\n\n## 1. Nutzung\nDiese Anwendung dient der internen Vereinsstatistik des TuS Oedt e.V. Die Nutzung ist Vereinsmitgliedern und autorisierten Personen vorbehalten.\n\n## 2. Inhalte\nDie dargestellten Ergebnisse und Athletendaten sind vereinseigene Daten. Eine Weiterverwendung oder Ver\u00f6ffentlichung bedarf der Genehmigung des Vereins.\n\n## 3. Technische Verf\u00fcgbarkeit\nDer Betreiber \u00fcbernimmt keine Gew\u00e4hr f\u00fcr die st\u00e4ndige Verf\u00fcgbarkeit der Anwendung.\n\n## 4. \u00c4nderungen\nDiese Nutzungsbedingungen k\u00f6nnen jederzeit angepasst werden.";
+var FOOTER_DEFAULT_IMP = "# Impressum\n\n**Angaben gem\u00e4\u00df \u00a7 5 TMG**\n\nTuS Oedt e.V. \u2013 Leichtathletik-Abteilung\n\n*Bitte vervollst\u00e4ndigen Sie das Impressum mit Ihrer Vereinsanschrift und einem Verantwortlichen.*\n\n## Kontakt\nE-Mail: [Ihre E-Mail-Adresse]\n\n## Vereinsregister\nEingetragen im Vereinsregister.\nRegistergericht: [Ihr Registergericht]\n\n## Inhaltlich Verantwortlicher\n[Name des Verantwortlichen gem\u00e4\u00df \u00a7 55 Abs. 2 RStV]";
+
 var MSTR_MAP = {};
 var MSTR_LIST = []; // [{id, label}, ...]
 
@@ -1184,19 +1188,25 @@ function buildFooter() {
   var el = document.getElementById('app-footer');
   if (!el) return;
   var cfg = appConfig || {};
-  var ghUrl = 'https://github.com/danielweyers/tus-oedt-statistik';
+  var ghUrl = 'https://github.com/marath0nmann/Statistikportal';
   var authorUrl = 'https://webdev.danielweyers.de';
   var dsUrl   = cfg.footer_datenschutz_url   || '';
   var nuUrl   = cfg.footer_nutzung_url        || '';
   var impUrl  = cfg.footer_impressum_url      || '';
   var linkStyle = 'color:inherit;text-decoration:underline;text-underline-offset:2px;opacity:.7;';
-  var links = [];
-  if (dsUrl)  links.push('<a href="' + dsUrl  + '" target="_blank" style="' + linkStyle + '">Datenschutz</a>');
-  if (nuUrl)  links.push('<a href="' + nuUrl  + '" target="_blank" style="' + linkStyle + '">Nutzungsbedingungen</a>');
-  if (impUrl) links.push('<a href="' + impUrl + '" target="_blank" style="' + linkStyle + '">Impressum</a>');
+  var dimStyle  = 'color:inherit;opacity:.35;cursor:default;';
+  // Interne Routen als Fallback wenn keine externe URL konfiguriert
+  function footerLink(url, internalRoute, label) {
+    var href = url || internalRoute;
+    var target = url ? ' target="_blank"' : '';
+    return '<a href="' + href + '"' + target + ' style="' + linkStyle + '">' + label + '</a>';
+  }
+  var legalLine = footerLink(dsUrl,  '#/datenschutz', 'Datenschutz') + ' &nbsp;/&nbsp; ' +
+                  footerLink(nuUrl,  '#/nutzung',     'Nutzungsbedingungen') + ' &nbsp;/&nbsp; ' +
+                  footerLink(impUrl, '#/impressum',   'Impressum');
   el.innerHTML =
     '<div>Powered by <a href="' + ghUrl + '" target="_blank" style="' + linkStyle + '">Statistikportal</a> &copy; 2026 <a href="' + authorUrl + '" target="_blank" style="' + linkStyle + '">Daniel Weyers</a></div>' +
-    (links.length ? '<div>' + links.join(' &nbsp;/&nbsp; ') + '</div>' : '');
+    '<div>' + legalLine + '</div>';
 }
 
 function buildNav() {
@@ -1277,7 +1287,85 @@ function closeBurgerMenu() {
 function mobileNavClose() { closeBurgerMenu(); }
 function mobileNavTo(tab) { closeBurgerMenu(); navigate(tab); }
 
+function renderLegalPage(type) {
+  var cfg = appConfig || {};
+  var titles   = { datenschutz: 'Datenschutz', nutzung: 'Nutzungsbedingungen', impressum: 'Impressum' };
+  var defaults = { datenschutz: FOOTER_DEFAULT_DS, nutzung: FOOTER_DEFAULT_NU, impressum: FOOTER_DEFAULT_IMP };
+  var cfgKeys  = { datenschutz: 'footer_datenschutz_text', nutzung: 'footer_nutzung_text', impressum: 'footer_impressum_text' };
+  var text = cfg[cfgKeys[type]] || defaults[type] || '';
+  var title = titles[type] || type;
+  // Einfaches Markdown → HTML (h1, h2, bold, italic, listen)
+  function mdToHtml(md) {
+    return md
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/^# (.+)$/gm, '<h1 style="font-size:22px;font-weight:700;margin:0 0 16px;color:var(--primary)">$1</h1>')
+      .replace(/^## (.+)$/gm, '<h2 style="font-size:16px;font-weight:700;margin:20px 0 8px;color:var(--text)">$1</h2>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/^- (.+)$/gm, '<li style="margin:4px 0;padding-left:4px">$1</li>')
+      .replace(/(<li[^>]*>.*<\/li>
+?)+/g, function(m){ return '<ul style="margin:8px 0 8px 20px">'+m+'</ul>'; })
+      .replace(/
+
+/g, '</p><p style="margin:8px 0">')
+      .replace(/
+/g, '<br>');
+  }
+  var html = '<p style="margin:8px 0">' + mdToHtml(text) + '</p>';
+  var isAdmin = currentUser && currentUser.rolle === 'admin';
+  document.getElementById('main-content').innerHTML =
+    '<div style="max-width:720px;margin:0 auto">' +
+      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">' +
+        '<button class="btn btn-ghost btn-sm" onclick="history.back()" style="white-space:nowrap">&#x2190; Zurück</button>' +
+        (isAdmin ? '<button class="btn btn-ghost btn-sm" onclick="editLegalPage('' + type + '')" style="white-space:nowrap">&#x270F;&#xFE0E; Bearbeiten</button>' : '') +
+      '</div>' +
+      '<div class="panel" style="padding:28px 32px">' + html + '</div>' +
+    '</div>';
+}
+
+async function editLegalPage(type) {
+  var cfg = appConfig || {};
+  var titles   = { datenschutz: 'Datenschutz', nutzung: 'Nutzungsbedingungen', impressum: 'Impressum' };
+  var defaults = { datenschutz: FOOTER_DEFAULT_DS, nutzung: FOOTER_DEFAULT_NU, impressum: FOOTER_DEFAULT_IMP };
+  var cfgKeys  = { datenschutz: 'footer_datenschutz_text', nutzung: 'footer_nutzung_text', impressum: 'footer_impressum_text' };
+  var current = cfg[cfgKeys[type]] || defaults[type] || '';
+  showModal(
+    '<h2>' + titles[type] + ' bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<p style="font-size:12px;color:var(--text2);margin:0 0 12px">Markdown wird unterstützt: # Überschrift, ## Unterüberschrift, **fett**, *kursiv*, - Liste</p>' +
+    '<textarea id="legal-edit-ta" style="width:100%;height:360px;box-sizing:border-box;padding:12px;border:1.5px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surf2);color:var(--text);resize:vertical">' + current.replace(/</g,'&lt;') + '</textarea>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-ghost" onclick="resetLegalPage('' + type + '')">&#x21BA; Standard</button>' +
+      '<button class="btn btn-primary" onclick="saveLegalPage('' + type + '')">&#x1F4BE; Speichern</button>' +
+    '</div>'
+  , false, true);
+}
+
+async function saveLegalPage(type) {
+  var cfgKeys = { datenschutz: 'footer_datenschutz_text', nutzung: 'footer_nutzung_text', impressum: 'footer_impressum_text' };
+  var ta = document.getElementById('legal-edit-ta');
+  if (!ta) return;
+  var payload = {}; payload[cfgKeys[type]] = ta.value;
+  var r = await apiPost('einstellungen', payload);
+  if (r && r.ok) {
+    appConfig[cfgKeys[type]] = ta.value;
+    closeModal();
+    notify('Gespeichert.', 'ok');
+    renderLegalPage(type);
+  } else notify((r && r.fehler) || 'Fehler', 'err');
+}
+
+async function resetLegalPage(type) {
+  var defaults = { datenschutz: FOOTER_DEFAULT_DS, nutzung: FOOTER_DEFAULT_NU, impressum: FOOTER_DEFAULT_IMP };
+  var ta = document.getElementById('legal-edit-ta');
+  if (ta) ta.value = defaults[type] || '';
+}
+
 function navigate(tab) {
+  // Hash-Routen für Rechtliches (ohne Login nötig)
+  if (tab === '#/datenschutz' || tab === 'datenschutz') { renderLegalPage('datenschutz'); return; }
+  if (tab === '#/nutzung'     || tab === 'nutzung')     { renderLegalPage('nutzung'); return; }
+  if (tab === '#/impressum'   || tab === 'impressum')   { renderLegalPage('impressum'); return; }
   if (tab === 'rekorde') { REK_CATS = []; state.allDisziplinen = {}; state.topDisziplinen = {}; }
   state.tab    = tab;
   state.page   = 1;
@@ -1390,7 +1478,7 @@ async function renderDashboard() {
     var lbl = rek.label || '';
     var athletName = rek.athlet || '';
     var labelCls = (lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
-                   (lbl === 'PB' || lbl === 'Débüt' || lbl === 'Debüt') ? 'badge badge-pb' :
+                   (lbl === 'PB' || lbl === 'Débüt') ? 'badge badge-pb' :
                    'badge badge-silver';
     var dotStyle = rek.extern ? 'background:var(--accent);' : '';
     if (!athletName) continue;
@@ -1555,7 +1643,7 @@ async function renderDashboard() {
           var fFmt  = fItem.fmt || '';
           var fRes  = fFmt === 'm' ? fmtMeter(fItem.resultat) : fmtTime(fItem.resultat, fFmt === 's' ? 's' : undefined);
           var fLblCls = (fLbl.indexOf('Gesamtbestleistung') >= 0 || fLbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
-                        (fLbl === 'PB' || fLbl === 'Débüt' || fLbl === 'Debüt') ? 'badge badge-pb' : 'badge badge-silver';
+                        (fLbl === 'PB' || fLbl === 'Débüt') ? 'badge badge-pb' : 'badge badge-silver';
           var fAthLink = fItem.athlet_id
             ? '<span class="athlet-link" style="color:var(--primary);font-weight:600" data-athlet-id="' + fItem.athlet_id + '">' + fItem.athlet + '</span>'
             : '<span style="color:var(--primary);font-weight:600">' + fItem.athlet + '</span>';
@@ -4728,7 +4816,7 @@ function timelineLabelType(lbl) {
   if (lbl === 'Gesamtbestleistung' || lbl === 'Erste Gesamtleistung') return 'gesamt';
   if (lbl === 'Bestleistung Männer' || lbl === 'Bestleistung Frauen' ||
       lbl === 'Erstes Ergebnis M'   || lbl === 'Erstes Ergebnis W') return 'gender';
-  if (lbl === 'PB' || lbl === 'Débüt' || lbl === 'Dë but') return 'pb';
+  if (lbl === 'PB' || lbl === 'Débüt') return 'pb';
   if (lbl.indexOf('Bestleistung') >= 0 || lbl.indexOf('Erste Leistung') >= 0) return 'ak';
   return 'pb'; // Fallback
 }
@@ -5226,9 +5314,14 @@ async function renderAdminDarstellung() {
     '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">&#x1F4CB; Footer &amp; Rechtliches</div></div>' +
       '<div class="settings-panel-body">' +
-        row('Datenschutz-URL', 'Link im Footer (leer = nicht anzeigen)', textIn('cfg-footer_datenschutz_url', cfgVal('footer_datenschutz_url',''), 'https://...')) +
-        row('Nutzungsbedingungen-URL', 'Link im Footer (leer = nicht anzeigen)', textIn('cfg-footer_nutzung_url', cfgVal('footer_nutzung_url',''), 'https://...')) +
-        row('Impressum-URL', 'Link im Footer (leer = nicht anzeigen)', textIn('cfg-footer_impressum_url', cfgVal('footer_impressum_url',''), 'https://...')) +
+        '<div style="padding:12px 20px;background:var(--surf2);border-radius:8px;margin:8px 20px 16px;font-size:13px;color:var(--text2)">' +
+          'Die Texte für Datenschutz, Nutzungsbedingungen und Impressum sind bereits mit Standardtexten vorbelegt. ' +
+          'Klicke im Footer auf einen Link um ihn direkt zu bearbeiten (als Admin). ' +
+          'Alternativ kannst du externe URLs hinterlegen – diese haben Vorrang vor den eingebetteten Seiten.' +
+        '</div>' +
+        row('Datenschutz: externe URL', 'Wenn gesetzt, öffnet sich diese URL statt der eingebetteten Seite', textIn('cfg-footer_datenschutz_url', cfgVal('footer_datenschutz_url',''), 'https://...')) +
+        row('Nutzungsbedingungen: externe URL', 'Wenn gesetzt, öffnet sich diese URL statt der eingebetteten Seite', textIn('cfg-footer_nutzung_url', cfgVal('footer_nutzung_url',''), 'https://...')) +
+        row('Impressum: externe URL', 'Wenn gesetzt, öffnet sich diese URL statt der eingebetteten Seite', textIn('cfg-footer_impressum_url', cfgVal('footer_impressum_url',''), 'https://...')) +
       '</div>' +
     '</div>' +
 
