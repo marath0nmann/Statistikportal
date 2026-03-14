@@ -1838,14 +1838,14 @@ if ($res === 'disziplin-mapping') {
             $disziplin = $neuer_name;
         }
 
-        // anzeige_name + fmt_override setzen (immer, auch wenn nur Rename)
-        if ($anzeige_name !== false || $fmt_override !== false) {
-            $sets = []; $params = [];
-            if ($anzeige_name !== false) { $sets[] = 'anzeige_name=?'; $params[] = $anzeige_name; }
-            if ($fmt_override  !== false) { $sets[] = 'fmt_override=?';  $params[] = $fmt_override;  }
-            $kat_sfx = isset($body['kat_suffix_override']) ? (trim($body['kat_suffix_override']) ?: null) : false;
-            if ($kat_sfx !== false) { $sets[] = 'kat_suffix_override=?'; $params[] = $kat_sfx; }
-            if (isset($body['hof_exclude'])) { $sets[] = 'hof_exclude=?'; $params[] = (int)$body['hof_exclude']; }
+        // Felder aktualisieren
+        $sets = []; $params = [];
+        if ($anzeige_name !== false) { $sets[] = 'anzeige_name=?'; $params[] = $anzeige_name; }
+        if ($fmt_override  !== false) { $sets[] = 'fmt_override=?';  $params[] = $fmt_override;  }
+        $kat_sfx = isset($body['kat_suffix_override']) ? (trim($body['kat_suffix_override']) ?: null) : false;
+        if ($kat_sfx !== false) { $sets[] = 'kat_suffix_override=?'; $params[] = $kat_sfx; }
+        if (isset($body['hof_exclude'])) { $sets[] = 'hof_exclude=?'; $params[] = (int)$body['hof_exclude']; }
+        if ($sets) {
             $params[] = $disziplin;
             DB::query("UPDATE " . DB::tbl('disziplin_mapping') . " SET " . implode(',', $sets) . " WHERE disziplin=?", $params);
         }
