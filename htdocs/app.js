@@ -123,6 +123,13 @@ function avatarHtml(avatarPfad, name, size, fontSize) {
   }
   return avatarFallback(initial, size, fontSize);
 }
+function nameInitials(name) {
+  if (!name) return '?';
+  var parts = name.trim().split(/[\s,]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return parts[0][0].toUpperCase();
+}
+
 function avatarFallback(initial, size, fontSize) {
   var fs = fontSize || Math.round((size || 28) * 0.38);
   return '<span style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;flex-shrink:0;background:var(--accent);color:var(--on-accent);display:inline-flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:' + fs + 'px;font-weight:600;">' + initial + '</span>';
