@@ -1683,9 +1683,10 @@ async function renderDashboard() {
 
   // ── Hall of Fame Daten (lazy: nur wenn Widget im Layout) ──
   var hofData = null;
-  async function getHofData(mergeAK) {
-    var param = mergeAK === false ? 'hall-of-fame?merge_ak=0' : 'hall-of-fame?merge_ak=1';
-    var rh = await apiGet(param);
+  async function getHofData(mergeAK, kats) {
+    var params = 'hall-of-fame?merge_ak=' + (mergeAK === false ? '0' : '1');
+    if (kats && kats.length) params += '&kat=' + encodeURIComponent(kats.join(','));
+    var rh = await apiGet(params);
     hofData = (rh && rh.ok) ? rh.data : [];
     return hofData;
   }
@@ -1927,7 +1928,11 @@ async function renderDashboard() {
       if ((layout[_ri2].cols[_ci2].widget||'') === 'hall-of-fame') hofWcfg = layout[_ri2].cols[_ci2];
     }
   }
-  if (hasHof) await getHofData(hofWcfg ? hofWcfg.hof_merge_ak !== false : true);
+  if (hasHof) {
+    var _hofMerge = hofWcfg ? hofWcfg.hof_merge_ak !== false : true;
+    var _hofKats  = (hofWcfg && hofWcfg.hof_kats && hofWcfg.hof_kats.length) ? hofWcfg.hof_kats : [];
+    await getHofData(_hofMerge, _hofKats);
+  }
 
   var layoutHtml = '';
   for (var ri = 0; ri < layout.length; ri++) {
@@ -5052,6 +5057,7 @@ function dashHofConfigHtml(ri, ci, col) {
   var limit       = col.hof_limit || '';
   var leaderboard = !!col.hof_leaderboard;
   var mergeAK     = col.hof_merge_ak !== false; // Standard: true
+  var selKats     = col.hof_kats || []; // leeres Array = alle
   return '<div style="padding:2px 0 6px">' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Konfiguration</div>' +
     '<div style="display:flex;flex-direction:column;gap:10px">' +
@@ -5069,6 +5075,20 @@ function dashHofConfigHtml(ri, ci, col) {
         '<input type="checkbox" data-hof="merge_ak" data-ri="' + ri + '" data-ci="' + ci + '"' + (mergeAK ? ' checked' : '') + ' onchange="dashUpdateLayout()">' +
         '<span>Jugend-AK zu MHK/WHK zusammenfassen</span>' +
       '</label>' +
+      (function() {
+        var kats = state.kategorien || [];
+        if (!kats.length) return '';
+        var katBoxes = '<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:2px">' +
+          '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Kategorien (leer = alle)</div>';
+        for (var ki = 0; ki < kats.length; ki++) {
+          var k = kats[ki];
+          var chk = !selKats.length || selKats.indexOf(k.tbl_key) >= 0 ? ' checked' : '';
+          katBoxes += '<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:2px 0;cursor:pointer">' +
+            '<input type="checkbox" data-hof-kat="' + k.tbl_key + '" data-ri="' + ri + '" data-ci="' + ci + '"' + chk + ' onchange="dashUpdateLayout()">' +
+            k.name + '</label>';
+        }
+        return katBoxes + '</div>';
+      })() +
     '</div>' +
   '</div>';
 }
@@ -5300,6 +5320,17 @@ function dashUpdateLayout() {
         }
         // merge_ak default true wenn nicht explizit gesetzt
         if (cols[ci].hof_merge_ak === undefined) cols[ci].hof_merge_ak = true;
+        // Kategorien-Checkboxen lesen
+        var katBoxes = document.querySelectorAll('input[data-hof-kat][data-ri="' + ri + '"][data-ci="' + ci + '"]');
+        if (katBoxes.length) {
+          var checkedKats = [];
+          var allChecked = true;
+          for (var kbi = 0; kbi < katBoxes.length; kbi++) {
+            if (katBoxes[kbi].checked) checkedKats.push(katBoxes[kbi].dataset.hofKat);
+            else allChecked = false;
+          }
+          cols[ci].hof_kats = allChecked ? [] : checkedKats; // leer = alle
+        }
       }
       if (cols[ci].widget === 'veranstaltungen') {
         var vcBoxes = document.querySelectorAll('input[data-vc-id][data-ri="' + ri + '"][data-ci="' + ci + '"]');
