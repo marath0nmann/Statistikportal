@@ -1,6 +1,4 @@
-v409: Fix diszMitKat + Timeline: kein falscher Kategorie-Suffix
+v410: Fix HoF: 800m Bahn/Straße/Halle getrennt per mapping_id
 
-- diszMitKat(): bei mehrdeutigem Name (z.B. 800m in 3 Kategorien)
-  kein Suffix anzeigen statt falschen; mit mapping_id exakt
-- Timeline diszLink: ergDiszLabel(rek) statt diszMitKat(rek.disziplin)
-  → nutzt kategorie_name direkt aus API-Response
+WHERE e.disziplin=? → WHERE e.disziplin_mapping_id=?
+Dadurch keine dreifachen AK-Einträge mehr.
