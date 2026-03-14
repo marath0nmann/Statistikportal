@@ -1,6 +1,4 @@
-v366: Dashboard-Editor: max. 4 Spalten, Grid-Layout
+v367: Fix Hall of Fame "Noch keine Daten"
 
-- Spalten-Container: flex → grid mit auto-fill minmax(220px,1fr)
-  → bricht automatisch in neue Zeilen bei wenig Platz
-- "+ Spalte"-Button wird ab 4 Spalten ausgeblendet
-- dashAddCol: Schutz gegen > 4 Spalten
+SQL-Bug: ($akExpr) als Klammer-Ausdruck in SELECT ist ungültig.
+Korrekt: ... . $akExpr . " AS altersklasse"
