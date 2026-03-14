@@ -1798,10 +1798,24 @@ if ($res === 'disziplin-mapping') {
             try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS hof_exclude TINYINT(1) NOT NULL DEFAULT 0"); } catch (Exception $e) {}
         } catch (Exception $e) { /* ignorieren – Spalten existieren bereits */ }
 
-        // Disziplin umbenennen in einheitlicher Tabelle
+        // Disziplin umbenennen – in Transaktion damit beide Updates atomar sind
         if ($neuer_name && $neuer_name !== $disziplin) {
-            DB::query("UPDATE " . DB::tbl('ergebnisse') . " SET disziplin=? WHERE disziplin=?", [$neuer_name, $disziplin]);
-            DB::query("UPDATE " . DB::tbl('disziplin_mapping') . " SET disziplin=? WHERE disziplin=?", [$neuer_name, $disziplin]);
+            // Prüfen ob Zielname bereits in mapping existiert (würde Unique-Key verletzen)
+            $exists = DB::fetchOne("SELECT 1 FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$neuer_name]);
+            if ($exists) {
+                jsonErr('Disziplin „' . $neuer_name . '" existiert bereits in der Zuordnungstabelle.', 409);
+                exit;
+            }
+            DB::get()->beginTransaction();
+            try {
+                DB::query("UPDATE " . DB::tbl('ergebnisse') . " SET disziplin=? WHERE disziplin=?", [$neuer_name, $disziplin]);
+                DB::query("UPDATE " . DB::tbl('disziplin_mapping') . " SET disziplin=? WHERE disziplin=?", [$neuer_name, $disziplin]);
+                DB::get()->commit();
+            } catch (Exception $e) {
+                DB::get()->rollBack();
+                jsonErr('Umbenennung fehlgeschlagen: ' . $e->getMessage(), 500);
+                exit;
+            }
             $disziplin = $neuer_name;
         }
 
