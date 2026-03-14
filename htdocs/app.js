@@ -1705,7 +1705,9 @@ async function renderDashboard() {
 
   // Letzte 5 Veranstaltungen
   var veranstHtml = '';
-  var rv = await apiGet('veranstaltungen?limit=5&offset=0');
+  var _vLimit = 5;
+  if (layout) { for (var _vri=0;_vri<layout.length;_vri++) { for (var _vci=0;_vci<(layout[_vri].cols||[]).length;_vci++) { var _vc=layout[_vri].cols[_vci]; if (_vc.widget==='veranstaltungen' && _vc.veranst_limit) _vLimit=parseInt(_vc.veranst_limit)||5; } } }
+  var rv = await apiGet('veranstaltungen?limit=' + _vLimit + '&offset=0');
   var veranst = (rv && rv.ok && rv.data.veranst) ? rv.data.veranst : [];
   for (var vi = 0; vi < veranst.length; vi++) {
     var v = veranst[vi];
@@ -5172,7 +5174,7 @@ async function renderAdminDashboard() {
   renderAdminDashboardUI(layout);
 }
 
-function dashVeranstConfigHtml(ri, ci, col_order, hidden_cols) {
+function dashVeranstConfigHtml(ri, ci, col_order, hidden_cols, col) {
   var hidden = hidden_cols || [];
   var order  = col_order && col_order.length === VERANST_COL_DEFS.length
                  ? col_order : VERANST_COL_DEFS.map(function(c){return c.id;});
@@ -5200,7 +5202,13 @@ function dashVeranstConfigHtml(ri, ci, col_order, hidden_cols) {
         '</span>' +
       '</div>';
   }
+  var veranstLimit = col && col.veranst_limit ? col.veranst_limit : 5;
   return '<div style="padding:2px 0 6px">' +
+    '<label style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:12px">' +
+      '<span style="min-width:120px;color:var(--text2)">Anzahl Veranstaltungen</span>' +
+      '<input type="number" id="veranst-limit-' + ri + '-' + ci + '" value="' + veranstLimit + '" min="1" max="50" ' +
+      'class="settings-input" style="width:70px" onchange="dashUpdateLayout()">' +
+    '</label>' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Spalten</div>' +
     rows +
   '</div>';
@@ -5308,7 +5316,7 @@ function dashTimelineConfigHtml(ri, ci, hidden_types, prio_order) {
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Neueste Bestleistungen</div>' +
     '<label style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:12px">' +
       '<span style="min-width:120px;color:var(--text2)">Anzahl Einträge</span>' +
-      '<input type="number" id="tl-limit-' + ri + '-' + ci + '" value="' + (prio_order && prio_order._limit ? prio_order._limit : appConfig.dashboard_timeline_limit || 20) + '" min="5" max="200" ' +
+      '<input type="number" id="tl-limit-' + ri + '-' + ci + '" value="' + (col.tl_limit || prio_order && prio_order._limit || appConfig.dashboard_timeline_limit || 20) + '" min="5" max="200" ' +
       'class="settings-input" style="width:70px" onchange="dashUpdateLayout()">' +
     '</label>' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Angezeigte Typen &amp; Priorität</div>' +
@@ -5401,7 +5409,7 @@ function renderAdminDashboardUI(layout) {
       var widgetConfig = '';
       if (col.widget === 'stats')          widgetConfig = dashStatsConfigHtml(ri, ci, col.cards);
       if (col.widget === 'timeline')       widgetConfig = dashTimelineConfigHtml(ri, ci, col.hidden_types, col.prio_order);
-      if (col.widget === 'veranstaltungen') widgetConfig = dashVeranstConfigHtml(ri, ci, col.col_order, col.hidden_cols);
+      if (col.widget === 'veranstaltungen') widgetConfig = dashVeranstConfigHtml(ri, ci, col.col_order, col.hidden_cols, col);
       if (col.widget === 'hall-of-fame')      widgetConfig = dashHofConfigHtml(ri, ci, col);
       colsHtml +=
         '<div style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;background:var(--surf2);border-radius:10px;padding:14px">' +
@@ -5504,7 +5512,9 @@ function dashUpdateLayout() {
         }
         // merge_ak default true wenn nicht explizit gesetzt
         if (cols[ci].hof_merge_ak === undefined) cols[ci].hof_merge_ak = true;
-        // Kategorien-Checkboxen lesen
+        var veranstLimitEl = document.getElementById('veranst-limit-' + ri + '-' + ci);
+      if (veranstLimitEl) { var vl = parseInt(veranstLimitEl.value); cols[ci].veranst_limit = isNaN(vl)||vl<1?5:vl; }
+      // Kategorien-Checkboxen lesen
         var katBoxes = document.querySelectorAll('input[data-hof-kat][data-ri="' + ri + '"][data-ci="' + ci + '"]');
         if (katBoxes.length) {
           var checkedKats = [];
