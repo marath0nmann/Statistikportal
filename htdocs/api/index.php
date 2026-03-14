@@ -2122,73 +2122,151 @@ if ($res === 'papierkorb') {
 // HALL OF FAME
 // ============================================================
 if ($res === 'hall-of-fame' && $method === 'GET') {
-    // $unified ist global bereits gesetzt
+    // Immer: aktuell gültige Bestleistungen (= bestes Ergebnis je Kategorie über alle Zeiten)
     $athletMap = [];
 
     if ($unified) {
+        // Alle Disziplinen laden, zusammen mit dem Formathinweis aus disziplin_mapping
         $diszList = DB::fetchAll(
-            "SELECT DISTINCT disziplin FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NULL AND resultat IS NOT NULL ORDER BY disziplin"
+            "SELECT DISTINCT e.disziplin
+             FROM " . DB::tbl('ergebnisse') . " e
+             WHERE e.geloescht_am IS NULL AND e.resultat IS NOT NULL
+             ORDER BY e.disziplin"
         );
+
+        // Jugend-AK zusammenfassen: identische CASE-Logik wie unter Bestleistungen
+        $mergeAK = ($_GET['merge_ak'] ?? '1') !== '0';
+        $akExpr  = $mergeAK
+            ? "CASE
+                WHEN e.altersklasse IN ('MHK','M','MU8','MU10-12','MU18','MU20','MU23','mJB','mjA','mjB','U18')
+                     OR (e.altersklasse REGEXP '^M[0-9]+\$' AND CAST(SUBSTRING(e.altersklasse,2) AS UNSIGNED) < 30)
+                  THEN 'MHK'
+                WHEN e.altersklasse IN ('WHK','W','F','WU8','WU10-U12','WU18','WU23','wjA','wjB')
+                     OR (e.altersklasse REGEXP '^W[0-9]+\$' AND CAST(SUBSTRING(e.altersklasse,2) AS UNSIGNED) < 30)
+                  THEN 'WHK'
+                ELSE e.altersklasse
+              END"
+            : "e.altersklasse";
+
         foreach ($diszList as $dRow) {
             $disz = $dRow['disziplin'];
+
+            // Alle Ergebnisse dieser Disziplin laden (mit Athleten- und Datum-Info)
             $ergs = DB::fetchAll(
-                "SELECT e.resultat, e.resultat_num AS val_sort, e.altersklasse, a.id AS athlet_id, a.name_nv, a.vorname, a.nachname, a.geschlecht,
+                "SELECT e.resultat, e.resultat_num, ($akExpr) AS altersklasse,
+                        a.id AS athlet_id, a.name_nv, a.vorname, a.nachname, a.geschlecht,
                         b.avatar_pfad, v.datum
                  FROM " . DB::tbl('ergebnisse') . " e
                  JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
                  JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
                  LEFT JOIN " . DB::tbl('benutzer') . " b ON b.athlet_id = a.id
-                 WHERE e.disziplin = ? AND e.geloescht_am IS NULL AND e.resultat IS NOT NULL
+                 WHERE e.disziplin = ? AND e.geloescht_am IS NULL
+                   AND e.resultat IS NOT NULL AND e.resultat_num IS NOT NULL AND e.resultat_num > 0
                  ORDER BY v.datum ASC",
                 [$disz]
             );
             if (empty($ergs)) continue;
+
+            // Sortierrichtung: Zeitdisziplinen ASC (kleiner = besser), Weite/Höhe DESC
             $firstRes = $ergs[0]['resultat'] ?? '';
-            $dir = (preg_match('/^\d{2}:\d{2}:\d{2}/', $firstRes) || preg_match('/^\d{2}:\d{2}/', $firstRes)) ? 'ASC' : 'DESC';
-            $bestGesamt = null; $bestGesamtAid = null; $bestGesamtDatum = null;
-            $bestByG = []; $bestGAid = []; $bestGDatum = [];
-            $bestByAK = []; $bestAKAid = []; $bestAKDatum = [];
+            $isTime = preg_match('/^\d{1,2}:\d{2}/', $firstRes);
+            $dir = $isTime ? 'ASC' : 'DESC';
+
+            // Athleten-Map befüllen (einmalig pro Athlet)
             foreach ($ergs as $e) {
-                $val = (float)($e['val_sort'] ?? 0);
                 $aid = (int)$e['athlet_id'];
-                $g   = $e['geschlecht'] ?? '';
-                $ak  = $e['altersklasse'] ?? '';
+                if (!isset($athletMap[$aid])) {
+                    $vn = trim($e['vorname'] ?? '');
+                    $nn = trim($e['nachname'] ?? '');
+                    $athletMap[$aid] = [
+                        'id'     => $aid,
+                        'name'   => $vn ? ($vn . ' ' . $nn) : $e['name_nv'],
+                        'avatar' => $e['avatar_pfad'],
+                        'titel'  => [],
+                    ];
+                }
+            }
+
+            // Bestleistungen ermitteln: bestes Ergebnis je Kategorie
+            $bestGesamt = null; $bestGesamtAid = null; $bestGesamtDatum = null;
+            $bestByG    = []; $bestGAid = []; $bestGDatum = [];
+            $bestByAK   = []; $bestAKAid = []; $bestAKDatum = [];
+
+            foreach ($ergs as $e) {
+                $val   = (float)$e['resultat_num'];
+                $aid   = (int)$e['athlet_id'];
+                $g     = $e['geschlecht'] ?? '';
+                $ak    = $e['altersklasse'] ?? '';
                 $datum = $e['datum'] ?? '';
-                if (!isset($athletMap[$aid]))
-                    $vn = trim($e['vorname'] ?? ''); $nn = trim($e['nachname'] ?? ''); $athletMap[$aid] = ['id' => $aid, 'name' => ($vn ? $vn . ' ' . $nn : $e['name_nv']), 'avatar' => $e['avatar_pfad'], 'titel' => []];
-                if ($bestGesamt === null || ($dir==='ASC' ? $val < $bestGesamt : $val > $bestGesamt)) {
+
+                // 1. Gesamtbestleistung
+                if ($bestGesamt === null
+                    || ($dir === 'ASC'  && $val < $bestGesamt)
+                    || ($dir === 'DESC' && $val > $bestGesamt)) {
                     $bestGesamt = $val; $bestGesamtAid = $aid; $bestGesamtDatum = $datum;
                 }
+
+                // 2. Bestleistung je Geschlecht
                 if ($g === 'M' || $g === 'W') {
-                    if (!isset($bestByG[$g]) || ($dir==='ASC' ? $val < $bestByG[$g] : $val > $bestByG[$g])) {
+                    if (!isset($bestByG[$g])
+                        || ($dir === 'ASC'  && $val < $bestByG[$g])
+                        || ($dir === 'DESC' && $val > $bestByG[$g])) {
                         $bestByG[$g] = $val; $bestGAid[$g] = $aid; $bestGDatum[$g] = $datum;
                     }
                 }
-                if ($ak) {
-                    if (!isset($bestByAK[$ak]) || ($dir==='ASC' ? $val < $bestByAK[$ak] : $val > $bestByAK[$ak])) {
+
+                // 3. Bestleistung je Altersklasse
+                if ($ak !== '') {
+                    if (!isset($bestByAK[$ak])
+                        || ($dir === 'ASC'  && $val < $bestByAK[$ak])
+                        || ($dir === 'DESC' && $val > $bestByAK[$ak])) {
                         $bestByAK[$ak] = $val; $bestAKAid[$ak] = $aid; $bestAKDatum[$ak] = $datum;
                     }
                 }
             }
-            $add = function($aid, $label, $datum) use ($disz, &$athletMap) {
-                if (isset($athletMap[$aid])) $athletMap[$aid]['titel'][] = ['disziplin' => $disz, 'label' => $label, 'datum' => $datum];
+
+            // Titel zuweisen (nur wenn Athlet in athletMap bekannt)
+            $addTitel = function(int $aid, string $label, string $datum) use ($disz, &$athletMap): void {
+                if (isset($athletMap[$aid])) {
+                    $athletMap[$aid]['titel'][] = ['disziplin' => $disz, 'label' => $label, 'datum' => $datum];
+                }
             };
-            if ($bestGesamtAid) $add($bestGesamtAid, 'Gesamtbestleistung', $bestGesamtDatum);
-            foreach ($bestGAid as $g => $aid) $add($aid, ($g==='M' ? 'Bestleistung Männer' : 'Bestleistung Frauen'), $bestGDatum[$g]);
-            foreach ($bestAKAid as $ak => $aid) $add($aid, 'Bestleistung ' . $ak, $bestAKDatum[$ak]);
+
+            if ($bestGesamtAid !== null) {
+                $addTitel($bestGesamtAid, 'Gesamtbestleistung', $bestGesamtDatum);
+            }
+            foreach ($bestGAid as $g => $aid) {
+                // Geschlechts-Best nur wenn nicht identisch mit Gesamt (vermeide Doppelzählung im Titel)
+                $addTitel($aid, $g === 'M' ? 'Bestleistung Männer' : 'Bestleistung Frauen', $bestGDatum[$g]);
+            }
+            foreach ($bestAKAid as $ak => $aid) {
+                $addTitel($aid, 'Bestleistung ' . $ak, $bestAKDatum[$ak]);
+            }
         }
     }
 
-    $hof = array_values(array_filter($athletMap, function($a){ return !empty($a['titel']); }));
+    // Nur Athleten mit mindestens einem Titel
+    $hof = array_values(array_filter($athletMap, function ($a) {
+        return !empty($a['titel']);
+    }));
+
+    // Titel je Athlet nach Disziplin gruppieren
     foreach ($hof as &$ath) {
         $byDisz = [];
-        foreach ($ath['titel'] as $t) $byDisz[$t['disziplin']][] = ['label' => $t['label'], 'datum' => $t['datum']];
+        foreach ($ath['titel'] as $t) {
+            $byDisz[$t['disziplin']][] = ['label' => $t['label'], 'datum' => $t['datum']];
+        }
         $ath['disziplinen'] = $byDisz;
         $ath['titelCount']  = array_sum(array_map('count', $byDisz));
         unset($ath['titel']);
     }
     unset($ath);
-    usort($hof, function($a,$b){ return $b['titelCount'] - $a['titelCount']; });
+
+    // Absteigende Sortierung nach Titelanzahl
+    usort($hof, function ($a, $b) {
+        return $b['titelCount'] - $a['titelCount'];
+    });
+
     jsonOk($hof);
 }
 
