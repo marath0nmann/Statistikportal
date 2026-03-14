@@ -436,13 +436,13 @@ tr:hover td { background: var(--surf2); }
 .medal-badge.rank   { background: var(--surf2); color: var(--text2); border: 1.5px solid var(--border); font-size: 12px; }
 
 /* Dark Mode */
-[data-theme="dark"] .medal-badge.gold   { background: #2a1f00; color: #ffd87a; border-color: #7a5c00; }
-[data-theme="dark"] .medal-badge.silver { background: #1e1e1e; color: #d8d8d8; border-color: #484848; }
-[data-theme="dark"] .medal-badge.bronze { background: #1f0e00; color: #f0b070; border-color: #7a3d00; }
+[data-theme="dark"] .medal-badge.gold   { background: #fff8e0; color: #7a5200; border-color: #f5c518; }
+[data-theme="dark"] .medal-badge.silver { background: #f4f4f4; color: #555;    border-color: #d0d0d0; }
+[data-theme="dark"] .medal-badge.bronze { background: #fdf0e6; color: #7a3d00; border-color: #cd7f32; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .medal-badge.gold   { background: #2a1f00; color: #ffd87a; border-color: #7a5c00; }
-  :root:not([data-theme="light"]) .medal-badge.silver { background: #1e1e1e; color: #d8d8d8; border-color: #484848; }
-  :root:not([data-theme="light"]) .medal-badge.bronze { background: #1f0e00; color: #f0b070; border-color: #7a3d00; }
+  :root:not([data-theme="light"]) .medal-badge.gold   { background: #fff8e0; color: #7a5200; border-color: #f5c518; }
+  :root:not([data-theme="light"]) .medal-badge.silver { background: #f4f4f4; color: #555;    border-color: #d0d0d0; }
+  :root:not([data-theme="light"]) .medal-badge.bronze { background: #fdf0e6; color: #7a3d00; border-color: #cd7f32; }
 }
 .top-info { flex: 1; }
 .top-name { font-weight: 600; font-size: 14px; }

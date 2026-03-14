@@ -1,4 +1,4 @@
-v354: Fix Avatar-Anzeige im Konto-Modal
+v356: Fix Hall of Fame: val_sort → resultat_num
 
-- Avatar jetzt in profile-avatar-Div eingebettet (overflow:hidden)
-- profile-avatar CSS: overflow:hidden ergänzt
+Spalte heißt in der ergebnisse-Tabelle resultat_num, nicht val_sort.
+Deshalb wurden alle Werte als NULL gelesen und keine Bestleistungen erkannt.
