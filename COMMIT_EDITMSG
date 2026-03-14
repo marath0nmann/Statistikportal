@@ -1,5 +1,5 @@
-v330: Bulk-Eintragen: AK wird nach Athleten-Auswahl automatisch vorbelegt
+v331: Dashboard: responsive Layout für Smartphones
 
-calcDlvAK() mit Geburtsjahr + Geschlecht aus den Athleten-Daten und
-dem Jahr der gewählten Veranstaltung (bzw. heutigem Jahr als Fallback).
-Vorhandener AK-Wert wird nicht überschrieben.
+.dash-row mit repeat(auto-fit, minmax(var(--dash-min), 1fr)):
+Spalten umbrechen automatisch wenn der Platz nicht reicht,
+ohne feste Breakpoints – funktioniert für alle Bildschirmbreiten.

@@ -197,6 +197,13 @@ main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
 
 /* ── STATS BAR ── */
 .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 24px; }
+
+/* Dashboard-Zeile: umbrechen wenn Spalten zu schmal werden */
+.dash-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--dash-min, 280px), 1fr));
+  gap: 20px;
+}
 .stat-card-wrap { display: contents; } /* im Grid-Kontext transparent */
 .stat-card {
   background: var(--surface); border: 1px solid var(--border);
