@@ -2168,7 +2168,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
 
             // Alle Ergebnisse dieser Disziplin laden (mit Athleten- und Datum-Info)
             $ergs = DB::fetchAll(
-                "SELECT e.resultat, e.resultat_num, ($akExpr) AS altersklasse,
+                "SELECT e.resultat, e.resultat_num, " . $akExpr . " AS altersklasse,
                         a.id AS athlet_id, a.name_nv, a.vorname, a.nachname, a.geschlecht,
                         b.avatar_pfad, v.datum
                  FROM " . DB::tbl('ergebnisse') . " e
