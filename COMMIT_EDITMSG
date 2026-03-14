@@ -1,6 +1,7 @@
-v407: Fix Ergebnisse-Filter: Disziplin per mapping_id statt Name
+v408: Fix Bestleistungen/Rekorde: Disziplin per mapping_id statt Name
 
-- Disziplin-Dropdown zeigt "800m (Bahn)", "800m (Straße)", "800m (Halle)"
-- Filter sendet disziplin_mapping_id statt e.disziplin
-- API filtert per disziplin_mapping_id=? (exakt eine Kategorie)
-- Kategorien-Filter nutzt jetzt auch mapping_id
+- Bestleistungen (Timeline): diszMap nach mapping_id gruppiert
+  → 800m Bahn, 800m Straße, 800m Halle sind 3 separate Einträge
+- Rekorde top-disziplinen + disziplinen: COUNT per mapping_id
+- Rekorde-Queries: WHERE disziplin_mapping_id=? statt disziplin=?
+- Frontend: mapping_id in setRekDisz, API-Call, Disziplin-Buttons

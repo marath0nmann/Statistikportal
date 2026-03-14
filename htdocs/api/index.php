@@ -706,13 +706,15 @@ if ($res === 'dashboard' && $method === 'GET') {
             ['tbl'=>'ergebnisse_sprungwurf',    'fmt_fallback'=>'m'],
           ];
 
-    // Alle Disziplinen mit fmt sammeln (über alle Tabellen)
+    // Alle Disziplinen mit fmt sammeln – nach mapping_id gruppieren (eindeutig!)
     $diszMap = [];
     foreach ($tblsForTimeline as $tblInfo) {
         $tblN = $tblInfo['tbl'];
         $fmtFb = $tblInfo['fmt_fallback'];
         $rows = DB::fetchAll(
-            "SELECT DISTINCT e.disziplin, COALESCE(m.fmt_override, k.fmt, ?) AS fmt
+            "SELECT DISTINCT e.disziplin, e.disziplin_mapping_id,
+                    COALESCE(m.fmt_override, k.fmt, ?) AS fmt,
+                    k.name AS kategorie_name
              FROM $tblN e
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
@@ -720,25 +722,44 @@ if ($res === 'dashboard' && $method === 'GET') {
             [$fmtFb]
         );
         foreach ($rows as $r) {
-            if (!isset($diszMap[$r['disziplin']])) {
-                $diszMap[$r['disziplin']] = ['fmt'=>$r['fmt'], 'tbl'=>$tblN];
+            // Schlüssel = mapping_id wenn vorhanden, sonst disziplin-Name
+            $key = $r['disziplin_mapping_id'] ? 'm'.$r['disziplin_mapping_id'] : 'd_'.$r['disziplin'];
+            if (!isset($diszMap[$key])) {
+                $diszMap[$key] = [
+                    'fmt'           => $r['fmt'],
+                    'tbl'           => $tblN,
+                    'disziplin'     => $r['disziplin'],
+                    'mapping_id'    => $r['disziplin_mapping_id'],
+                    'kategorie_name'=> $r['kategorie_name'] ?? null,
+                ];
             }
         }
     }
+    // Sortieren
+    uasort($diszMap, function($a, $b) {
+        $ka = diszSortKey($a['disziplin']); $kb = diszSortKey($b['disziplin']);
+        return $ka !== $kb ? $ka <=> $kb : strcmp($a['disziplin'], $b['disziplin']);
+    });
 
     $timelineEvents = [];
-    foreach ($diszMap as $disz => $dInfo) {
-        $fmt  = $dInfo['fmt'] ?? 'min';
-        $tblN = $dInfo['tbl'];
-        $dir  = ($fmt === 'm') ? 'DESC' : 'ASC';
+    foreach ($diszMap as $dKey => $dInfo) {
+        $fmt      = $dInfo['fmt'] ?? 'min';
+        $tblN     = $dInfo['tbl'];
+        $disz     = $dInfo['disziplin'];
+        $mappingId= $dInfo['mapping_id'];
+        $dir      = ($fmt === 'm') ? 'DESC' : 'ASC';
 
-        // val_sort: für Meter resultat_num, für Zeiten TIME_TO_SEC oder direkt als float
         if ($fmt === 'm') {
             $valExpr = "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))";
         } else {
-            // Zeitwert: HH:MM:SS -> Sekunden für korrekten numerischen Vergleich
             $valExpr = "CASE WHEN e.resultat REGEXP '^[0-9]+:[0-9]' THEN TIME_TO_SEC(e.resultat) ELSE CAST(e.resultat AS DECIMAL(10,3)) END";
         }
+
+        // Filter: per mapping_id wenn vorhanden, sonst per disziplin-Name
+        $ergWhere = $mappingId
+            ? "e.disziplin_mapping_id=?"
+            : "e.disziplin=? AND e.disziplin_mapping_id IS NULL";
+        $ergParam = $mappingId ? (int)$mappingId : $disz;
 
         $ergs = DB::fetchAll(
             "SELECT e.resultat, $valExpr AS val_sort, v.datum, e.altersklasse,
@@ -746,10 +767,10 @@ if ($res === 'dashboard' && $method === 'GET') {
              FROM $tblN e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
-             WHERE e.disziplin=? AND e.resultat IS NOT NULL AND e.resultat != ''
+             WHERE $ergWhere AND e.resultat IS NOT NULL AND e.resultat != ''
                AND e.geloescht_am IS NULL
              ORDER BY v.datum ASC, e.id ASC",
-            [$disz]
+            [$ergParam]
         );
 
         $bestGesamt   = null;
@@ -839,15 +860,17 @@ if ($res === 'dashboard' && $method === 'GET') {
                 // vorher_resultat: numerischen Wert zurück in Rohformat umrechnen ist komplex –
                 // wir geben stattdessen den val-Wert (Sekunden/Meter) zurück; Frontend formatiert ihn
                 $timelineEvents[] = [
-                    'datum'          => $datum,
-                    'disziplin'      => $disz,
-                    'athlet'         => $e['athlet'],
-                    'athlet_id'      => $e['athlet_id'],
-                    'resultat'       => $e['resultat'],
-                    'vorher_val'     => $vorher,   // numerischer Vorher-Wert (null = erstes Ergebnis)
-                    'label'          => implode(' + ', $labels),
-                    'fmt'            => $fmt,
-                    'priority'       => $prio,
+                    'datum'               => $datum,
+                    'disziplin'           => $disz,
+                    'disziplin_mapping_id'=> $mappingId,
+                    'kategorie_name'      => $dInfo['kategorie_name'] ?? null,
+                    'athlet'              => $e['athlet'],
+                    'athlet_id'           => $e['athlet_id'],
+                    'resultat'            => $e['resultat'],
+                    'vorher_val'          => $vorher,
+                    'label'               => implode(' + ', $labels),
+                    'fmt'                 => $fmt,
+                    'priority'            => $prio,
                 ];
             }
         }
@@ -1438,26 +1461,25 @@ if ($res === 'rekorde') {
         if (!isset($katInfo[$k])) $katInfo[$k] = ['tbl_key'=>$k,'sort_dir'=>$v[1],'fmt'=>$v[2]];
     }
 
-    // Disziplinen einer Kategorie ermitteln
+    // Disziplinen einer Kategorie ermitteln – gibt [{disziplin, mapping_id}] zurück
     $getDiszByKat = function(string $kat_key) use ($unified, $sys_tbls): array {
-        // Versuche Mapping
         try {
             $kr = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_kategorien') . " WHERE tbl_key=?", [$kat_key]);
             if ($kr) {
-                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM " . DB::tbl('disziplin_mapping') . " WHERE kategorie_id=?", [$kr['id']]);
-                if ($cnt && (int)$cnt['c'] > 0) {
-                    $rows = DB::fetchAll("SELECT disziplin FROM " . DB::tbl('disziplin_mapping') . " WHERE kategorie_id=? ORDER BY disziplin", [$kr['id']]);
-                    return array_column($rows, 'disziplin');
+                $rows = DB::fetchAll("SELECT id AS mapping_id, disziplin FROM " . DB::tbl('disziplin_mapping') . " WHERE kategorie_id=?", [$kr['id']]);
+                if ($rows) {
+                    sortDisziplinen($rows);
+                    return $rows;
                 }
             }
         } catch (Exception $e) {}
-        // Kein Mapping: direkt aus der richtigen Tabelle
+        // Fallback: direkt aus Ergebnisse (ohne Mapping)
         $tbl = $unified ? 'ergebnisse' : ($sys_tbls[$kat_key][0] ?? null);
         if (!$tbl) return [];
         try {
-            $where = $unified ? "WHERE 1=1" : "WHERE 1=1"; // unified hat keine tbl-Trennung mehr
-            $rows = DB::fetchAll("SELECT DISTINCT disziplin FROM $tbl WHERE disziplin IS NOT NULL AND disziplin != '' ORDER BY disziplin");
-            return array_column($rows, 'disziplin');
+            $rows = DB::fetchAll("SELECT DISTINCT disziplin, NULL AS mapping_id FROM $tbl WHERE disziplin IS NOT NULL AND disziplin != '' AND geloescht_am IS NULL");
+            sortDisziplinen($rows);
+            return $rows;
         } catch (Exception $e) { return []; }
     };
 
@@ -1476,13 +1498,17 @@ if ($res === 'rekorde') {
     // GET rekorde/top-disziplinen?kat=
     if ($method === 'GET' && $id === 'top-disziplinen') {
         $kat  = $_GET['kat'] ?? '';
-        $disz = $getDiszByKat($kat);
-        if (!$disz) jsonOk([]);
+        $diszList = $getDiszByKat($kat);
+        if (!$diszList) jsonOk([]);
         $counts = [];
-        foreach ($disz as $d) {
-            $tbl = $getTblForDisz($d);
-            $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin=? AND geloescht_am IS NULL", [$d]);
-            $counts[] = ['disziplin' => $d, 'cnt' => $cnt ? (int)$cnt['c'] : 0];
+        foreach ($diszList as $d) {
+            $tbl = $getTblForDisz($d['disziplin']);
+            if ($d['mapping_id']) {
+                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin_mapping_id=? AND geloescht_am IS NULL", [$d['mapping_id']]);
+            } else {
+                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin=? AND disziplin_mapping_id IS NULL AND geloescht_am IS NULL", [$d['disziplin']]);
+            }
+            $counts[] = ['disziplin' => $d['disziplin'], 'mapping_id' => $d['mapping_id'], 'cnt' => $cnt ? (int)$cnt['c'] : 0];
         }
         usort($counts, function($a,$b){ return $b['cnt'] - $a['cnt']; });
         jsonOk(array_slice($counts, 0, 5));
@@ -1491,26 +1517,40 @@ if ($res === 'rekorde') {
     // GET rekorde/disziplinen?kat=
     if ($method === 'GET' && $id === 'disziplinen') {
         $kat  = $_GET['kat'] ?? '';
-        $disz = $getDiszByKat($kat);
+        $diszList = $getDiszByKat($kat);
         $result = [];
-        foreach ($disz as $d) {
-            $tbl = $getTblForDisz($d);
-            $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin=? AND geloescht_am IS NULL", [$d]);
-            $result[] = ['disziplin' => $d, 'cnt' => $cnt ? (int)$cnt['c'] : 0];
+        foreach ($diszList as $d) {
+            $tbl = $getTblForDisz($d['disziplin']);
+            if ($d['mapping_id']) {
+                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin_mapping_id=? AND geloescht_am IS NULL", [$d['mapping_id']]);
+            } else {
+                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin=? AND disziplin_mapping_id IS NULL AND geloescht_am IS NULL", [$d['disziplin']]);
+            }
+            $result[] = ['disziplin' => $d['disziplin'], 'mapping_id' => $d['mapping_id'], 'cnt' => $cnt ? (int)$cnt['c'] : 0];
         }
         usort($result, function($a,$b){ return $b['cnt'] - $a['cnt']; });
         jsonOk($result);
     }
 
-    // GET rekorde?kat=&disz=
+    // GET rekorde?kat=&disz=&mapping_id=
     if ($method === 'GET' && !$id) {
-        $kat  = $_GET['kat']  ?? '';
-        $disz = $_GET['disz'] ?? '';
+        $kat       = $_GET['kat']        ?? '';
+        $disz      = $_GET['disz']       ?? '';
+        $mappingId = isset($_GET['mapping_id']) && is_numeric($_GET['mapping_id']) ? (int)$_GET['mapping_id'] : null;
         if (!$kat || !$disz) jsonErr('kat und disz erforderlich.', 400);
 
         $tbl = $getTblForDisz($disz);
         $dir = $katInfo[$kat]['sort_dir'] ?? 'ASC';
         $fmt = $katInfo[$kat]['fmt']      ?? 'min';
+
+        // Filter-Kondition und Parameter je nach mapping_id
+        if ($mappingId) {
+            $diszCond  = "e.disziplin_mapping_id=?";
+            $diszParam = $mappingId;
+        } else {
+            $diszCond  = "e.disziplin=?";
+            $diszParam = $disz;
+        }
 
         $nameExpr = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
         $joinVer  = "JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id";
@@ -1536,35 +1576,35 @@ if ($res === 'rekorde') {
             "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
              FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
-             WHERE e.disziplin=? AND e.geloescht_am IS NULL
+             WHERE $diszCond AND e.geloescht_am IS NULL
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
-             ORDER BY $sortCol $dir LIMIT 50", [$disz]);
+             ORDER BY $sortCol $dir LIMIT 50", [$diszParam]);
 
         $top_m = DB::fetchAll(
             "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id
              FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
-             WHERE e.disziplin=? AND e.geloescht_am IS NULL
+             WHERE $diszCond AND e.geloescht_am IS NULL
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
                AND (a.geschlecht='M' OR (a.geschlecht IS NULL AND e.altersklasse LIKE 'M%'))
-             ORDER BY $sortCol $dir LIMIT 50", [$disz]);
+             ORDER BY $sortCol $dir LIMIT 50", [$diszParam]);
 
         $top_w = DB::fetchAll(
             "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id
              FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
-             WHERE e.disziplin=? AND e.geloescht_am IS NULL
+             WHERE $diszCond AND e.geloescht_am IS NULL
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
                AND (a.geschlecht='W' OR (a.geschlecht IS NULL AND (e.altersklasse LIKE 'W%' OR e.altersklasse LIKE 'F%')))
-             ORDER BY $sortCol $dir LIMIT 50", [$disz]);
+             ORDER BY $sortCol $dir LIMIT 50", [$diszParam]);
 
         $aks_rows = DB::fetchAll(
             "SELECT DISTINCT $akExpr AS altersklasse FROM $tbl e
              JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
              JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
-             WHERE e.disziplin=? AND e.altersklasse IS NOT NULL AND e.altersklasse != ''
+             WHERE $diszCond AND e.altersklasse IS NOT NULL AND e.altersklasse != ''
                AND e.geloescht_am IS NULL AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
-             ORDER BY altersklasse", [$disz]);
+             ORDER BY altersklasse", [$diszParam]);
         $all_ak = [];
         foreach ($aks_rows as $ak_row) {
             $ak_val = $ak_row['altersklasse'];
