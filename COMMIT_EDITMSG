@@ -1,4 +1,5 @@
-v410: Fix HoF: 800m Bahn/Straße/Halle getrennt per mapping_id
+v412: Fix Timeline-Limit: tl_limit statt prio_order._limit
 
-WHERE e.disziplin=? → WHERE e.disziplin_mapping_id=?
-Dadurch keine dreifachen AK-Einträge mehr.
+prio_order ist ein Array – Array-Properties werden von JSON.stringify
+nicht serialisiert und gehen beim Speichern verloren.
+Jetzt: col.tl_limit (normales Feld, wird korrekt gespeichert).
