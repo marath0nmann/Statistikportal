@@ -6060,7 +6060,19 @@ async function renderAdminDisziplinen() {
       : '<button class="btn btn-ghost btn-sm" disabled title="' + anz + ' Ergebnis(se) vorhanden">&#x1F512;</button>';
     mapRows +=
       '<tr>' +
-        '<td style="font-weight:600">' + diszMitKat(d.disziplin) + '</td>' +
+        '<td style="font-weight:600">' + (function() {
+          // Kategorie-Suffix direkt aus d.kategorie_name lesen (nicht aus state.disziplinen)
+          // Berücksichtigt per-Disziplin-Override und globale Einstellung
+          var showSuffix;
+          var override = d.kat_suffix_override || '';
+          if (override === 'ja')   showSuffix = true;
+          else if (override === 'nein') showSuffix = false;
+          else showSuffix = (appConfig.disziplin_kategorie_suffix || '1') === '1';
+          if (showSuffix && d.kategorie_name) {
+            return d.disziplin + ' <span style="font-size:0.85em;opacity:0.6">(' + d.kategorie_name + ')</span>';
+          }
+          return d.disziplin;
+        })() + '</td>' +
         '<td><span class="badge" style="background:var(--surf2);color:var(--text2);font-size:11px">' + (d.quelle_tbl || '') + '</span> ' + fmtLabel + '</td>' +
         '<td>' + selHtml + '</td>' +
         '<td style="text-align:right;padding-right:12px">' + anzBadge + '</td>' +

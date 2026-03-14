@@ -1,1 +1,4 @@
-v403: Admin Disziplinen: Kategorie-Suffix in Tabelle anzeigen
+v404: Fix Admin Disziplinen: Kategorie-Suffix aus d.kategorie_name
+
+diszMitKat() nutzt state.disziplinen das nur einen Eintrag pro Name
+kennt → bei Duplikaten falscher Suffix. Jetzt direkt aus d.kategorie_name.
