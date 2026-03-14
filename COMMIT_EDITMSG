@@ -1,8 +1,6 @@
-v373: Hall of Fame: menschlichere Formulierung der Titel
+v375: HoF: Badges zusammengefasst + zentriertes Layout
 
-Statt "10000m: Bestleistung FrauenBestleistung W45Bestleistung W55"
-jetzt: "Bestleistung Frauen, W45 und W55 über 10000m"
-
-- Gleiche Kategorien (M/W + AKs) werden zusammengefasst
-- Datümer entfernt
-- Ein Badge pro Disziplin (gold bei Gesamtbestleistung, sonst silver)
+- Gleiche Label-Gruppen über mehrere Disziplinen → ein Badge:
+  "Gesamtbestleistung · Bestleistung Männer über 100m und 200m"
+- Zentriertes Layout: Avatar oben, Name, Titelanzahl, dann Badges
+- Leaderboard-Ränge über dem Avatar
