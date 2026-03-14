@@ -1,4 +1,1 @@
-v371: Fix "Can't find variable: _hofCacheKey"
-
-_hofCache, _hofCacheKey und _loadHofWidget waren beim Refactoring
-verloren gegangen — wiederhergestellt.
+v372: Fix "Can't find variable: getHofData"
