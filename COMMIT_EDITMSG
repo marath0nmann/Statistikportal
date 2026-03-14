@@ -1,5 +1,6 @@
-v364: Hall of Fame: Kategorie-Checkboxen fix + Widget-Titel
+v366: Dashboard-Editor: max. 4 Spalten, Grid-Layout
 
-- Kategorien-Checkboxen: state.kategorien war leer → jetzt aus
-  state.disziplinen abgeleitet (immer verfügbar)
-- Neues Feld "Widget-Titel": beliebiger Text, leer = "Hall of Fame"
+- Spalten-Container: flex → grid mit auto-fill minmax(220px,1fr)
+  → bricht automatisch in neue Zeilen bei wenig Platz
+- "+ Spalte"-Button wird ab 4 Spalten ausgeblendet
+- dashAddCol: Schutz gegen > 4 Spalten

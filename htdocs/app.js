@@ -1701,6 +1701,10 @@ async function renderDashboard() {
     ];
   }
 
+  function widgetTitle(wcfg, defaultTitle) {
+    return (wcfg.title && wcfg.title.trim()) ? wcfg.title.trim() : defaultTitle;
+  }
+
   function renderWidget(wcfg) {
     var w = wcfg.widget;
     if (w === 'stats') {
@@ -1793,7 +1797,7 @@ async function renderDashboard() {
         if (!filteredTimeline) filteredTimeline = '<div class="empty"><div class="empty-icon">&#x1F3C6;</div><div class="empty-text">Keine Einträge für diese Auswahl</div></div>';
       }
       return '<div class="panel" style="height:100%">' +
-        '<div class="panel-header"><div class="panel-title">&#x1F3C6; Neueste Bestleistungen</div></div>' +
+        '<div class="panel-header"><div class="panel-title">&#x1F3C6; ' + widgetTitle(wcfg, 'Neueste Bestleistungen') + '</div></div>' +
         '<div class="timeline">' + filteredTimeline + '</div>' +
       '</div>';
     }
@@ -1858,7 +1862,7 @@ async function renderDashboard() {
         if (!vHtml) vHtml = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Noch keine Veranstaltungen</div></div>';
       }
       return '<div class="panel" style="height:100%">' +
-        '<div class="panel-header"><div class="panel-title">&#x1F4CD; Letzte Veranstaltungen</div></div>' +
+        '<div class="panel-header"><div class="panel-title">&#x1F4CD; ' + widgetTitle(wcfg, 'Letzte Veranstaltungen') + '</div></div>' +
         vHtml +
       '</div>';
     }
@@ -1907,7 +1911,7 @@ async function renderDashboard() {
             '</div>' +
           '</div>';
       }
-      var hofPanelTitle = (wcfg.hof_title && wcfg.hof_title.trim()) ? wcfg.hof_title.trim() : 'Hall of Fame';
+      var hofPanelTitle = widgetTitle(wcfg, 'Hall of Fame');
       return '<div class="panel" style="height:100%">' +
         '<div class="panel-header"><div class="panel-title">&#x1F3C6; ' + hofPanelTitle + '</div></div>' +
         hofHtml +
@@ -5059,15 +5063,10 @@ function dashHofConfigHtml(ri, ci, col) {
   var leaderboard = !!col.hof_leaderboard;
   var mergeAK     = col.hof_merge_ak !== false; // Standard: true
   var selKats     = col.hof_kats || []; // leeres Array = alle
-  var customTitle = col.hof_title || '';
   return '<div style="padding:2px 0 6px">' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Konfiguration</div>' +
     '<div style="display:flex;flex-direction:column;gap:10px">' +
-      '<label style="display:flex;align-items:center;gap:10px;font-size:13px">' +
-        '<span style="min-width:140px;color:var(--text2)">Widget-Titel</span>' +
-        '<input type="text" id="hof-title-' + ri + '-' + ci + '" value="' + customTitle + '" placeholder="Hall of Fame" ' +
-        'class="settings-input" style="flex:1" onchange="dashUpdateLayout()">' +
-      '</label>' +
+
       '<label style="display:flex;align-items:center;gap:10px;font-size:13px">' +
         '<span style="min-width:140px;color:var(--text2)">Max. Athleten</span>' +
         '<input type="number" id="hof-limit-' + ri + '-' + ci + '" value="' + limit + '" min="1" max="100" placeholder="alle" ' +
@@ -5250,6 +5249,11 @@ function renderAdminDashboardUI(layout) {
               ? '<button class="btn btn-ghost btn-sm" title="Spalte entfernen" onclick="dashRemoveCol(' + ri + ',' + ci + ')">✕</button>'
               : '') +
           '</div>' +
+          '<label style="display:flex;align-items:center;gap:8px;font-size:12px">' +
+            '<span style="color:var(--text2);white-space:nowrap">Titel</span>' +
+            '<input type="text" id="dash-title-' + ri + '-' + ci + '" value="' + (col.title || '') + '" placeholder="Standard" ' +
+            'class="settings-input" style="flex:1" onchange="dashUpdateLayout()">' +
+          '</label>' +
           widgetConfig +
           widthInput(ri, ci, col.w) +
         '</div>';
@@ -5265,10 +5269,10 @@ function renderAdminDashboardUI(layout) {
           (ri < layout.length - 1
             ? '<button class="btn btn-ghost btn-sm" title="Zeile nach unten" onclick="dashMoveRow(' + ri + ',1)">▼</button>'
             : '<button class="btn btn-ghost btn-sm" disabled style="opacity:.3">▼</button>') +
-          '<button class="btn btn-ghost btn-sm" onclick="dashAddCol(' + ri + ')">+ Spalte</button>' +
+          (cols.length < 4 ? '<button class="btn btn-ghost btn-sm" onclick="dashAddCol(' + ri + ')">+ Spalte</button>' : '') +
           '<button class="btn btn-danger btn-sm" onclick="dashRemoveRow(' + ri + ')">✕ Zeile</button>' +
         '</div>' +
-        '<div style="display:flex;gap:12px;align-items:stretch">' + colsHtml + '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">' + colsHtml + '</div>' +
       '</div>';
   }
 
@@ -5304,10 +5308,12 @@ function dashUpdateLayout() {
   for (var ri = 0; ri < layout.length; ri++) {
     var cols = layout[ri].cols || [];
     for (var ci = 0; ci < cols.length; ci++) {
-      var wEl = document.getElementById('dash-widget-' + ri + '-' + ci);
-      var wW  = document.getElementById('dash-w-' + ri + '-' + ci);
-      if (wEl) cols[ci].widget = wEl.value;
-      if (wW)  { var v = parseInt(wW.value); cols[ci].w = isNaN(v) ? undefined : v; }
+      var wEl  = document.getElementById('dash-widget-' + ri + '-' + ci);
+      var wW   = document.getElementById('dash-w-'      + ri + '-' + ci);
+      var wTit = document.getElementById('dash-title-'  + ri + '-' + ci);
+      if (wEl)  cols[ci].widget = wEl.value;
+      if (wW)   { var v = parseInt(wW.value); cols[ci].w = isNaN(v) ? undefined : v; }
+      if (wTit) cols[ci].title = wTit.value.trim();
       // Stat-Karten: Reihenfolge aus bisherigem cards-Array + Checkbox-Status
       if (cols[ci].widget === 'stats') {
         var prevCards = cols[ci].cards && cols[ci].cards.length ? cols[ci].cards : ['ergebnisse','athleten','rekorde'];
@@ -5329,8 +5335,6 @@ function dashUpdateLayout() {
           var lv = parseInt(hofLimitEl.value);
           cols[ci].hof_limit = isNaN(lv) || lv <= 0 ? 0 : lv;
         }
-        var hofTitleEl = document.getElementById('hof-title-' + ri + '-' + ci);
-        if (hofTitleEl) cols[ci].hof_title = hofTitleEl.value.trim();
         var hofBoxes = document.querySelectorAll('input[data-hof][data-ri="' + ri + '"][data-ci="' + ci + '"]');
         for (var hbi = 0; hbi < hofBoxes.length; hbi++) {
           var hkey = hofBoxes[hbi].dataset.hof;
@@ -5405,6 +5409,7 @@ function dashRemoveRow(idx) {
 function dashAddCol(rowIdx) {
   dashUpdateLayout();
   var layout = dashGetLayout();
+  if ((layout[rowIdx].cols || []).length >= 4) return;
   layout[rowIdx].cols.push({ widget: '' });
   renderAdminDashboardUI(layout);
 }
