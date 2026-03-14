@@ -84,6 +84,28 @@ function autoMapDisziplin(string $disziplin): void {
 }
 
 // ============================================================
+// HILFSFUNKTIONEN
+// ============================================================
+
+function diszSortKey(string $s): float {
+    $n = preg_replace('/\.(?=\d{3}(?:\D|$))/', '', $s);
+    if (preg_match('/^([\d]+(?:[.,]\d+)?)\s*(km|m)/i', $n, $m)) {
+        $num = (float)str_replace(',', '.', $m[1]);
+        return strtolower($m[2]) === 'km' ? $num * 1000 : $num;
+    }
+    return PHP_INT_MAX;
+}
+
+function sortDisziplinen(array &$arr, string $key = 'disziplin'): void {
+    usort($arr, function($a, $b) use ($key) {
+        $ka = diszSortKey($a[$key] ?? '');
+        $kb = diszSortKey($b[$key] ?? '');
+        if ($ka !== $kb) return $ka <=> $kb;
+        return strcmp($a[$key] ?? '', $b[$key] ?? '');
+    });
+}
+
+// ============================================================
 // ROUTING – globaler Fehler-Wrapper
 // ============================================================
 try {
@@ -1725,7 +1747,8 @@ if ($res === 'disziplin-mapping') {
                     k.name AS kategorie_name, k.fmt AS kat_fmt
              FROM " . DB::tbl('disziplin_mapping') . " m
              JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
-             ORDER BY m.disziplin");
+");
+        sortDisziplinen($mappings);
         foreach ($mappings as $m) {
             $all_disz['m' . $m['id']] = [
                 'id'             => (int)$m['id'],
@@ -1767,7 +1790,7 @@ if ($res === 'disziplin-mapping') {
                 if (isset($all_disz[$k])) $all_disz[$k]['ergebnis_anzahl'] = (int)$c['anz'];
             }
         } catch (Exception $e) {}
-        uasort($all_disz, function($a,$b){ return strcmp($a['disziplin'], $b['disziplin']); });
+        sortDisziplinen($all_disz);
         jsonOk(array_values($all_disz));
     }
 
@@ -1960,7 +1983,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
              WHERE e.veranstaltung_id=? AND e.geloescht_am IS NULL
-             ORDER BY e.disziplin, e.resultat_num ASC, e.resultat ASC",
+             ORDER BY e.resultat_num ASC, e.resultat ASC",
             [$v['id']]
         );
     }
@@ -2055,8 +2078,15 @@ if ($res === 'disziplinen' && $method === 'GET') {
         "SELECT dm.disziplin, dk.name AS kategorie, dk.tbl_key, dk.reihenfolge, COALESCE(dm.kat_suffix_override,'') AS kat_suffix_override
          FROM " . DB::tbl('disziplin_mapping') . " dm
          JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.id = dm.kategorie_id
-         ORDER BY dk.reihenfolge, dm.disziplin"
+         ORDER BY dk.reihenfolge"
     );
+    // Innerhalb jeder Kategorie nach numerischem Wert sortieren
+    usort($rows, function($a, $b) {
+        if ($a['reihenfolge'] !== $b['reihenfolge']) return $a['reihenfolge'] <=> $b['reihenfolge'];
+        $ka = diszSortKey($a['disziplin']);
+        $kb = diszSortKey($b['disziplin']);
+        return $ka !== $kb ? $ka <=> $kb : strcmp($a['disziplin'], $b['disziplin']);
+    });
     jsonOk($rows);
 }
 
@@ -2206,8 +2236,8 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                 $diszParams  = array_merge($diszParams, $katKeys);
             }
         }
-        $diszListSql .= " ORDER BY e.disziplin";
         $diszList = DB::fetchAll($diszListSql, $diszParams);
+        sortDisziplinen($diszList);
 
         // Jugend-AK zusammenfassen: identische CASE-Logik wie unter Bestleistungen
         $mergeAK = ($_GET['merge_ak'] ?? '1') !== '0';

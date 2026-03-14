@@ -160,6 +160,30 @@ function diszMitKat(disziplin) {
   return disziplin;
 }
 
+// Disziplin-Name sortierbar machen: "5.000m" → 5000, "10km" → 10000
+function diszSortKey(s) {
+  var n = (s || '').replace(/\.(?=\d{3}(?:\D|$))/g, '');
+  var m = n.match(/^([\d]+(?:[.,]\d+)?)\s*(km|m)/i);
+  if (m) {
+    var num = parseFloat(m[1].replace(',', '.'));
+    return m[2].toLowerCase() === 'km' ? num * 1000 : num;
+  }
+  return Infinity;
+}
+
+function sortDisziplinen(arr, key) {
+  key = key || 'disziplin';
+  arr.sort(function(a, b) {
+    var ka = diszSortKey(typeof a === 'string' ? a : a[key]);
+    var kb = diszSortKey(typeof b === 'string' ? b : b[key]);
+    if (ka !== kb) return ka - kb;
+    var sa = typeof a === 'string' ? a : (a[key] || '');
+    var sb = typeof b === 'string' ? b : (b[key] || '');
+    return sa.localeCompare(sb, 'de');
+  });
+  return arr;
+}
+
 var MSTR_MAP = {};
 var MSTR_LIST = []; // [{id, label}, ...]
 
@@ -1665,6 +1689,7 @@ async function renderDashboard() {
       if (!byDisz[e.disziplin]) { byDisz[e.disziplin] = []; diszOrder.push(e.disziplin); }
       byDisz[e.disziplin].push(e);
     }
+    sortDisziplinen(diszOrder);
     for (var di = 0; di < diszOrder.length; di++) {
       var disz = diszOrder[di];
       var ergs = byDisz[disz];
@@ -2715,8 +2740,8 @@ function _apFmtRes(e, fallbackFmt) {
 }
 
 function _apDiszSortKey(name) {
+  // Benannte Distanzen
   var s = (name || '').toLowerCase().trim();
-  // Bekannte Namen -> feste Meterwerte
   var named = {
     'marathon': 42195, 'halbmarathon': 21098, 'halbmarathon straße': 21098,
     'marathon straße': 42195, 'ultramarathon': 80000,
@@ -2726,13 +2751,8 @@ function _apDiszSortKey(name) {
     'walking': 99000, '7km walking': 7000
   };
   for (var k in named) { if (s === k || s.indexOf(k) === 0) return named[k]; }
-  // Zahl + km -> Meter
-  var mKm = s.match(/^(\d+[.,]?\d*)\s*km/);
-  if (mKm) return parseFloat(mKm[1].replace(',','.')) * 1000;
-  // Zahl + m -> Meter
-  var mM = s.match(/^(\d+[.,]?\d*)\s*m/);
-  if (mM) return parseFloat(mM[1].replace(',','.'));
-  return 999999;
+  // Zentrale Sortierfunktion (kennt Tausenderpunkte)
+  return diszSortKey(name);
 }
 
 function _apBestOf(ergs, fmt) {
@@ -6040,7 +6060,7 @@ async function renderAdminDisziplinen() {
       : '<button class="btn btn-ghost btn-sm" disabled title="' + anz + ' Ergebnis(se) vorhanden">&#x1F512;</button>';
     mapRows +=
       '<tr>' +
-        '<td style="font-weight:600">' + d.disziplin + '</td>' +
+        '<td style="font-weight:600">' + diszMitKat(d.disziplin) + '</td>' +
         '<td><span class="badge" style="background:var(--surf2);color:var(--text2);font-size:11px">' + (d.quelle_tbl || '') + '</span> ' + fmtLabel + '</td>' +
         '<td>' + selHtml + '</td>' +
         '<td style="text-align:right;padding-right:12px">' + anzBadge + '</td>' +
@@ -6467,6 +6487,7 @@ async function renderVeranstaltungen() {
       if (!byDisz[e.disziplin]) { byDisz[e.disziplin] = []; diszOrder.push(e.disziplin); }
       byDisz[e.disziplin].push(e);
     }
+    sortDisziplinen(diszOrder);
     for (var di = 0; di < diszOrder.length; di++) {
       var disz = diszOrder[di];
       var ergs = byDisz[disz];
