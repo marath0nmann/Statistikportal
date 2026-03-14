@@ -5,6 +5,46 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v339 – Footer, Impressum-Links, Débüt-Badge
+
+### Footer
+- Neue Fußzeile mit „Powered by Statistikportal © 2026 Daniel Weyers"
+- Links: GitHub (Statistikportal), webdev.danielweyers.de (Autor)
+- Admin → Darstellung → neues Panel „Footer & Rechtliches":
+  Datenschutz-URL, Nutzungsbedingungen-URL, Impressum-URL (je optional)
+- Footer aktualisiert sich sofort nach Speichern der Einstellungen
+
+### Badge-Fix
+- „Débüt" wird jetzt wie „PB" grün dargestellt (badge-pb)
+  statt silber – auch in der gefilterten Timeline
+
+---
+
+## v338 – Avatar-Upload + Hall of Fame Widget
+
+### Avatar
+- Jeder Benutzer kann eigenen Avatar hochladen (PNG/JPG/WebP, max. 1 MB)
+- Klick auf Profilbild im Konto-Modal → Dateiauswahl
+- Runde Darstellung in Header, Konto-Modal und Admin-Benutzerliste
+- API: `upload/avatar` (POST/DELETE)
+- Auto-Migration: `avatar_pfad VARCHAR(120)` in `benutzer`
+
+### Hall of Fame
+- Neues Dashboard-Widget (Admin → Dashboard-Layout wählbar)
+- Zeigt alle Athleten die aktuell eine Bestenliste anführen
+  (Gesamt, M/W, alle Altersklassen), aggregiert nach Person
+- Rang 1–3 mit 🥇🥈🥉, Avatar, Name, Titelanzahl
+- Sortierung nach Titelanzahl absteigend
+- API: `GET hall-of-fame`
+
+---
+
+## v337 – Avatar & Hall of Fame (Syntax-Fix)
+- avatarHtml/avatarFallback: Quote-Escaping-Fehler behoben
+- Hall-of-Fame API: globales `$unified` statt fehlendem `DB::tableExists`
+
+---
+
 ## v204 – Git-Integration
 - `.gitignore`: `config.php`, `uploads/*`, `paket_v*/`, `.DS_Store` ausgeschlossen
 - `CHANGELOG.md`: Versionshistorie eingeführt

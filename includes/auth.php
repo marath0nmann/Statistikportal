@@ -220,10 +220,17 @@ class Auth {
     // ============================================================
     public static function check(): ?array {
         if (empty($_SESSION['user_id'])) return null;
+        // avatar_pfad frisch aus DB (Spalte existiert ggf. erst nach Migration)
+        $avatar = null;
+        try {
+            $row = DB::fetchOne('SELECT avatar_pfad FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$_SESSION['user_id']]);
+            $avatar = $row['avatar_pfad'] ?? null;
+        } catch (\Exception $e) {}
         return [
-            'id'    => $_SESSION['user_id'],
-            'name'  => $_SESSION['user_name'],
-            'rolle' => $_SESSION['user_rolle'],
+            'id'     => $_SESSION['user_id'],
+            'name'   => $_SESSION['user_name'],
+            'rolle'  => $_SESSION['user_rolle'],
+            'avatar' => $avatar,
         ];
     }
 

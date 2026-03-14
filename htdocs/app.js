@@ -112,6 +112,22 @@ function _luminance(hex) {
 }
 // Gibt '#111111' oder '#ffffff' zurück je nach Kontrast zur Hintergrundfarbe
 // Meisterschafts-Lookup: wird aus Einstellungen befüllt
+// Avatar-Rendering: gibt <img> oder Initialen-Div zurück
+function avatarHtml(avatarPfad, name, size, fontSize) {
+  size = size || 28; fontSize = fontSize || Math.round(size * 0.45);
+  var initial = (name || '?')[0].toUpperCase();
+  if (avatarPfad) {
+    return '<span style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;flex-shrink:0;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;">' +
+      '<img src="' + avatarPfad + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display=&quot;none&quot;;this.parentNode.style.background=&quot;var(--accent)&quot;">' +
+      '</span>';
+  }
+  return avatarFallback(initial, size, fontSize);
+}
+function avatarFallback(initial, size, fontSize) {
+  var fs = fontSize || Math.round((size || 28) * 0.45);
+  return '<span style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;flex-shrink:0;background:var(--accent);color:var(--on-accent);display:inline-flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:' + fs + 'px;font-weight:600;">' + initial + '</span>';
+}
+
 var MSTR_MAP = {};
 var MSTR_LIST = []; // [{id, label}, ...]
 
@@ -1002,7 +1018,12 @@ function showApp() {
 
   if (currentUser) {
     var name = currentUser.name || '?';
-    document.getElementById('user-avatar').textContent     = name[0].toUpperCase();
+    var avatarEl = document.getElementById('user-avatar');
+    if (currentUser.avatar) {
+      avatarEl.innerHTML = '<img src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+    } else {
+      avatarEl.textContent = name[0].toUpperCase();
+    }
     document.getElementById('user-name-disp').textContent  = name;
     document.getElementById('user-rolle-disp').textContent = rolleLabel(currentUser.rolle);
     document.getElementById('user-btn').style.display = '';
@@ -1022,6 +1043,7 @@ function showApp() {
   }
   applyVersionVisibility();
   buildNav();
+  buildFooter();
   navigate(currentUser ? 'dashboard' : 'dashboard');
   loadDisziplinen();
   if (currentUser) loadAthleten();
@@ -1033,9 +1055,16 @@ function showUserMenu() {
   showModal(
     '<h2>Konto <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div style="text-align:center;padding:10px 0 20px">' +
-      '<div class="profile-avatar" style="width:64px;height:64px;font-size:24px;margin:0 auto 12px">' + name[0].toUpperCase() + '</div>' +
+      '<div style="position:relative;width:64px;margin:0 auto 12px;cursor:pointer" onclick="document.getElementById(\'avatar-file-input\').click()" title="Avatar ändern">' +
+        (currentUser.avatar
+          ? '<img id="konto-avatar-img" src="' + currentUser.avatar + '" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;">'
+          : '<div class="profile-avatar" style="width:64px;height:64px;font-size:24px;">' + name[0].toUpperCase() + '</div>') +
+        '<div style="position:absolute;bottom:0;right:0;background:var(--primary);color:var(--on-primary);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;">&#x1F4F7;</div>' +
+      '</div>' +
+      '<input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadAvatar(this)">' +
       '<div style="font-size:18px;font-weight:600">' + name + '</div>' +
       '<div style="color:var(--text2);font-size:13px;margin-top:4px">' + rolleLabel(currentUser.rolle) + '</div>' +
+      (currentUser.avatar ? '<button class="btn btn-ghost btn-sm" style="margin-top:6px;font-size:11px;color:var(--text2)" onclick="deleteAvatar()">&#x2715; Avatar entfernen</button>' : '') +
     '</div>' +
     '<hr style="border:none;border-top:1px solid var(--border);margin:0 0 16px"/>' +
     '<div class="form-grid" style="margin-bottom:8px">' +
@@ -1068,6 +1097,49 @@ function showUserMenu() {
       '<button class="btn btn-primary" onclick="changePasswort()">Passwort &#xe4;ndern</button>' +
     '</div>'
   );
+}
+
+async function uploadAvatar(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var allowed = ['image/png','image/jpeg','image/webp'];
+  if (allowed.indexOf(file.type) < 0) { notify('Nur PNG, JPG oder WebP erlaubt.', 'err'); return; }
+  if (file.size > 1 * 1024 * 1024) { notify('Datei zu groß (max. 1 MB).', 'err'); return; }
+  var fd = new FormData();
+  fd.append('avatar', file);
+  try {
+    var resp = await fetch('api/index.php?res=upload&id=avatar', { method: 'POST', body: fd });
+    var data = await resp.json();
+    if (data.ok) {
+      currentUser.avatar = data.data.pfad;
+      notify('Avatar gespeichert.', 'ok');
+      // Header + Modal sofort aktualisieren
+      var avatarEl = document.getElementById('user-avatar');
+      if (avatarEl) {
+        avatarEl.innerHTML = '<img src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+      }
+      var img = document.getElementById('konto-avatar-img');
+      if (img) img.src = currentUser.avatar + '?v=' + Date.now();
+      // Modal neu öffnen damit "Avatar entfernen"-Button erscheint
+      closeModal(); showUserMenu();
+    } else {
+      notify(data.fehler || 'Fehler beim Hochladen.', 'err');
+    }
+  } catch(e) { notify('Upload fehlgeschlagen.', 'err'); }
+}
+
+async function deleteAvatar() {
+  try {
+    var resp = await fetch('api/index.php?res=upload&id=avatar', { method: 'DELETE' });
+    var data = await resp.json();
+    if (data.ok) {
+      currentUser.avatar = null;
+      notify('Avatar entfernt.', 'ok');
+      var avatarEl = document.getElementById('user-avatar');
+      if (avatarEl) { avatarEl.innerHTML = ''; avatarEl.textContent = (currentUser.name||'?')[0].toUpperCase(); }
+      closeModal(); showUserMenu();
+    } else { notify(data.fehler || 'Fehler.', 'err'); }
+  } catch(e) { notify('Fehler.', 'err'); }
 }
 
 async function changePasswort() {
@@ -1108,6 +1180,25 @@ function rolleLabel(r) {
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────
+function buildFooter() {
+  var el = document.getElementById('app-footer');
+  if (!el) return;
+  var cfg = appConfig || {};
+  var ghUrl = 'https://github.com/danielweyers/tus-oedt-statistik';
+  var authorUrl = 'https://webdev.danielweyers.de';
+  var dsUrl   = cfg.footer_datenschutz_url   || '';
+  var nuUrl   = cfg.footer_nutzung_url        || '';
+  var impUrl  = cfg.footer_impressum_url      || '';
+  var linkStyle = 'color:inherit;text-decoration:underline;text-underline-offset:2px;opacity:.7;';
+  var links = [];
+  if (dsUrl)  links.push('<a href="' + dsUrl  + '" target="_blank" style="' + linkStyle + '">Datenschutz</a>');
+  if (nuUrl)  links.push('<a href="' + nuUrl  + '" target="_blank" style="' + linkStyle + '">Nutzungsbedingungen</a>');
+  if (impUrl) links.push('<a href="' + impUrl + '" target="_blank" style="' + linkStyle + '">Impressum</a>');
+  el.innerHTML =
+    '<div>Powered by <a href="' + ghUrl + '" target="_blank" style="' + linkStyle + '">Statistikportal</a> &copy; 2026 <a href="' + authorUrl + '" target="_blank" style="' + linkStyle + '">Daniel Weyers</a></div>' +
+    (links.length ? '<div>' + links.join(' &nbsp;/&nbsp; ') + '</div>' : '');
+}
+
 function buildNav() {
   var tabs = [
     { id: 'dashboard',       icon: '📊︎', label: 'Dashboard' },
@@ -1299,7 +1390,7 @@ async function renderDashboard() {
     var lbl = rek.label || '';
     var athletName = rek.athlet || '';
     var labelCls = (lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
-                   (lbl === 'PB') ? 'badge badge-pb' :
+                   (lbl === 'PB' || lbl === 'Débüt' || lbl === 'Debüt') ? 'badge badge-pb' :
                    'badge badge-silver';
     var dotStyle = rek.extern ? 'background:var(--accent);' : '';
     if (!athletName) continue;
@@ -1375,6 +1466,15 @@ async function renderDashboard() {
       '</div>';
   }
   if (!veranstHtml) veranstHtml = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Noch keine Veranstaltungen</div></div>';
+
+  // ── Hall of Fame Daten (lazy: nur wenn Widget im Layout) ──
+  var hofData = null;
+  async function getHofData() {
+    if (hofData) return hofData;
+    var rh = await apiGet('hall-of-fame');
+    hofData = (rh && rh.ok) ? rh.data : [];
+    return hofData;
+  }
 
   // ── Layout aus Config rendern ──
   var layout = [];
@@ -1455,7 +1555,7 @@ async function renderDashboard() {
           var fFmt  = fItem.fmt || '';
           var fRes  = fFmt === 'm' ? fmtMeter(fItem.resultat) : fmtTime(fItem.resultat, fFmt === 's' ? 's' : undefined);
           var fLblCls = (fLbl.indexOf('Gesamtbestleistung') >= 0 || fLbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
-                        (fLbl === 'PB' || fLbl === 'Débüt') ? 'badge badge-pb' : 'badge badge-silver';
+                        (fLbl === 'PB' || fLbl === 'Débüt' || fLbl === 'Debüt') ? 'badge badge-pb' : 'badge badge-silver';
           var fAthLink = fItem.athlet_id
             ? '<span class="athlet-link" style="color:var(--primary);font-weight:600" data-athlet-id="' + fItem.athlet_id + '">' + fItem.athlet + '</span>'
             : '<span style="color:var(--primary);font-weight:600">' + fItem.athlet + '</span>';
@@ -1547,8 +1647,58 @@ async function renderDashboard() {
         vHtml +
       '</div>';
     }
+    if (w === 'hall-of-fame') {
+      if (!hofData) return '<div class="panel" style="height:100%"><div class="panel-header"><div class="panel-title">&#x1F3C6; Hall of Fame</div></div><div style="padding:24px;text-align:center;color:var(--text2)">&#x23F3; Laden&hellip;</div></div>';
+      if (!hofData.length) return '<div class="panel" style="height:100%"><div class="panel-header"><div class="panel-title">&#x1F3C6; Hall of Fame</div></div><div class="empty"><div class="empty-icon">&#x1F3C6;</div><div class="empty-text">Noch keine Daten</div></div></div>';
+      var hofHtml = '';
+      for (var hi = 0; hi < hofData.length; hi++) {
+        var ha = hofData[hi];
+        var hAvatar = ha.avatar
+          ? '<img src="' + ha.avatar + '" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
+          : '<div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));color:var(--on-primary);display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:20px;font-weight:700;flex-shrink:0;">' + (ha.name||'?')[0].toUpperCase() + '</div>';
+        var hDiszHtml = '';
+        var diszKeys = Object.keys(ha.disziplinen);
+        for (var hdi = 0; hdi < diszKeys.length; hdi++) {
+          var hd = diszKeys[hdi];
+          var htitels = ha.disziplinen[hd];
+          var hLabels = htitels.map(function(t){
+            var cls = t.label === 'Gesamtbestleistung' ? 'badge badge-gold' : (t.label.indexOf('Männer') >= 0 || t.label.indexOf('Frauen') >= 0) ? 'badge badge-silver' : 'badge badge-pb';
+            return '<span class="' + cls + '">' + t.label + '</span>';
+          }).join(' ');
+          var hDatum = htitels[0].datum ? ' <span style="color:var(--text2);font-size:11px">(' + formatDate(htitels[0].datum) + ')</span>' : '';
+          hDiszHtml += '<div style="font-size:13px;padding:3px 0"><span style="font-weight:600;color:var(--text)">' + hd + ':</span> ' + hLabels + hDatum + '</div>';
+        }
+        var hRank = hi + 1;
+        var hRankStyle = hRank === 1 ? 'color:#f5a623;font-size:22px' : hRank === 2 ? 'color:#aaa;font-size:20px' : hRank === 3 ? 'color:#cd7f32;font-size:18px' : 'color:var(--text2);font-size:14px';
+        hofHtml +=
+          '<div style="display:flex;gap:14px;align-items:flex-start;padding:16px 20px;' + (hi < hofData.length-1 ? 'border-bottom:1px solid var(--border);' : '') + '">' +
+            '<div style="' + hRankStyle + ';font-weight:700;min-width:24px;text-align:center;padding-top:2px">' + (hRank <= 3 ? ['🥇','🥈','🥉'][hRank-1] : hRank) + '</div>' +
+            hAvatar +
+            '<div style="flex:1;min-width:0">' +
+              '<div style="font-weight:700;font-size:15px;margin-bottom:6px">' +
+                '<span class="athlet-link" onclick="openAthletById(' + ha.id + ')">' + ha.name + '</span>' +
+                ' <span style="font-size:12px;color:var(--text2);font-weight:400">' + ha.titelCount + ' Titel</span>' +
+              '</div>' +
+              hDiszHtml +
+            '</div>' +
+          '</div>';
+      }
+      return '<div class="panel" style="height:100%">' +
+        '<div class="panel-header"><div class="panel-title">&#x1F3C6; Hall of Fame</div></div>' +
+        hofHtml +
+      '</div>';
+    }
     return '';
   }
+
+  // Hall-of-Fame vorläufig laden wenn Widget im Layout
+  var hasHof = false;
+  for (var _ri = 0; _ri < layout.length; _ri++) {
+    for (var _ci = 0; _ci < (layout[_ri].cols||[]).length; _ci++) {
+      if ((layout[_ri].cols[_ci].widget||'') === 'hall-of-fame') hasHof = true;
+    }
+  }
+  if (hasHof) await getHofData();
 
   var layoutHtml = '';
   for (var ri = 0; ri < layout.length; ri++) {
@@ -4089,7 +4239,9 @@ async function renderAdmin() {
       : '<span class="badge badge-ak">Kein Athlet</span>';
     userRows +=
       '<div class="user-row">' +
-        '<div class="user-row-avatar">' + b.benutzername[0].toUpperCase() + '</div>' +
+        (b.avatar_pfad
+          ? '<div class="user-row-avatar" style="padding:0;overflow:hidden"><img src="' + b.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;"></div>'
+          : '<div class="user-row-avatar">' + b.benutzername[0].toUpperCase() + '</div>') +
         '<div class="user-row-info"><div class="user-row-name">' + b.benutzername + '</div>' +
           '<div class="user-row-email">' + b.email + '</div>' +
           '<div style="margin-top:3px;font-size:11px;color:var(--text2)">Letzter Login: ' + (b.letzter_login ? formatDate(b.letzter_login.slice(0,10)) : 'Noch nie') + '</div>' +
@@ -4559,6 +4711,7 @@ var WIDGET_DEFS = [
   { id: 'stats',           label: '📊︎ Statistik-Karten' },
   { id: 'timeline',        label: '🏅 Neueste Bestleistungen' },
   { id: 'veranstaltungen', label: '📍 Letzte Veranstaltungen' },
+  { id: 'hall-of-fame',    label: '🏆 Hall of Fame' },
 ];
 
 // Verfügbare Stat-Karten (Reihenfolge und Auswahl konfigurierbar)
@@ -5069,9 +5222,19 @@ async function renderAdminDarstellung() {
       '</div>' +
     '</div>' +
 
+    // ── Footer-Links ──
+    '<div class="panel">' +
+      '<div class="panel-header"><div class="panel-title">&#x1F4CB; Footer &amp; Rechtliches</div></div>' +
+      '<div class="settings-panel-body">' +
+        row('Datenschutz-URL', 'Link im Footer (leer = nicht anzeigen)', textIn('cfg-footer_datenschutz_url', cfgVal('footer_datenschutz_url',''), 'https://...')) +
+        row('Nutzungsbedingungen-URL', 'Link im Footer (leer = nicht anzeigen)', textIn('cfg-footer_nutzung_url', cfgVal('footer_nutzung_url',''), 'https://...')) +
+        row('Impressum-URL', 'Link im Footer (leer = nicht anzeigen)', textIn('cfg-footer_impressum_url', cfgVal('footer_impressum_url',''), 'https://...')) +
+      '</div>' +
+    '</div>' +
+
     '<div style="padding-bottom:8px">' +
       '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-bottom:8px">' +
-        '<button class="btn btn-primary" onclick="saveAllSettings()">💾 Alle Einstellungen speichern</button>' +
+        '<button class="btn btn-primary" onclick="saveAllSettings()">&#x1F4BE; Alle Einstellungen speichern</button>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -5160,6 +5323,7 @@ async function saveAllSettings() {
     'email_domain','noreply_email',
     'dashboard_timeline_limit',
     'adressleiste_farbe',
+    'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url',
   ];
   var payload = {};
   for (var i = 0; i < keys.length; i++) {
@@ -5187,6 +5351,7 @@ async function saveAllSettings() {
   if (r && r.ok) {
     Object.assign(appConfig, payload);
     applyConfig(appConfig);
+    buildFooter();
     notify('Einstellungen gespeichert.', 'ok');
   } else {
     notify((r && r.fehler) || 'Fehler beim Speichern', 'err');
