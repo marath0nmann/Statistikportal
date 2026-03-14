@@ -1907,8 +1907,9 @@ async function renderDashboard() {
             '</div>' +
           '</div>';
       }
+      var hofPanelTitle = (wcfg.hof_title && wcfg.hof_title.trim()) ? wcfg.hof_title.trim() : 'Hall of Fame';
       return '<div class="panel" style="height:100%">' +
-        '<div class="panel-header"><div class="panel-title">&#x1F3C6; Hall of Fame</div></div>' +
+        '<div class="panel-header"><div class="panel-title">&#x1F3C6; ' + hofPanelTitle + '</div></div>' +
         hofHtml +
       '</div>';
     }
@@ -5058,9 +5059,15 @@ function dashHofConfigHtml(ri, ci, col) {
   var leaderboard = !!col.hof_leaderboard;
   var mergeAK     = col.hof_merge_ak !== false; // Standard: true
   var selKats     = col.hof_kats || []; // leeres Array = alle
+  var customTitle = col.hof_title || '';
   return '<div style="padding:2px 0 6px">' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Konfiguration</div>' +
     '<div style="display:flex;flex-direction:column;gap:10px">' +
+      '<label style="display:flex;align-items:center;gap:10px;font-size:13px">' +
+        '<span style="min-width:140px;color:var(--text2)">Widget-Titel</span>' +
+        '<input type="text" id="hof-title-' + ri + '-' + ci + '" value="' + customTitle + '" placeholder="Hall of Fame" ' +
+        'class="settings-input" style="flex:1" onchange="dashUpdateLayout()">' +
+      '</label>' +
       '<label style="display:flex;align-items:center;gap:10px;font-size:13px">' +
         '<span style="min-width:140px;color:var(--text2)">Max. Athleten</span>' +
         '<input type="number" id="hof-limit-' + ri + '-' + ci + '" value="' + limit + '" min="1" max="100" placeholder="alle" ' +
@@ -5076,7 +5083,16 @@ function dashHofConfigHtml(ri, ci, col) {
         '<span>Jugend-AK zu MHK/WHK zusammenfassen</span>' +
       '</label>' +
       (function() {
-        var kats = state.kategorien || [];
+        // Kategorien aus state.disziplinen ableiten (immer verfügbar)
+        var _seen = {}, kats = [];
+        var _diszArr = state.disziplinen || [];
+        for (var _ki = 0; _ki < _diszArr.length; _ki++) {
+          var _d = _diszArr[_ki];
+          if (_d.tbl_key && !_seen[_d.tbl_key]) {
+            _seen[_d.tbl_key] = true;
+            kats.push({ tbl_key: _d.tbl_key, name: _d.kategorie || _d.tbl_key });
+          }
+        }
         if (!kats.length) return '';
         var katBoxes = '<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:2px">' +
           '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Kategorien (leer = alle)</div>';
@@ -5313,6 +5329,8 @@ function dashUpdateLayout() {
           var lv = parseInt(hofLimitEl.value);
           cols[ci].hof_limit = isNaN(lv) || lv <= 0 ? 0 : lv;
         }
+        var hofTitleEl = document.getElementById('hof-title-' + ri + '-' + ci);
+        if (hofTitleEl) cols[ci].hof_title = hofTitleEl.value.trim();
         var hofBoxes = document.querySelectorAll('input[data-hof][data-ri="' + ri + '"][data-ci="' + ci + '"]');
         for (var hbi = 0; hbi < hofBoxes.length; hbi++) {
           var hkey = hofBoxes[hbi].dataset.hof;
