@@ -439,9 +439,11 @@ tr:hover td { background: var(--surf2); }
 [data-theme="dark"] .medal-badge.gold   { background: #2a1f00; color: #ffd87a; border-color: #7a5c00; }
 [data-theme="dark"] .medal-badge.silver { background: #1e1e1e; color: #d8d8d8; border-color: #484848; }
 [data-theme="dark"] .medal-badge.bronze { background: #1f0e00; color: #f0b070; border-color: #7a3d00; }
-:root:not([data-theme="light"]) .medal-badge.gold   { background: #2a1f00; color: #ffd87a; border-color: #7a5c00; }
-:root:not([data-theme="light"]) .medal-badge.silver { background: #1e1e1e; color: #d8d8d8; border-color: #484848; }
-:root:not([data-theme="light"]) .medal-badge.bronze { background: #1f0e00; color: #f0b070; border-color: #7a3d00; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .medal-badge.gold   { background: #2a1f00; color: #ffd87a; border-color: #7a5c00; }
+  :root:not([data-theme="light"]) .medal-badge.silver { background: #1e1e1e; color: #d8d8d8; border-color: #484848; }
+  :root:not([data-theme="light"]) .medal-badge.bronze { background: #1f0e00; color: #f0b070; border-color: #7a3d00; }
+}
 .top-info { flex: 1; }
 .top-name { font-weight: 600; font-size: 14px; }
 .top-detail { font-size: 11px; color: var(--text2); margin-top: 2px; }
@@ -487,6 +489,7 @@ tr:hover td { background: var(--surf2); }
   display: flex; align-items: center; justify-content: center;
   font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 600; color: var(--on-primary);
   box-shadow: 0 4px 16px rgba(0,48,135,.25);
+  overflow: hidden;
 }
 .profile-mini-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
 .profile-mini-stat { background: var(--surf2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; text-align: center; }

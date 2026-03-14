@@ -1,1 +1,4 @@
-v352: Platz-Badges: Rahmen- und Hintergrundfarbe getauscht (heller)
+v354: Fix Avatar-Anzeige im Konto-Modal
+
+- Avatar jetzt in profile-avatar-Div eingebettet (overflow:hidden)
+- profile-avatar CSS: overflow:hidden ergänzt
