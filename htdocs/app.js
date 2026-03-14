@@ -6042,9 +6042,9 @@ async function renderAdminDisziplinen() {
       '<tr>' +
         '<td style="font-weight:600">' + d.disziplin + anzeige + '</td>' +
         '<td><span class="badge" style="background:var(--surf2);color:var(--text2);font-size:11px">' + (d.quelle_tbl || '') + '</span> ' + fmtLabel + '</td>' +
-        '<td style="white-space:nowrap">' + selHtml + editBtn + '</td>' +
+        '<td>' + selHtml + '</td>' +
         '<td style="text-align:right;padding-right:12px">' + anzBadge + '</td>' +
-        '<td>' + delBtn + '</td>' +
+        '<td style="white-space:nowrap;display:flex;gap:4px">' + editBtn + delBtn + '</td>' +
       '</tr>';
   }
 
@@ -6061,7 +6061,7 @@ async function renderAdminDisziplinen() {
         '<div class="panel-header"><div class="panel-title">&#x1F4CB; Disziplin-Zuordnung</div></div>' +
         '<div style="font-size:12px;color:var(--text2);padding:0 20px 12px">Weise jeder Disziplin eine Kategorie zu. Die Zuordnung beeinflusst die Anzeige unter Ergebnisse &amp; Rekorde.</div>' +
         '<div class="table-scroll">' +
-          '<table><thead><tr><th>Disziplin</th><th>Quelle / Format</th><th>Kategorie &amp; Aktionen</th><th style="text-align:right">Ergebnisse</th><th></th></tr></thead>' +
+          '<table><thead><tr><th>Disziplin</th><th>Quelle / Format</th><th>Kategorie</th><th style="text-align:right">Ergebnisse</th><th></th></tr></thead>' +
           '<tbody>' + mapRows + '</tbody></table>' +
         '</div>' +
       '</div>' +
