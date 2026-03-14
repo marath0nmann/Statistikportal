@@ -2262,7 +2262,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
     if ($unified) {
         // Alle Disziplinen laden mit fmt + sort_dir aus disziplin_mapping/kategorien
         $katFilter = isset($_GET['kat']) && $_GET['kat'] !== '' ? $_GET['kat'] : null;
-        $diszListSql = "SELECT DISTINCT e.disziplin,
+        $diszListSql = "SELECT DISTINCT e.disziplin, e.disziplin_mapping_id,
                     COALESCE(m.fmt_override, k.fmt, 'min') AS fmt,
                     COALESCE(k.sort_dir, 'ASC') AS sort_dir,
                     k.tbl_key AS kat_key,
@@ -2300,7 +2300,8 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
 
         foreach ($diszList as $dRow) {
             if (!empty($dRow['hof_exclude'])) continue; // aus Hall of Fame ausgeschlossen
-            $disz = $dRow['disziplin'];
+            $disz      = $dRow['disziplin'];
+            $mappingId = $dRow['disziplin_mapping_id'] ?? null;
 
             // val_sort: wie in Bestleistungen – COALESCE(resultat_num, TIME_TO_SEC oder CAST)
             $fmt = $dRow['fmt'] ?? 'min';
@@ -2309,6 +2310,12 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
             } else {
                 $valExpr = "CASE WHEN e.resultat REGEXP '^[0-9]+:[0-9]' THEN TIME_TO_SEC(e.resultat) ELSE CAST(e.resultat AS DECIMAL(10,3)) END";
             }
+
+            // Filter per mapping_id (eindeutig) oder disziplin-Name (Fallback)
+            $hofWhere = $mappingId
+                ? "e.disziplin_mapping_id = ?"
+                : "e.disziplin = ?";
+            $hofParam = $mappingId ?? $disz;
 
             // Alle Ergebnisse dieser Disziplin laden
             $ergs = DB::fetchAll(
@@ -2319,10 +2326,10 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                  JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
                  JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
                  LEFT JOIN " . DB::tbl('benutzer') . " b ON b.athlet_id = a.id
-                 WHERE e.disziplin = ? AND e.geloescht_am IS NULL
+                 WHERE $hofWhere AND e.geloescht_am IS NULL
                    AND e.resultat IS NOT NULL
                  ORDER BY v.datum ASC",
-                [$disz]
+                [$hofParam]
             );
             if (empty($ergs)) continue;
 
