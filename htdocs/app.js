@@ -184,6 +184,31 @@ function sortDisziplinen(arr, key) {
   return arr;
 }
 
+// Eindeutiger Gruppenkey für ein Ergebnis: mapping_id wenn vorhanden, sonst disziplin-Name
+function ergDiszKey(e) {
+  return e.disziplin_mapping_id ? 'm' + e.disziplin_mapping_id : 'd_' + e.disziplin;
+}
+// Anzeigename für einen Gruppenkey aus einem Ergebnis-Objekt
+function ergDiszLabel(e) {
+  if (e.kategorie_name) {
+    var showSuffix;
+    var disz = e.disziplin;
+    // Per-Disziplin-Override aus state.disziplinen prüfen
+    var list = state.disziplinen || [];
+    var override = '';
+    for (var _i = 0; _i < list.length; _i++) {
+      if (list[_i].disziplin === disz && e.disziplin_mapping_id && list[_i].id == e.disziplin_mapping_id) {
+        override = list[_i].kat_suffix_override || ''; break;
+      }
+    }
+    if (override === 'ja') showSuffix = true;
+    else if (override === 'nein') showSuffix = false;
+    else showSuffix = (appConfig.disziplin_kategorie_suffix || '1') === '1';
+    if (showSuffix) return disz + ' <span style="font-size:0.85em;opacity:0.6">(' + e.kategorie_name + ')</span>';
+  }
+  return e.disziplin;
+}
+
 var MSTR_MAP = {};
 var MSTR_LIST = []; // [{id, label}, ...]
 
@@ -1686,13 +1711,15 @@ async function renderDashboard() {
     var byDisz = {}; var diszOrder = [];
     for (var ei = 0; ei < v.ergebnisse.length; ei++) {
       var e = v.ergebnisse[ei];
-      if (!byDisz[e.disziplin]) { byDisz[e.disziplin] = []; diszOrder.push(e.disziplin); }
-      byDisz[e.disziplin].push(e);
+      var _dk = ergDiszKey(e);
+      if (!byDisz[_dk]) { byDisz[_dk] = []; diszOrder.push(_dk); }
+      byDisz[_dk].push(e);
     }
     sortDisziplinen(diszOrder);
     for (var di = 0; di < diszOrder.length; di++) {
-      var disz = diszOrder[di];
-      var ergs = byDisz[disz];
+      var _dKey = diszOrder[di];
+      var disz = byDisz[_dKey][0] ? ergDiszLabel(byDisz[_dKey][0]) : _dKey;
+      var ergs = byDisz[_dKey];
       vrows += '<tr class="disz-header-row"><td colspan="6" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszMitKat(disz) + '</td></tr>';
       for (var ei2 = 0; ei2 < ergs.length; ei2++) {
         var e2 = ergs[ei2];
@@ -2780,13 +2807,15 @@ function _apRender() {
   // Disziplinen ermitteln (sortiert, mit PB)
   var diszMap = {};
   for (var i = 0; i < ergs.length; i++) {
-    var d = ergs[i].disziplin || '?';
-    if (!diszMap[d]) diszMap[d] = [];
-    diszMap[d].push(ergs[i]);
+    var _ek = ergDiszKey(ergs[i]);
+    if (!diszMap[_ek]) diszMap[_ek] = [];
+    diszMap[_ek].push(ergs[i]);
   }
   var diszList = Object.keys(diszMap).sort(function(a, b) {
-    var ka = _apDiszSortKey(a), kb = _apDiszSortKey(b);
-    return ka !== kb ? ka - kb : a.localeCompare(b);
+    var ea = diszMap[a][0], eb = diszMap[b][0];
+    var ka = _apDiszSortKey(ea ? ea.disziplin : a);
+    var kb = _apDiszSortKey(eb ? eb.disziplin : b);
+    return ka !== kb ? ka - kb : (ea ? ea.disziplin : a).localeCompare(eb ? eb.disziplin : b);
   });
   if (!_apState.selDisz || diszMap[_apState.selDisz] === undefined) {
     _apState.selDisz = diszList[0] || null;
@@ -2806,12 +2835,13 @@ function _apRender() {
   for (var di = 0; di < diszList.length; di++) {
     var disz = diszList[di];
     var dErgs = diszMap[disz];
+    var diszLabel = dErgs[0] ? ergDiszLabel(dErgs[0]) : disz;
     var pb = _apBestOf(dErgs, fmt);
     var pbStr = pb ? _apFmtRes(pb, fmt) : '';
     var active2 = disz === _apState.selDisz ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : 'background:var(--surface);color:var(--text);border-color:var(--border);';
     diszBtns += '<button style="' + active2 + 'border:1px solid;border-radius:10px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;margin:0 6px 6px 0;text-align:left;line-height:1.4" ' +
       'data-ap-disz="' + disz.replace(/"/g,'&quot;') + '">' +
-      '<div>' + disz + '</div>' +
+      '<div>' + diszLabel + '</div>' +
       '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:14px;font-weight:700;opacity:.9">' + pbStr + '</div>' +
     '</button>';
   }
@@ -6498,13 +6528,15 @@ async function renderVeranstaltungen() {
     var diszOrder = [];
     for (var ei = 0; ei < v.ergebnisse.length; ei++) {
       var e = v.ergebnisse[ei];
-      if (!byDisz[e.disziplin]) { byDisz[e.disziplin] = []; diszOrder.push(e.disziplin); }
-      byDisz[e.disziplin].push(e);
+      var _dk = ergDiszKey(e);
+      if (!byDisz[_dk]) { byDisz[_dk] = []; diszOrder.push(_dk); }
+      byDisz[_dk].push(e);
     }
     sortDisziplinen(diszOrder);
     for (var di = 0; di < diszOrder.length; di++) {
-      var disz = diszOrder[di];
-      var ergs = byDisz[disz];
+      var _dKey = diszOrder[di];
+      var disz = byDisz[_dKey][0] ? ergDiszLabel(byDisz[_dKey][0]) : _dKey;
+      var ergs = byDisz[_dKey];
       rows += '<tr class="disz-header-row"><td colspan="6" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszMitKat(disz) + '</td></tr>';
       for (var ei2 = 0; ei2 < ergs.length; ei2++) {
         var e2 = ergs[ei2];

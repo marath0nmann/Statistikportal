@@ -994,12 +994,13 @@ if (in_array($res, $ergebnisTabellen)) {
         }
 
         $sql = "SELECT e.id, a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse,
-                       e.disziplin, e.resultat,
+                       e.disziplin, e.disziplin_mapping_id, e.resultat,
                        $extraCols
                        e.ak_platzierung, e.meisterschaft,
                        v.kuerzel AS veranstaltung, v.datum, v.ort,
                        b.benutzername AS eingetragen_von, e.erstellt_am,
-                       COALESCE(dm.fmt_override, dk.fmt) AS fmt
+                       COALESCE(dm.fmt_override, dk.fmt) AS fmt,
+                       dk.name AS kategorie_name, dk.tbl_key AS kategorie_key
                 FROM $tbl e
                 JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
                 JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
