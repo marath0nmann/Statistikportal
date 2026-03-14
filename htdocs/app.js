@@ -6245,10 +6245,12 @@ async function updateDisz(btn) {
   if (r && r.ok) {
     closeModal();
     notify('Gespeichert.', 'ok');
-    // Cache leeren damit Rekorde neu laden
     state.allDisziplinen = {};
     state.topDisziplinen = {};
+    // Scroll-Position merken und nach Re-Render wiederherstellen
+    var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
     await renderAdminDisziplinen();
+    window.scrollTo(0, scrollY);
   } else notify((r && r.fehler) || 'Fehler', 'err');
 }
 

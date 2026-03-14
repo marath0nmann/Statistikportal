@@ -1,4 +1,1 @@
-v404: Fix Admin Disziplinen: Kategorie-Suffix aus d.kategorie_name
-
-diszMitKat() nutzt state.disziplinen das nur einen Eintrag pro Name
-kennt → bei Duplikaten falscher Suffix. Jetzt direkt aus d.kategorie_name.
+v405: Admin Disziplinen: Scroll-Position nach Speichern beibehalten
