@@ -1,6 +1,1 @@
-v388: HoF: Gesamtbestleistung Männer/Frauen fix + gold + Sortierung
-
-- API: Geschlechts-Bestleistung → "Gesamtbestleistung Männer/Frauen"
-  Die alte übergeschlechtliche "Gesamtbestleistung" entfällt komplett
-- Frontend: Gesamtbestleistung M/F → badge-gold
-- Badges sortiert: gold vor silber
+v391: Fix: Kategorie-Suffix-Checkbox aus Admin→Disziplinen entfernt

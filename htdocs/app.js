@@ -1918,29 +1918,26 @@ async function renderDashboard() {
 
         function compressAKList(aks) {
           if (aks.length <= 2) return aks.join(' und ');
-          // Geschlecht ermitteln
           var prefix = aks[0].replace(/\d+/,'');
           var nums = aks.map(function(a){ return parseInt(a.replace(/\D/g,''),10); });
           nums.sort(function(a,b){return a-b;});
-          // Prüfe ob alle in 5er-Schritten konsekutiv
           var allConsec = true;
-          for (var ci = 1; ci < nums.length; ci++) {
-            if (nums[ci] - nums[ci-1] !== 5) { allConsec = false; break; }
+          for (var _ci = 1; _ci < nums.length; _ci++) {
+            if (nums[_ci] - nums[_ci-1] !== 5) { allConsec = false; break; }
           }
           if (allConsec && nums.length >= 3) {
             return prefix + nums[0] + '\u2013' + prefix + nums[nums.length-1];
           }
-          // Teilweise konsekutiv: Gruppen bilden
           var groups = [[nums[0]]];
-          for (var gi = 1; gi < nums.length; gi++) {
-            if (nums[gi] - nums[gi-1] === 5) groups[groups.length-1].push(nums[gi]);
-            else groups.push([nums[gi]]);
+          for (var _gi = 1; _gi < nums.length; _gi++) {
+            if (nums[_gi] - nums[_gi-1] === 5) groups[groups.length-1].push(nums[_gi]);
+            else groups.push([nums[_gi]]);
           }
-          var parts = groups.map(function(g) {
+          var gparts = groups.map(function(g) {
             if (g.length >= 3) return prefix + g[0] + '\u2013' + prefix + g[g.length-1];
             return g.map(function(n){ return prefix+n; }).join(', ');
           });
-          return parts.slice(0,-1).join(', ') + ' und ' + parts[parts.length-1];
+          return gparts.slice(0,-1).join(', ') + ' und ' + gparts[gparts.length-1];
         }
 
         function joinList(arr) {
@@ -6051,15 +6048,8 @@ async function renderAdminDisziplinen() {
       '</tr>';
   }
 
-  var katSuffix = (appConfig.disziplin_kategorie_suffix || '1') === '1';
   el.innerHTML =
     subTabs +
-    '<div style="margin-bottom:16px">' +
-      '<label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;background:var(--surf2);border-radius:8px;padding:12px 16px">' +
-        '<input type="checkbox" id="cfg-disziplin_kategorie_suffix"' + (katSuffix ? ' checked' : '') + ' style="width:16px;height:16px;cursor:pointer" onchange="saveDiszKatSuffix(this.checked)">' +
-        '<span><strong>Kategorie hinter Disziplinbezeichnung anzeigen</strong> &ndash; z.B. &ldquo;10000m <span style="opacity:.6;font-size:.9em">(Bahn)</span>&rdquo;</span>' +
-      '</label>' +
-    '</div>' +
     '<div class="admin-grid">' +
       '<div class="panel">' +
         '<div class="panel-header"><div class="panel-title">&#x1F3F7;&#xFE0F; Kategorien</div>' +
@@ -6160,10 +6150,11 @@ async function deleteKat(id, name) {
 }
 
 function showDiszEditModal(btn) {
-  var disz    = btn.dataset.disz;
-  var anzeige = btn.dataset.anzeige;
-  var fmt     = btn.dataset.fmt;
-  var katfmt  = btn.dataset.katfmt;
+  var disz      = btn.dataset.disz;
+  var anzeige   = btn.dataset.anzeige;
+  var fmt       = btn.dataset.fmt;
+  var katfmt    = btn.dataset.katfmt;
+  var katSuffix = btn.dataset.katsuffix || '';
   var fmtOpts = [
     { v:'',    label:'Standard (Kategorie: ' + (katfmt||'–') + ')' },
     { v:'min', label:'Zeit (min) – z.B. 45:30 min' },
