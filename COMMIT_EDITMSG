@@ -1,6 +1,1 @@
-v400: Fix Kategorie-Suffix speichern + Duplikat-Disziplinen in Admin
-
-- all_disz mit mapping.id als Key statt disziplin-Name
-  → zwei "800m" mit verschiedenen Kategorien werden korrekt angezeigt
-- m.id im GET zurückgegeben, im Edit-Button als data-mappingid
-- PUT via numerischer ID → trifft exakt die richtige Zeile
+v401: Fix Rename-Check: (disziplin, kategorie_id) statt nur disziplin

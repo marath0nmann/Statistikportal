@@ -1828,10 +1828,12 @@ if ($res === 'disziplin-mapping') {
 
         // Disziplin umbenennen – in Transaktion damit beide Updates atomar sind
         if ($neuer_name && $neuer_name !== $disziplin) {
-            // Prüfen ob Zielname bereits in mapping existiert (würde Unique-Key verletzen)
-            $exists = DB::fetchOne("SELECT 1 FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$neuer_name]);
+            // Prüfen ob Zielname + gleiche Kategorie bereits existiert (Unique-Key Verletzung)
+            $currentKat = DB::fetchOne("SELECT kategorie_id FROM " . DB::tbl('disziplin_mapping') . " WHERE " . ($mappingId ? "id=?" : "disziplin=?"), [$mappingId ?: $disziplin]);
+            $katId = $currentKat ? $currentKat['kategorie_id'] : null;
+            $exists = $katId ? DB::fetchOne("SELECT 1 FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? AND kategorie_id=?", [$neuer_name, $katId]) : null;
             if ($exists) {
-                jsonErr('Disziplin „' . $neuer_name . '" existiert bereits in der Zuordnungstabelle.', 409);
+                jsonErr('Disziplin „' . $neuer_name . '" existiert bereits in dieser Kategorie.', 409);
                 exit;
             }
             DB::get()->beginTransaction();
