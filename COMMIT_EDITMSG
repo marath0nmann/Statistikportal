@@ -1,4 +1,1 @@
-v385: HoF: AK-Ranges komprimieren (W45,W50,W55,W60,W65 → W45–W65)
-
-Gleiche Gruppierungslogik wie v383, aber konsekutive AKs (5er-Schritte)
-werden als Range dargestellt. Teilweise konsekutiv: Gruppen gebildet.
+v387: HoF: "Titel" → "Bestleistung(en)"

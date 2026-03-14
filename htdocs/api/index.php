@@ -2210,10 +2210,11 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                     $vn = trim($e['vorname'] ?? '');
                     $nn = trim($e['nachname'] ?? '');
                     $athletMap[$aid] = [
-                        'id'     => $aid,
-                        'name'   => $vn ? ($vn . ' ' . $nn) : $e['name_nv'],
-                        'avatar' => $e['avatar_pfad'],
-                        'titel'  => [],
+                        'id'         => $aid,
+                        'name'       => $vn ? ($vn . ' ' . $nn) : $e['name_nv'],
+                        'avatar'     => $e['avatar_pfad'],
+                        'geschlecht' => $e['geschlecht'] ?? '',
+                        'titel'      => [],
                     ];
                 }
             }
@@ -2265,10 +2266,13 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
             };
 
             if ($bestGesamtAid !== null) {
-                $addTitel($bestGesamtAid, 'Gesamtbestleistung', $bestGesamtDatum);
+                // Gesamtbestleistung: nach Geschlecht des Titelhalters benennen
+                $gesamtG = $athletMap[$bestGesamtAid]['geschlecht'] ?? '';
+                $gesamtLabel = $gesamtG === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen';
+                $addTitel($bestGesamtAid, $gesamtLabel, $bestGesamtDatum);
             }
             foreach ($bestGAid as $g => $aid) {
-                // Geschlechts-Best nur wenn nicht identisch mit Gesamt (vermeide Doppelzählung im Titel)
+                // Geschlechts-Best nur wenn nicht identisch mit Gesamt
                 $addTitel($aid, $g === 'M' ? 'Bestleistung Männer' : 'Bestleistung Frauen', $bestGDatum[$g]);
             }
             foreach ($bestAKAid as $ak => $aid) {
