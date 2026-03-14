@@ -939,7 +939,9 @@ if (in_array($res, $ergebnisTabellen)) {
                 else { $where[] = '0=1'; }
             }
         }
-        if (!empty($_GET['disziplin'])) {
+        if (!empty($_GET['disziplin_mapping_id'])) {
+            $where[] = 'e.disziplin_mapping_id=?'; $params[] = (int)$_GET['disziplin_mapping_id'];
+        } elseif (!empty($_GET['disziplin'])) {
             $where[] = 'e.disziplin=?'; $params[] = $_GET['disziplin'];
         }
         if (!empty($_GET['ak'])) {
@@ -1039,7 +1041,9 @@ if (in_array($res, $ergebnisTabellen)) {
 
         // Disziplin-Dropdown: alle Filter aktiv außer disziplin; wenn Kategorie aktiv, schränkt sie ein
         list($wd,$pd) = $buildSubWhere(array('disziplin'));
-        $disziplinen = array_column(DB::fetchAll("SELECT DISTINCT e.disziplin FROM $tbl e $jn WHERE ".implode(' AND ',$wd)." ORDER BY e.disziplin", $pd), 'disziplin');
+        $diszRaw = DB::fetchAll("SELECT DISTINCT e.disziplin, e.disziplin_mapping_id, dk.name AS kategorie_name FROM $tbl e $jn LEFT JOIN " . DB::tbl('disziplin_mapping') . " dm ON dm.id=e.disziplin_mapping_id LEFT JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.id=dm.kategorie_id WHERE ".implode(' AND ',$wd), $pd);
+        sortDisziplinen($diszRaw);
+        $disziplinen = $diszRaw;
 
         // AK-Dropdown: alle Filter außer ak
         list($wa,$pa) = $buildSubWhere(array('ak'));
@@ -1052,7 +1056,7 @@ if (in_array($res, $ergebnisTabellen)) {
         // Kategorien: alle die in den Ergebnissen vorkommen
         $kategorien = array();
         try {
-            $kategorien = DB::fetchAll("SELECT k.tbl_key, k.name FROM " . DB::tbl('disziplin_kategorien') . " k WHERE EXISTS (SELECT 1 FROM " . DB::tbl('disziplin_mapping') . " m JOIN $tbl e ON e.disziplin=m.disziplin WHERE m.kategorie_id=k.id) ORDER BY k.reihenfolge, k.name");
+            $kategorien = DB::fetchAll("SELECT k.tbl_key, k.name FROM " . DB::tbl('disziplin_kategorien') . " k WHERE EXISTS (SELECT 1 FROM " . DB::tbl('disziplin_mapping') . " m JOIN $tbl e ON e.disziplin_mapping_id=m.id WHERE m.kategorie_id=k.id) ORDER BY k.reihenfolge, k.name");
         } catch (Exception $ex) {}
 
         jsonOk(compact('rows','total','disziplinen','aks','jahre','kategorien'));

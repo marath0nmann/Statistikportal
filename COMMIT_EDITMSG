@@ -1,6 +1,6 @@
-v406: Fix 800m Bahn vs Straße: Gruppierung nach disziplin_mapping_id
+v407: Fix Ergebnisse-Filter: Disziplin per mapping_id statt Name
 
-- API: disziplin_mapping_id + kategorie_name in Ergebnisse-Response
-- ergDiszKey(): Gruppenkey = mapping_id (statt disziplin-String)
-- ergDiszLabel(): Anzeigename mit korrekter Kategorie pro Eintrag
-- Dashboard, Veranstaltungen, Athletenprofil: alle nutzen ergDiszKey/Label
+- Disziplin-Dropdown zeigt "800m (Bahn)", "800m (Straße)", "800m (Halle)"
+- Filter sendet disziplin_mapping_id statt e.disziplin
+- API filtert per disziplin_mapping_id=? (exakt eine Kategorie)
+- Kategorien-Filter nutzt jetzt auch mapping_id
