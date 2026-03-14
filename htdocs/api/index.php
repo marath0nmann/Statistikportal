@@ -1798,7 +1798,14 @@ if ($res === 'disziplin-mapping') {
 
     // PUT Disziplin bearbeiten: anzeige_name + fmt_override
     if ($method === 'PUT' && $id) {
-        $disziplin    = urldecode($id);
+        // ID kann numerisch (mapping.id) oder Disziplin-Name sein
+        $mappingId = is_numeric($id) ? (int)$id : null;
+        if ($mappingId) {
+            $row = DB::fetchOne("SELECT disziplin FROM " . DB::tbl('disziplin_mapping') . " WHERE id=?", [$mappingId]);
+            $disziplin = $row ? $row['disziplin'] : urldecode($id);
+        } else {
+            $disziplin = urldecode($id);
+        }
         $anzeige_name = isset($body['anzeige_name']) ? (trim($body['anzeige_name']) ?: null) : false;
         $fmt_override = isset($body['fmt_override']) ? (trim($body['fmt_override']) ?: null) : false;
         $neuer_name   = isset($body['neuer_name']) ? trim($body['neuer_name']) : null;
@@ -1846,8 +1853,13 @@ if ($res === 'disziplin-mapping') {
         if ($kat_sfx !== false) { $sets[] = 'kat_suffix_override=?'; $params[] = $kat_sfx; }
         if (isset($body['hof_exclude'])) { $sets[] = 'hof_exclude=?'; $params[] = (int)$body['hof_exclude']; }
         if ($sets) {
-            $params[] = $disziplin;
-            DB::query("UPDATE " . DB::tbl('disziplin_mapping') . " SET " . implode(',', $sets) . " WHERE disziplin=?", $params);
+            if ($mappingId) {
+                $params[] = $mappingId;
+                DB::query("UPDATE " . DB::tbl('disziplin_mapping') . " SET " . implode(',', $sets) . " WHERE id=?", $params);
+            } else {
+                $params[] = $disziplin;
+                DB::query("UPDATE " . DB::tbl('disziplin_mapping') . " SET " . implode(',', $sets) . " WHERE disziplin=?", $params);
+            }
         }
 
         jsonOk(null);

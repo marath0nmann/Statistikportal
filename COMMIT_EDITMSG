@@ -1,1 +1,4 @@
-v398: Disziplin bearbeiten: Modal schließt nicht bei Außenklick
+v399: Fix Kategorie-Suffix speichern: mapping.id statt disziplin-Name im PUT
+
+PUT-URL nutzt jetzt disziplin_mapping.id → trifft immer exakt die richtige Zeile.
+API: numerische ID im PUT-Pfad aufgelöst.
