@@ -1955,14 +1955,17 @@ async function renderDashboard() {
         for (var hdi = 0; hdi < diszKeys.length; hdi++) {
           var hd = diszKeys[hdi];
           var htitels = ha.disziplinen[hd];
-          var gesamt  = htitels.some(function(t){ return t.label === 'Gesamtbestleistung'; });
+          var gesamtM = htitels.some(function(t){ return t.label === 'Gesamtbestleistung M\u00e4nner'; });
+          var gesamtW = htitels.some(function(t){ return t.label === 'Gesamtbestleistung Frauen'; });
+          var gesamt  = gesamtM || gesamtW;
           var hasMaenner = htitels.some(function(t){ return t.label === 'Bestleistung M\u00e4nner' || t.label === 'Bestleistung MHK'; });
           var hasFrauen  = htitels.some(function(t){ return t.label === 'Bestleistung Frauen'  || t.label === 'Bestleistung WHK'; });
           var akM = htitels.filter(function(t){ return /^Bestleistung M\d/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
           var akW = htitels.filter(function(t){ return /^Bestleistung W\d/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
 
           var parts = [];
-          if (gesamt) parts.push('Gesamtbestleistung');
+          if (gesamtM) parts.push('Gesamtbestleistung M\u00e4nner');
+          if (gesamtW) parts.push('Gesamtbestleistung Frauen');
           var mParts = [];
           if (hasMaenner) mParts.push('M\u00e4nner');
           if (akM.length) mParts.push(compressAKList(akM));
@@ -2000,7 +2003,7 @@ async function renderDashboard() {
             '<div style="font-weight:700;font-size:15px;margin-bottom:2px">' +
               '<span class="athlet-link" onclick="openAthletById(' + ha.id + ')">' + ha.name + '</span>' +
             '</div>' +
-            '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">' + ha.titelCount + ' Titel</div>' +
+            '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">' + ha.titelCount + ' ' + (ha.titelCount === 1 ? 'Bestleistung' : 'Bestleistungen') + '</div>' +
             '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">' + hBadgesHtml + '</div>' +
           '</div>';
       }
