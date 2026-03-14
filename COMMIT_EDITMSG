@@ -1,4 +1,1 @@
-v356: Fix Hall of Fame: val_sort → resultat_num
-
-Spalte heißt in der ergebnisse-Tabelle resultat_num, nicht val_sort.
-Deshalb wurden alle Werte als NULL gelesen und keine Bestleistungen erkannt.
+v358: Hall of Fame: Name als "Vorname Nachname"
