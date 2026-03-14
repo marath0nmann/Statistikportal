@@ -1716,56 +1716,58 @@ if ($res === 'disziplin-mapping') {
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS fmt_override  VARCHAR(20) NULL"); } catch (Exception $e) {}
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS kat_suffix_override VARCHAR(10) NULL"); } catch (Exception $e) {}
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS hof_exclude TINYINT(1) NOT NULL DEFAULT 0"); } catch (Exception $e) {}
-        // Alle bekannten Disziplinen aus der einheitlichen Ergebnistabelle
+        // Basis: alle mapping-Einträge (mapping.id als Key → kein Überschreiben bei gleichem Namen)
         $all_disz = [];
+        $mappings = DB::fetchAll(
+            "SELECT m.id, m.disziplin, m.kategorie_id, m.fmt_override,
+                    COALESCE(m.kat_suffix_override,'') AS kat_suffix_override,
+                    COALESCE(m.hof_exclude,0) AS hof_exclude,
+                    k.name AS kategorie_name, k.fmt AS kat_fmt
+             FROM " . DB::tbl('disziplin_mapping') . " m
+             JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
+             ORDER BY m.disziplin");
+        foreach ($mappings as $m) {
+            $all_disz['m' . $m['id']] = [
+                'id'             => (int)$m['id'],
+                'disziplin'      => $m['disziplin'],
+                'kategorie_id'   => $m['kategorie_id'],
+                'kategorie_name' => $m['kategorie_name'],
+                'fmt_override'   => $m['fmt_override'],
+                'kat_suffix_override' => $m['kat_suffix_override'],
+                'hof_exclude'    => (int)$m['hof_exclude'],
+                'kat_fmt'        => $m['kat_fmt'],
+                'ergebnis_anzahl'=> 0,
+                'quelle_tbl'     => '',
+            ];
+        }
+        // Disziplinen aus ergebnisse die noch kein Mapping haben
         try {
             $rows = DB::fetchAll("SELECT DISTINCT disziplin FROM " . DB::tbl('ergebnisse') . " WHERE disziplin IS NOT NULL AND disziplin != '' AND geloescht_am IS NULL ORDER BY disziplin");
             foreach ($rows as $r) {
                 $d = $r['disziplin'];
-                $all_disz[$d] = ['disziplin' => $d, 'kategorie_id' => null, 'kategorie_name' => null, 'anzeige_name' => null, 'fmt_override' => null, 'kat_fmt' => null];
+                $found = false;
+                foreach ($all_disz as &$entry) { if ($entry['disziplin'] === $d) { $found = true; break; } }
+                unset($entry);
+                if (!$found) {
+                    $all_disz['u_' . $d] = ['id' => null, 'disziplin' => $d, 'kategorie_id' => null, 'kategorie_name' => null, 'fmt_override' => null, 'kat_suffix_override' => '', 'hof_exclude' => 0, 'kat_fmt' => null, 'ergebnis_anzahl' => 0, 'quelle_tbl' => ''];
+                }
             }
-        } catch (Exception $e) {
-            // Fallback auf alte Tabellen falls Migration noch nicht gelaufen
-            foreach ($_sys as $skey => $stbl) {
-                try {
-                    $rows = DB::fetchAll("SELECT DISTINCT disziplin FROM $stbl WHERE disziplin IS NOT NULL AND disziplin != '' AND (geloescht_am IS NULL OR geloescht_am = '') ORDER BY disziplin");
-                    foreach ($rows as $r) {
-                        $d = $r['disziplin'];
-                        if (!isset($all_disz[$d])) $all_disz[$d] = ['disziplin'=>$d,'kategorie_id'=>null,'kategorie_name'=>null,'anzeige_name'=>null,'fmt_override'=>null,'kat_fmt'=>null];
-                    }
-                } catch (Exception $e2) {}
-            }
-        }
-        // Mappings drauflegen – auch Disziplinen die nur im Mapping stehen (keine aktiven Ergebnisse)
-        $mappings = DB::fetchAll(
-            "SELECT m.disziplin, m.kategorie_id, m.anzeige_name, m.fmt_override, COALESCE(m.kat_suffix_override,'') AS kat_suffix_override, COALESCE(m.hof_exclude,0) AS hof_exclude, k.name AS kategorie_name, k.fmt AS kat_fmt
-             FROM " . DB::tbl('disziplin_mapping') . " m JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id");
-        foreach ($mappings as $m) {
-            // Falls die Disziplin nicht in all_disz ist (nur Mapping, keine aktiven Ergebnisse),
-            // trotzdem aufnehmen damit sie in Admin gelöscht werden kann
-            if (!isset($all_disz[$m['disziplin']])) {
-                $all_disz[$m['disziplin']] = ['disziplin' => $m['disziplin'], 'kategorie_id' => null, 'kategorie_name' => null, 'anzeige_name' => null, 'fmt_override' => null, 'kat_fmt' => null, 'nur_mapping' => true];
-            }
-            $all_disz[$m['disziplin']]['kategorie_id']   = $m['kategorie_id'];
-            $all_disz[$m['disziplin']]['kategorie_name'] = $m['kategorie_name'];
-            $all_disz[$m['disziplin']]['anzeige_name']   = $m['anzeige_name'];
-            $all_disz[$m['disziplin']]['fmt_override']   = $m['fmt_override'];
-            $all_disz[$m['disziplin']]['kat_fmt']        = $m['kat_fmt'];
-        }
-        // Ergebnisanzahl pro Disziplin (nicht gelöschte)
+        } catch (Exception $e) {}
+        // Ergebnisanzahl pro mapping-id
         try {
-            $counts = DB::fetchAll(
-                "SELECT disziplin, COUNT(*) AS anz FROM " . DB::tbl('ergebnisse') .
-                " WHERE geloescht_am IS NULL GROUP BY disziplin"
-            );
-            $countMap = [];
-            foreach ($counts as $c) $countMap[$c['disziplin']] = (int)$c['anz'];
-        } catch (Exception $e) { $countMap = []; }
-        foreach ($all_disz as $d => &$row) {
-            $row['ergebnis_anzahl'] = $countMap[$d] ?? 0;
-        }
-        unset($row);
-        ksort($all_disz);
+            $counts = DB::fetchAll("SELECT disziplin_mapping_id, COUNT(*) AS anz FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NULL AND disziplin_mapping_id IS NOT NULL GROUP BY disziplin_mapping_id");
+            foreach ($counts as $c) {
+                $k = 'm' . $c['disziplin_mapping_id'];
+                if (isset($all_disz[$k])) $all_disz[$k]['ergebnis_anzahl'] = (int)$c['anz'];
+            }
+            // Fallback: unkategorisierte Ergebnisse per disziplin-Name zählen
+            $counts2 = DB::fetchAll("SELECT disziplin, COUNT(*) AS anz FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NULL AND disziplin_mapping_id IS NULL GROUP BY disziplin");
+            foreach ($counts2 as $c) {
+                $k = 'u_' . $c['disziplin'];
+                if (isset($all_disz[$k])) $all_disz[$k]['ergebnis_anzahl'] = (int)$c['anz'];
+            }
+        } catch (Exception $e) {}
+        uasort($all_disz, function($a,$b){ return strcmp($a['disziplin'], $b['disziplin']); });
         jsonOk(array_values($all_disz));
     }
 

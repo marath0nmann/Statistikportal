@@ -1,4 +1,6 @@
-v399: Fix Kategorie-Suffix speichern: mapping.id statt disziplin-Name im PUT
+v400: Fix Kategorie-Suffix speichern + Duplikat-Disziplinen in Admin
 
-PUT-URL nutzt jetzt disziplin_mapping.id → trifft immer exakt die richtige Zeile.
-API: numerische ID im PUT-Pfad aufgelöst.
+- all_disz mit mapping.id als Key statt disziplin-Name
+  → zwei "800m" mit verschiedenen Kategorien werden korrekt angezeigt
+- m.id im GET zurückgegeben, im Edit-Button als data-mappingid
+- PUT via numerischer ID → trifft exakt die richtige Zeile
