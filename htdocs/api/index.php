@@ -1706,6 +1706,7 @@ if ($res === 'disziplin-mapping') {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS anzeige_name VARCHAR(60) NULL"); } catch (Exception $e) {}
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS fmt_override  VARCHAR(20) NULL"); } catch (Exception $e) {}
+        try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS kat_suffix_override VARCHAR(10) NULL"); } catch (Exception $e) {}
         // Alle bekannten Disziplinen aus der einheitlichen Ergebnistabelle
         $all_disz = [];
         try {
@@ -1728,7 +1729,7 @@ if ($res === 'disziplin-mapping') {
         }
         // Mappings drauflegen – auch Disziplinen die nur im Mapping stehen (keine aktiven Ergebnisse)
         $mappings = DB::fetchAll(
-            "SELECT m.disziplin, m.kategorie_id, m.anzeige_name, m.fmt_override, k.name AS kategorie_name, k.fmt AS kat_fmt
+            "SELECT m.disziplin, m.kategorie_id, m.anzeige_name, m.fmt_override, COALESCE(m.kat_suffix_override,'') AS kat_suffix_override, k.name AS kategorie_name, k.fmt AS kat_fmt
              FROM " . DB::tbl('disziplin_mapping') . " m JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id");
         foreach ($mappings as $m) {
             // Falls die Disziplin nicht in all_disz ist (nur Mapping, keine aktiven Ergebnisse),
@@ -1792,6 +1793,7 @@ if ($res === 'disziplin-mapping') {
         try {
             DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS anzeige_name VARCHAR(60) NULL");
             DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS fmt_override  VARCHAR(20) NULL");
+            try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS kat_suffix_override VARCHAR(10) NULL"); } catch (Exception $e) {}
         } catch (Exception $e) { /* ignorieren – Spalten existieren bereits */ }
 
         // Disziplin umbenennen in einheitlicher Tabelle
@@ -1806,6 +1808,8 @@ if ($res === 'disziplin-mapping') {
             $sets = []; $params = [];
             if ($anzeige_name !== false) { $sets[] = 'anzeige_name=?'; $params[] = $anzeige_name; }
             if ($fmt_override  !== false) { $sets[] = 'fmt_override=?';  $params[] = $fmt_override;  }
+            $kat_sfx = isset($body['kat_suffix_override']) ? (trim($body['kat_suffix_override']) ?: null) : false;
+            if ($kat_sfx !== false) { $sets[] = 'kat_suffix_override=?'; $params[] = $kat_sfx; }
             $params[] = $disziplin;
             DB::query("UPDATE " . DB::tbl('disziplin_mapping') . " SET " . implode(',', $sets) . " WHERE disziplin=?", $params);
         }
@@ -1994,7 +1998,7 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
 if ($res === 'disziplinen' && $method === 'GET') {
     // Öffentlich – wird für Bestleistungen ohne Login benötigt
     $rows = DB::fetchAll(
-        "SELECT dm.disziplin, dk.name AS kategorie, dk.tbl_key, dk.reihenfolge
+        "SELECT dm.disziplin, dk.name AS kategorie, dk.tbl_key, dk.reihenfolge, COALESCE(dm.kat_suffix_override,'') AS kat_suffix_override
          FROM " . DB::tbl('disziplin_mapping') . " dm
          JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.id = dm.kategorie_id
          ORDER BY dk.reihenfolge, dm.disziplin"

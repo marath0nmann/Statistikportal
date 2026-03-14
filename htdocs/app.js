@@ -142,13 +142,20 @@ var FOOTER_DEFAULT_IMP = "# Impressum\n\n**Angaben gem\u00e4\u00df \u00a7 5 TMG*
 // Kategorie-Suffix: ob "(Bahn)" etc. hinter Disziplinname angezeigt wird
 // Wird aus appConfig.disziplin_kategorie_suffix gelesen (Standard: '1')
 function diszMitKat(disziplin) {
-  if ((appConfig.disziplin_kategorie_suffix || '1') !== '1') return disziplin;
-  // Kategoriename aus state.disziplinen nachschlagen
   var list = state.disziplinen || [];
+  var entry = null;
   for (var _i = 0; _i < list.length; _i++) {
-    if (list[_i].disziplin === disziplin && list[_i].kategorie) {
-      return disziplin + ' <span style="font-size:0.85em;opacity:0.6">(' + list[_i].kategorie + ')</span>';
-    }
+    if (list[_i].disziplin === disziplin) { entry = list[_i]; break; }
+  }
+  // Per-Disziplin-Override: 'ja' = immer, 'nein' = nie, '' = global
+  var override = entry && entry.kat_suffix_override ? entry.kat_suffix_override : '';
+  var showSuffix;
+  if (override === 'ja')   showSuffix = true;
+  else if (override === 'nein') showSuffix = false;
+  else showSuffix = (appConfig.disziplin_kategorie_suffix || '1') === '1';
+  if (!showSuffix) return disziplin;
+  if (entry && entry.kategorie) {
+    return disziplin + ' <span style="font-size:0.85em;opacity:0.6">(' + entry.kategorie + ')</span>';
   }
   return disziplin;
 }
@@ -1906,38 +1913,72 @@ async function renderDashboard() {
           ? '<img src="' + ha.avatar + '" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">'
           : '<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));color:var(--on-primary);display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:24px;font-weight:700;">' + nameInitials(ha.name||'?') + '</div>';
 
-        // Badges zusammenfassen: gleiche Label-Gruppe über mehrere Disziplinen bündeln
-        var groupMap = {}, groupOrder = [];
+        // Gruppierung: gleiche AK-Kombination → eine Box, Disziplinen zusammenfassen.
+        // Zusätzlich: konsekutive AK-Ranges komprimieren (W45,W50,W55,W60,W65 → W45–W65)
+
+        function compressAKList(aks) {
+          if (aks.length <= 2) return aks.join(' und ');
+          // Geschlecht ermitteln
+          var prefix = aks[0].replace(/\d+/,'');
+          var nums = aks.map(function(a){ return parseInt(a.replace(/\D/g,''),10); });
+          nums.sort(function(a,b){return a-b;});
+          // Prüfe ob alle in 5er-Schritten konsekutiv
+          var allConsec = true;
+          for (var ci = 1; ci < nums.length; ci++) {
+            if (nums[ci] - nums[ci-1] !== 5) { allConsec = false; break; }
+          }
+          if (allConsec && nums.length >= 3) {
+            return prefix + nums[0] + '\u2013' + prefix + nums[nums.length-1];
+          }
+          // Teilweise konsekutiv: Gruppen bilden
+          var groups = [[nums[0]]];
+          for (var gi = 1; gi < nums.length; gi++) {
+            if (nums[gi] - nums[gi-1] === 5) groups[groups.length-1].push(nums[gi]);
+            else groups.push([nums[gi]]);
+          }
+          var parts = groups.map(function(g) {
+            if (g.length >= 3) return prefix + g[0] + '\u2013' + prefix + g[g.length-1];
+            return g.map(function(n){ return prefix+n; }).join(', ');
+          });
+          return parts.slice(0,-1).join(', ') + ' und ' + parts[parts.length-1];
+        }
+
+        function joinList(arr) {
+          if (arr.length === 0) return '';
+          if (arr.length === 1) return arr[0];
+          return arr.slice(0,-1).join(', ') + ' und ' + arr[arr.length-1];
+        }
+
         var diszKeys = Object.keys(ha.disziplinen);
+        var groupMap = {}, groupOrder = [];
+
         for (var hdi = 0; hdi < diszKeys.length; hdi++) {
           var hd = diszKeys[hdi];
           var htitels = ha.disziplinen[hd];
-          var gesamt  = htitels.filter(function(t){ return t.label === 'Gesamtbestleistung'; });
-          var maenner = htitels.filter(function(t){ return t.label === 'Bestleistung M\u00e4nner'; });
-          var frauen  = htitels.filter(function(t){ return t.label === 'Bestleistung Frauen'; });
-          var mhk     = htitels.filter(function(t){ return t.label === 'Bestleistung MHK'; });
-          var whk     = htitels.filter(function(t){ return t.label === 'Bestleistung WHK'; });
-          var akM     = htitels.filter(function(t){ return /^Bestleistung M\d/.test(t.label); });
-          var akW     = htitels.filter(function(t){ return /^Bestleistung W\d/.test(t.label); });
-          var akMNums = akM.map(function(t){ return t.label.replace('Bestleistung ',''); });
-          var akWNums = akW.map(function(t){ return t.label.replace('Bestleistung ',''); });
+          var gesamt  = htitels.some(function(t){ return t.label === 'Gesamtbestleistung'; });
+          var hasMaenner = htitels.some(function(t){ return t.label === 'Bestleistung M\u00e4nner' || t.label === 'Bestleistung MHK'; });
+          var hasFrauen  = htitels.some(function(t){ return t.label === 'Bestleistung Frauen'  || t.label === 'Bestleistung WHK'; });
+          var akM = htitels.filter(function(t){ return /^Bestleistung M\d/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
+          var akW = htitels.filter(function(t){ return /^Bestleistung W\d/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
+
           var parts = [];
-          if (gesamt.length) parts.push('Gesamtbestleistung');
+          if (gesamt) parts.push('Gesamtbestleistung');
           var mParts = [];
-          if (maenner.length || mhk.length) mParts.push('M\u00e4nner');
-          if (akMNums.length) mParts = mParts.concat(akMNums);
-          if (mParts.length) { var mStr = mParts.length===1?mParts[0]:mParts.slice(0,-1).join(', ')+' und '+mParts[mParts.length-1]; parts.push('Bestleistung '+mStr); }
+          if (hasMaenner) mParts.push('M\u00e4nner');
+          if (akM.length) mParts.push(compressAKList(akM));
+          if (mParts.length) parts.push('Bestleistung ' + joinList(mParts));
           var wParts = [];
-          if (frauen.length || whk.length) wParts.push('Frauen');
-          if (akWNums.length) wParts = wParts.concat(akWNums);
-          if (wParts.length) { var wStr = wParts.length===1?wParts[0]:wParts.slice(0,-1).join(', ')+' und '+wParts[wParts.length-1]; parts.push('Bestleistung '+wStr); }
+          if (hasFrauen) wParts.push('Frauen');
+          if (akW.length) wParts.push(compressAKList(akW));
+          if (wParts.length) parts.push('Bestleistung ' + joinList(wParts));
+
           var sentence  = parts.join(' \u00b7 ');
-          var lineClass = gesamt.length ? 'badge badge-gold' : 'badge badge-silver';
+          var lineClass = gesamt ? 'badge badge-gold' : 'badge badge-silver';
           if (!groupMap[sentence]) { groupMap[sentence] = { lineClass: lineClass, disz: [] }; groupOrder.push(sentence); }
           groupMap[sentence].disz.push(hd);
         }
 
-        // Badges rendern: Disziplinen einer Gruppe mit "und" verbinden
+        // Badges rendern
         var hBadgesHtml = '';
         for (var gi = 0; gi < groupOrder.length; gi++) {
           var gKey = groupOrder[gi], gData = groupMap[gKey], dl = gData.disz;
@@ -5605,6 +5646,11 @@ async function renderAdminDarstellung() {
       '<div class="panel-header"><div class="panel-title">📊 Darstellung</div></div>' +
       '<div class="settings-panel-body">' +
 
+        row('Disziplinbezeichnung', 'Kategorie in Klammern hinter den Disziplinnamen stellen, z.B. "10km (Straße)"',
+          '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
+          '<input type="checkbox" id="cfg-disziplin_kategorie_suffix" ' + (cfgVal('disziplin_kategorie_suffix','1') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer" onchange="saveDiszKatSuffix(this.checked)"/>' +
+          '<span style="font-size:13px;color:var(--text2)">Kategorie hinter Disziplinbezeichnung anzeigen</span>' +
+          '</label>') +
         row('Versionsstand im Header', 'Wenn aktiv, wird die Versionsnummer nur eingeloggten Admins angezeigt',
           '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
           '<input type="checkbox" id="cfg-version_nur_admins" ' + (cfgVal('version_nur_admins','1') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer"/>' +
@@ -5980,7 +6026,8 @@ async function renderAdminDisziplinen() {
       'data-anzeige="' + (d.anzeige_name||'').replace(/"/g,'&quot;') + '" ' +
       'data-fmt="' + (d.fmt_override||'').replace(/"/g,'&quot;') + '" ' +
       'data-katfmt="' + (d.kat_fmt||'').replace(/"/g,'&quot;') + '" ' +
-      'onclick="showDiszEditModal(this)">&#x270F;&#xFE0F;</button>';
+      'data-katsuffix="' + (d.kat_suffix_override||'') + '" ' +
+      'onclick="showDiszEditModal(this)">&#x270F;&#xFE0E;</button>';
     var anz = d.ergebnis_anzahl || 0;
     var anzBadge = '<span class="badge" style="background:' + (anz > 0 ? 'var(--surf2);color:var(--text2)' : 'var(--green);color:#fff') + ';font-size:11px">' + anz + '</span>';
     var delBtn = anz === 0
@@ -6120,19 +6167,27 @@ function showDiszEditModal(btn) {
     fmtSel += '<option value="' + fmtOpts[i].v + '"' + (fmt === fmtOpts[i].v ? ' selected' : '') + '>' + fmtOpts[i].label + '</option>';
   }
   fmtSel += '</select>';
+  var katSuffixGlobal = (appConfig.disziplin_kategorie_suffix || '1') === '1';
+  var katSuffixSel =
+    '<select id="de-katsuffix" style="width:100%">' +
+      '<option value=""'     + (!katSuffix           ? ' selected' : '') + '>Global (' + (katSuffixGlobal ? 'an' : 'aus') + ')</option>' +
+      '<option value="ja"'   + (katSuffix === 'ja'   ? ' selected' : '') + '>Immer anzeigen</option>' +
+      '<option value="nein"' + (katSuffix === 'nein' ? ' selected' : '') + '>Nie anzeigen</option>' +
+    '</select>';
   showModal(
-    '<h2>&#x270F;&#xFE0F; Disziplin bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<h2>&#x270F;&#xFE0E; Disziplin bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Original: <strong>' + disz + '</strong></div>' +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Umbenennen in</label>' +
         '<input type="text" id="de-name" value="' + disz.replace(/"/g,'&quot;') + '" placeholder="Neuer Name (leer = unverändert)"/>' +
-        '<div style="font-size:11px;color:var(--text2);margin-top:4px">&#x26A0;&#xFE0F; Benennt die Disziplin in allen Ergebnistabellen um.</div>' +
+        '<div style="font-size:11px;color:var(--text2);margin-top:4px">&#x26A0;&#xFE0E; Benennt die Disziplin in allen Ergebnistabellen um.</div>' +
       '</div>' +
       '<div class="form-group full"><label>Anzeigename (optional)</label>' +
-        '<input type="text" id="de-anzeige" value="' + anzeige.replace(/"/g,'&quot;') + '" placeholder="z.B. Halbmarathon (für 21,1 km)"/>' +
+        '<input type="text" id="de-anzeige" value="' + anzeige.replace(/"/g,'&quot;') + '" placeholder="z.B. Halbmarathon (über 21,1 km)"/>' +
         '<div style="font-size:11px;color:var(--text2);margin-top:4px">Wird zusätzlich zum Disziplinnamen angezeigt.</div>' +
       '</div>' +
-      '<div class="form-group full"><label>Ergebnisformat</label>' + fmtSel + '</div>' +
+      '<div class="form-group"><label>Ergebnisformat</label>' + fmtSel + '</div>' +
+      '<div class="form-group"><label>Kategorie-Suffix</label>' + katSuffixSel + '</div>' +
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -6146,7 +6201,8 @@ async function updateDisz(btn) {
   var neuerName = document.getElementById('de-name').value.trim();
   var anzeige   = document.getElementById('de-anzeige').value.trim();
   var fmt       = document.getElementById('de-fmt').value;
-  var body = { anzeige_name: anzeige, fmt_override: fmt };
+  var katSuffix = document.getElementById('de-katsuffix') ? document.getElementById('de-katsuffix').value : '';
+  var body = { anzeige_name: anzeige, fmt_override: fmt, kat_suffix_override: katSuffix };
   if (neuerName && neuerName !== origDisz) body.neuer_name = neuerName;
   var r = await apiPut('disziplin-mapping/' + encodeURIComponent(origDisz), body);
   if (r && r.ok) {
