@@ -1,5 +1,8 @@
-v362: Hall of Fame: Jugend-AK zu MHK/WHK zusammenfassen
+v363: Hall of Fame: Kategorie-Filter + Bug-Fix sort_dir
 
-- Neue Checkbox in der Widget-Konfiguration (Standard: an)
-- Identische CASE-Logik wie unter Bestleistungen (merge_ak Parameter)
-- API: ?merge_ak=0/1 steuert ob Jugend-AKs zusammengefasst werden
+Bug: sort_dir wurde per Regex ermittelt statt aus disziplin_mapping →
+bei manchen Disziplinen falsche Richtung → falsche Bestleistung.
+Fix: sort_dir aus COALESCE(k.sort_dir, 'ASC') im JOIN.
+
+Neu: Kategorie-Checkboxen in der Widget-Konfiguration (Standard: alle).
+API: ?kat=strasse,sprint (kommagetrennt).

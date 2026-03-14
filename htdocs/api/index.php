@@ -2126,13 +2126,28 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
     $athletMap = [];
 
     if ($unified) {
-        // Alle Disziplinen laden, zusammen mit dem Formathinweis aus disziplin_mapping
-        $diszList = DB::fetchAll(
-            "SELECT DISTINCT e.disziplin
+        // Alle Disziplinen laden mit fmt + sort_dir aus disziplin_mapping/kategorien
+        $katFilter = isset($_GET['kat']) && $_GET['kat'] !== '' ? $_GET['kat'] : null;
+        $diszListSql = "SELECT DISTINCT e.disziplin,
+                    COALESCE(m.fmt_override, k.fmt, 'min') AS fmt,
+                    COALESCE(k.sort_dir, 'ASC') AS sort_dir,
+                    k.tbl_key AS kat_key
              FROM " . DB::tbl('ergebnisse') . " e
-             WHERE e.geloescht_am IS NULL AND e.resultat IS NOT NULL
-             ORDER BY e.disziplin"
-        );
+             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.disziplin = e.disziplin
+             LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
+             WHERE e.geloescht_am IS NULL AND e.resultat IS NOT NULL";
+        $diszParams = [];
+        if ($katFilter) {
+            // Kommagetrennte Kategorie-Keys (z.B. "strasse,sprint")
+            $katKeys = array_filter(array_map('trim', explode(',', $katFilter)));
+            if ($katKeys) {
+                $placeholders = implode(',', array_fill(0, count($katKeys), '?'));
+                $diszListSql .= " AND k.tbl_key IN ($placeholders)";
+                $diszParams  = array_merge($diszParams, $katKeys);
+            }
+        }
+        $diszListSql .= " ORDER BY e.disziplin";
+        $diszList = DB::fetchAll($diszListSql, $diszParams);
 
         // Jugend-AK zusammenfassen: identische CASE-Logik wie unter Bestleistungen
         $mergeAK = ($_GET['merge_ak'] ?? '1') !== '0';
@@ -2167,10 +2182,13 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
             );
             if (empty($ergs)) continue;
 
-            // Sortierrichtung: Zeitdisziplinen ASC (kleiner = besser), Weite/Höhe DESC
-            $firstRes = $ergs[0]['resultat'] ?? '';
-            $isTime = preg_match('/^\d{1,2}:\d{2}/', $firstRes);
-            $dir = $isTime ? 'ASC' : 'DESC';
+            // Sortierrichtung aus disziplin_mapping (zuverlässiger als Regex)
+            $dir = strtoupper($dRow['sort_dir'] ?? 'ASC');
+            // Fallback: Regex wenn sort_dir fehlt
+            if ($dir !== 'ASC' && $dir !== 'DESC') {
+                $firstRes = $ergs[0]['resultat'] ?? '';
+                $dir = preg_match('/^\d{1,2}:\d{2}/', $firstRes) ? 'ASC' : 'DESC';
+            }
 
             // Athleten-Map befüllen (einmalig pro Athlet)
             foreach ($ergs as $e) {
