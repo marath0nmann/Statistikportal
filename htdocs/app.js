@@ -1945,9 +1945,15 @@ async function renderDashboard() {
     }
   }
   if (hasHof) {
-    var _hofMerge = hofWcfg ? hofWcfg.hof_merge_ak !== false : true;
-    var _hofKats  = (hofWcfg && hofWcfg.hof_kats && hofWcfg.hof_kats.length) ? hofWcfg.hof_kats : [];
-    await getHofData(_hofMerge, _hofKats);
+    var _hofWidgets = [];
+    for (var _hri = 0; _hri < layout.length; _hri++) {
+      for (var _hci = 0; _hci < (layout[_hri].cols||[]).length; _hci++) {
+        if ((layout[_hri].cols[_hci].widget||'') === 'hall-of-fame') {
+          _hofWidgets.push(layout[_hri].cols[_hci]);
+        }
+      }
+    }
+    await Promise.all(_hofWidgets.map(function(w) { return _loadHofWidget(w); }));
   }
 
   var layoutHtml = '';
