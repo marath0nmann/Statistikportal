@@ -1296,20 +1296,29 @@ function renderLegalPage(type) {
   var title = titles[type] || type;
   // Einfaches Markdown → HTML (h1, h2, bold, italic, listen)
   function mdToHtml(md) {
-    return md
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      .replace(/^# (.+)$/gm, '<h1 style="font-size:22px;font-weight:700;margin:0 0 16px;color:var(--primary)">$1</h1>')
-      .replace(/^## (.+)$/gm, '<h2 style="font-size:16px;font-weight:700;margin:20px 0 8px;color:var(--text)">$1</h2>')
+    var lines = md.split('\n');
+    var out = [];
+    var inUl = false;
+    for (var li = 0; li < lines.length; li++) {
+      var l = lines[li].replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      if (l.match(/^# /)) {
+        if (inUl) { out.push('</ul>'); inUl = false; }
+        out.push('<h1 style="font-size:22px;font-weight:700;margin:16px 0 10px;color:var(--primary)">' + l.slice(2) + '</h1>');
+      } else if (l.match(/^## /)) {
+        if (inUl) { out.push('</ul>'); inUl = false; }
+        out.push('<h2 style="font-size:16px;font-weight:700;margin:20px 0 6px;color:var(--text)">' + l.slice(3) + '</h2>');
+      } else if (l.match(/^- /)) {
+        if (!inUl) { out.push('<ul style="margin:8px 0 8px 20px">'); inUl = true; }
+        out.push('<li style="margin:4px 0">' + l.slice(2) + '</li>');
+      } else {
+        if (inUl) { out.push('</ul>'); inUl = false; }
+        out.push(l === '' ? '<br>' : '<p style="margin:6px 0">' + l + '</p>');
+      }
+    }
+    if (inUl) out.push('</ul>');
+    return out.join('\n')
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/^- (.+)$/gm, '<li style="margin:4px 0;padding-left:4px">$1</li>')
-      .replace(/(<li[^>]*>.*<\/li>
-?)+/g, function(m){ return '<ul style="margin:8px 0 8px 20px">'+m+'</ul>'; })
-      .replace(/
-
-/g, '</p><p style="margin:8px 0">')
-      .replace(/
-/g, '<br>');
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
   }
   var html = '<p style="margin:8px 0">' + mdToHtml(text) + '</p>';
   var isAdmin = currentUser && currentUser.rolle === 'admin';
@@ -1317,7 +1326,7 @@ function renderLegalPage(type) {
     '<div style="max-width:720px;margin:0 auto">' +
       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">' +
         '<button class="btn btn-ghost btn-sm" onclick="history.back()" style="white-space:nowrap">&#x2190; Zurück</button>' +
-        (isAdmin ? '<button class="btn btn-ghost btn-sm" onclick="editLegalPage('' + type + '')" style="white-space:nowrap">&#x270F;&#xFE0E; Bearbeiten</button>' : '') +
+        (isAdmin ? '<button class="btn btn-ghost btn-sm" onclick="editLegalPage(&quot;' + type + '&quot;)" style="white-space:nowrap">&#x270F;&#xFE0E; Bearbeiten</button>' : '') +
       '</div>' +
       '<div class="panel" style="padding:28px 32px">' + html + '</div>' +
     '</div>';
@@ -1335,8 +1344,8 @@ async function editLegalPage(type) {
     '<textarea id="legal-edit-ta" style="width:100%;height:360px;box-sizing:border-box;padding:12px;border:1.5px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surf2);color:var(--text);resize:vertical">' + current.replace(/</g,'&lt;') + '</textarea>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-      '<button class="btn btn-ghost" onclick="resetLegalPage('' + type + '')">&#x21BA; Standard</button>' +
-      '<button class="btn btn-primary" onclick="saveLegalPage('' + type + '')">&#x1F4BE; Speichern</button>' +
+      '<button class="btn btn-ghost" onclick="resetLegalPage(&quot;' + type + '&quot;)">&#x21BA; Standard</button>' +
+      '<button class="btn btn-primary" onclick="saveLegalPage(&quot;' + type + '&quot;)">&#x1F4BE; Speichern</button>' +
     '</div>'
   , false, true);
 }
