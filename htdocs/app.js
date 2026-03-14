@@ -1420,15 +1420,18 @@ async function renderDashboard() {
     if (cols.length === 1) {
       layoutHtml += '<div style="margin-bottom:20px">' + renderWidget(cols[0]) + '</div>';
     } else {
-      // Mehrspaltig: Breiten berechnen
+      // Mehrspaltig: minmax-Breite für responsives Umbrechen
       var colsHtml = '';
-      var gtc = '';
+      var minW = 0;
       for (var ci = 0; ci < cols.length; ci++) {
         var col = cols[ci];
-        gtc += (col.w ? col.w + 'px' : '1fr') + (ci < cols.length - 1 ? ' ' : '');
+        // Mindestbreite je Spalte: konfigurierte px-Breite oder 280px als Fallback
+        var colMin = col.w ? col.w : 280;
+        if (colMin > minW) minW = colMin;
         colsHtml += '<div>' + renderWidget(col) + '</div>';
       }
-      layoutHtml += '<div style="display:grid;grid-template-columns:' + gtc + ';gap:20px;margin-bottom:20px">' + colsHtml + '</div>';
+      // repeat(auto-fit, minmax(X, 1fr)) → bricht automatisch um wenn zu schmal
+      layoutHtml += '<div class="dash-row" style="--dash-min:' + minW + 'px;margin-bottom:20px">' + colsHtml + '</div>';
     }
   }
 
