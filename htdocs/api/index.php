@@ -2166,9 +2166,17 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         foreach ($diszList as $dRow) {
             $disz = $dRow['disziplin'];
 
-            // Alle Ergebnisse dieser Disziplin laden (mit Athleten- und Datum-Info)
+            // val_sort: wie in Bestleistungen – COALESCE(resultat_num, TIME_TO_SEC oder CAST)
+            $fmt = $dRow['fmt'] ?? 'min';
+            if ($fmt === 'm') {
+                $valExpr = "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))";
+            } else {
+                $valExpr = "CASE WHEN e.resultat REGEXP '^[0-9]+:[0-9]' THEN TIME_TO_SEC(e.resultat) ELSE CAST(e.resultat AS DECIMAL(10,3)) END";
+            }
+
+            // Alle Ergebnisse dieser Disziplin laden
             $ergs = DB::fetchAll(
-                "SELECT e.resultat, e.resultat_num, " . $akExpr . " AS altersklasse,
+                "SELECT e.resultat, ($valExpr) AS val_sort, " . $akExpr . " AS altersklasse,
                         a.id AS athlet_id, a.name_nv, a.vorname, a.nachname, a.geschlecht,
                         b.avatar_pfad, v.datum
                  FROM " . DB::tbl('ergebnisse') . " e
@@ -2176,7 +2184,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                  JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
                  LEFT JOIN " . DB::tbl('benutzer') . " b ON b.athlet_id = a.id
                  WHERE e.disziplin = ? AND e.geloescht_am IS NULL
-                   AND e.resultat IS NOT NULL AND e.resultat_num IS NOT NULL AND e.resultat_num > 0
+                   AND e.resultat IS NOT NULL
                  ORDER BY v.datum ASC",
                 [$disz]
             );
@@ -2211,7 +2219,8 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
             $bestByAK   = []; $bestAKAid = []; $bestAKDatum = [];
 
             foreach ($ergs as $e) {
-                $val   = (float)$e['resultat_num'];
+                $val   = (float)($e['val_sort'] ?? 0);
+                if ($val <= 0) continue; // ungültiger Wert überspringen
                 $aid   = (int)$e['athlet_id'];
                 $g     = $e['geschlecht'] ?? '';
                 $ak    = $e['altersklasse'] ?? '';
