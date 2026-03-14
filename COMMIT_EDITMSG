@@ -1,10 +1,1 @@
-v396: Schema-Migration: disziplin_mapping_id in ergebnisse
-
-- disziplin_mapping: UNIQUE(disziplin) → UNIQUE(disziplin, kategorie_id)
-  Gleicher Name in verschiedenen Kategorien jetzt möglich (z.B. 800m Bahn + 800m Straße)
-- ergebnisse: neue Spalte disziplin_mapping_id (FK auf disziplin_mapping.id)
-- Alle JOINs: ON m.disziplin=e.disziplin → ON m.id=e.disziplin_mapping_id
-- Kategorie-Filter: disziplin IN (...) → disziplin_mapping_id IN (...)
-- Alle INSERT/UPDATE: disziplin_mapping_id wird automatisch gesetzt
-- Auto-Migration läuft beim ersten PUT auf disziplin-mapping
-- Manuelle Migration: sql/migrations_applied/migration_disziplin_mapping_id.sql
+v397: Fix PUT disziplin-mapping: kat_suffix_override + hof_exclude immer speichern
