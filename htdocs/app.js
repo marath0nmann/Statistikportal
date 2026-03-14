@@ -3158,8 +3158,8 @@ async function renderRekorde() {
   var diszList = state.allDisziplinen[rs.kat] || [];
   var topDisz  = state.topDisziplinen[rs.kat] || [];
   var topNames = topDisz.map(function(t) { return t.disziplin; });
-  if (!rs.disz && topNames.length) rs.disz = topNames[0];
-  else if (!rs.disz && diszList.length) rs.disz = diszList[0].disziplin || diszList[0];
+  if (!rs.disz && topNames.length) { rs.disz = topNames[0]; rs.mapping_id = topDisz[0] ? (topDisz[0].mapping_id || null) : null; }
+  else if (!rs.disz && diszList.length) { rs.disz = diszList[0].disziplin || diszList[0]; rs.mapping_id = diszList[0].mapping_id || null; }
 
   // Kategorie-Tabs
   var catHtml = '<div class="rek-cat-tabs">';
@@ -3174,7 +3174,7 @@ async function renderRekorde() {
   for (var ti = 0; ti < topNames.length; ti++) {
     var td = topNames[ti];
     var cnt = topDisz[ti].cnt;
-    topHtml += '<button class="rek-top-btn' + (rs.disz === td ? ' active' : '') + '" data-disz="' + td.replace(/"/g, '&quot;') + '" onclick="setRekDisz(this.dataset.disz)">' +
+    topHtml += '<button class="rek-top-btn' + (rs.disz === td ? ' active' : '') + '" data-disz="' + td.replace(/"/g, '&quot;') + '" onclick="setRekDisz(this.dataset.disz, this.dataset.mid)">' +
       '<span class="rek-top-name">' + td + '</span>' +
       '<span class="rek-top-cnt">' + cnt + (cnt === 1 ? ' Ergebnis' : ' Ergebnisse') + '</span>' +
     '</button>';
@@ -3191,7 +3191,8 @@ async function renderRekorde() {
     for (var di = 0; di < restDisz.length; di++) {
       var dd = typeof restDisz[di] === 'object' ? restDisz[di].disziplin : restDisz[di];
       var ddcnt = typeof restDisz[di] === 'object' ? (restDisz[di].cnt || 0) : 0;
-      diszHtml += '<button class="rek-top-btn rek-top-btn--sm' + (rs.disz === dd ? ' active' : '') + '" data-disz="' + dd.replace(/"/g, '&quot;') + '" onclick="setRekDisz(this.dataset.disz)">' +
+      var ddmid = typeof restDisz[di] === 'object' ? (restDisz[di].mapping_id || '') : '';
+      diszHtml += '<button class="rek-top-btn rek-top-btn--sm' + (rs.disz === dd ? ' active' : '') + '" data-disz="' + dd.replace(/"/g, '&quot;') + '" data-mid="' + ddmid + '" onclick="setRekDisz(this.dataset.disz, this.dataset.mid)">' +
         '<span class="rek-top-name">' + dd + '</span>' +
         '<span class="rek-top-cnt">' + ddcnt + (ddcnt === 1 ? ' Ergebnis' : ' Ergebnisse') + '</span>' +
       '</button>';
@@ -3413,8 +3414,9 @@ function setRekKat(kat) {
   state.rekState.view = 'gesamt';
   renderRekorde();
 }
-function setRekDisz(disz) {
+function setRekDisz(disz, mid) {
   state.rekState.disz = disz;
+  state.rekState.mapping_id = mid ? parseInt(mid) : null;
   state.rekState.view = 'gesamt';
   renderRekorde();
 }
