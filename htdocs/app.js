@@ -141,23 +141,26 @@ var FOOTER_DEFAULT_IMP = "# Impressum\n\n**Angaben gem\u00e4\u00df \u00a7 5 TMG*
 
 // Kategorie-Suffix: ob "(Bahn)" etc. hinter Disziplinname angezeigt wird
 // Wird aus appConfig.disziplin_kategorie_suffix gelesen (Standard: '1')
-function diszMitKat(disziplin) {
+function diszMitKat(disziplin, mappingId) {
   var list = state.disziplinen || [];
-  var entry = null;
-  for (var _i = 0; _i < list.length; _i++) {
-    if (list[_i].disziplin === disziplin) { entry = list[_i]; break; }
+  // Wenn mapping_id bekannt: exakten Eintrag suchen
+  if (mappingId) {
+    for (var _j = 0; _j < list.length; _j++) {
+      if (list[_j].disziplin === disziplin && list[_j].id == mappingId) {
+        var e2 = list[_j];
+        var ov2 = e2.kat_suffix_override || '';
+        var show2 = ov2 === 'ja' ? true : ov2 === 'nein' ? false : (appConfig.disziplin_kategorie_suffix || '1') === '1';
+        return show2 && e2.kategorie ? disziplin + ' <span style="font-size:0.85em;opacity:0.6">(' + e2.kategorie + ')</span>' : disziplin;
+      }
+    }
   }
-  // Per-Disziplin-Override: 'ja' = immer, 'nein' = nie, '' = global
-  var override = entry && entry.kat_suffix_override ? entry.kat_suffix_override : '';
-  var showSuffix;
-  if (override === 'ja')   showSuffix = true;
-  else if (override === 'nein') showSuffix = false;
-  else showSuffix = (appConfig.disziplin_kategorie_suffix || '1') === '1';
-  if (!showSuffix) return disziplin;
-  if (entry && entry.kategorie) {
-    return disziplin + ' <span style="font-size:0.85em;opacity:0.6">(' + entry.kategorie + ')</span>';
-  }
-  return disziplin;
+  // Ohne mapping_id: nur anzeigen wenn Disziplinname eindeutig
+  var matches = list.filter(function(x) { return x.disziplin === disziplin; });
+  if (matches.length !== 1) return disziplin; // mehrdeutig → kein Suffix
+  var entry = matches[0];
+  var override = entry.kat_suffix_override || '';
+  var showSuffix = override === 'ja' ? true : override === 'nein' ? false : (appConfig.disziplin_kategorie_suffix || '1') === '1';
+  return showSuffix && entry.kategorie ? disziplin + ' <span style="font-size:0.85em;opacity:0.6">(' + entry.kategorie + ')</span>' : disziplin;
 }
 
 // Disziplin-Name sortierbar machen: "5.000m" → 5000, "10km" → 10000
@@ -1692,7 +1695,7 @@ async function renderDashboard() {
     timelineHtml += '<div class="timeline-item">';
     timelineHtml += '<div class="timeline-date">' + formatDate(rek.datum) + '</div>';
     timelineHtml += '<div class="timeline-body">';
-    var diszLink = '<span class="athlet-link" style="color:var(--text);font-weight:600;cursor:pointer" data-rek-disz="' + rek.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + diszMitKat(rek.disziplin) + '</span>';
+    var diszLink = '<span class="athlet-link" style="color:var(--text);font-weight:600;cursor:pointer" data-rek-disz="' + rek.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + ergDiszLabel(rek) + '</span>';
     timelineHtml += '<div class="timeline-disz">' + diszLink + ' <span class="' + labelCls + '">' + lbl + '</span></div>';
     timelineHtml += '<div class="timeline-athlet">' + athLink + '</div>';
     timelineHtml += '<div class="timeline-result">' + res + vorherHtml + '</div>';
@@ -1867,7 +1870,7 @@ async function renderDashboard() {
             var fVFmt = fmtValNum(fItem.vorher_val, fFmt === 's' ? 's' : (fFmt === 'm' ? 'm' : 'min'));
             if (fVFmt) fVorher = '<span style="color:var(--text2);font-size:12px;margin-left:6px">vorher: ' + fVFmt + '</span>';
           }
-          var fDiszLink = '<span class="athlet-link" style="color:var(--text);font-weight:600;cursor:pointer" data-rek-disz="' + fItem.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + diszMitKat(fItem.disziplin) + '</span>';
+          var fDiszLink = '<span class="athlet-link" style="color:var(--text);font-weight:600;cursor:pointer" data-rek-disz="' + fItem.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + ergDiszLabel(fItem) + '</span>';
           filteredTimeline +=
             '<div class="timeline-item">' +
               '<div class="timeline-date">' + formatDate(fItem.datum) + '</div>' +
