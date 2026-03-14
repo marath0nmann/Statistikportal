@@ -1,1 +1,1 @@
-v414: Fix veranst_limit speichern: in dashUpdateLayout korrekt ausgelesen
+v415: Fix veranst_limit: aus appConfig lesen (layout noch nicht definiert)
