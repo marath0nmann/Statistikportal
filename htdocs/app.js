@@ -6018,7 +6018,6 @@ async function renderAdminDisziplinen() {
   var mapRows = '';
   for (var i = 0; i < disziplinen.length; i++) {
     var d = disziplinen[i];
-    var anzeige = d.anzeige_name ? '<span style="font-size:11px;color:var(--text2);display:block">&rarr; ' + d.anzeige_name + '</span>' : '';
     var fmtLabel = d.fmt_override ? '<span class="badge" style="background:var(--surf2);color:var(--btn-bg);font-size:11px">' + d.fmt_override + '</span>' : '';
     var selHtml = '<select class="disz-map-sel" data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" onchange="setDiszMapping(this)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface)">';
     selHtml += '<option value="">– keine –</option>';
@@ -6028,10 +6027,10 @@ async function renderAdminDisziplinen() {
     selHtml += '</select>';
     var editBtn = '<button class="btn btn-ghost btn-sm" style="margin-left:6px" ' +
       'data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" ' +
-      'data-anzeige="' + (d.anzeige_name||'').replace(/"/g,'&quot;') + '" ' +
       'data-fmt="' + (d.fmt_override||'').replace(/"/g,'&quot;') + '" ' +
       'data-katfmt="' + (d.kat_fmt||'').replace(/"/g,'&quot;') + '" ' +
       'data-katsuffix="' + (d.kat_suffix_override||'') + '" ' +
+      'data-hofexclude="' + (d.hof_exclude == 1 ? '1' : '0') + '" ' +
       'onclick="showDiszEditModal(this)">&#x270F;&#xFE0E;</button>';
     var anz = d.ergebnis_anzahl || 0;
     var anzBadge = '<span class="badge" style="background:' + (anz > 0 ? 'var(--surf2);color:var(--text2)' : 'var(--green);color:#fff') + ';font-size:11px">' + anz + '</span>';
@@ -6040,7 +6039,7 @@ async function renderAdminDisziplinen() {
       : '<button class="btn btn-ghost btn-sm" disabled title="' + anz + ' Ergebnis(se) vorhanden">&#x1F512;</button>';
     mapRows +=
       '<tr>' +
-        '<td style="font-weight:600">' + d.disziplin + anzeige + '</td>' +
+        '<td style="font-weight:600">' + d.disziplin + '</td>' +
         '<td><span class="badge" style="background:var(--surf2);color:var(--text2);font-size:11px">' + (d.quelle_tbl || '') + '</span> ' + fmtLabel + '</td>' +
         '<td>' + selHtml + '</td>' +
         '<td style="text-align:right;padding-right:12px">' + anzBadge + '</td>' +
@@ -6151,10 +6150,10 @@ async function deleteKat(id, name) {
 
 function showDiszEditModal(btn) {
   var disz      = btn.dataset.disz;
-  var anzeige   = btn.dataset.anzeige;
   var fmt       = btn.dataset.fmt;
   var katfmt    = btn.dataset.katfmt;
-  var katSuffix = btn.dataset.katsuffix || '';
+  var katSuffix  = btn.dataset.katsuffix || '';
+  var hofExclude = btn.dataset.hofexclude === '1';
   var fmtOpts = [
     { v:'',    label:'Standard (Kategorie: ' + (katfmt||'–') + ')' },
     { v:'min', label:'Zeit (min) – z.B. 45:30 min' },
@@ -6181,12 +6180,15 @@ function showDiszEditModal(btn) {
         '<input type="text" id="de-name" value="' + disz.replace(/"/g,'&quot;') + '" placeholder="Neuer Name (leer = unverändert)"/>' +
         '<div style="font-size:11px;color:var(--text2);margin-top:4px">&#x26A0;&#xFE0E; Benennt die Disziplin in allen Ergebnistabellen um.</div>' +
       '</div>' +
-      '<div class="form-group full"><label>Anzeigename (optional)</label>' +
-        '<input type="text" id="de-anzeige" value="' + anzeige.replace(/"/g,'&quot;') + '" placeholder="z.B. Halbmarathon (über 21,1 km)"/>' +
-        '<div style="font-size:11px;color:var(--text2);margin-top:4px">Wird zusätzlich zum Disziplinnamen angezeigt.</div>' +
-      '</div>' +
+
       '<div class="form-group"><label>Ergebnisformat</label>' + fmtSel + '</div>' +
       '<div class="form-group"><label>Kategorie-Suffix</label>' + katSuffixSel + '</div>' +
+      '<div class="form-group full">' +
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">' +
+          '<input type="checkbox" id="de-hofexclude"' + (hofExclude ? ' checked' : '') + ' style="width:16px;height:16px;cursor:pointer">' +
+          '<span>Diese Disziplin aus der <strong>Hall of Fame</strong> ausschließen</span>' +
+        '</label>' +
+      '</div>' +
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -6198,10 +6200,10 @@ function showDiszEditModal(btn) {
 async function updateDisz(btn) {
   var origDisz  = btn.dataset.disz;
   var neuerName = document.getElementById('de-name').value.trim();
-  var anzeige   = document.getElementById('de-anzeige').value.trim();
   var fmt       = document.getElementById('de-fmt').value;
   var katSuffix = document.getElementById('de-katsuffix') ? document.getElementById('de-katsuffix').value : '';
-  var body = { anzeige_name: anzeige, fmt_override: fmt, kat_suffix_override: katSuffix };
+  var hofExclude = document.getElementById('de-hofexclude') ? (document.getElementById('de-hofexclude').checked ? 1 : 0) : 0;
+  var body = { fmt_override: fmt, kat_suffix_override: katSuffix, hof_exclude: hofExclude };
   if (neuerName && neuerName !== origDisz) body.neuer_name = neuerName;
   var r = await apiPut('disziplin-mapping/' + encodeURIComponent(origDisz), body);
   if (r && r.ok) {

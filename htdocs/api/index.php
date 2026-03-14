@@ -1707,6 +1707,7 @@ if ($res === 'disziplin-mapping') {
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS anzeige_name VARCHAR(60) NULL"); } catch (Exception $e) {}
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS fmt_override  VARCHAR(20) NULL"); } catch (Exception $e) {}
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS kat_suffix_override VARCHAR(10) NULL"); } catch (Exception $e) {}
+        try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS hof_exclude TINYINT(1) NOT NULL DEFAULT 0"); } catch (Exception $e) {}
         // Alle bekannten Disziplinen aus der einheitlichen Ergebnistabelle
         $all_disz = [];
         try {
@@ -1729,7 +1730,7 @@ if ($res === 'disziplin-mapping') {
         }
         // Mappings drauflegen – auch Disziplinen die nur im Mapping stehen (keine aktiven Ergebnisse)
         $mappings = DB::fetchAll(
-            "SELECT m.disziplin, m.kategorie_id, m.anzeige_name, m.fmt_override, COALESCE(m.kat_suffix_override,'') AS kat_suffix_override, k.name AS kategorie_name, k.fmt AS kat_fmt
+            "SELECT m.disziplin, m.kategorie_id, m.anzeige_name, m.fmt_override, COALESCE(m.kat_suffix_override,'') AS kat_suffix_override, COALESCE(m.hof_exclude,0) AS hof_exclude, k.name AS kategorie_name, k.fmt AS kat_fmt
              FROM " . DB::tbl('disziplin_mapping') . " m JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id");
         foreach ($mappings as $m) {
             // Falls die Disziplin nicht in all_disz ist (nur Mapping, keine aktiven Ergebnisse),
@@ -1794,6 +1795,7 @@ if ($res === 'disziplin-mapping') {
             DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS anzeige_name VARCHAR(60) NULL");
             DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS fmt_override  VARCHAR(20) NULL");
             try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS kat_suffix_override VARCHAR(10) NULL"); } catch (Exception $e) {}
+            try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS hof_exclude TINYINT(1) NOT NULL DEFAULT 0"); } catch (Exception $e) {}
         } catch (Exception $e) { /* ignorieren – Spalten existieren bereits */ }
 
         // Disziplin umbenennen in einheitlicher Tabelle
@@ -1810,6 +1812,7 @@ if ($res === 'disziplin-mapping') {
             if ($fmt_override  !== false) { $sets[] = 'fmt_override=?';  $params[] = $fmt_override;  }
             $kat_sfx = isset($body['kat_suffix_override']) ? (trim($body['kat_suffix_override']) ?: null) : false;
             if ($kat_sfx !== false) { $sets[] = 'kat_suffix_override=?'; $params[] = $kat_sfx; }
+            if (isset($body['hof_exclude'])) { $sets[] = 'hof_exclude=?'; $params[] = (int)$body['hof_exclude']; }
             $params[] = $disziplin;
             DB::query("UPDATE " . DB::tbl('disziplin_mapping') . " SET " . implode(',', $sets) . " WHERE disziplin=?", $params);
         }
@@ -2136,7 +2139,8 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         $diszListSql = "SELECT DISTINCT e.disziplin,
                     COALESCE(m.fmt_override, k.fmt, 'min') AS fmt,
                     COALESCE(k.sort_dir, 'ASC') AS sort_dir,
-                    k.tbl_key AS kat_key
+                    k.tbl_key AS kat_key,
+                    COALESCE(m.hof_exclude, 0) AS hof_exclude
              FROM " . DB::tbl('ergebnisse') . " e
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.disziplin = e.disziplin
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
@@ -2169,6 +2173,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
             : "e.altersklasse";
 
         foreach ($diszList as $dRow) {
+            if (!empty($dRow['hof_exclude'])) continue; // aus Hall of Fame ausgeschlossen
             $disz = $dRow['disziplin'];
 
             // val_sort: wie in Bestleistungen – COALESCE(resultat_num, TIME_TO_SEC oder CAST)
