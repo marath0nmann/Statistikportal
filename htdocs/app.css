@@ -150,7 +150,6 @@ nav button.active {
   flex-direction: column;
   gap: 4px;
   align-items: center;
-  border-top: 1px solid var(--border);
   margin-top: 32px;
 }
 

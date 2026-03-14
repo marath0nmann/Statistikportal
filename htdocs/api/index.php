@@ -484,6 +484,7 @@ if ($res === 'einstellungen') {
                 'dashboard_timeline_limit','version_nur_admins',
                 'adressleiste_farbe','dashboard_layout',
                 'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url',
+                'footer_datenschutz_text','footer_nutzung_text','footer_impressum_text',
             ];
             $save = [];
             foreach ($erlaubt as $k) {
@@ -771,7 +772,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                 $bestByAthlet[$aid] = $val;
                 if (empty($labels)) {
                     $isFirst = $prevByAthlet[$aid] === null;
-                    $labels[] = $isFirst ? 'Deb&uuml;t' : 'PB';
+                    $labels[] = $isFirst ? 'Débüt' : 'PB';
                     if ($vorher === null) $vorher = $prevByAthlet[$aid];
                 }
             }
@@ -779,7 +780,7 @@ if ($res === 'dashboard' && $method === 'GET') {
             if (!empty($labels)) {
                 $prio = (in_array('Gesamtbestleistung', $labels) || in_array('Erste Gesamtleistung', $labels)) ? 0
                       : (in_array('Bestleistung Männer', $labels) || in_array('Bestleistung Frauen', $labels) || in_array('Erstes Ergebnis M', $labels) || in_array('Erstes Ergebnis W', $labels) ? 1
-                      : (in_array('PB', $labels) || in_array('Deb&uuml;t', $labels) ? 3 : 2));
+                      : (in_array('PB', $labels) || in_array('Débüt', $labels) ? 3 : 2));
                 // vorher_resultat: numerischen Wert zurück in Rohformat umrechnen ist komplex –
                 // wir geben stattdessen den val-Wert (Sekunden/Meter) zurück; Frontend formatiert ihn
                 $timelineEvents[] = [
