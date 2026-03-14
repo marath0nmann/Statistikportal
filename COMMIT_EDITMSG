@@ -1,8 +1,1 @@
-v344: Rechtliche Seiten eingebettet + Standardtexte
-
-- Datenschutz / Nutzungsbedingungen / Impressum als interne Seiten
-  unter #/datenschutz, #/nutzung, #/impressum
-- Vorausgefüllte Standardtexte (Markdown), direkt als Admin bearbeitbar
-- Footer-Links öffnen immer (intern oder externe URL als Vorrang)
-- Admin → Darstellung → Footer & Rechtliches: Hinweis + externe URLs
-- Admins sehen auf jeder Rechtsseite einen "Bearbeiten"-Button
+v347: Fix alle Quote-Probleme in Legal-Page-Buttons
