@@ -1,7 +1,1 @@
-v333: Dashboard: Breite-Bug fix + Admin-UI aufgeräumt
-
-- Fix: grid-template-columns nutzt jetzt explizite Spaltenbreiten aus
-  der Konfiguration (var(--dash-gtc)), ResizeObserver fügt .stacked-Klasse
-  hinzu wenn Platz nicht reicht → Spalten umbrechen auf 1fr
-- Admin-UI: Rahmen um Zeilen und Spalten entfernt, Hintergründe dezenter,
-  Speichern/Reset/+Zeile-Buttons im Panel-Header
+v334: Admin Dashboard-Layout: seitlicher Innenabstand

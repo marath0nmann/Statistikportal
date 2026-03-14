@@ -1083,7 +1083,7 @@ tr:hover td { background: var(--surf2); }
 
 /* ── Admin Settings ── */
 .settings-panel-body {
-  padding: 8px 0;
+  padding: 8px 20px;
 }
 .settings-row {
   display: flex; align-items: flex-start; gap: 20px;
