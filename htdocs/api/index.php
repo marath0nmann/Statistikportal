@@ -630,8 +630,9 @@ if ($res === 'benutzer') {
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
+            $dmIns633 = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$dmIns633 ? (int)$dmIns633['id'] : null,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
             $imported++;
         }
         jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
@@ -691,7 +692,7 @@ if ($res === 'dashboard' && $method === 'GET') {
         $rows = DB::fetchAll(
             "SELECT DISTINCT e.disziplin, COALESCE(m.fmt_override, k.fmt, ?) AS fmt
              FROM $tblN e
-             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.disziplin=e.disziplin
+             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
              WHERE e.disziplin IS NOT NULL",
             [$fmtFb]
@@ -842,7 +843,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                     COALESCE(m.fmt_override, k.fmt, 'min') AS fmt
              FROM " . DB::tbl('athlet_pb') . " pb
              JOIN " . DB::tbl('athleten') . " a ON a.id = pb.athlet_id
-             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.disziplin = pb.disziplin
+             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.disziplin=pb.disziplin
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
              WHERE pb.datum IS NOT NULL
              ORDER BY pb.datum DESC"
@@ -879,7 +880,7 @@ if ($res === 'dashboard' && $method === 'GET') {
          FROM $eTbl e
          JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
          JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
-         LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.disziplin=e.disziplin
+         LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
          LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
          WHERE e.geloescht_am IS NULL
          ORDER BY v.datum DESC, e.id DESC LIMIT 20"
@@ -910,9 +911,9 @@ if (in_array($res, $ergebnisTabellen)) {
         if (!empty($_GET['kategorie'])) {
             $kat_row = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_kategorien') . " WHERE tbl_key=?", [$_GET['kategorie']]);
             if ($kat_row) {
-                $kd = DB::fetchAll("SELECT disziplin FROM " . DB::tbl('disziplin_mapping') . " WHERE kategorie_id=?", [$kat_row['id']]);
-                $knames = array_column($kd, 'disziplin');
-                if ($knames) { $where[] = "e.disziplin IN (".implode(',',array_fill(0,count($knames),'?')).")"; $params = array_merge($params, $knames); }
+                $kd = DB::fetchAll("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE kategorie_id=?", [$kat_row['id']]);
+                $kids = array_column($kd, 'id');
+                if ($kids) { $where[] = "e.disziplin_mapping_id IN (".implode(',',array_fill(0,count($kids),'?')).")"; $params = array_merge($params, $kids); }
                 else { $where[] = '0=1'; }
             }
         }
@@ -981,7 +982,7 @@ if (in_array($res, $ergebnisTabellen)) {
                 JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
                 JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
                 LEFT JOIN " . DB::tbl('benutzer') . " b ON b.id=e.erstellt_von
-                LEFT JOIN " . DB::tbl('disziplin_mapping') . " dm ON dm.disziplin=e.disziplin
+                LEFT JOIN " . DB::tbl('disziplin_mapping') . " dm ON dm.id=e.disziplin_mapping_id
                 LEFT JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.id=dm.kategorie_id
                 WHERE e.geloescht_am IS NULL AND " . implode(' AND ', $where) . "
                 ORDER BY $sort
@@ -1006,7 +1007,7 @@ if (in_array($res, $ergebnisTabellen)) {
             if (!in_array('suche',$exclude)     && !empty($get['suche']))      { $s='%'.$get['suche'].'%'; $w[]='(a.name_nv LIKE ? OR e.disziplin LIKE ? OR v.kuerzel LIKE ?)'; $p=array_merge($p,[$s,$s,$s]); }
             if (!in_array('kategorie',$exclude) && !empty($get['kategorie'])) {
                 $kr = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_kategorien') . " WHERE tbl_key=?", [$get['kategorie']]);
-                if ($kr) { $kd=DB::fetchAll("SELECT disziplin FROM " . DB::tbl('disziplin_mapping') . " WHERE kategorie_id=?",[$kr['id']]); $kn=array_column($kd,'disziplin'); if ($kn) { $w[]="e.disziplin IN (".implode(',',array_fill(0,count($kn),'?')).")"; $p=array_merge($p,$kn); } else { $w[]='0=1'; } }
+                if ($kr) { $kd=DB::fetchAll("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE kategorie_id=?",[$kr['id']]); $kids3=array_column($kd,'id'); if ($kids3) { $w[]="e.disziplin_mapping_id IN (".implode(',',array_fill(0,count($kids3),'?')).")"; $p=array_merge($p,$kids3); } else { $w[]='0=1'; } }
             }
             if (!in_array('disziplin',$exclude) && !empty($get['disziplin']))  { $w[]='e.disziplin=?';    $p[]=$get['disziplin']; }
             return array($w, $p);
@@ -1065,8 +1066,11 @@ if (in_array($res, $ergebnisTabellen)) {
         $akpm    = intOrNull($body['ak_platz_meisterschaft'] ?? null);
         $rnum    = ($res === 'sprungwurf') ? floatOrNull($body['resultat'] ?? null) : null;
         if ($unified) {
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,distanz,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$distanz,$resultat,$rnum,$akp,$mstr,$akpm,$user['id']]);
+            $dmId = null;
+            $dmRow = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
+            if ($dmRow) $dmId = (int)$dmRow['id'];
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,distanz,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$dmId,$distanz,$resultat,$rnum,$akp,$mstr,$akpm,$user['id']]);
         } elseif ($res === 'strasse') {
             DB::query("INSERT INTO " . DB::tbl('ergebnisse_strasse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,distanz,resultat,ak_platzierung,meisterschaft,ak_platz_meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 [$vid,$aid,$ak,$disziplin,$distanz,$resultat,$akp,$mstr,$akpm,$user['id']]);
@@ -1115,8 +1119,9 @@ if (in_array($res, $ergebnisTabellen)) {
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
+            $dmBulk = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$dmBulk ? (int)$dmBulk['id'] : null,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
             $imported++;
         }
         jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
@@ -1134,7 +1139,9 @@ if (in_array($res, $ergebnisTabellen)) {
             if ($aid > 0) { $felder[] = 'athlet_id=?'; $params[] = $aid; }
         }
         if (isset($body['altersklasse']))  { $felder[] = 'altersklasse=?';  $params[] = sanitize($body['altersklasse']); }
-        if (isset($body['disziplin']))     { $felder[] = 'disziplin=?';     $params[] = sanitize($body['disziplin']); }
+        if (isset($body['disziplin']))     { $felder[] = 'disziplin=?';     $params[] = sanitize($body['disziplin']);
+            $dmUpd = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [sanitize($body['disziplin'])]);
+            $felder[] = 'disziplin_mapping_id=?'; $params[] = $dmUpd ? (int)$dmUpd['id'] : null; }
         if (isset($body['resultat'])) {
             $felder[] = 'resultat=?'; $params[] = sanitize($body['resultat']);
             $rv = $body['resultat'];
@@ -1278,7 +1285,7 @@ if ($res === 'athleten') {
                         COALESCE(dk.reihenfolge, 99) AS kat_sort
                  FROM ' . DB::tbl('ergebnisse') . ' e
                  JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
-                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.disziplin=e.disziplin
+                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
                  LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
                  WHERE e.athlet_id=? ORDER BY dk.reihenfolge, v.datum DESC', [$id]);
             // Gruppieren nach Kategorie
@@ -1653,8 +1660,9 @@ if ($res === 'kategorien') {
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
+            $dmBulk = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$dmBulk ? (int)$dmBulk['id'] : null,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
             $imported++;
         }
         jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
@@ -1768,6 +1776,11 @@ if ($res === 'disziplin-mapping') {
         if (!$disziplin || !$kategorie_id) jsonErr('disziplin und kategorie_id erforderlich.', 400);
         DB::query("INSERT INTO " . DB::tbl('disziplin_mapping') . " (disziplin, kategorie_id) VALUES (?,?)
                  ON DUPLICATE KEY UPDATE kategorie_id=VALUES(kategorie_id)", [$disziplin, $kategorie_id]);
+        // disziplin_mapping_id in ergebnisse aktualisieren
+        $mapping = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? AND kategorie_id=?", [$disziplin, $kategorie_id]);
+        if ($mapping) {
+            DB::query("UPDATE " . DB::tbl('ergebnisse') . " SET disziplin_mapping_id=? WHERE disziplin=?", [$mapping['id'], $disziplin]);
+        }
         jsonOk(null);
     }
 
@@ -1792,11 +1805,17 @@ if ($res === 'disziplin-mapping') {
 
         // Spalten automatisch anlegen falls Migration noch nicht ausgeführt
         try {
-            DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS anzeige_name VARCHAR(60) NULL");
-            DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS fmt_override  VARCHAR(20) NULL");
-            try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS kat_suffix_override VARCHAR(10) NULL"); } catch (Exception $e) {}
-            try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS hof_exclude TINYINT(1) NOT NULL DEFAULT 0"); } catch (Exception $e) {}
-        } catch (Exception $e) { /* ignorieren – Spalten existieren bereits */ }
+            DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS fmt_override        VARCHAR(20) NULL");
+            DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS kat_suffix_override VARCHAR(10) NULL");
+            DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS hof_exclude         TINYINT(1)  NOT NULL DEFAULT 0");
+            DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS disziplin_mapping_id INT NULL");
+            DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD INDEX IF NOT EXISTS idx_dmid (disziplin_mapping_id)");
+            // UNIQUE-Key ändern falls noch alter Stand
+            try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " DROP INDEX disziplin"); } catch (Exception $e) {}
+            try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD UNIQUE KEY uq_disz_kat (disziplin, kategorie_id)"); } catch (Exception $e) {}
+            // disziplin_mapping_id befüllen
+            DB::query("UPDATE " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('disziplin_mapping') . " m ON m.disziplin=e.disziplin SET e.disziplin_mapping_id=m.id WHERE e.disziplin_mapping_id IS NULL");
+        } catch (Exception $e) { /* ignorieren */ }
 
         // Disziplin umbenennen – in Transaktion damit beide Updates atomar sind
         if ($neuer_name && $neuer_name !== $disziplin) {
@@ -1867,8 +1886,9 @@ if ($res === 'disziplin-mapping') {
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
+            $dmBulk = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$dmBulk ? (int)$dmBulk['id'] : null,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
             $imported++;
         }
         jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
@@ -1921,7 +1941,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
                     COALESCE(m.fmt_override, k.fmt) AS fmt
              FROM $eTbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
-             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.disziplin=e.disziplin
+             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
              WHERE e.veranstaltung_id=? AND e.geloescht_am IS NULL
              ORDER BY e.disziplin, e.resultat_num ASC, e.resultat ASC",
@@ -2001,8 +2021,9 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
             [$vid, $aid, $disziplin, $resultat]);
         if ($dup) { $skipped++; continue; }
-        DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,pace,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
-            [$vid,$aid,$ak,$disziplin,$resultat,$pace,$akp,$mstr,$quelle,$user['id']]);
+        $dmPace = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
+        DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,pace,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            [$vid,$aid,$ak,$disziplin,$dmPace ? (int)$dmPace['id'] : null,$resultat,$pace,$akp,$mstr,$quelle,$user['id']]);
         autoMapDisziplin($disziplin);
         $imported++;
     }
@@ -2156,7 +2177,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                     k.tbl_key AS kat_key,
                     COALESCE(m.hof_exclude, 0) AS hof_exclude
              FROM " . DB::tbl('ergebnisse') . " e
-             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.disziplin = e.disziplin
+             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
              WHERE e.geloescht_am IS NULL AND e.resultat IS NOT NULL";
         $diszParams = [];
