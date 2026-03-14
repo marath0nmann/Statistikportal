@@ -1,1 +1,1 @@
-v413: Fix Admin Dashboard endlos laden: col.tl_limit null-safe
+v414: Fix veranst_limit speichern: in dashUpdateLayout korrekt ausgelesen
