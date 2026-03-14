@@ -2198,7 +2198,6 @@ function _ergSetSort(col) {
 async function loadErgebnisseData() {
   var params = 'limit=' + state.limit + '&offset=' + ((state.page - 1) * state.limit);
   params += '&sort=' + _ergSort.col + '&dir=' + _ergSort.dir;
-  if (state.diszFilter) params += '&disziplin=' + encodeURIComponent(state.diszFilter);
   for (var k in state.filters) {
     if (k === 'meisterschaften') continue; // separat behandelt
     if (state.filters[k]) params += '&' + k + '=' + encodeURIComponent(state.filters[k]);
@@ -2218,7 +2217,11 @@ async function loadErgebnisseData() {
 
   var diszOptHtml = '<option value="">Alle</option>';
   for (var i = 0; i < disziplinen.length; i++) {
-    diszOptHtml += '<option value="' + disziplinen[i] + '"' + (state.filters.disziplin === disziplinen[i] ? ' selected' : '') + '>' + disziplinen[i] + '</option>';
+    var _d = disziplinen[i];
+    var _dVal  = _d.disziplin_mapping_id ? String(_d.disziplin_mapping_id) : _d.disziplin;
+    var _dLabel = _d.disziplin + (_d.kategorie_name ? ' (' + _d.kategorie_name + ')' : '');
+    var _sel = (state.filters.disziplin_mapping_id === _dVal || state.filters.disziplin === _d.disziplin) ? ' selected' : '';
+    diszOptHtml += '<option value="' + _dVal + '"' + _sel + '>' + _dLabel + '</option>';
   }
   var akOptHtml = '<option value="">Alle AK</option>';
   for (var i = 0; i < aks.length; i++) {
@@ -2242,7 +2245,7 @@ async function loadErgebnisseData() {
     '<div class="filter-bar">' +
       '<div class="fg"><label>Athlet</label><input type="text" id="erg-athlet-filter" placeholder="Name…" value="' + (state.filters.athlet||'') + '" oninput="_ergAthletFilter(this.value)" style="min-width:0;width:100%"/></div>' +
       '<div class="fg"><label>Kategorie</label><select onchange="setFilter(\'kategorie\',this.value)">' + katOptHtml + '</select></div>' +
-      '<div class="fg"><label>Disziplin</label><select onchange="setFilter(\'disziplin\',this.value)">' + diszOptHtml + '</select></div>' +
+      '<div class="fg"><label>Disziplin</label><select onchange="setFilter(\'disziplin_mapping_id\',this.value)">' + diszOptHtml + '</select></div>' +
       '<div class="fg"><label>Altersklasse</label><select onchange="setFilter(\'ak\',this.value)">' + akOptHtml + '</select></div>' +
       '<div class="fg"><label>Jahr</label><select onchange="setFilter(\'jahr\',this.value)">' + jahrOptHtml + '</select></div>' +
       _buildMstrFilterHtml() +
