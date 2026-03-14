@@ -1896,12 +1896,54 @@ async function renderDashboard() {
         for (var hdi = 0; hdi < diszKeys.length; hdi++) {
           var hd = diszKeys[hdi];
           var htitels = ha.disziplinen[hd];
-          var hLabels = htitels.map(function(t){
-            var cls = t.label === 'Gesamtbestleistung' ? 'badge badge-gold' : (t.label.indexOf('Männer') >= 0 || t.label.indexOf('Frauen') >= 0 || t.label.indexOf('Bestleistung ') === 0) ? 'badge badge-silver' : 'badge badge-pb';
-            return '<span class="' + cls + '">' + t.label + '</span>';
-          }).join(' ');
-          var hDatum = htitels[0].datum ? ' <span style="color:var(--text2);font-size:11px">(' + formatDate(htitels[0].datum) + ')</span>' : '';
-          hDiszHtml += '<div style="font-size:13px;padding:3px 0"><span style="font-weight:600;color:var(--text)">' + hd + ':</span> ' + hLabels + hDatum + '</div>';
+
+          // Labels gruppieren: gleicher Typ zusammenfassen
+          // z.B. "Gesamtbestleistung" + "Bestleistung Frauen" + "Bestleistung W45" + "Bestleistung W55"
+          // → "Gesamtbestleistung der Frauen, W45 und W55"
+          var gesamt    = htitels.filter(function(t){ return t.label === 'Gesamtbestleistung'; });
+          var maenner   = htitels.filter(function(t){ return t.label === 'Bestleistung Männer'; });
+          var frauen    = htitels.filter(function(t){ return t.label === 'Bestleistung Frauen'; });
+          var mhk       = htitels.filter(function(t){ return t.label === 'Bestleistung MHK'; });
+          var whk       = htitels.filter(function(t){ return t.label === 'Bestleistung WHK'; });
+          var akM       = htitels.filter(function(t){ return /^Bestleistung M\d/.test(t.label); });
+          var akW       = htitels.filter(function(t){ return /^Bestleistung W\d/.test(t.label); });
+
+          // AK-Nummern extrahieren
+          var akMNums = akM.map(function(t){ return t.label.replace('Bestleistung ',''); });
+          var akWNums = akW.map(function(t){ return t.label.replace('Bestleistung ',''); });
+
+          // Satz zusammenbauen
+          var parts = [];
+          if (gesamt.length) parts.push('Gesamtbestleistung');
+
+          // Männer-Gruppe
+          var mParts = [];
+          if (maenner.length || mhk.length) mParts.push('Männer');
+          if (akMNums.length) mParts = mParts.concat(akMNums);
+          if (mParts.length) {
+            var mStr = mParts.length === 1 ? mParts[0]
+              : mParts.slice(0,-1).join(', ') + ' und ' + mParts[mParts.length-1];
+            parts.push('Bestleistung ' + mStr);
+          }
+
+          // Frauen-Gruppe
+          var wParts = [];
+          if (frauen.length || whk.length) wParts.push('Frauen');
+          if (akWNums.length) wParts = wParts.concat(akWNums);
+          if (wParts.length) {
+            var wStr = wParts.length === 1 ? wParts[0]
+              : wParts.slice(0,-1).join(', ') + ' und ' + wParts[wParts.length-1];
+            parts.push('Bestleistung ' + wStr);
+          }
+
+          // Farbe: gold wenn Gesamt dabei, sonst silver
+          var lineClass = gesamt.length ? 'badge badge-gold' : 'badge badge-silver';
+          var sentence  = parts.join(' · ');
+
+          hDiszHtml += '<div style="font-size:13px;padding:3px 0">' +
+            '<span class="' + lineClass + '">' + sentence + '</span>' +
+            ' <span style="color:var(--text2);font-size:12px">über ' + hd + '</span>' +
+          '</div>';
         }
         var hRank = hi + 1;
         var hRankHtml = '';

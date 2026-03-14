@@ -1,1 +1,8 @@
-v372: Fix "Can't find variable: getHofData"
+v373: Hall of Fame: menschlichere Formulierung der Titel
+
+Statt "10000m: Bestleistung FrauenBestleistung W45Bestleistung W55"
+jetzt: "Bestleistung Frauen, W45 und W55 über 10000m"
+
+- Gleiche Kategorien (M/W + AKs) werden zusammengefasst
+- Datümer entfernt
+- Ein Badge pro Disziplin (gold bei Gesamtbestleistung, sonst silver)
