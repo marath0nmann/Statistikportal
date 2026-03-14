@@ -1,4 +1,5 @@
-v367: Fix Hall of Fame "Noch keine Daten"
+v370: Widget-Titel: Fix oninput + HoF Loading/Empty States
 
-SQL-Bug: ($akExpr) als Klammer-Ausdruck in SELECT ist ungültig.
-Korrekt: ... . $akExpr . " AS altersklasse"
+- Titel-Input: onchange → oninput (sofortige Übernahme beim Tippen)
+- HoF Loading + Empty States: widgetTitle() statt hardcoded "Hall of Fame"
+- Titel-Escaping: Anführungszeichen im Titel

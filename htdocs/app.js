@@ -1867,12 +1867,12 @@ async function renderDashboard() {
       '</div>';
     }
     if (w === 'hall-of-fame') {
-      if (!hofData) return '<div class="panel" style="height:100%"><div class="panel-header"><div class="panel-title">&#x1F3C6; Hall of Fame</div></div><div style="padding:24px;text-align:center;color:var(--text2)">&#x23F3; Laden&hellip;</div></div>';
-      if (!hofData.length) return '<div class="panel" style="height:100%"><div class="panel-header"><div class="panel-title">&#x1F3C6; Hall of Fame</div></div><div class="empty"><div class="empty-icon">&#x1F3C6;</div><div class="empty-text">Noch keine Daten</div></div></div>';
-      var hofLimit      = wcfg.hof_limit ? parseInt(wcfg.hof_limit) : 0; // 0 = alle
+      var _hKey = _hofCacheKey(wcfg);
+      var hofData = _hofCache[_hKey] || null;
+      if (!hofData) return '<div class="panel" style="height:100%"><div class="panel-header"><div class="panel-title">&#x1F3C6; ' + widgetTitle(wcfg,'Hall of Fame') + '</div></div><div style="padding:24px;text-align:center;color:var(--text2)">&#x23F3; Laden&hellip;</div></div>';
+      if (!hofData.length) return '<div class="panel" style="height:100%"><div class="panel-header"><div class="panel-title">&#x1F3C6; ' + widgetTitle(wcfg,'Hall of Fame') + '</div></div><div class="empty"><div class="empty-icon">&#x1F3C6;</div><div class="empty-text">Noch keine Daten</div></div></div>';
+      var hofLimit      = wcfg.hof_limit ? parseInt(wcfg.hof_limit) : 0;
       var hofLeaderboard = !!wcfg.hof_leaderboard;
-      // Nur aktuell gültige Titel: Athlet muss aktuell in der Bestenliste stehen
-      // hofData kommt bereits gefiltert vom Server; nur_aktuell ist serverseitig
       var displayData = hofLimit ? hofData.slice(0, hofLimit) : hofData;
       var hofHtml = '';
       for (var hi = 0; hi < displayData.length; hi++) {
@@ -5251,8 +5251,8 @@ function renderAdminDashboardUI(layout) {
           '</div>' +
           '<label style="display:flex;align-items:center;gap:8px;font-size:12px">' +
             '<span style="color:var(--text2);white-space:nowrap">Titel</span>' +
-            '<input type="text" id="dash-title-' + ri + '-' + ci + '" value="' + (col.title || '') + '" placeholder="Standard" ' +
-            'class="settings-input" style="flex:1" onchange="dashUpdateLayout()">' +
+            '<input type="text" id="dash-title-' + ri + '-' + ci + '" value="' + (col.title || '').replace(/"/g,'&quot;') + '" placeholder="Standard" ' +
+            'class="settings-input" style="flex:1" oninput="dashUpdateLayout()">' +
           '</label>' +
           widgetConfig +
           widthInput(ri, ci, col.w) +
@@ -5313,7 +5313,7 @@ function dashUpdateLayout() {
       var wTit = document.getElementById('dash-title-'  + ri + '-' + ci);
       if (wEl)  cols[ci].widget = wEl.value;
       if (wW)   { var v = parseInt(wW.value); cols[ci].w = isNaN(v) ? undefined : v; }
-      if (wTit) cols[ci].title = wTit.value.trim();
+      if (wTit !== null) { cols[ci].title = wTit.value.trim(); } // nur wenn DOM-Element existiert
       // Stat-Karten: Reihenfolge aus bisherigem cards-Array + Checkbox-Status
       if (cols[ci].widget === 'stats') {
         var prevCards = cols[ci].cards && cols[ci].cards.length ? cols[ci].cards : ['ergebnisse','athleten','rekorde'];
