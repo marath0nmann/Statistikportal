@@ -5512,9 +5512,7 @@ function dashUpdateLayout() {
         }
         // merge_ak default true wenn nicht explizit gesetzt
         if (cols[ci].hof_merge_ak === undefined) cols[ci].hof_merge_ak = true;
-        var veranstLimitEl = document.getElementById('veranst-limit-' + ri + '-' + ci);
-      if (veranstLimitEl) { var vl = parseInt(veranstLimitEl.value); cols[ci].veranst_limit = isNaN(vl)||vl<1?5:vl; }
-      // Kategorien-Checkboxen lesen
+        // Kategorien-Checkboxen lesen
         var katBoxes = document.querySelectorAll('input[data-hof-kat][data-ri="' + ri + '"][data-ci="' + ci + '"]');
         if (katBoxes.length) {
           var checkedKats = [];
@@ -5533,6 +5531,8 @@ function dashUpdateLayout() {
           if (!vcBoxes[vbi].checked) newHiddenCols.push(vcBoxes[vbi].dataset.vcId);
         }
         cols[ci].hidden_cols = newHiddenCols;
+        var veranstLimitEl2 = document.getElementById('veranst-limit-' + ri + '-' + ci);
+        if (veranstLimitEl2) { var vl2 = parseInt(veranstLimitEl2.value); cols[ci].veranst_limit = isNaN(vl2)||vl2<1?5:vl2; }
         // col_order bleibt erhalten (wird nur durch dashVcMoveCol geändert)
       }
       if (cols[ci].widget === 'timeline') {
