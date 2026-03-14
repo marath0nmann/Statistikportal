@@ -1,5 +1,4 @@
-v370: Widget-Titel: Fix oninput + HoF Loading/Empty States
+v371: Fix "Can't find variable: _hofCacheKey"
 
-- Titel-Input: onchange → oninput (sofortige Übernahme beim Tippen)
-- HoF Loading + Empty States: widgetTitle() statt hardcoded "Hall of Fame"
-- Titel-Escaping: Anführungszeichen im Titel
+_hofCache, _hofCacheKey und _loadHofWidget waren beim Refactoring
+verloren gegangen — wiederhergestellt.
