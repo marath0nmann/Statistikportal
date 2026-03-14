@@ -137,11 +137,13 @@ INSERT IGNORE INTO disziplin_kategorien (id, name, tbl_key, fmt, sort_dir, reihe
 -- Disziplin-Mapping (Disziplin -> Kategorie)
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS disziplin_mapping (
-    id           INT AUTO_INCREMENT PRIMARY KEY,
-    disziplin    VARCHAR(60) NOT NULL UNIQUE,
-    kategorie_id INT         NOT NULL,
-    anzeige_name VARCHAR(60) NULL,
-    fmt_override VARCHAR(20) NULL,
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    disziplin           VARCHAR(60) NOT NULL,
+    kategorie_id        INT         NOT NULL,
+    fmt_override        VARCHAR(20) NULL,
+    kat_suffix_override VARCHAR(10) NULL,
+    hof_exclude         TINYINT(1)  NOT NULL DEFAULT 0,
+    UNIQUE KEY uq_disz_kat (disziplin, kategorie_id),
     FOREIGN KEY (kategorie_id) REFERENCES disziplin_kategorien(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -149,11 +151,12 @@ CREATE TABLE IF NOT EXISTS disziplin_mapping (
 -- Ergebnisse (einheitliche Tabelle)
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ergebnisse (
-    id               INT AUTO_INCREMENT PRIMARY KEY,
-    veranstaltung_id INT         NOT NULL,
-    athlet_id        INT         NOT NULL,
-    altersklasse     VARCHAR(20) NULL,
-    disziplin        VARCHAR(60) NOT NULL,
+    id                   INT AUTO_INCREMENT PRIMARY KEY,
+    veranstaltung_id     INT         NOT NULL,
+    athlet_id            INT         NOT NULL,
+    altersklasse         VARCHAR(20) NULL,
+    disziplin            VARCHAR(60) NOT NULL,
+    disziplin_mapping_id INT         NULL,
     distanz          FLOAT       NULL,
     resultat         VARCHAR(20) NULL,
     resultat_num     FLOAT       NULL,
