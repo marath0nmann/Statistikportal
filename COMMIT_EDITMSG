@@ -1,7 +1,7 @@
-v332: Dashboard: Stat-Karten zu einem Widget zusammengefasst + konfigurierbar
+v333: Dashboard: Breite-Bug fix + Admin-UI aufgeräumt
 
-- Neues Widget "stats" fasst Ergebnisse/Athleten/Rekorde zusammen
-- Admin-Dashboard-Editor: Checkboxen zum Ein-/Ausblenden einzelner Karten
-- Reihenfolge per ▲/▼-Buttons anpassbar
-- Legacy-Einzelwidgets (stat-ergebnisse etc.) bleiben rückwärtskompatibel
-- Default-Layout und Reset nutzen das neue stats-Widget
+- Fix: grid-template-columns nutzt jetzt explizite Spaltenbreiten aus
+  der Konfiguration (var(--dash-gtc)), ResizeObserver fügt .stacked-Klasse
+  hinzu wenn Platz nicht reicht → Spalten umbrechen auf 1fr
+- Admin-UI: Rahmen um Zeilen und Spalten entfernt, Hintergründe dezenter,
+  Speichern/Reset/+Zeile-Buttons im Panel-Header
