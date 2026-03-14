@@ -515,6 +515,7 @@ if ($res === 'einstellungen') {
                 'dashboard_timeline_limit','version_nur_admins',
                 'adressleiste_farbe','dashboard_layout',
                 'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url',
+                'disziplin_kategorie_suffix',
                 'footer_datenschutz_text','footer_nutzung_text','footer_impressum_text',
             ];
             $save = [];
