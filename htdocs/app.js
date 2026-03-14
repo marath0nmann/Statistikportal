@@ -1381,22 +1381,40 @@ async function renderDashboard() {
   try { layout = JSON.parse(appConfig.dashboard_layout || ''); } catch(e) {}
   if (!layout || !layout.length) {
     layout = [
-      { cols: [{ widget: 'stat-ergebnisse' }, { widget: 'stat-athleten' }, { widget: 'stat-rekorde' }] },
+      { cols: [{ widget: 'stats', cards: ['ergebnisse','athleten','rekorde'] }] },
       { cols: [{ widget: 'timeline', w: 340 }, { widget: 'veranstaltungen' }] }
     ];
   }
 
   function renderWidget(wcfg) {
     var w = wcfg.widget;
-    if (w === 'stat-ergebnisse') {
-      return statCard(statErgebnisse, '&#x1F3C3;', 'Ergebnisse gesamt');
+    if (w === 'stats') {
+      // cfg.cards: Array von IDs in gewünschter Reihenfolge, z.B. ['ergebnisse','athleten','rekorde']
+      var cardIds = (wcfg.cards && wcfg.cards.length) ? wcfg.cards
+        : ['ergebnisse', 'athleten', 'rekorde'];
+      var cardsHtml = '';
+      var vals = { ergebnisse: statErgebnisse, athleten: statAthleten, rekorde: statRekorde };
+      for (var si = 0; si < STAT_CARD_DEFS.length; si++) {
+        var sc = STAT_CARD_DEFS[si];
+        if (cardIds.indexOf(sc.id) < 0) continue;
+        cardsHtml += statCard(vals[sc.id], sc.icon, sc.label);
+      }
+      // Reihenfolge gemäß cardIds
+      var ordered = '';
+      for (var oi = 0; oi < cardIds.length; oi++) {
+        for (var si2 = 0; si2 < STAT_CARD_DEFS.length; si2++) {
+          if (STAT_CARD_DEFS[si2].id === cardIds[oi]) {
+            ordered += statCard(vals[cardIds[oi]], STAT_CARD_DEFS[si2].icon, STAT_CARD_DEFS[si2].label);
+            break;
+          }
+        }
+      }
+      return '<div class="stats-bar">' + ordered + '</div>';
     }
-    if (w === 'stat-athleten') {
-      return statCard(statAthleten, '&#x1F465;', 'Athleten');
-    }
-    if (w === 'stat-rekorde') {
-      return statCard(statRekorde, '&#x1F3C6;', 'Vereinsrekorde');
-    }
+    // Legacy: Einzelwidgets (Rückwärtskompatibilität)
+    if (w === 'stat-ergebnisse') return statCard(statErgebnisse, '&#x1F3C3;', 'Ergebnisse gesamt');
+    if (w === 'stat-athleten')   return statCard(statAthleten,   '&#x1F465;', 'Athleten');
+    if (w === 'stat-rekorde')    return statCard(statRekorde,    '&#x1F3C6;', 'Vereinsrekorde');
     if (w === 'timeline') {
       return '<div class="panel" style="height:100%">' +
         '<div class="panel-header"><div class="panel-title">&#x1F3C6; Neueste Bestleistungen</div></div>' +
@@ -4401,11 +4419,16 @@ async function _doRegAblehnen(regId) {
 
 // ── ADMIN: DASHBOARD-LAYOUT ─────────────────────────────────────────────────
 var WIDGET_DEFS = [
-  { id: 'stat-ergebnisse', label: '🏃︎ Ergebnisse gesamt' },
-  { id: 'stat-athleten',   label: '👥 Athleten' },
-  { id: 'stat-rekorde',    label: '🏆 Vereinsrekorde' },
+  { id: 'stats',           label: '📊︎ Statistik-Karten' },
   { id: 'timeline',        label: '🏅 Neueste Bestleistungen' },
   { id: 'veranstaltungen', label: '📍 Letzte Veranstaltungen' },
+];
+
+// Verfügbare Stat-Karten (Reihenfolge und Auswahl konfigurierbar)
+var STAT_CARD_DEFS = [
+  { id: 'ergebnisse', icon: '&#x1F3C3;', label: 'Ergebnisse gesamt' },
+  { id: 'athleten',   icon: '&#x1F465;', label: 'Athleten' },
+  { id: 'rekorde',    icon: '&#x1F3C6;', label: 'Vereinsrekorde' },
 ];
 
 function widgetLabel(id) {
@@ -4418,7 +4441,7 @@ function widgetLabel(id) {
 function dashLayoutFromConfig() {
   try { return JSON.parse(appConfig.dashboard_layout || ''); } catch(e) {}
   return [
-    { cols: [{ widget: 'stats' }] },
+    { cols: [{ widget: 'stats', cards: ['ergebnisse','athleten','rekorde'] }] },
     { cols: [{ widget: 'timeline', w: 340 }, { widget: 'veranstaltungen' }] }
   ];
 }
@@ -4428,6 +4451,46 @@ async function renderAdminDashboard() {
   el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
 
   var layout = dashLayoutFromConfig();
+  renderAdminDashboardUI(layout);
+}
+
+function dashStatsConfigHtml(ri, ci, cards) {
+  var active = cards && cards.length ? cards : ['ergebnisse', 'athleten', 'rekorde'];
+  var rows = '';
+  for (var i = 0; i < STAT_CARD_DEFS.length; i++) {
+    var sc = STAT_CARD_DEFS[i];
+    var checked = active.indexOf(sc.id) >= 0 ? ' checked' : '';
+    var pos = active.indexOf(sc.id) + 1; // 0 = nicht aktiv
+    rows +=
+      '<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:13px">' +
+        '<input type="checkbox" data-stats-id="' + sc.id + '" data-ri="' + ri + '" data-ci="' + ci + '"' + checked + ' onchange="dashUpdateLayout()">' +
+        '<span style="flex:1">' + sc.icon + ' ' + sc.label + '</span>' +
+        (active.indexOf(sc.id) >= 0 ?
+          '<span style="display:flex;gap:4px">' +
+            '<button class="btn btn-ghost btn-sm" title="Nach oben" style="padding:2px 6px" onclick="dashStatsMoveCard(' + ri + ',' + ci + ',\'' + sc.id + '\',-1)">▲</button>' +
+            '<button class="btn btn-ghost btn-sm" title="Nach unten" style="padding:2px 6px" onclick="dashStatsMoveCard(' + ri + ',' + ci + ',\'' + sc.id + '\',1)">▼</button>' +
+          '</span>'
+        : '') +
+      '</label>';
+  }
+  return '<div style="border:1px solid var(--border);border-radius:6px;padding:10px 12px;background:var(--bg)">' +
+    '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Angezeigte Karten</div>' +
+    rows +
+  '</div>';
+}
+
+function dashStatsMoveCard(ri, ci, cardId, dir) {
+  dashUpdateLayout();
+  var layout = dashGetLayout();
+  var col = layout[ri] && layout[ri].cols[ci];
+  if (!col) return;
+  var cards = col.cards && col.cards.length ? col.cards.slice() : ['ergebnisse','athleten','rekorde'];
+  var idx = cards.indexOf(cardId);
+  if (idx < 0) return;
+  var newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= cards.length) return;
+  var tmp = cards[idx]; cards[idx] = cards[newIdx]; cards[newIdx] = tmp;
+  col.cards = cards;
   renderAdminDashboardUI(layout);
 }
 
@@ -4458,6 +4521,7 @@ function renderAdminDashboardUI(layout) {
     var colsHtml = '';
     for (var ci = 0; ci < cols.length; ci++) {
       var col = cols[ci];
+      var statsConfig = (col.widget === 'stats') ? dashStatsConfigHtml(ri, ci, col.cards) : '';
       colsHtml +=
         '<div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:12px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
@@ -4466,6 +4530,7 @@ function renderAdminDashboardUI(layout) {
               ? '<button class="btn btn-ghost btn-sm" title="Spalte entfernen" onclick="dashRemoveCol(' + ri + ',' + ci + ')">✕</button>'
               : '') +
           '</div>' +
+          statsConfig +
           widthInput(ri, ci, col.w) +
         '</div>';
     }
@@ -4513,7 +4578,6 @@ function dashGetLayout() {
 }
 
 function dashUpdateLayout() {
-  // Werte aus DOM zurücklesen und Layout neu setzen (ohne neu zu rendern)
   var layout = dashGetLayout();
   for (var ri = 0; ri < layout.length; ri++) {
     var cols = layout[ri].cols || [];
@@ -4522,6 +4586,27 @@ function dashUpdateLayout() {
       var wW  = document.getElementById('dash-w-' + ri + '-' + ci);
       if (wEl) cols[ci].widget = wEl.value;
       if (wW)  { var v = parseInt(wW.value); cols[ci].w = isNaN(v) ? undefined : v; }
+      // Stat-Karten: Reihenfolge aus bisherigem cards-Array + Checkbox-Status
+      if (cols[ci].widget === 'stats') {
+        var prevCards = cols[ci].cards && cols[ci].cards.length ? cols[ci].cards : ['ergebnisse','athleten','rekorde'];
+        var boxes = document.querySelectorAll('input[data-stats-id][data-ri="' + ri + '"][data-ci="' + ci + '"]');
+        // Aktivierte Checkboxen in Reihenfolge von prevCards
+        var newCards = [];
+        for (var pi = 0; pi < prevCards.length; pi++) {
+          for (var bi = 0; bi < boxes.length; bi++) {
+            if (boxes[bi].dataset.statsId === prevCards[pi] && boxes[bi].checked) {
+              newCards.push(prevCards[pi]); break;
+            }
+          }
+        }
+        // Neu aktivierte (bisher nicht in prevCards)
+        for (var bi2 = 0; bi2 < boxes.length; bi2++) {
+          if (boxes[bi2].checked && newCards.indexOf(boxes[bi2].dataset.statsId) < 0) {
+            newCards.push(boxes[bi2].dataset.statsId);
+          }
+        }
+        cols[ci].cards = newCards;
+      }
     }
   }
 }
@@ -4585,7 +4670,7 @@ async function dashSaveLayout() {
 
 function dashResetLayout() {
   var defaultLayout = [
-    { cols: [{ widget: 'stat-ergebnisse' }, { widget: 'stat-athleten' }, { widget: 'stat-rekorde' }] },
+    { cols: [{ widget: 'stats', cards: ['ergebnisse','athleten','rekorde'] }] },
     { cols: [{ widget: 'timeline', w: 340 }, { widget: 'veranstaltungen' }] }
   ];
   appConfig.dashboard_layout = JSON.stringify(defaultLayout);

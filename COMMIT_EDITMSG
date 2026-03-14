@@ -1,5 +1,7 @@
-v331: Dashboard: responsive Layout für Smartphones
+v332: Dashboard: Stat-Karten zu einem Widget zusammengefasst + konfigurierbar
 
-.dash-row mit repeat(auto-fit, minmax(var(--dash-min), 1fr)):
-Spalten umbrechen automatisch wenn der Platz nicht reicht,
-ohne feste Breakpoints – funktioniert für alle Bildschirmbreiten.
+- Neues Widget "stats" fasst Ergebnisse/Athleten/Rekorde zusammen
+- Admin-Dashboard-Editor: Checkboxen zum Ein-/Ausblenden einzelner Karten
+- Reihenfolge per ▲/▼-Buttons anpassbar
+- Legacy-Einzelwidgets (stat-ergebnisse etc.) bleiben rückwärtskompatibel
+- Default-Layout und Reset nutzen das neue stats-Widget
