@@ -5278,7 +5278,7 @@ function dashHofConfigHtml(ri, ci, col) {
   '</div>';
 }
 
-function dashTimelineConfigHtml(ri, ci, hidden_types, prio_order) {
+function dashTimelineConfigHtml(ri, ci, hidden_types, prio_order, col) {
   var hidden  = hidden_types || [];
   var order   = prio_order && prio_order.length === TIMELINE_TYPE_DEFS.length
                   ? prio_order
@@ -5316,7 +5316,7 @@ function dashTimelineConfigHtml(ri, ci, hidden_types, prio_order) {
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Neueste Bestleistungen</div>' +
     '<label style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:12px">' +
       '<span style="min-width:120px;color:var(--text2)">Anzahl Einträge</span>' +
-      '<input type="number" id="tl-limit-' + ri + '-' + ci + '" value="' + (col.tl_limit || prio_order && prio_order._limit || appConfig.dashboard_timeline_limit || 20) + '" min="5" max="200" ' +
+      '<input type="number" id="tl-limit-' + ri + '-' + ci + '" value="' + ((col && col.tl_limit) || (prio_order && prio_order._limit) || appConfig.dashboard_timeline_limit || 20) + '" min="5" max="200" ' +
       'class="settings-input" style="width:70px" onchange="dashUpdateLayout()">' +
     '</label>' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Angezeigte Typen &amp; Priorität</div>' +
@@ -5408,7 +5408,7 @@ function renderAdminDashboardUI(layout) {
       var col = cols[ci];
       var widgetConfig = '';
       if (col.widget === 'stats')          widgetConfig = dashStatsConfigHtml(ri, ci, col.cards);
-      if (col.widget === 'timeline')       widgetConfig = dashTimelineConfigHtml(ri, ci, col.hidden_types, col.prio_order);
+      if (col.widget === 'timeline')       widgetConfig = dashTimelineConfigHtml(ri, ci, col.hidden_types, col.prio_order, col);
       if (col.widget === 'veranstaltungen') widgetConfig = dashVeranstConfigHtml(ri, ci, col.col_order, col.hidden_cols, col);
       if (col.widget === 'hall-of-fame')      widgetConfig = dashHofConfigHtml(ri, ci, col);
       colsHtml +=

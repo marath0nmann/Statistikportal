@@ -1,5 +1,1 @@
-v412: Fix Timeline-Limit: tl_limit statt prio_order._limit
-
-prio_order ist ein Array – Array-Properties werden von JSON.stringify
-nicht serialisiert und gehen beim Speichern verloren.
-Jetzt: col.tl_limit (normales Feld, wird korrekt gespeichert).
+v413: Fix Admin Dashboard endlos laden: col.tl_limit null-safe
