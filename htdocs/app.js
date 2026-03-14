@@ -6194,7 +6194,7 @@ function showDiszEditModal(btn) {
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
       '<button class="btn btn-primary" data-disz="' + disz.replace(/"/g,'&quot;') + '" onclick="updateDisz(this)">Speichern</button>' +
     '</div>'
-  );
+  , false, true);
 }
 
 async function updateDisz(btn) {
