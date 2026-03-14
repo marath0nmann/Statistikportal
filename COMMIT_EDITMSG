@@ -1,7 +1,6 @@
-v408: Fix Bestleistungen/Rekorde: Disziplin per mapping_id statt Name
+v409: Fix diszMitKat + Timeline: kein falscher Kategorie-Suffix
 
-- Bestleistungen (Timeline): diszMap nach mapping_id gruppiert
-  → 800m Bahn, 800m Straße, 800m Halle sind 3 separate Einträge
-- Rekorde top-disziplinen + disziplinen: COUNT per mapping_id
-- Rekorde-Queries: WHERE disziplin_mapping_id=? statt disziplin=?
-- Frontend: mapping_id in setRekDisz, API-Call, Disziplin-Buttons
+- diszMitKat(): bei mehrdeutigem Name (z.B. 800m in 3 Kategorien)
+  kein Suffix anzeigen statt falschen; mit mapping_id exakt
+- Timeline diszLink: ergDiszLabel(rek) statt diszMitKat(rek.disziplin)
+  → nutzt kategorie_name direkt aus API-Response
