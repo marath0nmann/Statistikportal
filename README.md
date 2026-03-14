@@ -1,5 +1,5 @@
 # TuS Oedt – Leichtathletik Statistik
-## Version 1.67 | Stand: März 2026
+## Version v340 | Stand: März 2026
 
 ---
 
@@ -20,6 +20,32 @@ deine-domain.de/
     ├── schema.sql          ← Datenbankstruktur (einmalig ausführen)
     └── import_data.sql     ← Alle historischen Daten (einmalig)
 ```
+
+
+---
+
+### ✨ Aktuelle Features (v340)
+
+**Dashboard**
+- Konfigurierbare Widget-Layouts (Statistik-Karten, Timeline, Veranstaltungen, Hall of Fame)
+- Hall-of-Fame-Widget: Athleten mit Bestenlisten-Titeln, sortiert nach Titelanzahl
+- Timeline-Filterung nach Label-Typ (Gesamt, M/W, AK, PB) + Prioritäten-Ranking
+- Veranstaltungen-Widget: Spalten verschieb- und ausblendbar
+
+**Athleten & Benutzer**
+- Avatar-Upload (PNG/JPG/WebP, max. 1 MB) pro Benutzer
+- Athleten direkt in der Liste deaktivieren/aktivieren (Admin)
+- Athleten-Filter und Sortierspalten in der Athleten-Tabelle
+
+**Ergebnisse**
+- Bulk-Eintragen mit Kategorie-Filter, AK-Vorbelegen, einheitlichem Design
+- RaceResult-Import (my.raceresult.com)
+- Filter nach Athlet, Kategorie, Disziplin, AK, Jahr, Meisterschaft (Mehrfachauswahl)
+
+**Admin**
+- Dashboard-Layout-Editor mit Widget-Konfiguration
+- Footer-URLs für Datenschutz, Nutzungsbedingungen, Impressum konfigurierbar
+- Meisterschaftstypen konfigurierbar (JSON)
 
 ---
 

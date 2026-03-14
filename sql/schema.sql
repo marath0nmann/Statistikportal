@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS benutzer (
     totp_aktiv    TINYINT(1)   NOT NULL DEFAULT 0,
     totp_backup   TEXT         NULL,
     totp_pending  VARCHAR(64)  NULL,
-    athlet_id     INT          NULL     COMMENT 'Verknuepftes Athletenprofil'
+    athlet_id     INT          NULL     COMMENT 'Verknuepftes Athletenprofil',
+    avatar_pfad   VARCHAR(120) NULL     COMMENT 'Relativer Pfad zum Avatar-Bild'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Standard-Admin (Passwort: Admin1234! – bitte sofort aendern!)

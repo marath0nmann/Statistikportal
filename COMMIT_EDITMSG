@@ -1,6 +1,6 @@
-v336: Veranstaltungen-Widget: Spalten verschieb- und ausblendbar
+v340: Syntax-Fixes (Quote-Escaping in HTML-Attributen)
 
-- VERANST_COL_DEFS: Athlet*in, AK, Ergebnis, Pace, Platz AK, Meisterschaft
-- Im Dashboard-Admin: Checkboxen + ▲/▼ je Spalte
-- col_order + hidden_cols werden in dashboard_layout gespeichert
-- Widget baut Tabelle (colgroup, thead, tbody) dynamisch nach Konfiguration
+- avatarHtml: onerror-Attribut mit HTML-Entities statt escaped Quotes
+- Header-Avatar: onerror entfernt (kein verschachtelter Quote-Konflikt)
+- Hall of Fame Fallback-Avatar: font-family ohne Quotes in Inline-Style
+- node --check meldet jetzt keine Warnings mehr

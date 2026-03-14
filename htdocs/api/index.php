@@ -88,6 +88,9 @@ function autoMapDisziplin(string $disziplin): void {
 // ============================================================
 try {
 
+// Auto-Migration: avatar_pfad Spalte
+try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS avatar_pfad VARCHAR(120) NULL COMMENT 'Relativer Pfad zum Avatar-Bild'"); } catch (\Exception $e) {}
+
 // Einheitliche Tabelle vorhanden?
 $_tblCheck = DB::fetchOne("SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='ergebnisse'");
 $unified = $_tblCheck && (int)$_tblCheck['c'] > 0;
@@ -409,6 +412,54 @@ if ($res === 'upload' && $id === 'logo') {
 }
 
 // ============================================================
+// UPLOAD – Avatar (eigener Benutzer)
+// ============================================================
+if ($res === 'upload' && $id === 'avatar') {
+    $user = Auth::requireLogin();
+    if ($method !== 'POST' && $method !== 'DELETE') jsonErr('Methode nicht erlaubt.', 405);
+
+    $uid = (int)$user['id'];
+    $prefix = 'avatar_' . $uid . '_';
+
+    if ($method === 'DELETE') {
+        // Alte Avatare löschen
+        foreach (['png','jpg','webp'] as $e) {
+            $f = __DIR__ . '/../uploads/' . $prefix . $e;
+            if (file_exists($f)) @unlink($f);
+        }
+        // Spalte leeren (defensiv gegen fehlende Spalte)
+        try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET avatar_pfad = NULL WHERE id = ?', [$uid]); } catch (\Exception $e) {}
+        jsonOk('Avatar gelöscht.');
+    }
+
+    $file = $_FILES['avatar'] ?? null;
+    if (!$file || $file['error'] !== UPLOAD_ERR_OK) jsonErr('Kein Bild empfangen oder Upload-Fehler.');
+
+    // Nur PNG, JPG, WebP – kein SVG/GIF für Avatare
+    $erlaubteTypes = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'];
+    $mime = mime_content_type($file['tmp_name']);
+    if (!isset($erlaubteTypes[$mime])) jsonErr('Nur PNG, JPG und WebP sind erlaubt.');
+
+    // Max 1 MB
+    if ($file['size'] > 1 * 1024 * 1024) jsonErr('Datei zu groß (max. 1 MB).');
+
+    $ext  = $erlaubteTypes[$mime];
+    $ziel = __DIR__ . '/../uploads/' . $prefix . $ext;
+
+    // Alte Avatare dieses Nutzers löschen
+    foreach (['png','jpg','webp'] as $e) {
+        $alt = __DIR__ . '/../uploads/' . $prefix . $e;
+        if (file_exists($alt)) @unlink($alt);
+    }
+
+    if (!move_uploaded_file($file['tmp_name'], $ziel)) jsonErr('Speichern fehlgeschlagen.');
+
+    $pfad = 'uploads/' . $prefix . $ext;
+    try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET avatar_pfad = ? WHERE id = ?', [$pfad, $uid]); } catch (\Exception $e) {}
+    jsonOk(['pfad' => $pfad]);
+}
+
+// ============================================================
 // EINSTELLUNGEN (öffentlich lesbar, Schreiben nur Admin)
 // ============================================================
 if ($res === 'einstellungen') {
@@ -432,6 +483,7 @@ if ($res === 'einstellungen') {
                 'farbe_primary','farbe_accent',
                 'dashboard_timeline_limit','version_nur_admins',
                 'adressleiste_farbe','dashboard_layout',
+                'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url',
             ];
             $save = [];
             foreach ($erlaubt as $k) {
@@ -2033,6 +2085,80 @@ if ($res === 'papierkorb') {
 }
 
 
+
+// ============================================================
+// HALL OF FAME
+// ============================================================
+if ($res === 'hall-of-fame' && $method === 'GET') {
+    // $unified ist global bereits gesetzt
+    $athletMap = [];
+
+    if ($unified) {
+        $diszList = DB::fetchAll(
+            "SELECT DISTINCT disziplin FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NULL AND resultat IS NOT NULL ORDER BY disziplin"
+        );
+        foreach ($diszList as $dRow) {
+            $disz = $dRow['disziplin'];
+            $ergs = DB::fetchAll(
+                "SELECT e.resultat, e.val_sort, e.altersklasse, a.id AS athlet_id, a.name_nv, a.geschlecht,
+                        b.avatar_pfad, v.datum
+                 FROM " . DB::tbl('ergebnisse') . " e
+                 JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
+                 JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
+                 LEFT JOIN " . DB::tbl('benutzer') . " b ON b.athlet_id = a.id
+                 WHERE e.disziplin = ? AND e.geloescht_am IS NULL AND e.resultat IS NOT NULL
+                 ORDER BY v.datum ASC",
+                [$disz]
+            );
+            if (empty($ergs)) continue;
+            $firstRes = $ergs[0]['resultat'] ?? '';
+            $dir = (preg_match('/^\d{2}:\d{2}:\d{2}/', $firstRes) || preg_match('/^\d{2}:\d{2}/', $firstRes)) ? 'ASC' : 'DESC';
+            $bestGesamt = null; $bestGesamtAid = null; $bestGesamtDatum = null;
+            $bestByG = []; $bestGAid = []; $bestGDatum = [];
+            $bestByAK = []; $bestAKAid = []; $bestAKDatum = [];
+            foreach ($ergs as $e) {
+                $val = (float)($e['val_sort'] ?? 0);
+                $aid = (int)$e['athlet_id'];
+                $g   = $e['geschlecht'] ?? '';
+                $ak  = $e['altersklasse'] ?? '';
+                $datum = $e['datum'] ?? '';
+                if (!isset($athletMap[$aid]))
+                    $athletMap[$aid] = ['id' => $aid, 'name' => $e['name_nv'], 'avatar' => $e['avatar_pfad'], 'titel' => []];
+                if ($bestGesamt === null || ($dir==='ASC' ? $val < $bestGesamt : $val > $bestGesamt)) {
+                    $bestGesamt = $val; $bestGesamtAid = $aid; $bestGesamtDatum = $datum;
+                }
+                if ($g === 'M' || $g === 'W') {
+                    if (!isset($bestByG[$g]) || ($dir==='ASC' ? $val < $bestByG[$g] : $val > $bestByG[$g])) {
+                        $bestByG[$g] = $val; $bestGAid[$g] = $aid; $bestGDatum[$g] = $datum;
+                    }
+                }
+                if ($ak) {
+                    if (!isset($bestByAK[$ak]) || ($dir==='ASC' ? $val < $bestByAK[$ak] : $val > $bestByAK[$ak])) {
+                        $bestByAK[$ak] = $val; $bestAKAid[$ak] = $aid; $bestAKDatum[$ak] = $datum;
+                    }
+                }
+            }
+            $add = function($aid, $label, $datum) use ($disz, &$athletMap) {
+                if (isset($athletMap[$aid])) $athletMap[$aid]['titel'][] = ['disziplin' => $disz, 'label' => $label, 'datum' => $datum];
+            };
+            if ($bestGesamtAid) $add($bestGesamtAid, 'Gesamtbestleistung', $bestGesamtDatum);
+            foreach ($bestGAid as $g => $aid) $add($aid, ($g==='M' ? 'Bestleistung Männer' : 'Bestleistung Frauen'), $bestGDatum[$g]);
+            foreach ($bestAKAid as $ak => $aid) $add($aid, 'Bestleistung ' . $ak, $bestAKDatum[$ak]);
+        }
+    }
+
+    $hof = array_values(array_filter($athletMap, function($a){ return !empty($a['titel']); }));
+    foreach ($hof as &$ath) {
+        $byDisz = [];
+        foreach ($ath['titel'] as $t) $byDisz[$t['disziplin']][] = ['label' => $t['label'], 'datum' => $t['datum']];
+        $ath['disziplinen'] = $byDisz;
+        $ath['titelCount']  = array_sum(array_map('count', $byDisz));
+        unset($ath['titel']);
+    }
+    unset($ath);
+    usort($hof, function($a,$b){ return $b['titelCount'] - $a['titelCount']; });
+    jsonOk($hof);
+}
 
 jsonErr('Unbekannte Route.', 404);
 
