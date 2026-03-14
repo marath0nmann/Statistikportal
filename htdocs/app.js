@@ -1438,22 +1438,39 @@ async function renderDashboard() {
     if (cols.length === 1) {
       layoutHtml += '<div style="margin-bottom:20px">' + renderWidget(cols[0]) + '</div>';
     } else {
-      // Mehrspaltig: minmax-Breite für responsives Umbrechen
+      // Mehrspaltig: explizite Breiten + CSS-Custom-Properties für responsives Umbrechen
       var colsHtml = '';
-      var minW = 0;
+      var gtcParts = [];
+      var totalMin = 0;
       for (var ci = 0; ci < cols.length; ci++) {
         var col = cols[ci];
-        // Mindestbreite je Spalte: konfigurierte px-Breite oder 280px als Fallback
         var colMin = col.w ? col.w : 280;
-        if (colMin > minW) minW = colMin;
-        colsHtml += '<div>' + renderWidget(col) + '</div>';
+        totalMin += colMin;
+        // Jede Spalte bekommt ihre eigene --col-w Variable für Responsivness
+        colsHtml += '<div style="min-width:' + colMin + 'px;flex:' + (col.w ? '0 0 ' + col.w + 'px' : '1') + '">' + renderWidget(col) + '</div>';
+        gtcParts.push(col.w ? col.w + 'px' : '1fr');
       }
-      // repeat(auto-fit, minmax(X, 1fr)) → bricht automatisch um wenn zu schmal
-      layoutHtml += '<div class="dash-row" style="--dash-min:' + minW + 'px;margin-bottom:20px">' + colsHtml + '</div>';
+      var gtc = gtcParts.join(' ');
+      // dash-row-wrap: umbrechen wenn Viewport < Summe der Mindestbreiten + gaps
+      layoutHtml += '<div class="dash-row-wrap" style="--dash-gtc:' + gtc + ';--dash-min-total:' + (totalMin + (cols.length-1)*20) + 'px;margin-bottom:20px">' + colsHtml + '</div>';
     }
   }
 
   document.getElementById('main-content').innerHTML = layoutHtml;
+  // Responsive: .stacked wenn Container schmaler als Summe der Mindestbreiten
+  requestAnimationFrame(function() {
+    var rows = document.querySelectorAll('.dash-row-wrap');
+    for (var i = 0; i < rows.length; i++) {
+      (function(row) {
+        var minTotal = parseInt(row.style.getPropertyValue('--dash-min-total')) || 600;
+        function check() { row.classList.toggle('stacked', row.offsetWidth < minTotal); }
+        check();
+        if (window.ResizeObserver) {
+          new ResizeObserver(check).observe(row);
+        }
+      })(rows[i]);
+    }
+  });
 }
 
 
@@ -4473,7 +4490,7 @@ function dashStatsConfigHtml(ri, ci, cards) {
         : '') +
       '</label>';
   }
-  return '<div style="border:1px solid var(--border);border-radius:6px;padding:10px 12px;background:var(--bg)">' +
+  return '<div style="padding:2px 0 6px">' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Angezeigte Karten</div>' +
     rows +
   '</div>';
@@ -4523,7 +4540,7 @@ function renderAdminDashboardUI(layout) {
       var col = cols[ci];
       var statsConfig = (col.widget === 'stats') ? dashStatsConfigHtml(ri, ci, col.cards) : '';
       colsHtml +=
-        '<div style="display:flex;flex-direction:column;gap:8px;flex:1;min-width:0;background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:12px">' +
+        '<div style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;background:var(--surf2);border-radius:10px;padding:14px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
             widgetSelect(ri, ci, col.widget) +
             (cols.length > 1
@@ -4535,9 +4552,9 @@ function renderAdminDashboardUI(layout) {
         '</div>';
     }
     rowsHtml +=
-      '<div style="border:1px solid var(--border);border-radius:10px;padding:16px;background:var(--surface);margin-bottom:12px">' +
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">' +
-          '<span style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px">Zeile ' + (ri + 1) + '</span>' +
+      '<div style="padding:16px 0;' + (ri < layout.length - 1 ? 'border-bottom:1px solid var(--border);' : '') + 'margin-bottom:4px">' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">' +
+          '<span style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px">Zeile ' + (ri + 1) + '</span>' +
           '<div style="flex:1"></div>' +
           (ri > 0
             ? '<button class="btn btn-ghost btn-sm" title="Zeile nach oben" onclick="dashMoveRow(' + ri + ',-1)">▲</button>'
@@ -4545,26 +4562,28 @@ function renderAdminDashboardUI(layout) {
           (ri < layout.length - 1
             ? '<button class="btn btn-ghost btn-sm" title="Zeile nach unten" onclick="dashMoveRow(' + ri + ',1)">▼</button>'
             : '<button class="btn btn-ghost btn-sm" disabled style="opacity:.3">▼</button>') +
-          '<button class="btn btn-ghost btn-sm" title="Spalte hinzufügen" onclick="dashAddCol(' + ri + ')">+ Spalte</button>' +
-          '<button class="btn btn-danger btn-sm" title="Zeile entfernen" onclick="dashRemoveRow(' + ri + ')">✕ Zeile</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="dashAddCol(' + ri + ')">+ Spalte</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="dashRemoveRow(' + ri + ')">✕ Zeile</button>' +
         '</div>' +
         '<div style="display:flex;gap:12px;align-items:stretch">' + colsHtml + '</div>' +
       '</div>';
   }
 
   el.innerHTML = adminSubtabs() +
-    '<div style="max-width:800px">' +
+    '<div style="max-width:760px">' +
       '<div class="panel">' +
-        '<div class="panel-header"><div class="panel-title">📊︎ Dashboard-Layout</div></div>' +
-        '<div class="settings-panel-body">' +
-          '<p style="font-size:13px;color:var(--text2);margin:0 0 16px">Ordne Widgets in Zeilen und Spalten an. Mehrere Spalten in einer Zeile werden nebeneinander angezeigt.</p>' +
-          '<div id="dash-rows">' + rowsHtml + '</div>' +
-          '<button class="btn btn-ghost btn-sm" onclick="dashAddRow()" style="margin-top:4px">+ Zeile hinzufügen</button>' +
+        '<div class="panel-header">' +
+          '<div class="panel-title">&#x1F4CA;&#xFE0E; Dashboard-Layout</div>' +
+          '<div style="display:flex;gap:8px">' +
+            '<button class="btn btn-ghost btn-sm" onclick="dashAddRow()">+ Zeile</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="dashResetLayout()">&#x21BA; Reset</button>' +
+            '<button class="btn btn-primary btn-sm" onclick="dashSaveLayout()">&#x1F4BE; Speichern</button>' +
+          '</div>' +
         '</div>' +
-      '</div>' +
-      '<div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">' +
-        '<button class="btn btn-primary" onclick="dashSaveLayout()">💾 Layout speichern</button>' +
-        '<button class="btn btn-ghost" onclick="dashResetLayout()">↺ Zurücksetzen</button>' +
+        '<div class="settings-panel-body">' +
+          '<p style="font-size:13px;color:var(--text2);margin:0 0 4px">Widgets in Zeilen und Spalten anordnen.</p>' +
+          '<div id="dash-rows">' + rowsHtml + '</div>' +
+        '</div>' +
       '</div>' +
     '</div>';
 
