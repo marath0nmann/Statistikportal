@@ -1703,10 +1703,13 @@ async function renderDashboard() {
   }
   if (!timelineHtml) timelineHtml = '<div class="empty"><div class="empty-icon">&#x1F3C6;</div><div class="empty-text">Noch keine Bestleistungen erfasst</div></div>';
 
-  // Letzte 5 Veranstaltungen
+  // Letzte Veranstaltungen: Limit aus Widget-Config
   var veranstHtml = '';
   var _vLimit = 5;
-  if (layout) { for (var _vri=0;_vri<layout.length;_vri++) { for (var _vci=0;_vci<(layout[_vri].cols||[]).length;_vci++) { var _vc=layout[_vri].cols[_vci]; if (_vc.widget==='veranstaltungen' && _vc.veranst_limit) _vLimit=parseInt(_vc.veranst_limit)||5; } } }
+  try {
+    var _vLay = JSON.parse(appConfig.dashboard_layout || '[]');
+    for (var _vri=0;_vri<_vLay.length;_vri++) { for (var _vci=0;_vci<(_vLay[_vri].cols||[]).length;_vci++) { var _vc=_vLay[_vri].cols[_vci]; if (_vc.widget==='veranstaltungen' && _vc.veranst_limit) { _vLimit=parseInt(_vc.veranst_limit)||5; break; } } }
+  } catch(e) {}
   var rv = await apiGet('veranstaltungen?limit=' + _vLimit + '&offset=0');
   var veranst = (rv && rv.ok && rv.data.veranst) ? rv.data.veranst : [];
   for (var vi = 0; vi < veranst.length; vi++) {
