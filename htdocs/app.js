@@ -6029,6 +6029,7 @@ async function renderAdminDisziplinen() {
       'data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" ' +
       'data-fmt="' + (d.fmt_override||'').replace(/"/g,'&quot;') + '" ' +
       'data-katfmt="' + (d.kat_fmt||'').replace(/"/g,'&quot;') + '" ' +
+      'data-mappingid="' + (d.id||'') + '" ' +
       'data-katsuffix="' + (d.kat_suffix_override||'') + '" ' +
       'data-hofexclude="' + (d.hof_exclude == 1 ? '1' : '0') + '" ' +
       'onclick="showDiszEditModal(this)">&#x270F;&#xFE0E;</button>';
@@ -6152,6 +6153,7 @@ function showDiszEditModal(btn) {
   var disz      = btn.dataset.disz;
   var fmt       = btn.dataset.fmt;
   var katfmt    = btn.dataset.katfmt;
+  var mappingId  = btn.dataset.mappingid || '';
   var katSuffix  = btn.dataset.katsuffix || '';
   var hofExclude = btn.dataset.hofexclude === '1';
   var fmtOpts = [
@@ -6192,7 +6194,7 @@ function showDiszEditModal(btn) {
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-      '<button class="btn btn-primary" data-disz="' + disz.replace(/"/g,'&quot;') + '" onclick="updateDisz(this)">Speichern</button>' +
+      '<button class="btn btn-primary" data-disz="' + disz.replace(/"/g,'&quot;') + '" data-mappingid="' + mappingId + '" onclick="updateDisz(this)">Speichern</button>' +
     '</div>'
   , false, true);
 }
@@ -6205,7 +6207,9 @@ async function updateDisz(btn) {
   var hofExclude = document.getElementById('de-hofexclude') ? (document.getElementById('de-hofexclude').checked ? 1 : 0) : 0;
   var body = { fmt_override: fmt, kat_suffix_override: katSuffix, hof_exclude: hofExclude };
   if (neuerName && neuerName !== origDisz) body.neuer_name = neuerName;
-  var r = await apiPut('disziplin-mapping/' + encodeURIComponent(origDisz), body);
+  var mId = btn.dataset.mappingid;
+  var putPath = mId ? 'disziplin-mapping/' + mId : 'disziplin-mapping/' + encodeURIComponent(origDisz);
+  var r = await apiPut(putPath, body);
   if (r && r.ok) {
     closeModal();
     notify('Gespeichert.', 'ok');
