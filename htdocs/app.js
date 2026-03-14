@@ -1060,9 +1060,11 @@ function showUserMenu() {
     '<h2>Konto <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div style="text-align:center;padding:10px 0 20px">' +
       '<div style="position:relative;width:64px;margin:0 auto 12px;cursor:pointer" onclick="document.getElementById(\'avatar-file-input\').click()" title="Avatar ändern">' +
-        (currentUser.avatar
-          ? '<img id="konto-avatar-img" src="' + currentUser.avatar + '" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;">'
-          : '<div class="profile-avatar" style="width:64px;height:64px;font-size:24px;">' + name[0].toUpperCase() + '</div>') +
+        '<div class="profile-avatar" style="width:64px;height:64px;font-size:24px;overflow:hidden;padding:0;' + (currentUser.avatar ? 'background:none;' : '') + '">' +
+          (currentUser.avatar
+            ? '<img id="konto-avatar-img" src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:50%;">'
+            : name[0].toUpperCase()) +
+        '</div>' +
         '<div style="position:absolute;bottom:0;right:0;background:var(--primary);color:var(--on-primary);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;">&#x1F4F7;</div>' +
       '</div>' +
       '<input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadAvatar(this)">' +
