@@ -1483,9 +1483,68 @@ async function renderDashboard() {
       '</div>';
     }
     if (w === 'veranstaltungen') {
+      // Spalten-Konfiguration anwenden
+      var vColOrder  = (wcfg.col_order  && wcfg.col_order.length)  ? wcfg.col_order  : VERANST_COL_DEFS.map(function(c){return c.id;});
+      var vHiddenCols= wcfg.hidden_cols || [];
+      var visibleCols = vColOrder.filter(function(id){ return vHiddenCols.indexOf(id) < 0; });
+      // veranstHtml neu aufbauen wenn Spalten abweichen
+      var vHtml = veranstHtml;
+      var defaultOrder = VERANST_COL_DEFS.map(function(c){return c.id;});
+      var changed = vHiddenCols.length > 0 || visibleCols.join(',') !== defaultOrder.join(',');
+      if (changed) {
+        vHtml = '';
+        for (var vvi = 0; vvi < veranst.length; vvi++) {
+          var vv = veranst[vvi];
+          var vvname = vv.name || (vv.kuerzel||'').split(' ').slice(1).join(' ') || vv.kuerzel || '';
+          var vvrows = '';
+          var vvByDisz = {}; var vvDiszOrder = [];
+          for (var vei = 0; vei < vv.ergebnisse.length; vei++) {
+            var ve = vv.ergebnisse[vei];
+            if (!vvByDisz[ve.disziplin]) { vvByDisz[ve.disziplin]=[]; vvDiszOrder.push(ve.disziplin); }
+            vvByDisz[ve.disziplin].push(ve);
+          }
+          for (var vdi = 0; vdi < vvDiszOrder.length; vdi++) {
+            var vdisz = vvDiszOrder[vdi];
+            var vergs = vvByDisz[vdisz];
+            vvrows += '<tr class="disz-header-row"><td colspan="' + visibleCols.length + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + vdisz + '</td></tr>';
+            for (var vei2 = 0; vei2 < vergs.length; vei2++) {
+              var ve2 = vergs[vei2];
+              var vvfmt = ve2.fmt || '';
+              var vvres = vvfmt === 'm' ? fmtMeter(ve2.resultat) : fmtTime(ve2.resultat, vvfmt === 's' ? 's' : undefined);
+              var vvpace = diszKm(ve2.disziplin) >= 1 ? calcPace(ve2.disziplin, ve2.resultat) : '';
+              var vvShowPace = vvpace && vvpace !== '00:00' && vvfmt !== 'm' && vvfmt !== 's';
+              var vvCells = { athlet: '<td><span class="athlet-link" onclick="openAthletById('+ve2.athlet_id+')">'+ve2.athlet+'</span></td>', ak: '<td>'+akBadge(ve2.altersklasse)+'</td>', result: '<td class="result">'+vvres+'</td>', pace: '<td class="ort-text">'+(vvShowPace?fmtTime(vvpace,'min/km'):'')+'</td>', platz: '<td>'+platzBadge(ve2.ak_platzierung)+'</td>', ms: '<td>'+mstrBadge(ve2.meisterschaft)+'</td>' };
+              var vvRow = '<tr>';
+              for (var vci = 0; vci < visibleCols.length; vci++) vvRow += vvCells[visibleCols[vci]] || '<td></td>';
+              vvrows += vvRow + '</tr>';
+            }
+          }
+          // colgroup + thead
+          var vvColgroup = '<colgroup>';
+          var vvThead = '<tr>';
+          for (var vci2 = 0; vci2 < visibleCols.length; vci2++) {
+            var vdef = null;
+            for (var di2=0;di2<VERANST_COL_DEFS.length;di2++){if(VERANST_COL_DEFS[di2].id===visibleCols[vci2]){vdef=VERANST_COL_DEFS[di2];break;}}
+            vvColgroup += '<col' + (vdef?' class="'+vdef.css+'"':'') + '>';
+            vvThead += '<th>' + (vdef?vdef.label:visibleCols[vci2]) + '</th>';
+          }
+          vvColgroup += '</colgroup>'; vvThead += '</tr>';
+          var isLast2 = (vvi === veranst.length - 1);
+          vHtml += '<div class="veranst-dash-block" style="' + (isLast2?'padding:14px 20px 4px':'border-bottom:1px solid var(--border);padding:14px 20px') + '">' +
+            '<div class="veranst-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;margin-bottom:6px">' +
+              '<div><div style="font-weight:700;font-size:16px;color:var(--primary)">' + vvname + '</div>' +
+              '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(vv.datum) + (vv.ort?' &middot; '+vv.ort:'') + '</div></div>' +
+              '<div style="font-size:12px;color:var(--text2);white-space:nowrap">' + vv.anz_ergebnisse + ' Ergebnisse &middot; ' + vv.anz_athleten + ' Athleten</div>' +
+            '</div>' +
+            (vvrows ? '<div class="table-scroll" style="margin-bottom:8px"><table class="veranst-dash-table">' + vvColgroup + '<thead>' + vvThead + '</thead><tbody>' + vvrows + '</tbody></table></div>'
+                    : '<div style="color:var(--text2);font-size:13px;padding:4px 0 8px">Keine Ergebnisse</div>') +
+          '</div>';
+        }
+        if (!vHtml) vHtml = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Noch keine Veranstaltungen</div></div>';
+      }
       return '<div class="panel" style="height:100%">' +
         '<div class="panel-header"><div class="panel-title">&#x1F4CD; Letzte Veranstaltungen</div></div>' +
-        veranstHtml +
+        vHtml +
       '</div>';
     }
     return '';
@@ -4521,6 +4580,15 @@ function timelineLabelType(lbl) {
   return 'pb'; // Fallback
 }
 
+var VERANST_COL_DEFS = [
+  { id: 'athlet',  label: 'Athlet*in',    css: 'vcol-athlet' },
+  { id: 'ak',      label: 'AK',           css: 'vcol-ak'     },
+  { id: 'result',  label: 'Ergebnis',     css: 'vcol-result' },
+  { id: 'pace',    label: 'Pace',         css: 'vcol-pace'   },
+  { id: 'platz',   label: 'Platz AK',     css: 'vcol-platz'  },
+  { id: 'ms',      label: 'Meisterschaft',css: 'vcol-ms'     },
+];
+
 var STAT_CARD_DEFS = [
   { id: 'ergebnisse', icon: '&#x1F3C3;', label: 'Ergebnisse gesamt' },
   { id: 'athleten',   icon: '&#x1F465;', label: 'Athleten' },
@@ -4547,6 +4615,54 @@ async function renderAdminDashboard() {
   el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
 
   var layout = dashLayoutFromConfig();
+  renderAdminDashboardUI(layout);
+}
+
+function dashVeranstConfigHtml(ri, ci, col_order, hidden_cols) {
+  var hidden = hidden_cols || [];
+  var order  = col_order && col_order.length === VERANST_COL_DEFS.length
+                 ? col_order : VERANST_COL_DEFS.map(function(c){return c.id;});
+  // Spalten in konfigurierter Reihenfolge
+  var orderedCols = [];
+  for (var oi = 0; oi < order.length; oi++) {
+    for (var ci2 = 0; ci2 < VERANST_COL_DEFS.length; ci2++) {
+      if (VERANST_COL_DEFS[ci2].id === order[oi]) { orderedCols.push(VERANST_COL_DEFS[ci2]); break; }
+    }
+  }
+  for (var ci3 = 0; ci3 < VERANST_COL_DEFS.length; ci3++) {
+    if (order.indexOf(VERANST_COL_DEFS[ci3].id) < 0) orderedCols.push(VERANST_COL_DEFS[ci3]);
+  }
+  var rows = '';
+  for (var i = 0; i < orderedCols.length; i++) {
+    var c = orderedCols[i];
+    var chk = hidden.indexOf(c.id) < 0 ? ' checked' : '';
+    rows +=
+      '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;' + (i < orderedCols.length-1 ? 'border-bottom:1px solid var(--border);' : '') + '">' +
+        '<input type="checkbox" data-vc-id="' + c.id + '" data-ri="' + ri + '" data-ci="' + ci + '"' + chk + ' onchange="dashUpdateLayout()">' +
+        '<span style="flex:1;font-size:13px">' + c.label + '</span>' +
+        '<span style="display:flex;gap:4px">' +
+          (i > 0 ? '<button class="btn btn-ghost btn-sm" style="padding:2px 6px" onclick="dashVcMoveCol(' + ri + ',' + ci + ',' + i + ',-1)">▲</button>' : '<button class="btn btn-ghost btn-sm" style="padding:2px 6px;opacity:.25" disabled>▲</button>') +
+          (i < orderedCols.length-1 ? '<button class="btn btn-ghost btn-sm" style="padding:2px 6px" onclick="dashVcMoveCol(' + ri + ',' + ci + ',' + i + ',1)">▼</button>' : '<button class="btn btn-ghost btn-sm" style="padding:2px 6px;opacity:.25" disabled>▼</button>') +
+        '</span>' +
+      '</div>';
+  }
+  return '<div style="padding:2px 0 6px">' +
+    '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Spalten</div>' +
+    rows +
+  '</div>';
+}
+
+function dashVcMoveCol(ri, ci, idx, dir) {
+  dashUpdateLayout();
+  var layout = dashGetLayout();
+  var col = layout[ri] && layout[ri].cols[ci];
+  if (!col) return;
+  var order = col.col_order && col.col_order.length ? col.col_order.slice()
+    : VERANST_COL_DEFS.map(function(c){return c.id;});
+  var newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= order.length) return;
+  var tmp = order[idx]; order[idx] = order[newIdx]; order[newIdx] = tmp;
+  col.col_order = order;
   renderAdminDashboardUI(layout);
 }
 
@@ -4670,8 +4786,9 @@ function renderAdminDashboardUI(layout) {
     for (var ci = 0; ci < cols.length; ci++) {
       var col = cols[ci];
       var widgetConfig = '';
-      if (col.widget === 'stats')    widgetConfig = dashStatsConfigHtml(ri, ci, col.cards);
-      if (col.widget === 'timeline') widgetConfig = dashTimelineConfigHtml(ri, ci, col.hidden_types, col.prio_order);
+      if (col.widget === 'stats')          widgetConfig = dashStatsConfigHtml(ri, ci, col.cards);
+      if (col.widget === 'timeline')       widgetConfig = dashTimelineConfigHtml(ri, ci, col.hidden_types, col.prio_order);
+      if (col.widget === 'veranstaltungen') widgetConfig = dashVeranstConfigHtml(ri, ci, col.col_order, col.hidden_cols);
       colsHtml +=
         '<div style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;background:var(--surf2);border-radius:10px;padding:14px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
@@ -4752,6 +4869,15 @@ function dashUpdateLayout() {
           if (boxes[bi2].checked && newCards.indexOf(boxes[bi2].dataset.statsId) < 0) newCards.push(boxes[bi2].dataset.statsId);
         }
         cols[ci].cards = newCards;
+      }
+      if (cols[ci].widget === 'veranstaltungen') {
+        var vcBoxes = document.querySelectorAll('input[data-vc-id][data-ri="' + ri + '"][data-ci="' + ci + '"]');
+        var newHiddenCols = [];
+        for (var vbi = 0; vbi < vcBoxes.length; vbi++) {
+          if (!vcBoxes[vbi].checked) newHiddenCols.push(vcBoxes[vbi].dataset.vcId);
+        }
+        cols[ci].hidden_cols = newHiddenCols;
+        // col_order bleibt erhalten (wird nur durch dashVcMoveCol geändert)
       }
       if (cols[ci].widget === 'timeline') {
         var tlBoxes = document.querySelectorAll('input[data-tl-id][data-ri="' + ri + '"][data-ci="' + ci + '"]');

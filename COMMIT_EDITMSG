@@ -1,7 +1,6 @@
-v335: Timeline-Widget: Typen ein-/ausblenden + Prioritäten konfigurierbar
+v336: Veranstaltungen-Widget: Spalten verschieb- und ausblendbar
 
-- 4 Label-Typen: Gesamtbestleistung / Bestleistung M+W / Bestleistung AK / PB
-- Im Dashboard-Admin: Checkboxen zum Ausblenden einzelner Typen
-- Prioritäten-Ranking per ▲/▼ verschiebbar (bestimmt welcher Eintrag
-  bei gleichem Datum oben erscheint)
-- Filterung + Neusortierung komplett clientseitig, kein API-Umbau nötig
+- VERANST_COL_DEFS: Athlet*in, AK, Ergebnis, Pace, Platz AK, Meisterschaft
+- Im Dashboard-Admin: Checkboxen + ▲/▼ je Spalte
+- col_order + hidden_cols werden in dashboard_layout gespeichert
+- Widget baut Tabelle (colgroup, thead, tbody) dynamisch nach Konfiguration
