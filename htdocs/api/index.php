@@ -2132,7 +2132,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         foreach ($diszList as $dRow) {
             $disz = $dRow['disziplin'];
             $ergs = DB::fetchAll(
-                "SELECT e.resultat, e.val_sort, e.altersklasse, a.id AS athlet_id, a.name_nv, a.geschlecht,
+                "SELECT e.resultat, e.resultat_num AS val_sort, e.altersklasse, a.id AS athlet_id, a.name_nv, a.geschlecht,
                         b.avatar_pfad, v.datum
                  FROM " . DB::tbl('ergebnisse') . " e
                  JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
