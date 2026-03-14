@@ -1416,9 +1416,70 @@ async function renderDashboard() {
     if (w === 'stat-athleten')   return statCard(statAthleten,   '&#x1F465;', 'Athleten');
     if (w === 'stat-rekorde')    return statCard(statRekorde,    '&#x1F3C6;', 'Vereinsrekorde');
     if (w === 'timeline') {
+      // Filtern nach hidden_types und Sortieren nach prio_order
+      var hiddenTypes = wcfg.hidden_types || [];
+      var prioOrder   = wcfg.prio_order  || ['gesamt','gender','ak','pb'];
+      var filteredTimeline = timelineHtml;
+      if (hiddenTypes.length || prioOrder.join(',') !== 'gesamt,gender,ak,pb') {
+        // Timeline-Items neu rendern mit Filterung + Priorisierung
+        var filtItems = [];
+        for (var ti = 0; ti < rekordeTimeline.length; ti++) {
+          var rek2 = rekordeTimeline[ti];
+          if (!rek2.athlet) continue;
+          var lblParts = (rek2.label || '').split(' + ');
+          // Alle Label-Teile auf Sichtbarkeit prüfen
+          var visibleParts = [];
+          for (var lpi = 0; lpi < lblParts.length; lpi++) {
+            var t = timelineLabelType(lblParts[lpi]);
+            if (hiddenTypes.indexOf(t) < 0) visibleParts.push(lblParts[lpi]);
+          }
+          if (!visibleParts.length) continue;
+          // Prio nach prioOrder berechnen
+          var bestPrio = 99;
+          for (var vpi = 0; vpi < visibleParts.length; vpi++) {
+            var pt = timelineLabelType(visibleParts[vpi]);
+            var pi = prioOrder.indexOf(pt);
+            if (pi >= 0 && pi < bestPrio) bestPrio = pi;
+          }
+          filtItems.push({ rek: rek2, label: visibleParts.join(' + '), prio: bestPrio });
+        }
+        // Sortieren: Datum desc, dann prio asc
+        filtItems.sort(function(a,b) {
+          var dc = b.rek.datum < a.rek.datum ? -1 : (b.rek.datum > a.rek.datum ? 1 : 0);
+          return dc !== 0 ? dc : a.prio - b.prio;
+        });
+        filteredTimeline = '';
+        for (var fi = 0; fi < filtItems.length; fi++) {
+          var fItem = filtItems[fi].rek;
+          var fLbl  = filtItems[fi].label;
+          var fFmt  = fItem.fmt || '';
+          var fRes  = fFmt === 'm' ? fmtMeter(fItem.resultat) : fmtTime(fItem.resultat, fFmt === 's' ? 's' : undefined);
+          var fLblCls = (fLbl.indexOf('Gesamtbestleistung') >= 0 || fLbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
+                        (fLbl === 'PB' || fLbl === 'Débüt') ? 'badge badge-pb' : 'badge badge-silver';
+          var fAthLink = fItem.athlet_id
+            ? '<span class="athlet-link" style="color:var(--primary);font-weight:600" data-athlet-id="' + fItem.athlet_id + '">' + fItem.athlet + '</span>'
+            : '<span style="color:var(--primary);font-weight:600">' + fItem.athlet + '</span>';
+          var fVorher = '';
+          if (fItem.vorher_val !== null && fItem.vorher_val !== undefined && !fItem.extern) {
+            var fVFmt = fmtValNum(fItem.vorher_val, fFmt === 's' ? 's' : (fFmt === 'm' ? 'm' : 'min'));
+            if (fVFmt) fVorher = '<span style="color:var(--text2);font-size:12px;margin-left:6px">vorher: ' + fVFmt + '</span>';
+          }
+          var fDiszLink = '<span class="athlet-link" style="color:var(--text);font-weight:600;cursor:pointer" data-rek-disz="' + fItem.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + fItem.disziplin + '</span>';
+          filteredTimeline +=
+            '<div class="timeline-item">' +
+              '<div class="timeline-date">' + formatDate(fItem.datum) + '</div>' +
+              '<div class="timeline-body">' +
+                '<div class="timeline-disz">' + fDiszLink + ' <span class="' + fLblCls + '">' + fLbl + '</span></div>' +
+                '<div class="timeline-athlet">' + fAthLink + '</div>' +
+                '<div class="timeline-result">' + fRes + fVorher + '</div>' +
+              '</div>' +
+            '</div>';
+        }
+        if (!filteredTimeline) filteredTimeline = '<div class="empty"><div class="empty-icon">&#x1F3C6;</div><div class="empty-text">Keine Einträge für diese Auswahl</div></div>';
+      }
       return '<div class="panel" style="height:100%">' +
         '<div class="panel-header"><div class="panel-title">&#x1F3C6; Neueste Bestleistungen</div></div>' +
-        '<div class="timeline">' + timelineHtml + '</div>' +
+        '<div class="timeline">' + filteredTimeline + '</div>' +
       '</div>';
     }
     if (w === 'veranstaltungen') {
@@ -4442,6 +4503,24 @@ var WIDGET_DEFS = [
 ];
 
 // Verfügbare Stat-Karten (Reihenfolge und Auswahl konfigurierbar)
+// Timeline-Label-Typen (fest, AK-Labels sind dynamisch aber gehören zu Typ 'ak')
+var TIMELINE_TYPE_DEFS = [
+  { id: 'gesamt',  label: 'Gesamtbestleistung',  desc: 'Beste Leistung aller Athleten in einer Disziplin',  prio: 0 },
+  { id: 'gender',  label: 'Bestleistung M / W',  desc: 'Beste Leistung je Geschlecht',                     prio: 1 },
+  { id: 'ak',      label: 'Bestleistung AK',      desc: 'Beste Leistung je Altersklasse',                   prio: 2 },
+  { id: 'pb',      label: 'Persönliche Bestleistung (PB)', desc: 'Persönliche Bestleistung / Débüt',        prio: 3 },
+];
+
+function timelineLabelType(lbl) {
+  if (!lbl) return null;
+  if (lbl === 'Gesamtbestleistung' || lbl === 'Erste Gesamtleistung') return 'gesamt';
+  if (lbl === 'Bestleistung Männer' || lbl === 'Bestleistung Frauen' ||
+      lbl === 'Erstes Ergebnis M'   || lbl === 'Erstes Ergebnis W') return 'gender';
+  if (lbl === 'PB' || lbl === 'Débüt' || lbl === 'Dë but') return 'pb';
+  if (lbl.indexOf('Bestleistung') >= 0 || lbl.indexOf('Erste Leistung') >= 0) return 'ak';
+  return 'pb'; // Fallback
+}
+
 var STAT_CARD_DEFS = [
   { id: 'ergebnisse', icon: '&#x1F3C3;', label: 'Ergebnisse gesamt' },
   { id: 'athleten',   icon: '&#x1F465;', label: 'Athleten' },
@@ -4468,6 +4547,58 @@ async function renderAdminDashboard() {
   el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
 
   var layout = dashLayoutFromConfig();
+  renderAdminDashboardUI(layout);
+}
+
+function dashTimelineConfigHtml(ri, ci, hidden_types, prio_order) {
+  var hidden  = hidden_types || [];
+  var order   = prio_order && prio_order.length === TIMELINE_TYPE_DEFS.length
+                  ? prio_order
+                  : TIMELINE_TYPE_DEFS.map(function(t){return t.id;});
+  // Typen in Prio-Reihenfolge darstellen
+  var orderedTypes = [];
+  for (var oi = 0; oi < order.length; oi++) {
+    for (var ti = 0; ti < TIMELINE_TYPE_DEFS.length; ti++) {
+      if (TIMELINE_TYPE_DEFS[ti].id === order[oi]) { orderedTypes.push(TIMELINE_TYPE_DEFS[ti]); break; }
+    }
+  }
+  // fehlende anhängen
+  for (var ti2 = 0; ti2 < TIMELINE_TYPE_DEFS.length; ti2++) {
+    if (order.indexOf(TIMELINE_TYPE_DEFS[ti2].id) < 0) orderedTypes.push(TIMELINE_TYPE_DEFS[ti2]);
+  }
+  var rows = '';
+  for (var i = 0; i < orderedTypes.length; i++) {
+    var t = orderedTypes[i];
+    var chk = hidden.indexOf(t.id) < 0 ? ' checked' : '';
+    rows +=
+      '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;' + (i < orderedTypes.length-1 ? 'border-bottom:1px solid var(--border);' : '') + '">' +
+        '<span style="font-size:11px;font-weight:700;color:var(--text2);min-width:18px;text-align:center">' + (i+1) + '</span>' +
+        '<input type="checkbox" data-tl-id="' + t.id + '" data-ri="' + ri + '" data-ci="' + ci + '"' + chk + ' onchange="dashUpdateLayout()">' +
+        '<span style="flex:1;font-size:13px" title="' + t.desc + '">' + t.label + '</span>' +
+        '<span style="display:flex;gap:4px">' +
+          (i > 0 ? '<button class="btn btn-ghost btn-sm" style="padding:2px 6px" onclick="dashTlMovePrio(' + ri + ',' + ci + ',' + i + ',-1)">▲</button>' : '<button class="btn btn-ghost btn-sm" style="padding:2px 6px;opacity:.25" disabled>▲</button>') +
+          (i < orderedTypes.length-1 ? '<button class="btn btn-ghost btn-sm" style="padding:2px 6px" onclick="dashTlMovePrio(' + ri + ',' + ci + ',' + i + ',1)">▼</button>' : '<button class="btn btn-ghost btn-sm" style="padding:2px 6px;opacity:.25" disabled>▼</button>') +
+        '</span>' +
+      '</div>';
+  }
+  return '<div style="padding:2px 0 6px">' +
+    '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Angezeigte Typen &amp; Priorität</div>' +
+    '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Höher = höhere Priorität bei gleichem Datum</div>' +
+    rows +
+  '</div>';
+}
+
+function dashTlMovePrio(ri, ci, idx, dir) {
+  dashUpdateLayout();
+  var layout = dashGetLayout();
+  var col = layout[ri] && layout[ri].cols[ci];
+  if (!col) return;
+  var order = col.prio_order && col.prio_order.length ? col.prio_order.slice()
+    : TIMELINE_TYPE_DEFS.map(function(t){return t.id;});
+  var newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= order.length) return;
+  var tmp = order[idx]; order[idx] = order[newIdx]; order[newIdx] = tmp;
+  col.prio_order = order;
   renderAdminDashboardUI(layout);
 }
 
@@ -4538,7 +4669,9 @@ function renderAdminDashboardUI(layout) {
     var colsHtml = '';
     for (var ci = 0; ci < cols.length; ci++) {
       var col = cols[ci];
-      var statsConfig = (col.widget === 'stats') ? dashStatsConfigHtml(ri, ci, col.cards) : '';
+      var widgetConfig = '';
+      if (col.widget === 'stats')    widgetConfig = dashStatsConfigHtml(ri, ci, col.cards);
+      if (col.widget === 'timeline') widgetConfig = dashTimelineConfigHtml(ri, ci, col.hidden_types, col.prio_order);
       colsHtml +=
         '<div style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;background:var(--surf2);border-radius:10px;padding:14px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
@@ -4547,7 +4680,7 @@ function renderAdminDashboardUI(layout) {
               ? '<button class="btn btn-ghost btn-sm" title="Spalte entfernen" onclick="dashRemoveCol(' + ri + ',' + ci + ')">✕</button>'
               : '') +
           '</div>' +
-          statsConfig +
+          widgetConfig +
           widthInput(ri, ci, col.w) +
         '</div>';
     }
@@ -4609,22 +4742,25 @@ function dashUpdateLayout() {
       if (cols[ci].widget === 'stats') {
         var prevCards = cols[ci].cards && cols[ci].cards.length ? cols[ci].cards : ['ergebnisse','athleten','rekorde'];
         var boxes = document.querySelectorAll('input[data-stats-id][data-ri="' + ri + '"][data-ci="' + ci + '"]');
-        // Aktivierte Checkboxen in Reihenfolge von prevCards
         var newCards = [];
         for (var pi = 0; pi < prevCards.length; pi++) {
           for (var bi = 0; bi < boxes.length; bi++) {
-            if (boxes[bi].dataset.statsId === prevCards[pi] && boxes[bi].checked) {
-              newCards.push(prevCards[pi]); break;
-            }
+            if (boxes[bi].dataset.statsId === prevCards[pi] && boxes[bi].checked) { newCards.push(prevCards[pi]); break; }
           }
         }
-        // Neu aktivierte (bisher nicht in prevCards)
         for (var bi2 = 0; bi2 < boxes.length; bi2++) {
-          if (boxes[bi2].checked && newCards.indexOf(boxes[bi2].dataset.statsId) < 0) {
-            newCards.push(boxes[bi2].dataset.statsId);
-          }
+          if (boxes[bi2].checked && newCards.indexOf(boxes[bi2].dataset.statsId) < 0) newCards.push(boxes[bi2].dataset.statsId);
         }
         cols[ci].cards = newCards;
+      }
+      if (cols[ci].widget === 'timeline') {
+        var tlBoxes = document.querySelectorAll('input[data-tl-id][data-ri="' + ri + '"][data-ci="' + ci + '"]');
+        var newHidden = [];
+        for (var tbi = 0; tbi < tlBoxes.length; tbi++) {
+          if (!tlBoxes[tbi].checked) newHidden.push(tlBoxes[tbi].dataset.tlId);
+        }
+        cols[ci].hidden_types = newHidden;
+        // prio_order bleibt erhalten (wird nur durch dashTlMovePrio geändert)
       }
     }
   }
