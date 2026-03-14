@@ -6002,7 +6002,7 @@ async function renderAdminDisziplinen() {
     '<div style="margin-bottom:16px">' +
       '<label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;background:var(--surf2);border-radius:8px;padding:12px 16px">' +
         '<input type="checkbox" id="cfg-disziplin_kategorie_suffix"' + (katSuffix ? ' checked' : '') + ' style="width:16px;height:16px;cursor:pointer" onchange="saveDiszKatSuffix(this.checked)">' +
-        '<span><strong>Kategorie hinter Disziplinbezeichnung anzeigen</strong> &ndash; z.B. &ldquo;10000m <span style='opacity:.6;font-size:.9em'>(Bahn)</span>&rdquo;</span>' +
+        '<span><strong>Kategorie hinter Disziplinbezeichnung anzeigen</strong> &ndash; z.B. &ldquo;10000m <span style="opacity:.6;font-size:.9em">(Bahn)</span>&rdquo;</span>' +
       '</label>' +
     '</div>' +
     '<div class="admin-grid">' +
