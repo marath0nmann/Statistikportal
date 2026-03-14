@@ -1,1 +1,5 @@
-v394: Anzeigename aus Disziplin-Modal komplett entfernt
+v395: Fix Disziplin-Rename: Transaktion + Duplicate-Key-Prüfung
+
+Vorher: zwei separate UPDATEs ohne Transaktion → bei Fehler inkonsistenter
+Zustand (ergebnisse umbenannt, mapping nicht oder umgekehrt).
+Jetzt: Pre-Check auf Duplicate + atomare Transaktion mit Rollback.
