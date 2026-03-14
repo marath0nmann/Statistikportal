@@ -2132,7 +2132,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         foreach ($diszList as $dRow) {
             $disz = $dRow['disziplin'];
             $ergs = DB::fetchAll(
-                "SELECT e.resultat, e.resultat_num AS val_sort, e.altersklasse, a.id AS athlet_id, a.name_nv, a.geschlecht,
+                "SELECT e.resultat, e.resultat_num AS val_sort, e.altersklasse, a.id AS athlet_id, a.name_nv, a.vorname, a.nachname, a.geschlecht,
                         b.avatar_pfad, v.datum
                  FROM " . DB::tbl('ergebnisse') . " e
                  JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
@@ -2155,7 +2155,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                 $ak  = $e['altersklasse'] ?? '';
                 $datum = $e['datum'] ?? '';
                 if (!isset($athletMap[$aid]))
-                    $athletMap[$aid] = ['id' => $aid, 'name' => $e['name_nv'], 'avatar' => $e['avatar_pfad'], 'titel' => []];
+                    $vn = trim($e['vorname'] ?? ''); $nn = trim($e['nachname'] ?? ''); $athletMap[$aid] = ['id' => $aid, 'name' => ($vn ? $vn . ' ' . $nn : $e['name_nv']), 'avatar' => $e['avatar_pfad'], 'titel' => []];
                 if ($bestGesamt === null || ($dir==='ASC' ? $val < $bestGesamt : $val > $bestGesamt)) {
                     $bestGesamt = $val; $bestGesamtAid = $aid; $bestGesamtDatum = $datum;
                 }

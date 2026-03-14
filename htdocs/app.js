@@ -124,7 +124,7 @@ function avatarHtml(avatarPfad, name, size, fontSize) {
   return avatarFallback(initial, size, fontSize);
 }
 function avatarFallback(initial, size, fontSize) {
-  var fs = fontSize || Math.round((size || 28) * 0.45);
+  var fs = fontSize || Math.round((size || 28) * 0.38);
   return '<span style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;flex-shrink:0;background:var(--accent);color:var(--on-accent);display:inline-flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:' + fs + 'px;font-weight:600;">' + initial + '</span>';
 }
 
@@ -1026,7 +1026,7 @@ function showApp() {
     if (currentUser.avatar) {
       avatarEl.innerHTML = '<img src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
     } else {
-      avatarEl.textContent = name[0].toUpperCase();
+      avatarEl.textContent = nameInitials(name);
     }
     document.getElementById('user-name-disp').textContent  = name;
     document.getElementById('user-rolle-disp').textContent = rolleLabel(currentUser.rolle);
@@ -1063,7 +1063,7 @@ function showUserMenu() {
         '<div class="profile-avatar" style="width:64px;height:64px;font-size:24px;overflow:hidden;padding:0;' + (currentUser.avatar ? 'background:none;' : '') + '">' +
           (currentUser.avatar
             ? '<img id="konto-avatar-img" src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:50%;">'
-            : name[0].toUpperCase()) +
+            : nameInitials(name)) +
         '</div>' +
         '<div style="position:absolute;bottom:0;right:0;background:var(--primary);color:var(--on-primary);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;">&#x1F4F7;</div>' +
       '</div>' +
@@ -1239,7 +1239,7 @@ async function deleteAvatar() {
       currentUser.avatar = null;
       notify('Avatar entfernt.', 'ok');
       var avatarEl = document.getElementById('user-avatar');
-      if (avatarEl) { avatarEl.innerHTML = ''; avatarEl.textContent = (currentUser.name||'?')[0].toUpperCase(); }
+      if (avatarEl) { avatarEl.innerHTML = ''; avatarEl.textContent = nameInitials(currentUser.name||'?'); }
       closeModal(); showUserMenu();
     } else { notify(data.fehler || 'Fehler.', 'err'); }
   } catch(e) { notify('Fehler.', 'err'); }
@@ -1551,7 +1551,18 @@ async function renderPage() {
 /* ── 03_dashboard.js ── */
 async function renderDashboard() {
   var ds = getDarstellungSettings();
-  var timelineLimit = ds.timelineLimit || 20;
+  // timeline_limit: erst aus Widget-Config, dann appConfig, dann Default
+  var timelineLimit = 20;
+  try {
+    var _lay = JSON.parse(appConfig.dashboard_layout || '[]');
+    for (var _tli = 0; _tli < _lay.length; _tli++) {
+      for (var _tlj = 0; _tlj < (_lay[_tli].cols||[]).length; _tlj++) {
+        var _tlc = _lay[_tli].cols[_tlj];
+        if (_tlc.widget === 'timeline' && _tlc.tl_limit) { timelineLimit = parseInt(_tlc.tl_limit); break; }
+      }
+    }
+  } catch(e) {}
+  if (timelineLimit < 5) timelineLimit = parseInt(appConfig.dashboard_timeline_limit || 20) || 20;
   var r = await apiGet('dashboard?timeline_limit=' + timelineLimit);
   if (!r || !r.ok) {
     document.getElementById('main-content').innerHTML =
@@ -1665,9 +1676,11 @@ async function renderDashboard() {
 
   // ── Hall of Fame Daten (lazy: nur wenn Widget im Layout) ──
   var hofData = null;
-  async function getHofData() {
-    if (hofData) return hofData;
-    var rh = await apiGet('hall-of-fame');
+  async function getHofData(wcfg) {
+    // Immer neu laden damit Konfigurationsänderungen wirken
+    var params = 'hall-of-fame';
+    if (wcfg && wcfg.hof_nur_aktuell === false) params += '?nur_aktuell=0';
+    var rh = await apiGet(params);
     hofData = (rh && rh.ok) ? rh.data : [];
     return hofData;
   }
@@ -1846,29 +1859,39 @@ async function renderDashboard() {
     if (w === 'hall-of-fame') {
       if (!hofData) return '<div class="panel" style="height:100%"><div class="panel-header"><div class="panel-title">&#x1F3C6; Hall of Fame</div></div><div style="padding:24px;text-align:center;color:var(--text2)">&#x23F3; Laden&hellip;</div></div>';
       if (!hofData.length) return '<div class="panel" style="height:100%"><div class="panel-header"><div class="panel-title">&#x1F3C6; Hall of Fame</div></div><div class="empty"><div class="empty-icon">&#x1F3C6;</div><div class="empty-text">Noch keine Daten</div></div></div>';
+      var hofLimit     = wcfg.hof_limit     ? parseInt(wcfg.hof_limit)     : 0; // 0 = alle
+      var hofNurAktuell= wcfg.hof_nur_aktuell !== false; // Standard: true
+      var hofLeaderboard = !!wcfg.hof_leaderboard;
+      // Nur aktuell gültige Titel: Athlet muss aktuell in der Bestenliste stehen
+      // hofData kommt bereits gefiltert vom Server; nur_aktuell ist serverseitig
+      var displayData = hofLimit ? hofData.slice(0, hofLimit) : hofData;
       var hofHtml = '';
-      for (var hi = 0; hi < hofData.length; hi++) {
-        var ha = hofData[hi];
+      for (var hi = 0; hi < displayData.length; hi++) {
+        var ha = displayData[hi];
         var hAvatar = ha.avatar
           ? '<img src="' + ha.avatar + '" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
-          : '<div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));color:var(--on-primary);display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:20px;font-weight:700;flex-shrink:0;">' + (ha.name||'?')[0].toUpperCase() + '</div>';
+          : '<div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));color:var(--on-primary);display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:20px;font-weight:700;flex-shrink:0;">' + nameInitials(ha.name||'?') + '</div>'; // font-size kleiner für 2 Buchstaben
         var hDiszHtml = '';
         var diszKeys = Object.keys(ha.disziplinen);
         for (var hdi = 0; hdi < diszKeys.length; hdi++) {
           var hd = diszKeys[hdi];
           var htitels = ha.disziplinen[hd];
           var hLabels = htitels.map(function(t){
-            var cls = t.label === 'Gesamtbestleistung' ? 'badge badge-gold' : (t.label.indexOf('Männer') >= 0 || t.label.indexOf('Frauen') >= 0) ? 'badge badge-silver' : 'badge badge-pb';
+            var cls = t.label === 'Gesamtbestleistung' ? 'badge badge-gold' : (t.label.indexOf('Männer') >= 0 || t.label.indexOf('Frauen') >= 0 || t.label.indexOf('Bestleistung ') === 0) ? 'badge badge-silver' : 'badge badge-pb';
             return '<span class="' + cls + '">' + t.label + '</span>';
           }).join(' ');
           var hDatum = htitels[0].datum ? ' <span style="color:var(--text2);font-size:11px">(' + formatDate(htitels[0].datum) + ')</span>' : '';
           hDiszHtml += '<div style="font-size:13px;padding:3px 0"><span style="font-weight:600;color:var(--text)">' + hd + ':</span> ' + hLabels + hDatum + '</div>';
         }
         var hRank = hi + 1;
-        var hRankStyle = hRank === 1 ? 'color:#f5a623;font-size:22px' : hRank === 2 ? 'color:#aaa;font-size:20px' : hRank === 3 ? 'color:#cd7f32;font-size:18px' : 'color:var(--text2);font-size:14px';
+        var hRankHtml = '';
+        if (hofLeaderboard) {
+          var hRankStyle = hRank === 1 ? 'color:#f5a623;font-size:22px' : hRank === 2 ? 'color:#aaa;font-size:20px' : hRank === 3 ? 'color:#cd7f32;font-size:18px' : 'color:var(--text2);font-size:14px';
+          hRankHtml = '<div style="' + hRankStyle + ';font-weight:700;min-width:24px;text-align:center;padding-top:2px;flex-shrink:0">' + (hRank <= 3 ? ['🥇','🥈','🥉'][hRank-1] : hRank) + '</div>';
+        }
         hofHtml +=
-          '<div style="display:flex;gap:14px;align-items:flex-start;padding:16px 20px;' + (hi < hofData.length-1 ? 'border-bottom:1px solid var(--border);' : '') + '">' +
-            '<div style="' + hRankStyle + ';font-weight:700;min-width:24px;text-align:center;padding-top:2px">' + (hRank <= 3 ? ['🥇','🥈','🥉'][hRank-1] : hRank) + '</div>' +
+          '<div style="display:flex;gap:14px;align-items:flex-start;padding:16px 20px;' + (hi < displayData.length-1 ? 'border-bottom:1px solid var(--border);' : '') + '">' +
+            hRankHtml +
             hAvatar +
             '<div style="flex:1;min-width:0">' +
               '<div style="font-weight:700;font-size:15px;margin-bottom:6px">' +
@@ -1894,7 +1917,13 @@ async function renderDashboard() {
       if ((layout[_ri].cols[_ci].widget||'') === 'hall-of-fame') hasHof = true;
     }
   }
-  if (hasHof) await getHofData();
+  var hofWcfg = null;
+  for (var _ri2 = 0; _ri2 < layout.length; _ri2++) {
+    for (var _ci2 = 0; _ci2 < (layout[_ri2].cols||[]).length; _ci2++) {
+      if ((layout[_ri2].cols[_ci2].widget||'') === 'hall-of-fame') hofWcfg = layout[_ri2].cols[_ci2];
+    }
+  }
+  if (hasHof) await getHofData(hofWcfg);
 
   var layoutHtml = '';
   for (var ri = 0; ri < layout.length; ri++) {
@@ -4437,7 +4466,7 @@ async function renderAdmin() {
       '<div class="user-row">' +
         (b.avatar_pfad
           ? '<div class="user-row-avatar" style="padding:0;overflow:hidden"><img src="' + b.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;"></div>'
-          : '<div class="user-row-avatar">' + b.benutzername[0].toUpperCase() + '</div>') +
+          : '<div class="user-row-avatar">' + nameInitials(b.benutzername) + '</div>') +
         '<div class="user-row-info"><div class="user-row-name">' + b.benutzername + '</div>' +
           '<div class="user-row-email">' + b.email + '</div>' +
           '<div style="margin-top:3px;font-size:11px;color:var(--text2)">Letzter Login: ' + (b.letzter_login ? formatDate(b.letzter_login.slice(0,10)) : 'Noch nie') + '</div>' +
@@ -5015,6 +5044,31 @@ function dashVcMoveCol(ri, ci, idx, dir) {
   renderAdminDashboardUI(layout);
 }
 
+function dashHofConfigHtml(ri, ci, col) {
+  var limit      = col.hof_limit      || '';
+  var nurAktuell = col.hof_nur_aktuell !== false;
+  var leaderboard= !!col.hof_leaderboard;
+  return '<div style="padding:2px 0 6px">' +
+    '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Konfiguration</div>' +
+    '<div style="display:flex;flex-direction:column;gap:10px">' +
+      '<label style="display:flex;align-items:center;gap:10px;font-size:13px">' +
+        '<span style="min-width:140px;color:var(--text2)">Max. Athleten</span>' +
+        '<input type="number" id="hof-limit-' + ri + '-' + ci + '" value="' + limit + '" min="1" max="100" placeholder="alle" ' +
+        'class="settings-input" style="width:80px" onchange="dashUpdateLayout()">' +
+        '<span style="font-size:12px;color:var(--text2)">(leer = alle)</span>' +
+      '</label>' +
+      '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">' +
+        '<input type="checkbox" data-hof="nur_aktuell" data-ri="' + ri + '" data-ci="' + ci + '"' + (nurAktuell ? ' checked' : '') + ' onchange="dashUpdateLayout()">' +
+        '<span>Nur aktuell gültige Titel</span>' +
+      '</label>' +
+      '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">' +
+        '<input type="checkbox" data-hof="leaderboard" data-ri="' + ri + '" data-ci="' + ci + '"' + (leaderboard ? ' checked' : '') + ' onchange="dashUpdateLayout()">' +
+        '<span>Als Leaderboard (mit Platzierung)</span>' +
+      '</label>' +
+    '</div>' +
+  '</div>';
+}
+
 function dashTimelineConfigHtml(ri, ci, hidden_types, prio_order) {
   var hidden  = hidden_types || [];
   var order   = prio_order && prio_order.length === TIMELINE_TYPE_DEFS.length
@@ -5046,7 +5100,16 @@ function dashTimelineConfigHtml(ri, ci, hidden_types, prio_order) {
         '</span>' +
       '</div>';
   }
+  var tlLimit = (typeof hidden_types === 'object' && !Array.isArray(hidden_types)) ? '' : '';
+  // hidden_types kann hier noch das alte Format sein; limit kommt aus prio_order[4] wenn gesetzt
+  // Wir lesen limit direkt aus den Argumenten nicht – wird über dashUpdateLayout gespeichert
   return '<div style="padding:2px 0 6px">' +
+    '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Neueste Bestleistungen</div>' +
+    '<label style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:12px">' +
+      '<span style="min-width:120px;color:var(--text2)">Anzahl Einträge</span>' +
+      '<input type="number" id="tl-limit-' + ri + '-' + ci + '" value="' + (prio_order && prio_order._limit ? prio_order._limit : appConfig.dashboard_timeline_limit || 20) + '" min="5" max="200" ' +
+      'class="settings-input" style="width:70px" onchange="dashUpdateLayout()">' +
+    '</label>' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Angezeigte Typen &amp; Priorität</div>' +
     '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Höher = höhere Priorität bei gleichem Datum</div>' +
     rows +
@@ -5138,6 +5201,7 @@ function renderAdminDashboardUI(layout) {
       if (col.widget === 'stats')          widgetConfig = dashStatsConfigHtml(ri, ci, col.cards);
       if (col.widget === 'timeline')       widgetConfig = dashTimelineConfigHtml(ri, ci, col.hidden_types, col.prio_order);
       if (col.widget === 'veranstaltungen') widgetConfig = dashVeranstConfigHtml(ri, ci, col.col_order, col.hidden_cols);
+      if (col.widget === 'hall-of-fame')      widgetConfig = dashHofConfigHtml(ri, ci, col);
       colsHtml +=
         '<div style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;background:var(--surf2);border-radius:10px;padding:14px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
@@ -5219,6 +5283,18 @@ function dashUpdateLayout() {
         }
         cols[ci].cards = newCards;
       }
+      if (cols[ci].widget === 'hall-of-fame') {
+        var hofLimitEl = document.getElementById('hof-limit-' + ri + '-' + ci);
+        if (hofLimitEl) {
+          var lv = parseInt(hofLimitEl.value);
+          cols[ci].hof_limit = isNaN(lv) || lv <= 0 ? 0 : lv;
+        }
+        var hofBoxes = document.querySelectorAll('input[data-hof][data-ri="' + ri + '"][data-ci="' + ci + '"]');
+        for (var hbi = 0; hbi < hofBoxes.length; hbi++) {
+          var hkey = hofBoxes[hbi].dataset.hof;
+          cols[ci]['hof_' + hkey] = hofBoxes[hbi].checked;
+        }
+      }
       if (cols[ci].widget === 'veranstaltungen') {
         var vcBoxes = document.querySelectorAll('input[data-vc-id][data-ri="' + ri + '"][data-ci="' + ci + '"]');
         var newHiddenCols = [];
@@ -5235,7 +5311,14 @@ function dashUpdateLayout() {
           if (!tlBoxes[tbi].checked) newHidden.push(tlBoxes[tbi].dataset.tlId);
         }
         cols[ci].hidden_types = newHidden;
-        // prio_order bleibt erhalten (wird nur durch dashTlMovePrio geändert)
+        // Anzahl Einträge
+        var tlLimitEl = document.getElementById('tl-limit-' + ri + '-' + ci);
+        if (tlLimitEl) {
+          var tlLv = Math.max(5, Math.min(200, parseInt(tlLimitEl.value) || 20));
+          if (!cols[ci].prio_order || !Array.isArray(cols[ci].prio_order)) cols[ci].prio_order = TIMELINE_TYPE_DEFS.map(function(t){return t.id;});
+          cols[ci].prio_order._limit = tlLv;
+          cols[ci].tl_limit = tlLv;
+        }
       }
     }
   }
@@ -5403,7 +5486,7 @@ async function renderAdminDarstellung() {
     '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">📊 Darstellung</div></div>' +
       '<div class="settings-panel-body">' +
-        row('Dashboard – Neueste Bestleistungen', 'Anzahl Einträge (5–200)', numIn('cfg-dashboard_timeline_limit', cfgVal('dashboard_timeline_limit','20'), 5, 200)) +
+
         row('Versionsstand im Header', 'Wenn aktiv, wird die Versionsnummer nur eingeloggten Admins angezeigt',
           '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
           '<input type="checkbox" id="cfg-version_nur_admins" ' + (cfgVal('version_nur_admins','1') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer"/>' +
@@ -5522,7 +5605,6 @@ async function saveAllSettings() {
     'verein_name','verein_kuerzel','app_untertitel',
     'farbe_primary','farbe_accent',
     'email_domain','noreply_email',
-    'dashboard_timeline_limit',
     'adressleiste_farbe',
     'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url',
   ];
@@ -5537,10 +5619,7 @@ async function saveAllSettings() {
     var cb = document.getElementById('cfg-' + cbKeys[j]);
     if (cb) payload[cbKeys[j]] = cb.checked ? '1' : '0';
   }
-  // timeline_limit als Zahl validieren
-  if (payload.dashboard_timeline_limit) {
-    payload.dashboard_timeline_limit = String(Math.max(5, Math.min(200, parseInt(payload.dashboard_timeline_limit) || 20)));
-  }
+
   // Farbvalidierung
   var farbFehler = [
     _validateFarbe(payload.farbe_primary, 'Hauptfarbe'),
