@@ -1681,14 +1681,25 @@ async function renderDashboard() {
   }
   if (!veranstHtml) veranstHtml = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Noch keine Veranstaltungen</div></div>';
 
-  // ── Hall of Fame Daten (lazy: nur wenn Widget im Layout) ──
-  var hofData = null;
-  async function getHofData(mergeAK, kats) {
-    var params = 'hall-of-fame?merge_ak=' + (mergeAK === false ? '0' : '1');
-    if (kats && kats.length) params += '&kat=' + encodeURIComponent(kats.join(','));
+  // ── Hall of Fame Daten: Cache pro Widget-Konfiguration ──
+  var _hofCache = {};
+
+  function _hofCacheKey(wcfg) {
+    var merge = (wcfg && wcfg.hof_merge_ak !== false) ? '1' : '0';
+    var kats  = (wcfg && wcfg.hof_kats && wcfg.hof_kats.length) ? wcfg.hof_kats.slice().sort().join(',') : '';
+    return merge + '|' + kats;
+  }
+
+  async function _loadHofWidget(wcfg) {
+    var key = _hofCacheKey(wcfg);
+    if (_hofCache[key]) return _hofCache[key];
+    var merge = (wcfg && wcfg.hof_merge_ak !== false);
+    var kats  = (wcfg && wcfg.hof_kats && wcfg.hof_kats.length) ? wcfg.hof_kats : [];
+    var params = 'hall-of-fame?merge_ak=' + (merge ? '1' : '0');
+    if (kats.length) params += '&kat=' + encodeURIComponent(kats.join(','));
     var rh = await apiGet(params);
-    hofData = (rh && rh.ok) ? rh.data : [];
-    return hofData;
+    _hofCache[key] = (rh && rh.ok) ? rh.data : [];
+    return _hofCache[key];
   }
 
   // ── Layout aus Config rendern ──
