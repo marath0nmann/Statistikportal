@@ -1,1 +1,5 @@
-v360: Fix "Can't find variable: nameInitials"
+v362: Hall of Fame: Jugend-AK zu MHK/WHK zusammenfassen
+
+- Neue Checkbox in der Widget-Konfiguration (Standard: an)
+- Identische CASE-Logik wie unter Bestleistungen (merge_ak Parameter)
+- API: ?merge_ak=0/1 steuert ob Jugend-AKs zusammengefasst werden

@@ -1683,11 +1683,9 @@ async function renderDashboard() {
 
   // ── Hall of Fame Daten (lazy: nur wenn Widget im Layout) ──
   var hofData = null;
-  async function getHofData(wcfg) {
-    // Immer neu laden damit Konfigurationsänderungen wirken
-    var params = 'hall-of-fame';
-    if (wcfg && wcfg.hof_nur_aktuell === false) params += '?nur_aktuell=0';
-    var rh = await apiGet(params);
+  async function getHofData(mergeAK) {
+    var param = mergeAK === false ? 'hall-of-fame?merge_ak=0' : 'hall-of-fame?merge_ak=1';
+    var rh = await apiGet(param);
     hofData = (rh && rh.ok) ? rh.data : [];
     return hofData;
   }
@@ -1866,8 +1864,7 @@ async function renderDashboard() {
     if (w === 'hall-of-fame') {
       if (!hofData) return '<div class="panel" style="height:100%"><div class="panel-header"><div class="panel-title">&#x1F3C6; Hall of Fame</div></div><div style="padding:24px;text-align:center;color:var(--text2)">&#x23F3; Laden&hellip;</div></div>';
       if (!hofData.length) return '<div class="panel" style="height:100%"><div class="panel-header"><div class="panel-title">&#x1F3C6; Hall of Fame</div></div><div class="empty"><div class="empty-icon">&#x1F3C6;</div><div class="empty-text">Noch keine Daten</div></div></div>';
-      var hofLimit     = wcfg.hof_limit     ? parseInt(wcfg.hof_limit)     : 0; // 0 = alle
-      var hofNurAktuell= wcfg.hof_nur_aktuell !== false; // Standard: true
+      var hofLimit      = wcfg.hof_limit ? parseInt(wcfg.hof_limit) : 0; // 0 = alle
       var hofLeaderboard = !!wcfg.hof_leaderboard;
       // Nur aktuell gültige Titel: Athlet muss aktuell in der Bestenliste stehen
       // hofData kommt bereits gefiltert vom Server; nur_aktuell ist serverseitig
@@ -1930,7 +1927,7 @@ async function renderDashboard() {
       if ((layout[_ri2].cols[_ci2].widget||'') === 'hall-of-fame') hofWcfg = layout[_ri2].cols[_ci2];
     }
   }
-  if (hasHof) await getHofData(hofWcfg);
+  if (hasHof) await getHofData(hofWcfg ? hofWcfg.hof_merge_ak !== false : true);
 
   var layoutHtml = '';
   for (var ri = 0; ri < layout.length; ri++) {
@@ -5052,9 +5049,9 @@ function dashVcMoveCol(ri, ci, idx, dir) {
 }
 
 function dashHofConfigHtml(ri, ci, col) {
-  var limit      = col.hof_limit      || '';
-  var nurAktuell = col.hof_nur_aktuell !== false;
-  var leaderboard= !!col.hof_leaderboard;
+  var limit       = col.hof_limit || '';
+  var leaderboard = !!col.hof_leaderboard;
+  var mergeAK     = col.hof_merge_ak !== false; // Standard: true
   return '<div style="padding:2px 0 6px">' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Konfiguration</div>' +
     '<div style="display:flex;flex-direction:column;gap:10px">' +
@@ -5065,12 +5062,12 @@ function dashHofConfigHtml(ri, ci, col) {
         '<span style="font-size:12px;color:var(--text2)">(leer = alle)</span>' +
       '</label>' +
       '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">' +
-        '<input type="checkbox" data-hof="nur_aktuell" data-ri="' + ri + '" data-ci="' + ci + '"' + (nurAktuell ? ' checked' : '') + ' onchange="dashUpdateLayout()">' +
-        '<span>Nur aktuell gültige Titel</span>' +
-      '</label>' +
-      '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">' +
         '<input type="checkbox" data-hof="leaderboard" data-ri="' + ri + '" data-ci="' + ci + '"' + (leaderboard ? ' checked' : '') + ' onchange="dashUpdateLayout()">' +
         '<span>Als Leaderboard (mit Platzierung)</span>' +
+      '</label>' +
+      '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">' +
+        '<input type="checkbox" data-hof="merge_ak" data-ri="' + ri + '" data-ci="' + ci + '"' + (mergeAK ? ' checked' : '') + ' onchange="dashUpdateLayout()">' +
+        '<span>Jugend-AK zu MHK/WHK zusammenfassen</span>' +
       '</label>' +
     '</div>' +
   '</div>';
@@ -5301,6 +5298,8 @@ function dashUpdateLayout() {
           var hkey = hofBoxes[hbi].dataset.hof;
           cols[ci]['hof_' + hkey] = hofBoxes[hbi].checked;
         }
+        // merge_ak default true wenn nicht explizit gesetzt
+        if (cols[ci].hof_merge_ak === undefined) cols[ci].hof_merge_ak = true;
       }
       if (cols[ci].widget === 'veranstaltungen') {
         var vcBoxes = document.querySelectorAll('input[data-vc-id][data-ri="' + ri + '"][data-ci="' + ci + '"]');
