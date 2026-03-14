@@ -1,1 +1,6 @@
-v387: HoF: "Titel" → "Bestleistung(en)"
+v388: HoF: Gesamtbestleistung Männer/Frauen fix + gold + Sortierung
+
+- API: Geschlechts-Bestleistung → "Gesamtbestleistung Männer/Frauen"
+  Die alte übergeschlechtliche "Gesamtbestleistung" entfällt komplett
+- Frontend: Gesamtbestleistung M/F → badge-gold
+- Badges sortiert: gold vor silber

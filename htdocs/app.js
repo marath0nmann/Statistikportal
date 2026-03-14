@@ -1977,9 +1977,14 @@ async function renderDashboard() {
 
           var sentence  = parts.join(' \u00b7 ');
           var lineClass = gesamt ? 'badge badge-gold' : 'badge badge-silver';
-          if (!groupMap[sentence]) { groupMap[sentence] = { lineClass: lineClass, disz: [] }; groupOrder.push(sentence); }
+          if (!groupMap[sentence]) { groupMap[sentence] = { lineClass: lineClass, disz: [], isGold: gesamt }; groupOrder.push(sentence); }
           groupMap[sentence].disz.push(hd);
         }
+
+        // Gold-Badges vor Silber sortieren
+        groupOrder.sort(function(a, b) {
+          return (groupMap[b].isGold ? 1 : 0) - (groupMap[a].isGold ? 1 : 0);
+        });
 
         // Badges rendern
         var hBadgesHtml = '';

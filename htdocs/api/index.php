@@ -2265,15 +2265,10 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                 }
             };
 
-            if ($bestGesamtAid !== null) {
-                // Gesamtbestleistung: nach Geschlecht des Titelhalters benennen
-                $gesamtG = $athletMap[$bestGesamtAid]['geschlecht'] ?? '';
-                $gesamtLabel = $gesamtG === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen';
-                $addTitel($bestGesamtAid, $gesamtLabel, $bestGesamtDatum);
-            }
+            // Geschlechts-Bestleistung → "Gesamtbestleistung Männer/Frauen" (gold)
+            // Die frühere "Gesamtbestleistung über alle" entfällt
             foreach ($bestGAid as $g => $aid) {
-                // Geschlechts-Best nur wenn nicht identisch mit Gesamt
-                $addTitel($aid, $g === 'M' ? 'Bestleistung Männer' : 'Bestleistung Frauen', $bestGDatum[$g]);
+                $addTitel($aid, $g === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen', $bestGDatum[$g]);
             }
             foreach ($bestAKAid as $ak => $aid) {
                 $addTitel($aid, 'Bestleistung ' . $ak, $bestAKDatum[$ak]);
