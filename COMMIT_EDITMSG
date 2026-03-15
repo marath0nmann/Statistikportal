@@ -1,9 +1,9 @@
-v508: RaceResult-Proxy: robustere Event-ID-Erkennung
+v509: RaceResult-Erkennung: DOM + Performance-Entries + Proxy
 
-5 Suchmuster statt nur RRPublish-Inline:
-1. RRPublish(element, ID, ...) inline
-2. raceresult.com/ID/ URL-Muster im HTML
-3. data-event/data-rrid Attribute
-4. Script-src mit raceresult.com/ID/
-5. Numerisches Argument in Publish-Funktionen in Inline-Scripts
-API gibt event_id direkt zurück (kein HTML-Transfer mehr)
+Strategie:
+1. window.performance.getEntriesByType('resource') → findet raceresult.com/ID/ in
+   Netzwerk-Requests der aktuell geöffneten Seite (funktioniert wenn Tab offen war)
+2. document.documentElement.innerHTML → DOM-Suche nach raceresult.com/ID/ und RRPublish
+3. Server-Proxy als letzter Fallback
+
+Tipp bei Fehlschlag: Ergebnisseite im selben Tab öffnen, dann nochmal versuchen.
