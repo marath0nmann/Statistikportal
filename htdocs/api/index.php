@@ -1961,14 +1961,22 @@ if ($res === 'disziplin-mapping') {
         $disziplin    = trim($body['disziplin'] ?? '');
         $kategorie_id = intval($body['kategorie_id'] ?? 0);
         if (!$disziplin || !$kategorie_id) jsonErr('disziplin und kategorie_id erforderlich.', 400);
-        DB::query("INSERT INTO " . DB::tbl('disziplin_mapping') . " (disziplin, kategorie_id) VALUES (?,?)
-                 ON DUPLICATE KEY UPDATE kategorie_id=VALUES(kategorie_id)", [$disziplin, $kategorie_id]);
+        $fmt_override     = isset($body['fmt_override'])     ? trim($body['fmt_override'])     : null;
+        $kat_suffix       = isset($body['kat_suffix_override']) ? trim($body['kat_suffix_override']) : null;
+        $hof_exclude      = isset($body['hof_exclude'])      ? (int)$body['hof_exclude']       : 0;
+        DB::query("INSERT INTO " . DB::tbl('disziplin_mapping') . "
+                   (disziplin, kategorie_id, fmt_override, kat_suffix_override, hof_exclude)
+                   VALUES (?,?,?,?,?)
+                   ON DUPLICATE KEY UPDATE kategorie_id=VALUES(kategorie_id),
+                   fmt_override=VALUES(fmt_override), kat_suffix_override=VALUES(kat_suffix_override),
+                   hof_exclude=VALUES(hof_exclude)",
+                  [$disziplin, $kategorie_id, $fmt_override ?: null, $kat_suffix ?: null, $hof_exclude]);
         // disziplin_mapping_id in ergebnisse aktualisieren
         $mapping = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? AND kategorie_id=?", [$disziplin, $kategorie_id]);
         if ($mapping) {
             DB::query("UPDATE " . DB::tbl('ergebnisse') . " SET disziplin_mapping_id=? WHERE disziplin=?", [$mapping['id'], $disziplin]);
         }
-        jsonOk(null);
+        jsonOk(['id' => $mapping ? (int)$mapping['id'] : null]);
     }
 
     // DELETE Disziplin (nur wenn keine Ergebnisse)

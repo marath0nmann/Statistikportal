@@ -1,8 +1,6 @@
-v512: RaceResult: Listen-Fallback + WERTUNG nicht mehr geblacklisted
+v513: Admin Disziplinen: "Neue Disziplin" Modal
 
-- Blacklist: WERTUNG entfernt (war zu weit — blockierte "Wertung nach Altersklassen")
-  Neu: MANNSCHAFT, TEAM RANKING, STADTMEISTER
-- listPrio: WERTUNG + RANKING als neue Prio-Begriffe (nach ERGEBNIS/RESULT/ZIEL)
-- Listen-Fallback: wenn gewählte Liste keine DataFields/Ergebnisse liefert,
-  automatisch nächste Kandidaten-Liste versuchen (Rursee: Overall-Ranking → Wertung nach AK)
-- _listCandidates: deduplizierte Liste aller nicht-geblacklisteten Listen
+- Button "+ Neue Disziplin" im Disziplin-Zuordnung-Panel
+- Modal mit: Name, Kategorie (Pflicht), Ergebnisformat, Kat-Suffix, HoF-Ausschluss
+- POST disziplin-mapping: fmt_override, kat_suffix_override, hof_exclude beim Anlegen
+- Nach Anlage: state.disziplinen neu laden + renderAdminDisziplinen
