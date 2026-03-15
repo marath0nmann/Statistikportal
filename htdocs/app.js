@@ -4543,10 +4543,24 @@ async function rrFetch() {
         // DataFields kalibrieren
         var df = payload.DataFields || [];
         if (!Array.isArray(df) || df.length === 0) {
-          // Keine DataFields = Sonderliste (Aggregat, Rangliste etc.) → überspringen
-          _rrDebug.errors = _rrDebug.errors || [];
-          _rrDebug.errors.push('Contest ' + cid + ': keine DataFields, Liste übersprungen');
-          continue;
+          // Keine DataFields im r=search → r=all versuchen (Suchfunktion ggf. defekt)
+          var _acPre = new AbortController(); var _tPre = setTimeout(function(){ _acPre.abort(); }, 15000);
+          try {
+            var _respPre = await fetch(base4 + '?key=' + apiKey + '&listname=' + encodeURIComponent(_contestListMap[cid] || listName) + '&page=results&contest=' + cid + '&r=all&l=de&_=1', { headers: hdrs, signal: _acPre.signal });
+            clearTimeout(_tPre);
+            if (_respPre.ok) {
+              var _payPre = JSON.parse(await _respPre.text());
+              if ((_payPre.DataFields || []).length > 0) {
+                payload = _payPre;
+                df = _payPre.DataFields;
+              }
+            }
+          } catch(ePre) { clearTimeout(_tPre); }
+          if (!df.length) {
+            _rrDebug.errors = _rrDebug.errors || [];
+            _rrDebug.errors.push('Contest ' + cid + ': keine DataFields, Liste übersprungen');
+            continue;
+          }
         }
         if (Array.isArray(df) && df.length > 0) {
           iAK = -1; iYear = -1; iGeschlecht = -1; var iAKPlatz = -1;
