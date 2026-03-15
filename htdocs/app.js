@@ -4970,6 +4970,12 @@ function calcDlvAK(jahrgang, geschlecht, eventJahr) {
   return g + stufe;
 }
 
+// Prüft ob ein AK-Wert dem DLV-Standard entspricht
+function isValidDlvAK(ak) {
+  if (!ak || ak === '') return true; // leer ist ok
+  return /^[MW](U(12|14|16|18|20|23)|[0-9]{2}|)$/.test(ak);
+}
+
 function _rrRefreshAKPlatz() {
   // Nur AK-Platz-Spalten neu berechnen ohne das Datum-Feld zu überschreiben
   var s = window._rrState;
@@ -5240,7 +5246,11 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + name + '</td>' +
         '<td style="padding:4px 6px">' + (function(sel){ var s = '<select class="rr-disz" class="bk-input-sel">';s += '<option value="">' + (sel ? '' : '\u2013 bitte w\u00e4hlen \u2013') + '</option>';for(var oi=0;oi<diszList.length;oi++){s += '<option value="'+diszList[oi]+'"'+(diszList[oi]===sel?' selected':'')+'>'+diszList[oi]+'</option>';}s += '</select>'; return s; })(disz) + '</td>' +
         '<td style="padding:4px 6px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:14px;color:var(--result-color)">' + (netto || zeit) + '</td>' +
-        '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + ak + '</td>' +
+        (function() {
+          var _akOk = isValidDlvAK(ak);
+          var _akStyle = _akOk ? 'padding:4px 6px;font-size:12px;color:var(--text2)' : 'padding:4px 6px;font-size:12px;font-weight:600;color:var(--accent);cursor:pointer;title="Unbekannte AK – klicken zum Bearbeiten"';
+          return '<td style="' + _akStyle + '" class="rr-ak-cell' + (_akOk ? '' : ' rr-ak-unknown') + '" data-ak="' + ak.replace(/"/g,'&quot;') + '" title="' + (_akOk ? 'Altersklasse' : '⚠ Unbekannte AK – wird nicht blind übernommen') + '">' + (ak || '–') + (_akOk ? '' : ' ⚠') + '</td>';
+        })() +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + (platzAKnum || '–') + '</td>' +
         '<td class="rr-mstr" style="padding:4px 6px;display:none">' +
           '<select class="rr-mstr-sel" onchange="rrMstrChanged(this)" style="padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:90px">' +
@@ -5471,6 +5481,21 @@ async function rrImport() {
   }
 
   if (!items.length) { notify('Keine gültigen Einträge (Athlet + Disziplin benötigt).', 'err'); return; }
+
+  // Unbekannte AK auflösen: alle eindeutigen unbekannten AK sammeln
+  var _unknownAKs = {};
+  items.forEach(function(it) { if (it.altersklasse && !isValidDlvAK(it.altersklasse)) _unknownAKs[it.altersklasse] = null; });
+  if (Object.keys(_unknownAKs).length > 0) {
+    var _akResolved = await rrUnknownAKModal(_unknownAKs);
+    if (_akResolved === null) return; // Abgebrochen
+    // Auflösung auf items anwenden
+    items.forEach(function(it) {
+      if (it.altersklasse && _akResolved.hasOwnProperty(it.altersklasse)) {
+        it.altersklasse = _akResolved[it.altersklasse] || '';
+      }
+    });
+  }
+
   document.getElementById('rr-status').innerHTML = '&#x23F3; Importiere ' + items.length + ' Ergebnis(se)\u2026';
   var r2 = await apiPost('ergebnisse/bulk', { items: items });
   if (r2 && r2.ok) {
@@ -5684,6 +5709,101 @@ async function rrmConfirm(count) {
   }
   closeModal();
   if (window._rrmResolve) window._rrmResolve(true);
+}
+
+// ── Unbekannte AK auflösen ──────────────────────────────────────────────────
+
+async function rrUnknownAKModal(unknownAKs) {
+  // DLV-AK-Optionen für Dropdown
+  var dlvAKs = [
+    'M','W',
+    'MU12','WU12','MU14','WU14','MU16','WU16','MU18','WU18','MU20','WU20','MU23','WU23',
+    'M30','W30','M35','W35','M40','W40','M45','W45','M50','W50',
+    'M55','W55','M60','W60','M65','W65','M70','W70','M75','W75'
+  ];
+  var dlvOpts = '<option value="">– leer lassen –</option>';
+  dlvAKs.forEach(function(a) { dlvOpts += '<option value="' + a + '">' + a + '</option>'; });
+
+  var rows = '';
+  Object.keys(unknownAKs).forEach(function(rawAK, i) {
+    rows +=
+      '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:10px 12px;font-weight:600;font-size:13px;color:var(--accent)">' + rawAK + '</td>' +
+        '<td style="padding:6px 12px">' +
+          '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+            '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
+              '<input type="radio" name="rruk-action-' + i + '" value="map" checked onchange="rrukToggle(' + i + ',\'map\')"> DLV-AK zuordnen' +
+            '</label>' +
+            '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
+              '<input type="radio" name="rruk-action-' + i + '" value="keep" onchange="rrukToggle(' + i + ',\'keep\')"> So übernehmen' +
+            '</label>' +
+            '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
+              '<input type="radio" name="rruk-action-' + i + '" value="empty" onchange="rrukToggle(' + i + ',\'empty\')"> Leer lassen' +
+            '</label>' +
+          '</div>' +
+          '<div id="rruk-map-' + i + '" style="margin-top:6px">' +
+            '<select id="rruk-sel-' + i + '" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text);width:120px">' +
+              dlvOpts +
+            '</select>' +
+          '</div>' +
+        '</td>' +
+      '</tr>';
+  });
+
+  var html =
+    '<h2>\u26A0\uFE0E Unbekannte Altersklassen <button class="modal-close" onclick="rrukCancel()">\u2715</button></h2>' +
+    '<p style="font-size:13px;color:var(--text2);margin-bottom:12px">' +
+      'Die folgenden Altersklassen entsprechen nicht dem DLV-Standard. Bitte f\u00fcr jede AK w\u00e4hlen wie sie \u00fcbernommen werden soll.' +
+    '</p>' +
+    '<div class="table-scroll" style="max-height:50vh">' +
+      '<table style="width:100%;border-collapse:collapse">' +
+        '<thead><tr style="background:var(--surf2)">' +
+          '<th style="padding:8px 12px;text-align:left;font-size:12px">Roher AK-Wert</th>' +
+          '<th style="padding:8px 12px;text-align:left;font-size:12px">Behandlung</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="rrukCancel()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="rrukConfirm()">&#x1F4BE; Weiter</button>' +
+    '</div>';
+
+  return new Promise(function(resolve) {
+    window._rrukResolve = resolve;
+    window._rrukKeys = Object.keys(unknownAKs);
+    showModal(html, true);
+  });
+}
+
+function rrukToggle(i, action) {
+  var mapDiv = document.getElementById('rruk-map-' + i);
+  if (mapDiv) mapDiv.style.display = action === 'map' ? 'block' : 'none';
+}
+
+function rrukCancel() {
+  closeModal();
+  if (window._rrukResolve) { window._rrukResolve(null); window._rrukResolve = null; }
+}
+
+function rrukConfirm() {
+  var keys = window._rrukKeys || [];
+  var resolved = {};
+  keys.forEach(function(rawAK, i) {
+    var action = 'map';
+    var radios = document.querySelectorAll('input[name="rruk-action-' + i + '"]');
+    radios.forEach(function(r) { if (r.checked) action = r.value; });
+    if (action === 'map') {
+      var sel = document.getElementById('rruk-sel-' + i);
+      resolved[rawAK] = sel ? (sel.value || '') : '';
+    } else if (action === 'keep') {
+      resolved[rawAK] = rawAK; // unverändert
+    } else {
+      resolved[rawAK] = ''; // leer
+    }
+  });
+  closeModal();
+  if (window._rrukResolve) { window._rrukResolve(resolved); window._rrukResolve = null; }
 }
 /* ── 08_admin.js ── */
 function adminSubtabs() {

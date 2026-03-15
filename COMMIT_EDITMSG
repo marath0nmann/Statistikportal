@@ -1,7 +1,7 @@
-v524: RaceResult: Fix Datenstruktur-Erkennung (Row direkt vs Array von Arrays)
+v525: RaceResult: Unbekannte Altersklassen nicht blind übernehmen
 
-Martins-Crosslauf: data = {"0": [row], "1": [row], ...} — jeder Value
-ist direkt eine Row, kein Array von Rows. flat() zerlegte Strings in Zeichen.
-
-Fix: wenn v[0] kein Array → v ist selbst eine Row → groups = {"": [v]}
-Betrifft alle 3 Fetch-Blöcke. TuS Oedt (3 Treffer) wird jetzt gefunden.
+- isValidDlvAK(): prüft ob AK dem DLV-Schema entspricht (M, W, MU12..MU23, M30..M75)
+- Preview-Tabelle: unbekannte AK in Akzentfarbe + ⚠ markiert (z.B. "Frauen", "männliche Jugend U23")
+- rrUnknownAKModal(): Modal vor dem Import listet alle unbekannten AK auf
+  Optionen pro AK: DLV-AK zuordnen | So übernehmen | Leer lassen
+- Erst nach Bestätigung wird der Import fortgesetzt
