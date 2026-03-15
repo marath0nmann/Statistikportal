@@ -7411,10 +7411,10 @@ function importToggleMstr(prefix, show, mstrVal) {
   document.querySelectorAll('.' + prefix + '-mstr-sel').forEach(function(s) {
     s.value = show ? (mstrVal || '') : '';
   });
-  // Wenn ausgeblendet: Platz zurücksetzen
-  if (!show) {
-    document.querySelectorAll('.' + prefix + '-mstr-platz').forEach(function(i) { i.value = ''; });
-  }
+  // Platz-Felder: beim Einblenden defaultValue (= AK-Platz aus HTML) wiederherstellen
+  document.querySelectorAll('.' + prefix + '-mstr-platz').forEach(function(inp) {
+    inp.value = show ? (inp.defaultValue || '') : '';
+  });
 }
 /* ── 11_mikatiming.js ── */
 
