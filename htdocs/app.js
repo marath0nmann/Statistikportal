@@ -3550,6 +3550,12 @@ function renderEintragen() {
   }
 
   document.getElementById('main-content').innerHTML = tabHtml + content;
+  if (isRR) {
+    // Straße als Default setzen falls noch kein Wert
+    var _rrKatEl = document.getElementById('rr-kat');
+    if (_rrKatEl && !_rrKatEl.value) _rrKatEl.value = 'strasse';
+    rrKatChanged(); // Button aktivieren
+  }
 
   if (isBulk) {
     bulkAddRow();
