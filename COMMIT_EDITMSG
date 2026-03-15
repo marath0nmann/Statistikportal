@@ -1,5 +1,1 @@
-v437: RaceResult: Spezial-Listen (z_*, King/Queen) überspringen
-
-- _listIsBlacklisted(): z_-Prefix, KING, QUEEN, AGGREGATE etc.
-- Kein DataFields → Contest überspringen (Sonderliste)
-- Köln Marathon: z_KQoC_live wird übersprungen, echte Ergebnisliste genutzt
+v439: Blacklist: LIVE, TOP10 etc. + lists-Raw vollständig anzeigen
