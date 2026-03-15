@@ -793,53 +793,61 @@ if ($res === 'dashboard' && $method === 'GET') {
         }
 
         foreach ($ergs as $e) {
-            $val   = ($fmt === 'm') ? (float)($e['val_sort'] ?? 0) : (float)($e['val_sort'] ?? 0);
+            $val   = (float)($e['val_sort'] ?? 0);
             $datum = $e['datum'];
             $g     = $e['geschlecht'] ?? '';
             $ak    = $e['altersklasse'] ?? '';
-            $labels = [];
-            $vorher = null; // vorheriges Resultat für den primären Label
 
-            // 1. Gesamtbestzeit
+            // ── Zwei unabhängige Label-Spuren ──────────────────────────────
+            // label_club  = vereinsbezogen (Gold/Silber): Gesamt, Geschlecht, AK
+            // label_pers  = persönlich (Grün):            Debüt, PB
+            $labelClub = null;  // null = kein vereinsbezogenes Ereignis
+            $labelPers = null;  // null = kein persönliches Ereignis
+            $vorher    = null;
+
+            // ── CLUB-LABELS ────────────────────────────────────────────────
+            // 1. Gesamtbestzeit (Gold)
             if ($bestGesamt === null ||
                 ($dir === 'ASC'  && $val < $bestGesamt) ||
                 ($dir === 'DESC' && $val > $bestGesamt)) {
                 $prevGesamt = $bestGesamt;
                 $bestGesamt = $val;
-                $labels[] = $prevGesamt === null ? 'Erste Gesamtleistung' : 'Gesamtbestleistung';
+                $labelClub = $prevGesamt === null ? 'Erste Gesamtleistung' : 'Gesamtbestleistung';
                 if ($vorher === null) $vorher = $prevGesamt;
             }
-            // 2. Geschlecht M/W
-            if ($g === 'M' || $g === 'W') {
+            // 2. Geschlechts-Bestleistung (Gold wenn kein Gesamt-Label, sonst überdeckt)
+            if (!$labelClub && ($g === 'M' || $g === 'W')) {
                 if (!isset($bestByG[$g]) ||
                     ($dir === 'ASC'  && $val < $bestByG[$g]) ||
                     ($dir === 'DESC' && $val > $bestByG[$g])) {
                     $prevByG[$g] = $bestByG[$g] ?? null;
                     $bestByG[$g] = $val;
-                    if (!in_array('Gesamtbestleistung', $labels) && !in_array('Erste Gesamtleistung', $labels)) {
-                        $isFirst = $prevByG[$g] === null;
-                        $labels[] = $isFirst
-                            ? (($g === 'M') ? 'Erstes Ergebnis M' : 'Erstes Ergebnis W')
-                            : (($g === 'M') ? 'Bestleistung Männer' : 'Bestleistung Frauen');
-                        if ($vorher === null) $vorher = $prevByG[$g];
-                    }
+                    $isFirst = $prevByG[$g] === null;
+                    $labelClub = $isFirst
+                        ? (($g === 'M') ? 'Erstes Ergebnis M' : 'Erstes Ergebnis W')
+                        : (($g === 'M') ? 'Bestleistung Männer' : 'Bestleistung Frauen');
+                    if ($vorher === null) $vorher = $prevByG[$g];
                 }
             }
-            // 3. Altersklasse
+            // 3. AK-Bestleistung (Silber) — immer prüfen, unabhängig von Gesamt/Geschlecht
             if ($ak) {
                 if (!isset($bestByAK[$ak]) ||
                     ($dir === 'ASC'  && $val < $bestByAK[$ak]) ||
                     ($dir === 'DESC' && $val > $bestByAK[$ak])) {
                     $prevByAK[$ak] = $bestByAK[$ak] ?? null;
                     $bestByAK[$ak] = $val;
-                    if (empty($labels)) {
+                    // Nur als AK-Label setzen wenn kein höherwertiges Gesamt/Geschlecht-Label
+                    if (!$labelClub) {
                         $isFirst = $prevByAK[$ak] === null;
-                        $labels[] = $isFirst ? 'Erste Leistung ' . $ak : 'Bestleistung ' . $ak;
+                        $labelClub = $isFirst ? 'Erste Leistung ' . $ak : 'Bestleistung ' . $ak;
                         if ($vorher === null) $vorher = $prevByAK[$ak];
                     }
                 }
             }
-            // 4. Persönliche Bestleistung des Athleten
+
+            // ── PERSÖNLICHE LABELS ─────────────────────────────────────────
+            // Debüt = erste Leistung des Athleten in dieser Disziplin
+            // PB    = neue persönliche Bestleistung (nicht erstes Ergebnis)
             $aid = $e['athlet_id'];
             if (!isset($bestByAthlet[$aid]) ||
                 ($dir === 'ASC'  && $val < $bestByAthlet[$aid]) ||
@@ -847,30 +855,21 @@ if ($res === 'dashboard' && $method === 'GET') {
                 $prevByAthlet[$aid] = $bestByAthlet[$aid] ?? null;
                 $bestByAthlet[$aid] = $val;
                 $isFirst = $prevByAthlet[$aid] === null;
-                if ($isFirst) {
-                    // Debüt = erste Leistung in dieser Disziplin, immer setzen
-                    // (auch wenn AK-Label bereits gesetzt — beide erscheinen im Label)
-                    $labels[] = 'Debüt';
-                    if ($vorher === null) $vorher = $prevByAthlet[$aid];
-                } elseif (empty($labels)) {
-                    $labels[] = 'PB';
-                    if ($vorher === null) $vorher = $prevByAthlet[$aid];
-                }
+                $labelPers = $isFirst ? 'Debüt' : 'PB';
+                if ($vorher === null) $vorher = $prevByAthlet[$aid];
             }
 
-            if (!empty($labels)) {
-                // Prio: niedrigste Zahl gewinnt bei gleichem Datum
-                // 0=Gesamtrekord, 1=Geschlechtsrekord, 2=AK-Bestleistung, 3=PB/Debüt
-                $hasAKLabel = false;
-                foreach ($labels as $_l) {
-                    if (strpos($_l, 'Bestleistung ') !== false || strpos($_l, 'Erste Leistung ') !== false) { $hasAKLabel = true; break; }
+            // ── Nur eintragen wenn mindestens ein Label gesetzt ────────────
+            if ($labelClub !== null || $labelPers !== null) {
+                // Priorität für Sortierung: niedrigster Wert gewinnt bei gleichem Datum
+                // Club-Labels haben immer höhere Priorität als persönliche
+                $prio = 3; // default: PB/Debüt
+                if ($labelClub) {
+                    if (strpos($labelClub, 'Gesamt') !== false) $prio = 0;
+                    elseif (strpos($labelClub, 'Männer') !== false || strpos($labelClub, 'Frauen') !== false
+                         || strpos($labelClub, 'Ergebnis M') !== false || strpos($labelClub, 'Ergebnis W') !== false) $prio = 1;
+                    else $prio = 2; // AK
                 }
-                $prio = (in_array('Gesamtbestleistung', $labels) || in_array('Erste Gesamtleistung', $labels)) ? 0
-                      : (in_array('Bestleistung Männer', $labels) || in_array('Bestleistung Frauen', $labels) || in_array('Erstes Ergebnis M', $labels) || in_array('Erstes Ergebnis W', $labels) ? 1
-                      : ($hasAKLabel ? 2
-                      : 3));
-                // vorher_resultat: numerischen Wert zurück in Rohformat umrechnen ist komplex –
-                // wir geben stattdessen den val-Wert (Sekunden/Meter) zurück; Frontend formatiert ihn
                 $timelineEvents[] = [
                     'datum'               => $datum,
                     'disziplin'           => $disz,
@@ -880,7 +879,10 @@ if ($res === 'dashboard' && $method === 'GET') {
                     'athlet_id'           => $e['athlet_id'],
                     'resultat'            => $e['resultat'],
                     'vorher_val'          => $vorher,
-                    'label'               => implode(' + ', $labels),
+                    'label_club'          => $labelClub,
+                    'label_pers'          => $labelPers,
+                    // label für Rückwärtskompatibilität (höherwertiges Label)
+                    'label'               => $labelClub ?? $labelPers,
                     'fmt'                 => $fmt,
                     'priority'            => $prio,
                 ];
