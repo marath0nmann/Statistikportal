@@ -7720,7 +7720,7 @@ async function renderVeranstaltungen() {
               '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&#x2715;</button>' : '') +
           '</div>' +
         '</div>' +
-        (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz"><col class="vcol-ms"><col class="vcol-ms-platz"></colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Platz AK</th><th>Meisterschaft</th><th>Platz MS</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
+        (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz"><col class="vcol-ms"><col class="vcol-ms-platz"></colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th><th>Meisterschaft</th><th>Pl. MS</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
                 '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
       '</div>';
   }
