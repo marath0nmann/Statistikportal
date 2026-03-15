@@ -3863,6 +3863,19 @@ async function rrFetch() {
     }
     // Komma und Land abschneiden: "Wachtendonk, Deutschland" → "Wachtendonk"
     if (eventOrtCfg) eventOrtCfg = eventOrtCfg.split(',')[0].trim();
+
+    // Datum-Fallback: PHP-Proxy fetcht HTML-Titel (enthält Datum bei den meisten Events)
+    if (!eventDate) {
+      try {
+        var _prx = await apiGet('rr-fetch?event_id=' + encodeURIComponent(eventId));
+        if (_prx && _prx.ok && _prx.data.date) {
+          eventDate = _prx.data.date;
+          _rrDebug.titleFetch = _prx.data.title + ' → ' + eventDate;
+        } else {
+          _rrDebug.titleFetch = _prx && _prx.data ? ('Titel: ' + _prx.data.title + ' (kein Datum)') : 'Fetch fehlgeschlagen';
+        }
+      } catch(e) { _rrDebug.titleFetch = 'Fehler: ' + String(e); }
+    }
     var contestObj = cfg.contests || cfg.Contests || {};
     _rrDebug.cfgKeys = Object.keys(cfg).slice(0, 20);
     // listname aus Config ermitteln
@@ -3933,15 +3946,18 @@ async function rrFetch() {
 
     _rrDebug.cfgOrt = eventOrtCfg;
     _rrDebug.cfgKey = apiKey;
-    _rrDebug.cfgDateRaw = _cfgDateRaw;
+    _rrDebug.cfgDateRaw = _cfgDateRaw + (_rrDebug.titleFetch ? ' | Titel-Fetch: ' + _rrDebug.titleFetch : '');
     _rrDebug.cfgAllKeys = JSON.stringify(Object.keys(cfg)).slice(0, 300);
-    var _cfgTimeSec = cfg.Time !== undefined ? parseInt(cfg.Time) : null;
-    _rrDebug.cfgTime = _cfgTimeSec !== null ? (String(cfg.Time) + ' (' + Math.floor(_cfgTimeSec/3600) + 'h' + String(Math.floor((_cfgTimeSec%3600)/60)).padStart(2,'0') + 'min Startzeit)') : '–';
-    // Debug: alle cfg-Felder einzeln loggen (splits weglassen, die sind lang)
-    _rrDebug.cfgInfotext = String(cfg.infotext || '').replace(/<[^>]+>/g,'').slice(0, 300) || '(leer)';
-    var _cfgShort = {};
-    ['ListSelector','SplitConfig','TimerURL','TimerLogo','EventOver','server','Time','LinkCertificates','showResults','showParticipants','showLive','showCertificates'].forEach(function(k){ if (cfg[k] !== undefined) _cfgShort[k] = cfg[k]; });
-    _rrDebug.cfgFull = JSON.stringify(_cfgShort);
+    _rrDebug.cfgTime = cfg.Time !== undefined ? String(cfg.Time) : '–'; // dynamischer Serverwert, kein Datum
+    // Datum ins Eingabefeld übernehmen wenn per Proxy gefunden
+    if (eventDate) {
+      var _datEl = document.getElementById('rr-datum');
+      if (_datEl && !_datEl.value) {
+        var _dp = eventDate.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (_dp) _datEl.value = _dp[3] + '.' + _dp[2] + '.' + _dp[1];
+      }
+    }
+
     _rrDebug.eventDate = eventDate;
     _rrDebug.cfgEventName = cfg.eventname || '';
     _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
@@ -4353,8 +4369,6 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   // Event-Metadaten
   _dbgLines.push('eventName: ' + (eventName||'–') + ' | eventDate: ' + (eventDate||'leer') + ' | eventOrt: ' + (eventOrt||'leer'));
   _dbgLines.push('cfgDateRaw: ' + JSON.stringify(_dbg.cfgDateRaw||'') + ' | cfg.eventname: ' + (_dbg.cfgEventName||'–'));
-  _dbgLines.push('cfg.infotext: ' + (_dbg.cfgInfotext||'(leer)'));
-  _dbgLines.push('cfg (komplett): ' + (_dbg.cfgFull||'–'));
   _dbgLines.push('cfg-Keys: ' + (_dbg.cfgAllKeys||'–'));
   _dbgLines.push('cfg (roh): ' + (_dbg.cfgRaw||'–'));
   // Contest-Infos

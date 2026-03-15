@@ -1989,6 +1989,34 @@ if ($res === 'disziplin-mapping') {
 // ============================================================
 // AUTOCOMPLETE Athleten
 // ============================================================
+if ($res === 'rr-fetch' && $method === 'GET') {
+    // Serverseitiger Proxy: fetcht RaceResult-HTML für Datum-Extraktion aus <title>
+    Auth::requireLogin();
+    $eventId = preg_replace('/[^0-9]/', '', $_GET['event_id'] ?? '');
+    if (!$eventId) jsonErr('event_id fehlt.', 400);
+    $url = 'https://my.raceresult.com/' . $eventId . '/results';
+    $ctx = stream_context_create(['http' => [
+        'timeout'     => 8,
+        'user_agent'  => 'Mozilla/5.0',
+        'header'      => "Accept: text/html
+",
+        'ignore_errors' => true,
+    ]]);
+    $html = @file_get_contents($url, false, $ctx);
+    if ($html === false) jsonErr('Fetch fehlgeschlagen.', 502);
+    // <title>2. Reeser Rheinlauf, 05.10.2025 : : my.race|result</title>
+    $title = '';
+    if (preg_match('/<title[^>]*>([^<]+)<\/title>/i', $html, $m)) {
+        $title = trim($m[1]);
+    }
+    // Datum DD.MM.YYYY aus Titel extrahieren
+    $date = '';
+    if (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $title, $dm)) {
+        $date = $dm[3] . '-' . $dm[2] . '-' . $dm[1]; // → YYYY-MM-DD
+    }
+    jsonOk(['title' => $title, 'date' => $date]);
+}
+
 if ($res === 'autocomplete' && $id === 'athleten') {
     Auth::requireLogin();
     $q = '%' . sanitize($_GET['q'] ?? '') . '%';
