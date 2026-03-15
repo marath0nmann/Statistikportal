@@ -4081,10 +4081,10 @@ async function rrFetch() {
             var f = df[fi].toLowerCase();
             if (f.indexOf('anzeigename') >= 0 || f.indexOf('lfname') >= 0) iName = fi;
             else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
-            else if (f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]') iAK = fi;
+            else if (f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]' || f.indexOf('akabk') >= 0 || f.indexOf('ak_abk') >= 0 || f === 'es_akabkürzung') iAK = fi;
             else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* skip */ }
-            else if (f === 'year' || f === 'yob' || f === 'birthyear') iYear = fi;
-            else if (f.indexOf('geschlechtmw') >= 0) iGeschlecht = fi;
+            else if (f === 'year' || f === 'yob' || f === 'birthyear' || f === 'es_jahrgang') iYear = fi;
+            else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht') iGeschlecht = fi;
             else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
             else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0) iZeit = fi;
             else if (f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0) {
@@ -4176,17 +4176,21 @@ async function rrFetch() {
           var payload2 = JSON.parse(await resp2.text());
           var df2 = payload2.DataFields || [];
           if (Array.isArray(df2) && df2.length > 0) {
-            iAK = -1; iYear = -1; iGeschlecht = -1;
+            iAK = -1; iYear = -1; iGeschlecht = -1; iAKPlatz = -1;
             iName = 3; iClub = 6; iNetto = 7; iZeit = 8; iPlatz = 2;
             for (var fi2 = 0; fi2 < df2.length; fi2++) {
               var f2 = df2[fi2].toLowerCase();
               if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('lfname') >= 0) iName = fi2;
               else if (f2.indexOf('club') >= 0 || f2.indexOf('verein') >= 0) iClub = fi2;
-              else if (f2.indexOf('agegroup') >= 0) iAK = fi2;
-              else if (f2 === 'year' || f2 === 'yob') iYear = fi2;
+              else if (f2.indexOf('agegroup') >= 0 || f2.indexOf('akabk') >= 0 || f2.indexOf('ak_abk') >= 0 || f2 === 'es_akabkürzung') iAK = fi2;
+              else if (f2 === 'year' || f2 === 'yob' || f2 === 'es_jahrgang') iYear = fi2;
+              else if (f2.indexOf('geschlechtmw') >= 0 || f2 === 'es_geschlecht') iGeschlecht = fi2;
               else if (f2.indexOf('chip') >= 0 || f2.indexOf('netto') >= 0) iNetto = fi2;
               else if (f2.indexOf('gun') >= 0 || f2.indexOf('brutto') >= 0) iZeit = fi2;
-              else if (f2.indexOf('autorankp') >= 0 || f2.indexOf('mitstatus') >= 0) iPlatz = fi2;
+              else if (f2.indexOf('autorankp') >= 0 || f2.indexOf('mitstatus') >= 0) {
+                if (f2.indexOf('akpl') >= 0) iAKPlatz = fi2;
+                else iPlatz = fi2;
+              }
             }
             if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
           }

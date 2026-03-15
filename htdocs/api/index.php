@@ -2035,11 +2035,15 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         // Ort aus JSON-LD, meta oder Seitentext
         if (preg_match('/"addressLocality"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
         elseif (preg_match('/"location"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
-        // Aus Event-Namen: "München" im Titel
+        // Aus Event-Namen: Stadt erkennen (auch GROSSBUCHSTABEN → Title Case)
         if (!$eventOrt && $eventName) {
-            if (preg_match('/\b(München|Berlin|Hamburg|Frankfurt|Köln|Stuttgart|Düsseldorf|Leipzig|Dresden|Hannover|Bremen|Münster|Dortmund|Essen|Duisburg|Bochum|Wuppertal|Bonn|Gelsenkirchen|Aachen|Bielefeld|Mannheim|Augsburg|Wiesbaden|Mönchengladbach|Braunschweig|Kiel|Halle|Magdeburg|Erfurt|Rostock|Mainz|Lübeck|Osnabrück|Oldenburg|Freiburg|Heidelberg|Darmstadt|Regensburg|Würzburg|Ingolstadt|Ulm|Heilbronn|Pforzheim|Oberhausen|Hagen|Hamm|Mülheim|Saarbrücken|Potsdam|Göttingen|Kassel|Paderborn|Trier|Jena|Gera|Cottbus|Schwerin|Erfurt|Viersen|Krefeld|Kleve|Moers|Neuss|Solingen|Leverkusen|Remscheid)\b/ui', $eventName, $om)) {
+            if (preg_match('/\b(M[uü]nchen|Berlin|Hamburg|Frankfurt|K[oö]ln|Stuttgart|D[uü]sseldorf|Leipzig|Dresden|Hannover|Bremen|M[uü]nster|Dortmund|Essen|Duisburg|Bochum|Wuppertal|Bonn|Gelsenkirchen|Aachen|Bielefeld|Mannheim|Augsburg|Wiesbaden|M[oö]nchengladbach|Braunschweig|Kiel|Halle|Magdeburg|Erfurt|Rostock|Mainz|L[uü]beck|Osnabr[uü]ck|Oldenburg|Freiburg|Heidelberg|Darmstadt|Regensburg|W[uü]rzburg|Ingolstadt|Ulm|Heilbronn|Pforzheim|Oberhausen|Hagen|Hamm|M[uü]lheim|Saarbr[uü]cken|Potsdam|G[oö]ttingen|Kassel|Paderborn|Trier|Jena|Gera|Cottbus|Schwerin|Viersen|Krefeld|Kleve|Moers|Neuss|Solingen|Leverkusen|Remscheid|Rees|Viersen)\b/ui', $eventName, $om)) {
                 $eventOrt = $om[1];
             }
+        }
+        // Ort normalisieren: MÜNCHEN → München (Title Case)
+        if ($eventOrt) {
+            $eventOrt = mb_convert_case($eventOrt, MB_CASE_TITLE, 'UTF-8');
         }
     }
 
