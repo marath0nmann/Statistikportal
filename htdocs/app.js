@@ -4087,8 +4087,8 @@ async function rrFetch() {
             else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht') iGeschlecht = fi;
             else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
             else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0) iZeit = fi;
-            else if (f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0) {
-              // MitStatus([AKPlp]) = AK-Platz, MitStatus([MWPlp]/[PLp]/[AUTORANKp]) = Gesamt-Platz
+            else if (f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0 || f.indexOf('statusplatz') >= 0) {
+              // MitStatus([AKPlp]) / StatusPlatz([AKPl.P]) = AK-Platz
               if (f.indexOf('akpl') >= 0) iAKPlatz = fi;
               else iPlatz = fi;
             }
@@ -4187,7 +4187,7 @@ async function rrFetch() {
               else if (f2.indexOf('geschlechtmw') >= 0 || f2 === 'es_geschlecht') iGeschlecht = fi2;
               else if (f2.indexOf('chip') >= 0 || f2.indexOf('netto') >= 0) iNetto = fi2;
               else if (f2.indexOf('gun') >= 0 || f2.indexOf('brutto') >= 0) iZeit = fi2;
-              else if (f2.indexOf('autorankp') >= 0 || f2.indexOf('mitstatus') >= 0) {
+              else if (f2.indexOf('autorankp') >= 0 || f2.indexOf('mitstatus') >= 0 || f2.indexOf('statusplatz') >= 0) {
                 if (f2.indexOf('akpl') >= 0) iAKPlatz = fi2;
                 else iPlatz = fi2;
               }
@@ -4559,7 +4559,17 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     // iPlatz zeigt auf AUTORANKP (Gesamtplatz) — AK-Platz selbst berechnen
     var platzAKnum = r.akPlatzFromRow || calcAKPlatz(ak, netto || zeit, _rrEventJahr) || '';
     var _cn = r.contestName || '';
-    if (!_cn || _cn.match(/^Contest \d+$/i)) _cn = r.groupKey || _cn;
+    // Contest 0 / "Contest N" → Disziplin aus groupKey oder cfg.contests
+    if (!_cn || _cn.match(/^Contest \d+$/i)) {
+      // groupKey z.B. "#2_Westenergie Marathon/#4_Weiblich" → ersten Teil nutzen
+      var _gkParts = (r.groupKey || '').split('/');
+      var _gkFirst = _gkParts[0] || '';
+      var _gkName = _gkFirst.replace(/^#\d+_/, '');
+      if (_gkName && !_gkName.match(/^(M[aä]nner|Frauen|Weiblich|M[aä]nnlich|Male|Female|mixed)$/i))
+        _cn = _gkName;
+      else if (_gkParts.length > 1)
+        _cn = _gkParts[1].replace(/^#\d+_/, '');
+    }
     var disz  = rrBestDisz(_cn, diszList);
 
     // Athlet-Matching: Name normalisieren (SS↔ß, Umlaute, Komma, Groß/Klein)

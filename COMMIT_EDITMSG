@@ -1,7 +1,4 @@
-v459: RaceResult: ES_AKAbkürzung + ES_Jahrgang + ES_Geschlecht + StatusPlatz([AKPl.P])
+v460: RaceResult: StatusPlatz([AKPl.P]) + Disziplin aus groupKey
 
-DataFields vom Baldeneysee-Marathon:
-- ES_AKAbkürzung → iAK (W20 direkt)
-- ES_Jahrgang → iYear
-- ES_Geschlecht → iGeschlecht
-- StatusPlatz([AKPl.P]) → iAKPlatz (in beiden Erkennungsblöcken)
+- StatusPlatz([AKPl.P]) → iAKPlatz erkannt (war nur MitStatus/AutoRankP)
+- Disziplin: groupKey "#2_Westenergie Marathon/#4_Weiblich" → "Westenergie Marathon" → Marathon
