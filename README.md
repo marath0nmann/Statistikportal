@@ -1,5 +1,5 @@
 # TuS Oedt – Leichtathletik Statistik
-## Version v376 | Stand: März 2026
+## Version v493 | Stand: März 2026
 
 ---
 
@@ -8,6 +8,8 @@
 ```
 deine-domain.de/
 ├── index.html              ← Haupt-App (Frontend)
+├── app.js                  ← Gesamtes JS (aus modules/ zusammengebaut)
+├── app.css                 ← Gesamtes CSS
 ├── .htaccess               ← URL-Routing & Sicherheit
 ├── api/
 │   └── index.php           ← REST API (alle Endpunkte)
@@ -16,36 +18,53 @@ deine-domain.de/
 │   ├── db.php              ← Datenbankverbindung
 │   ├── auth.php            ← Authentifizierung + TOTP
 │   └── totp.php            ← 2-Faktor-Authentifizierung
+├── modules/                ← JS-Quellmodule (00–11)
+│   ├── 00_globals.js
+│   ├── 02a_config.js       ← Meisterschaftstypen, Badges, Themes
+│   ├── 03_dashboard.js     ← Timeline, Bestleistungen, Hall of Fame
+│   ├── 04_ergebnisse.js    ← Ergebnisliste + Bearbeiten-Dialog
+│   ├── 06_rekorde.js       ← Bestleistungen-Tab
+│   ├── 07_eintragen.js     ← Bulk-Eintragen + Smart-Paste
+│   ├── 08_raceresult.js    ← RaceResult-Import
+│   ├── 09*.js              ← Admin-Tabs
+│   ├── 10_utils.js         ← Gemeinsame Hilfsfunktionen
+│   └── 11_mikatiming.js    ← MikaTiming-Import
+├── build.sh                ← Build-Script (concateniert Module → app.js)
 └── sql/
     ├── schema.sql          ← Datenbankstruktur (einmalig ausführen)
-    └── import_data.sql     ← Alle historischen Daten (einmalig)
+    └── import_data.sql     ← Historische Daten (einmalig)
 ```
-
 
 ---
 
-### ✨ Aktuelle Features (v376)
+### ✨ Aktuelle Features (v493)
 
 **Dashboard**
 - Konfigurierbare Widget-Layouts (Statistik-Karten, Timeline, Veranstaltungen, Hall of Fame)
 - Hall-of-Fame-Widget: Athleten mit Bestenlisten-Titeln, sortiert nach Titelanzahl
-- Timeline-Filterung nach Label-Typ (Gesamt, M/W, AK, PB) + Prioritäten-Ranking
-- Veranstaltungen-Widget: Spalten verschieb- und ausblendbar
+- Timeline: zwei Label-Spuren (Vereinsrekorde gold/silber + persönlich grün), Filterung nach Typ
+- Neueste Bestleistungen mit Kategorie-Suffix immer korrekt (Race Condition gefixt)
 
-**Athleten & Benutzer**
-- Avatar-Upload (PNG/JPG/WebP, max. 1 MB) pro Benutzer
-- Athleten direkt in der Liste deaktivieren/aktivieren (Admin)
-- Athleten-Filter und Sortierspalten in der Athleten-Tabelle
+**Bestleistungen / Rekorde**
+- Bestleistungen nach Kategorie, Disziplin (mit Suffix), AK, Geschlecht
+- Pace-Berechnung für alle Disziplinen ≥ 1 km
+- Medal-Badges: Gold/Silber/Bronze mit farbigem Hintergrund
 
 **Ergebnisse**
-- Bulk-Eintragen mit Kategorie-Filter, AK-Vorbelegen, einheitlichem Design
-- RaceResult-Import (my.raceresult.com)
 - Filter nach Athlet, Kategorie, Disziplin, AK, Jahr, Meisterschaft (Mehrfachauswahl)
+- Bearbeiten-Dialog: Kategorie-Filter + Disziplin mit Suffix + korrekte `mapping_id`
+
+**Eintragen**
+- **Bulk-Eintragen**: Smart-Paste (parst Veranstaltung, AK, Datum, Disziplin, Name, Zeit, Platz aus Clipboard-Text), Datum pro Zeile, Meisterschaft
+- **RaceResult-Import**: my.raceresult.com, automatisches Athlet-Matching, Modal für unbekannte Athleten (zuordnen / neu anlegen / überspringen), AK-Platz-Berechnung, Meisterschaft + Platz MS
+- **MikaTiming-Import**: cURL-Proxy, Session-Persistenz, Meisterschaft + Platz MS
+- **Meisterschaft-Checkbox**: aktiviert Meisterschaft-Spalten + wendet gewählten Typ sofort auf alle Zeilen an; Platz MS aus AK-Platz vorbelegt
 
 **Admin**
-- Dashboard-Layout-Editor mit Widget-Konfiguration
-- Footer-URLs für Datenschutz, Nutzungsbedingungen, Impressum konfigurierbar
-- Meisterschaftstypen konfigurierbar (JSON)
+- Dashboard-Layout-Editor
+- Altersklassen-Verwaltung (Jugend-AKs konfigurierbar)
+- Meisterschaftstypen konfigurierbar (Olympia, WM, EM, DM, NRW, NR, Regio + eigene)
+- Footer-URLs, Club-Logo, Farben, Dark Mode
 
 ---
 
@@ -63,6 +82,7 @@ define('DB_HOST', 'localhost');
 define('DB_NAME', 'p123456_statistik');   // ← dein Datenbankname
 define('DB_USER', 'p123456_statistik');   // ← dein Datenbankbenutzer
 define('DB_PASS', 'DEIN_PASSWORT');       // ← dein Passwort
+define('TBL_PREFIX', 'tus_');             // ← Tabellen-Präfix
 ```
 
 #### 3. Datenbankstruktur importieren (phpMyAdmin)
@@ -72,131 +92,62 @@ define('DB_PASS', 'DEIN_PASSWORT');       // ← dein Passwort
 #### 4. Daten importieren
 1. Reiter **Importieren**
 2. Datei `sql/import_data.sql` hochladen → **OK**
-   *(~1.620 Ergebnisse, 511 Veranstaltungen, 195 Athleten – dauert ca. 10–30 Sek.)*
 
 #### 5. Dateien per FTP hochladen
-Alle Dateien in dein Web-Verzeichnis hochladen.
+Alle Dateien in dein Web-Verzeichnis hochladen.  
+**WICHTIG:** `includes/config.php` niemals öffentlich zugänglich machen.
 
-**WICHTIG:** `includes/` enthält Passwörter!
-Sicherste Variante: `includes/` **oberhalb** des Web-Verzeichnisses:
-```
-/www/htdocs/p123456/         ← öffentlich
-    index.html, api/, ...
-/www/private/includes/       ← NICHT öffentlich!
-    config.php, db.php, auth.php, totp.php
-```
-Dann in `api/index.php` den Pfad anpassen:
-```php
-require_once __DIR__ . '/../../private/includes/db.php';
-require_once __DIR__ . '/../../private/includes/auth.php';
+---
+
+### 🛠️ Entwicklung & Build
+
+```bash
+# app.js + app.css aus Modulen bauen und ZIP erzeugen
+bash /home/claude/dev/build.sh
 ```
 
-#### 6. Ersten Login testen
-- **URL:** `https://deine-domain.de/`
-- **Benutzername:** `admin`
-- **Passwort:** `Admin1234!`
-- **→ Passwort sofort ändern!**
+Die Version wird automatisch in `app.js`, `app.css` und `index.html` eingetragen (via `sed`).  
+Output: `/mnt/user-data/outputs/tus-oedt-statistik-vXXX.zip`
 
----
-
-### ♻️ Update von einer älteren Version
-
-Falls du bereits eine ältere Version im Einsatz hast und ein Backup (SQL-Dump) erstellt hast:
-
-1. Den Dump **nicht neu importieren** – deine Daten sind bereits da.
-2. Nur die PHP-Dateien und `index.html` per FTP überschreiben.
-3. Datenbankstruktur ist bereits aktuell (alle Migrationen wurden durchgeführt).
-
----
-
-### 🆕 Änderungen in Version 1.67
-
-- **Einheitliche `ergebnisse`-Tabelle** für alle Disziplinen (Straße, Bahn, Halle, Sprung/Wurf)
-- **Disziplin-Mapping** mit konfigurierbaren Kategorien
-- **Gruppen-System** (z.B. „Senioren")
-- **2-Faktor-Authentifizierung** (TOTP, z.B. Google Authenticator)
-- **Athlet-Bestleistungen** (externe PBs eintragbar)
-- **Papierkorb** für gelöschte Einträge
-- **Veranstaltungs-Namen** editierbar
-- **Bahn- & Hallen-Kategorien** ergänzt
-
----
-
-### 👥 Benutzer-Rollen
-
-| Rolle    | Rechte |
-|----------|--------|
-| `admin`  | Vollzugriff, Benutzer verwalten, Vereinsrekorde bearbeiten |
-| `editor` | Ergebnisse eintragen, eigene Einträge löschen |
-| `leser`  | Nur Ansicht |
-
----
-
-### 🔒 Sicherheitshinweise
-
-1. **Passwort sofort ändern** nach erstem Login
-2. **HTTPS** verwenden (Let's-Encrypt via KAS)
-3. `sql/`-Verzeichnis nach dem Import **löschen** oder per `.htaccess` sperren
-4. **2FA aktivieren** (Admin → Konto → 2-Faktor einrichten)
-5. Regelmäßige **Datenbank-Backups** über das KAS einrichten
-
----
-
-### 📋 API-Endpunkte (Übersicht)
-
+**Modul-Reihenfolge** (build.sh):
 ```
-POST   api/auth/login              Login (Schritt 1)
-POST   api/auth/totp-verify        Login (Schritt 2: TOTP)
-POST   api/auth/logout             Logout
-GET    api/auth/me                 Eingeloggter Benutzer
-POST   api/auth/passwort           Passwort ändern
-
-GET    api/dashboard               Dashboard-Daten
-
-GET    api/ergebnisse              Alle Ergebnisse (gefiltert)
-GET    api/strasse                 Straßenlauf-Ergebnisse
-GET    api/sprint                  Sprint-Ergebnisse
-GET    api/mittelstrecke           Mittelstrecke-Ergebnisse
-GET    api/sprungwurf              Sprung & Wurf-Ergebnisse
-POST   api/{kategorie}             Neues Ergebnis
-DELETE api/{kategorie}/{id}        Ergebnis löschen
-POST   api/ergebnisse/bulk         Massenimport
-
-GET    api/athleten                Alle Athleten
-GET    api/athleten/{id}           Athlet + alle Ergebnisse
-POST   api/athleten/{id}/pb        Externe PB eintragen
-
-GET    api/rekorde                 Bestenlisten
-GET    api/rekorde/disziplinen     Disziplinen einer Kategorie
-
-GET    api/kategorien              Disziplin-Kategorien
-GET    api/disziplin-mapping       Disziplin-Zuordnungen (Admin)
-
-GET    api/veranstaltungen         Veranstaltungen
-
-GET    api/benutzer                Alle Benutzer (Admin)
-POST   api/benutzer                Neuer Benutzer (Admin)
-
-GET    api/gruppen                 Gruppen
-GET    api/papierkorb              Papierkorb (Admin)
+00_globals → 02a_config → 02b_setup → 02c_auth → 02d_nav →
+03_dashboard → 04_ergebnisse → 05_veranstaltungen → 06_rekorde →
+07_eintragen → 08_raceresult → 09*_admin_* → 10_utils → 11_mikatiming
 ```
 
 ---
 
-### ❓ Häufige Probleme
+### 🗄️ Wichtige API-Endpunkte
 
-**„500 Internal Server Error"**
-→ PHP-Version prüfen: KAS → PHP-Version → mind. **PHP 8.1** auswählen
-
-**„Access denied for user"**
-→ Datenbank-Zugangsdaten in `includes/config.php` prüfen
-
-**Login funktioniert, aber Daten fehlen**
-→ `sql/import_data.sql` noch nicht importiert
-
-**Logo wird nicht angezeigt**
-→ Logo lokal als `assets/logo.png` speichern und Pfad in `index.html` anpassen
+| Methode | Endpunkt | Beschreibung |
+|---------|----------|--------------|
+| GET | `disziplinen` | Alle Disziplinen mit Kategorie + mapping_id |
+| GET | `rekorde?kat=&disz=&merge_ak=` | Bestleistungen |
+| GET | `ergebnisse?...` | Ergebnisliste mit Filtern |
+| POST | `ergebnisse/bulk` | Bulk-Import (inkl. meisterschaft, ak_platz_meisterschaft) |
+| PUT | `ergebnisse/{id}` | Ergebnis bearbeiten (disziplin_mapping_id direkt) |
+| GET | `mika-fetch?base_url=&club=` | MikaTiming Proxy |
+| GET | `altersklassen` | Verwendete AKs + Jugend-Status |
+| POST | `einstellungen` | Einstellungen speichern (jugend_aks, meisterschaft_typen, …) |
+| POST | `athleten` | Athlet anlegen (name_nv, vorname, nachname, geschlecht, geburtsjahr) |
 
 ---
 
-*TuS Oedt Leichtathletik Statistik · Version 1.67 · März 2026*
+### 🏷️ Disziplin-System
+
+Disziplinen sind eindeutig über `disziplin_mapping_id` identifiziert — nicht über den Namen.  
+„800m (Bahn)" und „800m (Straße)" haben **denselben Namen** aber **verschiedene IDs**.
+
+- `diszMitKat(disziplin, mappingId)` → Anzeigename mit Suffix
+- `kat_suffix_override`: Pro Disziplin konfigurierbares Suffix (Admin → Disziplinen)
+
+---
+
+### ⚙️ Auto-Migrationen
+
+Die API führt beim Start automatisch `ALTER TABLE … ADD COLUMN IF NOT EXISTS` aus für:
+- `benutzer.avatar_pfad`
+- `disziplin_mapping.*` (anzeige_name, fmt_override, kat_suffix_override, hof_exclude)
+- `ergebnisse.disziplin_mapping_id`
+- `ergebnisse*.ak_platz_meisterschaft` (alle 5 Tabellen)

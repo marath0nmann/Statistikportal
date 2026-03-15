@@ -1,6 +1,12 @@
-v491: Meisterschaft: Checkbox + Select inline, sofort auf alle anwenden
+v495: Meisterschafts-Platzierung in Veranstaltungen + Ergebnisse
 
-- Checkbox + Meisterschaft-Select direkt nebeneinander bei Veranstaltungsfeldern
-- onchange am Select wendet Wert sofort auf alle Zeilen an (kein "Alle setzen"-Button)
-- "Alle setzen"-Bar + "Platz (opt.)"-Feld entfernt
-- Gilt für RaceResult, MikaTiming und Bulk-Eintragen
+Frontend:
+- Veranstaltungen: neue Spalte "Platz MS" nach "Meisterschaft"
+- Ergebnisse: neue Spalte "Platz MS" nach "Meisterschaft"
+- Ergebnis bearbeiten: neues Feld "Platz MS" im Dialog
+- Edit-Button übergibt data-edit-mstr-platz
+
+API:
+- Veranstaltungen GET: ak_platz_meisterschaft im SELECT
+- Ergebnisse GET: ak_platz_meisterschaft für alle Tabellen (nicht nur strasse)
+- PUT ergebnisse: ak_platz_meisterschaft speicherbar
