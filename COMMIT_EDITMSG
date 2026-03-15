@@ -1,4 +1,7 @@
-v479: Fix Debug-Output contestName/rrBestDisz (gleiche Logik wie Render-Loop)
+v480: Fix RaceResult Disziplin-Erkennung: groupKey speichert vollen Pfad
 
-Debug zeigte "" weil groupKey nicht gesplittet wurde.
-Render-Loop war korrekt — nur Debug irreführend.
+gk war immer der letzte Teil ("#1_Männlich") statt dem vollen Pfad.
+"#1_Halbmarathon/#1_Männlich" → gk = "#1_Männlich" → kein Disziplin-Match.
+
+Fix: gk = vollständiger gkey, gkLast = letzter Teil (für AK/Geschlecht).
+Render-Loop nimmt gkParts[0] = "#1_Halbmarathon" → "Halbmarathon" ✓
