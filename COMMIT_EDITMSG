@@ -1,5 +1,7 @@
-v523: RaceResult: r=all Fallback VOR dem continue bei leeren DataFields
+v524: RaceResult: Fix Datenstruktur-Erkennung (Row direkt vs Array von Arrays)
 
-r=search liefert DataFields manchmal nicht → continue übersprang den Fallback.
-Fix: wenn df.length === 0 → sofort r=all versuchen, erst dann continue wenn
-immer noch leer. Martins-Crosslauf Contest 9-12 sollte jetzt gefunden werden.
+Martins-Crosslauf: data = {"0": [row], "1": [row], ...} — jeder Value
+ist direkt eine Row, kein Array von Rows. flat() zerlegte Strings in Zeichen.
+
+Fix: wenn v[0] kein Array → v ist selbst eine Row → groups = {"": [v]}
+Betrifft alle 3 Fetch-Blöcke. TuS Oedt (3 Treffer) wird jetzt gefunden.
