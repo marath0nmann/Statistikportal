@@ -4444,6 +4444,7 @@ async function rrFetch() {
           if (!_contestListMap[_clContest]) _contestListMap[_clContest] = _clName;
         }
       }
+      _rrDebug.contestListMap = _contestListMap;
       } // end Array of Objects
     } else if (listSource && typeof listSource === 'object') {
       var listKeys = Object.keys(listSource);
@@ -4821,6 +4822,7 @@ async function rrFetch() {
         'Config-Keys: ' + ((_rrDebug.cfgKeys||[]).join(', ')||'?'),
         'API-Key: "' + (_rrDebug.cfgKey||'leer') + '" | Datum-Raw: ' + JSON.stringify(_rrDebug.cfgDateRaw||'(leer)') + ' → ' + (_rrDebug.eventDate||'leer') + ' | cfg.eventname: ' + (_rrDebug.cfgEventName||'–'),
         'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine'),
+        'contestListMap: ' + JSON.stringify(_rrDebug.contestListMap||{}),
         'Contests: ' + (_rrDebug.contestSample||'?'),
         'groupFilters: ' + (_rrDebug.groupFilters||'–'),
         'data-Keys: ' + (_rrDebug.dataKeys||'–'),
