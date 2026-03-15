@@ -4026,7 +4026,7 @@ async function rrFetch() {
                 allRowsForAK.push({ ak: _ak4, zeit: _zeit4ak, year: _yr4, geschlecht: _gs4 });
               }
               if (clubPhrase && clubVal.toLowerCase().indexOf(clubPhrase) < 0) return;
-              allResults.push({ raw: row, contestName: cname, akFromGroup: _akFromGroup,
+              allResults.push({ raw: row, contestName: cname, groupKey: gk, akFromGroup: _akFromGroup,
                 iYear: iYear, iGeschlecht: iGeschlecht,
                 iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
             });
@@ -4319,8 +4319,8 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var name  = String(raw[r.iName]  || '').trim();
     var club  = String(raw[r.iClub]  || '').trim();
     var ak = '';
-    if (r.iAK >= 0) {
-      ak = String(raw[r.iAK] || '').trim();
+    if (r.iAK >= 0 && String(raw[r.iAK] || '').trim()) {
+      ak = String(raw[r.iAK] || '').trim(); // AK direkt aus Daten (z.B. M50)
     } else {
       var _jahrgang = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
       var _geschlecht = '';
@@ -4350,7 +4350,9 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var netto = String(raw[r.iNetto] || '').trim();
     // iPlatz zeigt auf AUTORANKP (Gesamtplatz) — AK-Platz selbst berechnen
     var platzAKnum = calcAKPlatz(ak, netto || zeit, _rrEventJahr) || '';
-    var disz  = rrBestDisz(r.contestName || '', diszList);
+    var _cn = r.contestName || '';
+    if (!_cn || _cn.match(/^Contest \d+$/i)) _cn = r.groupKey || _cn;
+    var disz  = rrBestDisz(_cn, diszList);
 
     // Athlet-Matching: Name normalisieren (SS↔ß, Umlaute, Komma, Groß/Klein)
     var athletId = '';
@@ -5611,8 +5613,6 @@ async function dashSaveLayout() {
     if (cols.length) clean.push({ cols: cols });
   }
   var json = JSON.stringify(clean);
-  // Debug: prüfe ob veranst_limit im JSON steht
-  try { var _dbg = JSON.parse(json); _dbg.forEach(function(row){(row.cols||[]).forEach(function(c){if(c.widget==='veranstaltungen') console.log('[Dashboard] veranst_limit im Save:', c.veranst_limit);})}); } catch(e){}
   var r = await apiPost('einstellungen', { dashboard_layout: json });
   if (r && r.ok) {
     appConfig.dashboard_layout = json;
