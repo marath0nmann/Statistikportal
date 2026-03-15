@@ -1716,7 +1716,10 @@ function timelineBadges(rek) {
     var badgesHtml = timelineBadges(rek);
     var dotStyle = rek.extern ? 'background:var(--accent);' : '';
     if (!athletName) continue;
-    var athLink = rek.athlet_id ? '<span class="athlet-link" style="color:var(--primary);font-weight:600" data-athlet-id="' + rek.athlet_id + '">' + athletName + '</span>' : '<span style="color:var(--primary);font-weight:600">' + athletName + '</span>';
+    // "Nachname, Vorname" → "Vorname Nachname"
+    var _nvParts = athletName.split(', ');
+    var athletNameVN = _nvParts.length >= 2 ? (_nvParts.slice(1).join(' ') + ' ' + _nvParts[0]).trim() : athletName;
+    var athLink = rek.athlet_id ? '<span class="athlet-link" style="color:var(--primary);font-weight:700" data-athlet-id="' + rek.athlet_id + '">' + athletNameVN + '</span>' : '<span style="color:var(--primary);font-weight:700">' + athletNameVN + '</span>';
 
     // Vorheriges Ergebnis aufbereiten
     var vorherHtml = '';
@@ -1730,9 +1733,8 @@ function timelineBadges(rek) {
     timelineHtml += '<div class="timeline-item">';
     timelineHtml += '<div class="timeline-date">' + formatDate(rek.datum) + '</div>';
     timelineHtml += '<div class="timeline-body">';
-    var diszLink = '<span class="athlet-link" style="color:var(--text);font-weight:600;cursor:pointer" data-rek-disz="' + rek.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + ergDiszLabel(rek) + '</span>';
-    timelineHtml += '<div class="timeline-disz">' + diszLink + '</div>';
-    timelineHtml += '<div class="timeline-athlet">' + athLink + '</div>';
+    var diszLink = '<span class="athlet-link" style="color:var(--text2);font-size:13px;cursor:pointer" data-rek-disz="' + rek.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + ergDiszLabel(rek) + '</span>';
+    timelineHtml += '<div class="timeline-athlet-disz">' + athLink + '<span style="color:var(--text2);margin:0 4px">&middot;</span>' + diszLink + '</div>';
     timelineHtml += '<div class="timeline-result">' + res + vorherHtml + '</div>';
     timelineHtml += (badgesHtml ? '<div class="timeline-badges">' + badgesHtml + '</div>' : '');
     timelineHtml += '</div></div>';
@@ -1907,21 +1909,22 @@ function timelineBadges(rek) {
             label_club: hiddenTypes.indexOf(timelineLabelType(fRek.label_club)) < 0 ? fRek.label_club : null,
             label_pers: hiddenTypes.indexOf(timelineLabelType(fRek.label_pers)) < 0 ? fRek.label_pers : null,
           }));
+          var _fNvP = (fItem.athlet || '').split(', ');
+          var fAthletNameVN = _fNvP.length >= 2 ? (_fNvP.slice(1).join(' ') + ' ' + _fNvP[0]).trim() : (fItem.athlet || '');
           var fAthLink = fItem.athlet_id
-            ? '<span class="athlet-link" style="color:var(--primary);font-weight:600" data-athlet-id="' + fItem.athlet_id + '">' + fItem.athlet + '</span>'
-            : '<span style="color:var(--primary);font-weight:600">' + fItem.athlet + '</span>';
+            ? '<span class="athlet-link" style="color:var(--primary);font-weight:700" data-athlet-id="' + fItem.athlet_id + '">' + fAthletNameVN + '</span>'
+            : '<span style="color:var(--primary);font-weight:700">' + fAthletNameVN + '</span>';
           var fVorher = '';
           if (fItem.vorher_val !== null && fItem.vorher_val !== undefined && !fItem.extern) {
             var fVFmt = fmtValNum(fItem.vorher_val, fFmt === 's' ? 's' : (fFmt === 'm' ? 'm' : 'min'));
             if (fVFmt) fVorher = '<span style="color:var(--text2);font-size:12px;margin-left:6px">vorher: ' + fVFmt + '</span>';
           }
-          var fDiszLink = '<span class="athlet-link" style="color:var(--text);font-weight:600;cursor:pointer" data-rek-disz="' + fItem.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + ergDiszLabel(fItem) + '</span>';
+          var fDiszLink = '<span class="athlet-link" style="color:var(--text2);font-size:13px;cursor:pointer" data-rek-disz="' + fItem.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + ergDiszLabel(fItem) + '</span>';
           filteredTimeline +=
             '<div class="timeline-item">' +
               '<div class="timeline-date">' + formatDate(fItem.datum) + '</div>' +
               '<div class="timeline-body">' +
-                '<div class="timeline-disz">' + fDiszLink + '</div>' +
-                '<div class="timeline-athlet">' + fAthLink + '</div>' +
+                '<div class="timeline-athlet-disz">' + fAthLink + '<span style="color:var(--text2);margin:0 4px">&middot;</span>' + fDiszLink + '</div>' +
                 '<div class="timeline-result">' + fRes + fVorher + '</div>' +
                 (fBadgesHtml ? '<div class="timeline-badges">' + fBadgesHtml + '</div>' : '') +
               '</div>' +
@@ -7695,12 +7698,14 @@ async function renderVeranstaltungen() {
       if (!byDisz[_dk]) { byDisz[_dk] = []; diszOrder.push(_dk); }
       byDisz[_dk].push(e);
     }
+    var _hasMstr = v.ergebnisse.some(function(e3){ return !!e3.meisterschaft; });
+    var _colspan = _hasMstr ? '7' : '5';
     sortDisziplinen(diszOrder);
     for (var di = 0; di < diszOrder.length; di++) {
       var _dKey = diszOrder[di];
       var disz = byDisz[_dKey][0] ? ergDiszLabel(byDisz[_dKey][0]) : _dKey;
       var ergs = byDisz[_dKey];
-      rows += '<tr class="disz-header-row"><td colspan="7" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszMitKat(disz) + '</td></tr>';
+      rows += '<tr class="disz-header-row"><td colspan="' + _colspan + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszMitKat(disz) + '</td></tr>';
       for (var ei2 = 0; ei2 < ergs.length; ei2++) {
         var e2 = ergs[ei2];
         var fmt = e2.fmt || '';
@@ -7714,8 +7719,8 @@ async function renderVeranstaltungen() {
             '<td class="result">' + res + '</td>' +
             '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +
             '<td>' + platzBadge(e2.ak_platzierung) + '</td>' +
-            '<td>' + mstrBadge(e2.meisterschaft) + '</td>' +
-            '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? platzBadge(e2.ak_platz_meisterschaft) : '') + '</td>' +
+            (_hasMstr ? '<td>' + mstrBadge(e2.meisterschaft) + '</td>' : '') +
+            (_hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? platzBadge(e2.ak_platz_meisterschaft) : '') + '</td>' : '') +
           '</tr>';
       }
     }
@@ -7734,7 +7739,7 @@ async function renderVeranstaltungen() {
               '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&#x2715;</button>' : '') +
           '</div>' +
         '</div>' +
-        (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz"><col class="vcol-ms"><col class="vcol-ms-platz"></colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th><th>Meisterschaft</th><th>Pl. MS</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
+        (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' + (_hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') + '</colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th>' + (_hasMstr ? '<th>Meisterschaft</th><th>Pl. MS</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' :
                 '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
       '</div>';
   }
