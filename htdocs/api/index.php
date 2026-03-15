@@ -2406,10 +2406,12 @@ if ($res === 'rr-fetch' && $method === 'GET') {
     if (preg_match('/<title[^>]*>([^<]+)<\/title>/i', $html, $m)) {
         $title = trim($m[1]);
     }
-    // Datum DD.MM.YYYY aus Titel extrahieren
+    // Datum aus Titel extrahieren: DD.MM.YYYY oder YYYY-MM-DD (auch Bereich YYYY-MM-DD/YYYY-MM-DD)
     $date = '';
     if (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $title, $dm)) {
         $date = $dm[3] . '-' . $dm[2] . '-' . $dm[1]; // → YYYY-MM-DD
+    } elseif (preg_match('/(\d{4})-(\d{2})-(\d{2})/', $title, $dm)) {
+        $date = $dm[1] . '-' . $dm[2] . '-' . $dm[3]; // erstes ISO-Datum
     }
     // Ort: verschiedene Quellen versuchen
     $location = '';
