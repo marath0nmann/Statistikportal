@@ -1,4 +1,6 @@
-v514: Fix Kategorie-Dropdown in Neue-Disziplin-Modal
+v516: RaceResult: Ziel→iZeit + AKPlp→iAKPlatz direkt erkannt
 
-showNeueDiszModal: Kategorien per apiGet('kategorien') laden statt aus
-state.disziplinen (das hat keine kategorie_id, nur tbl_key).
+- DataField "Ziel" (= Zielzeit) als iZeit erkannt (war nur gun/brutto)
+- DataField "AKPlp" als iAKPlatz erkannt — war nur innerhalb MitStatus-Wrapper
+  erkannt, nicht als eigenständiges Feld
+- Beide Fixes in beiden Kalibrierungsblöcken
