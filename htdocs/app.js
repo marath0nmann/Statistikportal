@@ -3592,7 +3592,7 @@ function renderEintragen() {
             return opts;
           })() + '</select></div>' +
             '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;padding-bottom:2px">' +
-              '<input type="checkbox" id="bk-mstr-toggle" onchange="importToggleMstr('bk',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
+              '<input type="checkbox" id="bk-mstr-toggle" onchange="importToggleMstr(\'bk\',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
               'Meisterschaft' +
             '</label>' +
           '</div>' +
@@ -5017,7 +5017,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
         '<input id="rr-ort" type="text" value="' + (eventOrt||'') + '" placeholder="z.B. D\u00fcsseldorf" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:min(150px,100%)"/></div>' +
       '<span style="font-size:12px;color:var(--text2);align-self:center">&#x2705; ' + results.length + ' TuS-Oedt-Ergebnis(se) &bull; Event ' + eventId + '</span>' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;align-self:center">' +
-        '<input type="checkbox" id="rr-mstr-toggle" onchange="importToggleMstr('rr',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
+        '<input type="checkbox" id="rr-mstr-toggle" onchange="importToggleMstr(\'rr\',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
         'Meisterschaft' +
       '</label>' +
     '</div>' +
@@ -7548,7 +7548,7 @@ async function mikaFetch() {
       '<div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Datum</label><input id="mika-datum" value="' + (eventDate ? (function(d){var p=d.match(/(\d{4})-(\d{2})-(\d{2})/);return p?p[3]+'.'+p[2]+'.'+p[1]:'';})(eventDate) : '') + '" placeholder="TT.MM.JJJJ" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
       '<div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Ort</label><input id="mika-ort" value="' + (eventOrt||'') + '" placeholder="Ort" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:140px"/></div>' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;align-self:flex-end;padding-bottom:8px">' +
-        '<input type="checkbox" id="mika-mstr-toggle" onchange="importToggleMstr('mika',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
+        '<input type="checkbox" id="mika-mstr-toggle" onchange="importToggleMstr(\'mika\',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
         'Meisterschaft' +
       '</label>' +
     '</div>' +
