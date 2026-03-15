@@ -4361,7 +4361,7 @@ async function rrFetch() {
     var listSource = cfg.list || cfg.lists || {};
     var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','OVERALL','EINZEL','FINAL'];
     // Listen die keine Einzelergebnisse enthalten und übersprungen werden sollen
-    var _listBlacklist = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','RANKING','OVERALL RANKING','WERTUNG','SPECIAL','LIVE','TOP10','TOP 10','TOP5','TOP 5','LEADERBOARD','SCHNELLSTE','FASTEST','SIEGER','WINNER','PARTICIPANTS','STATISTIC'];
+    var _listBlacklist = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','OVERALL RANKING','OVERALL-RANKING','WERTUNG','SPECIAL','LIVE','TOP10','TOP 10','TOP5','TOP 5','LEADERBOARD','SCHNELLSTE','FASTEST','SIEGER','WINNER','PARTICIPANTS','STATISTIC','TEILNEHMER','ALPHABET'];
     function _listIsBlacklisted(entry) {
       var ename = (entry.Name || entry.name || entry.listname || '').toUpperCase();
       var showAs = (entry.ShowAs || entry.showAs || '').toUpperCase();
@@ -4693,6 +4693,7 @@ async function rrFetch() {
       var vereinRaw2 = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
       var _noResText = [
         'Keine TuS-Oedt-Ergebnisse gefunden.',
+        'URL: https://my.raceresult.com/' + eventId + '/',
         contestIds.length + ' Contest(s) | Listname: ' + listName,
         'Gesamt-Zeilen: ' + _rrDebug.totalRows,
         'DataFields: ' + (_rrDebug.dataFields.join(', ') || '(keine)'),
