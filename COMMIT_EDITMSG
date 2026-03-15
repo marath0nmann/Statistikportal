@@ -1,1 +1,4 @@
-v443: Fix AK-Splitting im rrImport-Handler (nicht nur in Preview)
+v444: Fix AK-Platz: MitStatus([AKPlp]) vs [MWPlp] unterscheiden
+
+[AKPlp] → iAKPlatz (wird als akPlatzFromRow gespeichert)
+[MWPlp]/[PLp] → iPlatz (Gesamt-Platz, unverändert)
