@@ -1,7 +1,7 @@
-v486: Meisterschaft überall + "Alle setzen"-Bar
+v487: Meisterschaft-Checkbox + Platz-MS-Vorausfüllung + "Name erforderlich" Fix
 
-RaceResult (neu): "Alle setzen"-Bar über Tabelle
-MikaTiming (neu): "Alle setzen"-Bar + Meisterschaft+Platz MS war schon da
-Bulk (neu): Meisterschaft + Platz MS Spalten + "Alle setzen"-Bar
-
-Gemeinsame Funktionen: importSetAllMstr(prefix), importMstrAllBar(prefix)
+- RaceResult/MikaTiming/Bulk: Checkbox "Meisterschaft?" bei Veranstaltungsfeldern
+  → Spalten + "Alle setzen"-Bar erst sichtbar wenn angehakt
+- Platz MS aus AK-Platz vorausgefüllt (RR + MikaTiming)
+- Fix "Name erforderlich": name_nv + geburtsjahr im athleten-POST
+- importToggleMstr/importSetAllMstr auf neue CSS-Klassen-Struktur
