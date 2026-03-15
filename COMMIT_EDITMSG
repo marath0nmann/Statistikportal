@@ -1,5 +1,5 @@
-v440: Köln Marathon: mehrsprachige Namen, AK+Platz aufsplitten
+v441: Fix Marathon vs Halbmarathon + AK-Platz aus Daten
 
-- rrBestDisz: "{DE:Generali Köln Marathon|EN:...}" → "Generali Köln Marathon" → Marathon
-- AK-Feld "74. M35" → AK=M35, Platz=74 (in allResults, Preview + Import)
-- Geschlecht aus "{de:Männlich|en:Male}" Gruppen-Key erkannt
+- rrBestDisz: "Köln Marathon" → Marathon (nicht mehr Halbmarathon)
+  Halb/Voll-Mismatch gibt -5, Match +10
+- akPlatzFromRow in rrImport genutzt (74, 13, 33 direkt aus Daten)
