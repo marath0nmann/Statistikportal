@@ -3836,17 +3836,30 @@ async function rrFetch() {
     }
     var eventOrtCfg = cfg.City || cfg.city || cfg.Location || cfg.location || cfg.Place || cfg.place || cfg.Venue || cfg.venue || cfg.Ort || cfg.ort || '';
 
-    // Zusätzlicher Event-Info-Endpoint für Datum
+    // Datum aus cfg.infotext extrahieren (enthält manchmal HTML mit Datum)
     if (!_cfgDateRaw) {
-      try {
-        var _evResp = await fetch('https://my.raceresult.com/' + eventId + '/RRPublish/data/event?lang=de', { headers: hdrs });
-        if (_evResp.ok) {
-          var _evData = JSON.parse(await _evResp.text());
-          _rrDebug.eventEndpoint = JSON.stringify(_evData).slice(0, 300);
-          var _evDate = _evData.Date || _evData.EventDate || _evData.date || _evData.StartDate || _evData.start_date || '';
-          if (_evDate && !_cfgDateRaw) _cfgDateRaw = String(_evDate);
-        }
-      } catch(e) { _rrDebug.eventEndpointErr = String(e); }
+      var _infoRaw = String(cfg.infotext || cfg.InfoText || '');
+      // DD.MM.YYYY oder YYYY-MM-DD im Infotext suchen
+      var _infoDateM = _infoRaw.match(/(\d{2})\.(\d{2})\.(\d{4})/) || _infoRaw.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (_infoDateM) _cfgDateRaw = _infoDateM[0];
+      _rrDebug.infotext = _infoRaw.replace(/<[^>]+>/g,'').slice(0, 200);
+    }
+    // Datum aus ListSelector / lists-Keys extrahieren
+    if (!_cfgDateRaw) {
+      var _lsRaw = String(cfg.ListSelector || '');
+      var _lsDateM = _lsRaw.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+      if (_lsDateM) _cfgDateRaw = _lsDateM[0];
+    }
+    // Datum aus cfg (alle Keys) nach DD.MM.YYYY suchen
+    if (!_cfgDateRaw) {
+      var _cfgStr = JSON.stringify(cfg);
+      var _anyDateM = _cfgStr.match(/"(\d{2})\.(\d{2})\.(\d{4})"/);
+      if (_anyDateM) _cfgDateRaw = _anyDateM[1] + '.' + _anyDateM[2] + '.' + _anyDateM[3];
+      if (!_cfgDateRaw) {
+        var _anyIsoM = _cfgStr.match(/"(\d{4}-\d{2}-\d{2})"/);
+        if (_anyIsoM) _cfgDateRaw = _anyIsoM[1];
+      }
+      _rrDebug.cfgStrDateSearch = _cfgStr.slice(0, 500);
     }
     // Komma und Land abschneiden: "Wachtendonk, Deutschland" → "Wachtendonk"
     if (eventOrtCfg) eventOrtCfg = eventOrtCfg.split(',')[0].trim();
