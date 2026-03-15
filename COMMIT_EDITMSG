@@ -1,8 +1,5 @@
-v517: RaceResult: Contest-spezifische Listen-Zuordnung
+v518: Fix _contestListMap: wird jetzt tatsächlich befüllt
 
-Manche Events haben verschiedene Listen für verschiedene Contests
-(z.B. Martins-Crosslauf: "1-8" für Contests 1-8, "9-12" für Contests 9-12).
-
-- _contestListMap: Map von contestId → listName aus cfg.lists[].Contest
-- Haupt-Fetch und All-Rows-Fetch nutzen _contestListMap[cid] || listName
-- Jeder Contest bekommt jetzt die richtig zugeordnete Liste
+v517 hatte die Map-Befüllung nicht eingefügt (assert fehlgeschlagen).
+Jetzt korrekt: nach Array-of-Objects Selektion wird _contestListMap
+mit contestId→listName aus cfg.lists[].Contest befüllt.
