@@ -3817,7 +3817,7 @@ async function rrFetch() {
     _rrDebug.cfgRaw = JSON.stringify(cfg).slice(0, 800);
     var apiKey     = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
     var eventName  = cfg.EventName || cfg.Name || cfg.eventname || '';
-    var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.eventDatum || cfg.StartDate || cfg.start_date || cfg.datestring || cfg.Datestring || cfg.Time || '';
+    var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.eventDatum || cfg.StartDate || cfg.start_date || cfg.datestring || cfg.Datestring || '';
     var eventDate = '';
     if (_cfgDateRaw) {
       var _ds = String(_cfgDateRaw).trim();
@@ -3835,6 +3835,19 @@ async function rrFetch() {
       }
     }
     var eventOrtCfg = cfg.City || cfg.city || cfg.Location || cfg.location || cfg.Place || cfg.place || cfg.Venue || cfg.venue || cfg.Ort || cfg.ort || '';
+
+    // Zusätzlicher Event-Info-Endpoint für Datum
+    if (!_cfgDateRaw) {
+      try {
+        var _evResp = await fetch('https://my.raceresult.com/' + eventId + '/RRPublish/data/event?lang=de', { headers: hdrs });
+        if (_evResp.ok) {
+          var _evData = JSON.parse(await _evResp.text());
+          _rrDebug.eventEndpoint = JSON.stringify(_evData).slice(0, 300);
+          var _evDate = _evData.Date || _evData.EventDate || _evData.date || _evData.StartDate || _evData.start_date || '';
+          if (_evDate && !_cfgDateRaw) _cfgDateRaw = String(_evDate);
+        }
+      } catch(e) { _rrDebug.eventEndpointErr = String(e); }
+    }
     // Komma und Land abschneiden: "Wachtendonk, Deutschland" → "Wachtendonk"
     if (eventOrtCfg) eventOrtCfg = eventOrtCfg.split(',')[0].trim();
     var contestObj = cfg.contests || cfg.Contests || {};
@@ -3909,7 +3922,9 @@ async function rrFetch() {
     _rrDebug.cfgKey = apiKey;
     _rrDebug.cfgDateRaw = _cfgDateRaw;
     _rrDebug.cfgAllKeys = JSON.stringify(Object.keys(cfg)).slice(0, 300);
-    _rrDebug.cfgTime = cfg.Time !== undefined ? String(cfg.Time) : '–';
+    var _cfgTimeSec = cfg.Time !== undefined ? parseInt(cfg.Time) : null;
+    _rrDebug.cfgTime = _cfgTimeSec !== null ? (String(cfg.Time) + ' (' + Math.floor(_cfgTimeSec/3600) + 'h' + String(Math.floor((_cfgTimeSec%3600)/60)).padStart(2,'0') + 'min Startzeit)') : '–';
+    if (_rrDebug.eventEndpoint) _rrDebug.cfgDateRaw += ' | eventEndpoint: ' + _rrDebug.eventEndpoint;
     _rrDebug.eventDate = eventDate;
     _rrDebug.cfgEventName = cfg.eventname || '';
     _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
