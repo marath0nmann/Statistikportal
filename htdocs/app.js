@@ -1093,7 +1093,7 @@ async function doLogout() {
   showApp();
 }
 
-function showApp() {
+async function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   // app-screen ist immer sichtbar (kein display toggle nötig)
   // Anon-Login-Button aufräumen falls vorhanden
@@ -1128,9 +1128,9 @@ function showApp() {
   applyVersionVisibility();
   buildNav();
   buildFooter();
+  await loadDisziplinen();
+  if (currentUser) loadAthleten();  // parallel, nicht abwarten nötig
   navigate(currentUser ? 'dashboard' : 'dashboard');
-  loadDisziplinen();
-  if (currentUser) loadAthleten();
 }
 
 function showUserMenu() {
@@ -4798,7 +4798,15 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   _dbgLines.push('diszList ('+diszList.length+'): ' + diszList.slice(0,20).join(', ') + (diszList.length>20?' …':''));
   if (_dbgFirst) {
     var _cname = _dbgFirst.contestName || '';
-    var _cnResolved = _cname; if (!_cnResolved || _cnResolved.match(/^Contest \d+$/i)) _cnResolved = _dbgFirst.groupKey || _cnResolved;
+    var _cnResolved = _cname;
+    if (!_cnResolved || _cnResolved.match(/^Contest \d+$/i)) {
+      // Gleiche Logik wie Render-Loop: groupKey splitten
+      var _gkP = (_dbgFirst.groupKey || '').split('/');
+      var _gkN = (_gkP[0] || '').replace(/^#\d+_/, '');
+      if (_gkN && !_gkN.match(/^(M[aä]nner|Frauen|Weiblich|M[aä]nnlich|Male|Female|mixed)$/i))
+        _cnResolved = _gkN;
+      else if (_gkP.length > 1) _cnResolved = _gkP[1].replace(/^#\d+_/, '');
+    }
     _dbgLines.push('contestName[0]: "' + _cname + '" groupKey: "' + (_dbgFirst.groupKey||'') + '" → rrBestDisz: "' + rrBestDisz(_cnResolved, diszList) + '"');
     // Alle einzigartigen contestNames
     var _cnames = {}; results.forEach(function(r){ if(r.contestName) _cnames[r.contestName]=1; });
