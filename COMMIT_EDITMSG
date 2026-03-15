@@ -1,5 +1,5 @@
-v526: Fix Duplikat-Check: gelöschte Einträge nicht als Duplikat werten
+v527: Fix iZeit/iNetto=-1: r=all Neukalibrierung immer ausführen
 
-WHERE geloescht_am IS NULL in allen 4 bulk-Import-Duplikat-Checks.
-Gelöschte Einträge wurden fälschlicherweise als Duplikat erkannt
-und neue Importe übersprungen.
+Zweiter r=all-Block kalibrierte nur wenn df.length===0 (leer) —
+aber für Contest 11 war df bereits von Contest 1 gesetzt.
+Fix: Neukalibrierung immer wenn r=all neue DataFields bringt.

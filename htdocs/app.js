@@ -4605,7 +4605,7 @@ async function rrFetch() {
               payload = JSON.parse(await _respAll.text());
               // DataFields neu kalibrieren wenn jetzt vorhanden
               var _dfAll = payload.DataFields || [];
-              if (_dfAll.length > 0 && df.length === 0) {
+              if (_dfAll.length > 0) {
                 df = _dfAll;
                 _rrDebug.dataFields = _dfAll;
                 // Kalibrierung wiederholen
