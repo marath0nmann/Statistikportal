@@ -1,3 +1,7 @@
-v418: Timeline: Kategorie-Suffix-Einstellung wird berücksichtigt
+v419: RaceResult: LFNAME + AK-Spalte + Disziplin aus Gruppen-Key
 
-dm.id in /disziplinen-Endpunkt → ergDiszLabel findet per-Disziplin-Override.
+- LFNAME-Feld erkannt (Nachname, Vorname → Vorname Nachname)
+- AK direkt aus AGEGROUP1.NAMESHORT wenn vorhanden (M50, W45 etc.)
+- Disziplin aus Gruppen-Key wenn Contest 0 ("Contest 0" → ignorieren,
+  stattdessen "#5_Hauptlauf 10 km" → "10km")
+- Debug-Log aus v416 entfernt
