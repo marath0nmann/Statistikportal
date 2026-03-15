@@ -4090,8 +4090,8 @@ async function rrFetch() {
               var gk = gParts.length > 1 ? gParts[gParts.length-1] : (gParts[0] || '');
               if (iAK < 0 && gParts.length > 1) {
                 var _gkClean = gk.replace(/^#[0-9]+_/, '').trim();
-                if (/männl|male|herren/i.test(_gkClean)) _akFromGroup = 'M';
-                else if (/weibl|female|frauen/i.test(_gkClean)) _akFromGroup = 'W';
+                if (/männl|male|herren|männlich/i.test(_gkClean)) _akFromGroup = 'M';
+                else if (/weibl|female|frauen|weiblich/i.test(_gkClean)) _akFromGroup = 'W';
                 // AK direkt aus Gruppen-Key lesen (z.B. "M35", "W45")
                 var _akMatch = _gkClean.match(/^([MW]\d{2}|[MW]U\d{2}|[MW])$/i);
                 if (_akMatch) _akFromGroup = _akMatch[1].toUpperCase();
@@ -4106,7 +4106,13 @@ async function rrFetch() {
                 allRowsForAK.push({ ak: _ak4, zeit: _zeit4ak, year: _yr4, geschlecht: _gs4 });
               }
               if (clubPhrase && clubVal.toLowerCase().indexOf(clubPhrase) < 0) return;
-              allResults.push({ raw: row, contestName: cname, groupKey: gk, akFromGroup: _akFromGroup,
+              var _akRaw4 = iAK >= 0 ? String(row[iAK]||'').trim() : '';
+              var _akPlatzFromRow = ''; // Platz aus kombiniertem AK-Feld "74. M35"
+              if (_akRaw4 && /^\d+\.?\s*[A-Z]/.test(_akRaw4)) {
+                var _akSplit = _akRaw4.match(/^(\d+)\.?\s*(.+)$/);
+                if (_akSplit) { _akPlatzFromRow = _akSplit[1]; _akRaw4 = _akSplit[2].trim(); }
+              }
+              allResults.push({ raw: row, contestName: cname, groupKey: gk, akFromGroup: _akFromGroup, akPlatzFromRow: _akPlatzFromRow,
                 iYear: iYear, iGeschlecht: iGeschlecht,
                 iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
             });
@@ -4217,6 +4223,10 @@ async function rrFetch() {
 }
 
 function rrBestDisz(rrName, diszList) {
+  // Mehrsprachiges Format auflösen: "{DE:Köln Marathon|EN:Cologne Marathon}" → "Köln Marathon"
+  var _ml = (rrName||'').match(/\{DE:([^|}]+)/i);
+  if (_ml) rrName = _ml[1].trim();
+  else { var _mlen = (rrName||'').match(/\{[A-Z]{2}:([^|}]+)/i); if (_mlen) rrName = _mlen[1].trim(); }
   // Extrahiert Schlüsselbegriffe aus dem RR-Namen und sucht besten Treffer in System-Disziplinen
   var q = rrName.toLowerCase()
     .replace(/^#\d+_/, '')  // "#1_STADTWERKE Halbmarathon" → "stadtwerke halbmarathon"
@@ -4468,6 +4478,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var ak = '';
     if (r.iAK >= 0 && String(raw[r.iAK] || '').trim()) {
       ak = String(raw[r.iAK] || '').trim(); // AK direkt aus Daten (z.B. M50)
+      if (/^\d+\.?\s*[A-Z]/.test(ak)) { var _aksp3 = ak.match(/^(\d+)\.?\s*(.+)$/); if (_aksp3) ak = _aksp3[2].trim(); }
     } else {
       var _jahrgang = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
       var _geschlecht = '';

@@ -1,1 +1,5 @@
-v439: Blacklist: LIVE, TOP10 etc. + lists-Raw vollständig anzeigen
+v440: Köln Marathon: mehrsprachige Namen, AK+Platz aufsplitten
+
+- rrBestDisz: "{DE:Generali Köln Marathon|EN:...}" → "Generali Köln Marathon" → Marathon
+- AK-Feld "74. M35" → AK=M35, Platz=74 (in allResults, Preview + Import)
+- Geschlecht aus "{de:Männlich|en:Male}" Gruppen-Key erkannt
