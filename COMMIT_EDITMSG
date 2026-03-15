@@ -1,7 +1,7 @@
-v480: Fix RaceResult Disziplin-Erkennung: groupKey speichert vollen Pfad
+v482: Fix RaceResult iNetto=iClub-Kollision (Ziel.GUN-Event)
 
-gk war immer der letzte Teil ("#1_Männlich") statt dem vollen Pfad.
-"#1_Halbmarathon/#1_Männlich" → gk = "#1_Männlich" → kein Disziplin-Match.
-
-Fix: gk = vollständiger gkey, gkLast = letzter Teil (für AK/Geschlecht).
-Render-Loop nimmt gkParts[0] = "#1_Halbmarathon" → "Halbmarathon" ✓
+Default iNetto=7 kollidierte mit iClub=7 wenn kein Chip/Netto-Feld.
+Fix:
+- iNetto und iZeit Default auf -1 (beide Blöcke)
+- Fallback: iNetto = iZeit wenn kein Netto-Feld erkannt
+- Sicherheits-Check: iNetto !== iClub
