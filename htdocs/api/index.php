@@ -2024,10 +2024,10 @@ if ($res === 'rr-fetch' && $method === 'GET') {
         $location = trim($lm[1]);
     }
     // 2. og:location oder data-city
-    if (!$location && preg_match('/<meta[^>]+property=["']og:location["'][^>]+content=["']([^"']+)["']/', $html, $lm)) {
+    if (!$location && preg_match('/<meta[^>]+property=["\']+og:location["\']+[^>]+content=["\']+([^"\']+)["\']+/', $html, $lm)) {
         $location = trim($lm[1]);
     }
-    if (!$location && preg_match('/data-(?:city|location|ort)=["']([^"']+)["']/', $html, $lm)) {
+    if (!$location && preg_match('/data-(?:city|location|ort)=["\']+([^"\']+)["\']+/', $html, $lm)) {
         $location = trim($lm[1]);
     }
     // 3. HTML-Snippet für Debug

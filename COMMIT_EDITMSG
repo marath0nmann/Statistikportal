@@ -1,5 +1,1 @@
-v431: Ort per PHP-Proxy aus HTML extrahieren
-
-- JSON-LD location.name, addressLocality, og:location, data-city
-- HTML-Snippet im Debug wenn Ort nicht erkannt
-- _rrProxyLocation hat Vorrang vor cfg-Ort und Event-Name-Fallback
+v432: Fix PHP-Syntaxfehler in rr-fetch (gemischte Quotes in Regex)
