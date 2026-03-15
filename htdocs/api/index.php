@@ -1121,7 +1121,11 @@ if (in_array($res, $ergebnisTabellen)) {
             // Einheitliche Tabelle: pace + distanz immer vorhanden, ak_platz_meisterschaft nicht
             $extraCols = "e.pace, e.distanz, NULL AS ak_platz_meisterschaft,";
         } else {
-            $extraCols = ($res==='strasse' ? "e.pace, e.distanz, e.ak_platz_meisterschaft," : "");
+            // ak_platz_meisterschaft in allen Tabellen die es haben (ab v493 überall vorhanden)
+            $hasPace  = in_array($res, ['strasse']);
+            $hasAkPM  = in_array($res, ['strasse', 'sprint', 'mittelstrecke', 'sprungwurf']);
+            $extraCols = ($hasPace  ? "e.pace, e.distanz, " : "") .
+                         ($hasAkPM  ? "e.ak_platz_meisterschaft," : "NULL AS ak_platz_meisterschaft,");
         }
 
         $sql = "SELECT e.id, a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse,
@@ -1320,6 +1324,7 @@ if (in_array($res, $ergebnisTabellen)) {
         // pace wird nicht mehr aktualisiert
         if (isset($body['ak_platzierung'])){ $felder[] = 'ak_platzierung=?';$params[] = intOrNull($body['ak_platzierung']); }
         if (isset($body['meisterschaft'])) { $felder[] = 'meisterschaft=?'; $params[] = intOrNull($body['meisterschaft']); }
+        if (array_key_exists('ak_platz_meisterschaft', $body)) { $felder[] = 'ak_platz_meisterschaft=?'; $params[] = intOrNull($body['ak_platz_meisterschaft']); }
         if (!$felder) jsonErr('Keine Felder zum Aktualisieren.');
         $params[] = $id;
         DB::query("UPDATE $tbl SET " . implode(',', $felder) . " WHERE id=?", $params);
@@ -2412,7 +2417,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     foreach ($veranst as &$v) {
         $v['ergebnisse'] = DB::fetchAll(
             "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
-                    e.resultat, e.pace, e.meisterschaft, e.ak_platzierung,
+                    e.resultat, e.pace, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
                     COALESCE(m.fmt_override, k.fmt) AS fmt
              FROM $eTbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id

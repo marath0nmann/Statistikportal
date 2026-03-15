@@ -2320,7 +2320,8 @@ async function loadErgebnisseData() {
           editBtn.dataset.editFmt,
           editBtn.dataset.editAthletId,
           editBtn.dataset.editAthletName,
-          editBtn.dataset.editMappingId
+          editBtn.dataset.editMappingId,
+          editBtn.dataset.editMstrPlatz
         );
       }
       if (delBtn) deleteErgebnis(delBtn.dataset.delTab, delBtn.dataset.delId);
@@ -2334,7 +2335,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
   var hasPace = (subTab === 'strasse' || subTab === 'mittelstrecke' || subTab === 'sprint');
   if (hasPace) headers.push('Pace /km');
   headers.push('Platz AK');
-  if (subTab !== 'mittelstrecke') headers.push('Meisterschaft');
+  if (subTab !== 'mittelstrecke') { headers.push('Meisterschaft'); headers.push('Platz MS'); }
   headers.push('Veranstaltung','Eingetragen');
   if (canEdit) headers.push('');
 
@@ -2367,13 +2368,16 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
     var paceVal = diszKm(rr.disziplin) >= 1 ? calcPace(rr.disziplin, rr.resultat) : '';
     if (hasPace) cells += '<td class="ort-text">' + (paceVal ? fmtTime(paceVal, 'min/km') : '') + '</td>';
     cells += '<td>' + platzBadge(rr.ak_platzierung) + '</td>';
-    if (subTab !== 'mittelstrecke') cells += '<td>' + (rr.meisterschaft ? mstrBadge(rr.meisterschaft) : '') + '</td>';
+    if (subTab !== 'mittelstrecke') {
+      cells += '<td>' + (rr.meisterschaft ? mstrBadge(rr.meisterschaft) : '') + '</td>';
+      cells += '<td class="ort-text" style="font-size:12px">' + (rr.meisterschaft && rr.ak_platz_meisterschaft ? platzBadge(rr.ak_platz_meisterschaft) : '') + '</td>';
+    }
     cells += '<td class="ort-text">' + ort + '</td>';
     cells += '<td class="ort-text">' + (rr.eingetragen_von || 'Excel-Import') + '</td>';
     if (canEdit) {
       cells +=
         '<td style="white-space:nowrap">' +
-          '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-edit-id="' + rr.id + '" data-edit-tab="' + subTab + '" data-edit-disz="' + (rr.disziplin||'') + '" data-edit-mapping-id="' + (rr.disziplin_mapping_id||'') + '" data-edit-res="' + (rr.resultat||'') + '" data-edit-ak="' + (rr.altersklasse||'') + '" data-edit-akp="' + (rr.ak_platzierung||'') + '" data-edit-mstr="' + (rr.meisterschaft||'') + '" data-edit-fmt="' + (rr.fmt||'') + '" data-edit-athlet-id="' + (rr.athlet_id||'') + '" data-edit-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '">&#x270E;</button>' +
+          '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-edit-id="' + rr.id + '" data-edit-tab="' + subTab + '" data-edit-disz="' + (rr.disziplin||'') + '" data-edit-mapping-id="' + (rr.disziplin_mapping_id||'') + '" data-edit-res="' + (rr.resultat||'') + '" data-edit-ak="' + (rr.altersklasse||'') + '" data-edit-akp="' + (rr.ak_platzierung||'') + '" data-edit-mstr="' + (rr.meisterschaft||'') + '" data-edit-mstr-platz="' + (rr.ak_platz_meisterschaft||'') + '" data-edit-fmt="' + (rr.fmt||'') + '" data-edit-athlet-id="' + (rr.athlet_id||'') + '" data-edit-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '">&#x270E;</button>' +
           '<button class="btn btn-danger btn-sm" data-del-id="' + rr.id + '" data-del-tab="' + subTab + '">&#x2715;</button>' +
         '</td>';
     }
@@ -2411,7 +2415,7 @@ function _editAthletPick(id, name) {
   if (box) box.innerHTML = '';
 }
 
-async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, athletName, mappingId) {
+async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, athletName, mappingId, mstrPlatz) {
   mstr = parseInt(mstr, 10) || '';
   // Kategorie-Optionen aufbauen
   var katSeen = {}, katOpts = '<option value="">Alle Kategorien</option>';
@@ -2483,6 +2487,7 @@ async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athle
       '<div class="form-group"><label>Altersklasse</label><input type="text" id="edit-ak" value="' + (ak||'') + '" placeholder="z.B. M40"/></div>' +
       '<div class="form-group"><label>Platz AK</label><input type="number" id="edit-akp" value="' + (akp||'') + '" min="1"/></div>' +
       '<div class="form-group"><label>Meisterschaft</label><select id="edit-mstr">' + mstrOptions(mstr) + '</select></div>' +
+      '<div class="form-group"><label>Platz MS</label><input type="number" id="edit-mstr-platz" value="' + (mstrPlatz||'') + '" min="1" placeholder="–"/></div>' +
     '</div>' +
     '<div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -2507,12 +2512,14 @@ async function saveEditErgebnis(id, subTab) {
   var ak   = ((document.getElementById('edit-ak') || {}).value || '').trim();
   var akp  = ((document.getElementById('edit-akp') || {}).value || '').trim();
   var mstr = ((document.getElementById('edit-mstr') || {}).value || '').trim();
+  var mstrPlatz = ((document.getElementById('edit-mstr-platz') || {}).value || '').trim();
   if (!disz || !res) { notify('Disziplin und Ergebnis sind Pflicht!', 'err'); return; }
   var newAthletId = ((document.getElementById('edit-athlet-id') || {}).value || '').trim();
   var body = { disziplin: disz, resultat: res, altersklasse: ak, pace: calcPace(disz, res) };
   if (editMappingId) body.disziplin_mapping_id = editMappingId;
   if (akp)  body.ak_platzierung = parseInt(akp);
   if (mstr) body.meisterschaft = parseInt(mstr);
+  body.ak_platz_meisterschaft = mstrPlatz ? parseInt(mstrPlatz) : null;
   if (newAthletId) body.athlet_id = parseInt(newAthletId);
   var r = await apiPut(subTab + '/' + id, body);
   if (r && r.ok) {
@@ -7694,6 +7701,7 @@ async function renderVeranstaltungen() {
             '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +
             '<td>' + platzBadge(e2.ak_platzierung) + '</td>' +
             '<td>' + mstrBadge(e2.meisterschaft) + '</td>' +
+            '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? platzBadge(e2.ak_platz_meisterschaft) : '') + '</td>' +
           '</tr>';
       }
     }
@@ -7712,7 +7720,7 @@ async function renderVeranstaltungen() {
               '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&#x2715;</button>' : '') +
           '</div>' +
         '</div>' +
-        (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz"><col class="vcol-ms"></colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Platz AK</th><th>Meisterschaft</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
+        (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz"><col class="vcol-ms"><col style="width:70px"></colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Platz AK</th><th>Meisterschaft</th><th>Platz MS</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
                 '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
       '</div>';
   }
