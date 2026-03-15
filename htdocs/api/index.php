@@ -2033,7 +2033,22 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     // URL-Parameter event= lesen falls angegeben
     $eventId = $_GET['event_id'] ?? '';
 
-    // 2. Suche mit fpid=search (liefert vollständiges HTML inkl. Links mit idp)
+    // Event-ID aus übergebener URL oder aus Hauptseite extrahieren
+    $inputUrl = $_GET['base_url'] ?? '';
+    if (!$eventId && $inputUrl) {
+        parse_str(parse_url($inputUrl, PHP_URL_QUERY) ?: '', $uParams);
+        $eventId = $uParams['event'] ?? $uParams['search_event'] ?? '';
+    }
+    // Aus Hauptseite: ersten verfügbaren Event-ID aus Search-Form extrahieren
+    if (!$eventId && $mainHtml) {
+        // <option value="M_2EF3BRLP2"> oder search_event=M_2EF3BRLP2
+        if (preg_match('/search_event=([A-Z0-9_]+)/i', $mainHtml, $em)) $eventId = $em[1];
+        elseif (preg_match('/[?&]event=([A-Z][A-Z0-9_]{3,})/i', $mainHtml, $em)) $eventId = $em[1];
+        elseif (preg_match('/<option[^>]+value="([A-Z][A-Z0-9_]{3,})"/', $mainHtml, $em)) $eventId = $em[1];
+    }
+    $debug['eventId'] = $eventId;
+
+    // 2. Suche mit fpid=search + event= (nötig für korrekte idp-Links)
     $searchUrl = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
         . '&search%5Bclub%5D=' . urlencode($club)
         . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
@@ -2044,9 +2059,13 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 
     // Ergebniszeilen: li mit event-Klasse + idp-Link
     $results = [];
-    preg_match_all('/<li[^>]+class="([^"]*list-group-item[^"]*)"[^>]*>(.*?)<\/li>/si', $searchHtml, $liMs, PREG_SET_ORDER);
+    // li-Elemente mit event-Klasse suchen (Klasse kann überall stehen, mit Leerzeichen beginnen)
+    preg_match_all('/<li([^>]+)>(.*?)<\/li>/si', $searchHtml, $liMs, PREG_SET_ORDER);
     foreach ($liMs as $liM) {
-        $liClass = $liM[1]; $liBody = $liM[2];
+        $liAttrs = $liM[1]; $liBody = $liM[2];
+        // Klassen aus dem li-Tag extrahieren
+        $liClass = '';
+        if (preg_match('/\bclass="([^"]+)"/i', $liAttrs, $cm)) $liClass = $cm[1];
         if (strpos($liClass, 'list-group-header') !== false) continue;
 
         // Event-ID aus Klasse: event-M_2EF3BRLP2
@@ -2054,9 +2073,9 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         if (preg_match('/\bevent-([A-Z0-9_]+)\b/i', $liClass, $em)) $evId = $em[1];
         if (!$evId) continue;
 
-        // Teilnehmer-IDP aus Link: ?idp=2EF3BRLP3444
+        // Teilnehmer-IDP aus Link: idp=2EF3BRLP3444 (nicht "start" oder kurze Strings)
         $idp = '';
-        if (preg_match('/[?&]idp=([A-Z0-9]+)/i', $liBody, $im)) $idp = $im[1];
+        if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $liBody, $im)) $idp = $im[1];
         if (!$idp) continue;
 
         // Name aus type-fullname

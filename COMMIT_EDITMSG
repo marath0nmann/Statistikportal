@@ -1,6 +1,5 @@
-v451: MikaTiming: fpid=search + content=detail für vollständige Daten
+v452: Fix MikaTiming: li-Regex + event= aus Hauptseite
 
-- Such-URL: ?pid=search&fpid=search → liefert idp-Links mit Teilnehmer-ID
-- Detail-URL: ?content=detail&idp=2EF3BRLP3444 → f-time_finish_netto, f-place_age
-- cURL mit Session-Cookie für alle Requests
-- Selektoren: f-time_finish_netto, f-_type_age_class, f-place_age
+- li class=" list-active event-M_2EF3BRLP2..." (führendes Leerzeichen) → Regex fix
+- idp nur wenn >= 8 Zeichen (filtert "start" heraus)
+- event= aus Hauptseite wenn nicht in URL → idp-Links werden korrekt gesetzt
