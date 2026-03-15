@@ -1,3 +1,7 @@
-v471: Fix Pace-Berechnung in Bestleistungen-Tabelle
+v472: Bulk-Eintragen: Smart-Paste
 
-r.disz war undefined in buildRekTable — Disziplin jetzt aus rs.disz (State) via _disz.
+- Textarea "Ergebnisse einlesen" mit "Einlesen"-Button
+- Parser erkennt: Veranstaltung+Ort, AK, Datum (TT.MM.JJ), Disziplin, Name+Zeit+Platz
+- Athlet-Matching: normalisiert (SS/ß, Umlaute, Vor-/Nachname vertauscht)
+- Disziplin-Matching gegen DB-Liste
+- Datum-Spalte pro Zeile für unterschiedliche Wettkampftage

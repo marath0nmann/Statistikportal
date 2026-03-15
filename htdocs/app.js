@@ -3530,6 +3530,16 @@ function renderEintragen() {
             '<option value="">&#x2013; laden&hellip;</option>' +
           '</select>' +
         '</div>' +
+        '<div style="margin-bottom:14px">' +
+          '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen (Smart-Paste)</label>' +
+          '<textarea id="bk-paste-area" rows="6" placeholder="Ergebnisse per Copy &amp; Paste einf&uuml;gen, z.B.:
+Europa-Meisterschaften; Madeira
+W65
+11.10.25
+400 m
+Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="bulkParsePaste()">&#x1F4CB; Einlesen</button>' +
+        '</div>' +
         '<div style="overflow-x:auto">' +
           '<table style="width:100%;border-collapse:collapse;font-size:13px" id="bulk-table">' +
             '<thead><tr style="background:var(--surf2);color:var(--text2)">' +
@@ -3539,6 +3549,7 @@ function renderEintragen() {
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Ergebnis *</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">AK</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Platz AK</th>' +
+              '<th style="padding:8px 6px;text-align:left;font-weight:600">Datum</th>' +
               '<th style="padding:8px 6px;width:36px"></th>' +
             '</tr></thead>' +
             '<tbody id="bulk-rows"></tbody>' +
@@ -3757,6 +3768,7 @@ function bulkRowHtml(idx) {
     '<td style="padding:4px 6px"><input class="bk-res" type="text" placeholder="00:45:00" style="' + fld + '"/></td>' +
     '<td style="padding:4px 6px"><select class="bk-ak" id="bk-ak-' + idx + '" style="' + fld + '">' + bkAkOpts('') + '</select></td>' +
     '<td style="padding:4px 6px"><input class="bk-platz" type="number" placeholder="1" min="1" style="' + fld + '"/></td>' +
+    '<td style="padding:4px 6px"><input class="bk-zeilendatum" type="date" style="' + fld + ';min-width:130px" title="Datum dieser Zeile (überschreibt globales Datum)"/></td>' +
     '<td style="padding:4px 6px;text-align:center"><button onclick="bulkRemoveRow(' + idx + ')" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;padding:2px 4px" title="Zeile entfernen">&#x2715;</button></td>' +
   '</tr>';
 }
@@ -3819,7 +3831,8 @@ async function bulkSubmit() {
     ort    = opt.dataset.ort    || '';
     evname = opt.dataset.kuerzel || '';
   } else {
-    datum  = (document.getElementById('bk-datum') || {}).value;
+    var _globalDatum = (document.getElementById('bk-datum') || {}).value;
+    datum  = _globalDatum;
     ort    = ((document.getElementById('bk-ort') || {}).value || '').trim();
     evname = ((document.getElementById('bk-evname') || {}).value || '').trim();
     if (!datum || !ort) { notify('Datum und Ort sind Pflichtfelder!', 'err'); return; }
@@ -3835,11 +3848,13 @@ async function bulkSubmit() {
     var resultat  = row.querySelector('.bk-res')    ? row.querySelector('.bk-res').value.trim()   : '';
     if (!athlet_id && !disziplin && !resultat) continue; // leere Zeile
     items.push({
-      datum: datum, ort: ort, veranstaltung_name: evname,
+      datum: (row.querySelector('.bk-zeilendatum') && row.querySelector('.bk-zeilendatum').value.trim()) ? row.querySelector('.bk-zeilendatum').value.trim() : datum,
+      ort: ort, veranstaltung_name: evname,
       veranstaltung_id: veranstId ? parseInt(veranstId) : null,
       athlet_id: parseInt(athlet_id) || null,
       disziplin: disziplin, resultat: resultat,
       altersklasse: row.querySelector('.bk-ak') ? row.querySelector('.bk-ak').value.trim() : '',
+      _zeilendatum: row.querySelector('.bk-zeilendatum') ? row.querySelector('.bk-zeilendatum').value.trim() : '',
       ak_platzierung: row.querySelector('.bk-platz') && row.querySelector('.bk-platz').value ? parseInt(row.querySelector('.bk-platz').value) : null,
     });
   }
@@ -3859,6 +3874,227 @@ async function bulkSubmit() {
   }
 }
 
+
+// ── Smart-Paste Parser ──────────────────────────────────────────────────────
+function bulkParsePaste() {
+  var raw = (document.getElementById('bk-paste-area') || {}).value || '';
+  if (!raw.trim()) return;
+
+  var lines = raw.split(/\r?\n/).map(function(l) { return l.trim(); }).filter(function(l) { return l; });
+  if (!lines.length) return;
+
+  // Erkennungs-Patterns
+  var reDate   = /^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/;              // 11.10.25 oder 11.10.2025
+  var reAK     = /^([MW][A-Za-z0-9\-]+|[MW]HK|WHK|MHK)$/;          // W65, M30, WHK …
+  var reResult = /(\d+[:\.,]\d+(?:[:\.,]\d+)?)/;                     // Zeitformat 1:43:15 oder 7:48:42
+  var reDisz   = /^\d+[,\.]?\d*\s*(m|km|[*x]\d)/i;                  // 400 m, 1.500 m, 4*400 m
+  var rePlatz  = /(?:^|\s)(\d+)\s*[🥇🥈🥉]?\s*$/;                   // Platzzahl am Ende
+
+  // Disziplin-Liste für Matching
+  var diszList = (state.disziplinen || []).map(function(d) { return d.disziplin; })
+    .filter(function(v, i, a) { return a.indexOf(v) === i; });
+
+  // Kontextvariablen
+  var curDate  = '';
+  var curAK    = '';
+  var curDisz  = '';
+  var evName   = '';
+  var evOrt    = '';
+  var parsed   = [];  // { athlet, disz, resultat, ak, platz, datum }
+
+  // Erste Zeile: oft Veranstaltung + Ort (Semikolon oder Komma als Trenner)
+  var firstLine = lines[0];
+  var evSplit = firstLine.match(/^(.+?)[;,]\s*(.+)$/);
+  if (evSplit && !reDate.test(firstLine) && !reAK.test(firstLine)) {
+    evName = evSplit[1].trim();
+    evOrt  = evSplit[2].trim();
+    lines = lines.slice(1);
+  } else if (!reDate.test(firstLine) && !reAK.test(firstLine) && !reResult.test(firstLine) && !reDisz.test(firstLine)) {
+    // Einzeilige Veranstaltung ohne Ort
+    evName = firstLine;
+    lines  = lines.slice(1);
+  }
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+
+    // Datum erkennen: 11.10.25 → 2025-10-11
+    var mDate = line.match(reDate);
+    if (mDate) {
+      var y = parseInt(mDate[3]); if (y < 100) y += 2000;
+      curDate = y + '-' + mDate[2].padStart(2,'0') + '-' + mDate[1].padStart(2,'0');
+      continue;
+    }
+
+    // AK erkennen: W65, M30 etc.
+    if (reAK.test(line) && line.length <= 5) {
+      curAK = line;
+      continue;
+    }
+
+    // Disziplin erkennen: entweder reDisz-Pattern oder aus diszList
+    var isDiszLine = reDisz.test(line) && !reResult.test(line);
+    if (!isDiszLine) {
+      // Abgleich gegen bekannte Disziplinen (normalisiert)
+      var lineNorm = line.replace(/[.,]/g,'').replace(/\s+/g,' ').toLowerCase();
+      for (var di = 0; di < diszList.length; di++) {
+        var dn = diszList[di].replace(/[.,]/g,'').replace(/\s+/g,' ').toLowerCase();
+        if (lineNorm === dn || lineNorm.indexOf(dn) === 0) { isDiszLine = true; break; }
+      }
+    }
+    if (isDiszLine) {
+      // Disziplinname normalisieren und gegen DB matchen
+      curDisz = _bulkMatchDisz(line, diszList);
+      continue;
+    }
+
+    // Ergebnis-Zeile: enthält Zeitformat
+    var mRes = line.match(reResult);
+    if (mRes) {
+      // Alles vor dem Zeitwert = Name
+      var timeStr   = mRes[1];
+      var beforeTime = line.slice(0, line.indexOf(timeStr)).trim();
+      var afterTime  = line.slice(line.indexOf(timeStr) + timeStr.length).trim();
+
+      // Name: letztes Wort entfernen wenn es "min", "s", "m" ist
+      var namePart = beforeTime.replace(/\s+(min|sek|s|m|h)\s*$/, '').trim();
+
+      // Platz: letzte Zahl in afterTime (Emojis ignorieren)
+      var afterClean = afterTime.replace(/[🥇🥈🥉]/g, '').trim();
+      var mPlatz = afterClean.match(/\b(\d+)\b/);
+      var platz  = mPlatz ? parseInt(mPlatz[1]) : null;
+
+      // Einheit aus afterTime (min, s etc.) → Format
+      var unitRaw = afterTime.toLowerCase();
+
+      if (namePart) {
+        parsed.push({
+          athlet:   namePart,
+          disz:     curDisz,
+          resultat: timeStr,
+          ak:       curAK,
+          platz:    platz,
+          datum:    curDate,
+        });
+      }
+      continue;
+    }
+  }
+
+  if (!parsed.length) {
+    notify('Keine Ergebnisse erkannt. Bitte Format prüfen.', 'err');
+    return;
+  }
+
+  // Veranstaltungsfelder befüllen wenn erkannt
+  if (evName) { var ef = document.getElementById('bk-evname'); if (ef) ef.value = evName; }
+  if (evOrt)  { var of = document.getElementById('bk-ort');    if (of) of.value = evOrt; }
+
+  // Vorhandene Zeilen leeren, dann neue anlegen
+  var tbody = document.getElementById('bulk-rows');
+  if (tbody) tbody.innerHTML = '';
+  _bulkRowCount = 0;
+
+  parsed.forEach(function(p) {
+    bulkAddRow();
+    var idx = _bulkRowCount - 1;
+
+    // Zeilen-Datum setzen
+    if (p.datum) {
+      var zdEl = tbody.querySelectorAll('.bk-zeilendatum')[idx];
+      if (zdEl) zdEl.value = p.datum;
+    }
+
+    // Athlet-Select
+    var athSel = tbody.querySelectorAll('.bk-athlet')[idx];
+    if (athSel) {
+      // Name normalisieren und matchen
+      var athId = _bulkFindAthlet(p.athlet);
+      if (athId) { athSel.value = athId; }
+    }
+
+    // Disziplin-Select
+    var diszSel = tbody.querySelectorAll('.bk-disz')[idx];
+    if (diszSel && p.disz) diszSel.value = p.disz;
+
+    // Ergebnis
+    var resEl = tbody.querySelectorAll('.bk-res')[idx];
+    if (resEl) resEl.value = p.resultat;
+
+    // AK
+    var akEl = tbody.querySelectorAll('.bk-ak')[idx];
+    if (akEl) akEl.value = p.ak || '';
+
+    // Platz
+    var plEl = tbody.querySelectorAll('.bk-platz')[idx];
+    if (plEl && p.platz) plEl.value = p.platz;
+  });
+
+  // Datum: erstes Datum global setzen, bei mehreren Daten hinweis
+  var datenSet = parsed.map(function(p){return p.datum;}).filter(function(d,i,a){return d && a.indexOf(d)===i;});
+  var dateEl2 = document.getElementById('bk-datum');
+  if (dateEl2 && datenSet.length >= 1) dateEl2.value = datenSet[0];
+  if (datenSet.length > 1) {
+    // Mehrere Daten → in bk-status anzeigen
+    var st = document.getElementById('bulk-status');
+    if (st) st.textContent = '⚠︎ ' + datenSet.length + ' verschiedene Daten erkannt – bitte pro Zeile prüfen';
+  }
+
+  notify(parsed.length + ' Ergebnis(se) eingelesen', 'ok');
+
+  // Paste-Textarea leeren
+  var pa = document.getElementById('bk-paste-area');
+  if (pa) pa.value = '';
+}
+
+function _bulkMatchDisz(line, diszList) {
+  var norm = function(s) { return s.replace(/[.,*×x]/g,'').replace(/\s+/g,' ').trim().toLowerCase(); };
+  var lineN = norm(line);
+  // Exakter Match
+  for (var i = 0; i < diszList.length; i++) {
+    if (norm(diszList[i]) === lineN) return diszList[i];
+  }
+  // Partieller Match (Zahl + Einheit)
+  var mNum = line.match(/(\d+[,.]?\d*)\s*(m|km)/i);
+  if (mNum) {
+    var num  = mNum[1].replace(',','.').replace(/\.0$/,'');
+    var unit = mNum[2].toLowerCase();
+    for (var j = 0; j < diszList.length; j++) {
+      var dn = norm(diszList[j]);
+      if (dn.indexOf(norm(num + unit)) >= 0 || dn.indexOf(norm(num + ' ' + unit)) >= 0) return diszList[j];
+    }
+  }
+  return line; // Fallback: Original
+}
+
+function _bulkFindAthlet(name) {
+  if (!name || !state.athleten) return '';
+  var norm = function(s) {
+    return s.toLowerCase()
+      .replace(/ß/g,'ss').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
+      .replace(/[^a-z0-9\s]/g,'').replace(/\s+/g,' ').trim();
+  };
+  var nN = norm(name);
+  // Exakter Match (Nachname, Vorname)
+  for (var i = 0; i < state.athleten.length; i++) {
+    var a = state.athleten[i];
+    if (norm(a.name_nv || '') === nN) return a.id;
+  }
+  // Vorname Nachname → Nachname, Vorname
+  var parts = nN.split(' ');
+  if (parts.length >= 2) {
+    var swapped = parts.slice(1).join(' ') + ' ' + parts[0];
+    for (var j = 0; j < state.athleten.length; j++) {
+      if (norm(state.athleten[j].name_nv || '') === swapped) return state.athleten[j].id;
+    }
+    // Alle Namensteile enthalten
+    for (var k = 0; k < state.athleten.length; k++) {
+      var aN = norm(state.athleten[k].name_nv || '');
+      if (parts.every(function(p) { return aN.indexOf(p) >= 0; })) return state.athleten[k].id;
+    }
+  }
+  return '';
+}
 // ── RACERESULT-IMPORT ──────────────────────────────────────
 function rrKatChanged() {
   var kat = (document.getElementById('rr-kat') || {}).value || '';
