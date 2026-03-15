@@ -1,6 +1,6 @@
-v499: Veranstaltungsanzeige: live aus DB statt festem kuerzel
+v501: Timeline: "Vorname Nachname · Disziplin" in einer Zeile
 
-- API ergebnisse: v.ort AS veranstaltung_ort + v.name AS veranstaltung_name im SELECT
-- fmtVeranstName() nutzt veranstaltung_ort (aktuell aus DB) statt kuerzel (Snapshot)
-- Admin → Darstellung: Einstellung "Veranstaltungsanzeige" war bereits vorhanden
-  (Ort / Veranstaltungsname)
+- Name als "Vorname Nachname" (statt "Nachname, Vorname")
+- Name · Disziplin in einer Zeile (timeline-athlet-disz)
+- Darunter: Ergebnis + Badges wie bisher
+- Gilt für Haupt-Timeline und gefilterte Timeline
