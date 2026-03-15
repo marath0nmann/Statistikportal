@@ -1,4 +1,7 @@
-v444: Fix AK-Platz: MitStatus([AKPlp]) vs [MWPlp] unterscheiden
+v446: MikaTiming-Import: PHP-Proxy mit korrektem HTML-Parser
 
-[AKPlp] → iAKPlatz (wird als akPlatzFromRow gespeichert)
-[MWPlp]/[PLp] → iPlatz (Gesamt-Platz, unverändert)
+Basierend auf Browser-Analyse der echten MikaTiming-Struktur:
+- Suche: ?pid=search&search[club]=TuS+Oedt&num_results=100
+- HTML-Parsing: .type-fullname, .type-place, .type-age_class
+- Zeit per Detail-URL nachladen (fehlt in Suchergebnissen)
+- Event-ID aus CSS-Klasse "event-M_2EF3BRLP2"
