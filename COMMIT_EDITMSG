@@ -1,5 +1,5 @@
-v452: Fix MikaTiming: li-Regex + event= aus Hauptseite
+v453: Fix MikaTiming Parser: list-group-item ohne event-Klasse
 
-- li class=" list-active event-M_2EF3BRLP2..." (führendes Leerzeichen) → Regex fix
-- idp nur wenn >= 8 Zeichen (filtert "start" heraus)
-- event= aus Hauptseite wenn nicht in URL → idp-Links werden korrekt gesetzt
+fpid=search mit event= Parameter hat keine event-M_xxx Klasse am li.
+Parser nutzt jetzt list-group-item als Selektor + idp aus Link.
+Name aus list-field_type-fullname (h4) erkannt.

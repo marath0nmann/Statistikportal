@@ -2059,42 +2059,46 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 
     // Ergebniszeilen: li mit event-Klasse + idp-Link
     $results = [];
-    // li-Elemente mit event-Klasse suchen (Klasse kann überall stehen, mit Leerzeichen beginnen)
+    // li-Elemente: list-group-item (mit oder ohne event-Klasse)
     preg_match_all('/<li([^>]+)>(.*?)<\/li>/si', $searchHtml, $liMs, PREG_SET_ORDER);
     foreach ($liMs as $liM) {
         $liAttrs = $liM[1]; $liBody = $liM[2];
-        // Klassen aus dem li-Tag extrahieren
         $liClass = '';
         if (preg_match('/\bclass="([^"]+)"/i', $liAttrs, $cm)) $liClass = $cm[1];
         if (strpos($liClass, 'list-group-header') !== false) continue;
+        if (strpos($liClass, 'list-group-item') === false) continue;
+        if (strpos($liClass, 'list-info') !== false) continue;
 
-        // Event-ID aus Klasse: event-M_2EF3BRLP2
-        $evId = '';
-        if (preg_match('/\bevent-([A-Z0-9_]+)\b/i', $liClass, $em)) $evId = $em[1];
-        if (!$evId) continue;
-
-        // Teilnehmer-IDP aus Link: idp=2EF3BRLP3444 (nicht "start" oder kurze Strings)
+        // Teilnehmer-IDP aus Link (>= 8 Zeichen, kein "start"/"app"/"results")
         $idp = '';
         if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $liBody, $im)) $idp = $im[1];
         if (!$idp) continue;
 
-        // Name aus type-fullname
+        // Event-ID: aus Klasse ODER aus Link-Parameter event=
+        $evId = $eventId ?: '';
+        if (preg_match('/\bevent-([A-Z0-9_]+)\b/i', $liClass, $em)) $evId = $em[1];
+        if (!$evId && preg_match('/[?&]event=([A-Z0-9_]{5,})/i', $liBody, $em)) $evId = $em[1];
+
+        // Name: type-fullname oder list-field_type-fullname (h4/span/div)
         $name = '';
-        if (preg_match('/<[^>]+class="[^"]*type-fullname[^"]*"[^>]*>([^<]+)</i', $liBody, $m))
-            $name = trim(preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', html_entity_decode($m[1], ENT_QUOTES, 'UTF-8')));
+        foreach (['type-fullname', 'list-field_type-fullname', 'f-__fullname'] as $cls) {
+            if (preg_match('/<[^>]+class="[^"]*'.$cls.'[^"]*"[^>]*>(?:<[^>]+>)*([^<]+)</i', $liBody, $m)) {
+                $name = trim(preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', html_entity_decode($m[1], ENT_QUOTES, 'UTF-8')));
+                if ($name) break;
+            }
+        }
         if (!$name) continue;
 
-        // Plätze aus Suchliste
         $placeGes = '';
-        if (preg_match('/<[^>]+class="[^"]*type-place[^"]*place-primary[^"]*"[^>]*>\s*([0-9]+)\s*</i', $liBody, $m)) $placeGes = $m[1];
+        if (preg_match('/<[^>]+class="[^"]*(?:type-place[^"]*place-primary|field-place_all)[^"]*"[^>]*>\s*([0-9]+)\s*</i', $liBody, $m)) $placeGes = $m[1];
         $placeAK = '';
-        if (preg_match('/<[^>]+class="[^"]*type-place[^"]*place-secondary[^"]*"[^>]*>\s*([0-9]+)\s*</i', $liBody, $m)) $placeAK = $m[1];
+        if (preg_match('/<[^>]+class="[^"]*(?:type-place[^"]*place-secondary|field-place_age)[^"]*"[^>]*>\s*([0-9]+)\s*</i', $liBody, $m)) $placeAK = $m[1];
         $ak = '';
-        if (preg_match('/<[^>]+class="[^"]*type-age_class[^"]*"[^>]*>([^<]+)</i', $liBody, $m))
+        if (preg_match('/<[^>]+class="[^"]*(?:type-age_class|field-age_class)[^"]*"[^>]*>([^<]+)</i', $liBody, $m))
             $ak = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
 
         $results[] = [
-            'name' => $name, 'contest' => $evId,
+            'name' => $name, 'contest' => $evId ?: 'Unbekannt',
             'netto' => '', 'ak' => $ak,
             'platz_ak' => $placeAK, 'platz_ges' => $placeGes,
             'event_id' => $evId, 'idp' => $idp, 'club' => $club,
