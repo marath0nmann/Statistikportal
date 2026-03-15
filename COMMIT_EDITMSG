@@ -1,1 +1,3 @@
-v417: HoF: AK-Duplikate vor Komprimierung entfernen
+v418: Timeline: Kategorie-Suffix-Einstellung wird berücksichtigt
+
+dm.id in /disziplinen-Endpunkt → ergDiszLabel findet per-Disziplin-Override.
