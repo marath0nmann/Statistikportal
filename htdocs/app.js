@@ -1723,9 +1723,10 @@ function timelineBadges(rek) {
     timelineHtml += '<div class="timeline-date">' + formatDate(rek.datum) + '</div>';
     timelineHtml += '<div class="timeline-body">';
     var diszLink = '<span class="athlet-link" style="color:var(--text);font-weight:600;cursor:pointer" data-rek-disz="' + rek.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + ergDiszLabel(rek) + '</span>';
-    timelineHtml += '<div class="timeline-disz">' + diszLink + ' ' + badgesHtml + '</div>';
+    timelineHtml += '<div class="timeline-disz">' + diszLink + '</div>';
     timelineHtml += '<div class="timeline-athlet">' + athLink + '</div>';
     timelineHtml += '<div class="timeline-result">' + res + vorherHtml + '</div>';
+    timelineHtml += (badgesHtml ? '<div class="timeline-badges">' + badgesHtml + '</div>' : '');
     timelineHtml += '</div></div>';
   }
   if (!timelineHtml) timelineHtml = '<div class="empty"><div class="empty-icon">&#x1F3C6;</div><div class="empty-text">Noch keine Bestleistungen erfasst</div></div>';
