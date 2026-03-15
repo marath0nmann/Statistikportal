@@ -1,4 +1,5 @@
-v474: Fix [object Object] im Ergebnis-bearbeiten-Dialog
+v475: Ergebnis bearbeiten: Kategorie-Filter für Disziplin-Dropdown
 
-state.disziplinen ist ein Objekt-Array — Edit-Dialog nutzte es direkt als String.
-Fix: .map(d => d.disziplin) + deduplizieren + sortieren.
+- Kategorie-Select (vorbelegt mit subTab der aktuellen Kategorie)
+- Disziplin-Liste filtert sich bei Kategoriewechsel
+- Bisherige Disziplin bleibt selektiert wenn in neuer Kategorie vorhanden

@@ -2412,17 +2412,32 @@ function _editAthletPick(id, name) {
 
 async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, athletName) {
   mstr = parseInt(mstr, 10) || '';
-  var diszOptHtml = '';
-  var diszList = (state.disziplinen || []).map(function(d) { return typeof d === 'object' ? d.disziplin : d; })
-    .filter(function(v,i,a){ return a.indexOf(v)===i; });
-  sortDisziplinen(diszList);
-  var found = false;
-  for (var i = 0; i < diszList.length; i++) {
-    var sel = diszList[i] === disz ? ' selected' : '';
-    if (diszList[i] === disz) found = true;
-    diszOptHtml += '<option value="' + diszList[i] + '"' + sel + '>' + diszList[i] + '</option>';
+  // Kategorie-Optionen aufbauen
+  var katSeen = {}, katOpts = '<option value="">Alle Kategorien</option>';
+  (state.disziplinen || []).forEach(function(d) {
+    if (d.tbl_key && !katSeen[d.tbl_key]) {
+      katSeen[d.tbl_key] = true;
+      var sel = d.tbl_key === subTab ? ' selected' : '';
+      katOpts += '<option value="' + d.tbl_key + '"' + sel + '>' + d.kategorie + '</option>';
+    }
+  });
+
+  function buildEditDiszOpts(filterKat) {
+    var list = (state.disziplinen || [])
+      .filter(function(d) { return !filterKat || d.tbl_key === filterKat; })
+      .map(function(d) { return typeof d === 'object' ? d.disziplin : d; })
+      .filter(function(v,i,a){ return a.indexOf(v)===i; });
+    sortDisziplinen(list);
+    var html = '', found = false;
+    for (var i = 0; i < list.length; i++) {
+      var sel = list[i] === disz ? ' selected' : '';
+      if (list[i] === disz) found = true;
+      html += '<option value="' + list[i] + '"' + sel + '>' + list[i] + '</option>';
+    }
+    if (!found && disz) html = '<option value="' + disz + '" selected>' + disz + '</option>' + html;
+    return html;
   }
-  if (!found && disz) diszOptHtml = '<option value="' + disz + '" selected>' + disz + '</option>' + diszOptHtml;
+  var diszOptHtml = buildEditDiszOpts(subTab);
 
   var isAdmin = currentUser && currentUser.rolle === 'admin';
   var athletSelectHtml = '';
@@ -2440,8 +2455,17 @@ async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athle
     '<h3 style="margin:0 0 20px;font-size:17px">Ergebnis bearbeiten</h3>' +
     '<div class="form-grid">' +
       athletSelectHtml +
-      '<div class="form-group full"><label>Disziplin</label>' +
-        '<select id="edit-disz" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">' + diszOptHtml + '</select>' +
+      '<div class="form-group full">' +
+        '<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:6px">' +
+          '<div style="flex:0 0 auto">' +
+            '<label style="display:block;margin-bottom:4px">Kategorie</label>' +
+            '<select id="edit-kat" onchange="editKatChanged()" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px">' + katOpts + '</select>' +
+          '</div>' +
+          '<div style="flex:1">' +
+            '<label style="display:block;margin-bottom:4px">Disziplin *</label>' +
+            '<select id="edit-disz" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">' + diszOptHtml + '</select>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
       '<div class="form-group"><label>Ergebnis</label><input type="text" id="edit-res" value="' + (res||'') + '" placeholder="z.B. 01:45:30"/></div>' +
       '<div class="form-group"><label>Altersklasse</label><input type="text" id="edit-ak" value="' + (ak||'') + '" placeholder="z.B. M40"/></div>' +
@@ -2484,6 +2508,22 @@ async function saveEditErgebnis(id, subTab) {
 
 // ── ATHLETEN ───────────────────────────────────────────────
 
+
+function editKatChanged() {
+  var kat = (document.getElementById('edit-kat') || {}).value || '';
+  var diszSel = document.getElementById('edit-disz');
+  if (!diszSel) return;
+  var prev = diszSel.value;
+  var list = (state.disziplinen || [])
+    .filter(function(d) { return !kat || d.tbl_key === kat; })
+    .map(function(d) { return typeof d === 'object' ? d.disziplin : d; })
+    .filter(function(v,i,a){ return a.indexOf(v)===i; });
+  sortDisziplinen(list);
+  var html = '';
+  for (var i = 0; i < list.length; i++)
+    html += '<option value="' + list[i] + '"' + (list[i] === prev ? ' selected' : '') + '>' + list[i] + '</option>';
+  diszSel.innerHTML = html;
+}
 /* ── 05_athleten.js ── */
 function _mkDelBtn(id) {
   return '<button class="btn btn-danger btn-sm" onclick="deleteAthletById(' + id + ')" title="Löschen">&#x2715;</button>';
