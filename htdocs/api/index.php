@@ -1290,9 +1290,19 @@ if (in_array($res, $ergebnisTabellen)) {
             if ($aid > 0) { $felder[] = 'athlet_id=?'; $params[] = $aid; }
         }
         if (isset($body['altersklasse']))  { $felder[] = 'altersklasse=?';  $params[] = sanitize($body['altersklasse']); }
-        if (isset($body['disziplin']))     { $felder[] = 'disziplin=?';     $params[] = sanitize($body['disziplin']);
-            $dmUpd = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [sanitize($body['disziplin'])]);
-            $felder[] = 'disziplin_mapping_id=?'; $params[] = $dmUpd ? (int)$dmUpd['id'] : null; }
+        if (isset($body['disziplin'])) {
+            $felder[] = 'disziplin=?'; $params[] = sanitize($body['disziplin']);
+            // disziplin_mapping_id: direkt aus Body wenn vorhanden, sonst per Lookup
+            if (isset($body['disziplin_mapping_id']) && is_numeric($body['disziplin_mapping_id'])) {
+                $felder[] = 'disziplin_mapping_id=?'; $params[] = (int)$body['disziplin_mapping_id'];
+            } else {
+                $dmUpd = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [sanitize($body['disziplin'])]);
+                $felder[] = 'disziplin_mapping_id=?'; $params[] = $dmUpd ? (int)$dmUpd['id'] : null;
+            }
+        } elseif (isset($body['disziplin_mapping_id']) && is_numeric($body['disziplin_mapping_id'])) {
+            // Nur mapping_id geändert (Bahn→Straße), Disziplinname bleibt gleich
+            $felder[] = 'disziplin_mapping_id=?'; $params[] = (int)$body['disziplin_mapping_id'];
+        }
         if (isset($body['resultat'])) {
             $felder[] = 'resultat=?'; $params[] = sanitize($body['resultat']);
             $rv = $body['resultat'];

@@ -1,7 +1,5 @@
-v476: Ergebnis bearbeiten: Disziplin immer mit Kategorie-Suffix + mapping_id
+v477: Fix PUT disziplin_mapping_id
 
-- Disziplin-Dropdown zeigt "800m (Bahn)", "800m (Straße)" etc. via diszMitKat()
-- value = disziplin_mapping_id (eindeutig, statt Disziplinname)
-- data-edit-mapping-id im Edit-Button
-- saveEditErgebnis sendet disziplin_mapping_id mit
-- editKatChanged ebenfalls mit Suffix + mapping_id
+API-PUT nutzte immer ersten DB-Treffer für "800m" → immer Straße.
+Wenn disziplin_mapping_id direkt im Body mitgeschickt wird (aus v476),
+wird diese direkt gesetzt. Auch mapping_id-only-Änderung möglich.
