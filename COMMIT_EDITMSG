@@ -1,1 +1,5 @@
-v522: RaceResult Debug: contestListMap sichtbar machen
+v523: RaceResult: r=all Fallback VOR dem continue bei leeren DataFields
+
+r=search liefert DataFields manchmal nicht → continue übersprang den Fallback.
+Fix: wenn df.length === 0 → sofort r=all versuchen, erst dann continue wenn
+immer noch leer. Martins-Crosslauf Contest 9-12 sollte jetzt gefunden werden.
