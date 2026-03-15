@@ -1,1 +1,6 @@
-v449: MikaTiming: Button-Fix (oninput) + Panel-Rand wie RaceResult
+v451: MikaTiming: fpid=search + content=detail für vollständige Daten
+
+- Such-URL: ?pid=search&fpid=search → liefert idp-Links mit Teilnehmer-ID
+- Detail-URL: ?content=detail&idp=2EF3BRLP3444 → f-time_finish_netto, f-place_age
+- cURL mit Session-Cookie für alle Requests
+- Selektoren: f-time_finish_netto, f-_type_age_class, f-place_age
