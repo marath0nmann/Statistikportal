@@ -3602,6 +3602,7 @@ function renderEintragen() {
           '<textarea id="bk-paste-area" rows="6" placeholder="Ergebnisse per Copy &amp; Paste einf&uuml;gen, z.B.:&#10;Europa-Meisterschaften; Madeira&#10;W65&#10;11.10.25&#10;400 m&#10;Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="bulkParsePaste()">&#x1F4CB; Einlesen</button>' +
         '</div>' +
+        '<div id="bk-mstr-bar"></div>' +
         '<div style="overflow-x:auto">' +
           '<table style="width:100%;border-collapse:collapse;font-size:13px" id="bulk-table">' +
             '<thead><tr style="background:var(--surf2);color:var(--text2)">' +
@@ -3611,6 +3612,8 @@ function renderEintragen() {
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Ergebnis *</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">AK</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Platz AK</th>' +
+              '<th style="padding:8px 6px;text-align:left;font-weight:600">Meisterschaft</th>' +
+              '<th style="padding:8px 6px;text-align:left;font-weight:600">Platz MS</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Datum</th>' +
               '<th style="padding:8px 6px;width:36px"></th>' +
             '</tr></thead>' +
@@ -3700,6 +3703,8 @@ function renderEintragen() {
   if (isBulk) {
     bulkAddRow();
     bkLoadVeranstOptions();
+    var _bkMstrBar = document.getElementById('bk-mstr-bar');
+    if (_bkMstrBar) _bkMstrBar.innerHTML = importMstrAllBar('bk');
   }
 }
 
@@ -3830,6 +3835,13 @@ function bulkRowHtml(idx) {
     '<td style="padding:4px 6px"><input class="bk-res" type="text" placeholder="00:45:00" style="' + fld + '"/></td>' +
     '<td style="padding:4px 6px"><select class="bk-ak" id="bk-ak-' + idx + '" style="' + fld + '">' + bkAkOpts('') + '</select></td>' +
     '<td style="padding:4px 6px"><input class="bk-platz" type="number" placeholder="1" min="1" style="' + fld + '"/></td>' +
+    '<td style="padding:4px 6px">' +
+      '<select class="bk-mstr" onchange="bkMstrChanged(this)" style="' + fld + '">' + mstrOptions(0) + '</select>' +
+    '</td>' +
+    '<td class="bk-mstr-platz-td" style="padding:4px 6px;display:none">' +
+      '<input type="number" class="bk-mstr-platz" min="1" placeholder="Platz" style="' + fld + ';width:80px">' +
+    '</td>' +
+    '<td class="bk-mstr-platz-td bk-mstr-empty" style="padding:4px 6px"></td>' +
     '<td style="padding:4px 6px"><input class="bk-zeilendatum" type="text" placeholder="TT.MM.JJJJ" style="' + fld + ';min-width:110px" title="Datum dieser Zeile (überschreibt globales Datum)"/></td>' +
     '<td style="padding:4px 6px;text-align:center"><button onclick="bulkRemoveRow(' + idx + ')" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;padding:2px 4px" title="Zeile entfernen">&#x2715;</button></td>' +
   '</tr>';
@@ -3913,11 +3925,12 @@ async function bulkSubmit() {
       datum: (function() {
         var zd = row.querySelector('.bk-zeilendatum') ? row.querySelector('.bk-zeilendatum').value.trim() : '';
         if (!zd) return datum;
-        // TT.MM.JJJJ → YYYY-MM-DD
         var m = zd.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
         if (m) { var y = parseInt(m[3]); if (y < 100) y += 2000; return y + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0'); }
-        return zd; // bereits YYYY-MM-DD oder anderes Format
+        return zd;
       })(),
+      meisterschaft: (function(){ var s=row.querySelector('.bk-mstr'); return s&&s.value?parseInt(s.value)||null:null; })(),
+      ak_platz_meisterschaft: (function(){ var s=row.querySelector('.bk-mstr-platz'); return s&&s.value?parseInt(s.value)||null:null; })(),
       ort: ort, veranstaltung_name: evname,
       veranstaltung_id: veranstId ? parseInt(veranstId) : null,
       athlet_id: parseInt(athlet_id) || null,
@@ -4166,6 +4179,16 @@ function _bulkFindAthlet(name) {
     }
   }
   return '';
+}
+
+function bkMstrChanged(sel) {
+  var row = sel.closest('tr');
+  if (!row) return;
+  var hasMstr = !!sel.value;
+  row.querySelectorAll('.bk-mstr-platz-td').forEach(function(td) {
+    var isInput = !!td.querySelector('.bk-mstr-platz');
+    td.style.display = isInput ? (hasMstr ? '' : 'none') : (hasMstr ? 'none' : '');
+  });
 }
 // ── RACERESULT-IMPORT ──────────────────────────────────────
 function rrKatChanged() {
@@ -4998,6 +5021,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
       '' +
     '</div>' +
     (!guessDate ? '<div id="rr-datum-warn" style="margin-bottom:10px;padding:8px 12px;background:#7c3a00;color:#ffb347;border-radius:7px;font-size:13px;font-weight:600">&#x26A0;&#xFE0E; Bitte Datum eintragen — es beeinflusst die AK-Platzierung!</div>' : '<div id="rr-datum-warn" style="display:none"></div>') +
+    importMstrAllBar('rr') +
     '<div id="rr-tabelle" style="overflow-x:auto;margin-bottom:12px">' +
       '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
         '<thead><tr style="color:var(--text2);border-bottom:2px solid var(--border)">' +
@@ -7374,6 +7398,40 @@ document.addEventListener('click', function(ev) {
 
 // ── VERANSTALTUNGEN ────────────────────────────────────────
 
+
+// Gemeinsame "Alle Meisterschaft setzen" Funktion für RaceResult, MikaTiming, Bulk
+function importSetAllMstr(prefix) {
+  var mstrVal = (document.getElementById(prefix + '-mstr-all') || {}).value || '';
+  var platzVal = (document.getElementById(prefix + '-mstr-platz-all') || {}).value || '';
+  document.querySelectorAll('.' + prefix + '-mstr').forEach(function(sel) {
+    sel.value = mstrVal;
+    // Platz-Zellen ein/ausblenden
+    var row = sel.closest('tr');
+    if (row) {
+      var hasMstr = !!mstrVal;
+      row.querySelectorAll('[class*="mstr-platz-td"]').forEach(function(td) {
+        var isInput = !!td.querySelector('[class*="mstr-platz"]');
+        td.style.display = isInput ? (hasMstr ? '' : 'none') : (hasMstr ? 'none' : '');
+      });
+      if (hasMstr && platzVal) {
+        var platzEl = row.querySelector('[class*="mstr-platz"]:not([class*="mstr-platz-td"])');
+        if (platzEl) platzEl.value = platzVal;
+      }
+    }
+  });
+}
+
+// HTML-Snippet für "Alle setzen" Bar (prefix = 'rr', 'mika', 'bk')
+function importMstrAllBar(prefix) {
+  return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 12px;background:var(--surf2);border-radius:8px;flex-wrap:wrap">' +
+    '<span style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">Alle setzen:</span>' +
+    '<select id="' + prefix + '-mstr-all" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+      mstrOptions(0) +
+    '</select>' +
+    '<input id="' + prefix + '-mstr-platz-all" type="number" min="1" placeholder="Platz (opt.)" style="width:110px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+    '<button class="btn btn-ghost btn-sm" onclick="importSetAllMstr(\'' + prefix + '\')">&#x2713; Auf alle anwenden</button>' +
+  '</div>';
+}
 /* ── 11_mikatiming.js ── */
 
 function mikaKatChanged() {
@@ -7486,6 +7544,7 @@ async function mikaFetch() {
       '<div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Datum</label><input id="mika-datum" value="' + (eventDate ? (function(d){var p=d.match(/(\d{4})-(\d{2})-(\d{2})/);return p?p[3]+'.'+p[2]+'.'+p[1]:'';})(eventDate) : '') + '" placeholder="TT.MM.JJJJ" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
       '<div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Ort</label><input id="mika-ort" value="' + (eventOrt||'') + '" placeholder="Ort" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:140px"/></div>' +
     '</div>' +
+    importMstrAllBar('mika') +
     '<table style="width:100%;border-collapse:collapse">' +
       '<thead><tr style="border-bottom:2px solid var(--border)">' +
         '<th style="padding:6px;width:30px"><input type="checkbox" checked onchange="document.querySelectorAll(\'.mika-chk\').forEach(function(c){c.checked=this.checked;})" title="Alle"/></th>' +
