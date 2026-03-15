@@ -2059,46 +2059,53 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 
     // Ergebniszeilen: li mit event-Klasse + idp-Link
     $results = [];
-    // li-Elemente: list-group-item (mit oder ohne event-Klasse)
-    preg_match_all('/<li([^>]+)>(.*?)<\/li>/si', $searchHtml, $liMs, PREG_SET_ORDER);
-    foreach ($liMs as $liM) {
-        $liAttrs = $liM[1]; $liBody = $liM[2];
-        $liClass = '';
-        if (preg_match('/\bclass="([^"]+)"/i', $liAttrs, $cm)) $liClass = $cm[1];
-        if (strpos($liClass, 'list-group-header') !== false) continue;
-        if (strpos($liClass, 'list-group-item') === false) continue;
-        if (strpos($liClass, 'list-info') !== false) continue;
+    // DOMDocument für robustes Parsing
+    $dom = new DOMDocument('1.0', 'UTF-8');
+    @$dom->loadHTML('<?xml encoding="UTF-8">' . $searchHtml);
+    $xpath = new DOMXPath($dom);
+    // Alle li mit class enthaltend "list-group-item" aber nicht "header"
+    $liNodes = $xpath->query('//li[contains(@class,"list-group-item") and not(contains(@class,"list-group-header")) and not(contains(@class,"list-info"))]');
+    foreach ($liNodes as $li) {
+        $liClass = $li->getAttribute('class');
+        $liHtml  = $dom->saveHTML($li);
 
-        // Teilnehmer-IDP aus Link (>= 8 Zeichen, kein "start"/"app"/"results")
+        // Teilnehmer-IDP aus Link
         $idp = '';
-        if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $liBody, $im)) $idp = $im[1];
+        $anchors = $xpath->query('.//a[@href]', $li);
+        foreach ($anchors as $a) {
+            $href = $a->getAttribute('href');
+            if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $href, $im)) { $idp = $im[1]; break; }
+        }
         if (!$idp) continue;
 
-        // Event-ID: aus Klasse ODER aus Link-Parameter event=
+        // Event-ID
         $evId = $eventId ?: '';
         if (preg_match('/\bevent-([A-Z0-9_]+)\b/i', $liClass, $em)) $evId = $em[1];
-        if (!$evId && preg_match('/[?&]event=([A-Z0-9_]{5,})/i', $liBody, $em)) $evId = $em[1];
 
-        // Name: type-fullname oder list-field_type-fullname (h4/span/div)
+        // Name: Element mit Klassen die "fullname" enthalten
         $name = '';
-        foreach (['type-fullname', 'list-field_type-fullname', 'f-__fullname'] as $cls) {
-            if (preg_match('/<[^>]+class="[^"]*'.$cls.'[^"]*"[^>]*>(?:<[^>]+>)*([^<]+)</i', $liBody, $m)) {
-                $name = trim(preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', html_entity_decode($m[1], ENT_QUOTES, 'UTF-8')));
-                if ($name) break;
-            }
+        $nameNodes = $xpath->query('.//*[contains(@class,"fullname")]', $li);
+        foreach ($nameNodes as $n) {
+            $t = trim($n->textContent);
+            if ($t) { $name = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $t); break; }
         }
         if (!$name) continue;
 
+        // Plätze
         $placeGes = '';
-        if (preg_match('/<[^>]+class="[^"]*(?:type-place[^"]*place-primary|field-place_all)[^"]*"[^>]*>\s*([0-9]+)\s*</i', $liBody, $m)) $placeGes = $m[1];
+        $pgNodes = $xpath->query('.//*[contains(@class,"place-primary") or contains(@class,"place_all")]', $li);
+        foreach ($pgNodes as $n) { $t = trim($n->textContent); if (ctype_digit($t)) { $placeGes = $t; break; } }
+
         $placeAK = '';
-        if (preg_match('/<[^>]+class="[^"]*(?:type-place[^"]*place-secondary|field-place_age)[^"]*"[^>]*>\s*([0-9]+)\s*</i', $liBody, $m)) $placeAK = $m[1];
+        $pakNodes = $xpath->query('.//*[contains(@class,"place-secondary") or contains(@class,"place_age")]', $li);
+        foreach ($pakNodes as $n) { $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK = $t; break; } }
+
         $ak = '';
-        if (preg_match('/<[^>]+class="[^"]*(?:type-age_class|field-age_class)[^"]*"[^>]*>([^<]+)</i', $liBody, $m))
-            $ak = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+        $akNodes = $xpath->query('.//*[contains(@class,"age_class")]', $li);
+        foreach ($akNodes as $n) { $t = trim($n->textContent); if ($t) { $ak = $t; break; } }
 
         $results[] = [
-            'name' => $name, 'contest' => $evId ?: 'Unbekannt',
+            'name' => trim($name), 'contest' => $evId ?: 'Unbekannt',
             'netto' => '', 'ak' => $ak,
             'platz_ak' => $placeAK, 'platz_ges' => $placeGes,
             'event_id' => $evId, 'idp' => $idp, 'club' => $club,
