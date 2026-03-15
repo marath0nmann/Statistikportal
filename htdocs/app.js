@@ -4550,7 +4550,8 @@ async function rrFetch() {
             else if (f === 'year' || f === 'yob' || f === 'birthyear' || f === 'es_jahrgang') iYear = fi;
             else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht') iGeschlecht = fi;
             else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
-            else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0) iZeit = fi;
+            else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0 || f === 'ziel' || f.indexOf('finish') >= 0) iZeit = fi;
+            else if (f.indexOf('akpl') >= 0) iAKPlatz = fi;  // AKPlp, AKPl.P direkt
             else if (f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0 || f.indexOf('statusplatz') >= 0) {
               // MitStatus([AKPlp]) / StatusPlatz([AKPl.P]) = AK-Platz
               if (f.indexOf('akpl') >= 0) iAKPlatz = fi;
@@ -4656,7 +4657,8 @@ async function rrFetch() {
               else if (f2 === 'year' || f2 === 'yob' || f2 === 'es_jahrgang') iYear = fi2;
               else if (f2.indexOf('geschlechtmw') >= 0 || f2 === 'es_geschlecht') iGeschlecht = fi2;
               else if (f2.indexOf('chip') >= 0 || f2.indexOf('netto') >= 0) iNetto = fi2;
-              else if (f2.indexOf('gun') >= 0 || f2.indexOf('brutto') >= 0) iZeit = fi2;
+              else if (f2.indexOf('gun') >= 0 || f2.indexOf('brutto') >= 0 || f2 === 'ziel' || f2.indexOf('finish') >= 0) iZeit = fi2;
+              else if (f2.indexOf('akpl') >= 0) iAKPlatz = fi2;  // AKPlp, AKPl.P direkt
               else if (f2.indexOf('autorankp') >= 0 || f2.indexOf('mitstatus') >= 0 || f2.indexOf('statusplatz') >= 0) {
                 if (f2.indexOf('akpl') >= 0) iAKPlatz = fi2;
                 else iPlatz = fi2;
@@ -7036,7 +7038,7 @@ async function renderAdminDisziplinen() {
   var katRows = '';
   for (var i = 0; i < kategorien.length; i++) {
     var k = kategorien[i];
-    var canDel = ['strasse','sprint','mittelstrecke','sprungwurf'].indexOf(k.tbl_key) < 0;
+    var canDel = k.disz_anzahl === 0 || k.disz_anzahl === '0';
     katRows +=
       '<div class="user-row" style="gap:10px">' +
         '<div style="flex:1;font-weight:600;font-size:14px">' + k.name + '</div>' +
