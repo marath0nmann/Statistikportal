@@ -1,1 +1,1 @@
-v442: Fix AK-Platz in Preview: akPlatzFromRow auch im Preview nutzen
+v443: Fix AK-Splitting im rrImport-Handler (nicht nur in Preview)
