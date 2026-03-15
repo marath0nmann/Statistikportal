@@ -3419,7 +3419,8 @@ function toggleRekHl(which, val) {
   renderRekorde();
 }
 
-function buildRekTable(rows, fmt, compact, showPace, athletLabel) {
+function buildRekTable(rows, fmt, compact, showPace, athletLabel, disz) {
+  var _disz = disz || (state.rekState && state.rekState.disz) || '';
   if (!rows || !rows.length) return '<div class="empty" style="padding:16px"><div class="empty-text">Keine Eintr&auml;ge</div></div>';
   var html = '<table class="rek-table">';
   if (!compact) {
@@ -3443,7 +3444,7 @@ function buildRekTable(rows, fmt, compact, showPace, athletLabel) {
     var athletInner = r.athlet_id ? '<span class="athlet-link" data-athlet-id="' + r.athlet_id + '">' + (r.athlet || '&ndash;') + '</span>' : (r.athlet || '&ndash;');
     html += '<td style="font-weight:600">' + athletInner + '</td>';
     html += '<td class="result">' + result + '</td>';
-    if (showPace) html += '<td class="ort-text">' + (diszKm(r.disz) >= 1 && calcPace(r.disz, r.resultat) ? fmtTime(calcPace(r.disz, r.resultat), 'min/km') : '&ndash;') + '</td>';
+    if (showPace) html += '<td class="ort-text">' + (diszKm(_disz) >= 1 && calcPace(_disz, r.resultat) ? fmtTime(calcPace(_disz, r.resultat), 'min/km') : '&ndash;') + '</td>';
     if (!compact) html += '<td>' + akBadge(r.altersklasse) + '</td>';
     html += '<td class="ort-text">' + formatDate(r.datum) + '</td>';
     html += '</tr>';
