@@ -4360,6 +4360,7 @@ async function rrFetch() {
     var listContest = null; // Contest-Einschränkung aus List-Eintrag ("0" = alle)
     var listSource = cfg.list || cfg.lists || {};
     var _listCandidates = []; // alle nicht-geblacklisteten Listen für Fallback
+    var _contestListMap = {}; // contestId → spezifische listName
     var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','EINZEL','FINAL','WERTUNG','RANKING','OVERALL'];
     // Listen die keine Einzelergebnisse enthalten und übersprungen werden sollen
     var _listBlacklist = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','OVERALL RANKING','OVERALL-RANKING','MANNSCHAFT','TEAM RANKING','SPECIAL','LIVE','TOP10','TOP 10','TOP5','TOP 5','LEADERBOARD','SCHNELLSTE','FASTEST','SIEGER','WINNER','PARTICIPANTS','STATISTIC','TEILNEHMER','ALPHABET','STADTMEISTER'];
