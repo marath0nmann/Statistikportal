@@ -1,7 +1,8 @@
-v469: Admin-Tab "Altersklassen" mit Jugend-AK-Konfiguration
+v470: Fix Sortierung bei Zeitresultaten ohne führende Null
 
-- Neuer Tab zwischen Disziplinen und Meisterschaften
-- Liste aller verwendeten AKs mit Ergebnisanzahl
-- Checkbox "Jugend → MHK/WHK" pro AK, gespeichert als jugend_aks in einstellungen
-- buildAkCaseExpr() liest AK-Liste aus DB statt hardcodiert
-- Alle 4 CASE-Expressions (Bestleistungen, Rekorde, HoF, Timeline) nutzen jetzt Settings
+Problem: "4:28:29" (RaceResult-Import) sortierte nach "4:44:17" weil VARCHAR-Vergleich
+Fix:
+- normalizeResultat(): "4:28:29" → "04:28:29" + resultat_num=Sekunden
+- Bulk-Import speichert jetzt resultat_num
+- migrateResultatNum(): normalisiert Altdaten einmalig per UPDATE
+- Sortierung: COALESCE(resultat_num, TIME_TO_SEC) für unified, LPAD für Legacy
