@@ -3817,7 +3817,7 @@ async function rrFetch() {
     _rrDebug.cfgRaw = JSON.stringify(cfg).slice(0, 800);
     var apiKey     = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
     var eventName  = cfg.EventName || cfg.Name || cfg.eventname || '';
-    var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.eventDatum || cfg.StartDate || cfg.start_date || cfg.datestring || cfg.Datestring || '';
+    var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.eventDatum || cfg.StartDate || cfg.start_date || cfg.datestring || cfg.Datestring || cfg.Time || '';
     var eventDate = '';
     if (_cfgDateRaw) {
       var _ds = String(_cfgDateRaw).trim();
@@ -3966,6 +3966,8 @@ async function rrFetch() {
         var df = payload.DataFields || [];
         if (Array.isArray(df) && df.length > 0) {
           iAK = -1; iYear = -1; iGeschlecht = -1;
+          // Alle Spaltenindizes zurücksetzen damit jede Liste frisch kalibriert wird
+          iName = 3; iClub = 6; iNetto = 7; iZeit = 8; iPlatz = 2;
           for (var fi = 0; fi < df.length; fi++) {
             var f = df[fi].toLowerCase();
             if (f.indexOf('anzeigename') >= 0) iName = fi;
@@ -4008,12 +4010,14 @@ async function rrFetch() {
               if (!_rrDebug.groupKeysSample) _rrDebug.groupKeysSample = {};
               if (Object.keys(_rrDebug.groupKeysSample).length < 10) _rrDebug.groupKeysSample[gkey] = 1;
               var _akFromGroup = '';
+              // gk immer aus Gruppen-Key ableiten (für Disziplin-Erkennung)
+              var gk = gParts.length > 1 ? gParts[gParts.length-1] : (gParts[0] || '');
               if (iAK < 0 && gParts.length > 1) {
-                var gk = gParts[gParts.length-1].replace(/^#[0-9]+_/, '').trim();
-                if (/männl|male|herren/i.test(gk)) _akFromGroup = 'M';
-                else if (/weibl|female|frauen/i.test(gk)) _akFromGroup = 'W';
+                var _gkClean = gk.replace(/^#[0-9]+_/, '').trim();
+                if (/männl|male|herren/i.test(_gkClean)) _akFromGroup = 'M';
+                else if (/weibl|female|frauen/i.test(_gkClean)) _akFromGroup = 'W';
                 // AK direkt aus Gruppen-Key lesen (z.B. "M35", "W45")
-                var _akMatch = gk.match(/^([MW]\d{2}|[MW]U\d{2}|[MW])$/i);
+                var _akMatch = _gkClean.match(/^([MW]\d{2}|[MW]U\d{2}|[MW])$/i);
                 if (_akMatch) _akFromGroup = _akMatch[1].toUpperCase();
               }
               var _zeit4ak = String(row[iNetto] || row[iZeit] || '').trim();
@@ -4275,7 +4279,8 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   _dbgLines.push('diszList ('+diszList.length+'): ' + diszList.slice(0,20).join(', ') + (diszList.length>20?' …':''));
   if (_dbgFirst) {
     var _cname = _dbgFirst.contestName || '';
-    _dbgLines.push('contestName[0]: "' + _cname + '" → rrBestDisz: "' + rrBestDisz(_cname, diszList) + '"');
+    var _cnResolved = _cname; if (!_cnResolved || _cnResolved.match(/^Contest \d+$/i)) _cnResolved = _dbgFirst.groupKey || _cnResolved;
+    _dbgLines.push('contestName[0]: "' + _cname + '" groupKey: "' + (_dbgFirst.groupKey||'') + '" → rrBestDisz: "' + rrBestDisz(_cnResolved, diszList) + '"');
     // Alle einzigartigen contestNames
     var _cnames = {}; results.forEach(function(r){ if(r.contestName) _cnames[r.contestName]=1; });
     _dbgLines.push('alle contestNames: ' + Object.keys(_cnames).join(', '));

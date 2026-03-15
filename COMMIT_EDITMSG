@@ -1,7 +1,8 @@
-v420: RaceResult: Duplikat-Check im Preview
+v421: RaceResult Import-Fixes für Event 331068
 
-- rrCheckDuplicates(): lädt vorhandene Ergebnisse pro Athlet
-  und markiert Duplikate (gleiche Disziplin + Resultat)
-- Duplikat-Zeilen: ausgegraut, Checkbox deaktiviert, "✕ Dup"-Badge
-- Status zeigt Anzahl erkannter Duplikate
-- Serverseitiger Check der API bleibt als zweite Sicherheitsstufe
+- iName/iClub/iNetto/iZeit/iPlatz pro Contest resetzen (nicht nur iAK/iYear)
+  → LFNAME an Index 4 korrekt erkannt (statt Default 3)
+- groupKey immer setzen (auch wenn iAK >= 0)
+  → Disziplin aus Gruppen-Key "#4_Jedermannlauf 5 km" → "5km"
+- cfg.Time als Datumsquelle hinzugefügt
+- Debug-Log: groupKey + aufgelösten Disziplin-Namen zeigen
