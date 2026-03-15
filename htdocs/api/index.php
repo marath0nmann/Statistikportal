@@ -2026,7 +2026,15 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             $eventName = preg_replace('/\s*[:|].*/', '', $eventName);
             $eventName = trim($eventName);
         }
+        // Datum aus Meta og:description, datePublished oder structured data
+        if (!$eventDate) {
+            if (preg_match('/"startDate"\s*:\s*"(\d{4}-\d{2}-\d{2})/i', $mainHtml, $dm)) $eventDate = $dm[1];
+            elseif (preg_match('/datePublished.*?(\d{4}-\d{2}-\d{2})/i', $mainHtml, $dm)) $eventDate = $dm[1];
+            elseif (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $mainHtml, $dm)) $eventDate = $dm[3].'-'.$dm[2].'-'.$dm[1];
+        }
+        // Ort aus JSON-LD oder meta
         if (preg_match('/"addressLocality"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
+        elseif (preg_match('/"location"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
     }
 
     // Event-ID aus URL ableiten (z.B. M_2EF3BRLP2 oder HM_ABC)
@@ -2125,30 +2133,54 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         $dHtml = mikaCurl($detailUrl, $cookieFile, $ua);
         if (!$dHtml) continue;
 
-        // Zeit: f-time_finish_netto
-        if (preg_match('/<[^>]+class="[^"]*f-time_finish_netto[^"]*"[^>]*>([^<]+)</i', $dHtml, $m))
-            $res['netto'] = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+        // Zeit + Details aus DOM des Detail-HTML
+        // DOMDocument für Detailseite
+        $detailDom = new DOMDocument('1.0', 'UTF-8');
+        @$detailDom->loadHTML('<?xml encoding="UTF-8">' . $dHtml);
+        $detailXpath = new DOMXPath($detailDom);
 
-        // AK: f-_type_age_class enthält nur die Zahl (z.B. "40"), Prefix aus Event-ID (M/W/HM...)
-        if (!$res['ak']) {
-            if (preg_match('/<[^>]+class="[^"]*f-_type_age_class[^"]*"[^>]*>([^<]+)</i', $dHtml, $m)) {
-                $akNum = trim($m[1]);
-                // Geschlecht aus Wettbewerbsname oder Ergebniskontext ableiten
-                $sex = '';
-                if (preg_match('/\bfrauen\b|\bweiblich\b|\bwomen\b|\bf-place\b/i', $dHtml)) $sex = 'W';
-                elseif (preg_match('/\bmänner\b|\bmännlich\b|\bmen\b|\bm-place\b/i', $dHtml)) $sex = 'M';
-                $res['ak'] = ($sex ? $sex : '') . ($akNum !== '0' ? $akNum : '');
+        // Zeit: f-time_finish_netto
+        foreach (['f-time_finish_netto', 'f-time_finish_brutto'] as $tcls) {
+            $tNodes = $detailXpath->query('//*[contains(@class,"' . $tcls . '")]');
+            foreach ($tNodes as $tn) {
+                $t = trim($tn->textContent);
+                if ($t && preg_match('/\d+:\d+/', $t)) { $res['netto'] = $t; break 2; }
             }
         }
 
-        // Wettbewerbsname aus Detailseite (h2 oder ähnlich)
-        if (preg_match('/<h[1-3][^>]*>([^<]{5,60})<\/h[1-3]>/i', $dHtml, $m)) {
-            $cname = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
-            if (strlen($cname) > 3) $res['contest'] = $cname;
+        // AK aus f-_type_age_class
+        if (!$res['ak']) {
+            $akNodes = $detailXpath->query('//*[contains(@class,"f-_type_age_class") or contains(@class,"f-type_age_class")]');
+            foreach ($akNodes as $an) {
+                $t = trim($an->textContent);
+                if ($t && $t !== '0') { $res['ak'] = $t; break; }
+            }
         }
 
-        if (!isset($debug['detailSample']))
-            $debug['detailSample'] = substr(strip_tags($dHtml), 200, 400);
+        // Platz AK aus f-place_age
+        if (!$res['platz_ak']) {
+            $pakNodes = $detailXpath->query('//*[contains(@class,"f-place_age")]');
+            foreach ($pakNodes as $pn) { $t = trim($pn->textContent); if (ctype_digit($t)) { $res['platz_ak'] = $t; break; } }
+        }
+
+        // Wettbewerbsname: "Gesamt" Abschnitt überspringen, contest aus Event-Prefix
+        $contestPfx = strtoupper(preg_replace('/_.*$/', '', $evId));
+        $contestMap = ['M'=>'Marathon','HM'=>'Halbmarathon','10K'=>'10km','5K'=>'5km','H'=>'Halbmarathon'];
+        if (isset($contestMap[$contestPfx])) $res['contest'] = $contestMap[$contestPfx];
+
+        if (!isset($debug['detailSample'])) {
+            // Relevante Textknoten zeigen
+            $sample = [];
+            $allNodes = $detailXpath->query('//*[@class]');
+            foreach ($allNodes as $n) {
+                $t = trim($n->textContent);
+                $c = $n->getAttribute('class');
+                if ($t && strlen($t) < 30 && (strpos($c,'f-') === 0 || strpos($c,'field-') !== false))
+                    $sample[] = $c . ': ' . $t;
+            }
+            $debug['detailSample'] = implode(' | ', array_slice($sample, 0, 15));
+            $debug['detailUrl'] = $detailUrl;
+        }
     }
     unset($res);
 
