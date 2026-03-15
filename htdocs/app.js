@@ -2413,7 +2413,9 @@ function _editAthletPick(id, name) {
 async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, athletName) {
   mstr = parseInt(mstr, 10) || '';
   var diszOptHtml = '';
-  var diszList = state.disziplinen || [];
+  var diszList = (state.disziplinen || []).map(function(d) { return typeof d === 'object' ? d.disziplin : d; })
+    .filter(function(v,i,a){ return a.indexOf(v)===i; });
+  sortDisziplinen(diszList);
   var found = false;
   for (var i = 0; i < diszList.length; i++) {
     var sel = diszList[i] === disz ? ' selected' : '';

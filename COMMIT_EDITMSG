@@ -1,7 +1,4 @@
-v472: Bulk-Eintragen: Smart-Paste
+v474: Fix [object Object] im Ergebnis-bearbeiten-Dialog
 
-- Textarea "Ergebnisse einlesen" mit "Einlesen"-Button
-- Parser erkennt: Veranstaltung+Ort, AK, Datum (TT.MM.JJ), Disziplin, Name+Zeit+Platz
-- Athlet-Matching: normalisiert (SS/ß, Umlaute, Vor-/Nachname vertauscht)
-- Disziplin-Matching gegen DB-Liste
-- Datum-Spalte pro Zeile für unterschiedliche Wettkampftage
+state.disziplinen ist ein Objekt-Array — Edit-Dialog nutzte es direkt als String.
+Fix: .map(d => d.disziplin) + deduplizieren + sortieren.
