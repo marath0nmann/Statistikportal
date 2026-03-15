@@ -4921,6 +4921,7 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='benutzer'       ? ' active' : '') + '" onclick="state.adminTab=\'benutzer\';renderAdmin()">👥 Benutzer</button>' +
     '<button class="subtab' + (t==='registrierungen'? ' active' : '') + '" onclick="state.adminTab=\'registrierungen\';renderAdmin()">📝 Registrierungen</button>' +
     '<button class="subtab' + (t==='disziplinen'    ? ' active' : '') + '" onclick="state.adminTab=\'disziplinen\';renderAdmin()">🏷️ Disziplinen</button>' +
+    '<button class="subtab' + (t==='altersklassen'  ? ' active' : '') + '" onclick="state.adminTab=\'altersklassen\';renderAdmin()">👤 Altersklassen</button>' +
     '<button class="subtab' + (t==='meisterschaften' ? ' active' : '') + '" onclick="state.adminTab=\'meisterschaften\';renderAdmin()">🏅 Meisterschaften</button>' +
     '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="state.adminTab=\'darstellung\';renderAdmin()">🎨 Darstellung</button>' +
     '<button class="subtab' + (t==='dashboard_cfg'   ? ' active' : '') + '" onclick="state.adminTab=\'dashboard_cfg\';renderAdmin()">📊︎ Dashboard</button>' +
@@ -4931,6 +4932,7 @@ function adminSubtabs() {
 async function renderAdmin() {
   if (!state.adminTab) state.adminTab = 'benutzer';
   if (state.adminTab === 'disziplinen')    { await renderAdminDisziplinen(); return; }
+  if (state.adminTab === 'altersklassen')  { await renderAdminAltersklassen(); return; }
   if (state.adminTab === 'meisterschaften'){ await renderAdminMeisterschaften(); return; }
   if (state.adminTab === 'papierkorb')     { await renderPapierkorb(); return; }
   if (state.adminTab === 'darstellung')    { renderAdminDarstellung(); return; }
@@ -6585,6 +6587,76 @@ async function updateDisz(btn) {
 
 // ── HELPERS ────────────────────────────────────────────────
 
+/* ── 09d_admin_altersklassen.js ── */
+
+async function renderAdminAltersklassen() {
+  var el = document.getElementById('main-content');
+  el.innerHTML = adminSubtabs() + '<div style="padding:20px;color:var(--text2)">⏳ Lade Altersklassen…</div>';
+
+  var r = await apiGet('altersklassen');
+  if (!r || !r.ok) { el.innerHTML = adminSubtabs() + '<div class="panel" style="padding:24px">Fehler beim Laden.</div>'; return; }
+  var aks = r.data;
+
+  // Aktuelle jugend_aks aus appConfig
+  var jugendAksJson = (appConfig.jugend_aks || '');
+  var jugendAks = jugendAksJson ? (JSON.parse(jugendAksJson) || []) : [];
+
+  // Zeilen aufbauen
+  var tbody = '';
+  for (var i = 0; i < aks.length; i++) {
+    var ak = aks[i];
+    var isJugend = jugendAks.indexOf(ak.altersklasse) >= 0;
+    tbody +=
+      '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:7px 10px;font-family:\'Barlow Condensed\',monospace;font-weight:600;font-size:14px">' + ak.altersklasse + '</td>' +
+        '<td style="padding:7px 10px;text-align:right;color:var(--text2);font-size:13px">' + ak.anzahl + '</td>' +
+        '<td style="padding:7px 10px;text-align:center">' +
+          '<input type="checkbox" class="ak-jugend-chk" data-ak="' + ak.altersklasse.replace(/"/g,'&quot;') + '"' +
+          (isJugend ? ' checked' : '') +
+          ' style="width:16px;height:16px;accent-color:var(--btn-bg);cursor:pointer">' +
+        '</td>' +
+      '</tr>';
+  }
+
+  el.innerHTML = adminSubtabs() +
+    '<div class="panel" style="padding:24px">' +
+      '<div class="panel-title" style="margin-bottom:4px">👤 Altersklassen</div>' +
+      '<div style="color:var(--text2);font-size:13px;margin-bottom:20px">Alle verwendeten Altersklassen. ' +
+        'Als <strong>Jugend</strong> markierte AKs werden (wenn konfiguriert) zu <strong>MHK\uFE0E / WHK\uFE0E</strong> zusammengefasst.</div>' +
+      '<table style="width:100%;border-collapse:collapse;max-width:500px">' +
+        '<thead>' +
+          '<tr style="border-bottom:2px solid var(--border)">' +
+            '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Altersklasse</th>' +
+            '<th style="padding:6px 10px;text-align:right;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Ergebnisse</th>' +
+            '<th style="padding:6px 10px;text-align:center;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Jugend →<br>MHK\uFE0E/WHK\uFE0E</th>' +
+          '</tr>' +
+        '</thead>' +
+        '<tbody>' + tbody + '</tbody>' +
+      '</table>' +
+      '<div style="margin-top:20px;display:flex;gap:10px;align-items:center">' +
+        '<button class="btn btn-primary" onclick="saveAdminAltersklassen()">💾 Speichern</button>' +
+        '<span id="ak-save-status" style="font-size:13px;color:var(--text2)"></span>' +
+      '</div>' +
+    '</div>';
+}
+
+async function saveAdminAltersklassen() {
+  var chks = document.querySelectorAll('.ak-jugend-chk');
+  var jugendAks = [];
+  chks.forEach(function(chk) { if (chk.checked) jugendAks.push(chk.dataset.ak); });
+
+  var status = document.getElementById('ak-save-status');
+  if (status) status.textContent = '⏳ Speichere…';
+
+  var r = await apiPost('einstellungen', { jugend_aks: JSON.stringify(jugendAks) });
+  if (r && r.ok) {
+    appConfig.jugend_aks = JSON.stringify(jugendAks);
+    if (status) status.textContent = '✅ Gespeichert (' + jugendAks.length + ' Jugend-AKs)';
+    setTimeout(function() { if (status) status.textContent = ''; }, 3000);
+  } else {
+    if (status) status.textContent = '❌ Fehler beim Speichern';
+  }
+}
 /* ── 09_utils.js ── */
 function setSubTab(t) { state.subTab = t; state.page = 1; state.filters = {}; state.diszFilter = null; renderPage(); }
 function setDiszFilter(d) { state.diszFilter = d; state.page = 1; loadErgebnisseData(); }
