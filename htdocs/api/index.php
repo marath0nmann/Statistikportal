@@ -112,6 +112,11 @@ try {
 
 // Auto-Migration: avatar_pfad Spalte
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS avatar_pfad VARCHAR(120) NULL COMMENT 'Relativer Pfad zum Avatar-Bild'"); } catch (\Exception $e) {}
+// ak_platz_meisterschaft in allen Ergebnis-Tabellen
+foreach (['ergebnisse','ergebnisse_strasse','ergebnisse_sprint','ergebnisse_mittelstrecke','ergebnisse_sprungwurf'] as $_emt) {
+    try { DB::query("ALTER TABLE " . DB::tbl($_emt) . " ADD COLUMN IF NOT EXISTS ak_platz_meisterschaft SMALLINT NULL"); } catch (\Exception $e) {}
+}
+unset($_emt);
 
 // Einheitliche Tabelle vorhanden?
 $_tblCheck = DB::fetchOne("SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='ergebnisse'");
