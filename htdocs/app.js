@@ -3592,9 +3592,12 @@ function renderEintragen() {
             return opts;
           })() + '</select></div>' +
             '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;padding-bottom:2px">' +
-              '<input type="checkbox" id="bk-mstr-toggle" onchange="importToggleMstr(\'bk\',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
+              '<input type="checkbox" id="bk-mstr-toggle" onchange="importToggleMstr(\'bk\',this.checked,document.getElementById(\'bk-mstr-global\').value)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
               'Meisterschaft' +
             '</label>' +
+            '<select id="bk-mstr-global" onchange="if(document.getElementById(\'bk-mstr-toggle\').checked)importToggleMstr(\'bk\',true,this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+              mstrOptions(0) +
+            '</select>' +
           '</div>' +
         '</div>' +
         '<div id="bk-best-form" style="display:none;margin-bottom:16px">' +
@@ -3608,7 +3611,7 @@ function renderEintragen() {
           '<textarea id="bk-paste-area" rows="6" placeholder="Ergebnisse per Copy &amp; Paste einf&uuml;gen, z.B.:&#10;Europa-Meisterschaften; Madeira&#10;W65&#10;11.10.25&#10;400 m&#10;Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="bulkParsePaste()">&#x1F4CB; Einlesen</button>' +
         '</div>' +
-        '<div id="bk-mstr-bar" style="display:none"></div>' +
+
         '<div style="overflow-x:auto">' +
           '<table style="width:100%;border-collapse:collapse;font-size:13px" id="bulk-table">' +
             '<thead><tr style="background:var(--surf2);color:var(--text2)">' +
@@ -3709,8 +3712,7 @@ function renderEintragen() {
   if (isBulk) {
     bulkAddRow();
     bkLoadVeranstOptions();
-    var _bkMstrBar = document.getElementById('bk-mstr-bar');
-    if (_bkMstrBar) _bkMstrBar.innerHTML = importMstrAllBar('bk');
+
   }
 }
 
@@ -5017,12 +5019,14 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
         '<input id="rr-ort" type="text" value="' + (eventOrt||'') + '" placeholder="z.B. D\u00fcsseldorf" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:min(150px,100%)"/></div>' +
       '<span style="font-size:12px;color:var(--text2);align-self:center">&#x2705; ' + results.length + ' TuS-Oedt-Ergebnis(se) &bull; Event ' + eventId + '</span>' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;align-self:center">' +
-        '<input type="checkbox" id="rr-mstr-toggle" onchange="importToggleMstr(\'rr\',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
+        '<input type="checkbox" id="rr-mstr-toggle" onchange="importToggleMstr(\'rr\',this.checked,document.getElementById(\'rr-mstr-global\').value)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
         'Meisterschaft' +
       '</label>' +
+      '<select id="rr-mstr-global" onchange="if(document.getElementById(\'rr-mstr-toggle\').checked)importToggleMstr(\'rr\',true,this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+        mstrOptions(0) +
+      '</select>' +
     '</div>' +
     (!guessDate ? '<div id="rr-datum-warn" style="margin-bottom:10px;padding:8px 12px;background:#7c3a00;color:#ffb347;border-radius:7px;font-size:13px;font-weight:600">&#x26A0;&#xFE0E; Bitte Datum eintragen — es beeinflusst die AK-Platzierung!</div>' : '<div id="rr-datum-warn" style="display:none"></div>') +
-    importMstrAllBar('rr') +
     '<div id="rr-tabelle" style="overflow-x:auto;margin-bottom:12px">' +
       '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
         '<thead><tr style="color:var(--text2);border-bottom:2px solid var(--border)">' +
@@ -7393,47 +7397,22 @@ document.addEventListener('click', function(ev) {
 // ── VERANSTALTUNGEN ────────────────────────────────────────
 
 
-// Gemeinsame "Alle Meisterschaft setzen" Funktion für RaceResult, MikaTiming, Bulk
-function importSetAllMstr(prefix) {
-  var mstrVal = (document.getElementById(prefix + '-mstr-all') || {}).value || '';
-  var platzVal = (document.getElementById(prefix + '-mstr-platz-all') || {}).value || '';
-  document.querySelectorAll('.' + prefix + '-mstr-sel').forEach(function(sel, i) {
-    sel.value = mstrVal;
-    if (platzVal) {
-      var platzInputs = document.querySelectorAll('.' + prefix + '-mstr-platz');
-      if (platzInputs[i]) platzInputs[i].value = platzVal;
-    }
-  });
-}
-
-// HTML-Snippet für "Alle setzen" Bar (prefix = 'rr', 'mika', 'bk')
-function importMstrAllBar(prefix) {
-  return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 12px;background:var(--surf2);border-radius:8px;flex-wrap:wrap">' +
-    '<span style="font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">Alle setzen:</span>' +
-    '<select id="' + prefix + '-mstr-all" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
-      mstrOptions(0) +
-    '</select>' +
-    '<input id="' + prefix + '-mstr-platz-all" type="number" min="1" placeholder="Platz (opt.)" style="width:110px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
-    '<button class="btn btn-ghost btn-sm" onclick="importSetAllMstr(\'' + prefix + '\')">&#x2713; Auf alle anwenden</button>' +
-  '</div>';
-}
-
-// Meisterschaft-Spalten ein-/ausblenden (alle drei Import-Module)
-function importToggleMstr(prefix, show) {
-  // Bar
-  var barEl = document.getElementById(prefix + '-mstr-bar');
-  if (barEl) barEl.style.display = show ? '' : 'none';
+// Meisterschaft-Spalten ein-/ausblenden + Wert sofort auf alle setzen
+function importToggleMstr(prefix, show, mstrVal) {
   // Header-Spalten
   document.querySelectorAll('.' + prefix + '-mstr-th').forEach(function(th) {
     th.style.display = show ? '' : 'none';
   });
-  // Zeilen-Zellen (tragen Klasse prefix-mstr)
+  // Zeilen-Zellen
   document.querySelectorAll('.' + prefix + '-mstr').forEach(function(td) {
     td.style.display = show ? '' : 'none';
   });
-  // Wenn ausgeblendet: Werte zurücksetzen
+  // Wert sofort auf alle Selects setzen
+  document.querySelectorAll('.' + prefix + '-mstr-sel').forEach(function(s) {
+    s.value = show ? (mstrVal || '') : '';
+  });
+  // Wenn ausgeblendet: Platz zurücksetzen
   if (!show) {
-    document.querySelectorAll('.' + prefix + '-mstr-sel').forEach(function(s) { s.value = ''; });
     document.querySelectorAll('.' + prefix + '-mstr-platz').forEach(function(i) { i.value = ''; });
   }
 }
@@ -7548,11 +7527,13 @@ async function mikaFetch() {
       '<div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Datum</label><input id="mika-datum" value="' + (eventDate ? (function(d){var p=d.match(/(\d{4})-(\d{2})-(\d{2})/);return p?p[3]+'.'+p[2]+'.'+p[1]:'';})(eventDate) : '') + '" placeholder="TT.MM.JJJJ" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
       '<div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Ort</label><input id="mika-ort" value="' + (eventOrt||'') + '" placeholder="Ort" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:140px"/></div>' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;align-self:flex-end;padding-bottom:8px">' +
-        '<input type="checkbox" id="mika-mstr-toggle" onchange="importToggleMstr(\'mika\',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
+        '<input type="checkbox" id="mika-mstr-toggle" onchange="importToggleMstr(\'mika\',this.checked,document.getElementById(\'mika-mstr-global\').value)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
         'Meisterschaft' +
       '</label>' +
+      '<select id="mika-mstr-global" onchange="if(document.getElementById(\'mika-mstr-toggle\').checked)importToggleMstr(\'mika\',true,this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);align-self:flex-end;margin-bottom:7px">' +
+        mstrOptions(0) +
+      '</select>' +
     '</div>' +
-    '<div id="mika-mstr-bar" style="display:none">' + importMstrAllBar('mika') + '</div>' +
     '<table style="width:100%;border-collapse:collapse">' +
       '<thead><tr style="border-bottom:2px solid var(--border)">' +
         '<th style="padding:6px;width:30px"><input type="checkbox" checked onchange="document.querySelectorAll(\'.mika-chk\').forEach(function(c){c.checked=this.checked;})" title="Alle"/></th>' +

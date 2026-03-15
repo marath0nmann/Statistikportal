@@ -1,7 +1,6 @@
-v487: Meisterschaft-Checkbox + Platz-MS-Vorausfüllung + "Name erforderlich" Fix
+v491: Meisterschaft: Checkbox + Select inline, sofort auf alle anwenden
 
-- RaceResult/MikaTiming/Bulk: Checkbox "Meisterschaft?" bei Veranstaltungsfeldern
-  → Spalten + "Alle setzen"-Bar erst sichtbar wenn angehakt
-- Platz MS aus AK-Platz vorausgefüllt (RR + MikaTiming)
-- Fix "Name erforderlich": name_nv + geburtsjahr im athleten-POST
-- importToggleMstr/importSetAllMstr auf neue CSS-Klassen-Struktur
+- Checkbox + Meisterschaft-Select direkt nebeneinander bei Veranstaltungsfeldern
+- onchange am Select wendet Wert sofort auf alle Zeilen an (kein "Alle setzen"-Button)
+- "Alle setzen"-Bar + "Platz (opt.)"-Feld entfernt
+- Gilt für RaceResult, MikaTiming und Bulk-Eintragen
