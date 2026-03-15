@@ -4697,6 +4697,8 @@ async function rrImport() {
     var ak = '';
     if (r.iAK >= 0) {
       ak = String(raw[r.iAK] || '').trim();
+      // Kombiniertes AK+Platz-Feld aufsplitten: "74. M35" → ak=M35
+      if (/^\d+\.?\s*[A-Z]/.test(ak)) { var _aksp4 = ak.match(/^(\d+)\.?\s*(.+)$/); if (_aksp4) ak = _aksp4[2].trim(); }
     } else {
       var _jahrgang2 = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
       var _geschlecht2 = '';
