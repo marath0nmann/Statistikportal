@@ -4640,7 +4640,24 @@ async function rrFetch() {
 
         _dks.forEach(function(k) {
           var v = dRaw[k];
-          var groups = Array.isArray(v) ? { '': v } : (v && typeof v === 'object' ? v : {});
+          // Struktur-Erkennung:
+          // A) v ist direkt eine Row: ["BIB","ID",...] → Array dessen erster Eintrag kein Array ist
+          // B) v ist Array von Rows: [["BIB",...],["BIB",...]] → Array von Arrays
+          // C) v ist Objekt mit Gruppen-Keys: {"Gruppe1": [rows], ...}
+          var groups;
+          if (Array.isArray(v)) {
+            if (v.length > 0 && Array.isArray(v[0])) {
+              groups = { '': v };          // B: Array von Rows
+            } else if (v.length > 0 && !Array.isArray(v[0])) {
+              groups = { '': [v] };        // A: v ist selbst eine Row
+            } else {
+              groups = { '': v };
+            }
+          } else if (v && typeof v === 'object') {
+            groups = v;                    // C: Gruppen-Objekt
+          } else {
+            groups = {};
+          }
           Object.keys(groups).forEach(function(k2) {
             var rows = groups[k2];
             if (!Array.isArray(rows)) return;
@@ -4735,7 +4752,7 @@ async function rrFetch() {
           }
           var dRaw2 = payload2.data || {};
           Object.keys(dRaw2).forEach(function(k) {
-            var v = dRaw2[k]; var groups = Array.isArray(v) ? {'':v} : (v&&typeof v==='object'?v:{});
+            var v = dRaw2[k]; var groups = Array.isArray(v) ? (v.length>0&&Array.isArray(v[0]) ? {"":v} : {"": [v]}) : (v&&typeof v==="object"?v:{});
             Object.keys(groups).forEach(function(k2) {
               var rows2 = groups[k2]; if (!Array.isArray(rows2)) return;
               var gk2 = k2 ? (k + '/' + k2) : k;
@@ -4793,7 +4810,7 @@ async function rrFetch() {
           var _fDks = Object.keys(_fdRaw);
           _fDks.forEach(function(k) {
             var v = _fdRaw[k];
-            var groups = Array.isArray(v) ? { '': v } : (v && typeof v === 'object' ? v : {});
+            var groups = Array.isArray(v) ? (v.length>0&&Array.isArray(v[0]) ? {"":v} : {"": [v]}) : (v&&typeof v==="object"?v:{});
             Object.keys(groups).forEach(function(k2) {
               var rows = groups[k2];
               if (!Array.isArray(rows)) return;
