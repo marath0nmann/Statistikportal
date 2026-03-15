@@ -4246,22 +4246,50 @@ async function rrFetch() {
   var preview = document.getElementById('rr-preview');
   preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; Lade&hellip;</div>';
 
-  // Wenn URL nicht raceresult.com → Seite fetchen und auf RRPublish prüfen
+  // Wenn URL nicht raceresult.com → zuerst im DOM suchen, dann per Proxy
   if (raw.indexOf('raceresult.com') < 0 && raw.match(/^https?:\/\//)) {
+    var foundId = null;
+
+    // 1. Performance-Entries: Netzwerkrequests der aktuell geladenen Seite prüfen
+    //    (funktioniert wenn die Ergebnisseite im selben Browser-Tab geöffnet war)
     try {
-      var proxyResp = await apiGet('rr-fetch?proxy_url=' + encodeURIComponent(raw));
-      if (proxyResp && proxyResp.ok && proxyResp.data && proxyResp.data.event_id) {
-        var foundId = proxyResp.data.event_id;
-        raw = 'https://my.raceresult.com/' + foundId + '/';
-        notify('RaceResult Event-ID ' + foundId + ' gefunden \u2192 ' + raw, 'ok');
-        document.getElementById('rr-url').value = raw;
-      } else {
-        notify('Keine RaceResult-Event-ID gefunden. Bitte direkt my.raceresult.com/EVENTID/ eingeben.', 'err');
-        preview.innerHTML = '';
-        return;
+      var entries = (window.performance && window.performance.getEntriesByType)
+        ? window.performance.getEntriesByType('resource') : [];
+      for (var pi = 0; pi < entries.length && !foundId; pi++) {
+        var em = entries[pi].name.match(/raceresult\.com\/(\d{4,7})\//);
+        if (em) foundId = em[1];
       }
-    } catch(e) {
-      notify('Fehler beim Laden der Seite: ' + e.message, 'err');
+    } catch(e2) {}
+
+    // 2. Aktuelles DOM nach raceresult-Referenzen durchsuchen
+    if (!foundId) {
+      try {
+        var bodyHtml = document.documentElement.innerHTML;
+        var dm = bodyHtml.match(/raceresult\.com\/(\d{4,7})\//);
+        if (dm) foundId = dm[1];
+        if (!foundId) {
+          var dm2 = bodyHtml.match(/RRPublish\s*\([^,)]+,\s*(\d{4,7})\s*[,)]/);
+          if (dm2) foundId = dm2[1];
+        }
+      } catch(e3) {}
+    }
+
+    // 3. Serverseitiger Proxy als letzter Fallback
+    if (!foundId) {
+      try {
+        var proxyResp = await apiGet('rr-fetch?proxy_url=' + encodeURIComponent(raw));
+        if (proxyResp && proxyResp.ok && proxyResp.data && proxyResp.data.event_id) {
+          foundId = proxyResp.data.event_id;
+        }
+      } catch(ep) {}
+    }
+
+    if (foundId) {
+      raw = 'https://my.raceresult.com/' + foundId + '/';
+      notify('RaceResult Event-ID ' + foundId + ' gefunden \u2192 ' + raw, 'ok');
+      document.getElementById('rr-url').value = raw;
+    } else {
+      notify('Keine RaceResult-Event-ID gefunden \u2013 bitte die Ergebnisseite im selben Browser-Tab \u00f6ffnen, dann nochmal versuchen.', 'err');
       preview.innerHTML = '';
       return;
     }
