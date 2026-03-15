@@ -1,6 +1,1 @@
-v521: RaceResult Debug: Version + r=all Fallback auch ohne DataFields
-
-- Version + Timestamp in _noResText (Debug bei 0 Ergebnissen)
-- r=all Fallback greift jetzt immer wenn r=search 0 Zeilen liefert
-  (nicht nur wenn df.length > 0)
-- Re-Kalibrierung der Spaltenindizes wenn r=all neue DataFields bringt
+v522: RaceResult Debug: contestListMap sichtbar machen
