@@ -1,8 +1,3 @@
-v470: Fix Sortierung bei Zeitresultaten ohne führende Null
+v471: Fix Pace-Berechnung in Bestleistungen-Tabelle
 
-Problem: "4:28:29" (RaceResult-Import) sortierte nach "4:44:17" weil VARCHAR-Vergleich
-Fix:
-- normalizeResultat(): "4:28:29" → "04:28:29" + resultat_num=Sekunden
-- Bulk-Import speichert jetzt resultat_num
-- migrateResultatNum(): normalisiert Altdaten einmalig per UPDATE
-- Sortierung: COALESCE(resultat_num, TIME_TO_SEC) für unified, LPAD für Legacy
+r.disz war undefined in buildRekTable — Disziplin jetzt aus rs.disz (State) via _disz.
