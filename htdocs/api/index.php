@@ -2341,7 +2341,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 if ($res === 'rr-fetch' && $method === 'GET') {
     Auth::requireLogin();
 
-    // Zweig A: proxy_url → beliebige Seite fetchen und HTML zurückgeben (für RRPublish-Erkennung)
+    // Zweig A: proxy_url → beliebige Seite auf RaceResult Event-ID prüfen
     if (!empty($_GET['proxy_url'])) {
         $proxyUrl = filter_var($_GET['proxy_url'], FILTER_VALIDATE_URL);
         if (!$proxyUrl) jsonErr('Ungültige URL.', 400);
@@ -2353,15 +2353,39 @@ if ($res === 'rr-fetch' && $method === 'GET') {
         ]]);
         $html = @file_get_contents($proxyUrl, false, $ctx);
         if ($html === false) jsonErr('Seite konnte nicht geladen werden.', 502);
-        // Nur relevante Script-Snippets zurückgeben (kein komplettes HTML wegen Größe)
-        $scripts = '';
-        preg_match_all('/<script[^>]*>(.*?)<\/script>/si', $html, $sm);
-        foreach ($sm[1] as $s) {
-            if (stripos($s, 'RRPublish') !== false || stripos($s, 'raceresult') !== false) {
-                $scripts .= $s . "\n";
+
+        $foundId = null;
+
+        // 1. Inline-Script: RRPublish(element, 334519, ...) oder new RRPublish(..., 334519, ...)
+        if (preg_match('/RRPublish\s*\([^,)]+,\s*(\d{4,7})\s*[,)]/i', $html, $m)) {
+            $foundId = $m[1];
+        }
+        // 2. URL-Muster: raceresult.com/334519/
+        if (!$foundId && preg_match('/raceresult\.com\/(\d{4,7})\//i', $html, $m)) {
+            $foundId = $m[1];
+        }
+        // 3. data-Attribute
+        if (!$foundId && preg_match('/data-(?:event|rrid|event-id)\s*=\s*["\'](\d{4,7})["\']/i', $html, $m)) {
+            $foundId = $m[1];
+        }
+        // 4. Script-src mit raceresult.com/EVENTID/
+        if (!$foundId && preg_match('/<script[^>]+src=["\'][^"\']*raceresult\.com\/(\d{4,7})\//i', $html, $m)) {
+            $foundId = $m[1];
+        }
+        // 5. Inline-Scripts: numerisches Argument an Publish-ähnliche Konstrukte
+        if (!$foundId) {
+            preg_match_all('/<script[^>]*>(.*?)<\/script>/si', $html, $sm);
+            foreach ($sm[1] as $s) {
+                if (preg_match('/raceresult\.com\/(\d{4,7})\//i', $s, $m)) {
+                    $foundId = $m[1]; break;
+                }
+                if (preg_match('/[Pp]ublish\s*\([^)]{0,80}?[,\s](\d{5,7})[,\s)]/i', $s, $m)) {
+                    $foundId = $m[1]; break;
+                }
             }
         }
-        jsonOk(['html' => $scripts ?: $html]);
+
+        jsonOk(['event_id' => $foundId]);
     }
 
     // Zweig B: event_id → RaceResult-Seite fetchen (bisherige Logik)
