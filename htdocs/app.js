@@ -393,6 +393,14 @@ async function init() {
   }
 }
 
+
+// Veranstaltungsname aus Ergebnis-Objekt je nach Admin-Einstellung
+function fmtVeranstName(e) {
+  var pref = (window.appConfig && window.appConfig.veranstaltung_anzeige) || 'ort';
+  if (pref === 'name' && e.veranstaltung_name) return e.veranstaltung_name;
+  // Fallback: ort aus veranstaltung_ort, dann aus kuerzel
+  return e.veranstaltung_ort || (e.veranstaltung || '').split(' ').slice(1).join(' ') || e.veranstaltung_name || '';
+}
 // ── SETUP-WIZARD ─────────────────────────────────────────────
 var _setup = { step: 1, reason: '', hasConfig: false,
                host:'localhost', port:3306, name:'', user:'', pass:'', prefix:'',
@@ -2358,7 +2366,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
   for (var i = 0; i < rows.length; i++) {
     var rr = rows[i];
     var ergebnis = (rr.fmt || (subTab === 'sprungwurf' ? 'm' : '')) === 'm' ? fmtMeter(rr.resultat) : fmtTime(rr.resultat, (rr.fmt === 's' || (!rr.fmt && subTab === 'sprint')) ? 's' : undefined);
-    var ort = (rr.veranstaltung || '').split(' ').slice(1).join(' ');
+    var ort = fmtVeranstName(rr);
     var cells =
       '<td class="ort-text">' + formatDate(rr.datum) + '</td>' +
       '<td><span class="athlet-link" onclick="openAthletById(' + rr.athlet_id + ')">' + rr.athlet + '</span></td>' +
@@ -2976,7 +2984,7 @@ function _apRender() {
     var e = filteredErgs[i];
     var resStr = _apFmtRes(e, fmt);
     var paceStr = (showPace && diszKm(e.disziplin) >= 1) ? fmtTime(calcPace(e.disziplin, e.resultat), 'min/km') : '';
-    var ort = (e.veranstaltung || '').split(' ').slice(1).join(' ');
+    var ort = fmtVeranstName(e);
     rows += '<tr>' +
       '<td>' + formatDate(e.datum) + '</td>' +
       '<td>' + (e.altersklasse || '&ndash;') + '</td>' +
@@ -6546,6 +6554,11 @@ async function renderAdminDarstellung() {
             '<option value="primary"' + (cfgVal('adressleiste_farbe','aus') === 'primary' ? ' selected' : '') + '>Hauptfarbe</option>' +
             '<option value="accent"'  + (cfgVal('adressleiste_farbe','aus') === 'accent'  ? ' selected' : '') + '>Akzentfarbe</option>' +
           '</select>') +
+        row('Veranstaltungsname anzeigen als', 'Wie der Wettkampfname in Ergebnissen und Athletenprofil dargestellt wird',
+          '<select id="cfg-veranstaltung_anzeige" class="settings-input" style="width:auto">' +
+            '<option value="ort"'  + (cfgVal('veranstaltung_anzeige','ort')  === 'ort'  ? ' selected' : '') + '>Ort (z.B. &bdquo;Bergisch-Gladbach&rdquo;)</option>' +
+            '<option value="name"' + (cfgVal('veranstaltung_anzeige','ort') === 'name' ? ' selected' : '') + '>Veranstaltungsname (z.B. &bdquo;39. Refrather Herbstlauf&rdquo;)</option>' +
+          '</select>') +
       '</div>' +
     '</div>' +
 
@@ -6654,6 +6667,7 @@ async function saveAllSettings() {
     'farbe_primary','farbe_accent',
     'email_domain','noreply_email',
     'adressleiste_farbe',
+    'veranstaltung_anzeige',
     'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url',
   ];
   var payload = {};
@@ -7686,7 +7700,7 @@ async function renderVeranstaltungen() {
       var _dKey = diszOrder[di];
       var disz = byDisz[_dKey][0] ? ergDiszLabel(byDisz[_dKey][0]) : _dKey;
       var ergs = byDisz[_dKey];
-      rows += '<tr class="disz-header-row"><td colspan="6" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszMitKat(disz) + '</td></tr>';
+      rows += '<tr class="disz-header-row"><td colspan="7" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszMitKat(disz) + '</td></tr>';
       for (var ei2 = 0; ei2 < ergs.length; ei2++) {
         var e2 = ergs[ei2];
         var fmt = e2.fmt || '';
