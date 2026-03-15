@@ -582,6 +582,45 @@ function buildAkCaseExpr(bool $merge, string $alias = 'e'): string {
         ELSE $alias.altersklasse END";
 }
 
+
+// Einmalig: resultat_num für Altdaten nachberechnen (Zeitformate H:MM:SS)
+// Läuft nur wenn noch NULL-Einträge vorhanden sind
+function migrateResultatNum(): void {
+    try {
+        $tbl = DB::tbl('ergebnisse');
+        $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE resultat_num IS NULL AND resultat REGEXP '^[0-9]{1,2}:[0-9]{2}'");
+        if (!$cnt || (int)$cnt['c'] === 0) return;
+        // MAX 500 pro Request um Timeout zu vermeiden
+        DB::query("UPDATE $tbl SET resultat_num = TIME_TO_SEC(resultat) WHERE resultat_num IS NULL AND resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}' LIMIT 500");
+        DB::query("UPDATE $tbl SET resultat_num = TIME_TO_SEC(CONCAT('00:', resultat)) WHERE resultat_num IS NULL AND resultat REGEXP '^[0-9]{1,2}:[0-9]{2}$' LIMIT 500");
+        // Zeiten normalisieren: "4:28:29" → "04:28:29"
+        DB::query("UPDATE $tbl SET resultat = CONCAT(LPAD(SUBSTRING_INDEX(resultat,':',1),2,'0'), SUBSTRING(resultat, LOCATE(':',resultat))) WHERE resultat_num IS NOT NULL AND resultat REGEXP '^[0-9]:[0-9]{2}:' LIMIT 500");
+    } catch (Exception $e) { /* ignorieren */ }
+}
+migrateResultatNum();
+
+// Hilfsfunktion: Zeit-String normalisieren und resultat_num berechnen
+// "4:28:29" → "04:28:29", gibt [normalisiert, sekunden] zurück
+function normalizeResultat(string $r, string $fmt = 'min'): array {
+    $r = trim($r);
+    if ($fmt === 'm' || is_numeric($r)) {
+        // Meter/numerisch: unverändert
+        return [$r, is_numeric($r) ? (float)$r : null];
+    }
+    // Zeitformat: H:MM:SS oder MM:SS
+    if (preg_match('/^(\d{1,2}):(\d{2}):(\d{2})$/', $r, $m)) {
+        $h = (int)$m[1]; $min = (int)$m[2]; $sec = (int)$m[3];
+        $norm = sprintf('%02d:%02d:%02d', $h, $min, $sec);
+        return [$norm, $h*3600 + $min*60 + $sec];
+    }
+    if (preg_match('/^(\d{1,2}):(\d{2})$/', $r, $m)) {
+        $min = (int)$m[1]; $sec = (int)$m[2];
+        $norm = sprintf('%02d:%02d', $min, $sec);
+        return [$norm, $min*60 + $sec];
+    }
+    return [$r, null];
+}
+
 if ($res === 'altersklassen' && $method === 'GET') {
     Auth::requireAdmin();
     $rows = DB::fetchAll(
@@ -1619,9 +1658,14 @@ if ($res === 'rekorde') {
         $mergeAK  = ($_GET['merge_ak'] ?? '1') !== '0';
         $akExpr   = buildAkCaseExpr($mergeAK);
 
-        $sortCol   = ($fmt === 'm') ? "e.resultat_num" : "e.resultat";
-        // Legacy-Tabellen haben resultat als VARCHAR oder FLOAT je nach Tabelle
-        if (!$unified && $fmt === 'm') $sortCol = "e.resultat";
+        // Sortierung: resultat_num für unified (Sekunden numerisch), LPAD für Legacy-VARCHAR
+        if ($fmt === 'm') {
+            $sortCol = $unified ? "e.resultat_num" : "e.resultat";
+        } else {
+            // Zeitformat: resultat_num wenn vorhanden (Sekunden), sonst LPAD für konsistenten Stringvergleich
+            $sortCol = $unified ? "COALESCE(e.resultat_num, TIME_TO_SEC(e.resultat))"
+                                : "LPAD(e.resultat, 10, '0')";
+        }
         $paceField = ($fmt === 'min' && (strpos($tbl,'strasse') !== false || $unified)) ? ", e.pace" : "";
 
         $top_gesamt = DB::fetchAll(
@@ -2436,9 +2480,11 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
             [$vid, $aid, $disziplin, $resultat]);
         if ($dup) { $skipped++; continue; }
-        $dmPace = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
-        DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,pace,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            [$vid,$aid,$ak,$disziplin,$dmPace ? (int)$dmPace['id'] : null,$resultat,$pace,$akp,$mstr,$quelle,$user['id']]);
+        $dmInfo = DB::fetchOne("SELECT dm.id, dk.fmt FROM " . DB::tbl('disziplin_mapping') . " dm LEFT JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.tbl_key = (SELECT tbl_key FROM " . DB::tbl('disziplin_kategorien') . " dk2 WHERE dk2.id = dm.kategorie_id LIMIT 1) WHERE dm.disziplin=?", [$disziplin]);
+        $dmFmt = $dmInfo['fmt'] ?? 'min';
+        [$resultat, $rnum] = normalizeResultat($resultat, $dmFmt);
+        DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,resultat_num,pace,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            [$vid,$aid,$ak,$disziplin,$dmInfo ? (int)$dmInfo['id'] : null,$resultat,$rnum,$pace,$akp,$mstr,$quelle,$user['id']]);
         autoMapDisziplin($disziplin);
         $imported++;
     }
