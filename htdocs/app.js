@@ -4540,7 +4540,7 @@ async function rrFetch() {
           cname = _gfActive.length ? _gfActive[0].Value : ('Contest ' + cid);
         }
 
-        // DataFields kalibrieren
+        // DataFields immer frisch aus Response — nicht Contest-übergreifend wiederverwenden
         var df = payload.DataFields || [];
         if (!Array.isArray(df) || df.length === 0) {
           // Keine DataFields im r=search → r=all versuchen (Suchfunktion ggf. defekt)
@@ -4562,10 +4562,10 @@ async function rrFetch() {
             continue;
           }
         }
+        // Immer zurücksetzen — auch wenn df leer (wird dann mit Defaults gespeichert)
+        iAK = -1; iYear = -1; iGeschlecht = -1; var iAKPlatz = -1;
+        iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
         if (Array.isArray(df) && df.length > 0) {
-          iAK = -1; iYear = -1; iGeschlecht = -1; var iAKPlatz = -1;
-          // Alle Spaltenindizes zurücksetzen damit jede Liste frisch kalibriert wird
-          iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
           for (var fi = 0; fi < df.length; fi++) {
             var f = df[fi].toLowerCase();
             if (f.indexOf('anzeigename') >= 0 || f.indexOf('lfname') >= 0) iName = fi;

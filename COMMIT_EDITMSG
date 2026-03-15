@@ -1,5 +1,8 @@
-v527: Fix iZeit/iNetto=-1: r=all Neukalibrierung immer ausführen
+v528: Fix iZeit/iNetto=-1: Kalibrierung per Contest zurücksetzen
 
-Zweiter r=all-Block kalibrierte nur wenn df.length===0 (leer) —
-aber für Contest 11 war df bereits von Contest 1 gesetzt.
-Fix: Neukalibrierung immer wenn r=all neue DataFields bringt.
+df (DataFields) wurde Contest-übergreifend wiederverwendet. Contest 1
+(1-8-Liste, 8 Felder) kalibrierte iZeit=7, Contest 11 (9-12-Liste, 11 Felder)
+übernahm diese Kalibrierung → iZeit=7 statt 10, Zeit leer.
+
+Fix: iAK/iYear/iGeschlecht/iName/iClub/iNetto/iZeit/iPlatz werden VOR
+dem Kalibrierungsblock zurückgesetzt, unabhängig von df.length.
