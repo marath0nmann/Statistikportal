@@ -3533,7 +3533,7 @@ function renderEintragen() {
                 if (d.tbl_key && !seen[d.tbl_key]) { seen[d.tbl_key] = true; kats.push({ key: d.tbl_key, name: d.kategorie }); }
               }
               for (var ki = 0; ki < kats.length; ki++) {
-                opts += '<option value="' + kats[ki].key + '">' + kats[ki].name + '</option>';
+                opts += '<option value="' + kats[ki].key + '"' + (kats[ki].key === 'strasse' ? ' selected' : '') + '>' + kats[ki].name + '</option>';
               }
               return opts;
             })() +
@@ -4143,29 +4143,30 @@ async function rrFetch() {
     if (!allResults.length) {
       var dbgClubs = _rrDebug.clubSamples.length ? _rrDebug.clubSamples.slice(0,10).join(', ') : '(keine)';
       var vereinRaw2 = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
+      var _noResText = [
+        'Keine TuS-Oedt-Ergebnisse gefunden.',
+        contestIds.length + ' Contest(s) | Listname: ' + listName,
+        'Gesamt-Zeilen: ' + _rrDebug.totalRows,
+        'DataFields: ' + (_rrDebug.dataFields.join(', ') || '(keine)'),
+        'iClub-Index: ' + _rrDebug.iClub,
+        'Suchbegriff: "' + vereinRaw2 + '"',
+        'Club-Werte (Sample): ' + dbgClubs,
+        'Top-Level Keys: ' + ((_rrDebug.topKeys||[]).join(', ')||'?'),
+        'Config-Keys: ' + ((_rrDebug.cfgKeys||[]).join(', ')||'?'),
+        'API-Key: "' + (_rrDebug.cfgKey||'leer') + '" | Datum-Raw: ' + JSON.stringify(_rrDebug.cfgDateRaw||'(leer)') + ' → ' + (_rrDebug.eventDate||'leer') + ' | cfg.eventname: ' + (_rrDebug.cfgEventName||'–'),
+        'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine'),
+        'Contests: ' + (_rrDebug.contestSample||'?'),
+        'groupFilters: ' + (_rrDebug.groupFilters||'–'),
+        'data-Keys: ' + (_rrDebug.dataKeys||'–'),
+        'ListName: ' + (_rrDebug.listName||'?') + (_rrDebug.listContest !== undefined ? ' (Contest=' + _rrDebug.listContest + ')' : ''),
+        'lists-Raw: ' + (_rrDebug.listsRaw||'?'),
+      ].join('\n');
       preview.innerHTML =
         '<div style="background:var(--surf2);border-radius:10px;padding:16px">' +
-          '<strong>&#x274C; Keine TuS-Oedt-Ergebnisse gefunden.</strong><br>' +
-          '<div style="font-size:12px;color:var(--text2);margin-top:8px;line-height:1.7">' +
-            contestIds.length + ' Contest(s) &bull; Listname: ' + listName + '<br>' +
-            'Gesamt-Zeilen geladen: ' + _rrDebug.totalRows + '<br>' +
-            'DataFields: ' + (_rrDebug.dataFields.join(', ') || '(keine)') + '<br>' +
-            'iClub-Index: ' + _rrDebug.iClub + '<br>' +
-            'Suchbegriff: &ldquo;' + vereinRaw2 + '&rdquo;<br>' +
-            'Club-Werte in Daten (Sample): ' + dbgClubs + '<br>' +
-            'Top-Level Keys: ' + ((_rrDebug.topKeys||[]).join(', ')||'?') + '<br>' +
-            'Config-Keys: ' + ((_rrDebug.cfgKeys||[]).join(', ')||'?') + '<br>' +
-            'API-Key: &ldquo;' + (_rrDebug.cfgKey||'leer') + '&rdquo; | Datum-Raw: ' + JSON.stringify(_rrDebug.cfgDateRaw||'(leer)') + ' → ' + (_rrDebug.eventDate||'leer') + ' | cfg.eventname: ' + (_rrDebug.cfgEventName||'–') + ' | HeadLine: ' + (_rrDebug.headLine||'–') + '<br>' +
-            'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine') + '<br>' +
-            'Contests: ' + (_rrDebug.contestSample||'?') + '<br>' +
-            'groupFilters: ' + (_rrDebug.groupFilters||'–') + '<br>' +
-            'searchRaw: ' + (_rrDebug.searchRaw||'–') + '<br>' +
-            'extraContests: ' + JSON.stringify(_rrDebug.extraContests||[]) + '<br>' +
-            'data-Keys: ' + (_rrDebug.dataKeys||'–') + '<br>' +
-            'firstGroupKeys: ' + (_rrDebug.firstGroupKeys||'–') + '<br>' +
-            'ListName aus Config: ' + (_rrDebug.listName||'?') + (_rrDebug.listContest !== undefined ? ' (Contest=' + _rrDebug.listContest + ')' : '') + (_rrDebug.fetchMode ? ' [' + _rrDebug.fetchMode + ']' : '') + '<br>' +
-            'lists-Raw: ' + (_rrDebug.listsRaw||'?') + '<br>' +
-            '<details><summary style="cursor:pointer">Raw (400 Zeichen)</summary><pre style="font-size:10px;overflow:auto;max-height:120px">' + (_rrDebug.firstVal||'') + '</pre></details>' +
+          '<strong>&#x274C; Keine TuS-Oedt-Ergebnisse gefunden.</strong>' +
+          '<div style="position:relative;margin-top:10px">' +
+            '<button onclick="(function(){var el=document.getElementById(\'rr-nores-dbg\');var txt=el.innerText||el.textContent;if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){var b=el.parentNode.querySelector(\'button\');var old=b.textContent;b.textContent=\'\u2713 Kopiert!\';setTimeout(function(){b.textContent=old;},2000);});}else{var r=document.createRange();r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}})();" style="position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer">&#x1F4CB; Kopieren</button>' +
+            '<pre id="rr-nores-dbg" style="font-size:11px;overflow-x:auto;background:var(--surface);padding:10px;padding-right:80px;border-radius:6px;white-space:pre-wrap;color:var(--text2);margin:0">' + _noResText.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</pre>' +
           '</div>' +
         '</div>';
       return;
@@ -4372,7 +4373,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   // Event-Metadaten
   _dbgLines.push('eventName: ' + (eventName||'–') + ' | eventDate: ' + (eventDate||'leer') + ' | eventOrt: ' + (eventOrt||'leer'));
   _dbgLines.push('cfgDateRaw: ' + JSON.stringify(_dbg.cfgDateRaw||'') + ' | cfg.eventname: ' + (_dbg.cfgEventName||'–'));
-  if (_dbg.htmlSnippet) _dbgLines.push('HTML-Snippet (Ort-Suche): ' + _dbg.htmlSnippet);
+
   _dbgLines.push('cfg-Keys: ' + (_dbg.cfgAllKeys||'–'));
   _dbgLines.push('cfg (roh): ' + (_dbg.cfgRaw||'–'));
   // Contest-Infos
