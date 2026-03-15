@@ -5398,8 +5398,8 @@ var WIDGET_DEFS = [
 var TIMELINE_TYPE_DEFS = [
   { id: 'gesamt',  label: 'Gesamtbestleistung',  desc: 'Beste Leistung aller Athleten in einer Disziplin',  prio: 0 },
   { id: 'gender',  label: 'Bestleistung M / W',  desc: 'Beste Leistung je Geschlecht',                     prio: 1 },
-  { id: 'ak',      label: 'Bestleistung AK',      desc: 'Beste Leistung je Altersklasse',                   prio: 2 },
-  { id: 'pb',      label: 'Persönliche Bestleistung (PB)', desc: 'Persönliche Bestleistung / Debüt',        prio: 3 },
+  { id: 'ak',      label: 'Bestleistung AK',      desc: 'Beste Leistung / Erste Leistung je Altersklasse',        prio: 2 },
+  { id: 'pb',      label: 'Persönliche Bestleistung (PB)', desc: 'Persönliche Bestleistung / Debüt', prio: 3 },
 ];
 
 function timelineLabelType(lbl) {

@@ -848,7 +848,12 @@ if ($res === 'dashboard' && $method === 'GET') {
                 $bestByAthlet[$aid] = $val;
                 if (empty($labels)) {
                     $isFirst = $prevByAthlet[$aid] === null;
-                    $labels[] = $isFirst ? 'Debüt' : 'PB';
+                    if ($isFirst && $ak) {
+                        // Erste Leistung in der AK schlägt "Debüt" (spezifischer)
+                        $labels[] = 'Erste Leistung ' . $ak;
+                    } else {
+                        $labels[] = $isFirst ? 'Debüt' : 'PB';
+                    }
                     if ($vorher === null) $vorher = $prevByAthlet[$aid];
                 }
             }
