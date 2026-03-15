@@ -1,1 +1,6 @@
-v456: MikaTiming: erweiterter Debug für Detail-Fetch
+v457: MikaTiming: Netto-Zeit nur Pattern + AK M40/W45 + Ort aus Name
+
+- Zeit: nur H:MM:SS extrahieren (kein "Zielzeit (Netto)" Label)
+- AK: f-_type_age_class + Geschlecht aus Detail-HTML → M40/W45
+- AK Fallback: AK40 → M40 aus Event-ID Prefix (M_2EF3BRLP2 → M)
+- Ort: aus Event-Namen (München, Berlin etc.)

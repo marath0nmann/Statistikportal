@@ -2032,9 +2032,15 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             elseif (preg_match('/datePublished.*?(\d{4}-\d{2}-\d{2})/i', $mainHtml, $dm)) $eventDate = $dm[1];
             elseif (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $mainHtml, $dm)) $eventDate = $dm[3].'-'.$dm[2].'-'.$dm[1];
         }
-        // Ort aus JSON-LD oder meta
+        // Ort aus JSON-LD, meta oder Seitentext
         if (preg_match('/"addressLocality"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
         elseif (preg_match('/"location"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
+        // Aus Event-Namen: "München" im Titel
+        if (!$eventOrt && $eventName) {
+            if (preg_match('/\b(München|Berlin|Hamburg|Frankfurt|Köln|Stuttgart|Düsseldorf|Leipzig|Dresden|Hannover|Bremen|Münster|Dortmund|Essen|Duisburg|Bochum|Wuppertal|Bonn|Gelsenkirchen|Aachen|Bielefeld|Mannheim|Augsburg|Wiesbaden|Mönchengladbach|Braunschweig|Kiel|Halle|Magdeburg|Erfurt|Rostock|Mainz|Lübeck|Osnabrück|Oldenburg|Freiburg|Heidelberg|Darmstadt|Regensburg|Würzburg|Ingolstadt|Ulm|Heilbronn|Pforzheim|Oberhausen|Hagen|Hamm|Mülheim|Saarbrücken|Potsdam|Göttingen|Kassel|Paderborn|Trier|Jena|Gera|Cottbus|Schwerin|Erfurt|Viersen|Krefeld|Kleve|Moers|Neuss|Solingen|Leverkusen|Remscheid)\b/ui', $eventName, $om)) {
+                $eventOrt = $om[1];
+            }
+        }
     }
 
     // Event-ID aus URL ableiten (z.B. M_2EF3BRLP2 oder HM_ABC)
@@ -2139,22 +2145,42 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         @$detailDom->loadHTML('<?xml encoding="UTF-8">' . $dHtml);
         $detailXpath = new DOMXPath($detailDom);
 
-        // Zeit: f-time_finish_netto
+        // Zeit: f-time_finish_netto — nur reines Zeit-Pattern extrahieren
         foreach (['f-time_finish_netto', 'f-time_finish_brutto'] as $tcls) {
             $tNodes = $detailXpath->query('//*[contains(@class,"' . $tcls . '")]');
             foreach ($tNodes as $tn) {
                 $t = trim($tn->textContent);
-                if ($t && preg_match('/\d+:\d+/', $t)) { $res['netto'] = $t; break 2; }
+                // Nur Zeit-Pattern: H:MM:SS oder H:MM
+                if (preg_match('/\b(\d{1,2}:\d{2}:\d{2}|\d{1,2}:\d{2})\b/', $t, $tm)) {
+                    $res['netto'] = $tm[1]; break 2;
+                }
             }
         }
 
-        // AK aus f-_type_age_class
-        if (!$res['ak']) {
-            $akNodes = $detailXpath->query('//*[contains(@class,"f-_type_age_class") or contains(@class,"f-type_age_class")]');
-            foreach ($akNodes as $an) {
-                $t = trim($an->textContent);
-                if ($t && $t !== '0') { $res['ak'] = $t; break; }
+        // AK: aus Suchliste (z.B. "AK40") oder Detail f-_type_age_class
+        // Geschlecht aus Detail-HTML ableiten: "Männer" / "Frauen" in Überschriften
+        $sex = '';
+        if (preg_match('/\b(Frauen|Women|weiblich|Female)\b/i', $dHtml)) $sex = 'W';
+        elseif (preg_match('/\b(Männer|Men|männlich|Male)\b/i', $dHtml)) $sex = 'M';
+        // AK-Zahl aus f-_type_age_class
+        $akNum = '';
+        $akNodes = $detailXpath->query('//*[contains(@class,"f-_type_age_class") or contains(@class,"f-type_age_class")]');
+        foreach ($akNodes as $an) { $t = trim($an->textContent); if ($t && $t !== '0' && is_numeric($t)) { $akNum = $t; break; } }
+        // AK aufbauen: M40, W45 etc.
+        if ($akNum) {
+            $res['ak'] = ($sex ?: '') . $akNum;
+        } elseif ($res['ak']) {
+            // Suchliste lieferte z.B. "AK40" → Prefix aus $sex oder weglassen
+            if (preg_match('/^AK(\d+)$/i', $res['ak'], $akm)) {
+                $res['ak'] = ($sex ?: '') . $akm[1];
             }
+        }
+        // Fallback: kein Geschlecht gefunden → AK-Prefix aus Event-Kontext
+        // M_ = Männer, W_ oder F_ = Frauen
+        if ($res['ak'] && !preg_match('/^[MW]/', $res['ak'])) {
+            $evPfx = strtoupper(preg_replace('/_.*$/', '', $evId));
+            if (in_array($evPfx, ['W','F','HW'])) $res['ak'] = 'W' . ltrim($res['ak'], 'AK');
+            elseif (in_array($evPfx, ['M','HM','H'])) $res['ak'] = 'M' . ltrim($res['ak'], 'AK');
         }
 
         // Platz AK aus f-place_age
