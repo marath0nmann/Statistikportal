@@ -1977,6 +1977,10 @@ async function renderDashboard() {
         // Zusätzlich: konsekutive AK-Ranges komprimieren (W45,W50,W55,W60,W65 → W45–W65)
 
         function compressAKList(aks) {
+          // Duplikate entfernen
+          var seen = {}, unique = [];
+          for (var _di = 0; _di < aks.length; _di++) { if (!seen[aks[_di]]) { seen[aks[_di]] = true; unique.push(aks[_di]); } }
+          aks = unique;
           if (aks.length <= 2) return aks.join(' und ');
           var prefix = aks[0].replace(/\d+/,'');
           var nums = aks.map(function(a){ return parseInt(a.replace(/\D/g,''),10); });
@@ -5607,10 +5611,14 @@ async function dashSaveLayout() {
     if (cols.length) clean.push({ cols: cols });
   }
   var json = JSON.stringify(clean);
+  // Debug: prüfe ob veranst_limit im JSON steht
+  try { var _dbg = JSON.parse(json); _dbg.forEach(function(row){(row.cols||[]).forEach(function(c){if(c.widget==='veranstaltungen') console.log('[Dashboard] veranst_limit im Save:', c.veranst_limit);})}); } catch(e){}
   var r = await apiPost('einstellungen', { dashboard_layout: json });
   if (r && r.ok) {
     appConfig.dashboard_layout = json;
     notify('Dashboard-Layout gespeichert.', 'ok');
+    // Dashboard-Cache invalidieren damit beim nächsten Aufruf neu geladen wird
+    state._dashboardRendered = false;
   } else {
     notify((r && r.fehler) || 'Fehler beim Speichern', 'err');
   }
