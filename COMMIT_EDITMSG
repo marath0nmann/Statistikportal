@@ -1,5 +1,1 @@
-v425: RaceResult: Event-Endpoint für Datum + cfg.Time-Analyse
-
-cfg.Time ist Zeitmesser-Startoffset in Sekunden (kein Datum).
-Neuer Versuch: /RRPublish/data/event Endpoint abfragen.
-Debug zeigt Event-Endpoint-Response für weitere Analyse.
+v426: Datum-Suche in cfg.infotext + allen cfg-Feldern (DD.MM.YYYY + ISO)
