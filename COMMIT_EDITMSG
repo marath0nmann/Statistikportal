@@ -1,5 +1,6 @@
-v497: Fix ak_platz_meisterschaft + Veranstaltungen-Header
+v499: Veranstaltungsanzeige: live aus DB statt festem kuerzel
 
-- API: unified-Tabelle nutzt jetzt e.ak_platz_meisterschaft statt NULL
-- Veranstaltungen: Header "Platz AK"→"Pl. AK", "Platz MS"→"Pl. MS" (kein Abschneiden)
-- CSS: white-space:nowrap für th der veranst-dash-table
+- API ergebnisse: v.ort AS veranstaltung_ort + v.name AS veranstaltung_name im SELECT
+- fmtVeranstName() nutzt veranstaltung_ort (aktuell aus DB) statt kuerzel (Snapshot)
+- Admin → Darstellung: Einstellung "Veranstaltungsanzeige" war bereits vorhanden
+  (Ort / Veranstaltungsname)

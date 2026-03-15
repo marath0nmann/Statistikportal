@@ -1132,7 +1132,7 @@ if (in_array($res, $ergebnisTabellen)) {
                        e.disziplin, e.disziplin_mapping_id, e.resultat,
                        $extraCols
                        e.ak_platzierung, e.meisterschaft,
-                       v.kuerzel AS veranstaltung, v.datum, v.ort,
+                       v.kuerzel AS veranstaltung, v.datum, v.ort, v.ort AS veranstaltung_ort, v.name AS veranstaltung_name,
                        b.benutzername AS eingetragen_von, e.erstellt_am,
                        COALESCE(dm.fmt_override, dk.fmt) AS fmt,
                        dk.name AS kategorie_name, dk.tbl_key AS kategorie_key
@@ -1450,7 +1450,7 @@ if ($res === 'athleten') {
         if ($unified) {
             $alle = DB::fetchAll(
                 'SELECT e.id, e.disziplin, e.resultat, e.pace, e.altersklasse, e.meisterschaft,
-                        v.kuerzel AS veranstaltung, v.datum,
+                        v.kuerzel AS veranstaltung, v.ort AS veranstaltung_ort, v.name AS veranstaltung_name, v.datum,
                         COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
                         COALESCE(dk.name, \'Sonstige\') AS kat_name,
                         COALESCE(dk.reihenfolge, 99) AS kat_sort
@@ -1475,10 +1475,10 @@ if ($res === 'athleten') {
             $kategorien = array_values($kategorien);
             jsonOk(compact('athlet','kategorien'));
         } else {
-            $strasse = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.datum FROM ' . DB::tbl('ergebnisse_strasse') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? ORDER BY v.datum DESC', [$id]);
-            $sprint  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.datum FROM ' . DB::tbl('ergebnisse_sprint') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? ORDER BY v.datum DESC', [$id]);
-            $mittel  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.datum FROM ' . DB::tbl('ergebnisse_mittelstrecke') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? ORDER BY v.datum DESC', [$id]);
-            $sw      = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.datum FROM ' . DB::tbl('ergebnisse_sprungwurf') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? ORDER BY v.datum DESC', [$id]);
+            $strasse = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_strasse') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? ORDER BY v.datum DESC', [$id]);
+            $sprint  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprint') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? ORDER BY v.datum DESC', [$id]);
+            $mittel  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_mittelstrecke') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? ORDER BY v.datum DESC', [$id]);
+            $sw      = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprungwurf') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? ORDER BY v.datum DESC', [$id]);
             jsonOk(compact('athlet','strasse','sprint','mittel','sw'));
         }
     }
