@@ -1,5 +1,7 @@
-v475: Ergebnis bearbeiten: Kategorie-Filter für Disziplin-Dropdown
+v476: Ergebnis bearbeiten: Disziplin immer mit Kategorie-Suffix + mapping_id
 
-- Kategorie-Select (vorbelegt mit subTab der aktuellen Kategorie)
-- Disziplin-Liste filtert sich bei Kategoriewechsel
-- Bisherige Disziplin bleibt selektiert wenn in neuer Kategorie vorhanden
+- Disziplin-Dropdown zeigt "800m (Bahn)", "800m (Straße)" etc. via diszMitKat()
+- value = disziplin_mapping_id (eindeutig, statt Disziplinname)
+- data-edit-mapping-id im Edit-Button
+- saveEditErgebnis sendet disziplin_mapping_id mit
+- editKatChanged ebenfalls mit Suffix + mapping_id
