@@ -3894,7 +3894,7 @@ async function rrFetch() {
     var listSource = cfg.list || cfg.lists || {};
     var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','OVERALL','EINZEL','FINAL'];
     // Listen die keine Einzelergebnisse enthalten und übersprungen werden sollen
-    var _listBlacklist = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','RANKING','OVERALL RANKING','WERTUNG','SPECIAL'];
+    var _listBlacklist = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','RANKING','OVERALL RANKING','WERTUNG','SPECIAL','LIVE','TOP10','TOP 10','TOP5','TOP 5','LEADERBOARD','SCHNELLSTE','FASTEST'];
     function _listIsBlacklisted(entry) {
       var ename = (entry.Name || entry.name || entry.listname || '').toUpperCase();
       var showAs = (entry.ShowAs || entry.showAs || '').toUpperCase();
@@ -3937,7 +3937,7 @@ async function rrFetch() {
         listName = e0.Name || e0.name || e0.listname || '';
         listContest = e0.Contest !== undefined ? String(e0.Contest) : null;
       }
-      _rrDebug.listsRaw = JSON.stringify(listSource).slice(0, 200);
+      _rrDebug.listsRaw = JSON.stringify(listSource.map(function(e){return e.Name||e.name||'';}));
     } else if (listSource && typeof listSource === 'object') {
       var listKeys = Object.keys(listSource);
       for (var lk = 0; lk < listKeys.length && !listName; lk++) {
