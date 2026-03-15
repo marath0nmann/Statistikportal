@@ -1,5 +1,6 @@
-v520: RaceResult: r=all Fallback wenn r=search keine Zeilen liefert
+v521: RaceResult Debug: Version + r=all Fallback auch ohne DataFields
 
-Manche Events (Martins-Crosslauf) unterstützen r=search&term= nicht.
-Wenn DataFields vorhanden aber 0 Zeilen: r=all laden und Club-Filterung
-im Code übernehmen. Contest 11 (3000m) → TuS Oedt gefunden.
+- Version + Timestamp in _noResText (Debug bei 0 Ergebnissen)
+- r=all Fallback greift jetzt immer wenn r=search 0 Zeilen liefert
+  (nicht nur wenn df.length > 0)
+- Re-Kalibrierung der Spaltenindizes wenn r=all neue DataFields bringt

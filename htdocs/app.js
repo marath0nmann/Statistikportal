@@ -4580,12 +4580,39 @@ async function rrFetch() {
         var _searchRows = Object.values(payload.data || {}).reduce(function(n,v){
           return n + (Array.isArray(v) ? v.length : Object.values(v||{}).reduce(function(m,r){ return m+(Array.isArray(r)?r.length:0); }, 0));
         }, 0);
-        if (_searchRows === 0 && df.length > 0) {
+        // r=all Fallback: wenn r=search 0 Zeilen liefert (Suchfunktion defekt) oder keine DataFields
+        if (_searchRows === 0) {
           var _acAll = new AbortController(); var _tAll = setTimeout(function(){ _acAll.abort(); }, 15000);
           try {
             var _respAll = await fetch(base4 + '?key=' + apiKey + '&listname=' + encodeURIComponent(_contestListMap[cid] || listName) + '&page=results&contest=' + cid + '&r=all&l=de&_=1', { headers: hdrs, signal: _acAll.signal });
             clearTimeout(_tAll);
-            if (_respAll.ok) payload = JSON.parse(await _respAll.text());
+            if (_respAll.ok) {
+              payload = JSON.parse(await _respAll.text());
+              // DataFields neu kalibrieren wenn jetzt vorhanden
+              var _dfAll = payload.DataFields || [];
+              if (_dfAll.length > 0 && df.length === 0) {
+                df = _dfAll;
+                _rrDebug.dataFields = _dfAll;
+                // Kalibrierung wiederholen
+                iAK = -1; iYear = -1; iGeschlecht = -1; var iAKPlatz = -1;
+                iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
+                for (var _fai = 0; _fai < _dfAll.length; _fai++) {
+                  var _fa = _dfAll[_fai].toLowerCase();
+                  if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('lfname') >= 0) iName = _fai;
+                  else if (_fa.indexOf('club') >= 0 || _fa.indexOf('verein') >= 0) iClub = _fai;
+                  else if (_fa.indexOf('agegroup') >= 0 || _fa.indexOf('akabk') >= 0) iAK = _fai;
+                  else if (_fa === 'year' || _fa === 'yob') iYear = _fai;
+                  else if (_fa.indexOf('geschlechtmw') >= 0) iGeschlecht = _fai;
+                  else if (_fa.indexOf('chip') >= 0 || _fa.indexOf('netto') >= 0) iNetto = _fai;
+                  else if (_fa.indexOf('gun') >= 0 || _fa.indexOf('brutto') >= 0 || _fa === 'ziel' || _fa.indexOf('finish') >= 0 || _fa.indexOf('ziel') >= 0) iZeit = _fai;
+                  else if (_fa.indexOf('akpl') >= 0) iAKPlatz = _fai;
+                  else if (_fa.indexOf('mitstatus') >= 0 || _fa.indexOf('statusplatz') >= 0) { if (_fa.indexOf('akpl') >= 0) iAKPlatz = _fai; else iPlatz = _fai; }
+                }
+                if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
+                if (iNetto >= 0 && iNetto === iClub) iNetto = (iZeit >= 0 && iZeit !== iClub) ? iZeit : -1;
+                _rrDebug.iClub = iClub; _rrDebug.dfLog = _dfAll.join(', ');
+              }
+            }
           } catch(eAll) { clearTimeout(_tAll); }
         }
 
@@ -4779,8 +4806,10 @@ async function rrFetch() {
     if (!allResults.length) {
       var dbgClubs = _rrDebug.clubSamples.length ? _rrDebug.clubSamples.slice(0,10).join(', ') : '(keine)';
       var vereinRaw2 = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
+      var _noResVer = (document.getElementById('header-version') || {}).textContent || '';
       var _noResText = [
         'Keine TuS-Oedt-Ergebnisse gefunden.',
+        'App: ' + _noResVer + ' | ' + new Date().toLocaleString('de-DE'),
         'URL: https://my.raceresult.com/' + eventId + '/',
         contestIds.length + ' Contest(s) | Listname: ' + listName,
         'Gesamt-Zeilen: ' + _rrDebug.totalRows,
