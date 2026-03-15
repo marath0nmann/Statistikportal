@@ -1,6 +1,8 @@
-v516: RaceResult: Ziel→iZeit + AKPlp→iAKPlatz direkt erkannt
+v517: RaceResult: Contest-spezifische Listen-Zuordnung
 
-- DataField "Ziel" (= Zielzeit) als iZeit erkannt (war nur gun/brutto)
-- DataField "AKPlp" als iAKPlatz erkannt — war nur innerhalb MitStatus-Wrapper
-  erkannt, nicht als eigenständiges Feld
-- Beide Fixes in beiden Kalibrierungsblöcken
+Manche Events haben verschiedene Listen für verschiedene Contests
+(z.B. Martins-Crosslauf: "1-8" für Contests 1-8, "9-12" für Contests 9-12).
+
+- _contestListMap: Map von contestId → listName aus cfg.lists[].Contest
+- Haupt-Fetch und All-Rows-Fetch nutzen _contestListMap[cid] || listName
+- Jeder Contest bekommt jetzt die richtig zugeordnete Liste

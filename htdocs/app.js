@@ -4509,7 +4509,7 @@ async function rrFetch() {
       try {
         var url = base4 +
           '?key='      + apiKey +
-          '&listname=' + encodeURIComponent(listName) +
+          '&listname=' + encodeURIComponent(_contestListMap[cid] || listName) +
           '&page=results&contest=' + cid +
           '&r=search&l=9999&term=';
         var _ac = new AbortController();
@@ -4641,7 +4641,7 @@ async function rrFetch() {
         var cname2 = contestObj[cid2] || ('Contest ' + cid2);
         var _ac2 = new AbortController(); var _t2 = setTimeout(function(){ _ac2.abort(); }, 12000);
         try {
-          var resp2 = await fetch(base4 + '?key=' + apiKey + '&listname=' + encodeURIComponent(listName) + '&page=results&contest=' + cid2 + '&r=all&l=de&_=1', { headers: hdrs, signal: _ac2.signal });
+          var resp2 = await fetch(base4 + '?key=' + apiKey + '&listname=' + encodeURIComponent(_contestListMap[cid] || listName) + '&page=results&contest=' + cid2 + '&r=all&l=de&_=1', { headers: hdrs, signal: _ac2.signal });
           clearTimeout(_t2);
           if (!resp2.ok) continue;
           var payload2 = JSON.parse(await resp2.text());
