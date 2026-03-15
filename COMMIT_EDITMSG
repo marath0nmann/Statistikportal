@@ -1,6 +1,5 @@
-v430: Datum per PHP-Proxy aus HTML-Titel fetchen
+v431: Ort per PHP-Proxy aus HTML extrahieren
 
-Neuer API-Endpunkt rr-fetch?event_id=XXXXX fetcht die RaceResult-
-HTML-Seite serverseitig und extrahiert das Datum aus dem <title>-Tag
-("2. Reeser Rheinlauf, 05.10.2025 : : my.race|result" → 2025-10-05).
-Datum wird automatisch ins Eingabefeld eingetragen.
+- JSON-LD location.name, addressLocality, og:location, data-city
+- HTML-Snippet im Debug wenn Ort nicht erkannt
+- _rrProxyLocation hat Vorrang vor cfg-Ort und Event-Name-Fallback
