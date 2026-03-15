@@ -1,1 +1,1 @@
-v426: Datum-Suche in cfg.infotext + allen cfg-Feldern (DD.MM.YYYY + ISO)
+v427: Debug: cfg.infotext + vollständiges cfg-JSON anzeigen

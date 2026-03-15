@@ -3937,7 +3937,9 @@ async function rrFetch() {
     _rrDebug.cfgAllKeys = JSON.stringify(Object.keys(cfg)).slice(0, 300);
     var _cfgTimeSec = cfg.Time !== undefined ? parseInt(cfg.Time) : null;
     _rrDebug.cfgTime = _cfgTimeSec !== null ? (String(cfg.Time) + ' (' + Math.floor(_cfgTimeSec/3600) + 'h' + String(Math.floor((_cfgTimeSec%3600)/60)).padStart(2,'0') + 'min Startzeit)') : '–';
-    if (_rrDebug.eventEndpoint) _rrDebug.cfgDateRaw += ' | eventEndpoint: ' + _rrDebug.eventEndpoint;
+    // Debug: infotext + vollständiges cfg-JSON immer loggen
+    _rrDebug.cfgInfotext = String(cfg.infotext || '').replace(/<[^>]+>/g,'').slice(0, 300) || '(leer)';
+    _rrDebug.cfgFull = JSON.stringify(cfg).slice(0, 800);
     _rrDebug.eventDate = eventDate;
     _rrDebug.cfgEventName = cfg.eventname || '';
     _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
@@ -4349,6 +4351,8 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   // Event-Metadaten
   _dbgLines.push('eventName: ' + (eventName||'–') + ' | eventDate: ' + (eventDate||'leer') + ' | eventOrt: ' + (eventOrt||'leer'));
   _dbgLines.push('cfgDateRaw: ' + JSON.stringify(_dbg.cfgDateRaw||'') + ' | cfg.eventname: ' + (_dbg.cfgEventName||'–'));
+  _dbgLines.push('cfg.infotext: ' + (_dbg.cfgInfotext||'(leer)'));
+  _dbgLines.push('cfg (komplett): ' + (_dbg.cfgFull||'–'));
   _dbgLines.push('cfg-Keys: ' + (_dbg.cfgAllKeys||'–'));
   _dbgLines.push('cfg (roh): ' + (_dbg.cfgRaw||'–'));
   // Contest-Infos
