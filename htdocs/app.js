@@ -4065,7 +4065,20 @@ async function rrFetch() {
       return;
     }
     _rrDebug.resolvedDate = eventDate;
+    // Bestehende Ergebnisse für gematchte Athleten laden (Duplikat-Check)
+    var _matchedIds = {};
+    allResults.forEach(function(r){ if(r.athletId) _matchedIds[r.athletId]=1; });
+    var _existingMap = {}; // athletId → [{disziplin, resultat}]
+    var _aidList = Object.keys(_matchedIds);
+    if (_aidList.length) {
+      try {
+        var _er = await apiGet('ergebnisse?limit=9999&offset=0&athlet_id=' + _aidList[0] + '&sort=datum&dir=DESC');
+        // Für alle Athleten auf einmal ist komplex — lade pro Athlet lazy in rrRenderPreview
+      } catch(e) {}
+    }
     rrRenderPreview(allResults, eventId, eventName, eventDate, contestObj, eventOrt, allRowsForAK);
+    // Duplikat-Check: vorhandene Ergebnisse pro Athlet laden und Zeilen markieren
+    rrCheckDuplicates(allResults);
 
   } catch(e) {
     preview.innerHTML =
@@ -4384,7 +4397,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     }
 
     rows +=
-      '<tr style="border-bottom:1px solid var(--border)">' +
+      '<tr class="rr-preview-row" data-athlet="' + (athletId||'') + '" data-disz="' + disz + '" data-zeit="' + (netto||zeit) + '" data-datum="' + (window._rrState&&window._rrState.eventDatum||'') + '" style="border-bottom:1px solid var(--border)">' +
         '<td style="padding:6px"><input type="checkbox" class="rr-chk" data-idx="' + i + '" checked style="width:14px;height:14px;cursor:pointer"/></td>' +
         '<td style="padding:4px 6px"><select class="rr-athlet" class="bk-input-sel">' + athOptHtml + '</select></td>' +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + name + '</td>' +
@@ -4437,6 +4450,53 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
 function rrToggleAll(val) {
   var chks = document.querySelectorAll('.rr-chk');
   for (var i = 0; i < chks.length; i++) chks[i].checked = val;
+}
+
+async function rrCheckDuplicates(results) {
+  // Sammle alle gematchten Athlet-IDs
+  var athIds = {};
+  results.forEach(function(r){ if(r.athletId) athIds[r.athletId] = 1; });
+  if (!Object.keys(athIds).length) return;
+
+  // Lade Ergebnisse für diese Athleten (alle auf einmal per bulk-Query nicht möglich → einzeln)
+  var existMap = {}; // "athletId|disziplin|resultat" → true
+  for (var _aid in athIds) {
+    try {
+      var _r = await apiGet('ergebnisse?limit=2000&offset=0&athlet_id=' + _aid);
+      if (_r && _r.ok) {
+        (_r.data.rows || []).forEach(function(e) {
+          existMap[_aid + '|' + e.disziplin + '|' + e.resultat] = true;
+        });
+      }
+    } catch(e) {}
+  }
+
+  // Preview-Zeilen markieren
+  var rows = document.querySelectorAll('.rr-preview-row');
+  var dupCount = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var aId  = row.dataset.athlet;
+    var disz = row.dataset.disz;
+    var zeit = row.dataset.zeit;
+    if (!aId || !disz || !zeit) continue;
+    var key  = aId + '|' + disz + '|' + zeit;
+    if (existMap[key]) {
+      dupCount++;
+      row.style.opacity = '0.45';
+      row.title = 'Duplikat – bereits im System vorhanden';
+      // Checkbox deaktivieren
+      var chk = row.querySelector('.rr-chk');
+      if (chk) { chk.checked = false; chk.disabled = true; }
+      // Badge
+      var firstTd = row.querySelector('td:first-child');
+      if (firstTd) firstTd.innerHTML += ' <span class="badge" style="background:var(--accent);color:#fff;font-size:10px">✕ Dup</span>';
+    }
+  }
+  if (dupCount > 0) {
+    var status = document.getElementById('rr-status');
+    if (status) status.innerHTML = '<span style="color:var(--text2);font-size:12px">&#x26A0;︎ ' + dupCount + ' Duplikat(e) erkannt und abgewählt</span>';
+  }
 }
 
 async function rrImport() {
@@ -4527,7 +4587,7 @@ async function rrImport() {
     });
   }
 
-  if (!items.length) { notify('Keine g\u00fcltigen Eintr\u00e4ge (Athlet + Disziplin ben\u00f6tigt).', 'err'); return; }
+  if (!items.length) { notify('Keine gültigen Einträge (Athlet + Disziplin benötigt).', 'err'); return; }
   document.getElementById('rr-status').innerHTML = '&#x23F3; Importiere ' + items.length + ' Ergebnis(se)\u2026';
   var r2 = await apiPost('ergebnisse/bulk', { items: items });
   if (r2 && r2.ok) {
