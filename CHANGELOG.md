@@ -5,6 +5,73 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v504 – RaceResult: String-Array-Listen + Siegerliste-Blacklist
+
+- `cfg.lists` als String-Array wird korrekt ausgewertet (war bisher nicht implementiert)
+- Blacklist erweitert um: `SIEGER`, `WINNER`, `PARTICIPANTS`, `STATISTIC`
+- Prio-Suche wählt `Zieleinlaufliste netto` statt `Siegerliste`
+- Rückwärtskompatibel: Events mit Array-of-Objects oder Object-Listen unverändert
+
+---
+
+## v503 – RaceResult Build (v501-Inhalte)
+
+---
+
+## v502 – Timeline: „Vorname Nachname · Disziplin"
+
+- Name in Vorname-Nachname-Reihenfolge (war Nachname, Vorname)
+- Name und Disziplin in einer Zeile mit `·` als Trennpunkt
+- Gilt für Haupt-Timeline und gefilterte Timeline
+
+---
+
+## v501 – Build (v499-Inhalte)
+
+---
+
+## v500 – Veranstaltungsanzeige: live aus DB
+
+- API ergebnisse: `v.ort AS veranstaltung_ort` + `v.name AS veranstaltung_name` im SELECT
+- `fmtVeranstName()` nutzt aktuellen Ort/Name aus DB statt Snapshot-`kuerzel`
+- Admin → Darstellung: Einstellung „Veranstaltungsanzeige" (Ort / Name) war bereits vorhanden
+
+---
+
+## v499 – Build (s.o.)
+
+---
+
+## v498 – Fix Veranstaltungen: colspan 6→7
+
+- Disziplin-Trennbalken hat `colspan="7"` (war 6)
+
+---
+
+## v497 – Fix Veranstaltungen-Spaltenheader + API ak_platz_meisterschaft
+
+- API: unified-Tabelle gibt `e.ak_platz_meisterschaft` zurück (war `NULL`)
+- Veranstaltungen-Header: „Platz AK"→„Pl. AK", „Platz MS"→„Pl. MS"
+- CSS: `white-space:nowrap` für th der veranst-dash-table
+
+---
+
+## v496 – Fix Veranstaltungen-Tabelle: vcol-ms-platz
+
+- `col style="width:70px"` → `col class="vcol-ms-platz"` mit CSS-Klasse
+- Breiten neu verteilt für 7 Spalten (28+8+14+12+12+15+11=100%)
+- Mobile: 7. Spalte ebenfalls ausgeblendet
+
+---
+
+## v495 – Meisterschafts-Platzierung in Veranstaltungen + Ergebnisse
+
+- Veranstaltungen + Ergebnisse: neue Spalte „Pl. MS"
+- Ergebnis bearbeiten: Feld „Platz MS" im Dialog
+- API: `ak_platz_meisterschaft` in allen SELECT-Queries + PUT-Handler
+
+---
+
 ## v493 – DB-Migration ak_platz_meisterschaft
 
 ### Fixes

@@ -1,6 +1,6 @@
-v501: Timeline: "Vorname Nachname · Disziplin" in einer Zeile
+v504: RaceResult: String-Array-Listen + Siegerliste-Blacklist
 
-- Name als "Vorname Nachname" (statt "Nachname, Vorname")
-- Name · Disziplin in einer Zeile (timeline-athlet-disz)
-- Darunter: Ergebnis + Badges wie bisher
-- Gilt für Haupt-Timeline und gefilterte Timeline
+- cfg.lists als String-Array wird jetzt korrekt ausgewertet (RWW Herbstwaldlauf)
+- Blacklist erweitert: SIEGER, WINNER, PARTICIPANTS, STATISTIC
+- Prio-Suche findet "Zieleinlaufliste netto" statt Siegerliste
+- Rückwärtskompatibel: alle bisherigen Events (Array-of-Objects) unverändert
