@@ -3868,11 +3868,13 @@ async function rrFetch() {
     if (!eventDate) {
       try {
         var _prx = await apiGet('rr-fetch?event_id=' + encodeURIComponent(eventId));
-        if (_prx && _prx.ok && _prx.data.date) {
-          eventDate = _prx.data.date;
-          _rrDebug.titleFetch = _prx.data.title + ' → ' + eventDate;
+        if (_prx && _prx.ok) {
+          if (_prx.data.date) eventDate = _prx.data.date;
+          if (_prx.data.location) window._rrProxyLocation = _prx.data.location;
+          _rrDebug.titleFetch = _prx.data.title + ' → Datum:' + (eventDate||'?') + ' Ort:' + (_prx.data.location||'?');
+          if (_prx.data.htmlSnippet) _rrDebug.htmlSnippet = _prx.data.htmlSnippet;
         } else {
-          _rrDebug.titleFetch = _prx && _prx.data ? ('Titel: ' + _prx.data.title + ' (kein Datum)') : 'Fetch fehlgeschlagen';
+          _rrDebug.titleFetch = 'Fetch fehlgeschlagen';
         }
       } catch(e) { _rrDebug.titleFetch = 'Fehler: ' + String(e); }
     }
@@ -3974,7 +3976,8 @@ async function rrFetch() {
     var allRowsForAK = [];
     window._rrAllRowsForAK = allRowsForAK;
     // eventOrt HIER deklarieren (vor dem Extraktionsblock der weiter oben steht → wird durch Hoisting korrekt)
-    var eventOrt = eventOrtCfg || '';
+    var eventOrt = window._rrProxyLocation || eventOrtCfg || '';
+    window._rrProxyLocation = null; // Reset
     // Ort aus Veranstaltungsname wenn noch leer
     if (!eventOrt && eventName) {
       var _enWords = eventName.trim().split(/\s+/);
@@ -4369,6 +4372,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   // Event-Metadaten
   _dbgLines.push('eventName: ' + (eventName||'–') + ' | eventDate: ' + (eventDate||'leer') + ' | eventOrt: ' + (eventOrt||'leer'));
   _dbgLines.push('cfgDateRaw: ' + JSON.stringify(_dbg.cfgDateRaw||'') + ' | cfg.eventname: ' + (_dbg.cfgEventName||'–'));
+  if (_dbg.htmlSnippet) _dbgLines.push('HTML-Snippet (Ort-Suche): ' + _dbg.htmlSnippet);
   _dbgLines.push('cfg-Keys: ' + (_dbg.cfgAllKeys||'–'));
   _dbgLines.push('cfg (roh): ' + (_dbg.cfgRaw||'–'));
   // Contest-Infos

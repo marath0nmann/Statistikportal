@@ -2014,7 +2014,26 @@ if ($res === 'rr-fetch' && $method === 'GET') {
     if (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $title, $dm)) {
         $date = $dm[3] . '-' . $dm[2] . '-' . $dm[1]; // → YYYY-MM-DD
     }
-    jsonOk(['title' => $title, 'date' => $date]);
+    // Ort: verschiedene Quellen versuchen
+    $location = '';
+    // 1. JSON-LD: "location":{"name":"Rees"} oder "addressLocality":"Rees"
+    if (preg_match('/"location"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"/i', $html, $lm)) {
+        $location = trim($lm[1]);
+    }
+    if (!$location && preg_match('/"addressLocality"\s*:\s*"([^"]+)"/i', $html, $lm)) {
+        $location = trim($lm[1]);
+    }
+    // 2. og:location oder data-city
+    if (!$location && preg_match('/<meta[^>]+property=["']og:location["'][^>]+content=["']([^"']+)["']/', $html, $lm)) {
+        $location = trim($lm[1]);
+    }
+    if (!$location && preg_match('/data-(?:city|location|ort)=["']([^"']+)["']/', $html, $lm)) {
+        $location = trim($lm[1]);
+    }
+    // 3. HTML-Snippet für Debug
+    $htmlSnippet = substr(strip_tags(preg_replace('/<script[^>]*>.*?<\/script>/si', '', $html)), 0, 600);
+
+    jsonOk(['title' => $title, 'date' => $date, 'location' => $location, 'htmlSnippet' => $htmlSnippet]);
 }
 
 if ($res === 'autocomplete' && $id === 'athleten') {
