@@ -1,5 +1,5 @@
-v423: Fix iName für LFNAME + Komma-Flip Vorname/Nachname
+v425: RaceResult: Event-Endpoint für Datum + cfg.Time-Analyse
 
-- lfname-Erkennung im DataFields-Kalibrierblock ergänzt (war in v419 nur
-  im falschen Codeblock — nicht im Haupt-Kalibrierblock)
-- "Schramm, Frank" → "Frank Schramm" Komma-Flip im Preview
+cfg.Time ist Zeitmesser-Startoffset in Sekunden (kein Datum).
+Neuer Versuch: /RRPublish/data/event Endpoint abfragen.
+Debug zeigt Event-Endpoint-Response für weitere Analyse.
