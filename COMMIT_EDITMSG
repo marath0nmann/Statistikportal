@@ -1,1 +1,7 @@
-v485: Medal-Badges: Hintergrund↔Rand getauscht für Gold/Silber/Bronze
+v486: Meisterschaft überall + "Alle setzen"-Bar
+
+RaceResult (neu): "Alle setzen"-Bar über Tabelle
+MikaTiming (neu): "Alle setzen"-Bar + Meisterschaft+Platz MS war schon da
+Bulk (neu): Meisterschaft + Platz MS Spalten + "Alle setzen"-Bar
+
+Gemeinsame Funktionen: importSetAllMstr(prefix), importMstrAllBar(prefix)
