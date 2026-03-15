@@ -3554,7 +3554,7 @@ function renderEintragen() {
   // MikaTiming-Inhalt
   if (isMika) {
     content =
-      '<div class="panel">' +
+      '<div class="panel" style="padding:24px">' +
         '<div class="panel-title" style="margin-bottom:4px">⏱︎ MikaTiming-Import</div>' +
         '<div style="color:var(--text2);font-size:13px;margin-bottom:20px">Ergebnisse von <strong>r.mikatiming.com</strong> importieren. TuS&nbsp;Oedt-Starter werden automatisch per Vereinssuche gefunden.</div>' +
         '<div style="margin-bottom:14px">' +
@@ -3572,7 +3572,7 @@ function renderEintragen() {
         '</div>' +
         '<div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:20px">' +
           '<div style="flex:1"><label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">MikaTiming Such-URL</label>' +
-            '<input type="text" id="mika-url" placeholder="https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text)"/>' +
+            '<input type="text" id="mika-url" placeholder="https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start" oninput="mikaKatChanged()" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text)"/>' +
           '</div>' +
           '<button class="btn btn-primary" id="mika-load-btn" onclick="mikaFetch()" style="white-space:nowrap" disabled>🔍 Ergebnisse laden</button>' +
         '</div>' +
