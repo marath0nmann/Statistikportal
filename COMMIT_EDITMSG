@@ -1,5 +1,4 @@
-v518: Fix _contestListMap: wird jetzt tatsächlich befüllt
+v519: Fix _contestListMap: fehlende var-Deklaration
 
-v517 hatte die Map-Befüllung nicht eingefügt (assert fehlgeschlagen).
-Jetzt korrekt: nach Array-of-Objects Selektion wird _contestListMap
-mit contestId→listName aus cfg.lists[].Contest befüllt.
+Variable war nie deklariert → ReferenceError. Jetzt korrekt auf
+Funktionsebene deklariert neben _listCandidates.
