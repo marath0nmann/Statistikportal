@@ -1,7 +1,7 @@
-v419: RaceResult: LFNAME + AK-Spalte + Disziplin aus Gruppen-Key
+v420: RaceResult: Duplikat-Check im Preview
 
-- LFNAME-Feld erkannt (Nachname, Vorname → Vorname Nachname)
-- AK direkt aus AGEGROUP1.NAMESHORT wenn vorhanden (M50, W45 etc.)
-- Disziplin aus Gruppen-Key wenn Contest 0 ("Contest 0" → ignorieren,
-  stattdessen "#5_Hauptlauf 10 km" → "10km")
-- Debug-Log aus v416 entfernt
+- rrCheckDuplicates(): lädt vorhandene Ergebnisse pro Athlet
+  und markiert Duplikate (gleiche Disziplin + Resultat)
+- Duplikat-Zeilen: ausgegraut, Checkbox deaktiviert, "✕ Dup"-Badge
+- Status zeigt Anzahl erkannter Duplikate
+- Serverseitiger Check der API bleibt als zweite Sicherheitsstufe
