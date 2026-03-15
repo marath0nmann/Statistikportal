@@ -1667,6 +1667,28 @@ async function renderDashboard() {
     return '<div class="stat-card" style="width:100%"><div class="stat-num">' + num + '</div><div class="stat-label">' + icon + ' ' + label + '</div></div>';
   }
 
+// Hilfsfunktion: bis zu zwei Timeline-Badges rendern (club + persönlich)
+function timelineBadges(rek) {
+  var lc = rek.label_club || null;
+  var lp = rek.label_pers || null;
+  var html = '';
+  if (lc) {
+    var isGold = lc.indexOf('Gesamt') >= 0 || lc.indexOf('Männer') >= 0 || lc.indexOf('Frauen') >= 0 || lc.indexOf('Ergebnis M') >= 0 || lc.indexOf('Ergebnis W') >= 0;
+    html += '<span class="badge ' + (isGold ? 'badge-gold' : 'badge-silver') + '">' + lc + '</span> ';
+  }
+  if (lp) {
+    html += '<span class="badge badge-pb">' + lp + '</span>';
+  }
+  // Fallback für ältere Daten ohne label_club/label_pers
+  if (!lc && !lp && rek.label) {
+    var lbl = rek.label;
+    var cls = (lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge-gold'
+            : (lbl === 'PB' || lbl === 'Debüt') ? 'badge-pb' : 'badge-silver';
+    html += '<span class="badge ' + cls + '">' + lbl + '</span>';
+  }
+  return html.trim();
+}
+
   // Rekord-Timeline
   var timelineHtml = '';
   var timelineMax = rekordeTimeline.length;
@@ -1676,9 +1698,7 @@ async function renderDashboard() {
     var res = fmt === 'm' ? fmtMeter(rek.resultat) : fmtTime(rek.resultat, fmt === 's' ? 's' : undefined);
     var lbl = rek.label || '';
     var athletName = rek.athlet || '';
-    var labelCls = (lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
-                   (lbl === 'PB' || lbl === 'Debüt') ? 'badge badge-pb' :
-                   'badge badge-silver';
+    var badgesHtml = timelineBadges(rek);
     var dotStyle = rek.extern ? 'background:var(--accent);' : '';
     if (!athletName) continue;
     var athLink = rek.athlet_id ? '<span class="athlet-link" style="color:var(--primary);font-weight:600" data-athlet-id="' + rek.athlet_id + '">' + athletName + '</span>' : '<span style="color:var(--primary);font-weight:600">' + athletName + '</span>';
@@ -1696,7 +1716,7 @@ async function renderDashboard() {
     timelineHtml += '<div class="timeline-date">' + formatDate(rek.datum) + '</div>';
     timelineHtml += '<div class="timeline-body">';
     var diszLink = '<span class="athlet-link" style="color:var(--text);font-weight:600;cursor:pointer" data-rek-disz="' + rek.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + ergDiszLabel(rek) + '</span>';
-    timelineHtml += '<div class="timeline-disz">' + diszLink + ' <span class="' + labelCls + '">' + lbl + '</span></div>';
+    timelineHtml += '<div class="timeline-disz">' + diszLink + ' ' + badgesHtml + '</div>';
     timelineHtml += '<div class="timeline-athlet">' + athLink + '</div>';
     timelineHtml += '<div class="timeline-result">' + res + vorherHtml + '</div>';
     timelineHtml += '</div></div>';
@@ -1837,22 +1857,21 @@ async function renderDashboard() {
         for (var ti = 0; ti < rekordeTimeline.length; ti++) {
           var rek2 = rekordeTimeline[ti];
           if (!rek2.athlet) continue;
-          var lblParts = (rek2.label || '').split(' + ');
-          // Alle Label-Teile auf Sichtbarkeit prüfen
-          var visibleParts = [];
-          for (var lpi = 0; lpi < lblParts.length; lpi++) {
-            var t = timelineLabelType(lblParts[lpi]);
-            if (hiddenTypes.indexOf(t) < 0) visibleParts.push(lblParts[lpi]);
+          // Beide Labels auf Sichtbarkeit prüfen
+          var lc2 = rek2.label_club || null;
+          var lp2 = rek2.label_pers || null;
+          var lcVisible = lc2 && hiddenTypes.indexOf(timelineLabelType(lc2)) < 0;
+          var lpVisible = lp2 && hiddenTypes.indexOf(timelineLabelType(lp2)) < 0;
+          // Fallback für alte Daten
+          if (!lc2 && !lp2) {
+            var t0 = timelineLabelType(rek2.label || '');
+            lcVisible = false; lpVisible = hiddenTypes.indexOf(t0) < 0;
           }
-          if (!visibleParts.length) continue;
-          // Prio nach prioOrder berechnen
-          var bestPrio = 99;
-          for (var vpi = 0; vpi < visibleParts.length; vpi++) {
-            var pt = timelineLabelType(visibleParts[vpi]);
-            var pi = prioOrder.indexOf(pt);
-            if (pi >= 0 && pi < bestPrio) bestPrio = pi;
-          }
-          filtItems.push({ rek: rek2, label: visibleParts.join(' + '), prio: bestPrio });
+          if (!lcVisible && !lpVisible) continue;
+          // Prio: club-Label bestimmt Prio, sonst pb
+          var bestPrio = lcVisible ? (rek2.priority !== undefined ? rek2.priority : 3) : 3;
+          var visLabel = (lcVisible ? lc2 : '') + (lcVisible && lpVisible ? ' + ' : '') + (lpVisible ? lp2 : '');
+          filtItems.push({ rek: rek2, label: visLabel, prio: bestPrio });
         }
         // Sortieren: Datum desc, dann prio asc
         filtItems.sort(function(a,b) {
@@ -1863,10 +1882,15 @@ async function renderDashboard() {
         for (var fi = 0; fi < filtItems.length; fi++) {
           var fItem = filtItems[fi].rek;
           var fLbl  = filtItems[fi].label;
+          var fRek  = filtItems[fi].rek;
           var fFmt  = fItem.fmt || '';
           var fRes  = fFmt === 'm' ? fmtMeter(fItem.resultat) : fmtTime(fItem.resultat, fFmt === 's' ? 's' : undefined);
           var fLblCls = (fLbl.indexOf('Gesamtbestleistung') >= 0 || fLbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
                         (fLbl === 'PB' || fLbl === 'Debüt') ? 'badge badge-pb' : 'badge badge-silver';
+          var fBadgesHtml = timelineBadges(Object.assign({}, fRek, {
+            label_club: hiddenTypes.indexOf(timelineLabelType(fRek.label_club)) < 0 ? fRek.label_club : null,
+            label_pers: hiddenTypes.indexOf(timelineLabelType(fRek.label_pers)) < 0 ? fRek.label_pers : null,
+          }));
           var fAthLink = fItem.athlet_id
             ? '<span class="athlet-link" style="color:var(--primary);font-weight:600" data-athlet-id="' + fItem.athlet_id + '">' + fItem.athlet + '</span>'
             : '<span style="color:var(--primary);font-weight:600">' + fItem.athlet + '</span>';
@@ -1880,7 +1904,7 @@ async function renderDashboard() {
             '<div class="timeline-item">' +
               '<div class="timeline-date">' + formatDate(fItem.datum) + '</div>' +
               '<div class="timeline-body">' +
-                '<div class="timeline-disz">' + fDiszLink + ' <span class="' + fLblCls + '">' + fLbl + '</span></div>' +
+                '<div class="timeline-disz">' + fDiszLink + ' ' + fBadgesHtml + '</div>' +
                 '<div class="timeline-athlet">' + fAthLink + '</div>' +
                 '<div class="timeline-result">' + fRes + fVorher + '</div>' +
               '</div>' +
@@ -5396,10 +5420,10 @@ var WIDGET_DEFS = [
 // Verfügbare Stat-Karten (Reihenfolge und Auswahl konfigurierbar)
 // Timeline-Label-Typen (fest, AK-Labels sind dynamisch aber gehören zu Typ 'ak')
 var TIMELINE_TYPE_DEFS = [
-  { id: 'gesamt',  label: 'Gesamtbestleistung',  desc: 'Beste Leistung aller Athleten in einer Disziplin',  prio: 0 },
-  { id: 'gender',  label: 'Bestleistung M / W',  desc: 'Beste Leistung je Geschlecht',                     prio: 1 },
-  { id: 'ak',      label: 'Bestleistung AK',      desc: 'Beste Leistung / Erste Leistung je Altersklasse',        prio: 2 },
-  { id: 'pb',      label: 'Persönliche Bestleistung (PB)', desc: 'Persönliche Bestleistung / Debüt', prio: 3 },
+  { id: 'gesamt',  label: 'Gesamtbestleistung',            desc: 'Beste Leistung aller Athleten in einer Disziplin (Gold)',      prio: 0 },
+  { id: 'gender',  label: 'Bestleistung M / W',            desc: 'Beste Leistung je Geschlecht (Gold)',                          prio: 1 },
+  { id: 'ak',      label: 'Bestleistung / Erste Leis. AK', desc: 'Beste oder erste Leistung je Altersklasse (Silber)',           prio: 2 },
+  { id: 'pb',      label: 'PB / Debüt',                    desc: 'Persönliche Bestleistung oder erstes Ergebnis (Grün)',         prio: 3 },
 ];
 
 function timelineLabelType(lbl) {
@@ -5555,64 +5579,28 @@ function dashHofConfigHtml(ri, ci, col) {
 }
 
 function dashTimelineConfigHtml(ri, ci, hidden_types, prio_order, col) {
-  var hidden  = hidden_types || [];
-  var order   = prio_order && prio_order.length === TIMELINE_TYPE_DEFS.length
-                  ? prio_order
-                  : TIMELINE_TYPE_DEFS.map(function(t){return t.id;});
-  // Typen in Prio-Reihenfolge darstellen
-  var orderedTypes = [];
-  for (var oi = 0; oi < order.length; oi++) {
-    for (var ti = 0; ti < TIMELINE_TYPE_DEFS.length; ti++) {
-      if (TIMELINE_TYPE_DEFS[ti].id === order[oi]) { orderedTypes.push(TIMELINE_TYPE_DEFS[ti]); break; }
-    }
-  }
-  // fehlende anhängen
-  for (var ti2 = 0; ti2 < TIMELINE_TYPE_DEFS.length; ti2++) {
-    if (order.indexOf(TIMELINE_TYPE_DEFS[ti2].id) < 0) orderedTypes.push(TIMELINE_TYPE_DEFS[ti2]);
-  }
+  var hidden = hidden_types || [];
+  // Prio-Reihenfolge ist fix (durch label_club/label_pers System) — nur Ein/Ausblenden konfigurierbar
   var rows = '';
-  for (var i = 0; i < orderedTypes.length; i++) {
-    var t = orderedTypes[i];
+  for (var i = 0; i < TIMELINE_TYPE_DEFS.length; i++) {
+    var t = TIMELINE_TYPE_DEFS[i];
     var chk = hidden.indexOf(t.id) < 0 ? ' checked' : '';
     rows +=
-      '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;' + (i < orderedTypes.length-1 ? 'border-bottom:1px solid var(--border);' : '') + '">' +
-        '<span style="font-size:11px;font-weight:700;color:var(--text2);min-width:18px;text-align:center">' + (i+1) + '</span>' +
+      '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;' + (i < TIMELINE_TYPE_DEFS.length-1 ? 'border-bottom:1px solid var(--border);' : '') + '">' +
         '<input type="checkbox" data-tl-id="' + t.id + '" data-ri="' + ri + '" data-ci="' + ci + '"' + chk + ' onchange="dashUpdateLayout()">' +
         '<span style="flex:1;font-size:13px" title="' + t.desc + '">' + t.label + '</span>' +
-        '<span style="display:flex;gap:4px">' +
-          (i > 0 ? '<button class="btn btn-ghost btn-sm" style="padding:2px 6px" onclick="dashTlMovePrio(' + ri + ',' + ci + ',' + i + ',-1)">▲</button>' : '<button class="btn btn-ghost btn-sm" style="padding:2px 6px;opacity:.25" disabled>▲</button>') +
-          (i < orderedTypes.length-1 ? '<button class="btn btn-ghost btn-sm" style="padding:2px 6px" onclick="dashTlMovePrio(' + ri + ',' + ci + ',' + i + ',1)">▼</button>' : '<button class="btn btn-ghost btn-sm" style="padding:2px 6px;opacity:.25" disabled>▼</button>') +
-        '</span>' +
       '</div>';
   }
-  var tlLimit = (typeof hidden_types === 'object' && !Array.isArray(hidden_types)) ? '' : '';
-  // hidden_types kann hier noch das alte Format sein; limit kommt aus prio_order[4] wenn gesetzt
-  // Wir lesen limit direkt aus den Argumenten nicht – wird über dashUpdateLayout gespeichert
   return '<div style="padding:2px 0 6px">' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Neueste Bestleistungen</div>' +
     '<label style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:12px">' +
       '<span style="min-width:120px;color:var(--text2)">Anzahl Einträge</span>' +
-      '<input type="number" id="tl-limit-' + ri + '-' + ci + '" value="' + ((col && col.tl_limit) || (prio_order && prio_order._limit) || appConfig.dashboard_timeline_limit || 20) + '" min="5" max="200" ' +
+      '<input type="number" id="tl-limit-' + ri + '-' + ci + '" value="' + ((col && col.tl_limit) || appConfig.dashboard_timeline_limit || 20) + '" min="5" max="200" ' +
       'class="settings-input" style="width:70px" onchange="dashUpdateLayout()">' +
     '</label>' +
-    '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Angezeigte Typen &amp; Priorität</div>' +
-    '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Höher = höhere Priorität bei gleichem Datum</div>' +
+    '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Angezeigte Typen</div>' +
     rows +
   '</div>';
-}
-
-function dashTlMovePrio(ri, ci, idx, dir) {
-  dashUpdateLayout();
-  var layout = dashGetLayout();
-  var col = layout[ri] && layout[ri].cols[ci];
-  if (!col) return;
-  var order = col.prio_order && col.prio_order.length ? col.prio_order.slice()
-    : TIMELINE_TYPE_DEFS.map(function(t){return t.id;});
-  var newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= order.length) return;
-  var tmp = order[idx]; order[idx] = order[newIdx]; order[newIdx] = tmp;
-  col.prio_order = order;
-  renderAdminDashboardUI(layout);
 }
 
 function dashStatsConfigHtml(ri, ci, cards) {

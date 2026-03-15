@@ -1,6 +1,11 @@
-v463: Debüt-Logik korrigiert
+v465: Zwei-Label-System für Timeline
 
-- Debüt = erste Leistung in einer Disziplin, IMMER gesetzt (unabhängig von AK)
-- Erste Leistung W20 + Debüt können beide im Label stehen
-- Prio: Erste Leistung AK (Prio 2) schlägt Debüt (Prio 3) bei gleichem Datum
-- Widget zeigt das höherpriorisierte Label an
+Club-Label (Gold/Silber) + Persönliches Label (Grün) unabhängig voneinander:
+- Gesamtbestleistung / Erste Gesamtleistung → Gold
+- Bestleistung M/W / Erstes Ergebnis M/W → Gold
+- Bestleistung AK / Erste Leistung AK → Silber
+- PB / Debüt → Grün
+
+Debüt = erstes Ergebnis in Disziplin, immer grün, unabhängig von AK-Labels.
+Erste Leistung AK = noch kein Ergebnis in dieser AK im Verein (Silber).
+Widget-Konfiguration: nur noch Ein/Ausblenden, kein Drag & Drop mehr.
