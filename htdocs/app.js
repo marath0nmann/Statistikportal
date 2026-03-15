@@ -4271,9 +4271,13 @@ function rrBestDisz(rrName, diszList) {
     for (var w = 0; w < words.length; w++) {
       if (words[w].length > 2 && dl.indexOf(words[w]) >= 0) score += 2;
     }
-    // Keyword-Bonus
-    if (q.indexOf('marathon') >= 0 && dl.indexOf('marathon') >= 0) score += 5;
-    if (q.indexOf('half') >= 0 && dl.indexOf('halb') >= 0) score += 5;
+    // Keyword-Bonus — Marathon vs Halbmarathon präzise unterscheiden
+    var _qHalb = q.indexOf('halb') >= 0 || q.indexOf('half') >= 0;
+    var _dHalb = dl.indexOf('halb') >= 0;
+    if (q.indexOf('marathon') >= 0 && dl.indexOf('marathon') >= 0) {
+      score += (_qHalb === _dHalb) ? 10 : -5; // Match: +10, Mismatch: -5
+    }
+    if (_qHalb && _dHalb) score += 5;
     if (q.indexOf('walking') >= 0 && dl.indexOf('walk') >= 0) score += 5;
     if (score > bestScore) { bestScore = score; best = d; }
   }
@@ -4722,7 +4726,7 @@ async function rrImport() {
         ak = r.akFromGroup || '';
       }
     }
-    var platzAKv = calcAKPlatz(ak, String(raw[r.iNetto] || raw[r.iZeit] || '').trim(), _eventJahr2) || null;
+    var platzAKv = r.akPlatzFromRow ? parseInt(r.akPlatzFromRow) : (calcAKPlatz(ak, String(raw[r.iNetto] || raw[r.iZeit] || '').trim(), _eventJahr2) || null);
     items.push({
       datum: datum, ort: ort, veranstaltung_name: evname,
       athlet_id: athletId, disziplin: disziplin,
