@@ -1,1 +1,5 @@
-v436: Fix RaceResult Button: select.value explizit setzen nach innerHTML
+v437: RaceResult: Spezial-Listen (z_*, King/Queen) überspringen
+
+- _listIsBlacklisted(): z_-Prefix, KING, QUEEN, AGGREGATE etc.
+- Kein DataFields → Contest überspringen (Sonderliste)
+- Köln Marathon: z_KQoC_live wird übersprungen, echte Ergebnisliste genutzt
