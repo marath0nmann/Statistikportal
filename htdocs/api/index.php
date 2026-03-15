@@ -2120,7 +2120,7 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
 if ($res === 'disziplinen' && $method === 'GET') {
     // Öffentlich – wird für Bestleistungen ohne Login benötigt
     $rows = DB::fetchAll(
-        "SELECT dm.disziplin, dk.name AS kategorie, dk.tbl_key, dk.reihenfolge, COALESCE(dm.kat_suffix_override,'') AS kat_suffix_override
+        "SELECT dm.id, dm.disziplin, dk.name AS kategorie, dk.tbl_key, dk.reihenfolge, COALESCE(dm.kat_suffix_override,'') AS kat_suffix_override
          FROM " . DB::tbl('disziplin_mapping') . " dm
          JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.id = dm.kategorie_id
          ORDER BY dk.reihenfolge"
