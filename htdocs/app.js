@@ -4359,9 +4359,10 @@ async function rrFetch() {
     var listName = '';
     var listContest = null; // Contest-Einschränkung aus List-Eintrag ("0" = alle)
     var listSource = cfg.list || cfg.lists || {};
-    var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','OVERALL','EINZEL','FINAL'];
+    var _listCandidates = []; // alle nicht-geblacklisteten Listen für Fallback
+    var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','EINZEL','FINAL','WERTUNG','RANKING','OVERALL'];
     // Listen die keine Einzelergebnisse enthalten und übersprungen werden sollen
-    var _listBlacklist = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','OVERALL RANKING','OVERALL-RANKING','WERTUNG','SPECIAL','LIVE','TOP10','TOP 10','TOP5','TOP 5','LEADERBOARD','SCHNELLSTE','FASTEST','SIEGER','WINNER','PARTICIPANTS','STATISTIC','TEILNEHMER','ALPHABET'];
+    var _listBlacklist = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','OVERALL RANKING','OVERALL-RANKING','MANNSCHAFT','TEAM RANKING','SPECIAL','LIVE','TOP10','TOP 10','TOP5','TOP 5','LEADERBOARD','SCHNELLSTE','FASTEST','SIEGER','WINNER','PARTICIPANTS','STATISTIC','TEILNEHMER','ALPHABET','STADTMEISTER'];
     function _listIsBlacklisted(entry) {
       var ename = (entry.Name || entry.name || entry.listname || '').toUpperCase();
       var showAs = (entry.ShowAs || entry.showAs || '').toUpperCase();
@@ -4385,21 +4386,19 @@ async function rrFetch() {
           }
           return false;
         };
+        // Alle nicht-geblacklisteten als Kandidaten sammeln (dedupliziert)
+        var _seenLists = {};
+        for (var lk2 = 0; lk2 < listSource.length; lk2++) {
+          var ls = listSource[lk2];
+          if (!_strListBlacklisted(ls) && !_seenLists[ls]) { _seenLists[ls]=1; _listCandidates.push(ls); }
+        }
         // Prio-Suche
         for (var lp2 = 0; lp2 < listPrio.length && !listName; lp2++) {
-          for (var lk2 = 0; lk2 < listSource.length && !listName; lk2++) {
-            var ls = listSource[lk2];
-            if (!_strListBlacklisted(ls) && ls.toUpperCase().indexOf(listPrio[lp2]) >= 0) {
-              listName = ls;
-            }
+          for (var lk2 = 0; lk2 < _listCandidates.length && !listName; lk2++) {
+            if (_listCandidates[lk2].toUpperCase().indexOf(listPrio[lp2]) >= 0) listName = _listCandidates[lk2];
           }
         }
-        // Fallback: ersten nicht-geblacklisteten
-        if (!listName) {
-          for (var lk2 = 0; lk2 < listSource.length; lk2++) {
-            if (!_strListBlacklisted(listSource[lk2])) { listName = listSource[lk2]; break; }
-          }
-        }
+        if (!listName && _listCandidates.length) listName = _listCandidates[0];
         if (!listName && listSource.length) listName = listSource[0];
         _rrDebug.listsRaw = JSON.stringify(listSource).slice(0, 400);
       } else {
@@ -4688,6 +4687,70 @@ async function rrFetch() {
         } catch(e3) { clearTimeout(_t2); continue; }
       }
     }
+    // Listen-Fallback: wenn keine Ergebnisse, nächste Kandidaten-Liste versuchen
+    var _listFallbackIdx = _listCandidates.indexOf(listName) + 1;
+    while (!allResults.length && _listFallbackIdx < _listCandidates.length) {
+      var _fbListName = _listCandidates[_listFallbackIdx++];
+      _rrDebug.listName = _fbListName;
+      preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; Liste \"' + _fbListName + '\" versuchen…</div>';
+      for (var _fci = 0; _fci < contestIds.length; _fci++) {
+        var _fcid = contestIds[_fci];
+        var _fac = new AbortController(); var _ft = setTimeout(function(){ _fac.abort(); }, 12000);
+        try {
+          var _fr = await fetch(base4 + '?key=' + apiKey + '&listname=' + encodeURIComponent(_fbListName) + '&page=results&contest=' + _fcid + '&r=all&l=de&_=1', { headers: hdrs, signal: _fac.signal });
+          clearTimeout(_ft);
+          if (!_fr.ok) continue;
+          var _fp = JSON.parse(await _fr.text());
+          var _fdf = _fp.DataFields || [];
+          if (!Array.isArray(_fdf) || _fdf.length === 0) continue;
+          // Kalibrieren
+          iAK = -1; iYear = -1; iGeschlecht = -1; var _fiAKPlatz = -1;
+          iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
+          for (var _ffi = 0; _ffi < _fdf.length; _ffi++) {
+            var _ff = _fdf[_ffi].toLowerCase();
+            if (_ff.indexOf('anzeigename') >= 0 || _ff.indexOf('lfname') >= 0) iName = _ffi;
+            else if (_ff.indexOf('club') >= 0 || _ff.indexOf('verein') >= 0) iClub = _ffi;
+            else if (_ff.indexOf('agegroup') >= 0 || _ff.indexOf('akabk') >= 0 || _ff === 'es_akabkürzung') iAK = _ffi;
+            else if (_ff === 'year' || _ff === 'yob' || _ff === 'es_jahrgang') iYear = _ffi;
+            else if (_ff.indexOf('geschlechtmw') >= 0 || _ff === 'es_geschlecht') iGeschlecht = _ffi;
+            else if (_ff.indexOf('chip') >= 0 || _ff.indexOf('netto') >= 0) iNetto = _ffi;
+            else if (_ff.indexOf('gun') >= 0 || _ff.indexOf('brutto') >= 0 || _ff.indexOf('ziel') >= 0) iZeit = _ffi;
+            else if (_ff.indexOf('mitstatus') >= 0 || _ff.indexOf('statusplatz') >= 0) { if (_ff.indexOf('akpl') >= 0) _fiAKPlatz = _ffi; else iPlatz = _ffi; }
+          }
+          if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
+          if (iNetto >= 0 && iNetto === iClub) iNetto = (iZeit >= 0 && iZeit !== iClub) ? iZeit : -1;
+          _rrDebug.iClub = iClub; _rrDebug.dfLog = _fdf.join(', ');
+          _rrDebug.dataFields = _fdf;
+          // Rows verarbeiten
+          var _fdRaw = _fp.data || {};
+          var _fDks = Object.keys(_fdRaw);
+          _fDks.forEach(function(k) {
+            var v = _fdRaw[k];
+            var groups = Array.isArray(v) ? { '': v } : (v && typeof v === 'object' ? v : {});
+            Object.keys(groups).forEach(function(k2) {
+              var rows = groups[k2];
+              if (!Array.isArray(rows)) return;
+              rows.forEach(function(row) {
+                if (!Array.isArray(row) || row.length < 4) return;
+                _rrDebug.totalRows++;
+                var clubVal = iClub >= 0 ? String(row[iClub] || '').trim() : '';
+                if (clubVal && _rrDebug.clubSamples.indexOf(clubVal) < 0 && _rrDebug.clubSamples.length < 20) _rrDebug.clubSamples.push(clubVal);
+                if (clubPhrase && clubVal.toLowerCase().indexOf(clubPhrase) < 0) return;
+                var gkey = k2 ? (k + '/' + k2) : k;
+                var gk = gkey;
+                allResults.push({ raw: row, contestName: _fdf[0] || _fbListName, groupKey: gk, akFromGroup: '', akPlatzFromRow: '', iAKPlatz: _fiAKPlatz,
+                  iYear: iYear, iGeschlecht: iGeschlecht, iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
+              });
+            });
+          });
+        } catch(e) { clearTimeout(_ft); }
+      }
+      if (allResults.length) {
+        listName = _fbListName;
+        _rrDebug.listName = _fbListName;
+      }
+    }
+
     if (!allResults.length) {
       var dbgClubs = _rrDebug.clubSamples.length ? _rrDebug.clubSamples.slice(0,10).join(', ') : '(keine)';
       var vereinRaw2 = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();

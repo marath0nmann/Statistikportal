@@ -1,6 +1,8 @@
-v511: RaceResult Debug: URL + Blacklist TEILNEHMER/ALPHABET + ISO-Datum
+v512: RaceResult: Listen-Fallback + WERTUNG nicht mehr geblacklisted
 
-- Debug zeigt jetzt URL: https://my.raceresult.com/EVENTID/
-- Blacklist: TEILNEHMER, ALPHABET ergänzt (verhindert Teilnehmerliste als Ergebnisliste)
-- Blacklist: RANKING bleibt (war zu weit), OVERALL RANKING präzisiert
-- PHP-Proxy: ISO-Datum YYYY-MM-DD aus Titel erkannt (Rursee: "2025-11-08/2025-11-09")
+- Blacklist: WERTUNG entfernt (war zu weit — blockierte "Wertung nach Altersklassen")
+  Neu: MANNSCHAFT, TEAM RANKING, STADTMEISTER
+- listPrio: WERTUNG + RANKING als neue Prio-Begriffe (nach ERGEBNIS/RESULT/ZIEL)
+- Listen-Fallback: wenn gewählte Liste keine DataFields/Ergebnisse liefert,
+  automatisch nächste Kandidaten-Liste versuchen (Rursee: Overall-Ranking → Wertung nach AK)
+- _listCandidates: deduplizierte Liste aller nicht-geblacklisteten Listen
