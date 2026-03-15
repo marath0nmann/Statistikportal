@@ -1,6 +1,9 @@
-v507: RaceResult-Import: Fremde URLs auf RRPublish-Event-ID prüfen
+v508: RaceResult-Proxy: robustere Event-ID-Erkennung
 
-- Nicht-raceresult.com URLs werden per PHP-Proxy gefetcht
-- Seite wird nach "RRPublish(..., EVENTID, ...)" durchsucht
-- Bei Treffer: URL-Feld wird auf my.raceresult.com/EVENTID/ gesetzt, Import läuft normal
-- Beispiel: time-and-voice.com → erkennt Event 334519
+5 Suchmuster statt nur RRPublish-Inline:
+1. RRPublish(element, ID, ...) inline
+2. raceresult.com/ID/ URL-Muster im HTML
+3. data-event/data-rrid Attribute
+4. Script-src mit raceresult.com/ID/
+5. Numerisches Argument in Publish-Funktionen in Inline-Scripts
+API gibt event_id direkt zurück (kein HTML-Transfer mehr)

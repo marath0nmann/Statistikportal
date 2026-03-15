@@ -4250,21 +4250,13 @@ async function rrFetch() {
   if (raw.indexOf('raceresult.com') < 0 && raw.match(/^https?:\/\//)) {
     try {
       var proxyResp = await apiGet('rr-fetch?proxy_url=' + encodeURIComponent(raw));
-      if (proxyResp && proxyResp.ok && proxyResp.data && proxyResp.data.html) {
-        var html = proxyResp.data.html;
-        // RRPublish(element, EVENTID, ...) oder new RRPublish(..., EVENTID, ...)
-        var rrMatch = html.match(/RRPublish\s*\([^,)]+,\s*(\d{4,7})\s*[,)]/);
-        if (rrMatch) {
-          raw = 'https://my.raceresult.com/' + rrMatch[1] + '/';
-          notify('RaceResult Event-ID ' + rrMatch[1] + ' gefunden \u2192 ' + raw, 'ok');
-          document.getElementById('rr-url').value = raw;
-        } else {
-          notify('Keine RaceResult-Event-ID auf dieser Seite gefunden.', 'err');
-          preview.innerHTML = '';
-          return;
-        }
+      if (proxyResp && proxyResp.ok && proxyResp.data && proxyResp.data.event_id) {
+        var foundId = proxyResp.data.event_id;
+        raw = 'https://my.raceresult.com/' + foundId + '/';
+        notify('RaceResult Event-ID ' + foundId + ' gefunden \u2192 ' + raw, 'ok');
+        document.getElementById('rr-url').value = raw;
       } else {
-        notify('Seite konnte nicht geladen werden.', 'err');
+        notify('Keine RaceResult-Event-ID gefunden. Bitte direkt my.raceresult.com/EVENTID/ eingeben.', 'err');
         preview.innerHTML = '';
         return;
       }
