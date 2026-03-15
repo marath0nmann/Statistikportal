@@ -1,11 +1,5 @@
-v465: Zwei-Label-System für Timeline
+v466: Timeline Widget: Jugend-AK zu MHK/WHK zusammenfassen
 
-Club-Label (Gold/Silber) + Persönliches Label (Grün) unabhängig voneinander:
-- Gesamtbestleistung / Erste Gesamtleistung → Gold
-- Bestleistung M/W / Erstes Ergebnis M/W → Gold
-- Bestleistung AK / Erste Leistung AK → Silber
-- PB / Debüt → Grün
-
-Debüt = erstes Ergebnis in Disziplin, immer grün, unabhängig von AK-Labels.
-Erste Leistung AK = noch kein Ergebnis in dieser AK im Verein (Silber).
-Widget-Konfiguration: nur noch Ein/Ausblenden, kein Drag & Drop mehr.
+- Neue Checkbox in Widget-Konfiguration (Standard: an)
+- merge_ak_tl Parameter im Dashboard-API-Call
+- SQL CASE-Logik identisch zu Bestleistungen/Rekorde

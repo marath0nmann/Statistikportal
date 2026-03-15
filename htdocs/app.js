@@ -1643,7 +1643,14 @@ async function renderDashboard() {
     }
   } catch(e) {}
   if (timelineLimit < 5) timelineLimit = parseInt(appConfig.dashboard_timeline_limit || 20) || 20;
-  var r = await apiGet('dashboard?timeline_limit=' + timelineLimit);
+  // merge_ak_tl: aus erster Timeline-Widget-Config lesen
+  var mergeAKTl = true;
+  for (var _tlc2 of (appConfig.dashboard_layout || [])) {
+    for (var _col2 of (_tlc2.cols || [])) {
+      if (_col2.widget === 'timeline') { mergeAKTl = _col2.tl_merge_ak !== false; break; }
+    }
+  }
+  var r = await apiGet('dashboard?timeline_limit=' + timelineLimit + '&merge_ak_tl=' + (mergeAKTl ? '1' : '0'));
   if (!r || !r.ok) {
     document.getElementById('main-content').innerHTML =
       '<div class="panel" style="padding:32px;text-align:center">' +
@@ -1904,9 +1911,10 @@ function timelineBadges(rek) {
             '<div class="timeline-item">' +
               '<div class="timeline-date">' + formatDate(fItem.datum) + '</div>' +
               '<div class="timeline-body">' +
-                '<div class="timeline-disz">' + fDiszLink + ' ' + fBadgesHtml + '</div>' +
+                '<div class="timeline-disz">' + fDiszLink + '</div>' +
                 '<div class="timeline-athlet">' + fAthLink + '</div>' +
                 '<div class="timeline-result">' + fRes + fVorher + '</div>' +
+                (fBadgesHtml ? '<div class="timeline-badges">' + fBadgesHtml + '</div>' : '') +
               '</div>' +
             '</div>';
         }
@@ -5579,8 +5587,9 @@ function dashHofConfigHtml(ri, ci, col) {
 }
 
 function dashTimelineConfigHtml(ri, ci, hidden_types, prio_order, col) {
-  var hidden = hidden_types || [];
-  // Prio-Reihenfolge ist fix (durch label_club/label_pers System) — nur Ein/Ausblenden konfigurierbar
+  var hidden   = hidden_types || [];
+  var mergeAK  = col && col.tl_merge_ak !== false; // Standard: true
+  // Prio-Reihenfolge ist fix — nur Ein/Ausblenden konfigurierbar
   var rows = '';
   for (var i = 0; i < TIMELINE_TYPE_DEFS.length; i++) {
     var t = TIMELINE_TYPE_DEFS[i];
@@ -5597,6 +5606,10 @@ function dashTimelineConfigHtml(ri, ci, hidden_types, prio_order, col) {
       '<span style="min-width:120px;color:var(--text2)">Anzahl Einträge</span>' +
       '<input type="number" id="tl-limit-' + ri + '-' + ci + '" value="' + ((col && col.tl_limit) || appConfig.dashboard_timeline_limit || 20) + '" min="5" max="200" ' +
       'class="settings-input" style="width:70px" onchange="dashUpdateLayout()">' +
+    '</label>' +
+    '<label style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:16px">' +
+      '<input type="checkbox" data-tl="merge_ak" data-ri="' + ri + '" data-ci="' + ci + '"' + (mergeAK ? ' checked' : '') + ' onchange="dashUpdateLayout()">' +
+      '<span style="color:var(--text2)">Jugend-AK zu MHK\uFE0E/WHK\uFE0E zusammenfassen</span>' +
     '</label>' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Angezeigte Typen</div>' +
     rows +
@@ -5806,12 +5819,13 @@ function dashUpdateLayout() {
           if (!tlBoxes[tbi].checked) newHidden.push(tlBoxes[tbi].dataset.tlId);
         }
         cols[ci].hidden_types = newHidden;
+        // merge_ak Checkbox
+        var tlMergeEl = document.querySelector('input[data-tl="merge_ak"][data-ri="' + ri + '"][data-ci="' + ci + '"]');
+        if (tlMergeEl) cols[ci].tl_merge_ak = tlMergeEl.checked;
         // Anzahl Einträge
         var tlLimitEl = document.getElementById('tl-limit-' + ri + '-' + ci);
         if (tlLimitEl) {
           var tlLv = Math.max(5, Math.min(200, parseInt(tlLimitEl.value) || 20));
-          if (!cols[ci].prio_order || !Array.isArray(cols[ci].prio_order)) cols[ci].prio_order = TIMELINE_TYPE_DEFS.map(function(t){return t.id;});
-          cols[ci].prio_order._limit = tlLv;
           cols[ci].tl_limit = tlLv;
         }
       }
