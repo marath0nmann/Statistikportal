@@ -7111,7 +7111,9 @@ async function renderAdminDisziplinen() {
         katRows +
       '</div>' +
       '<div class="panel">' +
-        '<div class="panel-header"><div class="panel-title">&#x1F4CB; Disziplin-Zuordnung</div></div>' +
+        '<div class="panel-header"><div class="panel-title">&#x1F4CB; Disziplin-Zuordnung</div>' +
+          '<button class="btn btn-primary btn-sm" onclick="showNeueDiszModal()">+ Neue Disziplin</button>' +
+        '</div>' +
         '<div style="font-size:12px;color:var(--text2);padding:0 20px 12px">Weise jeder Disziplin eine Kategorie zu. Die Zuordnung beeinflusst die Anzeige unter Ergebnisse &amp; Rekorde.</div>' +
         '<div class="table-scroll">' +
           '<table><thead><tr><th>Disziplin</th><th>Quelle / Format</th><th>Kategorie</th><th style="text-align:right">Ergebnisse</th><th></th></tr></thead>' +
@@ -7277,6 +7279,102 @@ async function updateDisz(btn) {
 
 // ── HELPERS ────────────────────────────────────────────────
 
+
+function showNeueDiszModal() {
+  // Kategorien aus dem DOM lesen (sind bereits geladen)
+  var kats = [];
+  var katSeen = {};
+  (state.disziplinen || []).forEach(function(d) {
+    if (d.kategorie_id && !katSeen[d.kategorie_id]) {
+      katSeen[d.kategorie_id] = true;
+      kats.push({ id: d.kategorie_id, name: d.kategorie });
+    }
+  });
+  // Fallback: aus REK_CATS oder Admin-Kategorieliste
+  if (!kats.length && window.REK_CATS) {
+    (REK_CATS || []).forEach(function(k) {
+      kats.push({ id: k.id, name: k.name });
+    });
+  }
+
+  var katSel = '<select id="nd-kat" style="width:100%" required>';
+  katSel += '<option value="">– Kategorie wählen –</option>';
+  kats.forEach(function(k) { katSel += '<option value="' + k.id + '">' + k.name + '</option>'; });
+  katSel += '</select>';
+
+  var katSuffixGlobal = (appConfig.disziplin_kategorie_suffix || '1') === '1';
+  var fmtSel =
+    '<select id="nd-fmt" style="width:100%">' +
+      '<option value="">Standard (aus Kategorie)</option>' +
+      '<option value="min">Zeit (min) – z.B. 45:30 min</option>' +
+      '<option value="s">Zeit (s) – z.B. 10,45s</option>' +
+      '<option value="m">Weite (m) – z.B. 7.85m</option>' +
+    '</select>';
+  var katSuffixSel =
+    '<select id="nd-katsuffix" style="width:100%">' +
+      '<option value="">Global (' + (katSuffixGlobal ? 'an' : 'aus') + ')</option>' +
+      '<option value="ja">Immer anzeigen</option>' +
+      '<option value="nein">Nie anzeigen</option>' +
+    '</select>';
+
+  showModal(
+    '<h2>&#x2795; Neue Disziplin <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<div class="form-grid">' +
+      '<div class="form-group full"><label>Disziplinname *</label>' +
+        '<input type="text" id="nd-name" placeholder="z.B. Crosslauf, 3000m Hindernis \u2026" autofocus/>' +
+      '</div>' +
+      '<div class="form-group full"><label>Kategorie *</label>' + katSel + '</div>' +
+      '<div class="form-group"><label>Ergebnisformat</label>' + fmtSel + '</div>' +
+      '<div class="form-group"><label>Kategorie-Suffix</label>' + katSuffixSel + '</div>' +
+      '<div class="form-group full">' +
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">' +
+          '<input type="checkbox" id="nd-hofexclude" style="width:16px;height:16px;cursor:pointer">' +
+          '<span>Diese Disziplin aus der <strong>Hall of Fame</strong> ausschlie&szlig;en</span>' +
+        '</label>' +
+      '</div>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="saveNeueDisziplin()">&#x1F4BE; Anlegen</button>' +
+    '</div>'
+  , false, true);
+
+  setTimeout(function() {
+    var el = document.getElementById('nd-name');
+    if (el) el.focus();
+  }, 100);
+}
+
+async function saveNeueDisziplin() {
+  var name      = (document.getElementById('nd-name')?.value || '').trim();
+  var katId     = parseInt(document.getElementById('nd-kat')?.value || '') || 0;
+  var fmt       = document.getElementById('nd-fmt')?.value || '';
+  var katSuffix = document.getElementById('nd-katsuffix')?.value || '';
+  var hofExclude = document.getElementById('nd-hofexclude')?.checked ? 1 : 0;
+
+  if (!name)  { notify('Bitte Disziplinname eingeben.', 'err'); return; }
+  if (!katId) { notify('Bitte Kategorie wählen.', 'err'); return; }
+
+  var r = await apiPost('disziplin-mapping', {
+    disziplin:          name,
+    kategorie_id:       katId,
+    fmt_override:       fmt,
+    kat_suffix_override: katSuffix,
+    hof_exclude:        hofExclude,
+  });
+
+  if (r && r.ok) {
+    closeModal();
+    notify('Disziplin \u201e' + name + '\u201c angelegt.', 'ok');
+    state.disziplinen = null;
+    await loadDisziplinen();
+    var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+    await renderAdminDisziplinen();
+    window.scrollTo(0, scrollY);
+  } else {
+    notify((r && r.fehler) || 'Fehler beim Anlegen.', 'err');
+  }
+}
 /* ── 09d_admin_altersklassen.js ── */
 
 async function renderAdminAltersklassen() {
