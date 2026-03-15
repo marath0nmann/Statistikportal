@@ -1,6 +1,4 @@
-v513: Admin Disziplinen: "Neue Disziplin" Modal
+v514: Fix Kategorie-Dropdown in Neue-Disziplin-Modal
 
-- Button "+ Neue Disziplin" im Disziplin-Zuordnung-Panel
-- Modal mit: Name, Kategorie (Pflicht), Ergebnisformat, Kat-Suffix, HoF-Ausschluss
-- POST disziplin-mapping: fmt_override, kat_suffix_override, hof_exclude beim Anlegen
-- Nach Anlage: state.disziplinen neu laden + renderAdminDisziplinen
+showNeueDiszModal: Kategorien per apiGet('kategorien') laden statt aus
+state.disziplinen (das hat keine kategorie_id, nur tbl_key).
