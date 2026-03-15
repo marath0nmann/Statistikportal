@@ -1,8 +1,5 @@
-v421: RaceResult Import-Fixes für Event 331068
+v422: RaceResult: Duplikate durch Contest-0-Gesamtliste behoben
 
-- iName/iClub/iNetto/iZeit/iPlatz pro Contest resetzen (nicht nur iAK/iYear)
-  → LFNAME an Index 4 korrekt erkannt (statt Default 3)
-- groupKey immer setzen (auch wenn iAK >= 0)
-  → Disziplin aus Gruppen-Key "#4_Jedermannlauf 5 km" → "5km"
-- cfg.Time als Datumsquelle hinzugefügt
-- Debug-Log: groupKey + aufgelösten Disziplin-Namen zeigen
+Contest 0 (Gesamtliste) wird jetzt alleine abgefragt.
+Einzelne Contests nur als Fallback wenn Contest 0 keine Treffer liefert.
+Vorher: Contest 0 + alle Einzel-Contests → 2x alle Athleten.

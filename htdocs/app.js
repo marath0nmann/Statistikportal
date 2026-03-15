@@ -3894,13 +3894,15 @@ async function rrFetch() {
     }
     if (!listName) listName = '02-ERGEBNISSE|Ergebnisse_Ges';
 
-    // Contest=0 bedeutet: Liste gilt für alle Contests auf einmal → nur einen Request
+    // Contest=0 bedeutet: Liste gilt für alle Contests auf einmal → erst Contest 0 versuchen
     var contestIds = Object.keys(contestObj);
     if (!contestIds.length) contestIds = ['1'];
     if (listContest === '0') {
-      // Fallback-IDs: alle echten Contest-IDs aus cfg.contests
-      var _fallbackIds = Object.keys(contestObj).filter(function(k){ return k !== '0'; });
-      contestIds = ['0'].concat(_fallbackIds);
+      // Erst Contest 0 versuchen; nur auf einzelne Contests ausweichen wenn Contest 0 leer
+      contestIds = ['0']; // _fallbackIds werden unten bei Bedarf nachgeladen
+      window._rrFallbackIds = Object.keys(contestObj).filter(function(k){ return k !== '0'; });
+    } else {
+      window._rrFallbackIds = [];
     }
 
     _rrDebug.cfgOrt = eventOrtCfg;
@@ -4037,6 +4039,55 @@ async function rrFetch() {
           });
         });
       } catch(e2) { continue; }
+    }
+    // Fallback: wenn Contest 0 keine Treffer → einzelne Contests probieren
+    if (!allResults.length && window._rrFallbackIds && window._rrFallbackIds.length) {
+      contestIds = window._rrFallbackIds;
+      for (var ci2 = 0; ci2 < contestIds.length; ci2++) {
+        var cid2 = contestIds[ci2];
+        var cname2 = contestObj[cid2] || ('Contest ' + cid2);
+        var _ac2 = new AbortController(); var _t2 = setTimeout(function(){ _ac2.abort(); }, 12000);
+        try {
+          var resp2 = await fetch(base4 + '?key=' + apiKey + '&listname=' + encodeURIComponent(listName) + '&page=results&contest=' + cid2 + '&r=all&l=de&_=1', { headers: hdrs, signal: _ac2.signal });
+          clearTimeout(_t2);
+          if (!resp2.ok) continue;
+          var payload2 = JSON.parse(await resp2.text());
+          var df2 = payload2.DataFields || [];
+          if (Array.isArray(df2) && df2.length > 0) {
+            iAK = -1; iYear = -1; iGeschlecht = -1;
+            iName = 3; iClub = 6; iNetto = 7; iZeit = 8; iPlatz = 2;
+            for (var fi2 = 0; fi2 < df2.length; fi2++) {
+              var f2 = df2[fi2].toLowerCase();
+              if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('lfname') >= 0) iName = fi2;
+              else if (f2.indexOf('club') >= 0 || f2.indexOf('verein') >= 0) iClub = fi2;
+              else if (f2.indexOf('agegroup') >= 0) iAK = fi2;
+              else if (f2 === 'year' || f2 === 'yob') iYear = fi2;
+              else if (f2.indexOf('chip') >= 0 || f2.indexOf('netto') >= 0) iNetto = fi2;
+              else if (f2.indexOf('gun') >= 0 || f2.indexOf('brutto') >= 0) iZeit = fi2;
+              else if (f2.indexOf('autorankp') >= 0 || f2.indexOf('mitstatus') >= 0) iPlatz = fi2;
+            }
+            if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
+          }
+          var dRaw2 = payload2.data || {};
+          Object.keys(dRaw2).forEach(function(k) {
+            var v = dRaw2[k]; var groups = Array.isArray(v) ? {'':v} : (v&&typeof v==='object'?v:{});
+            Object.keys(groups).forEach(function(k2) {
+              var rows2 = groups[k2]; if (!Array.isArray(rows2)) return;
+              var gk2 = k2 ? (k + '/' + k2) : k;
+              var gkClean2 = gk2.replace(/^#[0-9]+_/,'').trim();
+              rows2.forEach(function(row) {
+                if (!Array.isArray(row) || row.length < 4) return;
+                var clubVal2 = iClub >= 0 ? String(row[iClub]||'').trim() : '';
+                if (!clubPhrase || clubVal2.toLowerCase().indexOf(clubPhrase) >= 0) {
+                  allResults.push({ raw: row, contestName: cname2, groupKey: gkClean2, akFromGroup: '',
+                    iYear: iYear, iGeschlecht: iGeschlecht,
+                    iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
+                }
+              });
+            });
+          });
+        } catch(e3) { clearTimeout(_t2); continue; }
+      }
     }
     if (!allResults.length) {
       var dbgClubs = _rrDebug.clubSamples.length ? _rrDebug.clubSamples.slice(0,10).join(', ') : '(keine)';
