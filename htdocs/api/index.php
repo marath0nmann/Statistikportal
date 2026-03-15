@@ -1989,6 +1989,84 @@ if ($res === 'disziplin-mapping') {
 // ============================================================
 // AUTOCOMPLETE Athleten
 // ============================================================
+if ($res === 'mika-fetch' && $method === 'GET') {
+    Auth::requireLogin();
+    $baseUrl = $_GET['base_url'] ?? '';
+    $club    = trim($_GET['club'] ?? 'TuS Oedt');
+    if (!$baseUrl || !preg_match('/^https?:\/\/[a-zA-Z0-9._\-]+\.mikatiming\.(?:com|de|net)\//i', $baseUrl))
+        jsonErr('Ungültige MikaTiming-URL.', 400);
+
+    $ctx = stream_context_create(['http' => [
+        'timeout'       => 15,
+        'user_agent'    => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'header'        => "Accept: text/html\r\nAccept-Language: de-DE,de;q=0.9\r\n",
+        'ignore_errors' => true,
+    ]]);
+
+    // Datum + Ort aus Hauptseite
+    $eventName = ''; $eventDate = ''; $eventOrt = '';
+    $mainHtml = @file_get_contents(rtrim($baseUrl, '/') . '/', false, $ctx);
+    if ($mainHtml) {
+        if (preg_match('/<title[^>]*>([^<]+)<\/title>/i', $mainHtml, $tm)) {
+            $title = html_entity_decode(trim($tm[1]), ENT_QUOTES, 'UTF-8');
+            if (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $title, $dm))
+                $eventDate = $dm[3] . '-' . $dm[2] . '-' . $dm[1];
+            $eventName = preg_replace('/,?\s*\d{2}\.\d{2}\.\d{4}.*/', '', $title);
+            $eventName = preg_replace('/\s*::.*/', '', $eventName);
+            $eventName = trim($eventName);
+        }
+        if (preg_match('/"addressLocality"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
+    }
+
+    // Vereinssuche
+    $searchUrl = rtrim($baseUrl, '/') . '/?pid=search&pidp=results_overview&search[club]=' . urlencode($club) . '&num_results=100';
+    $html = @file_get_contents($searchUrl, false, $ctx);
+    $debug = ['searchUrl' => $searchUrl, 'htmlLen' => strlen($html ?: '')];
+    if (!$html) jsonOk(['results' => [], 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
+
+    // HTML-Parsing: list-group-item Zeilen
+    $results = [];
+    preg_match_all('/<li([^>]+class="[^"]*list-group-item[^"]*"[^>]*)>(.*?)<\/li>/si', $html, $rows_m);
+    foreach ($rows_m[0] as $rowHtml) {
+        if (strpos($rowHtml, 'list-group-header') !== false) continue;
+        $name = ''; $place = ''; $placeAK = ''; $ak = ''; $contestRaw = '';
+        if (preg_match('/class="[^"]*\bevent-([A-Z0-9_]+)\b/i', $rowHtml, $m)) $contestRaw = $m[1];
+        if (preg_match('/<[^>]+class="[^"]*type-fullname[^"]*"[^>]*>([^<]+)</i', $rowHtml, $m))
+            $name = trim(preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', html_entity_decode($m[1], ENT_QUOTES, 'UTF-8')));
+        if (preg_match('/<[^>]+class="[^"]*type-place[^"]*place-primary[^"]*"[^>]*>\s*([0-9]+)\s*</i', $rowHtml, $m)) $place = $m[1];
+        if (preg_match('/<[^>]+class="[^"]*type-place[^"]*place-secondary[^"]*"[^>]*>\s*([0-9]+)\s*</i', $rowHtml, $m)) $placeAK = $m[1];
+        if (preg_match('/<[^>]+class="[^"]*type-age_class[^"]*"[^>]*>([^<]+)</i', $rowHtml, $m))
+            $ak = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+        if (!$name) continue;
+        $results[] = ['name' => $name, 'contest' => preg_replace('/_.*$/', '', $contestRaw),
+            'netto' => '', 'ak' => $ak, 'platz_ak' => $placeAK, 'platz_ges' => $place,
+            'event_id' => $contestRaw, 'club' => $club];
+    }
+    $debug['rowsFound'] = count($results);
+
+    // Zeit per Detail-URL nachladen
+    foreach ($results as &$res) {
+        if (!$res['event_id']) continue;
+        $parts = explode('_', $res['event_id'], 2);
+        $entryId = $parts[1] ?? '';
+        if (!$entryId) continue;
+        $detailUrl = rtrim($baseUrl, '/') . '/?pid=results&idp=' . urlencode($entryId) . '&event=' . urlencode($res['event_id']) . '&lang=DE';
+        $dHtml = @file_get_contents($detailUrl, false, $ctx);
+        if (!$dHtml) continue;
+        foreach (['type-time_finish_netto', 'type-finish_netto', 'type-result_netto', 'type-result'] as $cls) {
+            if (preg_match('/<[^>]+class="[^"]*' . $cls . '[^"]*"[^>]*>([^<]+)</i', $dHtml, $tm)) {
+                $res['netto'] = trim(html_entity_decode($tm[1], ENT_QUOTES, 'UTF-8')); break;
+            }
+        }
+        // Wettbewerbsname
+        if (preg_match('/<[^>]+class="[^"]*type-event[^"]*"[^>]*>([^<]+)</i', $dHtml, $tm))
+            $res['contest'] = trim(html_entity_decode($tm[1], ENT_QUOTES, 'UTF-8'));
+    }
+    unset($res);
+
+    jsonOk(['results' => $results, 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
+}
+
 if ($res === 'rr-fetch' && $method === 'GET') {
     // Serverseitiger Proxy: fetcht RaceResult-HTML für Datum-Extraktion aus <title>
     Auth::requireLogin();
