@@ -344,7 +344,7 @@ tr:hover td { background: var(--surf2); }
 .badge-ak     { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; letter-spacing:.4px; background:#eef1f7; color:#5a6a8a; border:1px solid #c0cce0; }
 .badge-silver { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; letter-spacing:.4px; background:#f0f0f0; color:#555; border:1px solid #bbb; }
 .badge-pb     { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; letter-spacing:.4px; background:rgba(26,138,58,.12); color:#1a8a3a; border:1px solid rgba(26,138,58,.3); }
-.timeline-disz .badge-gold, .timeline-disz .badge-blue, .timeline-disz .badge-ak { font-weight:600; }
+.timeline-badges .badge-gold, .timeline-badges .badge-blue, .timeline-badges .badge-ak, .timeline-badges .badge-silver, .timeline-badges .badge-pb { font-weight:600; }
 .badge-inaktiv { background: #fde8e8; color: var(--accent); }
 
 /* ── PAGINATION ── */
@@ -828,6 +828,7 @@ tr:hover td { background: var(--surf2); }
 .timeline-disz { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
 .timeline-athlet { font-size: 12px; color: var(--text2); }
 .timeline-result { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 600; color: var(--result-accent-color, var(--accent)); }
+.timeline-badges { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
 .timeline-notiz { font-size: 11px; color: var(--text2); font-style: italic; margin-top: 2px; }
 .modal table td, .modal table th { padding: 5px 6px; border-bottom: 1px solid var(--border); }
 .modal table tr:last-child td { border-bottom: none; }

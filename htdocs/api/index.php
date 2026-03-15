@@ -761,8 +761,20 @@ if ($res === 'dashboard' && $method === 'GET') {
             : "e.disziplin=? AND e.disziplin_mapping_id IS NULL";
         $ergParam = $mappingId ? (int)$mappingId : $disz;
 
+        // merge_ak: Jugend-AKs zu MHK/WHK zusammenfassen (Standard: true)
+        $mergeAKTl = ($_GET['merge_ak_tl'] ?? '1') !== '0';
+        $akExprTl  = $mergeAKTl
+            ? "CASE
+                WHEN e.altersklasse IN ('MHK','M','MU8','MU10-12','MU18','MU20','MU23','mJB','mjA','mjB','U18')
+                     OR (e.altersklasse LIKE 'M%' AND e.altersklasse REGEXP '^M[UuJj]')
+                  THEN 'MHK'
+                WHEN e.altersklasse IN ('WHK','W','F','WU8','WU10-U12','WU18','WU23','wjA','wjB')
+                     OR (e.altersklasse LIKE 'W%' AND e.altersklasse REGEXP '^W[UuJj]')
+                  THEN 'WHK'
+                ELSE e.altersklasse END"
+            : 'e.altersklasse';
         $ergs = DB::fetchAll(
-            "SELECT e.resultat, $valExpr AS val_sort, v.datum, e.altersklasse,
+            "SELECT e.resultat, $valExpr AS val_sort, v.datum, ($akExprTl) AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
              FROM $tblN e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
