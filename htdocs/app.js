@@ -3830,7 +3830,7 @@ function bulkRowHtml(idx) {
     '<td style="padding:4px 6px"><input class="bk-res" type="text" placeholder="00:45:00" style="' + fld + '"/></td>' +
     '<td style="padding:4px 6px"><select class="bk-ak" id="bk-ak-' + idx + '" style="' + fld + '">' + bkAkOpts('') + '</select></td>' +
     '<td style="padding:4px 6px"><input class="bk-platz" type="number" placeholder="1" min="1" style="' + fld + '"/></td>' +
-    '<td style="padding:4px 6px"><input class="bk-zeilendatum" type="date" style="' + fld + ';min-width:130px" title="Datum dieser Zeile (überschreibt globales Datum)"/></td>' +
+    '<td style="padding:4px 6px"><input class="bk-zeilendatum" type="text" placeholder="TT.MM.JJJJ" style="' + fld + ';min-width:110px" title="Datum dieser Zeile (überschreibt globales Datum)"/></td>' +
     '<td style="padding:4px 6px;text-align:center"><button onclick="bulkRemoveRow(' + idx + ')" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;padding:2px 4px" title="Zeile entfernen">&#x2715;</button></td>' +
   '</tr>';
 }
@@ -3910,7 +3910,14 @@ async function bulkSubmit() {
     var resultat  = row.querySelector('.bk-res')    ? row.querySelector('.bk-res').value.trim()   : '';
     if (!athlet_id && !disziplin && !resultat) continue; // leere Zeile
     items.push({
-      datum: (row.querySelector('.bk-zeilendatum') && row.querySelector('.bk-zeilendatum').value.trim()) ? row.querySelector('.bk-zeilendatum').value.trim() : datum,
+      datum: (function() {
+        var zd = row.querySelector('.bk-zeilendatum') ? row.querySelector('.bk-zeilendatum').value.trim() : '';
+        if (!zd) return datum;
+        // TT.MM.JJJJ → YYYY-MM-DD
+        var m = zd.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
+        if (m) { var y = parseInt(m[3]); if (y < 100) y += 2000; return y + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0'); }
+        return zd; // bereits YYYY-MM-DD oder anderes Format
+      })(),
       ort: ort, veranstaltung_name: evname,
       veranstaltung_id: veranstId ? parseInt(veranstId) : null,
       athlet_id: parseInt(athlet_id) || null,
@@ -4061,10 +4068,13 @@ function bulkParsePaste() {
     bulkAddRow();
     var idx = _bulkRowCount - 1;
 
-    // Zeilen-Datum setzen
+    // Zeilen-Datum setzen (als TT.MM.JJJJ für Textfeld)
     if (p.datum) {
       var zdEl = tbody.querySelectorAll('.bk-zeilendatum')[idx];
-      if (zdEl) zdEl.value = p.datum;
+      if (zdEl) {
+        var _dm = p.datum.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        zdEl.value = _dm ? _dm[3] + '.' + _dm[2] + '.' + _dm[1] : p.datum;
+      }
     }
 
     // Athlet-Select
@@ -4408,7 +4418,7 @@ async function rrFetch() {
         if (Array.isArray(df) && df.length > 0) {
           iAK = -1; iYear = -1; iGeschlecht = -1; var iAKPlatz = -1;
           // Alle Spaltenindizes zurücksetzen damit jede Liste frisch kalibriert wird
-          iName = 3; iClub = 6; iNetto = 7; iZeit = 8; iPlatz = 2;
+          iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
           for (var fi = 0; fi < df.length; fi++) {
             var f = df[fi].toLowerCase();
             if (f.indexOf('anzeigename') >= 0 || f.indexOf('lfname') >= 0) iName = fi;
@@ -4426,6 +4436,10 @@ async function rrFetch() {
             }
           }
           if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
+          // Kein Netto-Feld gefunden: iZeit als Netto verwenden (Brutto als Fallback)
+          if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
+          // Sicherheits-Check: iNetto und iClub dürfen nicht gleich sein
+          if (iNetto >= 0 && iNetto === iClub) iNetto = iZeit >= 0 && iZeit !== iClub ? iZeit : -1;
           _rrDebug.iClub = iClub; _rrDebug.dfLog = df.join(', ');
         }
 
@@ -4511,7 +4525,7 @@ async function rrFetch() {
           var df2 = payload2.DataFields || [];
           if (Array.isArray(df2) && df2.length > 0) {
             iAK = -1; iYear = -1; iGeschlecht = -1; iAKPlatz = -1;
-            iName = 3; iClub = 6; iNetto = 7; iZeit = 8; iPlatz = 2;
+            iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
             for (var fi2 = 0; fi2 < df2.length; fi2++) {
               var f2 = df2[fi2].toLowerCase();
               if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('lfname') >= 0) iName = fi2;
@@ -4527,6 +4541,8 @@ async function rrFetch() {
               }
             }
             if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
+            if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
+            if (iNetto >= 0 && iNetto === iClub) iNetto = iZeit >= 0 && iZeit !== iClub ? iZeit : -1;
           }
           var dRaw2 = payload2.data || {};
           Object.keys(dRaw2).forEach(function(k) {
