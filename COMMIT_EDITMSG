@@ -1,7 +1,5 @@
-v525: RaceResult: Unbekannte Altersklassen nicht blind übernehmen
+v526: Fix Duplikat-Check: gelöschte Einträge nicht als Duplikat werten
 
-- isValidDlvAK(): prüft ob AK dem DLV-Schema entspricht (M, W, MU12..MU23, M30..M75)
-- Preview-Tabelle: unbekannte AK in Akzentfarbe + ⚠ markiert (z.B. "Frauen", "männliche Jugend U23")
-- rrUnknownAKModal(): Modal vor dem Import listet alle unbekannten AK auf
-  Optionen pro AK: DLV-AK zuordnen | So übernehmen | Leer lassen
-- Erst nach Bestätigung wird der Import fortgesetzt
+WHERE geloescht_am IS NULL in allen 4 bulk-Import-Duplikat-Checks.
+Gelöschte Einträge wurden fälschlicherweise als Duplikat erkannt
+und neue Importe übersprungen.

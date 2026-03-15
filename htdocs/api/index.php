@@ -737,8 +737,8 @@ if ($res === 'benutzer') {
                     [$kuerzel, $evname ?: $kuerzel, $ort, $datum]);
                 $vid = DB::lastInsertId();
             } else $vid = $v['id'];
-            // Duplikat-Check
-            $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
+            // Duplikat-Check (nur nicht-gelöschte Einträge)
+            $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
             $dmIns633 = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
@@ -1275,8 +1275,8 @@ if (in_array($res, $ergebnisTabellen)) {
                     [$kuerzel, $evname ?: $kuerzel, $ort, $datum]);
                 $vid = DB::lastInsertId();
             } else $vid = $v['id'];
-            // Duplikat-Check
-            $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
+            // Duplikat-Check (nur nicht-gelöschte Einträge)
+            $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
             $dmBulk = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
@@ -1840,8 +1840,8 @@ if ($res === 'kategorien') {
                     [$kuerzel, $evname ?: $kuerzel, $ort, $datum]);
                 $vid = DB::lastInsertId();
             } else $vid = $v['id'];
-            // Duplikat-Check
-            $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
+            // Duplikat-Check (nur nicht-gelöschte Einträge)
+            $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
             $dmBulk = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
@@ -2098,8 +2098,8 @@ if ($res === 'disziplin-mapping') {
                     [$kuerzel, $evname ?: $kuerzel, $ort, $datum]);
                 $vid = DB::lastInsertId();
             } else $vid = $v['id'];
-            // Duplikat-Check
-            $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
+            // Duplikat-Check (nur nicht-gelöschte Einträge)
+            $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
             $dmBulk = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
