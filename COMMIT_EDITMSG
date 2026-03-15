@@ -1,7 +1,1 @@
-v446: MikaTiming-Import: PHP-Proxy mit korrektem HTML-Parser
-
-Basierend auf Browser-Analyse der echten MikaTiming-Struktur:
-- Suche: ?pid=search&search[club]=TuS+Oedt&num_results=100
-- HTML-Parsing: .type-fullname, .type-place, .type-age_class
-- Zeit per Detail-URL nachladen (fehlt in Suchergebnissen)
-- Event-ID aus CSS-Klasse "event-M_2EF3BRLP2"
+v447: Fix isMika nicht deklariert

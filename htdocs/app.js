@@ -3456,6 +3456,7 @@ function renderEintragen() {
   var sub = state.subTab || 'bulk';
   var isRR = sub === 'raceresult';
   var isBulk = sub === 'bulk';
+  var isMika = sub === 'mikatiming';
 
   var tabHtml = '<div class="subtabs" style="margin-bottom:20px">' +
     '<button class="subtab' + (sub==='bulk'       ? ' active' : '') + '" onclick="setSubTab(\'bulk\')">📋︎ Bulk-Eintragen</button>' +
