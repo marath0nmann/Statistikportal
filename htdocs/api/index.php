@@ -846,22 +846,29 @@ if ($res === 'dashboard' && $method === 'GET') {
                 ($dir === 'DESC' && $val > $bestByAthlet[$aid])) {
                 $prevByAthlet[$aid] = $bestByAthlet[$aid] ?? null;
                 $bestByAthlet[$aid] = $val;
-                if (empty($labels)) {
-                    $isFirst = $prevByAthlet[$aid] === null;
-                    if ($isFirst && $ak) {
-                        // Erste Leistung in der AK schlägt "Debüt" (spezifischer)
-                        $labels[] = 'Erste Leistung ' . $ak;
-                    } else {
-                        $labels[] = $isFirst ? 'Debüt' : 'PB';
-                    }
+                $isFirst = $prevByAthlet[$aid] === null;
+                if ($isFirst) {
+                    // Debüt = erste Leistung in dieser Disziplin, immer setzen
+                    // (auch wenn AK-Label bereits gesetzt — beide erscheinen im Label)
+                    $labels[] = 'Debüt';
+                    if ($vorher === null) $vorher = $prevByAthlet[$aid];
+                } elseif (empty($labels)) {
+                    $labels[] = 'PB';
                     if ($vorher === null) $vorher = $prevByAthlet[$aid];
                 }
             }
 
             if (!empty($labels)) {
+                // Prio: niedrigste Zahl gewinnt bei gleichem Datum
+                // 0=Gesamtrekord, 1=Geschlechtsrekord, 2=AK-Bestleistung, 3=PB/Debüt
+                $hasAKLabel = false;
+                foreach ($labels as $_l) {
+                    if (strpos($_l, 'Bestleistung ') !== false || strpos($_l, 'Erste Leistung ') !== false) { $hasAKLabel = true; break; }
+                }
                 $prio = (in_array('Gesamtbestleistung', $labels) || in_array('Erste Gesamtleistung', $labels)) ? 0
                       : (in_array('Bestleistung Männer', $labels) || in_array('Bestleistung Frauen', $labels) || in_array('Erstes Ergebnis M', $labels) || in_array('Erstes Ergebnis W', $labels) ? 1
-                      : (in_array('PB', $labels) || in_array('Debüt', $labels) ? 3 : 2));
+                      : ($hasAKLabel ? 2
+                      : 3));
                 // vorher_resultat: numerischen Wert zurück in Rohformat umrechnen ist komplex –
                 // wir geben stattdessen den val-Wert (Sekunden/Meter) zurück; Frontend formatiert ihn
                 $timelineEvents[] = [

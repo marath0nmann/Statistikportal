@@ -1,1 +1,6 @@
-v462: Widget-Konfig: "Bestleistung AK" inkl. "Erste Leistung" im Beschreibungstext
+v463: Debüt-Logik korrigiert
+
+- Debüt = erste Leistung in einer Disziplin, IMMER gesetzt (unabhängig von AK)
+- Erste Leistung W20 + Debüt können beide im Label stehen
+- Prio: Erste Leistung AK (Prio 2) schlägt Debüt (Prio 3) bei gleichem Datum
+- Widget zeigt das höherpriorisierte Label an
