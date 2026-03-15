@@ -1,5 +1,1 @@
-v466: Timeline Widget: Jugend-AK zu MHK/WHK zusammenfassen
-
-- Neue Checkbox in Widget-Konfiguration (Standard: an)
-- merge_ak_tl Parameter im Dashboard-API-Call
-- SQL CASE-Logik identisch zu Bestleistungen/Rekorde
+v468: Timeline: Badges unter das Resultat verschoben
