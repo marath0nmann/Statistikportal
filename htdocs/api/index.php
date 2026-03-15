@@ -2169,16 +2169,19 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         if (isset($contestMap[$contestPfx])) $res['contest'] = $contestMap[$contestPfx];
 
         if (!isset($debug['detailSample'])) {
-            // Relevante Textknoten zeigen
             $sample = [];
             $allNodes = $detailXpath->query('//*[@class]');
             foreach ($allNodes as $n) {
                 $t = trim($n->textContent);
                 $c = $n->getAttribute('class');
-                if ($t && strlen($t) < 30 && (strpos($c,'f-') === 0 || strpos($c,'field-') !== false))
+                if ($t && strlen($t) < 30 && strpos($c,'f-') !== false)
                     $sample[] = $c . ': ' . $t;
             }
-            $debug['detailSample'] = implode(' | ', array_slice($sample, 0, 15));
+            // Auch roh: f-time im HTML?
+            $debug['detailHasTime'] = strpos($dHtml, 'f-time_finish_netto') !== false;
+            $debug['detailHasWeyers'] = strpos($dHtml, 'Weyers') !== false;
+            $debug['detailLen'] = strlen($dHtml);
+            $debug['detailFields'] = array_slice($sample, 0, 15);
             $debug['detailUrl'] = $detailUrl;
         }
     }
