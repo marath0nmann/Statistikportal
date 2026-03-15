@@ -1,4 +1,5 @@
-v519: Fix _contestListMap: fehlende var-Deklaration
+v520: RaceResult: r=all Fallback wenn r=search keine Zeilen liefert
 
-Variable war nie deklariert → ReferenceError. Jetzt korrekt auf
-Funktionsebene deklariert neben _listCandidates.
+Manche Events (Martins-Crosslauf) unterstützen r=search&term= nicht.
+Wenn DataFields vorhanden aber 0 Zeilen: r=all laden und Club-Filterung
+im Code übernehmen. Contest 11 (3000m) → TuS Oedt gefunden.

@@ -4576,6 +4576,19 @@ async function rrFetch() {
           _rrDebug.iClub = iClub; _rrDebug.dfLog = df.join(', ');
         }
 
+        // Wenn r=search keine Zeilen liefert aber DataFields vorhanden: r=all laden
+        var _searchRows = Object.values(payload.data || {}).reduce(function(n,v){
+          return n + (Array.isArray(v) ? v.length : Object.values(v||{}).reduce(function(m,r){ return m+(Array.isArray(r)?r.length:0); }, 0));
+        }, 0);
+        if (_searchRows === 0 && df.length > 0) {
+          var _acAll = new AbortController(); var _tAll = setTimeout(function(){ _acAll.abort(); }, 15000);
+          try {
+            var _respAll = await fetch(base4 + '?key=' + apiKey + '&listname=' + encodeURIComponent(_contestListMap[cid] || listName) + '&page=results&contest=' + cid + '&r=all&l=de&_=1', { headers: hdrs, signal: _acAll.signal });
+            clearTimeout(_tAll);
+            if (_respAll.ok) payload = JSON.parse(await _respAll.text());
+          } catch(eAll) { clearTimeout(_tAll); }
+        }
+
         // Daten flachmachen: {Contest: {Gruppe: [rows]}} -> {Contest/Gruppe: [rows]}
         var dRaw = payload.data || {};
         var _dks = Object.keys(dRaw);
