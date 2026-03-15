@@ -4455,10 +4455,12 @@ async function rrFetch() {
               if (!_rrDebug.groupKeysSample) _rrDebug.groupKeysSample = {};
               if (Object.keys(_rrDebug.groupKeysSample).length < 10) _rrDebug.groupKeysSample[gkey] = 1;
               var _akFromGroup = '';
-              // gk immer aus Gruppen-Key ableiten (für Disziplin-Erkennung)
-              var gk = gParts.length > 1 ? gParts[gParts.length-1] : (gParts[0] || '');
+              // gk: vollen Pfad speichern für Disziplin-Erkennung
+              // Letzter Teil für AK/Geschlecht-Erkennung
+              var gk = gkey; // vollständiger Pfad z.B. "#1_Halbmarathon/#1_Männlich"
+              var gkLast = gParts[gParts.length-1]; // letzter Teil für AK-Erkennung
               if (iAK < 0 && gParts.length > 1) {
-                var _gkClean = gk.replace(/^#[0-9]+_/, '').trim();
+                var _gkClean = gkLast.replace(/^#[0-9]+_/, '').trim();
                 if (/männl|male|herren|männlich/i.test(_gkClean)) _akFromGroup = 'M';
                 else if (/weibl|female|frauen|weiblich/i.test(_gkClean)) _akFromGroup = 'W';
                 // AK direkt aus Gruppen-Key lesen (z.B. "M35", "W45")
