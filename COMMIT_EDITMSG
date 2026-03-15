@@ -1,5 +1,1 @@
-v453: Fix MikaTiming Parser: list-group-item ohne event-Klasse
-
-fpid=search mit event= Parameter hat keine event-M_xxx Klasse am li.
-Parser nutzt jetzt list-group-item als Selektor + idp aus Link.
-Name aus list-field_type-fullname (h4) erkannt.
+v454: MikaTiming: DOMDocument+XPath statt Regex für li-Parsing
