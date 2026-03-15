@@ -1991,79 +1991,138 @@ if ($res === 'disziplin-mapping') {
 // ============================================================
 if ($res === 'mika-fetch' && $method === 'GET') {
     Auth::requireLogin();
-    $baseUrl = $_GET['base_url'] ?? '';
+    $baseUrl = rtrim($_GET['base_url'] ?? '', '/') . '/';
     $club    = trim($_GET['club'] ?? 'TuS Oedt');
     if (!$baseUrl || !preg_match('/^https?:\/\/[a-zA-Z0-9._\-]+\.mikatiming\.(?:com|de|net)\//i', $baseUrl))
         jsonErr('Ungültige MikaTiming-URL.', 400);
 
-    $ctx = stream_context_create(['http' => [
-        'timeout'       => 15,
-        'user_agent'    => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'header'        => "Accept: text/html\r\nAccept-Language: de-DE,de;q=0.9\r\n",
-        'ignore_errors' => true,
-    ]]);
+    $ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0 Safari/537.36';
+    $cookieFile = tempnam(sys_get_temp_dir(), 'mika_');
 
-    // Datum + Ort aus Hauptseite
+    function mikaCurl(string $url, string $cookieFile, string $ua): string {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_COOKIEJAR      => $cookieFile,
+            CURLOPT_COOKIEFILE     => $cookieFile,
+            CURLOPT_USERAGENT      => $ua,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_HTTPHEADER     => ['Accept: text/html', 'Accept-Language: de-DE,de;q=0.9'],
+        ]);
+        $r = curl_exec($ch); curl_close($ch);
+        return $r ?: '';
+    }
+
+    // 1. Hauptseite: Session-Cookie + Datum/Ort/EventName
+    $mainHtml = mikaCurl($baseUrl, $cookieFile, $ua);
     $eventName = ''; $eventDate = ''; $eventOrt = '';
-    $mainHtml = @file_get_contents(rtrim($baseUrl, '/') . '/', false, $ctx);
     if ($mainHtml) {
         if (preg_match('/<title[^>]*>([^<]+)<\/title>/i', $mainHtml, $tm)) {
             $title = html_entity_decode(trim($tm[1]), ENT_QUOTES, 'UTF-8');
             if (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $title, $dm))
-                $eventDate = $dm[3] . '-' . $dm[2] . '-' . $dm[1];
+                $eventDate = $dm[3].'-'.$dm[2].'-'.$dm[1];
             $eventName = preg_replace('/,?\s*\d{2}\.\d{2}\.\d{4}.*/', '', $title);
-            $eventName = preg_replace('/\s*::.*/', '', $eventName);
+            $eventName = preg_replace('/\s*[:|].*/', '', $eventName);
             $eventName = trim($eventName);
         }
         if (preg_match('/"addressLocality"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
     }
 
-    // Vereinssuche
-    $searchUrl = rtrim($baseUrl, '/') . '/?pid=search&pidp=results_overview&search[club]=' . urlencode($club) . '&num_results=100';
-    $html = @file_get_contents($searchUrl, false, $ctx);
-    $debug = ['searchUrl' => $searchUrl, 'htmlLen' => strlen($html ?: '')];
-    if (!$html) jsonOk(['results' => [], 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
+    // Event-ID aus URL ableiten (z.B. M_2EF3BRLP2 oder HM_ABC)
+    // URL-Parameter event= lesen falls angegeben
+    $eventId = $_GET['event_id'] ?? '';
 
-    // HTML-Parsing: list-group-item Zeilen
+    // 2. Suche mit fpid=search (liefert vollständiges HTML inkl. Links mit idp)
+    $searchUrl = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
+        . '&search%5Bclub%5D=' . urlencode($club)
+        . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
+        . '&search_sort=name'
+        . ($eventId ? '&event=' . urlencode($eventId) . '&search_event=' . urlencode($eventId) : '');
+    $searchHtml = mikaCurl($searchUrl, $cookieFile, $ua);
+    $debug = ['searchUrl' => $searchUrl, 'htmlLen' => strlen($searchHtml)];
+
+    // Ergebniszeilen: li mit event-Klasse + idp-Link
     $results = [];
-    preg_match_all('/<li([^>]+class="[^"]*list-group-item[^"]*"[^>]*)>(.*?)<\/li>/si', $html, $rows_m);
-    foreach ($rows_m[0] as $rowHtml) {
-        if (strpos($rowHtml, 'list-group-header') !== false) continue;
-        $name = ''; $place = ''; $placeAK = ''; $ak = ''; $contestRaw = '';
-        if (preg_match('/class="[^"]*\bevent-([A-Z0-9_]+)\b/i', $rowHtml, $m)) $contestRaw = $m[1];
-        if (preg_match('/<[^>]+class="[^"]*type-fullname[^"]*"[^>]*>([^<]+)</i', $rowHtml, $m))
+    preg_match_all('/<li[^>]+class="([^"]*list-group-item[^"]*)"[^>]*>(.*?)<\/li>/si', $searchHtml, $liMs, PREG_SET_ORDER);
+    foreach ($liMs as $liM) {
+        $liClass = $liM[1]; $liBody = $liM[2];
+        if (strpos($liClass, 'list-group-header') !== false) continue;
+
+        // Event-ID aus Klasse: event-M_2EF3BRLP2
+        $evId = '';
+        if (preg_match('/\bevent-([A-Z0-9_]+)\b/i', $liClass, $em)) $evId = $em[1];
+        if (!$evId) continue;
+
+        // Teilnehmer-IDP aus Link: ?idp=2EF3BRLP3444
+        $idp = '';
+        if (preg_match('/[?&]idp=([A-Z0-9]+)/i', $liBody, $im)) $idp = $im[1];
+        if (!$idp) continue;
+
+        // Name aus type-fullname
+        $name = '';
+        if (preg_match('/<[^>]+class="[^"]*type-fullname[^"]*"[^>]*>([^<]+)</i', $liBody, $m))
             $name = trim(preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', html_entity_decode($m[1], ENT_QUOTES, 'UTF-8')));
-        if (preg_match('/<[^>]+class="[^"]*type-place[^"]*place-primary[^"]*"[^>]*>\s*([0-9]+)\s*</i', $rowHtml, $m)) $place = $m[1];
-        if (preg_match('/<[^>]+class="[^"]*type-place[^"]*place-secondary[^"]*"[^>]*>\s*([0-9]+)\s*</i', $rowHtml, $m)) $placeAK = $m[1];
-        if (preg_match('/<[^>]+class="[^"]*type-age_class[^"]*"[^>]*>([^<]+)</i', $rowHtml, $m))
-            $ak = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
         if (!$name) continue;
-        $results[] = ['name' => $name, 'contest' => preg_replace('/_.*$/', '', $contestRaw),
-            'netto' => '', 'ak' => $ak, 'platz_ak' => $placeAK, 'platz_ges' => $place,
-            'event_id' => $contestRaw, 'club' => $club];
+
+        // Plätze aus Suchliste
+        $placeGes = '';
+        if (preg_match('/<[^>]+class="[^"]*type-place[^"]*place-primary[^"]*"[^>]*>\s*([0-9]+)\s*</i', $liBody, $m)) $placeGes = $m[1];
+        $placeAK = '';
+        if (preg_match('/<[^>]+class="[^"]*type-place[^"]*place-secondary[^"]*"[^>]*>\s*([0-9]+)\s*</i', $liBody, $m)) $placeAK = $m[1];
+        $ak = '';
+        if (preg_match('/<[^>]+class="[^"]*type-age_class[^"]*"[^>]*>([^<]+)</i', $liBody, $m))
+            $ak = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+
+        $results[] = [
+            'name' => $name, 'contest' => $evId,
+            'netto' => '', 'ak' => $ak,
+            'platz_ak' => $placeAK, 'platz_ges' => $placeGes,
+            'event_id' => $evId, 'idp' => $idp, 'club' => $club,
+        ];
     }
     $debug['rowsFound'] = count($results);
 
-    // Zeit per Detail-URL nachladen
+    // 3. Detailseite pro Athlet: Zeit + AK
     foreach ($results as &$res) {
-        if (!$res['event_id']) continue;
-        $parts = explode('_', $res['event_id'], 2);
-        $entryId = $parts[1] ?? '';
-        if (!$entryId) continue;
-        $detailUrl = rtrim($baseUrl, '/') . '/?pid=results&idp=' . urlencode($entryId) . '&event=' . urlencode($res['event_id']) . '&lang=DE';
-        $dHtml = @file_get_contents($detailUrl, false, $ctx);
+        $idp = $res['idp']; $evId = $res['event_id'];
+        // Basis-Suchparameter beibehalten für Cookie-Kontext
+        $detailUrl = $baseUrl . '?content=detail&fpid=search&pid=search&lang=DE'
+            . '&idp=' . urlencode($idp) . '&event=' . urlencode($evId) . '&pidp=start'
+            . '&search%5Bclub%5D=' . urlencode($club)
+            . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
+            . '&search_sort=name&search_event=' . urlencode($evId);
+        $dHtml = mikaCurl($detailUrl, $cookieFile, $ua);
         if (!$dHtml) continue;
-        foreach (['type-time_finish_netto', 'type-finish_netto', 'type-result_netto', 'type-result'] as $cls) {
-            if (preg_match('/<[^>]+class="[^"]*' . $cls . '[^"]*"[^>]*>([^<]+)</i', $dHtml, $tm)) {
-                $res['netto'] = trim(html_entity_decode($tm[1], ENT_QUOTES, 'UTF-8')); break;
+
+        // Zeit: f-time_finish_netto
+        if (preg_match('/<[^>]+class="[^"]*f-time_finish_netto[^"]*"[^>]*>([^<]+)</i', $dHtml, $m))
+            $res['netto'] = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+
+        // AK: f-_type_age_class enthält nur die Zahl (z.B. "40"), Prefix aus Event-ID (M/W/HM...)
+        if (!$res['ak']) {
+            if (preg_match('/<[^>]+class="[^"]*f-_type_age_class[^"]*"[^>]*>([^<]+)</i', $dHtml, $m)) {
+                $akNum = trim($m[1]);
+                // Geschlecht aus Wettbewerbsname oder Ergebniskontext ableiten
+                $sex = '';
+                if (preg_match('/\bfrauen\b|\bweiblich\b|\bwomen\b|\bf-place\b/i', $dHtml)) $sex = 'W';
+                elseif (preg_match('/\bmänner\b|\bmännlich\b|\bmen\b|\bm-place\b/i', $dHtml)) $sex = 'M';
+                $res['ak'] = ($sex ? $sex : '') . ($akNum !== '0' ? $akNum : '');
             }
         }
-        // Wettbewerbsname
-        if (preg_match('/<[^>]+class="[^"]*type-event[^"]*"[^>]*>([^<]+)</i', $dHtml, $tm))
-            $res['contest'] = trim(html_entity_decode($tm[1], ENT_QUOTES, 'UTF-8'));
+
+        // Wettbewerbsname aus Detailseite (h2 oder ähnlich)
+        if (preg_match('/<h[1-3][^>]*>([^<]{5,60})<\/h[1-3]>/i', $dHtml, $m)) {
+            $cname = trim(html_entity_decode($m[1], ENT_QUOTES, 'UTF-8'));
+            if (strlen($cname) > 3) $res['contest'] = $cname;
+        }
+
+        if (!isset($debug['detailSample']))
+            $debug['detailSample'] = substr(strip_tags($dHtml), 200, 400);
     }
     unset($res);
 
+    @unlink($cookieFile);
     jsonOk(['results' => $results, 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
 }
 
