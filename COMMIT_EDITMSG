@@ -1,6 +1,6 @@
-v504: RaceResult: String-Array-Listen + Siegerliste-Blacklist
+v507: RaceResult-Import: Fremde URLs auf RRPublish-Event-ID prüfen
 
-- cfg.lists als String-Array wird jetzt korrekt ausgewertet (RWW Herbstwaldlauf)
-- Blacklist erweitert: SIEGER, WINNER, PARTICIPANTS, STATISTIC
-- Prio-Suche findet "Zieleinlaufliste netto" statt Siegerliste
-- Rückwärtskompatibel: alle bisherigen Events (Array-of-Objects) unverändert
+- Nicht-raceresult.com URLs werden per PHP-Proxy gefetcht
+- Seite wird nach "RRPublish(..., EVENTID, ...)" durchsucht
+- Bei Treffer: URL-Feld wird auf my.raceresult.com/EVENTID/ gesetzt, Import läuft normal
+- Beispiel: time-and-voice.com → erkennt Event 334519

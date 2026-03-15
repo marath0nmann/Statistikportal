@@ -1458,7 +1458,7 @@ if ($res === 'athleten') {
                  JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
                  LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
                  LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
-                 WHERE e.athlet_id=? ORDER BY dk.reihenfolge, v.datum DESC', [$id]);
+                 WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY dk.reihenfolge, v.datum DESC', [$id]);
             // Gruppieren nach Kategorie
             $kategorien = [];
             foreach ($alle as $row) {
@@ -1475,10 +1475,10 @@ if ($res === 'athleten') {
             $kategorien = array_values($kategorien);
             jsonOk(compact('athlet','kategorien'));
         } else {
-            $strasse = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_strasse') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? ORDER BY v.datum DESC', [$id]);
-            $sprint  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprint') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? ORDER BY v.datum DESC', [$id]);
-            $mittel  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_mittelstrecke') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? ORDER BY v.datum DESC', [$id]);
-            $sw      = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprungwurf') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? ORDER BY v.datum DESC', [$id]);
+            $strasse = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_strasse') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
+            $sprint  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprint') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
+            $mittel  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_mittelstrecke') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
+            $sw      = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprungwurf') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
             jsonOk(compact('athlet','strasse','sprint','mittel','sw'));
         }
     }
@@ -2339,8 +2339,32 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 }
 
 if ($res === 'rr-fetch' && $method === 'GET') {
-    // Serverseitiger Proxy: fetcht RaceResult-HTML für Datum-Extraktion aus <title>
     Auth::requireLogin();
+
+    // Zweig A: proxy_url → beliebige Seite fetchen und HTML zurückgeben (für RRPublish-Erkennung)
+    if (!empty($_GET['proxy_url'])) {
+        $proxyUrl = filter_var($_GET['proxy_url'], FILTER_VALIDATE_URL);
+        if (!$proxyUrl) jsonErr('Ungültige URL.', 400);
+        $ctx = stream_context_create(['http' => [
+            'timeout'       => 10,
+            'user_agent'    => 'Mozilla/5.0 (compatible)',
+            'header'        => "Accept: text/html\r\n",
+            'ignore_errors' => true,
+        ]]);
+        $html = @file_get_contents($proxyUrl, false, $ctx);
+        if ($html === false) jsonErr('Seite konnte nicht geladen werden.', 502);
+        // Nur relevante Script-Snippets zurückgeben (kein komplettes HTML wegen Größe)
+        $scripts = '';
+        preg_match_all('/<script[^>]*>(.*?)<\/script>/si', $html, $sm);
+        foreach ($sm[1] as $s) {
+            if (stripos($s, 'RRPublish') !== false || stripos($s, 'raceresult') !== false) {
+                $scripts .= $s . "\n";
+            }
+        }
+        jsonOk(['html' => $scripts ?: $html]);
+    }
+
+    // Zweig B: event_id → RaceResult-Seite fetchen (bisherige Logik)
     $eventId = preg_replace('/[^0-9]/', '', $_GET['event_id'] ?? '');
     if (!$eventId) jsonErr('event_id fehlt.', 400);
     $url = 'https://my.raceresult.com/' . $eventId . '/results';
@@ -2499,7 +2523,7 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
                 $vid = DB::lastInsertId();
             } else $vid = $v['id'];
         }
-        $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=?',
+        $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
             [$vid, $aid, $disziplin, $resultat]);
         if ($dup) { $skipped++; continue; }
         $dmInfo = DB::fetchOne("SELECT dm.id, dk.fmt FROM " . DB::tbl('disziplin_mapping') . " dm LEFT JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.tbl_key = (SELECT tbl_key FROM " . DB::tbl('disziplin_kategorien') . " dk2 WHERE dk2.id = dm.kategorie_id LIMIT 1) WHERE dm.disziplin=?", [$disziplin]);

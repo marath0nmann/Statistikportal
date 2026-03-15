@@ -3597,7 +3597,7 @@ function renderEintragen() {
           '<button id="bk-toggle-best" class="btn btn-ghost btn-sm" onclick="bkToggleVeranst(\'best\')">&#x1F4C5; Bestehende w&auml;hlen</button>' +
         '</div>' +
         '<div id="bk-neu-form" class="form-grid" style="margin-bottom:16px">' +
-          '<div class="form-group"><label>Datum *</label><input type="date" id="bk-datum" value="' + today + '"/></div>' +
+          '<div class="form-group"><label>Datum *</label><input type="date" id="bk-datum" value="' + today + '" onchange="bkSyncDatum(this.value)"/></div>' +
           '<div class="form-group"><label>Ort *</label><input type="text" id="bk-ort" placeholder="z.B. D&uuml;sseldorf"/></div>' +
           '<div class="form-group"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. Düsseldorf Marathon"/></div>' +
           '<div class="form-group" style="display:flex;align-items:flex-end;gap:12px">' +
@@ -3910,7 +3910,17 @@ function bulkAddRow() {
   if (!tbody) return;
   var div = document.createElement('tbody');
   div.innerHTML = bulkRowHtml(_bulkRowCount);
-  tbody.appendChild(div.firstChild);
+  var newRow = div.firstChild;
+  tbody.appendChild(newRow);
+  // Zeilen-Datum aus globalem Datum vorausfüllen (TT.MM.JJJJ)
+  var gd = (document.getElementById('bk-datum') || {}).value || '';
+  if (gd) {
+    var zdEl = newRow.querySelector('.bk-zeilendatum');
+    if (zdEl && !zdEl.value) {
+      var m = gd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      zdEl.value = m ? m[3] + '.' + m[2] + '.' + m[1] : gd;
+    }
+  }
   _bulkRowCount++;
 }
 function bulkRemoveRow(idx) {
@@ -4209,6 +4219,17 @@ function _bulkFindAthlet(name) {
 function bkMstrChanged(sel) {
   // kein extra Toggle nötig
 }
+
+function bkSyncDatum(val) {
+  // Globales Datum auf alle Zeilen übertragen die noch keinen eigenen Wert haben
+  // oder denselben Wert wie das alte globale Datum
+  if (!val) return;
+  var m = val.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  var formatted = m ? m[3] + '.' + m[2] + '.' + m[1] : val;
+  document.querySelectorAll('#bulk-rows .bk-zeilendatum').forEach(function(el) {
+    el.value = formatted;
+  });
+}
 // ── RACERESULT-IMPORT ──────────────────────────────────────
 function rrKatChanged() {
   var kat = (document.getElementById('rr-kat') || {}).value || '';
@@ -4221,11 +4242,41 @@ function rrKatChanged() {
 async function rrFetch() {
   var raw = ((document.getElementById('rr-url') || {}).value || '').trim();
   if (!raw) { notify('Bitte URL oder Event-ID eingeben.', 'err'); return; }
-  var eventId = (raw.match(/(\d{4,7})/) || [])[1];
-  if (!eventId) { notify('Keine g\u00fcltige Event-ID gefunden.', 'err'); return; }
 
   var preview = document.getElementById('rr-preview');
-  preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; Lade Konfiguration&hellip;</div>';
+  preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; Lade&hellip;</div>';
+
+  // Wenn URL nicht raceresult.com → Seite fetchen und auf RRPublish prüfen
+  if (raw.indexOf('raceresult.com') < 0 && raw.match(/^https?:\/\//)) {
+    try {
+      var proxyResp = await apiGet('rr-fetch?proxy_url=' + encodeURIComponent(raw));
+      if (proxyResp && proxyResp.ok && proxyResp.data && proxyResp.data.html) {
+        var html = proxyResp.data.html;
+        // RRPublish(element, EVENTID, ...) oder new RRPublish(..., EVENTID, ...)
+        var rrMatch = html.match(/RRPublish\s*\([^,)]+,\s*(\d{4,7})\s*[,)]/);
+        if (rrMatch) {
+          raw = 'https://my.raceresult.com/' + rrMatch[1] + '/';
+          notify('RaceResult Event-ID ' + rrMatch[1] + ' gefunden \u2192 ' + raw, 'ok');
+          document.getElementById('rr-url').value = raw;
+        } else {
+          notify('Keine RaceResult-Event-ID auf dieser Seite gefunden.', 'err');
+          preview.innerHTML = '';
+          return;
+        }
+      } else {
+        notify('Seite konnte nicht geladen werden.', 'err');
+        preview.innerHTML = '';
+        return;
+      }
+    } catch(e) {
+      notify('Fehler beim Laden der Seite: ' + e.message, 'err');
+      preview.innerHTML = '';
+      return;
+    }
+  }
+
+  var eventId = (raw.match(/(\d{4,7})/) || [])[1];
+  if (!eventId) { notify('Keine g\u00fcltige Event-ID gefunden.', 'err'); return; }
 
   var _rrDebug = { totalRows: 0, clubSamples: [], dataFields: [], iClub: 7, cfgKeys: [], cfgKey: '', errors: [] };
   window._rrDebug = _rrDebug;
