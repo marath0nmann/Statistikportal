@@ -3972,7 +3972,7 @@ async function rrFetch() {
           iName = 3; iClub = 6; iNetto = 7; iZeit = 8; iPlatz = 2;
           for (var fi = 0; fi < df.length; fi++) {
             var f = df[fi].toLowerCase();
-            if (f.indexOf('anzeigename') >= 0) iName = fi;
+            if (f.indexOf('anzeigename') >= 0 || f.indexOf('lfname') >= 0) iName = fi;
             else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
             else if (f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]') iAK = fi;
             else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* skip */ }
@@ -4386,6 +4386,8 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var r = results[i];
     var raw = r.raw;
     var name  = String(raw[r.iName]  || '').trim();
+    // "Nachname, Vorname" (LFNAME-Format) → "Vorname Nachname"
+    if (name.indexOf(',') > 0) { var _np = name.split(','); name = (_np[1]||'').trim() + ' ' + (_np[0]||'').trim(); name = name.trim(); }
     var club  = String(raw[r.iClub]  || '').trim();
     var ak = '';
     if (r.iAK >= 0 && String(raw[r.iAK] || '').trim()) {

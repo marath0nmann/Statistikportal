@@ -1,5 +1,5 @@
-v422: RaceResult: Duplikate durch Contest-0-Gesamtliste behoben
+v423: Fix iName für LFNAME + Komma-Flip Vorname/Nachname
 
-Contest 0 (Gesamtliste) wird jetzt alleine abgefragt.
-Einzelne Contests nur als Fallback wenn Contest 0 keine Treffer liefert.
-Vorher: Contest 0 + alle Einzel-Contests → 2x alle Athleten.
+- lfname-Erkennung im DataFields-Kalibrierblock ergänzt (war in v419 nur
+  im falschen Codeblock — nicht im Haupt-Kalibrierblock)
+- "Schramm, Frank" → "Frank Schramm" Komma-Flip im Preview
