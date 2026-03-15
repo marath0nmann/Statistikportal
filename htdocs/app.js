@@ -3893,14 +3893,25 @@ async function rrFetch() {
     var listContest = null; // Contest-Einschränkung aus List-Eintrag ("0" = alle)
     var listSource = cfg.list || cfg.lists || {};
     var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','OVERALL','EINZEL','FINAL'];
+    // Listen die keine Einzelergebnisse enthalten und übersprungen werden sollen
+    var _listBlacklist = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','RANKING','OVERALL RANKING','WERTUNG','SPECIAL'];
+    function _listIsBlacklisted(entry) {
+      var ename = (entry.Name || entry.name || entry.listname || '').toUpperCase();
+      var showAs = (entry.ShowAs || entry.showAs || '').toUpperCase();
+      // z_-Prefix = interne/Spezial-Liste
+      if ((entry.Name||'').startsWith('z_') || (entry.Name||'').startsWith('Z_')) return true;
+      for (var bi = 0; bi < _listBlacklist.length; bi++) {
+        if (ename.indexOf(_listBlacklist[bi]) >= 0 || showAs.indexOf(_listBlacklist[bi]) >= 0) return true;
+      }
+      return false;
+    }
     if (Array.isArray(listSource)) {
       // Prio-Suche: Einzelergebnisse bevorzugen
       for (var lk = 0; lk < listSource.length && !listName; lk++) {
         var entry = listSource[lk];
         var ename = entry.Name || entry.name || entry.listname || '';
         var lkey = ename.toUpperCase();
-        // Staffel-Listen überspringen
-        if (lkey.indexOf('STAFF') >= 0 || lkey.indexOf('RELAY') >= 0) continue;
+        if (_listIsBlacklisted(entry)) continue;
         for (var lp = 0; lp < listPrio.length; lp++) {
           if (lkey.indexOf(listPrio[lp]) >= 0) {
             listName = ename;
@@ -3909,12 +3920,12 @@ async function rrFetch() {
           }
         }
       }
-      // Fallback: ersten Nicht-Staffel-Eintrag nehmen
+      // Fallback: ersten nicht-geblacklisteten Eintrag nehmen
       if (!listName) {
         for (var lk = 0; lk < listSource.length; lk++) {
           var entry = listSource[lk];
           var ename = entry.Name || entry.name || entry.listname || '';
-          if (ename.toUpperCase().indexOf('STAFF') < 0 && ename.toUpperCase().indexOf('RELAY') < 0) {
+          if (!_listIsBlacklisted(entry)) {
             listName = ename;
             listContest = entry.Contest !== undefined ? String(entry.Contest) : null;
             break;
@@ -4023,6 +4034,12 @@ async function rrFetch() {
 
         // DataFields kalibrieren
         var df = payload.DataFields || [];
+        if (!Array.isArray(df) || df.length === 0) {
+          // Keine DataFields = Sonderliste (Aggregat, Rangliste etc.) → überspringen
+          _rrDebug.errors = _rrDebug.errors || [];
+          _rrDebug.errors.push('Contest ' + cid + ': keine DataFields, Liste übersprungen');
+          continue;
+        }
         if (Array.isArray(df) && df.length > 0) {
           iAK = -1; iYear = -1; iGeschlecht = -1;
           // Alle Spaltenindizes zurücksetzen damit jede Liste frisch kalibriert wird
