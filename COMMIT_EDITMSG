@@ -1,4 +1,1 @@
-v460: RaceResult: StatusPlatz([AKPl.P]) + Disziplin aus groupKey
-
-- StatusPlatz([AKPl.P]) → iAKPlatz erkannt (war nur MitStatus/AutoRankP)
-- Disziplin: groupKey "#2_Westenergie Marathon/#4_Weiblich" → "Westenergie Marathon" → Marathon
+v462: Widget-Konfig: "Bestleistung AK" inkl. "Erste Leistung" im Beschreibungstext
