@@ -4041,7 +4041,7 @@ async function rrFetch() {
           continue;
         }
         if (Array.isArray(df) && df.length > 0) {
-          iAK = -1; iYear = -1; iGeschlecht = -1;
+          iAK = -1; iYear = -1; iGeschlecht = -1; var iAKPlatz = -1;
           // Alle Spaltenindizes zurücksetzen damit jede Liste frisch kalibriert wird
           iName = 3; iClub = 6; iNetto = 7; iZeit = 8; iPlatz = 2;
           for (var fi = 0; fi < df.length; fi++) {
@@ -4054,7 +4054,11 @@ async function rrFetch() {
             else if (f.indexOf('geschlechtmw') >= 0) iGeschlecht = fi;
             else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
             else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0) iZeit = fi;
-            else if (f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0) iPlatz = fi;
+            else if (f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0) {
+              // MitStatus([AKPlp]) = AK-Platz, MitStatus([MWPlp]/[PLp]/[AUTORANKp]) = Gesamt-Platz
+              if (f.indexOf('akpl') >= 0) iAKPlatz = fi;
+              else iPlatz = fi;
+            }
           }
           if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
           _rrDebug.iClub = iClub; _rrDebug.dfLog = df.join(', ');
@@ -4112,7 +4116,12 @@ async function rrFetch() {
                 var _akSplit = _akRaw4.match(/^(\d+)\.?\s*(.+)$/);
                 if (_akSplit) { _akPlatzFromRow = _akSplit[1]; _akRaw4 = _akSplit[2].trim(); }
               }
-              allResults.push({ raw: row, contestName: cname, groupKey: gk, akFromGroup: _akFromGroup, akPlatzFromRow: _akPlatzFromRow,
+              // iAKPlatz direkt aus Daten lesen wenn vorhanden
+              if (iAKPlatz >= 0 && !_akPlatzFromRow) {
+                var _akpRaw = String(row[iAKPlatz]||'').trim().replace(/\./,'');
+                if (_akpRaw && /^\d+$/.test(_akpRaw)) _akPlatzFromRow = _akpRaw;
+              }
+              allResults.push({ raw: row, contestName: cname, groupKey: gk, akFromGroup: _akFromGroup, akPlatzFromRow: _akPlatzFromRow, iAKPlatz: iAKPlatz,
                 iYear: iYear, iGeschlecht: iGeschlecht,
                 iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
             });
