@@ -4968,6 +4968,15 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
         '<td style="padding:4px 6px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:14px;color:var(--result-color)">' + (netto || zeit) + '</td>' +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + ak + '</td>' +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + (platzAKnum || '–') + '</td>' +
+        '<td style="padding:4px 6px">' +
+          '<select class="rr-mstr" onchange="rrMstrChanged(this)" style="padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:90px">' +
+            mstrOptions(0) +
+          '</select>' +
+        '</td>' +
+        '<td class="rr-mstr-platz-td" style="padding:4px 6px;display:none">' +
+          '<input type="number" class="rr-mstr-platz" min="1" placeholder="Platz" style="width:60px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+        '</td>' +
+        '<td class="rr-mstr-platz-td rr-mstr-platz-empty" style="padding:4px 6px"></td>' +
         '<td style="padding:4px 6px;font-size:11px;color:var(--text2)">' + club + '</td>' +
       '</tr>';
   }
@@ -4999,6 +5008,8 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
           '<th style="padding:6px;text-align:left">Netto-Zeit</th>' +
           '<th style="padding:6px;text-align:left">AK</th>' +
           '<th style="padding:6px;text-align:left">Platz AK</th>' +
+          '<th style="padding:6px;text-align:left">Meisterschaft</th>' +
+          '<th style="padding:6px;text-align:left">Platz MS</th>' +
           '<th style="padding:6px;text-align:left">Verein</th>' +
         '</tr></thead>' +
         '<tbody>' + rows + '</tbody>' +
@@ -5062,6 +5073,18 @@ async function rrCheckDuplicates(results) {
   }
 }
 
+
+function rrMstrChanged(sel) {
+  var row = sel.closest('tr');
+  if (!row) return;
+  var hasMstr = !!sel.value;
+  // Zeige Platz-Zelle, verstecke leere Placeholder-Zelle
+  row.querySelectorAll('.rr-mstr-platz-td').forEach(function(td) {
+    var isInput = !!td.querySelector('.rr-mstr-platz');
+    td.style.display = isInput ? (hasMstr ? '' : 'none') : (hasMstr ? 'none' : '');
+  });
+}
+
 async function rrImport() {
   var _datumRaw = ((document.getElementById('rr-datum') || {}).value || '').trim();
   // TT.MM.JJJJ → YYYY-MM-DD
@@ -5082,8 +5105,24 @@ async function rrImport() {
   var chks = document.querySelectorAll('.rr-chk');
   var aths = document.querySelectorAll('.rr-athlet');
   var diszInputs = document.querySelectorAll('.rr-disz');
-  var items = [];
 
+  // Unzugeordnete Athleten sammeln (ausgewählt, aber kein Athlet gesetzt)
+  var unmatched = [];
+  for (var _ui = 0; _ui < chks.length; _ui++) {
+    if (!chks[_ui].checked) continue;
+    var _uidx = parseInt(chks[_ui].getAttribute('data-idx'), 10);
+    var _ur = rrState.results[_uidx];
+    var _uAthId = aths[_ui] ? parseInt(aths[_ui].value) || 0 : 0;
+    if (!_uAthId) {
+      unmatched.push({ rowIdx: _ui, dataIdx: _uidx, name: _ur ? (String(_ur.raw[_ur.iName]||'').trim()) : '', year: _ur && _ur.iYear>=0 ? String(_ur.raw[_ur.iYear]||'').trim() : '', geschlecht: _ur && _ur.iGeschlecht>=0 ? String(_ur.raw[_ur.iGeschlecht]||'').trim() : '', athSel: aths[_ui] });
+    }
+  }
+  if (unmatched.length > 0) {
+    var _resolved = await rrUnmatchedModal(unmatched);
+    if (_resolved === null) return; // Abgebrochen
+  }
+
+  var items = [];
   var gjUpdates = []; // { athletId, name, jahrRR } — Geburtsjahr-Vorschläge
 
   for (var i = 0; i < chks.length; i++) {
@@ -5143,11 +5182,18 @@ async function rrImport() {
       }
     }
     var platzAKv = r.akPlatzFromRow ? parseInt(r.akPlatzFromRow) : (calcAKPlatz(ak, String(raw[r.iNetto] || raw[r.iZeit] || '').trim(), _eventJahr2) || null);
+    // Meisterschaft + Platz MS
+    var _mstrSel = document.querySelectorAll('.rr-mstr')[i];
+    var _mstrVal = _mstrSel ? (parseInt(_mstrSel.value) || null) : null;
+    var _mstrPlatzEl = document.querySelectorAll('.rr-mstr-platz')[i];
+    var _mstrPlatz = (_mstrPlatzEl && _mstrPlatzEl.value) ? (parseInt(_mstrPlatzEl.value) || null) : null;
     items.push({
       datum: datum, ort: ort, veranstaltung_name: evname,
       athlet_id: athletId, disziplin: disziplin,
       resultat: zeit, altersklasse: ak,
       ak_platzierung: platzAKv,
+      meisterschaft: _mstrVal,
+      ak_platz_meisterschaft: _mstrPlatz,
       import_quelle: 'raceresult:' + eventId
     });
   }
@@ -5239,6 +5285,134 @@ async function deleteRekord(id) {
 
 // ── ADMIN ──────────────────────────────────────────────────
 
+
+// ── Modal für unzugeordnete Athleten ────────────────────────────────────────
+async function rrUnmatchedModal(unmatched) {
+  return new Promise(function(resolve) {
+    // Athleten-Optionen
+    var athOpts = '<option value="">– zuordnen –</option>';
+    (state.athleten || []).forEach(function(a) {
+      athOpts += '<option value="' + a.id + '">' + a.name_nv + '</option>';
+    });
+
+    // Zeilen aufbauen
+    var rows = '';
+    unmatched.forEach(function(u, i) {
+      var nameNorm = u.name.replace(/^([^,]+),\s*(.+)$/, '$2 $1'); // "Nachname, Vorname" → "Vorname Nachname"
+      rows +=
+        '<tr style="border-bottom:1px solid var(--border)" id="rrm-row-' + i + '">' +
+          '<td style="padding:8px 10px;font-weight:600;font-size:13px">' + (u.name || '–') + '</td>' +
+          '<td style="padding:8px 10px;font-size:12px;color:var(--text2)">' + (u.year || '–') + (u.geschlecht ? ' · ' + u.geschlecht : '') + '</td>' +
+          '<td style="padding:6px 10px">' +
+            '<div style="display:flex;gap:6px;align-items:center">' +
+              '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
+                '<input type="radio" name="rrm-action-' + i + '" value="zuordnen" checked onchange="rrmToggle(' + i + ',\'zuordnen\')"> Zuordnen' +
+              '</label>' +
+              '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
+                '<input type="radio" name="rrm-action-' + i + '" value="neu" onchange="rrmToggle(' + i + ',\'neu\')"> Neu anlegen' +
+              '</label>' +
+              '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
+                '<input type="radio" name="rrm-action-' + i + '" value="skip" onchange="rrmToggle(' + i + ',\'skip\')"> Überspringen' +
+              '</label>' +
+            '</div>' +
+            '<div id="rrm-zuordnen-' + i + '" style="margin-top:6px">' +
+              '<select id="rrm-sel-' + i + '" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' + athOpts + '</select>' +
+            '</div>' +
+            '<div id="rrm-neu-' + i + '" style="margin-top:6px;display:none">' +
+              '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+                '<input id="rrm-vorname-' + i + '" type="text" placeholder="Vorname" value="' + (nameNorm.split(' ')[0]||'') + '" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
+                '<input id="rrm-nachname-' + i + '" type="text" placeholder="Nachname" value="' + (nameNorm.split(' ').slice(1).join(' ')||'') + '" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
+                '<select id="rrm-geschlecht-' + i + '" style="width:80px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
+                  '<option value="">G.</option><option value="M"' + (u.geschlecht==='M'?' selected':'') + '>M</option><option value="W"' + (u.geschlecht==='W'?' selected':'') + '>W</option>' +
+                '</select>' +
+                '<input id="rrm-gebj-' + i + '" type="number" placeholder="Jahrg." value="' + (u.year||'') + '" min="1920" max="2020" style="width:90px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
+              '</div>' +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+    });
+
+    var html =
+      '<h3 style="margin:0 0 16px;font-size:17px">⚠︎ Unbekannte Athleten</h3>' +
+      '<p style="color:var(--text2);font-size:13px;margin:0 0 16px">' + unmatched.length + ' Athlet(en) konnten nicht automatisch zugeordnet werden. Bitte für jeden Athleten eine Aktion wählen:</p>' +
+      '<div style="overflow-x:auto;margin-bottom:20px">' +
+        '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+          '<thead><tr style="background:var(--surf2)">' +
+            '<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase">Name (RR)</th>' +
+            '<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase">Jahrg./G.</th>' +
+            '<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase">Aktion</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+        '<button class="btn btn-ghost" onclick="closeModal();window._rrmResolve(null)">Abbrechen</button>' +
+        '<button class="btn btn-primary" onclick="rrmConfirm(' + unmatched.length + ')">Weiter →</button>' +
+      '</div>';
+
+    window._rrmResolve = resolve;
+    window._rrmUnmatched = unmatched;
+    showModal(html, true); // true = breit
+  });
+}
+
+function rrmToggle(i, action) {
+  document.getElementById('rrm-zuordnen-' + i).style.display = action === 'zuordnen' ? 'block' : 'none';
+  document.getElementById('rrm-neu-' + i).style.display = action === 'neu' ? 'block' : 'none';
+}
+
+async function rrmConfirm(count) {
+  var unmatched = window._rrmUnmatched || [];
+  // Für jeden Athleten die gewählte Aktion ausführen
+  for (var i = 0; i < count; i++) {
+    var u = unmatched[i];
+    if (!u) continue;
+    var radios = document.querySelectorAll('input[name="rrm-action-' + i + '"]');
+    var action = 'skip';
+    radios.forEach(function(r) { if (r.checked) action = r.value; });
+
+    if (action === 'zuordnen') {
+      var selVal = (document.getElementById('rrm-sel-' + i) || {}).value;
+      if (selVal && u.athSel) u.athSel.value = selVal;
+
+    } else if (action === 'neu') {
+      var vn = ((document.getElementById('rrm-vorname-' + i) || {}).value || '').trim();
+      var nn = ((document.getElementById('rrm-nachname-' + i) || {}).value || '').trim();
+      var g  = ((document.getElementById('rrm-geschlecht-' + i) || {}).value || '').trim();
+      var gj = ((document.getElementById('rrm-gebj-' + i) || {}).value || '').trim();
+      if (!vn || !nn) { notify('Bitte Vor- und Nachname angeben.', 'err'); return; }
+      var r2 = await apiPost('athleten', { vorname: vn, nachname: nn, geschlecht: g, geburtsjahr: gj ? parseInt(gj) : null });
+      if (r2 && r2.ok && r2.data && r2.data.id) {
+        // state.athleten aktualisieren
+        var newAth = { id: r2.data.id, name_nv: nn + ', ' + vn, vorname: vn, nachname: nn, geschlecht: g, geburtsjahr: gj ? parseInt(gj) : null };
+        state.athleten.push(newAth);
+        if (state._athletenMap) state._athletenMap[newAth.id] = newAth;
+        if (u.athSel) {
+          var opt = document.createElement('option');
+          opt.value = newAth.id; opt.text = newAth.name_nv; opt.selected = true;
+          u.athSel.appendChild(opt);
+          u.athSel.value = newAth.id;
+        }
+        notify('Athlet "' + newAth.name_nv + '" angelegt.', 'ok');
+      } else {
+        notify((r2 && r2.fehler) ? r2.fehler : 'Fehler beim Anlegen.', 'err');
+        return;
+      }
+
+    } else {
+      // skip: Checkbox deaktivieren
+      if (u.athSel) {
+        var row = u.athSel.closest('tr');
+        if (row) {
+          var chk = row.querySelector('.rr-chk');
+          if (chk) chk.checked = false;
+        }
+      }
+    }
+  }
+  closeModal();
+  if (window._rrmResolve) window._rrmResolve(true);
+}
 /* ── 08_admin.js ── */
 function adminSubtabs() {
   var t = state.adminTab || 'benutzer';
@@ -7293,6 +7467,15 @@ async function mikaFetch() {
         '<td style="padding:4px 6px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:14px;color:var(--result-color)">' + (res.netto || res.zeit || '') + '</td>' +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + (res.ak || '') + '</td>' +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + (res.platz_ak || '') + '</td>' +
+        '<td style="padding:4px 6px">' +
+          '<select class="mika-mstr" onchange="mikaMstrChanged(this)" style="padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:90px">' +
+            mstrOptions(0) +
+          '</select>' +
+        '</td>' +
+        '<td class="mika-mstr-platz-td" style="padding:4px 6px;display:none">' +
+          '<input type="number" class="mika-mstr-platz" min="1" placeholder="Platz" style="width:60px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+        '</td>' +
+        '<td class="mika-mstr-platz-td mika-mstr-empty" style="padding:4px 6px"></td>' +
       '</tr>';
   }
 
@@ -7312,6 +7495,8 @@ async function mikaFetch() {
         '<th style="padding:6px;text-align:left;font-size:11px">NETTO-ZEIT</th>' +
         '<th style="padding:6px;text-align:left;font-size:11px">AK</th>' +
         '<th style="padding:6px;text-align:left;font-size:11px">PLATZ AK</th>' +
+        '<th style="padding:6px;text-align:left;font-size:11px">MEISTERSCHAFT</th>' +
+        '<th style="padding:6px;text-align:left;font-size:11px">PLATZ MS</th>' +
       '</tr></thead>' +
       '<tbody>' + rows + '</tbody>' +
     '</table>' +
@@ -7390,6 +7575,8 @@ async function mikaImport() {
       resultat: res.netto || res.zeit || '',
       altersklasse: res.ak || '',
       ak_platzierung: res.platz_ak ? parseInt(res.platz_ak) : null,
+      meisterschaft: (function(){ var s=document.querySelectorAll('.mika-mstr')[i]; return s&&s.value?parseInt(s.value)||null:null; })(),
+      ak_platz_meisterschaft: (function(){ var s=document.querySelectorAll('.mika-mstr-platz')[i]; return s&&s.value?parseInt(s.value)||null:null; })(),
       import_quelle: 'mikatiming:' + (ms.baseUrl || '')
     });
   }
@@ -7406,6 +7593,16 @@ async function mikaImport() {
     notify((r2 && r2.fehler) ? r2.fehler : 'Fehler', 'err');
     document.getElementById('mika-status').innerHTML = '';
   }
+}
+
+function mikaMstrChanged(sel) {
+  var row = sel.closest('tr');
+  if (!row) return;
+  var hasMstr = !!sel.value;
+  row.querySelectorAll('.mika-mstr-platz-td').forEach(function(td) {
+    var isInput = !!td.querySelector('.mika-mstr-platz');
+    td.style.display = isInput ? (hasMstr ? '' : 'none') : (hasMstr ? 'none' : '');
+  });
 }
 /* ── 10_veranstaltungen.js ── */
 async function renderVeranstaltungen() {

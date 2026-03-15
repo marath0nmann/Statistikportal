@@ -2464,6 +2464,7 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         $pace      = sanitize($item['pace'] ?? '');
         $akp       = intOrNull($item['ak_platzierung'] ?? null);
         $mstr      = intOrNull($item['meisterschaft'] ?? null);
+        $akpm      = intOrNull($item['ak_platz_meisterschaft'] ?? null);
         $quelle    = sanitize($item['import_quelle'] ?? '');
         // Validierung: bei bestehender Veranstaltung kein Datum/Ort nötig
         if (!$vid && (!$datum || !$ort)) {
@@ -2493,8 +2494,8 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         $dmInfo = DB::fetchOne("SELECT dm.id, dk.fmt FROM " . DB::tbl('disziplin_mapping') . " dm LEFT JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.tbl_key = (SELECT tbl_key FROM " . DB::tbl('disziplin_kategorien') . " dk2 WHERE dk2.id = dm.kategorie_id LIMIT 1) WHERE dm.disziplin=?", [$disziplin]);
         $dmFmt = $dmInfo['fmt'] ?? 'min';
         [$resultat, $rnum] = normalizeResultat($resultat, $dmFmt);
-        DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,resultat_num,pace,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-            [$vid,$aid,$ak,$disziplin,$dmInfo ? (int)$dmInfo['id'] : null,$resultat,$rnum,$pace,$akp,$mstr,$quelle,$user['id']]);
+        DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,resultat_num,pace,ak_platzierung,meisterschaft,ak_platz_meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            [$vid,$aid,$ak,$disziplin,$dmInfo ? (int)$dmInfo['id'] : null,$resultat,$rnum,$pace,$akp,$mstr,$akpm,$quelle,$user['id']]);
         autoMapDisziplin($disziplin);
         $imported++;
     }
