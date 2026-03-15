@@ -4511,7 +4511,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var zeit  = String(raw[r.iZeit]  || '').trim();
     var netto = String(raw[r.iNetto] || '').trim();
     // iPlatz zeigt auf AUTORANKP (Gesamtplatz) — AK-Platz selbst berechnen
-    var platzAKnum = calcAKPlatz(ak, netto || zeit, _rrEventJahr) || '';
+    var platzAKnum = r.akPlatzFromRow || calcAKPlatz(ak, netto || zeit, _rrEventJahr) || '';
     var _cn = r.contestName || '';
     if (!_cn || _cn.match(/^Contest \d+$/i)) _cn = r.groupKey || _cn;
     var disz  = rrBestDisz(_cn, diszList);

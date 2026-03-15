@@ -1,5 +1,1 @@
-v441: Fix Marathon vs Halbmarathon + AK-Platz aus Daten
-
-- rrBestDisz: "Köln Marathon" → Marathon (nicht mehr Halbmarathon)
-  Halb/Voll-Mismatch gibt -5, Match +10
-- akPlatzFromRow in rrImport genutzt (74, 13, 33 direkt aus Daten)
+v442: Fix AK-Platz in Preview: akPlatzFromRow auch im Preview nutzen
