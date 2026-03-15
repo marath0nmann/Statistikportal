@@ -4434,6 +4434,15 @@ async function rrFetch() {
         listContest = e0.Contest !== undefined ? String(e0.Contest) : null;
       }
       _rrDebug.listsRaw = JSON.stringify(listSource.map(function(e){return e.Name||e.name||'';}));
+      // Contest→ListName-Map: jeder Contest bekommt seine spezifische Liste
+      for (var _clj = 0; _clj < listSource.length; _clj++) {
+        var _cle = listSource[_clj];
+        var _clName = _cle.Name || _cle.name || '';
+        var _clContest = String(_cle.Contest !== undefined ? _cle.Contest : '');
+        if (_clName && _clContest && !_listIsBlacklisted(_cle)) {
+          if (!_contestListMap[_clContest]) _contestListMap[_clContest] = _clName;
+        }
+      }
       } // end Array of Objects
     } else if (listSource && typeof listSource === 'object') {
       var listKeys = Object.keys(listSource);
