@@ -301,6 +301,7 @@ main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
 .veranst-dash-table .vcol-ms       { width: 15%; }
 .veranst-dash-table .vcol-ms-platz { width: 11%; }
 .veranst-dash-table td, .veranst-dash-table th { overflow: hidden; text-overflow: ellipsis; }
+.veranst-dash-table th { white-space: nowrap; }
 table { width: 100%; border-collapse: collapse; }
 th {
   background: var(--surf2); padding: 10px 14px;

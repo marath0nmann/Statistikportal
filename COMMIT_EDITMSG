@@ -1,5 +1,5 @@
-v496: Fix Veranstaltungen-Tabelle: vcol-ms-platz + Breiten neu verteilt
+v497: Fix ak_platz_meisterschaft + Veranstaltungen-Header
 
-- colgroup: col class="vcol-ms-platz" statt inline style
-- CSS: vcol-ms-platz 11%, alle 7 Spalten auf 100% verteilt
-- Mobile: 7. Spalte (Platz MS) ebenfalls ausgeblendet
+- API: unified-Tabelle nutzt jetzt e.ak_platz_meisterschaft statt NULL
+- Veranstaltungen: Header "Platz AK"→"Pl. AK", "Platz MS"→"Pl. MS" (kein Abschneiden)
+- CSS: white-space:nowrap für th der veranst-dash-table

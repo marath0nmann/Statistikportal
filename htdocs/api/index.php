@@ -1118,8 +1118,8 @@ if (in_array($res, $ergebnisTabellen)) {
         $diszCol = 'e.disziplin';
         $extraCols = '';
         if ($unified) {
-            // Einheitliche Tabelle: pace + distanz immer vorhanden, ak_platz_meisterschaft nicht
-            $extraCols = "e.pace, e.distanz, NULL AS ak_platz_meisterschaft,";
+            // Einheitliche Tabelle: pace + distanz + ak_platz_meisterschaft vorhanden (seit v493)
+            $extraCols = "e.pace, e.distanz, e.ak_platz_meisterschaft,";
         } else {
             // ak_platz_meisterschaft in allen Tabellen die es haben (ab v493 überall vorhanden)
             $hasPace  = in_array($res, ['strasse']);
