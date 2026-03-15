@@ -3582,7 +3582,8 @@ function renderEintragen() {
           '<div class="form-group"><label>Datum *</label><input type="date" id="bk-datum" value="' + today + '"/></div>' +
           '<div class="form-group"><label>Ort *</label><input type="text" id="bk-ort" placeholder="z.B. D&uuml;sseldorf"/></div>' +
           '<div class="form-group"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. Düsseldorf Marathon"/></div>' +
-          '<div class="form-group"><label>Kategorie</label><select id="bk-kat" style="width:100%" onchange="bkKatChanged()">' + (function(){
+          '<div class="form-group" style="display:flex;align-items:flex-end;gap:12px">' +
+            '<div style="flex:1"><label>Kategorie</label><select id="bk-kat" style="width:100%" onchange="bkKatChanged()">' + (function(){
             var seen={}, opts='<option value="">Alle Kategorien</option>';
             var disz=state.disziplinen||[];
             var kats=[];
@@ -3590,6 +3591,11 @@ function renderEintragen() {
             for(var ki=0;ki<kats.length;ki++){opts+='<option value="'+kats[ki].key+'">'+kats[ki].name+'</option>';}
             return opts;
           })() + '</select></div>' +
+            '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;padding-bottom:2px">' +
+              '<input type="checkbox" id="bk-mstr-toggle" onchange="importToggleMstr('bk',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
+              'Meisterschaft' +
+            '</label>' +
+          '</div>' +
         '</div>' +
         '<div id="bk-best-form" style="display:none;margin-bottom:16px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Veranstaltung *</label>' +
@@ -3602,7 +3608,7 @@ function renderEintragen() {
           '<textarea id="bk-paste-area" rows="6" placeholder="Ergebnisse per Copy &amp; Paste einf&uuml;gen, z.B.:&#10;Europa-Meisterschaften; Madeira&#10;W65&#10;11.10.25&#10;400 m&#10;Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="bulkParsePaste()">&#x1F4CB; Einlesen</button>' +
         '</div>' +
-        '<div id="bk-mstr-bar"></div>' +
+        '<div id="bk-mstr-bar" style="display:none"></div>' +
         '<div style="overflow-x:auto">' +
           '<table style="width:100%;border-collapse:collapse;font-size:13px" id="bulk-table">' +
             '<thead><tr style="background:var(--surf2);color:var(--text2)">' +
@@ -3612,8 +3618,8 @@ function renderEintragen() {
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Ergebnis *</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">AK</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Platz AK</th>' +
-              '<th style="padding:8px 6px;text-align:left;font-weight:600">Meisterschaft</th>' +
-              '<th style="padding:8px 6px;text-align:left;font-weight:600">Platz MS</th>' +
+              '<th class="bk-mstr-th" style="padding:8px 6px;text-align:left;font-weight:600;display:none">Meisterschaft</th>' +
+              '<th class="bk-mstr-th" style="padding:8px 6px;text-align:left;font-weight:600;display:none">Platz MS</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Datum</th>' +
               '<th style="padding:8px 6px;width:36px"></th>' +
             '</tr></thead>' +
@@ -3835,13 +3841,12 @@ function bulkRowHtml(idx) {
     '<td style="padding:4px 6px"><input class="bk-res" type="text" placeholder="00:45:00" style="' + fld + '"/></td>' +
     '<td style="padding:4px 6px"><select class="bk-ak" id="bk-ak-' + idx + '" style="' + fld + '">' + bkAkOpts('') + '</select></td>' +
     '<td style="padding:4px 6px"><input class="bk-platz" type="number" placeholder="1" min="1" style="' + fld + '"/></td>' +
-    '<td style="padding:4px 6px">' +
-      '<select class="bk-mstr" onchange="bkMstrChanged(this)" style="' + fld + '">' + mstrOptions(0) + '</select>' +
+    '<td class="bk-mstr" style="padding:4px 6px;display:none">' +
+      '<select class="bk-mstr-sel" style="' + fld + '">' + mstrOptions(0) + '</select>' +
     '</td>' +
-    '<td class="bk-mstr-platz-td" style="padding:4px 6px;display:none">' +
+    '<td class="bk-mstr" style="padding:4px 6px;display:none">' +
       '<input type="number" class="bk-mstr-platz" min="1" placeholder="Platz" style="' + fld + ';width:80px">' +
     '</td>' +
-    '<td class="bk-mstr-platz-td bk-mstr-empty" style="padding:4px 6px"></td>' +
     '<td style="padding:4px 6px"><input class="bk-zeilendatum" type="text" placeholder="TT.MM.JJJJ" style="' + fld + ';min-width:110px" title="Datum dieser Zeile (überschreibt globales Datum)"/></td>' +
     '<td style="padding:4px 6px;text-align:center"><button onclick="bulkRemoveRow(' + idx + ')" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;padding:2px 4px" title="Zeile entfernen">&#x2715;</button></td>' +
   '</tr>';
@@ -3929,7 +3934,7 @@ async function bulkSubmit() {
         if (m) { var y = parseInt(m[3]); if (y < 100) y += 2000; return y + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0'); }
         return zd;
       })(),
-      meisterschaft: (function(){ var s=row.querySelector('.bk-mstr'); return s&&s.value?parseInt(s.value)||null:null; })(),
+      meisterschaft: (function(){ var s=row.querySelector('.bk-mstr-sel'); return s&&s.value?parseInt(s.value)||null:null; })(),
       ak_platz_meisterschaft: (function(){ var s=row.querySelector('.bk-mstr-platz'); return s&&s.value?parseInt(s.value)||null:null; })(),
       ort: ort, veranstaltung_name: evname,
       veranstaltung_id: veranstId ? parseInt(veranstId) : null,
@@ -4182,13 +4187,7 @@ function _bulkFindAthlet(name) {
 }
 
 function bkMstrChanged(sel) {
-  var row = sel.closest('tr');
-  if (!row) return;
-  var hasMstr = !!sel.value;
-  row.querySelectorAll('.bk-mstr-platz-td').forEach(function(td) {
-    var isInput = !!td.querySelector('.bk-mstr-platz');
-    td.style.display = isInput ? (hasMstr ? '' : 'none') : (hasMstr ? 'none' : '');
-  });
+  // kein extra Toggle nötig
 }
 // ── RACERESULT-IMPORT ──────────────────────────────────────
 function rrKatChanged() {
@@ -4991,15 +4990,14 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
         '<td style="padding:4px 6px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:14px;color:var(--result-color)">' + (netto || zeit) + '</td>' +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + ak + '</td>' +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + (platzAKnum || '–') + '</td>' +
-        '<td style="padding:4px 6px">' +
-          '<select class="rr-mstr" onchange="rrMstrChanged(this)" style="padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:90px">' +
+        '<td class="rr-mstr" style="padding:4px 6px;display:none">' +
+          '<select class="rr-mstr-sel" onchange="rrMstrChanged(this)" style="padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:90px">' +
             mstrOptions(0) +
           '</select>' +
         '</td>' +
-        '<td class="rr-mstr-platz-td" style="padding:4px 6px;display:none">' +
-          '<input type="number" class="rr-mstr-platz" min="1" placeholder="Platz" style="width:60px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+        '<td class="rr-mstr rr-mstr-platz-td" style="padding:4px 6px;display:none">' +
+          '<input type="number" class="rr-mstr-platz" min="1" placeholder="Platz" value="' + (platzAKnum||'') + '" style="width:60px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
         '</td>' +
-        '<td class="rr-mstr-platz-td rr-mstr-platz-empty" style="padding:4px 6px"></td>' +
         '<td style="padding:4px 6px;font-size:11px;color:var(--text2)">' + club + '</td>' +
       '</tr>';
   }
@@ -5018,7 +5016,10 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Ort</div>' +
         '<input id="rr-ort" type="text" value="' + (eventOrt||'') + '" placeholder="z.B. D\u00fcsseldorf" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:min(150px,100%)"/></div>' +
       '<span style="font-size:12px;color:var(--text2);align-self:center">&#x2705; ' + results.length + ' TuS-Oedt-Ergebnis(se) &bull; Event ' + eventId + '</span>' +
-      '' +
+      '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;align-self:center">' +
+        '<input type="checkbox" id="rr-mstr-toggle" onchange="importToggleMstr('rr',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
+        'Meisterschaft' +
+      '</label>' +
     '</div>' +
     (!guessDate ? '<div id="rr-datum-warn" style="margin-bottom:10px;padding:8px 12px;background:#7c3a00;color:#ffb347;border-radius:7px;font-size:13px;font-weight:600">&#x26A0;&#xFE0E; Bitte Datum eintragen — es beeinflusst die AK-Platzierung!</div>' : '<div id="rr-datum-warn" style="display:none"></div>') +
     importMstrAllBar('rr') +
@@ -5032,8 +5033,8 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
           '<th style="padding:6px;text-align:left">Netto-Zeit</th>' +
           '<th style="padding:6px;text-align:left">AK</th>' +
           '<th style="padding:6px;text-align:left">Platz AK</th>' +
-          '<th style="padding:6px;text-align:left">Meisterschaft</th>' +
-          '<th style="padding:6px;text-align:left">Platz MS</th>' +
+          '<th class="rr-mstr-th" style="padding:6px;text-align:left;display:none">Meisterschaft</th>' +
+          '<th class="rr-mstr-th" style="padding:6px;text-align:left;display:none">Platz MS</th>' +
           '<th style="padding:6px;text-align:left">Verein</th>' +
         '</tr></thead>' +
         '<tbody>' + rows + '</tbody>' +
@@ -5099,14 +5100,7 @@ async function rrCheckDuplicates(results) {
 
 
 function rrMstrChanged(sel) {
-  var row = sel.closest('tr');
-  if (!row) return;
-  var hasMstr = !!sel.value;
-  // Zeige Platz-Zelle, verstecke leere Placeholder-Zelle
-  row.querySelectorAll('.rr-mstr-platz-td').forEach(function(td) {
-    var isInput = !!td.querySelector('.rr-mstr-platz');
-    td.style.display = isInput ? (hasMstr ? '' : 'none') : (hasMstr ? 'none' : '');
-  });
+  // kein extra Toggle nötig — beide Zellen immer sichtbar wenn Meisterschaft aktiv
 }
 
 async function rrImport() {
@@ -5207,7 +5201,7 @@ async function rrImport() {
     }
     var platzAKv = r.akPlatzFromRow ? parseInt(r.akPlatzFromRow) : (calcAKPlatz(ak, String(raw[r.iNetto] || raw[r.iZeit] || '').trim(), _eventJahr2) || null);
     // Meisterschaft + Platz MS
-    var _mstrSel = document.querySelectorAll('.rr-mstr')[i];
+    var _mstrSel = document.querySelectorAll('.rr-mstr-sel')[i];
     var _mstrVal = _mstrSel ? (parseInt(_mstrSel.value) || null) : null;
     var _mstrPlatzEl = document.querySelectorAll('.rr-mstr-platz')[i];
     var _mstrPlatz = (_mstrPlatzEl && _mstrPlatzEl.value) ? (parseInt(_mstrPlatzEl.value) || null) : null;
@@ -5405,7 +5399,7 @@ async function rrmConfirm(count) {
       var g  = ((document.getElementById('rrm-geschlecht-' + i) || {}).value || '').trim();
       var gj = ((document.getElementById('rrm-gebj-' + i) || {}).value || '').trim();
       if (!vn || !nn) { notify('Bitte Vor- und Nachname angeben.', 'err'); return; }
-      var r2 = await apiPost('athleten', { vorname: vn, nachname: nn, geschlecht: g, geburtsjahr: gj ? parseInt(gj) : null });
+      var r2 = await apiPost('athleten', { name_nv: nn + ', ' + vn, vorname: vn, nachname: nn, geschlecht: g, geburtsjahr: gj ? parseInt(gj) : null });
       if (r2 && r2.ok && r2.data && r2.data.id) {
         // state.athleten aktualisieren
         var newAth = { id: r2.data.id, name_nv: nn + ', ' + vn, vorname: vn, nachname: nn, geschlecht: g, geburtsjahr: gj ? parseInt(gj) : null };
@@ -7403,20 +7397,11 @@ document.addEventListener('click', function(ev) {
 function importSetAllMstr(prefix) {
   var mstrVal = (document.getElementById(prefix + '-mstr-all') || {}).value || '';
   var platzVal = (document.getElementById(prefix + '-mstr-platz-all') || {}).value || '';
-  document.querySelectorAll('.' + prefix + '-mstr').forEach(function(sel) {
+  document.querySelectorAll('.' + prefix + '-mstr-sel').forEach(function(sel, i) {
     sel.value = mstrVal;
-    // Platz-Zellen ein/ausblenden
-    var row = sel.closest('tr');
-    if (row) {
-      var hasMstr = !!mstrVal;
-      row.querySelectorAll('[class*="mstr-platz-td"]').forEach(function(td) {
-        var isInput = !!td.querySelector('[class*="mstr-platz"]');
-        td.style.display = isInput ? (hasMstr ? '' : 'none') : (hasMstr ? 'none' : '');
-      });
-      if (hasMstr && platzVal) {
-        var platzEl = row.querySelector('[class*="mstr-platz"]:not([class*="mstr-platz-td"])');
-        if (platzEl) platzEl.value = platzVal;
-      }
+    if (platzVal) {
+      var platzInputs = document.querySelectorAll('.' + prefix + '-mstr-platz');
+      if (platzInputs[i]) platzInputs[i].value = platzVal;
     }
   });
 }
@@ -7431,6 +7416,26 @@ function importMstrAllBar(prefix) {
     '<input id="' + prefix + '-mstr-platz-all" type="number" min="1" placeholder="Platz (opt.)" style="width:110px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
     '<button class="btn btn-ghost btn-sm" onclick="importSetAllMstr(\'' + prefix + '\')">&#x2713; Auf alle anwenden</button>' +
   '</div>';
+}
+
+// Meisterschaft-Spalten ein-/ausblenden (alle drei Import-Module)
+function importToggleMstr(prefix, show) {
+  // Bar
+  var barEl = document.getElementById(prefix + '-mstr-bar');
+  if (barEl) barEl.style.display = show ? '' : 'none';
+  // Header-Spalten
+  document.querySelectorAll('.' + prefix + '-mstr-th').forEach(function(th) {
+    th.style.display = show ? '' : 'none';
+  });
+  // Zeilen-Zellen (tragen Klasse prefix-mstr)
+  document.querySelectorAll('.' + prefix + '-mstr').forEach(function(td) {
+    td.style.display = show ? '' : 'none';
+  });
+  // Wenn ausgeblendet: Werte zurücksetzen
+  if (!show) {
+    document.querySelectorAll('.' + prefix + '-mstr-sel').forEach(function(s) { s.value = ''; });
+    document.querySelectorAll('.' + prefix + '-mstr-platz').forEach(function(i) { i.value = ''; });
+  }
 }
 /* ── 11_mikatiming.js ── */
 
@@ -7525,15 +7530,14 @@ async function mikaFetch() {
         '<td style="padding:4px 6px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:14px;color:var(--result-color)">' + (res.netto || res.zeit || '') + '</td>' +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + (res.ak || '') + '</td>' +
         '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + (res.platz_ak || '') + '</td>' +
-        '<td style="padding:4px 6px">' +
-          '<select class="mika-mstr" onchange="mikaMstrChanged(this)" style="padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:90px">' +
+        '<td class="mika-mstr" style="padding:4px 6px;display:none">' +
+          '<select class="mika-mstr-sel" style="padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:90px">' +
             mstrOptions(0) +
           '</select>' +
         '</td>' +
-        '<td class="mika-mstr-platz-td" style="padding:4px 6px;display:none">' +
-          '<input type="number" class="mika-mstr-platz" min="1" placeholder="Platz" style="width:60px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+        '<td class="mika-mstr" style="padding:4px 6px;display:none">' +
+          '<input type="number" class="mika-mstr-platz" min="1" placeholder="Platz" value="' + (res.platz_ak||'') + '" style="width:60px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
         '</td>' +
-        '<td class="mika-mstr-platz-td mika-mstr-empty" style="padding:4px 6px"></td>' +
       '</tr>';
   }
 
@@ -7543,8 +7547,12 @@ async function mikaFetch() {
       '<div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Veranstaltungsname</label><input id="mika-evname" value="' + (eventName||'').replace(/"/g,'&quot;') + '" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);min-width:300px"/></div>' +
       '<div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Datum</label><input id="mika-datum" value="' + (eventDate ? (function(d){var p=d.match(/(\d{4})-(\d{2})-(\d{2})/);return p?p[3]+'.'+p[2]+'.'+p[1]:'';})(eventDate) : '') + '" placeholder="TT.MM.JJJJ" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
       '<div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Ort</label><input id="mika-ort" value="' + (eventOrt||'') + '" placeholder="Ort" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:140px"/></div>' +
+      '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;align-self:flex-end;padding-bottom:8px">' +
+        '<input type="checkbox" id="mika-mstr-toggle" onchange="importToggleMstr('mika',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
+        'Meisterschaft' +
+      '</label>' +
     '</div>' +
-    importMstrAllBar('mika') +
+    '<div id="mika-mstr-bar" style="display:none">' + importMstrAllBar('mika') + '</div>' +
     '<table style="width:100%;border-collapse:collapse">' +
       '<thead><tr style="border-bottom:2px solid var(--border)">' +
         '<th style="padding:6px;width:30px"><input type="checkbox" checked onchange="document.querySelectorAll(\'.mika-chk\').forEach(function(c){c.checked=this.checked;})" title="Alle"/></th>' +
@@ -7554,8 +7562,8 @@ async function mikaFetch() {
         '<th style="padding:6px;text-align:left;font-size:11px">NETTO-ZEIT</th>' +
         '<th style="padding:6px;text-align:left;font-size:11px">AK</th>' +
         '<th style="padding:6px;text-align:left;font-size:11px">PLATZ AK</th>' +
-        '<th style="padding:6px;text-align:left;font-size:11px">MEISTERSCHAFT</th>' +
-        '<th style="padding:6px;text-align:left;font-size:11px">PLATZ MS</th>' +
+        '<th class="mika-mstr-th" style="padding:6px;text-align:left;font-size:11px;display:none">MEISTERSCHAFT</th>' +
+        '<th class="mika-mstr-th" style="padding:6px;text-align:left;font-size:11px;display:none">PLATZ MS</th>' +
       '</tr></thead>' +
       '<tbody>' + rows + '</tbody>' +
     '</table>' +
@@ -7634,7 +7642,7 @@ async function mikaImport() {
       resultat: res.netto || res.zeit || '',
       altersklasse: res.ak || '',
       ak_platzierung: res.platz_ak ? parseInt(res.platz_ak) : null,
-      meisterschaft: (function(){ var s=document.querySelectorAll('.mika-mstr')[i]; return s&&s.value?parseInt(s.value)||null:null; })(),
+      meisterschaft: (function(){ var s=document.querySelectorAll('.mika-mstr-sel')[i]; return s&&s.value?parseInt(s.value)||null:null; })(),
       ak_platz_meisterschaft: (function(){ var s=document.querySelectorAll('.mika-mstr-platz')[i]; return s&&s.value?parseInt(s.value)||null:null; })(),
       import_quelle: 'mikatiming:' + (ms.baseUrl || '')
     });
@@ -7655,13 +7663,7 @@ async function mikaImport() {
 }
 
 function mikaMstrChanged(sel) {
-  var row = sel.closest('tr');
-  if (!row) return;
-  var hasMstr = !!sel.value;
-  row.querySelectorAll('.mika-mstr-platz-td').forEach(function(td) {
-    var isInput = !!td.querySelector('.mika-mstr-platz');
-    td.style.display = isInput ? (hasMstr ? '' : 'none') : (hasMstr ? 'none' : '');
-  });
+  // kein extra Toggle nötig
 }
 /* ── 10_veranstaltungen.js ── */
 async function renderVeranstaltungen() {

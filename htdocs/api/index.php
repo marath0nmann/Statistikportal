@@ -1479,9 +1479,10 @@ if ($res === 'athleten') {
         $nn = sanitize($body['nachname'] ?? '');
         $vn = sanitize($body['vorname'] ?? '');
         if (!$nv || !$nn) jsonErr('Name erforderlich.');
+        $gebj = intOrNull($body['geburtsjahr'] ?? null);
         try {
-            DB::query('INSERT INTO ' . DB::tbl('athleten') . ' (name_nv,nachname,vorname,geschlecht) VALUES (?,?,?,?)',
-                [$nv, $nn, $vn, sanitize($body['geschlecht'] ?? '')]);
+            DB::query('INSERT INTO ' . DB::tbl('athleten') . ' (name_nv,nachname,vorname,geschlecht,geburtsjahr) VALUES (?,?,?,?,?)',
+                [$nv, $nn, $vn, sanitize($body['geschlecht'] ?? ''), $gebj]);
             $newId = DB::lastInsertId();
             // Gruppen zuordnen
             if (!empty($body['gruppen']) && is_array($body['gruppen'])) {
