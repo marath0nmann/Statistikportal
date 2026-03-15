@@ -4311,7 +4311,7 @@ async function rrFetch() {
     var listSource = cfg.list || cfg.lists || {};
     var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','OVERALL','EINZEL','FINAL'];
     // Listen die keine Einzelergebnisse enthalten und übersprungen werden sollen
-    var _listBlacklist = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','RANKING','OVERALL RANKING','WERTUNG','SPECIAL','LIVE','TOP10','TOP 10','TOP5','TOP 5','LEADERBOARD','SCHNELLSTE','FASTEST'];
+    var _listBlacklist = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','RANKING','OVERALL RANKING','WERTUNG','SPECIAL','LIVE','TOP10','TOP 10','TOP5','TOP 5','LEADERBOARD','SCHNELLSTE','FASTEST','SIEGER','WINNER','PARTICIPANTS','STATISTIC'];
     function _listIsBlacklisted(entry) {
       var ename = (entry.Name || entry.name || entry.listname || '').toUpperCase();
       var showAs = (entry.ShowAs || entry.showAs || '').toUpperCase();
@@ -4323,7 +4323,37 @@ async function rrFetch() {
       return false;
     }
     if (Array.isArray(listSource)) {
-      // Prio-Suche: Einzelergebnisse bevorzugen
+      // Prüfen: Array of Objects oder String-Array?
+      var _isStrArr = listSource.length > 0 && typeof listSource[0] === 'string';
+      if (_isStrArr) {
+        // String-Array: ["Ergebnislisten|Siegerliste", "Ergebnislisten|1.2 Zieleinlaufliste netto", ...]
+        var _strListBlacklisted = function(s) {
+          var u = s.toUpperCase();
+          if (u.startsWith('__') || u.startsWith('Z_')) return true;
+          for (var bi = 0; bi < _listBlacklist.length; bi++) {
+            if (u.indexOf(_listBlacklist[bi]) >= 0) return true;
+          }
+          return false;
+        };
+        // Prio-Suche
+        for (var lp2 = 0; lp2 < listPrio.length && !listName; lp2++) {
+          for (var lk2 = 0; lk2 < listSource.length && !listName; lk2++) {
+            var ls = listSource[lk2];
+            if (!_strListBlacklisted(ls) && ls.toUpperCase().indexOf(listPrio[lp2]) >= 0) {
+              listName = ls;
+            }
+          }
+        }
+        // Fallback: ersten nicht-geblacklisteten
+        if (!listName) {
+          for (var lk2 = 0; lk2 < listSource.length; lk2++) {
+            if (!_strListBlacklisted(listSource[lk2])) { listName = listSource[lk2]; break; }
+          }
+        }
+        if (!listName && listSource.length) listName = listSource[0];
+        _rrDebug.listsRaw = JSON.stringify(listSource).slice(0, 400);
+      } else {
+      // Array of Objects
       for (var lk = 0; lk < listSource.length && !listName; lk++) {
         var entry = listSource[lk];
         var ename = entry.Name || entry.name || entry.listname || '';
@@ -4355,6 +4385,7 @@ async function rrFetch() {
         listContest = e0.Contest !== undefined ? String(e0.Contest) : null;
       }
       _rrDebug.listsRaw = JSON.stringify(listSource.map(function(e){return e.Name||e.name||'';}));
+      } // end Array of Objects
     } else if (listSource && typeof listSource === 'object') {
       var listKeys = Object.keys(listSource);
       for (var lk = 0; lk < listKeys.length && !listName; lk++) {
