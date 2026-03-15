@@ -3461,6 +3461,7 @@ function renderEintragen() {
   var tabHtml = '<div class="subtabs" style="margin-bottom:20px">' +
     '<button class="subtab' + (sub==='bulk'       ? ' active' : '') + '" onclick="setSubTab(\'bulk\')">📋︎ Bulk-Eintragen</button>' +
     '<button class="subtab' + (sub==='raceresult' ? ' active' : '') + '" onclick="setSubTab(\'raceresult\')">🌍︎ RaceResult-Import</button>' +
+    '<button class="subtab' + (sub==='mikatiming' ? ' active' : '') + '" onclick="setSubTab(\'mikatiming\')">⏱︎ MikaTiming-Import</button>' +
   '</div>';
 
   var today = new Date().toISOString().slice(0, 10);
