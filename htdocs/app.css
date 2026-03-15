@@ -293,12 +293,13 @@ main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
 
 /* Dashboard Letzte Veranstaltungen: einheitliche Spaltenbreiten über alle Tabellen */
 .veranst-dash-table { table-layout: fixed; width: 100%; }
-.veranst-dash-table .vcol-athlet { width: 30%; }
-.veranst-dash-table .vcol-ak     { width:  9%; }
-.veranst-dash-table .vcol-result { width: 15%; }
-.veranst-dash-table .vcol-pace   { width: 13%; }
-.veranst-dash-table .vcol-platz  { width: 14%; }
-.veranst-dash-table .vcol-ms     { width: 19%; }
+.veranst-dash-table .vcol-athlet   { width: 28%; }
+.veranst-dash-table .vcol-ak       { width:  8%; }
+.veranst-dash-table .vcol-result   { width: 14%; }
+.veranst-dash-table .vcol-pace     { width: 12%; }
+.veranst-dash-table .vcol-platz    { width: 12%; }
+.veranst-dash-table .vcol-ms       { width: 15%; }
+.veranst-dash-table .vcol-ms-platz { width: 11%; }
 .veranst-dash-table td, .veranst-dash-table th { overflow: hidden; text-overflow: ellipsis; }
 table { width: 100%; border-collapse: collapse; }
 th {
@@ -679,13 +680,16 @@ tr:hover td { background: var(--surf2); }
   table:not(.veranst-dash-table) td:nth-child(4) { display: none; }
   .rek-table th:nth-child(4), .rek-table td:nth-child(4) { display: none; }
 
-  /* veranst-dash-table auf Smartphone: Pace (5) und Meisterschaft (6) ausblenden */
+  /* veranst-dash-table auf Smartphone: Pace + Meisterschaft + Platz MS ausblenden */
   .veranst-dash-table .vcol-pace,
   .veranst-dash-table th:nth-child(5),
   .veranst-dash-table td:nth-child(5),
   .veranst-dash-table .vcol-ms,
   .veranst-dash-table th:nth-child(6),
-  .veranst-dash-table td:nth-child(6) { display: none; }
+  .veranst-dash-table td:nth-child(6),
+  .veranst-dash-table .vcol-ms-platz,
+  .veranst-dash-table th:nth-child(7),
+  .veranst-dash-table td:nth-child(7) { display: none; }
 
   /* Verbleibende 4 Spalten neu verteilen */
   .veranst-dash-table .vcol-athlet { width: 42%; }

@@ -1,12 +1,5 @@
-v495: Meisterschafts-Platzierung in Veranstaltungen + Ergebnisse
+v496: Fix Veranstaltungen-Tabelle: vcol-ms-platz + Breiten neu verteilt
 
-Frontend:
-- Veranstaltungen: neue Spalte "Platz MS" nach "Meisterschaft"
-- Ergebnisse: neue Spalte "Platz MS" nach "Meisterschaft"
-- Ergebnis bearbeiten: neues Feld "Platz MS" im Dialog
-- Edit-Button übergibt data-edit-mstr-platz
-
-API:
-- Veranstaltungen GET: ak_platz_meisterschaft im SELECT
-- Ergebnisse GET: ak_platz_meisterschaft für alle Tabellen (nicht nur strasse)
-- PUT ergebnisse: ak_platz_meisterschaft speicherbar
+- colgroup: col class="vcol-ms-platz" statt inline style
+- CSS: vcol-ms-platz 11%, alle 7 Spalten auf 100% verteilt
+- Mobile: 7. Spalte (Platz MS) ebenfalls ausgeblendet
