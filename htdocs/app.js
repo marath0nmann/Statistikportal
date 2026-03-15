@@ -7280,22 +7280,10 @@ async function updateDisz(btn) {
 // ── HELPERS ────────────────────────────────────────────────
 
 
-function showNeueDiszModal() {
-  // Kategorien aus dem DOM lesen (sind bereits geladen)
-  var kats = [];
-  var katSeen = {};
-  (state.disziplinen || []).forEach(function(d) {
-    if (d.kategorie_id && !katSeen[d.kategorie_id]) {
-      katSeen[d.kategorie_id] = true;
-      kats.push({ id: d.kategorie_id, name: d.kategorie });
-    }
-  });
-  // Fallback: aus REK_CATS oder Admin-Kategorieliste
-  if (!kats.length && window.REK_CATS) {
-    (REK_CATS || []).forEach(function(k) {
-      kats.push({ id: k.id, name: k.name });
-    });
-  }
+async function showNeueDiszModal() {
+  // Kategorien frisch per API laden → liefert id, name, tbl_key
+  var rKat = await apiGet('kategorien');
+  var kats = (rKat && rKat.ok && rKat.data) ? rKat.data : [];
 
   var katSel = '<select id="nd-kat" style="width:100%" required>';
   katSel += '<option value="">– Kategorie wählen –</option>';
