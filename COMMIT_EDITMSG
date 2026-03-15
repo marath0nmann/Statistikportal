@@ -1,1 +1,7 @@
-v468: Timeline: Badges unter das Resultat verschoben
+v469: Admin-Tab "Altersklassen" mit Jugend-AK-Konfiguration
+
+- Neuer Tab zwischen Disziplinen und Meisterschaften
+- Liste aller verwendeten AKs mit Ergebnisanzahl
+- Checkbox "Jugend → MHK/WHK" pro AK, gespeichert als jugend_aks in einstellungen
+- buildAkCaseExpr() liest AK-Liste aus DB statt hardcodiert
+- Alle 4 CASE-Expressions (Bestleistungen, Rekorde, HoF, Timeline) nutzen jetzt Settings

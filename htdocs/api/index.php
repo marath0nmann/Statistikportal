@@ -539,6 +539,7 @@ if ($res === 'einstellungen') {
                 'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url',
                 'disziplin_kategorie_suffix',
                 'footer_datenschutz_text','footer_nutzung_text','footer_impressum_text',
+                'jugend_aks',
             ];
             $save = [];
             foreach ($erlaubt as $k) {
@@ -554,6 +555,50 @@ if ($res === 'einstellungen') {
         Auth::requireAdmin();
         jsonOk(Settings::allWithMeta());
     }
+}
+
+// Hilfsfunktion: AK-CASE-Expression aus Settings oder Fallback-Hardcode
+function buildAkCaseExpr(bool $merge, string $alias = 'e'): string {
+    if (!$merge) return $alias . '.altersklasse';
+    // Jugend-AKs aus Settings laden
+    $jugendAksJson = Settings::get('jugend_aks') ?: '';
+    $jugendAks = $jugendAksJson ? (json_decode($jugendAksJson, true) ?: []) : [];
+    // Fallback: Standard-Jugend-AKs wenn noch keine Konfiguration vorhanden
+    if (empty($jugendAks)) {
+        $jugendAks = ['MHK','M','MU8','MU10-12','MU18','MU20','MU23','mJB','mjA','mjB','U18',
+                      'WHK','W','F','WU8','WU10-U12','WU18','WU23','wjA','wjB'];
+    }
+    // M* Jugend → MHK, W* Jugend → WHK
+    $mAks = []; $wAks = [];
+    foreach ($jugendAks as $ak) {
+        if (strtoupper(substr($ak,0,1)) === 'W' || in_array($ak, ['F'])) $wAks[] = $ak;
+        else $mAks[] = $ak;
+    }
+    $mList = implode("','", array_map('addslashes', $mAks));
+    $wList = implode("','", array_map('addslashes', $wAks));
+    return "CASE
+        WHEN $alias.altersklasse IN ('$mList') THEN 'MHK'
+        WHEN $alias.altersklasse IN ('$wList') THEN 'WHK'
+        ELSE $alias.altersklasse END";
+}
+
+if ($res === 'altersklassen' && $method === 'GET') {
+    Auth::requireAdmin();
+    $rows = DB::fetchAll(
+        "SELECT e.altersklasse, COUNT(*) AS anzahl
+         FROM " . DB::tbl('ergebnisse') . " e
+         WHERE e.altersklasse IS NOT NULL AND e.altersklasse != '' AND e.geloescht_am IS NULL
+         GROUP BY e.altersklasse
+         ORDER BY e.altersklasse ASC"
+    );
+    // Aktuelle Jugend-AK-Konfiguration laden
+    $jugendAksJson = Settings::get('jugend_aks') ?: '';
+    $jugendAks = $jugendAksJson ? (json_decode($jugendAksJson, true) ?: []) : [];
+    foreach ($rows as &$row) {
+        $row['is_jugend'] = in_array($row['altersklasse'], $jugendAks);
+    }
+    unset($row);
+    jsonOk($rows);
 }
 
 // ============================================================
@@ -761,18 +806,9 @@ if ($res === 'dashboard' && $method === 'GET') {
             : "e.disziplin=? AND e.disziplin_mapping_id IS NULL";
         $ergParam = $mappingId ? (int)$mappingId : $disz;
 
-        // merge_ak: Jugend-AKs zu MHK/WHK zusammenfassen (Standard: true)
+        // merge_ak: Jugend-AKs zu MHK/WHK zusammenfassen (aus Settings)
         $mergeAKTl = ($_GET['merge_ak_tl'] ?? '1') !== '0';
-        $akExprTl  = $mergeAKTl
-            ? "CASE
-                WHEN e.altersklasse IN ('MHK','M','MU8','MU10-12','MU18','MU20','MU23','mJB','mjA','mjB','U18')
-                     OR (e.altersklasse LIKE 'M%' AND e.altersklasse REGEXP '^M[UuJj]')
-                  THEN 'MHK'
-                WHEN e.altersklasse IN ('WHK','W','F','WU8','WU10-U12','WU18','WU23','wjA','wjB')
-                     OR (e.altersklasse LIKE 'W%' AND e.altersklasse REGEXP '^W[UuJj]')
-                  THEN 'WHK'
-                ELSE e.altersklasse END"
-            : 'e.altersklasse';
+        $akExprTl  = buildAkCaseExpr($mergeAKTl);
         $ergs = DB::fetchAll(
             "SELECT e.resultat, $valExpr AS val_sort, v.datum, ($akExprTl) AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
@@ -1581,17 +1617,7 @@ if ($res === 'rekorde') {
         $nameExpr = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
         $joinVer  = "JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id";
         $mergeAK  = ($_GET['merge_ak'] ?? '1') !== '0';
-        $akExpr   = $mergeAK
-            ? "CASE
-                WHEN e.altersklasse IN ('MHK','M','MU8','MU10-12','MU18','MU20','MU23','mJB','mjA','mjB','U18')
-                     OR (e.altersklasse REGEXP '^M[0-9]+$' AND CAST(SUBSTRING(e.altersklasse,2) AS UNSIGNED) < 30)
-                  THEN 'MHK'
-                WHEN e.altersklasse IN ('WHK','W','F','WU8','WU10-U12','WU18','WU23','wjA','wjB')
-                     OR (e.altersklasse REGEXP '^W[0-9]+$' AND CAST(SUBSTRING(e.altersklasse,2) AS UNSIGNED) < 30)
-                  THEN 'WHK'
-                ELSE e.altersklasse
-              END"
-            : "e.altersklasse";
+        $akExpr   = buildAkCaseExpr($mergeAK);
 
         $sortCol   = ($fmt === 'm') ? "e.resultat_num" : "e.resultat";
         // Legacy-Tabellen haben resultat als VARCHAR oder FLOAT je nach Tabelle
@@ -2589,19 +2615,9 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         $diszList = DB::fetchAll($diszListSql, $diszParams);
         sortDisziplinen($diszList);
 
-        // Jugend-AK zusammenfassen: identische CASE-Logik wie unter Bestleistungen
+        // Jugend-AK zusammenfassen: aus Settings-Konfiguration
         $mergeAK = ($_GET['merge_ak'] ?? '1') !== '0';
-        $akExpr  = $mergeAK
-            ? "CASE
-                WHEN e.altersklasse IN ('MHK','M','MU8','MU10-12','MU18','MU20','MU23','mJB','mjA','mjB','U18')
-                     OR (e.altersklasse REGEXP '^M[0-9]+\$' AND CAST(SUBSTRING(e.altersklasse,2) AS UNSIGNED) < 30)
-                  THEN 'MHK'
-                WHEN e.altersklasse IN ('WHK','W','F','WU8','WU10-U12','WU18','WU23','wjA','wjB')
-                     OR (e.altersklasse REGEXP '^W[0-9]+\$' AND CAST(SUBSTRING(e.altersklasse,2) AS UNSIGNED) < 30)
-                  THEN 'WHK'
-                ELSE e.altersklasse
-              END"
-            : "e.altersklasse";
+        $akExpr  = buildAkCaseExpr($mergeAK);
 
         foreach ($diszList as $dRow) {
             if (!empty($dRow['hof_exclude'])) continue; // aus Hall of Fame ausgeschlossen
