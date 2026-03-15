@@ -1,8 +1,4 @@
-v528: Fix iZeit/iNetto=-1: Kalibrierung per Contest zurücksetzen
+v530: Fix iZeit: "ZIEL x Handzeitmessung" im Hauptkalibrierungsblock erkannt
 
-df (DataFields) wurde Contest-übergreifend wiederverwendet. Contest 1
-(1-8-Liste, 8 Felder) kalibrierte iZeit=7, Contest 11 (9-12-Liste, 11 Felder)
-übernahm diese Kalibrierung → iZeit=7 statt 10, Zeit leer.
-
-Fix: iAK/iYear/iGeschlecht/iName/iClub/iNetto/iZeit/iPlatz werden VOR
-dem Kalibrierungsblock zurückgesetzt, unabhängig von df.length.
+indexOf('ziel') fehlte im Hauptblock (war nur im r=all-Neukalibrierungsblock).
+"ziel x handzeitmessung".indexOf('ziel') → 0 → iZeit=10 ✓

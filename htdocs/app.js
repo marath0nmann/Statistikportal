@@ -4575,7 +4575,7 @@ async function rrFetch() {
             else if (f === 'year' || f === 'yob' || f === 'birthyear' || f === 'es_jahrgang') iYear = fi;
             else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht') iGeschlecht = fi;
             else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
-            else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0 || f === 'ziel' || f.indexOf('finish') >= 0) iZeit = fi;
+            else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0 || f === 'ziel' || f.indexOf('ziel') >= 0 || f.indexOf('finish') >= 0) iZeit = fi;
             else if (f.indexOf('akpl') >= 0) iAKPlatz = fi;  // AKPlp, AKPl.P direkt
             else if (f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0 || f.indexOf('statusplatz') >= 0) {
               // MitStatus([AKPlp]) / StatusPlatz([AKPl.P]) = AK-Platz
