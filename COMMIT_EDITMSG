@@ -1,9 +1,7 @@
-v509: RaceResult-Erkennung: DOM + Performance-Entries + Proxy
+v510: RaceResult-Proxy: DOM-Ansatz entfernt (war fehlerhaft)
 
-Strategie:
-1. window.performance.getEntriesByType('resource') → findet raceresult.com/ID/ in
-   Netzwerk-Requests der aktuell geöffneten Seite (funktioniert wenn Tab offen war)
-2. document.documentElement.innerHTML → DOM-Suche nach raceresult.com/ID/ und RRPublish
-3. Server-Proxy als letzter Fallback
+Performance-Entries und DOM-Suche entfernt — lasen alte Requests aus dem
+aktuellen Tab (statistik.tus-oedt.de) statt der Zielseite.
 
-Tipp bei Fehlschlag: Ergebnisseite im selben Tab öffnen, dann nochmal versuchen.
+Jetzt: nur sauberer Server-Proxy. Bei dynamisch geladenen Seiten (JS-Rendering)
+klare Fehlermeldung mit Anweisung zum Netzwerk-Tab.
