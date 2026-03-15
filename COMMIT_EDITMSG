@@ -1,1 +1,1 @@
-v435: RaceResult: "Keine Ergebnisse"-Block mit Kopieren-Button
+v436: Fix RaceResult Button: select.value explizit setzen nach innerHTML
