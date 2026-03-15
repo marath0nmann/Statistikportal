@@ -3937,9 +3937,11 @@ async function rrFetch() {
     _rrDebug.cfgAllKeys = JSON.stringify(Object.keys(cfg)).slice(0, 300);
     var _cfgTimeSec = cfg.Time !== undefined ? parseInt(cfg.Time) : null;
     _rrDebug.cfgTime = _cfgTimeSec !== null ? (String(cfg.Time) + ' (' + Math.floor(_cfgTimeSec/3600) + 'h' + String(Math.floor((_cfgTimeSec%3600)/60)).padStart(2,'0') + 'min Startzeit)') : '–';
-    // Debug: infotext + vollständiges cfg-JSON immer loggen
+    // Debug: alle cfg-Felder einzeln loggen (splits weglassen, die sind lang)
     _rrDebug.cfgInfotext = String(cfg.infotext || '').replace(/<[^>]+>/g,'').slice(0, 300) || '(leer)';
-    _rrDebug.cfgFull = JSON.stringify(cfg).slice(0, 800);
+    var _cfgShort = {};
+    ['ListSelector','SplitConfig','TimerURL','TimerLogo','EventOver','server','Time','LinkCertificates','showResults','showParticipants','showLive','showCertificates'].forEach(function(k){ if (cfg[k] !== undefined) _cfgShort[k] = cfg[k]; });
+    _rrDebug.cfgFull = JSON.stringify(_cfgShort);
     _rrDebug.eventDate = eventDate;
     _rrDebug.cfgEventName = cfg.eventname || '';
     _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
