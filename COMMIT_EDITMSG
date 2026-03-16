@@ -1,1 +1,5 @@
-v534: Fix Syntax-Fehler in doPasskeyAuth (unescaped quotes)
+v535: TOTP-Deaktivierung: korrekte Prüfung + Warnung
+
+- API: TOTP-Deaktivierung nur erlaubt wenn Passkey vorhanden (sonst 409)
+- Frontend: Warntext je nach Passkey-Status ("weiterhin per Passkey" vs "Zugang verloren")
+- notify() statt alert()

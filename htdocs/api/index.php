@@ -175,6 +175,10 @@ if ($res === 'auth') {
     // --- TOTP deaktivieren (für sich selbst, alle eingeloggten User) ---
     if ($method === 'DELETE' && $id === 'totp-setup') {
         $user = Auth::requireLogin();
+        // Sicherheits-Check: mindestens eine 2FA-Methode muss bleiben
+        if (!Passkey::userHasPasskey($user['id'])) {
+            jsonErr('Kein Passkey registriert \u2013 TOTP kann nicht deaktiviert werden (kein 2FA-Fallback).', 409);
+        }
         Auth::totpDisable($user['id']);
         jsonOk('TOTP deaktiviert.');
     }
