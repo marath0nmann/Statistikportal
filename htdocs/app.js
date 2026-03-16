@@ -8288,7 +8288,7 @@ async function passkeyRegister(keyName) {
 
 // ── Passkey löschen ───────────────────────────────────────────
 async function passkeyDelete(id) {
-  var r = await apiDelete('auth/passkeys/' + id);
+  var r = await apiDel('auth/passkeys/' + id);
   return r && r.ok;
 }
 
