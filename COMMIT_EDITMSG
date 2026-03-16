@@ -1,5 +1,6 @@
-v567: uitslagen.nl: Feldnamen state.disziplinen korrigiert
+v568: uitslagen.nl: Disziplin-Dropdown auf gewählte Kategorie filtern
 
-state.disziplinen nutzt 'id' (nicht mapping_id) und 'kategorie' (nicht
-kategorie_name) → Auto-Match fand keine Cross-Disziplinen, Dropdowns
-zeigten "undefined" als Wert.
+- uitsDiszOptHtml(disziplinen, selectedMid, filterKat): nur Disziplinen
+  der gewählten Kategorie anzeigen
+- uitsRenderPreview: _uitsKat beim Render übergeben
+- Import: war bereits korrekt, Fehler kam von altem Bug (mapping_id→id)

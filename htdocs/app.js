@@ -8760,6 +8760,7 @@ function uitsParseHTML(html, eventId) {
 
 // ── Preview rendern ─────────────────────────────────────────────
 function uitsRenderPreview(parsed) {
+  var _uitsKat = ((document.getElementById('uits-kat') || {}).value || '');
   var preview = document.getElementById('uits-preview');
   var ownRows = parsed.rows.filter(function(r){ return r.ownClub; });
   var allCount = parsed.rows.length;
@@ -8833,7 +8834,7 @@ function uitsRenderPreview(parsed) {
         '<td style="padding:6px 8px;font-size:12px;color:var(--text2)">' + row.kategorie + '</td>' +
         '<td style="padding:6px 8px"><input type="text" class="uits-ak" data-idx="' + i + '" value="' + (row.ak || '') + '" style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"/></td>' +
         '<td style="padding:6px 8px"><select class="uits-disz" data-idx="' + i + '" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:160px">' +
-          uitsDiszOptHtml(disziplinen, diszMatch) +
+          uitsDiszOptHtml(disziplinen, diszMatch, _uitsKat) +
         '</select></td>' +
         '<td style="padding:6px 8px;text-align:right;color:var(--text2)">' + (row.platz || '–') + '</td>' +
         '<td style="padding:6px 8px;text-align:right;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:15px;color:var(--result-color)">' + row.zeit + '</td>' +
@@ -8928,9 +8929,13 @@ function uitsAutoDiszMatch(catRaw, disziplinen) {
   return null;
 }
 
-function uitsDiszOptHtml(disziplinen, selectedMid) {
+function uitsDiszOptHtml(disziplinen, selectedMid, filterKat) {
+  // filterKat: wenn gesetzt, nur Disziplinen dieser Kategorie anzeigen
+  var list = filterKat
+    ? disziplinen.filter(function(d){ return d.tbl_key === filterKat; })
+    : disziplinen;
   var html = '<option value="">– Disziplin wählen –</option>';
-  disziplinen.forEach(function(d) {
+  list.forEach(function(d) {
     var mid = d.mapping_id || d.id;
     var label = d.disziplin + (d.kategorie ? ' (' + d.kategorie + ')' : (d.kategorie_name ? ' (' + d.kategorie_name + ')' : ''));
     html += '<option value="' + mid + '"' + (mid == selectedMid ? ' selected' : '') + '>' + label + '</option>';
