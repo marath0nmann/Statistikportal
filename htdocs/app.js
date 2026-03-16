@@ -3918,14 +3918,7 @@ function renderEintragen() {
       '</div>';
   }
 
-  document.getElementById('main-content').innerHTML = tabHtml + content;
-  if (isRR) {
-    // Straße als Default setzen falls noch kein Wert
-    var _rrKatEl = document.getElementById('rr-kat');
-    if (_rrKatEl && !_rrKatEl.value) _rrKatEl.value = 'strasse';
-    rrKatChanged(); // Button aktivieren
-  }
-  if (isUits) {
+if (isUits) {
     content =
       '<div class="panel" style="padding:24px">' +
         '<div class="panel-title" style="margin-bottom:4px">&#x1F1F3;&#x1F1F1; uitslagen.nl Import</div>' +
@@ -3938,6 +3931,14 @@ function renderEintragen() {
         '</div>' +
         '<div id="uits-preview"><div style="color:var(--text2);font-size:13px">Bitte uitslagen.nl-URL eingeben und Laden klicken.</div></div>' +
       '</div>';
+  }
+
+  document.getElementById('main-content').innerHTML = tabHtml + content;
+  if (isRR) {
+    // Straße als Default setzen falls noch kein Wert
+    var _rrKatEl = document.getElementById('rr-kat');
+    if (_rrKatEl && !_rrKatEl.value) _rrKatEl.value = 'strasse';
+    rrKatChanged(); // Button aktivieren
   }
   if (isMika) mikaKatChanged();
 
