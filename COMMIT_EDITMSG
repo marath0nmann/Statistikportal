@@ -1,6 +1,5 @@
-v536: Passkey-Robustheit: Stub-Fallback + migrate() + try-catch
+v537: Fix TOTP-Deaktivierung + loginStep2 NULL-Secret
 
-- auth.php: passkey.php optional (Stub-Klasse wenn Datei fehlt → kein Fatal)
-- loginStep1: Passkey::migrate() vor userHasPasskey() (Tabelle anlegen)
-- auth/me: migrate() ebenfalls
-- userHasPasskey(): try-catch (DB-Fehler → false, kein Absturz)
+- loginStep2: totp_secret=NULL → klar Fehler statt 500
+- DELETE totp-setup: migrate() vor userHasPasskey() (Tabelle muss existieren)
+- disableTotp(): Vorprüfung im Frontend, 409 klar erklären

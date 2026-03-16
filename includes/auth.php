@@ -123,7 +123,10 @@ class Auth {
             return ['ok' => false, 'fehler' => 'Ungültiger Backup-Code.'];
         }
 
-        // TOTP prüfen
+        // TOTP prüfen (nur wenn Secret vorhanden)
+        if (empty($user['totp_secret']) || !$user['totp_aktiv']) {
+            return ['ok' => false, 'fehler' => 'TOTP ist nicht aktiv. Bitte Passkey verwenden.'];
+        }
         if (!TOTP::verify($user['totp_secret'], $code)) {
             return ['ok' => false, 'fehler' => 'Ungültiger Code. Bitte erneut versuchen.'];
         }
