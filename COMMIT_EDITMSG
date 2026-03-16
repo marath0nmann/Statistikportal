@@ -1,8 +1,11 @@
-v553: RaceResult: Disziplin-Match "3000m" ↔ "3.000m" repariert
+v554: RaceResult: AK-Normalisierung (normalizeAK)
 
-Regex \b (word boundary) matcht nicht wenn direkt ein Buchstabe folgt:
-"3.000m" → \b greift nicht vor 'm' → kein Ersetzen → "3.000m" bleibt
-→ diszToMeters('3.000m') → 3.0 statt 3000 → kein Match.
+Neue Funktion normalizeAK() extrahiert DLV-Kürzel aus RaceResult-Labels:
+  "Seniorinnen W40" → "W40"
+  "Seniorinnen W65" → "W65"
+  "Senioren M50"    → "M50"
+  "Männliche Jugend U16" → "MU16"
+  "W 40"            → "W40"
+  "AK M35"          → "M35"
 
-Fix: \b → (?!\d) — "nicht gefolgt von einer Ziffer" — damit wird
-"3.000m" korrekt zu "3000m" normalisiert → dMeters = 3000 → Match.
+Wird angewendet wenn iAK >= 0 (direktes AK-Feld aus RaceResult-Daten).

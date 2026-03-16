@@ -4872,7 +4872,7 @@ async function rrFetch() {
                 else if (/weibl|female|frauen|weiblich/i.test(_gkClean)) _akFromGroup = 'W';
                 // AK direkt aus Gruppen-Key lesen (z.B. "M35", "W45")
                 var _akMatch = _gkClean.match(/^([MW]\d{2}|[MW]U\d{2}|[MW])$/i);
-                if (_akMatch) _akFromGroup = _akMatch[1].toUpperCase();
+                if (_akMatch) _akFromGroup = normalizeAK(_akMatch[1].toUpperCase());
               }
               var _zeit4ak = String(row[iNetto] || row[iZeit] || '').trim();
               if (_zeit4ak) {
@@ -5142,6 +5142,48 @@ function rrBestDisz(rrName, diszList) {
   return bestScore > 0 ? best : '';
 }
 
+function normalizeAK(raw) {
+  // Aus RaceResult-AK-Labels die DLV-Kürzel extrahieren:
+  // "Seniorinnen W40" → "W40", "Senioren M50" → "M50"
+  // "Männliche Jugend U16" → "MU16", "WU14" etc.
+  // "Hauptgruppe M" → "M", "AK M35" → "M35"
+  if (!raw) return '';
+  var s = raw.trim();
+
+  // Bereits korrektes DLV-Format: M40, W65, MU16, WU12, M, W
+  if (/^[MW]U?\d{0,2}$/.test(s)) return s;
+
+  // Leerzeichen-Variante: "W 40" → "W40", "M 50" → "M50"
+  var spaceMatch = s.match(/^([MW])\s+(\d{2})$/i);
+  if (spaceMatch) return spaceMatch[1].toUpperCase() + spaceMatch[2];
+
+  // "Seniorinnen W40", "Senioren M50", "Senior W65" etc.
+  // Alles weglassen bis auf das DLV-Kürzel am Ende oder mitten im String
+  var dlvMatch = s.match(/([MW]U?\d{2})/i);
+  if (dlvMatch) return dlvMatch[1].toUpperCase();
+
+  // Jugend: "MU16", "WU14" auch mitten im String
+  var jugendMatch = s.match(/([MW])\s*U\s*(\d{1,2})/i);
+  if (jugendMatch) return jugendMatch[1].toUpperCase() + 'U' + jugendMatch[2];
+
+  // Jugend mit Geschlechts-Keyword: "Männliche Jugend U16" → "MU16"
+  if (/männl|male|herren|männer/i.test(s)) { var _ju = s.match(/U\s*(\d{1,2})/i); if (_ju) return 'MU' + _ju[1]; }
+  if (/weibl|female|frauen|damen/i.test(s)) { var _jw = s.match(/U\s*(\d{1,2})/i); if (_jw) return 'WU' + _jw[1]; }
+
+  // Nur Geschlecht: "Männer", "Frauen", "Herren", "Damen" → "M"/"W"
+  if (/^(männer|herren|male|men)$/i.test(s))   return 'M';
+  if (/^(frauen|damen|female|women)$/i.test(s)) return 'W';
+
+  // Jugend ohne Geschlecht im Text: "U16 weiblich" → "WU16"
+  var jugGMatch = s.match(/U(\d{1,2})\s*(weibl|female)/i);
+  if (jugGMatch) return 'WU' + jugGMatch[1];
+  var jugGMatch2 = s.match(/U(\d{1,2})\s*(männl|male)/i);
+  if (jugGMatch2) return 'MU' + jugGMatch2[1];
+
+
+  return s; // unverändert wenn kein Match
+}
+
 function calcDlvAK(jahrgang, geschlecht, eventJahr) {
   var alter = eventJahr - parseInt(jahrgang);
   if (isNaN(alter) || alter < 5) return '';
@@ -5353,8 +5395,8 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var club  = String(raw[r.iClub]  || '').trim();
     var ak = '';
     if (r.iAK >= 0 && String(raw[r.iAK] || '').trim()) {
-      ak = String(raw[r.iAK] || '').trim(); // AK direkt aus Daten (z.B. M50)
-      if (/^\d+\.?\s*[A-Z]/.test(ak)) { var _aksp3 = ak.match(/^(\d+)\.?\s*(.+)$/); if (_aksp3) ak = _aksp3[2].trim(); }
+      ak = normalizeAK(String(raw[r.iAK] || '').trim()); // AK normalisieren: "Seniorinnen W40" → "W40"
+      if (/^\d+\.?\s*[A-Z]/.test(ak)) { var _aksp3 = ak.match(/^(\d+)\.?\s*(.+)$/); if (_aksp3) ak = normalizeAK(_aksp3[2].trim()); }
     } else {
       var _jahrgang = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
       var _geschlecht = '';
