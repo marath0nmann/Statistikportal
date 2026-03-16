@@ -1,8 +1,1 @@
-v543: CBOR-Decoder: negative Integer-Keys + COSE-Key Parsing
-
-- cborDecodeItem: Map-Keys als String gespeichert → negative Integers
-  wie -2, -3 werden zu "-2", "-3" (PHP array keys)
-- Major Type 6 (Tag) ignorieren statt null
-- Major Type 7: false/true/null korrekt
-- verifySignature/Es256/Rs256: String-Keys konsistent
-- Bessere Fehlermeldung wenn COSE-Key null
+v544: Debug COSE-Key Parsing
