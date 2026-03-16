@@ -8671,9 +8671,9 @@ function uitsParseHTML(html, eventId) {
     }
   }
 
-  // Ergebnis-Container
-  var container = doc.querySelector('.uitslagen');
-  if (!container) {
+  // Alle Ergebnis-Container (je einer pro Kategorie)
+  var containers = doc.querySelectorAll('.uitslagen');
+  if (!containers.length) {
     return { eventName, eventDate, eventOrt, eventId, kategorien: [], rows: [] };
   }
 
@@ -8681,7 +8681,9 @@ function uitsParseHTML(html, eventId) {
   var currentCat = '';
   var rowNr = 0;
 
-  Array.from(container.children).forEach(function(el) {
+  // Alle Container durchlaufen
+  Array.from(containers).forEach(function(container) {
+    Array.from(container.children).forEach(function(el) {
     var cls = el.className || '';
 
     if (cls.includes('caption')) {
@@ -8724,7 +8726,8 @@ function uitsParseHTML(html, eventId) {
       geschlecht: geschlecht,
       ownClub:   ownClub,
     });
-  });
+    }); // inner forEach (container.children)
+  }); // outer forEach (containers)
 
   return { eventName, eventDate, eventOrt, eventId, rows };
 }
