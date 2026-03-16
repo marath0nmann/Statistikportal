@@ -1446,17 +1446,19 @@ async function changePasswort() {
 }
 
 async function disableTotp() {
-  // Prüfen ob Passkey als Fallback vorhanden ist
   var hasPasskey = currentUser && currentUser.has_passkey;
-  var msg = hasPasskey
-    ? 'TOTP deaktivieren? Du kannst dich weiterhin per Passkey anmelden.'
-    : 'TOTP deaktivieren? Achtung: Kein Passkey registriert \u2013 du verlierst den 2FA-Zugang!';
-  if (!confirm(msg)) return;
+  if (!hasPasskey) {
+    notify('⚠︎ Kein Passkey registriert – bitte zuerst einen Passkey hinzufügen.', 'err');
+    return;
+  }
+  if (!confirm('TOTP deaktivieren? Du kannst dich weiterhin per Passkey anmelden.')) return;
   var r = await apiDel('auth/totp-setup');
   if (r && r.ok) {
     currentUser.totp_aktiv = false;
     closeModal();
-    notify('\u2705 TOTP deaktiviert.', 'ok');
+    notify('✅ TOTP deaktiviert. Ab jetzt nur noch Passkey als 2FA.', 'ok');
+  } else if (r && r.status === 409) {
+    notify('⚠︎ Passkey nicht in DB gefunden. Passkey neu hinzufügen und erneut versuchen.', 'err');
   } else {
     notify('Fehler: ' + ((r && r.fehler) || 'Unbekannt'), 'err');
   }
