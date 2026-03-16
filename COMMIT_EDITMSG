@@ -1,5 +1,11 @@
-v556: RaceResult Import: normalizeAK() auch im Import-Loop
+v558: Rekorde: mapping_id konsequent für Disziplin-Filter
 
-normalizeAK() wurde nur beim Anzeigen der Tabelle aufgerufen, nicht
-beim tatsächlichen Import → "Seniorinnen W40" kam roh in isValidDlvAK()
-→ unbekannte AK Dialog erschien obwohl die AK korrekt angezeigt wurde.
+Frontend (v557 Fortsetzung):
+- Rekorde API-Call schickt mapping_id mit
+- navigateToDisz übergibt mapping_id
+- Dashboard-Links tragen data-rek-mid
+
+Backend:
+- Rekorde GET: wenn keine mapping_id übergeben → automatisch aus
+  (kat, disz) nachschlagen → verhindert Mischung bei gleichnamigen
+  Disziplinen in verschiedenen Kategorien auch ohne Frontend-Fix
