@@ -3773,12 +3773,14 @@ function renderEintragen() {
   var sub = state.subTab || 'bulk';
   var isRR = sub === 'raceresult';
   var isBulk = sub === 'bulk';
-  var isMika = sub === 'mikatiming';
+  var isMika  = sub === 'mikatiming';
+  var isUits  = sub === 'uitslagen';
 
   var tabHtml = '<div class="subtabs" style="margin-bottom:20px">' +
     '<button class="subtab' + (sub==='bulk'       ? ' active' : '') + '" onclick="setSubTab(\'bulk\')">📋︎ Bulk-Eintragen</button>' +
     '<button class="subtab' + (sub==='raceresult' ? ' active' : '') + '" onclick="setSubTab(\'raceresult\')">🌍︎ RaceResult-Import</button>' +
     '<button class="subtab' + (sub==='mikatiming' ? ' active' : '') + '" onclick="setSubTab(\'mikatiming\')">⏱︎ MikaTiming-Import</button>' +
+    '<button class="subtab' + (sub==='uitslagen' ? ' active' : '') + '" onclick="setSubTab(\'uitslagen\')">&#x1F1F3;&#x1F1F1; uitslagen.nl</button>' +
   '</div>';
 
   var today = new Date().toISOString().slice(0, 10);
@@ -3922,6 +3924,20 @@ function renderEintragen() {
     var _rrKatEl = document.getElementById('rr-kat');
     if (_rrKatEl && !_rrKatEl.value) _rrKatEl.value = 'strasse';
     rrKatChanged(); // Button aktivieren
+  }
+  if (isUits) {
+    content =
+      '<div class="panel" style="padding:24px">' +
+        '<div class="panel-title" style="margin-bottom:4px">&#x1F1F3;&#x1F1F1; uitslagen.nl Import</div>' +
+        '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Ergebnisse von <strong>uitslagen.nl</strong> importieren. TuS&nbsp;Oedt-Starter werden automatisch per Vereinssuche gefunden.</div>' +
+        '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">' +
+          '<input type="text" id="uits-url" placeholder="https://uitslagen.nl/uitslag?id=2025110916317" ' +
+            'style="flex:1;min-width:280px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text)" ' +
+            'onkeydown="if(event.key===\'Enter\')uitsFetch()"/>' +
+          '<button class="btn btn-primary" onclick="uitsFetch()">&#x1F50D; Ergebnisse laden</button>' +
+        '</div>' +
+        '<div id="uits-preview"><div style="color:var(--text2);font-size:13px">Bitte uitslagen.nl-URL eingeben und Laden klicken.</div></div>' +
+      '</div>';
   }
   if (isMika) mikaKatChanged();
 
@@ -8506,6 +8522,430 @@ async function passkeyDeleteAndRefresh(id, containerId) {
     await renderPasskeySection(containerId);
   } else {
     notify('Fehler beim Löschen.', 'err');
+  }
+}
+/* ── 13_uitslagen.js – uitslagen.nl Import ── */
+
+// ── AK-Mapping: Niederländische Kategorienamen → DLV-Kürzel ──────
+function uitsAKFromCat(catRaw) {
+  // catRaw z.B. "MSEN, LANGE CROSS" oder "M45, KORTE CROSS" oder "VU16, VROUWEN U16"
+  var first = (catRaw || '').split(',')[0].trim().toUpperCase();
+  // Geschlecht: M=Männer, V=Frauen (Niederländisch: Vrouwen)
+  if (first === 'MSEN') return 'M';
+  if (first === 'VSEN') return 'W';
+  // Senioren mit AK: M40, M45, V35, V45 etc.
+  var senM = first.match(/^M(\d{2})$/);
+  if (senM) return 'M' + senM[1];
+  var senV = first.match(/^V(\d{2})$/);
+  if (senV) return 'W' + senV[1];
+  // Jugend männlich: MU20, MU18, MU16, MU14, MU12, MU10, MU9, MU8
+  var jugM = first.match(/^MU(\d{1,2})$/);
+  if (jugM) return 'MU' + jugM[1];
+  // Jugend weiblich: VU20, VU18, VU16, VU14, VU12, VU10, VU9, VU8
+  var jugV = first.match(/^VU(\d{1,2})$/);
+  if (jugV) return 'WU' + jugV[1];
+  // Gehandicapt (MVG, VVG) → leer lassen
+  if (first.indexOf('VG') >= 0) return '';
+  // Gemischt U10 etc. → kein AK
+  return '';
+}
+
+// ── Geschlecht aus Kategorie ────────────────────────────────────
+function uitsGeschlechtFromCat(catRaw) {
+  var first = (catRaw || '').split(',')[0].trim().toUpperCase();
+  if (first.charAt(0) === 'M') return 'M';
+  if (first.charAt(0) === 'V') return 'W';
+  return '';
+}
+
+// ── Disziplinname aus Kategorie ─────────────────────────────────
+function uitsDiszFromCat(catRaw) {
+  // "MSEN, LANGE CROSS" → "Lange Cross"
+  // "M45, KORTE CROSS" → "Korte Cross"
+  // "VU16, VROUWEN U16" → "" (keine klare Disziplin)
+  var rest = (catRaw || '').split(',').slice(1).join(',').trim();
+  if (!rest) return '';
+  // Bekannte Disziplinen mappen
+  var lower = rest.toLowerCase();
+  if (lower.includes('lange cross'))   return 'Lange Cross';
+  if (lower.includes('korte cross'))   return 'Korte Cross';
+  if (lower.includes('cross'))         return 'Cross';
+  if (lower.includes('marathon'))      return 'Marathon';
+  if (lower.includes('halve marathon') || lower.includes('halbmarathon')) return 'Halbmarathon';
+  if (lower.includes('10 km') || lower.includes('10km')) return '10km';
+  if (lower.includes('5 km') || lower.includes('5km'))   return '5km';
+  // Fallback: Rest-Text
+  return rest.replace(/MANNEN|VROUWEN|U\d+\/U\d+|U\d+/gi, '').trim() || '';
+}
+
+// ── Verein-Match: prüft ob dieser Eintrag zum eigenen Verein gehört ─
+function uitsIstEigenerVerein(vereinText) {
+  var vereinCfg = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
+  if (!vereinCfg) return false;
+  var v = (vereinText || '').toLowerCase();
+  // TuS Oedt → auch "Tus Oedt" oder Teilmatches
+  var parts = vereinCfg.split(/\s+/);
+  return parts.every(function(p) { return p.length < 2 || v.indexOf(p) >= 0; });
+}
+
+// ── Hauptfunktion: URL laden + parsen ───────────────────────────
+async function uitsFetch() {
+  var urlInput = ((document.getElementById('uits-url') || {}).value || '').trim();
+  if (!urlInput) { notify('Bitte uitslagen.nl-URL eingeben.', 'err'); return; }
+
+  // Event-ID aus URL extrahieren
+  var idMatch = urlInput.match(/[?&]id=([^&]+)/);
+  if (!idMatch) { notify('Keine Event-ID in der URL gefunden (erwartet: ?id=XXXXX).', 'err'); return; }
+  var eventId = idMatch[1];
+
+  var preview = document.getElementById('uits-preview');
+  preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; Lade Ergebnisse&hellip;</div>';
+
+  // Proxy: PHP-Seite via mika-fetch-Proxy (wir nutzen denselben cURL-Proxy)
+  var fetchUrl = 'https://uitslagen.nl/uitslag?id=' + encodeURIComponent(eventId);
+  var r = await apiGet('uits-fetch?url=' + encodeURIComponent(fetchUrl));
+  if (!r || !r.ok) {
+    preview.innerHTML = '<div style="background:var(--surf2);border-radius:10px;padding:16px"><strong>&#x274C; Fehler:</strong> ' + ((r && r.fehler) || 'Seite konnte nicht geladen werden') + '</div>';
+    return;
+  }
+
+  var html = r.data && r.data.html;
+  if (!html) {
+    preview.innerHTML = '<div style="background:var(--surf2);border-radius:10px;padding:16px">&#x274C; Keine HTML-Daten vom Server.</div>';
+    return;
+  }
+
+  // HTML parsen
+  var parsed = uitsParseHTML(html, eventId);
+  if (!parsed.eventName) {
+    preview.innerHTML = '<div style="background:var(--surf2);border-radius:10px;padding:16px">&#x274C; Konnte keine Veranstaltung aus der Seite lesen.</div>';
+    return;
+  }
+
+  window._uitsState = parsed;
+  uitsRenderPreview(parsed);
+}
+
+// ── HTML parsen ─────────────────────────────────────────────────
+function uitsParseHTML(html, eventId) {
+  // DOM-Parser
+  var parser = new DOMParser();
+  var doc = parser.parseFromString(html, 'text/html');
+
+  // Veranstaltungsinfo
+  var titleEl = doc.querySelector('h1, .title, .event-title');
+  var eventName = '';
+  var eventDate = '';
+  var eventOrt  = '';
+  // Titel aus <title>-Tag
+  var pageTitle = doc.title || '';
+  if (pageTitle) {
+    eventName = pageTitle.replace('Uitslagenlijst', '').replace('- Uitslagen.nl', '').trim();
+    if (eventName.startsWith('-')) eventName = eventName.slice(1).trim();
+  }
+  // Datum + Ort aus .caption oder h2 (z.B. "Venlo - Zondag 9 november 2025")
+  var subtitleEl = doc.querySelector('.uitslag > .caption, h2');
+  if (subtitleEl) {
+    var subText = subtitleEl.textContent.trim();
+    // "Venlo - Zondag 9 november 2025" oder "9 november 2025 - Venlo"
+    var dateMatch = subText.match(/(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/i);
+    if (dateMatch) {
+      var maanden = {januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,september:9,oktober:10,november:11,december:12};
+      var m = maanden[(dateMatch[2]||'').toLowerCase()] || 1;
+      eventDate = dateMatch[3] + '-' + String(m).padStart(2,'0') + '-' + dateMatch[1].padStart(2,'0');
+      eventOrt = subText.replace(dateMatch[0],'').replace(/[-–,\s]+$/,'').replace(/^[-–,\s]+/,'').replace(/\w+dag/i,'').trim();
+    }
+  }
+  // Zweites .caption als Untertitel (Datum/Ort)
+  var captions = Array.from(doc.querySelectorAll('.uitslag > .caption, .uitslagen > .caption'));
+  // Erstes caption könnte schon eine Kategorie sein — wir suchen das Datum anders
+  if (!eventDate) {
+    // In plaintext der Seite suchen
+    var bodyText = doc.body ? doc.body.textContent : '';
+    var dm = bodyText.match(/(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/i);
+    if (dm) {
+      var maanden2 = {januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,september:9,oktober:10,november:11,december:12};
+      var m2 = maanden2[(dm[2]||'').toLowerCase()] || 1;
+      eventDate = dm[3] + '-' + String(m2).padStart(2,'0') + '-' + dm[1].padStart(2,'0');
+    }
+  }
+
+  // Ergebnis-Container
+  var container = doc.querySelector('.uitslagen');
+  if (!container) {
+    return { eventName, eventDate, eventOrt, eventId, kategorien: [], rows: [] };
+  }
+
+  var rows = [];
+  var currentCat = '';
+  var rowNr = 0;
+
+  Array.from(container.children).forEach(function(el) {
+    var cls = el.className || '';
+
+    if (cls.includes('caption')) {
+      currentCat = el.textContent.trim();
+      return;
+    }
+    if (!cls.includes('tr') || cls.includes('thead')) return;
+
+    // Felder extrahieren
+    var platzEl  = el.querySelector('.td.bold');
+    var nameEl   = el.querySelector('.naam');
+    var vereinEl = el.querySelector('.wpl');
+    var zeitEls  = Array.from(el.querySelectorAll('.td.tijd'));
+    // Zweites tijd-Element ist die tatsächliche Zeit
+    var zeitEl   = zeitEls.find(function(e){ return e.textContent.trim().match(/^\d{1,2}:\d{2}/); });
+
+    if (!nameEl || !zeitEl) return;
+
+    var platz  = platzEl  ? parseInt(platzEl.textContent.trim()) || 0 : 0;
+    var name   = nameEl.textContent.trim();
+    var verein = vereinEl ? vereinEl.textContent.trim() : '';
+    var zeit   = zeitEl.textContent.trim();
+
+    // Gehandicapt überspringen
+    var catFirst = currentCat.split(',')[0].toUpperCase().trim();
+    if (catFirst.indexOf('VG') >= 0 || catFirst.indexOf('(G)') >= 0) return;
+
+    var ak         = uitsAKFromCat(currentCat);
+    var geschlecht = uitsGeschlechtFromCat(currentCat);
+    var ownClub    = uitsIstEigenerVerein(verein);
+
+    rows.push({
+      nr:        ++rowNr,
+      kategorie: currentCat,
+      platz:     platz,
+      name:      name,
+      verein:    verein,
+      zeit:      zeit,
+      ak:        ak,
+      geschlecht: geschlecht,
+      ownClub:   ownClub,
+    });
+  });
+
+  return { eventName, eventDate, eventOrt, eventId, rows };
+}
+
+// ── Preview rendern ─────────────────────────────────────────────
+function uitsRenderPreview(parsed) {
+  var preview = document.getElementById('uits-preview');
+  var ownRows = parsed.rows.filter(function(r){ return r.ownClub; });
+  var allCount = parsed.rows.length;
+
+  if (!ownRows.length) {
+    preview.innerHTML =
+      '<div style="background:var(--surf2);border-radius:10px;padding:16px">' +
+        '<strong>&#x26A0;&#xFE0E; Keine TuS&nbsp;Oedt-Athleten gefunden</strong>' +
+        '<div style="font-size:13px;color:var(--text2);margin-top:6px">' +
+          allCount + ' Gesamteinträge geladen. Vereinsname: „' + (appConfig.verein_kuerzel || appConfig.verein_name || '?') + '"' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
+  // Athleten-Matching: Namen aus DB
+  var athOptHtml = '<option value="">– Athlet wählen –</option>';
+  var athleten = state.athleten || [];
+  athleten.forEach(function(a) {
+    athOptHtml += '<option value="' + a.id + '">' + a.name_nv + '</option>';
+  });
+
+  // Disziplinen
+  var disziplinen = state.disziplinen || [];
+  var diszOptHtml = '<option value="">– Disziplin wählen –</option>';
+  disziplinen.forEach(function(d) {
+    var label = d.disziplin + (d.kategorie_name ? ' (' + d.kategorie_name + ')' : '');
+    diszOptHtml += '<option value="' + d.mapping_id + '">' + label + '</option>';
+  });
+
+  // Event-Header
+  var headerHtml =
+    '<div style="background:var(--surf2);border-radius:10px;padding:16px;margin-bottom:16px">' +
+      '<div style="font-weight:700;font-size:15px;margin-bottom:6px">&#x1F3C1; ' + (parsed.eventName || 'Veranstaltung') + '</div>' +
+      '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text2)">' +
+        '<span>&#x1F4C5; <input type="date" id="uits-datum" value="' + (parsed.eventDate || '') + '" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"/></span>' +
+        '<span>&#x1F4CD; <input type="text" id="uits-ort" value="' + (parsed.eventOrt || '') + '" placeholder="Ort" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);width:140px"/></span>' +
+        '<span>&#x1F3F7; <input type="text" id="uits-evname" value="' + (parsed.eventName || '') + '" placeholder="Veranstaltungsname" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);width:240px"/></span>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-top:8px">' + ownRows.length + ' TuS&nbsp;Oedt-Starter aus ' + allCount + ' Gesamteinträgen</div>' +
+    '</div>';
+
+  // Tabelle
+  var tableHtml =
+    '<div style="overflow-x:auto">' +
+    '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+    '<thead><tr style="border-bottom:2px solid var(--border);color:var(--text2)">' +
+      '<th style="padding:6px 8px;text-align:left;font-weight:600">&#x2714;</th>' +
+      '<th style="padding:6px 8px;text-align:left;font-weight:600">Name</th>' +
+      '<th style="padding:6px 8px;text-align:left;font-weight:600">Athlet DB</th>' +
+      '<th style="padding:6px 8px;text-align:left;font-weight:600">Kategorie</th>' +
+      '<th style="padding:6px 8px;text-align:left;font-weight:600">AK</th>' +
+      '<th style="padding:6px 8px;text-align:left;font-weight:600">Disziplin</th>' +
+      '<th style="padding:6px 8px;text-align:right;font-weight:600">Platz</th>' +
+      '<th style="padding:6px 8px;text-align:right;font-weight:600">Zeit</th>' +
+    '</tr></thead><tbody>';
+
+  ownRows.forEach(function(row, i) {
+    // Auto-Match: Name in DB suchen (Nachname, Vorname)
+    var bestMatch = uitsAutoMatch(row.name, athleten);
+    var diszMatch = uitsAutoDiszMatch(row.kategorie, disziplinen);
+
+    tableHtml +=
+      '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:6px 8px"><input type="checkbox" class="uits-chk" data-idx="' + i + '" checked/></td>' +
+        '<td style="padding:6px 8px;font-weight:600">' + row.name + '<div style="font-size:11px;color:var(--text2)">' + row.verein + '</div></td>' +
+        '<td style="padding:6px 8px"><select class="uits-athlet" data-idx="' + i + '" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:140px">' +
+          uitsAthOptHtml(athleten, bestMatch) +
+        '</select></td>' +
+        '<td style="padding:6px 8px;font-size:12px;color:var(--text2)">' + row.kategorie + '</td>' +
+        '<td style="padding:6px 8px"><input type="text" class="uits-ak" data-idx="' + i + '" value="' + (row.ak || '') + '" style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"/></td>' +
+        '<td style="padding:6px 8px"><select class="uits-disz" data-idx="' + i + '" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:160px">' +
+          uitsDiszOptHtml(disziplinen, diszMatch) +
+        '</select></td>' +
+        '<td style="padding:6px 8px;text-align:right;color:var(--text2)">' + (row.platz || '–') + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:15px;color:var(--result-color)">' + row.zeit + '</td>' +
+      '</tr>';
+  });
+
+  tableHtml += '</tbody></table></div>';
+
+  var importBtn =
+    '<div style="margin-top:16px;display:flex;gap:10px;align-items:center">' +
+      '<button class="btn btn-primary" onclick="uitsImport()">&#x2705; Ausgewählte importieren</button>' +
+      '<div id="uits-status" style="font-size:13px;color:var(--text2)"></div>' +
+    '</div>';
+
+  preview.innerHTML = headerHtml + tableHtml + importBtn;
+}
+
+// ── Auto-Match Athlet ────────────────────────────────────────────
+function uitsAutoMatch(name, athleten) {
+  if (!name || !athleten.length) return null;
+  var nl = name.toLowerCase();
+  // Exakter Match auf name_nv ("Nachname, Vorname")
+  for (var i = 0; i < athleten.length; i++) {
+    var a = athleten[i];
+    var anl = (a.name_nv || '').toLowerCase();
+    // Beide Richtungen: "Kebeck, Rüdige" oder "Rüdige Kebeck"
+    var parts = nl.split(/[\s,]+/).filter(Boolean);
+    var aparts = anl.split(/[\s,]+/).filter(Boolean);
+    var matchScore = 0;
+    parts.forEach(function(p) {
+      if (p.length > 2 && aparts.some(function(ap){ return ap.startsWith(p) || p.startsWith(ap); })) matchScore++;
+    });
+    if (matchScore >= Math.min(2, parts.length)) return a.id;
+  }
+  return null;
+}
+
+function uitsAthOptHtml(athleten, selectedId) {
+  var html = '<option value="">– Athlet wählen –</option>';
+  athleten.forEach(function(a) {
+    html += '<option value="' + a.id + '"' + (a.id == selectedId ? ' selected' : '') + '>' + a.name_nv + '</option>';
+  });
+  return html;
+}
+
+// ── Auto-Match Disziplin ─────────────────────────────────────────
+function uitsAutoDiszMatch(catRaw, disziplinen) {
+  var diszName = uitsDiszFromCat(catRaw);
+  if (!diszName) return null;
+  var dl = diszName.toLowerCase();
+  // Cross-Disziplinen suchen
+  for (var i = 0; i < disziplinen.length; i++) {
+    var d = disziplinen[i];
+    var dn = (d.disziplin || '').toLowerCase();
+    var kn = (d.kategorie_name || '').toLowerCase();
+    if (kn.indexOf('cross') >= 0 && dn.indexOf('cross') >= 0) {
+      // Lange vs Korte Cross unterscheiden
+      if (dl.indexOf('lange') >= 0 && (dn.indexOf('lang') >= 0 || dn === 'lange cross')) return d.mapping_id;
+      if (dl.indexOf('korte') >= 0 && (dn.indexOf('kort') >= 0 || dn === 'korte cross')) return d.mapping_id;
+      if (dl === 'cross' && dn === 'cross') return d.mapping_id;
+    }
+  }
+  // Fallback: erster Cross-Eintrag
+  for (var j = 0; j < disziplinen.length; j++) {
+    if ((disziplinen[j].kategorie_name || '').toLowerCase().indexOf('cross') >= 0) return disziplinen[j].mapping_id;
+  }
+  return null;
+}
+
+function uitsDiszOptHtml(disziplinen, selectedMid) {
+  var html = '<option value="">– Disziplin wählen –</option>';
+  disziplinen.forEach(function(d) {
+    var label = d.disziplin + (d.kategorie_name ? ' (' + d.kategorie_name + ')' : '');
+    html += '<option value="' + d.mapping_id + '"' + (d.mapping_id == selectedMid ? ' selected' : '') + '>' + label + '</option>';
+  });
+  return html;
+}
+
+// ── Import durchführen ───────────────────────────────────────────
+async function uitsImport() {
+  var parsed = window._uitsState;
+  if (!parsed) { notify('Keine Daten geladen.', 'err'); return; }
+
+  var datum   = ((document.getElementById('uits-datum')   || {}).value || '').trim();
+  var ort     = ((document.getElementById('uits-ort')     || {}).value || '').trim();
+  var evname  = ((document.getElementById('uits-evname')  || {}).value || '').trim();
+
+  if (!datum) { notify('Bitte Datum eingeben.', 'err'); return; }
+
+  var chks    = document.querySelectorAll('.uits-chk');
+  var athSels = document.querySelectorAll('.uits-athlet');
+  var akInps  = document.querySelectorAll('.uits-ak');
+  var diszSels= document.querySelectorAll('.uits-disz');
+
+  var ownRows = parsed.rows.filter(function(r){ return r.ownClub; });
+  var items = [];
+
+  for (var i = 0; i < chks.length; i++) {
+    if (!chks[i].checked) continue;
+    var idx      = parseInt(chks[i].getAttribute('data-idx'), 10);
+    var row      = ownRows[idx];
+    var athletId = athSels[i] ? parseInt(athSels[i].value) || null : null;
+    var mappingId= diszSels[i] ? parseInt(diszSels[i].value) || null : null;
+    var ak       = akInps[i]  ? (akInps[i].value || '').trim() : (row.ak || '');
+
+    if (!athletId || !mappingId) continue;
+
+    // Disziplinname aus mapping_id ermitteln
+    var diszObj = (state.disziplinen || []).find(function(d){ return d.mapping_id == mappingId; });
+    var disziplin = diszObj ? diszObj.disziplin : '';
+
+    items.push({
+      datum:            datum,
+      ort:              ort,
+      veranstaltung_name: evname,
+      athlet_id:        athletId,
+      disziplin:        disziplin,
+      disziplin_mapping_id: mappingId,
+      resultat:         row.zeit,
+      altersklasse:     ak,
+      ak_platzierung:   row.platz || null,
+      meisterschaft:    null,
+      import_quelle:    'uitslagen:' + parsed.eventId,
+    });
+  }
+
+  if (!items.length) {
+    notify('Keine gültigen Einträge (Athlet + Disziplin benötigt).', 'err');
+    return;
+  }
+
+  var status = document.getElementById('uits-status');
+  if (status) status.textContent = 'Importiere ' + items.length + ' Einträge\u2026';
+
+  var r = await apiPost('ergebnisse/bulk', { eintraege: items });
+  if (r && r.ok) {
+    var cnt = r.data && r.data.imported !== undefined ? r.data.imported : items.length;
+    notify('\u2705 ' + cnt + ' Ergebnis(se) importiert.', 'ok');
+    if (status) status.textContent = '\u2705 ' + cnt + ' importiert.';
+  } else {
+    var msg = (r && r.fehler) || 'Unbekannter Fehler';
+    notify('\u274C Import fehlgeschlagen: ' + msg, 'err');
+    if (status) status.textContent = '\u274C ' + msg;
   }
 }
 /* ── 10_veranstaltungen.js ── */

@@ -1,10 +1,10 @@
-v562: Timeline: Gesamtrekord aktualisiert bestByG mit
+v563: uitslagen.nl Import
 
-Wenn Athlet X den Gesamtrekord bricht, wurde bestByG[geschlecht] nicht
-gesetzt. Folge: Athletin Y desselben Geschlechts bekam "Bestleistung Frauen"
-obwohl X bereits besser ist (X's Leistung = Gesamtrekord = automatisch
-auch Frauen-Bestleistung).
-
-Fix: beim Gesamtrekord-Update wird bestByG[g] = val mitgesetzt.
-So erkennt der nachfolgende Geschlechts-Check korrekt dass kein neuer
-Frauen/Männer-Rekord vorliegt.
+Neuer Import-Tab in Eintragen:
+- 13_uitslagen.js: HTML-Scraper für uitslagen.nl
+  - DOM-Parsing: .caption (Kategorie), .tr/.naam/.wpl/.td.tijd
+  - AK-Mapping: MSEN→M, VSEN→W, M45→M45, V45→W45, VU16→WU16 etc.
+  - Auto-Match: Athlet per Namensähnlichkeit, Disziplin per Kategorie
+  - Import via ergebnisse/bulk
+- api/index.php: uits-fetch Proxy (cURL, nur uitslagen.nl-URLs)
+- 07_eintragen.js: neuer SubTab "🇳🇱 uitslagen.nl"
