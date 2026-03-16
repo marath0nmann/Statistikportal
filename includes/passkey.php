@@ -139,10 +139,19 @@ class Passkey {
 
             // COSE Public Key parsen
             $pubKeyData = self::cborDecode($coseKey);
-            if (!is_array($pubKeyData)) throw new Exception(
-                'Public Key konnte nicht dekodiert werden. coseKey-Länge: ' . strlen($coseKey) .
-                ', Hex-Anfang: ' . bin2hex(substr($coseKey, 0, 8))
-            );
+            if (!is_array($pubKeyData)) {
+                // Detailliertes Debug: authData Offsets prüfen
+                $authLen   = strlen($authData);
+                $coseStart = 55 + $credIdLen;
+                throw new Exception(
+                    'Public Key null. authData-Len=' . $authLen .
+                    ' credIdLen=' . $credIdLen .
+                    ' coseStart=' . $coseStart .
+                    ' coseLen=' . strlen($coseKey) .
+                    ' coseHex=' . bin2hex(substr($coseKey, 0, 16)) .
+                    ' authHex55=' . bin2hex(substr($authData, 53, 6))
+                );
+            }
 
             // Public Key serialisieren
             $pubKeyJson = json_encode($pubKeyData);

@@ -1,5 +1,5 @@
 # TuS Oedt – Leichtathletik Statistik
-## Version v542 | Stand: März 2026
+## Version v543 | Stand: März 2026
 
 ---
 
@@ -37,7 +37,7 @@ deine-domain.de/
 
 ---
 
-### ✨ Aktuelle Features (v542)
+### ✨ Aktuelle Features (v543)
 
 **Dashboard**
 - Konfigurierbare Widget-Layouts (Statistik-Karten, Timeline, Veranstaltungen, Hall of Fame)
