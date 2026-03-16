@@ -1921,7 +1921,7 @@ function timelineBadges(rek) {
     timelineHtml += '<div class="timeline-item">';
     timelineHtml += '<div class="timeline-date">' + formatDate(rek.datum) + '</div>';
     timelineHtml += '<div class="timeline-body">';
-    var diszLink = '<span class="athlet-link" style="color:var(--text2);font-size:13px;cursor:pointer" data-rek-disz="' + rek.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + ergDiszLabel(rek) + '</span>';
+    var diszLink = '<span class="athlet-link" style="color:var(--text2);font-size:13px;cursor:pointer" data-rek-disz="' + rek.disziplin.replace(/"/g,'&quot;') + '" data-rek-mid="' + (rek.disziplin_mapping_id||'') + '" onclick="navigateToDisz(this.dataset.rekDisz,this.dataset.rekMid)">' + ergDiszLabel(rek) + '</span>';
     timelineHtml += '<div class="timeline-athlet-disz">' + athLink + '<span style="color:var(--text2);margin:0 4px">&middot;</span>' + diszLink + '</div>';
     timelineHtml += '<div class="timeline-result">' + res + vorherHtml + '</div>';
     timelineHtml += (badgesHtml ? '<div class="timeline-badges">' + badgesHtml + '</div>' : '');
@@ -2107,7 +2107,7 @@ function timelineBadges(rek) {
             var fVFmt = fmtValNum(fItem.vorher_val, fFmt === 's' ? 's' : (fFmt === 'm' ? 'm' : 'min'));
             if (fVFmt) fVorher = '<span style="color:var(--text2);font-size:12px;margin-left:6px">vorher: ' + fVFmt + '</span>';
           }
-          var fDiszLink = '<span class="athlet-link" style="color:var(--text2);font-size:13px;cursor:pointer" data-rek-disz="' + fItem.disziplin.replace(/"/g,'&quot;') + '" onclick="navigateToDisz(this.dataset.rekDisz)">' + ergDiszLabel(fItem) + '</span>';
+          var fDiszLink = '<span class="athlet-link" style="color:var(--text2);font-size:13px;cursor:pointer" data-rek-disz="' + fItem.disziplin.replace(/"/g,'&quot;') + '" data-rek-mid="' + (fItem.disziplin_mapping_id||'') + '" onclick="navigateToDisz(this.dataset.rekDisz,this.dataset.rekMid)">' + ergDiszLabel(fItem) + '</span>';
           filteredTimeline +=
             '<div class="timeline-item">' +
               '<div class="timeline-date">' + formatDate(fItem.datum) + '</div>' +
@@ -3526,7 +3526,8 @@ async function renderRekorde() {
 
   el.innerHTML = catHtml + topHtml + diszHtml + '<div class="loading" style="padding:32px"><div class="spinner"></div>Lade Rekorde&hellip;</div>';
 
-  var r = await apiGet('rekorde?kat=' + rs.kat + '&disz=' + encodeURIComponent(rs.disz) + '&merge_ak=' + (rs.mergeAK ? '1' : '0'));
+  var _midParam = rs.mapping_id ? '&mapping_id=' + rs.mapping_id : '';
+  var r = await apiGet('rekorde?kat=' + rs.kat + '&disz=' + encodeURIComponent(rs.disz) + _midParam + '&merge_ak=' + (rs.mergeAK ? '1' : '0'));
   if (!r || !r.ok) {
     el.innerHTML = catHtml + topHtml + diszHtml + '<div class="panel" style="padding:24px;text-align:center;color:var(--accent)">' + (r && r.fehler ? r.fehler : 'Fehler') + '</div>';
     return;
@@ -3739,15 +3740,19 @@ function setRekDisz(disz, mid) {
   state.rekState.view = 'gesamt';
   renderRekorde();
 }
-function navigateToDisz(disz) {
-  // Kategorie der Disziplin ermitteln
-  var kat = null;
+function navigateToDisz(disz, mappingId) {
+  // Kategorie + mapping_id der Disziplin ermitteln
+  var kat = null; var mid = mappingId ? parseInt(mappingId) : null;
   var diszArr = state.disziplinen || [];
   for (var i = 0; i < diszArr.length; i++) {
-    if (diszArr[i].disziplin === disz && diszArr[i].tbl_key) { kat = diszArr[i].tbl_key; break; }
+    var d = diszArr[i];
+    // Bei mapping_id: exakter Match; sonst: erster Treffer per Name
+    if (mid && d.mapping_id == mid) { kat = d.tbl_key; break; }
+    if (!mid && d.disziplin === disz && d.tbl_key) { kat = d.tbl_key; mid = d.mapping_id || null; break; }
   }
   if (kat) state.rekState.kat = kat;
   state.rekState.disz = disz;
+  state.rekState.mapping_id = mid;
   state.rekState.view = 'gesamt';
   navigate('rekorde');
 }

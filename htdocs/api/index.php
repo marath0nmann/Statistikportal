@@ -1742,8 +1742,20 @@ if ($res === 'rekorde') {
             $diszCond  = "e.disziplin_mapping_id=?";
             $diszParam = $mappingId;
         } else {
-            $diszCond  = "e.disziplin=?";
-            $diszParam = $disz;
+            // Fallback: mapping_id aus (kat, disz) ermitteln
+            $katRow = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_kategorien') . " WHERE tbl_key=?", [$kat]);
+            $mRow   = $katRow ? DB::fetchOne(
+                "SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? AND kategorie_id=?",
+                [$disz, $katRow['id']]
+            ) : null;
+            if ($mRow) {
+                $diszCond  = "e.disziplin_mapping_id=?";
+                $diszParam = $mRow['id'];
+            } else {
+                // Letzter Fallback: nur per Name (kann bei gleichnamigen Disziplinen mischen)
+                $diszCond  = "e.disziplin=?";
+                $diszParam = $disz;
+            }
         }
 
         $nameExpr = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
@@ -2105,8 +2117,15 @@ if ($res === 'disziplin-mapping') {
             // UNIQUE-Key ändern falls noch alter Stand
             try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " DROP INDEX disziplin"); } catch (Exception $e) {}
             try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD UNIQUE KEY uq_disz_kat (disziplin, kategorie_id)"); } catch (Exception $e) {}
-            // disziplin_mapping_id befüllen
-            DB::query("UPDATE " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('disziplin_mapping') . " m ON m.disziplin=e.disziplin SET e.disziplin_mapping_id=m.id WHERE e.disziplin_mapping_id IS NULL");
+            // disziplin_mapping_id befüllen — NUR wenn eindeutig (genau 1 Mapping für den Namen)
+            DB::query("UPDATE " . DB::tbl('ergebnisse') . " e
+                JOIN " . DB::tbl('disziplin_mapping') . " m ON m.disziplin = e.disziplin
+                JOIN (
+                    SELECT disziplin FROM " . DB::tbl('disziplin_mapping') . "
+                    GROUP BY disziplin HAVING COUNT(*) = 1
+                ) AS eindeutig ON eindeutig.disziplin = e.disziplin
+                SET e.disziplin_mapping_id = m.id
+                WHERE e.disziplin_mapping_id IS NULL");
         } catch (Exception $e) { /* ignorieren */ }
 
         // Disziplin umbenennen – in Transaktion damit beide Updates atomar sind
