@@ -5649,6 +5649,7 @@ async function rrImport() {
       ak = String(raw[r.iAK] || '').trim();
       // Kombiniertes AK+Platz-Feld aufsplitten: "74. M35" → ak=M35
       if (/^\d+\.?\s*[A-Z]/.test(ak)) { var _aksp4 = ak.match(/^(\d+)\.?\s*(.+)$/); if (_aksp4) ak = _aksp4[2].trim(); }
+      ak = normalizeAK(ak); // "Seniorinnen W40" → "W40" etc.
     } else {
       var _jahrgang2 = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
       var _geschlecht2 = '';

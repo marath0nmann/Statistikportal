@@ -1,9 +1,5 @@
-v555: normalizeAK: Regex-Korruption behoben
+v556: RaceResult Import: normalizeAK() auch im Import-Loop
 
-Python \b in Raw-String wurde als ASCII-Backspace (0x08) in die JS-Datei
-geschrieben → Regex /\b([MW]U?\d{2})\b/ war komplett kaputt.
-Neuschreiben mit (?:^|\s)...(?:\s|$) statt \b — funktioniert korrekt:
-  "Seniorinnen W40" → "W40"
-  "Senioren M50"    → "M50"
-  "Senior W65"      → "W65"
-  "Männliche Jugend U16" → "MU16"
+normalizeAK() wurde nur beim Anzeigen der Tabelle aufgerufen, nicht
+beim tatsächlichen Import → "Seniorinnen W40" kam roh in isValidDlvAK()
+→ unbekannte AK Dialog erschien obwohl die AK korrekt angezeigt wurde.
