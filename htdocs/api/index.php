@@ -981,6 +981,11 @@ if ($res === 'dashboard' && $method === 'GET') {
                 $bestGesamt = $val;
                 $labelClub = $prevGesamt === null ? 'Erste Gesamtleistung' : 'Gesamtbestleistung';
                 if ($vorher === null) $vorher = $prevGesamt;
+                // Geschlechts-Bestleistung mitaktualisieren — verhindert dass der nächste
+                // Athlet desselben Geschlechts fälschlicherweise "Bestleistung Frauen/Männer" bekommt
+                if ($g === 'M' || $g === 'W') {
+                    $bestByG[$g] = $val;
+                }
             }
             // 2. Geschlechts-/Hauptklassen-Bestleistung (Gold wenn kein Gesamt-Label)
             if (!$labelClub && ($g === 'M' || $g === 'W')) {

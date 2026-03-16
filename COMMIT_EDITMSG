@@ -1,8 +1,10 @@
-v561: Fix vorher_val: TIME_TO_SEC('13:48,49') → 49680s statt 828s
+v562: Timeline: Gesamtrekord aktualisiert bestByG mit
 
-MySQL TIME_TO_SEC('13:48,49') interpretiert das als HH:MM (13h 48min)
-statt MM:SS (13min 48sec). Das Komma wird ignoriert.
+Wenn Athlet X den Gesamtrekord bricht, wurde bestByG[geschlecht] nicht
+gesetzt. Folge: Athletin Y desselben Geschlechts bekam "Bestleistung Frauen"
+obwohl X bereits besser ist (X's Leistung = Gesamtrekord = automatisch
+auch Frauen-Bestleistung).
 
-Fix: CONCAT('00:', REPLACE(resultat, ',', '.')) vor TIME_TO_SEC
-→ '13:48,49' → '00:13:48.49' → TIME_TO_SEC → 828s ✓
-Nur wenn kein HH:MM:SS-Format (2 Doppelpunkte) erkannt.
+Fix: beim Gesamtrekord-Update wird bestByG[g] = val mitgesetzt.
+So erkennt der nachfolgende Geschlechts-Check korrekt dass kein neuer
+Frauen/Männer-Rekord vorliegt.
