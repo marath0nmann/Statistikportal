@@ -1,5 +1,8 @@
-v542: Fix Login-Response: has_totp + has_passkey wurden nicht weitergegeben
+v543: CBOR-Decoder: negative Integer-Keys + COSE-Key Parsing
 
-api/index.php: jsonOk() im Login-Endpunkt enthielt nur totp_required/totp_setup,
-hat has_totp und has_passkey aus loginStep1 ignoriert → Frontend sah nie
-has_passkey:true → zeigte immer TOTP statt Passkey-Dialog.
+- cborDecodeItem: Map-Keys als String gespeichert → negative Integers
+  wie -2, -3 werden zu "-2", "-3" (PHP array keys)
+- Major Type 6 (Tag) ignorieren statt null
+- Major Type 7: false/true/null korrekt
+- verifySignature/Es256/Rs256: String-Keys konsistent
+- Bessere Fehlermeldung wenn COSE-Key null

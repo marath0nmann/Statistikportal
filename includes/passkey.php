@@ -139,7 +139,10 @@ class Passkey {
 
             // COSE Public Key parsen
             $pubKeyData = self::cborDecode($coseKey);
-            if (!$pubKeyData) throw new Exception('Public Key ungültig.');
+            if (!is_array($pubKeyData)) throw new Exception(
+                'Public Key konnte nicht dekodiert werden. coseKey-Länge: ' . strlen($coseKey) .
+                ', Hex-Anfang: ' . bin2hex(substr($coseKey, 0, 8))
+            );
 
             // Public Key serialisieren
             $pubKeyJson = json_encode($pubKeyData);
@@ -310,22 +313,22 @@ class Passkey {
 
     // ── Signatur prüfen (ES256 + RS256) ───────────────────────
     private static function verifySignature(string $data, string $sig, array $coseKey): bool {
-        $alg = $coseKey[3] ?? $coseKey['3'] ?? -7;
+        // CBOR Map Keys sind Strings (auch negative Integers → "-7", "3" etc.)
+        $alg = (int)($coseKey['3'] ?? $coseKey[3] ?? -7);
 
-        if ($alg == -7) {
-            // ES256: ECDSA P-256
+        if ($alg === -7 || $alg === -35 || $alg === -36) {
             return self::verifyEs256($data, $sig, $coseKey);
-        } elseif ($alg == -257) {
-            // RS256: RSASSA-PKCS1-v1_5
+        } elseif ($alg === -257) {
             return self::verifyRs256($data, $sig, $coseKey);
         }
-        return false;
+        // Unbekannter Algorithmus
+        throw new Exception('Unbekannter COSE-Algorithmus: ' . $alg);
     }
 
     private static function verifyEs256(string $data, string $sig, array $coseKey): bool {
-        // x, y Koordinaten aus COSE Map (Key: -2, -3 oder '2', '3')
-        $x = $coseKey[-2] ?? $coseKey['-2'] ?? '';
-        $y = $coseKey[-3] ?? $coseKey['-3'] ?? '';
+        // x=Key -2, y=Key -3 (als String-Keys wegen CBOR-Decoder)
+        $x = $coseKey['-2'] ?? $coseKey[-2] ?? '';
+        $y = $coseKey['-3'] ?? $coseKey[-3] ?? '';
         if (!$x || !$y) return false;
 
         // PEM aus Raw-Koordinaten bauen
@@ -350,8 +353,8 @@ class Passkey {
     }
 
     private static function verifyRs256(string $data, string $sig, array $coseKey): bool {
-        $n = $coseKey[-1] ?? $coseKey['-1'] ?? '';
-        $e = $coseKey[-2] ?? $coseKey['-2'] ?? '';
+        $n = $coseKey['-1'] ?? $coseKey[-1] ?? '';
+        $e = $coseKey['-2'] ?? $coseKey[-2] ?? '';
         if (!$n || !$e) return false;
 
         // RSA Public Key als PKCS#1 DER
@@ -409,38 +412,54 @@ class Passkey {
 
     private static function cborDecodeItem(string $data, int &$pos): mixed {
         if ($pos >= strlen($data)) return null;
-        $byte     = ord($data[$pos++]);
+        $byte      = ord($data[$pos++]);
         $majorType = ($byte >> 5) & 0x07;
         $addInfo   = $byte & 0x1F;
 
-        $value = self::cborReadLength($data, $pos, $addInfo);
-
         switch ($majorType) {
-            case 0: return $value; // unsigned int
-            case 1: return -1 - $value; // negative int
+            case 0: // unsigned int
+                return self::cborReadLength($data, $pos, $addInfo);
+            case 1: // negative int
+                $v = self::cborReadLength($data, $pos, $addInfo);
+                return -1 - $v;
             case 2: // bytes
-                $bytes = substr($data, $pos, $value);
-                $pos += $value;
+                $len = self::cborReadLength($data, $pos, $addInfo);
+                $bytes = substr($data, $pos, $len);
+                $pos += $len;
                 return $bytes;
             case 3: // text
-                $text = substr($data, $pos, $value);
-                $pos += $value;
+                $len = self::cborReadLength($data, $pos, $addInfo);
+                $text = substr($data, $pos, $len);
+                $pos += $len;
                 return $text;
             case 4: // array
+                $count = self::cborReadLength($data, $pos, $addInfo);
                 $arr = [];
-                for ($i = 0; $i < $value; $i++) {
+                for ($i = 0; $i < $count; $i++) {
                     $arr[] = self::cborDecodeItem($data, $pos);
                 }
                 return $arr;
-            case 5: // map
+            case 5: // map — Keys als Strings speichern damit negative Integers funktionieren
+                $count = self::cborReadLength($data, $pos, $addInfo);
                 $map = [];
-                for ($i = 0; $i < $value; $i++) {
+                for ($i = 0; $i < $count; $i++) {
                     $k = self::cborDecodeItem($data, $pos);
                     $v = self::cborDecodeItem($data, $pos);
-                    $map[$k] = $v;
+                    // PHP-Array-Keys: Integer-Keys (auch negative) explizit als String
+                    $map[(string)$k] = $v;
                 }
                 return $map;
+            case 6: // tag — ignorieren, Wert lesen
+                self::cborReadLength($data, $pos, $addInfo);
+                return self::cborDecodeItem($data, $pos);
             case 7: // float/simple
+                if ($addInfo === 20) return false;  // false
+                if ($addInfo === 21) return true;   // true
+                if ($addInfo === 22) return null;   // null
+                if ($addInfo === 24) { $pos++; return null; } // simple value
+                if ($addInfo === 25) { $pos += 2; return null; } // float16
+                if ($addInfo === 26) { $pos += 4; return null; } // float32
+                if ($addInfo === 27) { $pos += 8; return null; } // float64
                 return null;
             default:
                 return null;
