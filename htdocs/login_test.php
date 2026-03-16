@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-// TuS Oedt – Login-Test
+// Leichtathletik-Statistik – Login-Test
 // NACH dem Test sofort löschen!
 // ============================================================
 require_once __DIR__ . '/../includes/auth.php';

@@ -2,6 +2,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/totp.php';
+require_once __DIR__ . '/passkey.php';
 
 class Auth {
 
@@ -57,23 +58,33 @@ class Auth {
         DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg) VALUES (?, ?, 1)',
             [$user['benutzername'], $ip]);
 
-        // 2FA nur für Admins
-        if ($user['rolle'] === 'admin') {
-            if (!empty($user['totp_aktiv'])) {
-                // TOTP aktiv → pending session setzen, noch NICHT einloggen
-                $_SESSION['totp_pending_user'] = $user['id'];
-                session_regenerate_id(true);
-                return ['ok' => true, 'totp_required' => true, 'totp_setup' => false];
-            } else {
-                // TOTP noch nicht eingerichtet → Setup erzwingen
-                $_SESSION['totp_pending_user'] = $user['id'];
-                session_regenerate_id(true);
-                return ['ok' => true, 'totp_required' => true, 'totp_setup' => true];
-            }
-        }
+        // 2FA für alle User: TOTP oder Passkey
+        $hasTotp    = !empty($user['totp_aktiv']);
+        $hasPasskey = Passkey::userHasPasskey($user['id']);
 
-        // Kein Admin → direkt einloggen
-        return self::finalizeLogin($user);
+        if ($hasTotp || $hasPasskey) {
+            // Mindestens eine 2FA-Methode vorhanden → pending setzen
+            $_SESSION['totp_pending_user'] = $user['id'];
+            session_regenerate_id(true);
+            return [
+                'ok'           => true,
+                'totp_required'=> true,
+                'totp_setup'   => false,
+                'has_totp'     => $hasTotp,
+                'has_passkey'  => $hasPasskey,
+            ];
+        } else {
+            // Kein 2FA eingerichtet → Setup erzwingen
+            $_SESSION['totp_pending_user'] = $user['id'];
+            session_regenerate_id(true);
+            return [
+                'ok'           => true,
+                'totp_required'=> true,
+                'totp_setup'   => true,
+                'has_totp'     => false,
+                'has_passkey'  => false,
+            ];
+        }
     }
 
     // ============================================================
@@ -198,7 +209,8 @@ class Auth {
     // ============================================================
     // Session setzen nach erfolgreichem Login
     // ============================================================
-    private static function finalizeLogin(array $user): array {
+    public static function finalizeLoginPublic(array $user): array { return self::finalizeLogin($user); }
+    public static function finalizeLogin(array $user): array {
         DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_login = NOW() WHERE id = ?', [$user['id']]);
         $_SESSION['user_id']    = $user['id'];
         $_SESSION['user_name']  = $user['benutzername'];

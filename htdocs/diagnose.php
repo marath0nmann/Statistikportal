@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-// TuS Oedt – Diagnose-Tool
+// Leichtathletik-Statistik – Diagnose-Tool
 // NACH dem Test diese Datei UNBEDINGT löschen!
 // ============================================================
 $checks = [];
@@ -77,7 +77,7 @@ $allOk = !in_array(false, array_column($checks, 2));
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>TuS Oedt – Diagnose</title>
+<title>Statistikportal – Diagnose</title>
 <style>
   body { font-family: Arial, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; background: #f4f6fa; color: #1a2340; }
   h1 { color: #003087; border-bottom: 3px solid #cc0000; padding-bottom: 10px; }
@@ -98,7 +98,7 @@ $allOk = !in_array(false, array_column($checks, 2));
 </style>
 </head>
 <body>
-<h1>🔍 TuS Oedt – Diagnose</h1>
+<h1>🔍 Statistikportal – Diagnose</h1>
 
 <div class="banner <?= $allOk ? 'banner-ok' : 'banner-err' ?>">
   <?= $allOk ? '✅ Alle Checks bestanden – die App sollte funktionieren!' : '❌ Es gibt Probleme – Details in der Tabelle unten' ?>

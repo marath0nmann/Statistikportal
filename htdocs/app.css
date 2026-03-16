@@ -2,10 +2,10 @@
    TuS OEDT – Blau / Weiß / Rot
    ============================================================ */
 :root {
-  --primary:   #cc0000;    /* TuS Oedt Rot – Hauptfarbe    – wird von applyConfig überschrieben */
+  --primary:   #cc0000;    /* Primärfarbe – wird von applyConfig überschrieben */
   --primary2:  #e62020;    /* abgeleitet – wird von applyConfig gesetzt */
   --primary3:  #ff3333;    /* abgeleitet – wird von applyConfig gesetzt */
-  --accent:    #003087;    /* TuS Oedt Blau – Akzent       – wird von applyConfig überschrieben */
+  --accent:    #003087;    /* Akzentfarbe – wird von applyConfig überschrieben */
   --accent2:   #0047b3;    /* abgeleitet – wird von applyConfig gesetzt */
   --on-primary: #ffffff;    /* Textfarbe auf --primary-Flächen, berechnet von applyConfig */
   --on-accent:  #ffffff;    /* Textfarbe auf --accent-Flächen */
