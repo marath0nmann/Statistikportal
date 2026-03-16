@@ -1,4 +1,5 @@
-v564: Fix uitslagen.nl SubTab: content vor innerHTML gesetzt
+v565: uitslagen.nl: alle Kategorie-Container iterieren
 
-isUits-Block setzte content NACH dem innerHTML-Aufruf →
-Seite war leer. Block vor document.getElementById('main-content').innerHTML verschoben.
+Seite hat 30 .uitslagen-Divs (je einer pro Kategorie), nicht einen.
+Parser iterierte nur den ersten (23 Zeilen statt 527).
+Fix: querySelectorAll('.uitslagen') + äußeres forEach über alle Container.
