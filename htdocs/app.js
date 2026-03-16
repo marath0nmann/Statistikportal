@@ -1446,10 +1446,20 @@ async function changePasswort() {
 }
 
 async function disableTotp() {
-  if (!confirm('2FA wirklich deaktivieren? Beim n\u00e4chsten Admin-Login muss 2FA neu eingerichtet werden.')) return;
+  // Prüfen ob Passkey als Fallback vorhanden ist
+  var hasPasskey = currentUser && currentUser.has_passkey;
+  var msg = hasPasskey
+    ? 'TOTP deaktivieren? Du kannst dich weiterhin per Passkey anmelden.'
+    : 'TOTP deaktivieren? Achtung: Kein Passkey registriert \u2013 du verlierst den 2FA-Zugang!';
+  if (!confirm(msg)) return;
   var r = await apiDel('auth/totp-setup');
-  if (r && r.ok) { closeModal(); alert('\u2705 2FA deaktiviert.'); }
-  else { alert('Fehler: ' + ((r && r.fehler) || 'Unbekannt')); }
+  if (r && r.ok) {
+    currentUser.totp_aktiv = false;
+    closeModal();
+    notify('\u2705 TOTP deaktiviert.', 'ok');
+  } else {
+    notify('Fehler: ' + ((r && r.fehler) || 'Unbekannt'), 'err');
+  }
 }
 
 function rolleLabel(r) {
