@@ -1,5 +1,1 @@
-v538: Notfall-TOTP-Reset + loginStep2 Fix
-
-- emergency_totp_reset.php: einmaliger Endpunkt für gesperrte Accounts
-  (Datum-basierter Token, sofort nach Nutzung löschen)
-- loginStep2: totp_secret=NULL → sauberer Fehler statt 500
+v539: Notfall-Reset: TOTP für alle aktiven User deaktivieren (egal ob Secret)
