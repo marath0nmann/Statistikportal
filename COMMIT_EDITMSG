@@ -1,4 +1,5 @@
-v546: Passkey-Löschen: zwei Bugs gefixt
+v547: TOTP-Setup im Profil: eigenes Modal statt Login-Screen
 
-- 12_passkey.js: apiDelete() → apiDel() (Funktion existiert nicht)
-- api/index.php: $path[2] → $parts[2] (war Zeichen-Index statt Pfad-Segment)
+showTotpSetupInProfile öffnet jetzt ein richtiges Modal mit QR-Code
+und Code-Bestätigung, anstatt den Login-Screen zu überschreiben.
+doTotpSetupInProfile: setzt currentUser.totp_aktiv=true nach Erfolg.
