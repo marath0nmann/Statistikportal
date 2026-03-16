@@ -1,10 +1,8 @@
-v560: Hall of Fame: "Bestleistung WHK/MHK" statt "Frauen/Männer"
+v561: Fix vorher_val: TIME_TO_SEC('13:48,49') → 49680s statt 828s
 
-Bei merge_ak=1 werden Jugend-AKs zu WHK/MHK zusammengefasst.
-Trotzdem stand im Label "Bestleistung Frauen" weil $g=geschlecht
-aus der Athleten-Tabelle kommt, unabhängig von der AK.
+MySQL TIME_TO_SEC('13:48,49') interpretiert das als HH:MM (13h 48min)
+statt MM:SS (13min 48sec). Das Komma wird ignoriert.
 
-Fix:
-- API: wenn altersklasse=WHK/MHK → Label "Bestleistung WHK/MHK"
-- Dashboard HoF: tatsächliches Label-Text verwenden statt hartkodiert
-  "Frauen"/"Männer" → "Bestleistung WHK" erscheint korrekt
+Fix: CONCAT('00:', REPLACE(resultat, ',', '.')) vor TIME_TO_SEC
+→ '13:48,49' → '00:13:48.49' → TIME_TO_SEC → 828s ✓
+Nur wenn kein HH:MM:SS-Format (2 Doppelpunkte) erkannt.
