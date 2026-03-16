@@ -2,7 +2,21 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/totp.php';
-require_once __DIR__ . '/passkey.php';
+if (file_exists(__DIR__ . '/passkey.php')) {
+    require_once __DIR__ . '/passkey.php';
+} else {
+    // Passkey-Klasse als Stub falls Datei fehlt
+    class Passkey {
+        public static function migrate(): void {}
+        public static function userHasPasskey(int $uid): bool { return false; }
+        public static function authChallenge(int $uid): array { return []; }
+        public static function authVerify(array $c): array { return ['ok'=>false,'fehler'=>'Passkeys nicht verfügbar']; }
+        public static function registrationChallenge(int $uid): array { return []; }
+        public static function registrationVerify(array $c, string $n): array { return ['ok'=>false,'fehler'=>'Passkeys nicht verfügbar']; }
+        public static function listForUser(int $uid): array { return []; }
+        public static function delete(int $id, int $uid): bool { return false; }
+    }
+}
 
 class Auth {
 
@@ -60,6 +74,7 @@ class Auth {
 
         // 2FA für alle User: TOTP oder Passkey
         $hasTotp    = !empty($user['totp_aktiv']);
+        try { Passkey::migrate(); } catch (\Exception $e) {}
         $hasPasskey = Passkey::userHasPasskey($user['id']);
 
         if ($hasTotp || $hasPasskey) {
