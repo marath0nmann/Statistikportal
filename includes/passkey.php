@@ -50,10 +50,9 @@ class Passkey {
 
         // Bereits registrierte Credentials ausschließen
         $existing = DB::fetchAll('SELECT credential_id FROM ' . DB::tbl('passkeys') . ' WHERE user_id = ?', [$userId]);
-        $excludeCredentials = array_map(fn($r) => [
-            'type' => 'public-key',
-            'id'   => $r['credential_id'],
-        ], $existing);
+        $excludeCredentials = array_map(function($r) {
+            return ['type' => 'public-key', 'id' => $r['credential_id']];
+        }, $existing);
 
         return [
             'rp'   => ['id' => self::getRpId(), 'name' => self::getRpName()],
@@ -182,10 +181,9 @@ class Passkey {
             'timeout'          => 60000,
             'rpId'             => self::getRpId(),
             'userVerification' => 'preferred',
-            'allowCredentials' => array_map(fn($r) => [
-                'type' => 'public-key',
-                'id'   => $r['credential_id'],
-            ], $credentials),
+            'allowCredentials' => array_map(function($r) {
+                return ['type' => 'public-key', 'id' => $r['credential_id']];
+            }, $credentials),
         ];
     }
 

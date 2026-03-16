@@ -955,7 +955,12 @@ async function doLogin() {
     if (r.data && r.data.totp_required) {
       _loginPendingName = benutzername;
       if (r.data.totp_setup) await showTotpSetup();
-      else                   show2FAChoice(r.data.has_totp, r.data.has_passkey);
+      else {
+        // has_totp/has_passkey können fehlen wenn Server-Code alt ist → safe defaults
+        var _hasTotp    = r.data.has_totp    !== undefined ? r.data.has_totp    : true;
+        var _hasPasskey = r.data.has_passkey !== undefined ? r.data.has_passkey : false;
+        show2FAChoice(_hasTotp, _hasPasskey);
+      }
     } else {
       currentUser = { name: benutzername, rolle: r.data.rolle };
       showApp();
