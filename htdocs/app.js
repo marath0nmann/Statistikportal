@@ -1814,7 +1814,7 @@ function restoreFromHash() {
   } else if (tab === 'rekorde' && sub) {
     state.subTab = sub;
   } else if (tab === 'eintragen' && sub) {
-    var validEint = ['bulk','raceresult','mikatiming'];
+    var validEint = ['bulk','raceresult','mikatiming','uitslagen'];
     if (validEint.indexOf(sub) >= 0) state.subTab = sub;
   }
 }
@@ -3923,11 +3923,30 @@ if (isUits) {
       '<div class="panel" style="padding:24px">' +
         '<div class="panel-title" style="margin-bottom:4px">&#x1F1F3;&#x1F1F1; uitslagen.nl Import</div>' +
         '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Ergebnisse von <strong>uitslagen.nl</strong> importieren. TuS&nbsp;Oedt-Starter werden automatisch per Vereinssuche gefunden.</div>' +
+        '<div style="margin-bottom:12px">' +
+          '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Kategorie (Disziplin-Vorauswahl)</label>' +
+          '<select id="uits-kat" onchange="uitsKatChanged()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);min-width:220px">' +
+            '<option value="">&#x2013; bitte w\u00e4hlen &#x2013;</option>' +
+            (function() {
+              var seen = {}, opts = '';
+              var disz = state.disziplinen || [];
+              var kats = [];
+              for (var i = 0; i < disz.length; i++) {
+                var d = disz[i];
+                if (d.tbl_key && !seen[d.tbl_key]) { seen[d.tbl_key] = true; kats.push({ key: d.tbl_key, name: d.kategorie }); }
+              }
+              for (var ki = 0; ki < kats.length; ki++) {
+                opts += '<option value="' + kats[ki].key + '">' + kats[ki].name + '</option>';
+              }
+              return opts;
+            })() +
+          '</select>' +
+        '</div>' +
         '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">' +
           '<input type="text" id="uits-url" placeholder="https://uitslagen.nl/uitslag?id=2025110916317" ' +
             'style="flex:1;min-width:280px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text)" ' +
             'onkeydown="if(event.key===\'Enter\')uitsFetch()"/>' +
-          '<button class="btn btn-primary" onclick="uitsFetch()">&#x1F50D; Ergebnisse laden</button>' +
+          '<button class="btn btn-primary" id="uits-load-btn" onclick="uitsFetch()" disabled>&#x1F50D; Ergebnisse laden</button>' +
         '</div>' +
         '<div id="uits-preview"><div style="color:var(--text2);font-size:13px">Bitte uitslagen.nl-URL eingeben und Laden klicken.</div></div>' +
       '</div>';
@@ -8589,6 +8608,13 @@ function uitsIstEigenerVerein(vereinText) {
   return parts.every(function(p) { return p.length < 2 || v.indexOf(p) >= 0; });
 }
 
+// ── Kategorie-Auswahl: Button aktivieren ────────────────────────
+function uitsKatChanged() {
+  var kat = ((document.getElementById('uits-kat') || {}).value || '').trim();
+  var btn = document.getElementById('uits-load-btn');
+  if (btn) btn.disabled = !kat;
+}
+
 // ── Hauptfunktion: URL laden + parsen ───────────────────────────
 async function uitsFetch() {
   var urlInput = ((document.getElementById('uits-url') || {}).value || '').trim();
@@ -8794,7 +8820,8 @@ function uitsRenderPreview(parsed) {
   ownRows.forEach(function(row, i) {
     // Auto-Match: Name in DB suchen (Nachname, Vorname)
     var bestMatch = uitsAutoMatch(row.name, athleten);
-    var diszMatch = uitsAutoDiszMatch(row.kategorie, disziplinen);
+    var _uitsKat = ((document.getElementById('uits-kat') || {}).value || '');
+    var diszMatch = uitsAutoDiszMatchKat(row.kategorie, disziplinen, _uitsKat);
 
     tableHtml +=
       '<tr style="border-bottom:1px solid var(--border)">' +
@@ -8852,7 +8879,31 @@ function uitsAthOptHtml(athleten, selectedId) {
   return html;
 }
 
-// ── Auto-Match Disziplin ─────────────────────────────────────────
+// ── Auto-Match Disziplin mit Kategorie-Vorauswahl ─────────────────
+function uitsAutoDiszMatchKat(catRaw, disziplinen, selectedKat) {
+  var diszName = uitsDiszFromCat(catRaw);
+  if (!diszName) return null;
+  var dl = diszName.toLowerCase();
+  // Innerhalb der gewählten Kategorie suchen
+  var katDisz = selectedKat
+    ? disziplinen.filter(function(d){ return d.tbl_key === selectedKat; })
+    : disziplinen;
+  // Lange/Korte Cross matchen
+  for (var i = 0; i < katDisz.length; i++) {
+    var d = katDisz[i];
+    var dn = (d.disziplin || '').toLowerCase();
+    if (dl.indexOf('lange') >= 0 && (dn.indexOf('lang') >= 0 || dn === 'lange cross')) return d.mapping_id;
+    if (dl.indexOf('korte') >= 0 && (dn.indexOf('kort') >= 0 || dn === 'korte cross')) return d.mapping_id;
+    if (dl === 'cross' && dn === 'cross') return d.mapping_id;
+    if (dl.indexOf('marathon') >= 0 && dn.indexOf('marathon') >= 0 && dn.indexOf('halb') < 0) return d.mapping_id;
+    if (dl.indexOf('10km') >= 0 && dn.indexOf('10') >= 0) return d.mapping_id;
+    if (dl.indexOf('5km') >= 0 && (dn === '5km' || dn === '5.000m')) return d.mapping_id;
+  }
+  // Fallback: erster Eintrag in gewählter Kategorie
+  if (katDisz.length) return katDisz[0].mapping_id;
+  return null;
+}
+
 function uitsAutoDiszMatch(catRaw, disziplinen) {
   var diszName = uitsDiszFromCat(catRaw);
   if (!diszName) return null;
