@@ -1,10 +1,4 @@
-v563: uitslagen.nl Import
+v564: Fix uitslagen.nl SubTab: content vor innerHTML gesetzt
 
-Neuer Import-Tab in Eintragen:
-- 13_uitslagen.js: HTML-Scraper für uitslagen.nl
-  - DOM-Parsing: .caption (Kategorie), .tr/.naam/.wpl/.td.tijd
-  - AK-Mapping: MSEN→M, VSEN→W, M45→M45, V45→W45, VU16→WU16 etc.
-  - Auto-Match: Athlet per Namensähnlichkeit, Disziplin per Kategorie
-  - Import via ergebnisse/bulk
-- api/index.php: uits-fetch Proxy (cURL, nur uitslagen.nl-URLs)
-- 07_eintragen.js: neuer SubTab "🇳🇱 uitslagen.nl"
+isUits-Block setzte content NACH dem innerHTML-Aufruf →
+Seite war leer. Block vor document.getElementById('main-content').innerHTML verschoben.
