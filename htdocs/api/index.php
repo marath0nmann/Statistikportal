@@ -913,7 +913,10 @@ if ($res === 'dashboard' && $method === 'GET') {
         if ($fmt === 'm') {
             $valExpr = "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))";
         } else {
-            $valExpr = "CASE WHEN e.resultat REGEXP '^[0-9]+:[0-9]' THEN TIME_TO_SEC(e.resultat) ELSE CAST(e.resultat AS DECIMAL(10,3)) END";
+            $valExpr = "CASE
+                    WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}' THEN TIME_TO_SEC(e.resultat)
+                    WHEN e.resultat REGEXP '^[0-9]+:[0-9]' THEN TIME_TO_SEC(CONCAT('00:', REPLACE(REPLACE(e.resultat, ',', '.'), ';', '.')))
+                    ELSE CAST(REPLACE(e.resultat, ',', '.') AS DECIMAL(10,3)) END";
         }
 
         // Filter: per mapping_id wenn vorhanden, sonst per disziplin-Name
@@ -2866,7 +2869,10 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
             if ($fmt === 'm') {
                 $valExpr = "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))";
             } else {
-                $valExpr = "CASE WHEN e.resultat REGEXP '^[0-9]+:[0-9]' THEN TIME_TO_SEC(e.resultat) ELSE CAST(e.resultat AS DECIMAL(10,3)) END";
+                $valExpr = "CASE
+                    WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}' THEN TIME_TO_SEC(e.resultat)
+                    WHEN e.resultat REGEXP '^[0-9]+:[0-9]' THEN TIME_TO_SEC(CONCAT('00:', REPLACE(REPLACE(e.resultat, ',', '.'), ';', '.')))
+                    ELSE CAST(REPLACE(e.resultat, ',', '.') AS DECIMAL(10,3)) END";
             }
 
             // Filter per mapping_id (eindeutig) oder disziplin-Name (Fallback)
