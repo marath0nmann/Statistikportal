@@ -1,5 +1,5 @@
-v537: Fix TOTP-Deaktivierung + loginStep2 NULL-Secret
+v538: Notfall-TOTP-Reset + loginStep2 Fix
 
-- loginStep2: totp_secret=NULL → klar Fehler statt 500
-- DELETE totp-setup: migrate() vor userHasPasskey() (Tabelle muss existieren)
-- disableTotp(): Vorprüfung im Frontend, 409 klar erklären
+- emergency_totp_reset.php: einmaliger Endpunkt für gesperrte Accounts
+  (Datum-basierter Token, sofort nach Nutzung löschen)
+- loginStep2: totp_secret=NULL → sauberer Fehler statt 500
