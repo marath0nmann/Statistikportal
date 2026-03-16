@@ -5143,45 +5143,30 @@ function rrBestDisz(rrName, diszList) {
 }
 
 function normalizeAK(raw) {
-  // Aus RaceResult-AK-Labels die DLV-Kürzel extrahieren:
-  // "Seniorinnen W40" → "W40", "Senioren M50" → "M50"
-  // "Männliche Jugend U16" → "MU16", "WU14" etc.
-  // "Hauptgruppe M" → "M", "AK M35" → "M35"
   if (!raw) return '';
   var s = raw.trim();
-
-  // Bereits korrektes DLV-Format: M40, W65, MU16, WU12, M, W
+  // Bereits DLV-Format: M40, W65, MU16, M, W
   if (/^[MW]U?\d{0,2}$/.test(s)) return s;
-
-  // Leerzeichen-Variante: "W 40" → "W40", "M 50" → "M50"
-  var spaceMatch = s.match(/^([MW])\s+(\d{2})$/i);
-  if (spaceMatch) return spaceMatch[1].toUpperCase() + spaceMatch[2];
-
-  // "Seniorinnen W40", "Senioren M50", "Senior W65" etc.
-  // Alles weglassen bis auf das DLV-Kürzel am Ende oder mitten im String
-  var dlvMatch = s.match(/([MW]U?\d{2})/i);
-  if (dlvMatch) return dlvMatch[1].toUpperCase();
-
-  // Jugend: "MU16", "WU14" auch mitten im String
-  var jugendMatch = s.match(/([MW])\s*U\s*(\d{1,2})/i);
-  if (jugendMatch) return jugendMatch[1].toUpperCase() + 'U' + jugendMatch[2];
-
-  // Jugend mit Geschlechts-Keyword: "Männliche Jugend U16" → "MU16"
-  if (/männl|male|herren|männer/i.test(s)) { var _ju = s.match(/U\s*(\d{1,2})/i); if (_ju) return 'MU' + _ju[1]; }
-  if (/weibl|female|frauen|damen/i.test(s)) { var _jw = s.match(/U\s*(\d{1,2})/i); if (_jw) return 'WU' + _jw[1]; }
-
-  // Nur Geschlecht: "Männer", "Frauen", "Herren", "Damen" → "M"/"W"
-  if (/^(männer|herren|male|men)$/i.test(s))   return 'M';
-  if (/^(frauen|damen|female|women)$/i.test(s)) return 'W';
-
-  // Jugend ohne Geschlecht im Text: "U16 weiblich" → "WU16"
-  var jugGMatch = s.match(/U(\d{1,2})\s*(weibl|female)/i);
-  if (jugGMatch) return 'WU' + jugGMatch[1];
-  var jugGMatch2 = s.match(/U(\d{1,2})\s*(männl|male)/i);
-  if (jugGMatch2) return 'MU' + jugGMatch2[1];
-
-
-  return s; // unverändert wenn kein Match
+  // "W 40" / "M 50" → "W40" / "M50"
+  var sm = s.match(/^([MW])\s+(\d{2})$/i);
+  if (sm) return sm[1].toUpperCase() + sm[2];
+  // Kern-Match: [MW] gefolgt von optionalem U und 2 Ziffern irgendwo im String
+  // z.B. "Seniorinnen W40" → "W40", "AK M35" → "M35", "Senior W65" → "W65"
+  var dm = s.match(/(?:^|\s)([MW]U?\d{2})(?:\s|$)/i);
+  if (dm) return dm[1].toUpperCase();
+  // Jugend mit Geschlecht im Text: "Männliche Jugend U16" → "MU16"
+  if (/m.nnl|male|herren|m.nner/i.test(s)) {
+    var ju = s.match(/U\s*(\d{1,2})/i);
+    if (ju) return 'MU' + ju[1];
+  }
+  if (/weibl|female|frauen|damen/i.test(s)) {
+    var jw = s.match(/U\s*(\d{1,2})/i);
+    if (jw) return 'WU' + jw[1];
+  }
+  // Nur Geschlecht
+  if (/^(m.nner|herren|male|men)$/i.test(s))    return 'M';
+  if (/^(frauen|damen|female|women)$/i.test(s))  return 'W';
+  return s;
 }
 
 function calcDlvAK(jahrgang, geschlecht, eventJahr) {
