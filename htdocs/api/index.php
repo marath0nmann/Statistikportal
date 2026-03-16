@@ -979,7 +979,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                 $labelClub = $prevGesamt === null ? 'Erste Gesamtleistung' : 'Gesamtbestleistung';
                 if ($vorher === null) $vorher = $prevGesamt;
             }
-            // 2. Geschlechts-Bestleistung (Gold wenn kein Gesamt-Label, sonst überdeckt)
+            // 2. Geschlechts-/Hauptklassen-Bestleistung (Gold wenn kein Gesamt-Label)
             if (!$labelClub && ($g === 'M' || $g === 'W')) {
                 if (!isset($bestByG[$g]) ||
                     ($dir === 'ASC'  && $val < $bestByG[$g]) ||
@@ -987,9 +987,12 @@ if ($res === 'dashboard' && $method === 'GET') {
                     $prevByG[$g] = $bestByG[$g] ?? null;
                     $bestByG[$g] = $val;
                     $isFirst = $prevByG[$g] === null;
+                    // Bei merge_ak: WHK/MHK statt "Frauen"/"Männer" wenn AK eine Hauptklasse ist
+                    $gLabel = ($ak === 'WHK') ? 'WHK' : (($ak === 'MHK') ? 'MHK'
+                            : (($g === 'M') ? 'Männer' : 'Frauen'));
                     $labelClub = $isFirst
-                        ? (($g === 'M') ? 'Erstes Ergebnis M' : 'Erstes Ergebnis W')
-                        : (($g === 'M') ? 'Bestleistung Männer' : 'Bestleistung Frauen');
+                        ? "Erstes Ergebnis $gLabel"
+                        : "Bestleistung $gLabel";
                     if ($vorher === null) $vorher = $prevByG[$g];
                 }
             }

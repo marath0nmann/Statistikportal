@@ -1,5 +1,10 @@
-v559: Rekorde by_ak: e.disziplin=? → $diszCond/$diszParam
+v560: Hall of Fame: "Bestleistung WHK/MHK" statt "Frauen/Männer"
 
-by_ak-Query filterte per Name statt per mapping_id → alle gleichnamigen
-Disziplinen (Bahn + Cross + Halle) wurden gemischt in den AK-Bestleistungen.
-Fix: $diszCond + $diszParam konsistent wie gesamt/maenner/frauen.
+Bei merge_ak=1 werden Jugend-AKs zu WHK/MHK zusammengefasst.
+Trotzdem stand im Label "Bestleistung Frauen" weil $g=geschlecht
+aus der Athleten-Tabelle kommt, unabhängig von der AK.
+
+Fix:
+- API: wenn altersklasse=WHK/MHK → Label "Bestleistung WHK/MHK"
+- Dashboard HoF: tatsächliches Label-Text verwenden statt hartkodiert
+  "Frauen"/"Männer" → "Bestleistung WHK" erscheint korrekt
