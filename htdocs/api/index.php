@@ -1972,9 +1972,13 @@ if ($res === 'disziplin-mapping') {
             kategorie_id INT NOT NULL,
             anzeige_name VARCHAR(60) NULL,
             fmt_override VARCHAR(20) NULL,
-            UNIQUE KEY uq_disz (disziplin),
+            UNIQUE KEY uq_disz_kat (disziplin, kategorie_id),
             FOREIGN KEY (kategorie_id) REFERENCES disziplin_kategorien(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        // Migration: alter UNIQUE KEY (nur disziplin) → (disziplin, kategorie_id)
+        try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " DROP INDEX uq_disz"); } catch (Exception $e) {}
+        try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " DROP INDEX disziplin"); } catch (Exception $e) {}
+        try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD UNIQUE KEY uq_disz_kat (disziplin, kategorie_id)"); } catch (Exception $e) {}
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS anzeige_name VARCHAR(60) NULL"); } catch (Exception $e) {}
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS fmt_override  VARCHAR(20) NULL"); } catch (Exception $e) {}
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS kat_suffix_override VARCHAR(10) NULL"); } catch (Exception $e) {}
@@ -2043,19 +2047,26 @@ if ($res === 'disziplin-mapping') {
         $fmt_override     = isset($body['fmt_override'])     ? trim($body['fmt_override'])     : null;
         $kat_suffix       = isset($body['kat_suffix_override']) ? trim($body['kat_suffix_override']) : null;
         $hof_exclude      = isset($body['hof_exclude'])      ? (int)$body['hof_exclude']       : 0;
+        // Prüfen ob (disziplin, kategorie_id) bereits existiert
+        $existing = DB::fetchOne(
+            "SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? AND kategorie_id=?",
+            [$disziplin, $kategorie_id]
+        );
+        if ($existing) {
+            // Nur Metadaten updaten, NICHT kategorie_id (das wäre eine Neuanlage)
+            DB::query("UPDATE " . DB::tbl('disziplin_mapping') .
+                      " SET fmt_override=?, kat_suffix_override=?, hof_exclude=? WHERE id=?",
+                      [$fmt_override ?: null, $kat_suffix ?: null, $hof_exclude, $existing['id']]);
+            jsonOk(['id' => (int)$existing['id']]);
+        }
+        // Prüfen ob der Name in einer ANDEREN Kategorie existiert → sauber als neuer Eintrag anlegen
         DB::query("INSERT INTO " . DB::tbl('disziplin_mapping') . "
                    (disziplin, kategorie_id, fmt_override, kat_suffix_override, hof_exclude)
-                   VALUES (?,?,?,?,?)
-                   ON DUPLICATE KEY UPDATE kategorie_id=VALUES(kategorie_id),
-                   fmt_override=VALUES(fmt_override), kat_suffix_override=VALUES(kat_suffix_override),
-                   hof_exclude=VALUES(hof_exclude)",
+                   VALUES (?,?,?,?,?)",
                   [$disziplin, $kategorie_id, $fmt_override ?: null, $kat_suffix ?: null, $hof_exclude]);
-        // disziplin_mapping_id in ergebnisse aktualisieren
-        $mapping = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? AND kategorie_id=?", [$disziplin, $kategorie_id]);
-        if ($mapping) {
-            DB::query("UPDATE " . DB::tbl('ergebnisse') . " SET disziplin_mapping_id=? WHERE disziplin=?", [$mapping['id'], $disziplin]);
-        }
-        jsonOk(['id' => $mapping ? (int)$mapping['id'] : null]);
+        $newId = DB::lastInsertId();
+        // NICHT pauschal alle Ergebnisse umhängen — neue Disziplin hat noch keine
+        jsonOk(['id' => (int)$newId]);
     }
 
     // DELETE Disziplin (nur wenn keine Ergebnisse)
