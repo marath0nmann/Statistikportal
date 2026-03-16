@@ -1294,7 +1294,7 @@ async function showTotpSetupInProfile() {
     '<div class="form-group" style="margin-bottom:12px"><label>Code aus der App bestätigen</label>' +
       '<input type="text" id="totp-profil-code" inputmode="numeric" maxlength="9" placeholder="000 000"' +
         ' style="letter-spacing:4px;font-size:22px;text-align:center;font-weight:700"' +
-        ' onkeydown="if(event.key==='Enter')doTotpSetupInProfile()"/>' +
+        ' onkeydown="if(event.key===\'Enter\')doTotpSetupInProfile()"/>' +
     '</div>' +
     '<div id="totp-profil-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
     '<div class="modal-actions">' +

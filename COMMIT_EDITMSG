@@ -1,5 +1,1 @@
-v547: TOTP-Setup im Profil: eigenes Modal statt Login-Screen
-
-showTotpSetupInProfile öffnet jetzt ein richtiges Modal mit QR-Code
-und Code-Bestätigung, anstatt den Login-Screen zu überschreiben.
-doTotpSetupInProfile: setzt currentUser.totp_aktiv=true nach Erfolg.
+v548: Fix Syntax-Fehler in showTotpSetupInProfile (unescaped quotes)
