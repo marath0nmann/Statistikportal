@@ -229,9 +229,9 @@ if ($res === 'auth') {
         jsonOk(Passkey::listForUser($user['id']));
     }
     // ── Passkey: Löschen ──
-    if ($method === 'DELETE' && $id === 'passkeys' && $path[2]) {
+    if ($method === 'DELETE' && $id === 'passkeys' && !empty($parts[2])) {
         $user = Auth::requireLogin();
-        $pkId = (int)$path[2];
+        $pkId = (int)$parts[2];
         if (!Passkey::delete($pkId, $user['id'])) jsonErr('Nicht gefunden oder keine Berechtigung.', 404);
         jsonOk(null);
     }
