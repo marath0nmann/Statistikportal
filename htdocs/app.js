@@ -8882,26 +8882,27 @@ function uitsAthOptHtml(athleten, selectedId) {
 // ── Auto-Match Disziplin mit Kategorie-Vorauswahl ─────────────────
 function uitsAutoDiszMatchKat(catRaw, disziplinen, selectedKat) {
   var diszName = uitsDiszFromCat(catRaw);
-  if (!diszName) return null;
-  var dl = diszName.toLowerCase();
-  // Innerhalb der gewählten Kategorie suchen
+  var dl = (diszName || '').toLowerCase();
+  // state.disziplinen nutzt 'id' als mapping_id und 'tbl_key' als Kategorie-Key
   var katDisz = selectedKat
     ? disziplinen.filter(function(d){ return d.tbl_key === selectedKat; })
     : disziplinen;
-  // Lange/Korte Cross matchen
+  if (!katDisz.length) return null;
+  // Disziplinname-Match innerhalb der Kategorie
   for (var i = 0; i < katDisz.length; i++) {
     var d = katDisz[i];
     var dn = (d.disziplin || '').toLowerCase();
-    if (dl.indexOf('lange') >= 0 && (dn.indexOf('lang') >= 0 || dn === 'lange cross')) return d.mapping_id;
-    if (dl.indexOf('korte') >= 0 && (dn.indexOf('kort') >= 0 || dn === 'korte cross')) return d.mapping_id;
-    if (dl === 'cross' && dn === 'cross') return d.mapping_id;
-    if (dl.indexOf('marathon') >= 0 && dn.indexOf('marathon') >= 0 && dn.indexOf('halb') < 0) return d.mapping_id;
-    if (dl.indexOf('10km') >= 0 && dn.indexOf('10') >= 0) return d.mapping_id;
-    if (dl.indexOf('5km') >= 0 && (dn === '5km' || dn === '5.000m')) return d.mapping_id;
+    var mid = d.mapping_id || d.id; // beide Feldnamen abfangen
+    if (!dl) return mid; // keine Disziplin ermittelbar → erster Eintrag
+    if (dl.indexOf('lange') >= 0 && (dn.indexOf('lang') >= 0 || dn === 'lange cross')) return mid;
+    if (dl.indexOf('korte') >= 0 && (dn.indexOf('kort') >= 0 || dn === 'korte cross')) return mid;
+    if (dl === 'cross' && dn === 'cross') return mid;
+    if (dl.indexOf('marathon') >= 0 && dn.indexOf('marathon') >= 0 && dn.indexOf('halb') < 0) return mid;
+    if (dl.indexOf('10km') >= 0 && dn.indexOf('10') >= 0) return mid;
+    if (dl.indexOf('5km') >= 0 && (dn === '5km' || dn === '5.000m')) return mid;
   }
-  // Fallback: erster Eintrag in gewählter Kategorie
-  if (katDisz.length) return katDisz[0].mapping_id;
-  return null;
+  // Fallback: erster Eintrag in Kategorie
+  return katDisz[0].mapping_id || katDisz[0].id;
 }
 
 function uitsAutoDiszMatch(catRaw, disziplinen) {
@@ -8930,8 +8931,9 @@ function uitsAutoDiszMatch(catRaw, disziplinen) {
 function uitsDiszOptHtml(disziplinen, selectedMid) {
   var html = '<option value="">– Disziplin wählen –</option>';
   disziplinen.forEach(function(d) {
-    var label = d.disziplin + (d.kategorie_name ? ' (' + d.kategorie_name + ')' : '');
-    html += '<option value="' + d.mapping_id + '"' + (d.mapping_id == selectedMid ? ' selected' : '') + '>' + label + '</option>';
+    var mid = d.mapping_id || d.id;
+    var label = d.disziplin + (d.kategorie ? ' (' + d.kategorie + ')' : (d.kategorie_name ? ' (' + d.kategorie_name + ')' : ''));
+    html += '<option value="' + mid + '"' + (mid == selectedMid ? ' selected' : '') + '>' + label + '</option>';
   });
   return html;
 }
@@ -8966,7 +8968,7 @@ async function uitsImport() {
     if (!athletId || !mappingId) continue;
 
     // Disziplinname aus mapping_id ermitteln
-    var diszObj = (state.disziplinen || []).find(function(d){ return d.mapping_id == mappingId; });
+    var diszObj = (state.disziplinen || []).find(function(d){ return (d.mapping_id||d.id) == mappingId; });
     var disziplin = diszObj ? diszObj.disziplin : '';
 
     items.push({

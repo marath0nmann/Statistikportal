@@ -1,7 +1,5 @@
-v566: uitslagen.nl: Kategorie-Auswahl + Disziplin-Auto-Match
+v567: uitslagen.nl: Feldnamen state.disziplinen korrigiert
 
-- Kategorie-Dropdown (wie bei RaceResult/MikaTiming) vor URL-Feld
-- Laden-Button erst aktiv wenn Kategorie gewählt
-- Disziplin-Auto-Match nutzt gewählte Kategorie als Filter
-- uitsKatChanged() für Button-Aktivierung
-- uitslagen in Hash-Route-Liste
+state.disziplinen nutzt 'id' (nicht mapping_id) und 'kategorie' (nicht
+kategorie_name) → Auto-Match fand keine Cross-Disziplinen, Dropdowns
+zeigten "undefined" als Wert.
