@@ -1813,9 +1813,9 @@ if ($res === 'rekorde') {
                 "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                         $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
                  FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
-                 WHERE e.disziplin=? AND $akExpr=?
+                 WHERE $diszCond AND $akExpr=?
                    AND e.geloescht_am IS NULL AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
-                 ORDER BY $sortCol $dir LIMIT 50", [$disz, $ak_val]);
+                 ORDER BY $sortCol $dir LIMIT 50", [$diszParam, $ak_val]);
             $all_ak[$ak_val] = $ak_results;
         }
 

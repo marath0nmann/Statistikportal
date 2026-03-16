@@ -1,11 +1,5 @@
-v558: Rekorde: mapping_id konsequent für Disziplin-Filter
+v559: Rekorde by_ak: e.disziplin=? → $diszCond/$diszParam
 
-Frontend (v557 Fortsetzung):
-- Rekorde API-Call schickt mapping_id mit
-- navigateToDisz übergibt mapping_id
-- Dashboard-Links tragen data-rek-mid
-
-Backend:
-- Rekorde GET: wenn keine mapping_id übergeben → automatisch aus
-  (kat, disz) nachschlagen → verhindert Mischung bei gleichnamigen
-  Disziplinen in verschiedenen Kategorien auch ohne Frontend-Fix
+by_ak-Query filterte per Name statt per mapping_id → alle gleichnamigen
+Disziplinen (Bahn + Cross + Halle) wurden gemischt in den AK-Bestleistungen.
+Fix: $diszCond + $diszParam konsistent wie gesamt/maenner/frauen.
