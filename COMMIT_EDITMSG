@@ -1,5 +1,7 @@
-v565: uitslagen.nl: alle Kategorie-Container iterieren
+v566: uitslagen.nl: Kategorie-Auswahl + Disziplin-Auto-Match
 
-Seite hat 30 .uitslagen-Divs (je einer pro Kategorie), nicht einen.
-Parser iterierte nur den ersten (23 Zeilen statt 527).
-Fix: querySelectorAll('.uitslagen') + äußeres forEach über alle Container.
+- Kategorie-Dropdown (wie bei RaceResult/MikaTiming) vor URL-Feld
+- Laden-Button erst aktiv wenn Kategorie gewählt
+- Disziplin-Auto-Match nutzt gewählte Kategorie als Filter
+- uitsKatChanged() für Button-Aktivierung
+- uitslagen in Hash-Route-Liste
