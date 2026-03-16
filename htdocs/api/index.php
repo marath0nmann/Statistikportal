@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-// TuS Oedt – REST API
+// Leichtathletik-Statistik – REST API
 // api/index.php
 // ============================================================
 
@@ -18,6 +18,9 @@ header('X-Content-Type-Options: nosniff');
 
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/settings.php';
+
+// Passkey-Tabelle anlegen wenn nötig (idempotent)
+try { Passkey::migrate(); } catch (Exception $e) {}
 
 $method = $_SERVER['REQUEST_METHOD'];
 // Route aus GET-Parameter, URL-dekodiert
@@ -154,6 +157,11 @@ if ($res === 'auth') {
     }
     // --- TOTP Setup initialisieren (QR-Code ausgeben) ---
     if ($method === 'GET' && $id === 'totp-setup') {
+        // Für eingeloggte User: pending session setzen damit totpSetupInit funktioniert
+        $loggedIn = Auth::check();
+        if ($loggedIn && empty($_SESSION['totp_pending_user'])) {
+            $_SESSION['totp_pending_user'] = $loggedIn['id'];
+        }
         $result = Auth::totpSetupInit();
         if (!$result['ok']) jsonErr($result['fehler'], 403);
         jsonOk($result);
@@ -164,11 +172,61 @@ if ($res === 'auth') {
         if (!$result['ok']) jsonErr($result['fehler'], 400);
         jsonOk($result);
     }
-    // --- TOTP deaktivieren (Admin, für sich selbst) ---
+    // --- TOTP deaktivieren (für sich selbst, alle eingeloggten User) ---
     if ($method === 'DELETE' && $id === 'totp-setup') {
-        $user = Auth::requireAdmin();
+        $user = Auth::requireLogin();
         Auth::totpDisable($user['id']);
-        jsonOk('2FA deaktiviert.');
+        jsonOk('TOTP deaktiviert.');
+    }
+
+    // ── Passkey: Login Challenge (Schritt 2 – Alternative zu TOTP) ──
+    if ($method === 'POST' && $id === 'passkey-auth-challenge') {
+        if (empty($_SESSION['totp_pending_user'])) jsonErr('Keine ausstehende Anmeldung.', 401);
+        Passkey::migrate();
+        $uid = (int)$_SESSION['totp_pending_user'];
+        $options = Passkey::authChallenge($uid);
+        jsonOk($options);
+    }
+    // ── Passkey: Login Response verifizieren ──
+    if ($method === 'POST' && $id === 'passkey-auth-verify') {
+        $result = Passkey::authVerify($body['credential'] ?? []);
+        if (!$result['ok']) jsonErr($result['fehler'], 401);
+        // Passkey OK → einloggen
+        $uid  = (int)$_SESSION['passkey_auth_user_id_done'] ?? (int)$_SESSION['totp_pending_user'];
+        // totp_pending_user wurde in authVerify noch nicht gelöscht (uid bereits gecheckt)
+        $uid  = (int)($_SESSION['totp_pending_user'] ?? 0);
+        unset($_SESSION['totp_pending_user']);
+        $user = DB::fetchOne('SELECT * FROM ' . DB::tbl('benutzer') . ' WHERE id = ? AND aktiv = 1', [$uid]);
+        if (!$user) jsonErr('Benutzer nicht gefunden.', 401);
+        $loginResult = Auth::finalizeLoginPublic($user);
+        jsonOk(['rolle' => $loginResult['rolle'], 'name' => $loginResult['name']]);
+    }
+    // ── Passkey: Registrierung Challenge (eingeloggt, für Profil) ──
+    if ($method === 'GET' && $id === 'passkey-reg-challenge') {
+        $user = Auth::requireLogin();
+        Passkey::migrate();
+        $options = Passkey::registrationChallenge($user['id']);
+        jsonOk($options);
+    }
+    // ── Passkey: Registrierung bestätigen ──
+    if ($method === 'POST' && $id === 'passkey-reg-verify') {
+        $user   = Auth::requireLogin();
+        $result = Passkey::registrationVerify($body['credential'] ?? [], $body['name'] ?? 'Passkey');
+        if (!$result['ok']) jsonErr($result['fehler'], 400);
+        jsonOk(['name' => $result['name']]);
+    }
+    // ── Passkey: Liste der eigenen Passkeys ──
+    if ($method === 'GET' && $id === 'passkeys') {
+        $user = Auth::requireLogin();
+        Passkey::migrate();
+        jsonOk(Passkey::listForUser($user['id']));
+    }
+    // ── Passkey: Löschen ──
+    if ($method === 'DELETE' && $id === 'passkeys' && $path[2]) {
+        $user = Auth::requireLogin();
+        $pkId = (int)$path[2];
+        if (!Passkey::delete($pkId, $user['id'])) jsonErr('Nicht gefunden oder keine Berechtigung.', 404);
+        jsonOk(null);
     }
     // --- Logout ---
     if ($method === 'POST' && $id === 'logout') {
@@ -178,7 +236,13 @@ if ($res === 'auth') {
     // --- Session prüfen ---
     if ($method === 'GET' && $id === 'me') {
         $user = Auth::check();
-        if ($user) jsonOk($user);
+        if ($user) {
+            // totp_aktiv + Passkey-Status ergänzen
+            $row = DB::fetchOne('SELECT totp_aktiv FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$user['id']]);
+            $user['totp_aktiv']  = !empty($row['totp_aktiv']);
+            $user['has_passkey'] = Passkey::userHasPasskey($user['id']);
+            jsonOk($user);
+        }
         else jsonErr('Nicht eingeloggt.', 401);
     }
     // --- Passwort ändern ---
@@ -2124,7 +2188,7 @@ if ($res === 'disziplin-mapping') {
 if ($res === 'mika-fetch' && $method === 'GET') {
     Auth::requireLogin();
     $baseUrl = rtrim($_GET['base_url'] ?? '', '/') . '/';
-    $club    = trim($_GET['club'] ?? 'TuS Oedt');
+    $club    = trim($_GET['club'] ?? '');
     if (!$baseUrl || !preg_match('/^https?:\/\/[a-zA-Z0-9._\-]+\.mikatiming\.(?:com|de|net)\//i', $baseUrl))
         jsonErr('Ungültige MikaTiming-URL.', 400);
 
@@ -2341,7 +2405,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             }
             // Auch roh: f-time im HTML?
             $debug['detailHasTime'] = strpos($dHtml, 'f-time_finish_netto') !== false;
-            $debug['detailHasWeyers'] = strpos($dHtml, 'Weyers') !== false;
             $debug['detailLen'] = strlen($dHtml);
             $debug['detailFields'] = array_slice($sample, 0, 15);
             $debug['detailUrl'] = $detailUrl;

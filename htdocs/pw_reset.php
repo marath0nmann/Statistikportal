@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-// TuS Oedt – Passwort zurücksetzen
+// Leichtathletik-Statistik – Passwort zurücksetzen
 // NACH dem Test sofort löschen!
 // ============================================================
 require_once __DIR__ . '/../includes/db.php';

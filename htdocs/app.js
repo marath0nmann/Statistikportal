@@ -1,5 +1,5 @@
 // ============================================================
-// TuS Oedt Leichtathletik-Statistik – Frontend
+// Leichtathletik-Statistik – Frontend
 // ============================================================
 
 const API = 'api/index.php';
@@ -135,9 +135,9 @@ function avatarFallback(initial, size, fontSize) {
   return '<span style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;flex-shrink:0;background:var(--accent);color:var(--on-accent);display:inline-flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:' + fs + 'px;font-weight:600;">' + initial + '</span>';
 }
 
-var FOOTER_DEFAULT_DS  = "# Datenschutzerkl\u00e4rung\n\n**Stand: 2026**\n\n## 1. Verantwortlicher\nVerantwortlich f\u00fcr diese Anwendung ist der Verein TuS Oedt e.V.\n\n## 2. Erhobene Daten\nDiese Anwendung verarbeitet ausschlie\u00dflich Daten, die zur Darstellung von Leichtathletik-Ergebnissen und Vereinsstatistiken erforderlich sind:\n- Athleten-Namen und Wettkampfergebnisse (\u00f6ffentlich zug\u00e4nglich)\n- Benutzerdaten registrierter Nutzer (Name, E-Mail-Adresse) zur Authentifizierung\n\n## 3. Keine Weitergabe an Dritte\nPersonenbezogene Daten werden nicht an Dritte weitergegeben.\n\n## 4. Hosting\nDie Anwendung wird auf Servern von all-inkl.com (ALL-INKL.COM \u2013 Neue Medien M\u00fcnnich) in Deutschland betrieben.\n\n## 5. Kontakt\nBei Fragen zur Datenverarbeitung wenden Sie sich bitte an die Vereinsverantwortlichen.";
-var FOOTER_DEFAULT_NU  = "# Nutzungsbedingungen\n\n**Stand: 2026**\n\n## 1. Nutzung\nDiese Anwendung dient der internen Vereinsstatistik des TuS Oedt e.V. Die Nutzung ist Vereinsmitgliedern und autorisierten Personen vorbehalten.\n\n## 2. Inhalte\nDie dargestellten Ergebnisse und Athletendaten sind vereinseigene Daten. Eine Weiterverwendung oder Ver\u00f6ffentlichung bedarf der Genehmigung des Vereins.\n\n## 3. Technische Verf\u00fcgbarkeit\nDer Betreiber \u00fcbernimmt keine Gew\u00e4hr f\u00fcr die st\u00e4ndige Verf\u00fcgbarkeit der Anwendung.\n\n## 4. \u00c4nderungen\nDiese Nutzungsbedingungen k\u00f6nnen jederzeit angepasst werden.";
-var FOOTER_DEFAULT_IMP = "# Impressum\n\n**Angaben gem\u00e4\u00df \u00a7 5 TMG**\n\nTuS Oedt e.V. \u2013 Leichtathletik-Abteilung\n\n*Bitte vervollst\u00e4ndigen Sie das Impressum mit Ihrer Vereinsanschrift und einem Verantwortlichen.*\n\n## Kontakt\nE-Mail: [Ihre E-Mail-Adresse]\n\n## Vereinsregister\nEingetragen im Vereinsregister.\nRegistergericht: [Ihr Registergericht]\n\n## Inhaltlich Verantwortlicher\n[Name des Verantwortlichen gem\u00e4\u00df \u00a7 55 Abs. 2 RStV]";
+var FOOTER_DEFAULT_DS  = "# Datenschutzerkl\u00e4rung\n\n**Stand: 2026**\n\n## 1. Verantwortlicher\nVerantwortlich f\u00fcr diese Anwendung ist der Verein [Vereinsname]\n\n## 2. Erhobene Daten\nDiese Anwendung verarbeitet ausschlie\u00dflich Daten, die zur Darstellung von Leichtathletik-Ergebnissen und Vereinsstatistiken erforderlich sind:\n- Athleten-Namen und Wettkampfergebnisse (\u00f6ffentlich zug\u00e4nglich)\n- Benutzerdaten registrierter Nutzer (Name, E-Mail-Adresse) zur Authentifizierung\n\n## 3. Keine Weitergabe an Dritte\nPersonenbezogene Daten werden nicht an Dritte weitergegeben.\n\n## 4. Hosting\nDie Anwendung wird auf Servern von all-inkl.com (ALL-INKL.COM \u2013 Neue Medien M\u00fcnnich) in Deutschland betrieben.\n\n## 5. Kontakt\nBei Fragen zur Datenverarbeitung wenden Sie sich bitte an die Vereinsverantwortlichen.";
+var FOOTER_DEFAULT_NU  = "# Nutzungsbedingungen\n\n**Stand: 2026**\n\n## 1. Nutzung\nDiese Anwendung dient der internen Vereinsstatistik des [Vereinsname] Die Nutzung ist Vereinsmitgliedern und autorisierten Personen vorbehalten.\n\n## 2. Inhalte\nDie dargestellten Ergebnisse und Athletendaten sind vereinseigene Daten. Eine Weiterverwendung oder Ver\u00f6ffentlichung bedarf der Genehmigung des Vereins.\n\n## 3. Technische Verf\u00fcgbarkeit\nDer Betreiber \u00fcbernimmt keine Gew\u00e4hr f\u00fcr die st\u00e4ndige Verf\u00fcgbarkeit der Anwendung.\n\n## 4. \u00c4nderungen\nDiese Nutzungsbedingungen k\u00f6nnen jederzeit angepasst werden.";
+var FOOTER_DEFAULT_IMP = "# Impressum\n\n**Angaben gem\u00e4\u00df \u00a7 5 TMG**\n\n[Vereinsname] \u2013 Leichtathletik-Abteilung\n\n*Bitte vervollst\u00e4ndigen Sie das Impressum mit Ihrer Vereinsanschrift und einem Verantwortlichen.*\n\n## Kontakt\nE-Mail: [Ihre E-Mail-Adresse]\n\n## Vereinsregister\nEingetragen im Vereinsregister.\nRegistergericht: [Ihr Registergericht]\n\n## Inhaltlich Verantwortlicher\n[Name des Verantwortlichen gem\u00e4\u00df \u00a7 55 Abs. 2 RStV]";
 
 // Kategorie-Suffix: ob "(Bahn)" etc. hinter Disziplinname angezeigt wird
 // Wird aus appConfig.disziplin_kategorie_suffix gelesen (Standard: '1')
@@ -508,8 +508,8 @@ function renderSetup() {
     body =
       '<p class="setup-hint">Diese Einstellungen können jederzeit im Admin-Bereich geändert werden. Standardwerte sind vorausgefüllt.</p>' +
       '<div class="setup-section-title">🏟️ Verein</div>' +
-      field('Vereinsname',       'setup-verein-name',     s.vereinName,      'z.B. TuS Oedt 1953 e.V.') +
-      field('Kurzbezeichnung',   'setup-verein-kuerzel',  s.vereinKuerzel,   'z.B. TuS Oedt', 'Wird im Header angezeigt') +
+      field('Vereinsname',       'setup-verein-name',     s.vereinName,      'z.B. Muster-Verein 1953 e.V.') +
+      field('Kurzbezeichnung',   'setup-verein-kuerzel',  s.vereinKuerzel,   'z.B. Musterverein', 'Wird im Header angezeigt') +
       field('App-Untertitel',    'setup-app-untertitel',  s.appUntertitel,   'z.B. Leichtathletik-Statistik') +
       '<div class="setup-divider"></div>' +
       '<div class="setup-section-title">🎨 Vereinsfarben</div>' +
@@ -955,7 +955,7 @@ async function doLogin() {
     if (r.data && r.data.totp_required) {
       _loginPendingName = benutzername;
       if (r.data.totp_setup) await showTotpSetup();
-      else                   showTotpVerify();
+      else                   show2FAChoice(r.data.has_totp, r.data.has_passkey);
     } else {
       currentUser = { name: benutzername, rolle: r.data.rolle };
       showApp();
@@ -964,6 +964,78 @@ async function doLogin() {
     var msg = (r && r.fehler) ? r.fehler : ('Unbekannter Fehler: ' + JSON.stringify(r));
     errEl.textContent = '\u274C ' + msg;
     errEl.style.display = 'block';
+  }
+}
+
+function show2FAChoice(hasTotp, hasPasskey) {
+  if (hasTotp && hasPasskey) {
+    // Beide verfügbar → Auswahl anbieten
+    document.getElementById('login-screen').innerHTML =
+      '<div class="login-card">' +
+      '<div style="text-align:center;margin-bottom:20px"><img src="' + (appConfig.logo_datei ? '/' + appConfig.logo_datei : '') + '" style="height:60px;object-fit:contain" onerror="this.style.display='none'"/></div>' +
+      '<h2 style="font-size:18px;font-weight:700;margin:0 0 6px">&#x1F512; Zwei-Faktor-Authentifizierung</h2>' +
+      '<p style="color:var(--text2);font-size:13px;margin:0 0 24px">Wähle deine 2FA-Methode:</p>' +
+      '<button class="btn btn-primary" style="width:100%;margin-bottom:12px;font-size:15px;padding:14px" onclick="doPasskeyAuth()">' +
+        '&#x1F511; Mit Passkey anmelden' +
+      '</button>' +
+      '<button class="btn btn-ghost" style="width:100%;margin-bottom:12px" onclick="showTotpVerify()">' +
+        '&#x1F4F1; Authenticator-App verwenden' +
+      '</button>' +
+      '<button class="btn btn-ghost" style="width:100%;opacity:.6;font-size:12px" onclick="location.reload()">Zurück</button>' +
+      '</div>';
+  } else if (hasPasskey) {
+    doPasskeyAuth();
+  } else {
+    showTotpVerify();
+  }
+}
+
+async function doPasskeyAuth() {
+  document.getElementById('login-screen').innerHTML =
+    '<div class="login-card" style="text-align:center">' +
+    '<div style="margin-bottom:20px"><img src="' + (appConfig.logo_datei ? '/' + appConfig.logo_datei : '') + '" style="height:60px;object-fit:contain" onerror="this.style.display='none'"/></div>' +
+    '<div style="font-size:48px;margin:16px 0">&#x1F511;</div>' +
+    '<h2 style="font-size:18px;font-weight:700;margin:0 0 8px">Passkey-Anmeldung</h2>' +
+    '<p style="color:var(--text2);font-size:13px;margin:0 0 20px">Bitte bestätige die Anmeldung in deinem Gerät&hellip;</p>' +
+    '<div id="passkey-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
+    '<button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="location.reload()">Zurück</button>' +
+    '</div>';
+  try {
+    var optR = await apiPost('auth/passkey-auth-challenge', {});
+    if (!optR || !optR.ok) throw new Error((optR && optR.fehler) || 'Challenge fehlgeschlagen');
+    var opts = optR.data;
+    // allowCredentials: base64url → ArrayBuffer
+    var allowCreds = (opts.allowCredentials || []).map(function(c) {
+      return { type: 'public-key', id: _b64urlToBuffer(c.id) };
+    });
+    var assertOpts = {
+      challenge:        _b64urlToBuffer(opts.challenge),
+      timeout:          opts.timeout || 60000,
+      rpId:             opts.rpId,
+      userVerification: opts.userVerification || 'preferred',
+      allowCredentials: allowCreds,
+    };
+    var assertion = await navigator.credentials.get({ publicKey: assertOpts });
+    var cred = {
+      id:   assertion.id,
+      type: assertion.type,
+      response: {
+        authenticatorData: _bufferToB64url(assertion.response.authenticatorData),
+        clientDataJSON:    _bufferToB64url(assertion.response.clientDataJSON),
+        signature:         _bufferToB64url(assertion.response.signature),
+        userHandle:        assertion.response.userHandle ? _bufferToB64url(assertion.response.userHandle) : null,
+      }
+    };
+    var verR = await apiPost('auth/passkey-auth-verify', { credential: cred });
+    if (!verR || !verR.ok) throw new Error((verR && verR.fehler) || 'Verifikation fehlgeschlagen');
+    currentUser = { name: _loginPendingName, rolle: verR.data.rolle };
+    showApp();
+  } catch(e) {
+    var errEl = document.getElementById('passkey-err');
+    if (errEl) {
+      errEl.textContent = '❌ ' + (e.message || String(e));
+      errEl.style.display = 'block';
+    }
   }
 }
 
@@ -1178,19 +1250,34 @@ function showUserMenu() {
       '<div class="form-group"><label>Wiederholen</label><input type="password" id="pw-neu2" placeholder="Wiederholen"/></div>' +
     '</div>' +
     '<div id="pw-msg" style="display:none;margin:10px 0;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600"></div>' +
-     (currentUser.rolle === 'admin' ?
-       '<hr style="border:none;border-top:1px solid var(--border);margin:0 0 16px"/>' +
-       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
-       '<div><strong>&#x1F512; 2FA</strong>' +
-       '<div style="font-size:12px;color:var(--text2);margin-top:2px">TOTP aktiv &ndash; Authenticator-App</div></div>' +
-       '<button class="btn btn-sm btn-ghost" style="color:#cc0000" onclick="disableTotp()">Deaktivieren</button></div>'
-     : '') +
+    '<hr style="border:none;border-top:1px solid var(--border);margin:0 0 16px"/>' +
+    '<div style="margin-bottom:6px"><strong>&#x1F512; Zwei-Faktor-Authentifizierung</strong></div>' +
+    '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">Mindestens eine Methode muss aktiv sein.</div>' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">' +
+      '<span style="font-size:13px">&#x1F4F1; Authenticator-App (TOTP)</span>' +
+      (currentUser.totp_aktiv
+        ? '<button class="btn btn-sm btn-ghost" style="color:#cc0000" onclick="disableTotp()">Deaktivieren</button>'
+        : '<button class="btn btn-sm btn-primary" onclick="showTotpSetupInProfile()">Einrichten</button>') +
+    '</div>' +
+    '<div style="margin-bottom:12px">' +
+      '<div style="margin-bottom:8px;font-size:13px">&#x1F511; Passkeys</div>' +
+      '<div id="passkey-section-profil"></div>' +
+    '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" style="color:var(--accent)" onclick="closeModal();logout()">Abmelden</button>' +
       '<button class="btn btn-ghost" onclick="closeModal()">Schlie&#xDF;en</button>' +
       '<button class="btn btn-primary" onclick="changePasswort()">Passwort &#xe4;ndern</button>' +
     '</div>'
   );
+  // Passkey-Section nach DOM-Aufbau laden
+  setTimeout(function() { renderPasskeySection('passkey-section-profil'); }, 50);
+}
+
+async function showTotpSetupInProfile() {
+  // TOTP-Setup für bereits eingeloggte User
+  // Der API-Endpunkt setzt die pending Session serverseitig
+  closeModal();
+  await showTotpSetup(true); // true = aus Profil heraus → kein finalizeLogin nötig
 }
 
 async function uploadAvatar(input) {
@@ -4840,7 +4927,7 @@ async function rrFetch() {
       var vereinRaw2 = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
       var _noResVer = (document.getElementById('header-version') || {}).textContent || '';
       var _noResText = [
-        'Keine TuS-Oedt-Ergebnisse gefunden.',
+        'Keine Vereins-Ergebnisse gefunden.',
         'App: ' + _noResVer + ' | ' + new Date().toLocaleString('de-DE'),
         'URL: https://my.raceresult.com/' + eventId + '/',
         contestIds.length + ' Contest(s) | Listname: ' + listName,
@@ -4862,7 +4949,7 @@ async function rrFetch() {
       ].join('\n');
       preview.innerHTML =
         '<div style="background:var(--surf2);border-radius:10px;padding:16px">' +
-          '<strong>&#x274C; Keine TuS-Oedt-Ergebnisse gefunden.</strong>' +
+          '<strong>&#x274C; Keine Vereins-Ergebnisse gefunden.</strong>' +
           '<div style="position:relative;margin-top:10px">' +
             '<button onclick="(function(){var el=document.getElementById(\'rr-nores-dbg\');var txt=el.innerText||el.textContent;if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){var b=el.parentNode.querySelector(\'button\');var old=b.textContent;b.textContent=\'\u2713 Kopiert!\';setTimeout(function(){b.textContent=old;},2000);});}else{var r=document.createRange();r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}})();" style="position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer">&#x1F4CB; Kopieren</button>' +
             '<pre id="rr-nores-dbg" style="font-size:11px;overflow-x:auto;background:var(--surface);padding:10px;padding-right:80px;border-radius:6px;white-space:pre-wrap;color:var(--text2);margin:0">' + _noResText.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</pre>' +
@@ -5277,7 +5364,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
         '<input id="rr-datum" type="text" value="' + (guessDate ? guessDate.split('-').reverse().join('.') : '') + '" placeholder="TT.MM.JJJJ" onchange="_rrRefreshAKPlatz()" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Ort</div>' +
         '<input id="rr-ort" type="text" value="' + (eventOrt||'') + '" placeholder="z.B. D\u00fcsseldorf" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:min(150px,100%)"/></div>' +
-      '<span style="font-size:12px;color:var(--text2);align-self:center">&#x2705; ' + results.length + ' TuS-Oedt-Ergebnis(se) &bull; Event ' + eventId + '</span>' +
+      '<span style="font-size:12px;color:var(--text2);align-self:center">&#x2705; ' + results.length + ' Vereins-Ergebnis(se) &bull; Event ' + eventId + '</span>' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;align-self:center">' +
         '<input type="checkbox" id="rr-mstr-toggle" onchange="importToggleMstr(\'rr\',this.checked,document.getElementById(\'rr-mstr-global\').value)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
         'Meisterschaft' +
@@ -6838,8 +6925,8 @@ async function renderAdminDarstellung() {
     '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">🏟️ Verein</div></div>' +
       '<div class="settings-panel-body">' +
-        row('Vereinsname', 'Vollständiger Name, z.B. in E-Mails', textIn('cfg-verein_name', cfgVal('verein_name','TuS Oedt'))) +
-        row('Kurzbezeichnung', 'Im Header und Menü angezeigt', textIn('cfg-verein_kuerzel', cfgVal('verein_kuerzel','TuS Oedt'))) +
+        row('Vereinsname', 'Vollständiger Name, z.B. in E-Mails', textIn('cfg-verein_name', cfgVal('verein_name',''))) +
+        row('Kurzbezeichnung', 'Im Header und Menü angezeigt', textIn('cfg-verein_kuerzel', cfgVal('verein_kuerzel',''))) +
         row('App-Untertitel', 'Unter dem Vereinsnamen im Header', textIn('cfg-app_untertitel', cfgVal('app_untertitel','Leichtathletik-Statistik'))) +
         row('Vereinslogo', 'PNG, JPG, SVG oder WebP · max. 2 MB',
           '<div style="display:flex;flex-direction:column;gap:12px">' +
@@ -6883,8 +6970,8 @@ async function renderAdminDarstellung() {
     '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">📧 Registrierung &amp; E-Mail</div></div>' +
       '<div class="settings-panel-body">' +
-        row('Zugelassene E-Mail-Domain', 'Nur Adressen mit dieser Domain dürfen sich registrieren', textIn('cfg-email_domain', cfgVal('email_domain','tus-oedt.de'), 'meinverein.de')) +
-        row('Absender-E-Mail', 'Von-Adresse für System-Mails', textIn('cfg-noreply_email', cfgVal('noreply_email','noreply@tus-oedt.de'), 'noreply@...')) +
+        row('Zugelassene E-Mail-Domain', 'Nur Adressen mit dieser Domain dürfen sich registrieren', textIn('cfg-email_domain', cfgVal('email_domain',''), 'meinverein.de')) +
+        row('Absender-E-Mail', 'Von-Adresse für System-Mails', textIn('cfg-noreply_email', cfgVal('noreply_email',''), 'noreply@...')) +
       '</div>' +
     '</div>' +
 
@@ -7902,7 +7989,7 @@ async function mikaFetch() {
   var baseUrl = rawUrl.split('?')[0].replace(/\/?$/, '/');
 
   // Vereinsname für Suche
-  var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || 'TuS Oedt').trim();
+  var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '').trim();
 
   // PHP-Proxy: Suche per Vereinsname
   var r = await apiGet('mika-fetch?base_url=' + encodeURIComponent(baseUrl) + '&club=' + encodeURIComponent(vereinRaw));
@@ -7920,7 +8007,7 @@ async function mikaFetch() {
   sortDisziplinen(diszList);
 
   if (!results.length) {
-    preview.innerHTML = '<div style="background:var(--surf2);border-radius:10px;padding:16px"><strong>&#x274C; Keine TuS-Oedt-Ergebnisse gefunden.</strong><br><div style="font-size:12px;color:var(--text2);margin-top:8px">Vereinssuche: &ldquo;' + vereinRaw + '&rdquo;<br>Debug: ' + JSON.stringify(data.debug||{}).slice(0,300) + '</div></div>';
+    preview.innerHTML = '<div style="background:var(--surf2);border-radius:10px;padding:16px"><strong>&#x274C; Keine Vereins-Ergebnisse gefunden.</strong><br><div style="font-size:12px;color:var(--text2);margin-top:8px">Vereinssuche: &ldquo;' + vereinRaw + '&rdquo;<br>Debug: ' + JSON.stringify(data.debug||{}).slice(0,300) + '</div></div>';
     return;
   }
 
@@ -7983,7 +8070,7 @@ async function mikaFetch() {
   }
 
   preview.innerHTML =
-    '<div style="font-size:13px;font-weight:600;margin-bottom:12px">&#x2705; ' + results.length + ' TuS-Oedt-Ergebnis(se) &bull; ' + eventName + '</div>' +
+    '<div style="font-size:13px;font-weight:600;margin-bottom:12px">&#x2705; ' + results.length + ' Vereins-Ergebnis(se) &bull; ' + eventName + '</div>' +
     '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">' +
       '<div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Veranstaltungsname</label><input id="mika-evname" value="' + (eventName||'').replace(/"/g,'&quot;') + '" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);min-width:300px"/></div>' +
       '<div><label style="font-size:11px;color:var(--text2);display:block;margin-bottom:4px">Datum</label><input id="mika-datum" value="' + (eventDate ? (function(d){var p=d.match(/(\d{4})-(\d{2})-(\d{2})/);return p?p[3]+'.'+p[2]+'.'+p[1]:'';})(eventDate) : '') + '" placeholder="TT.MM.JJJJ" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
@@ -8107,6 +8194,174 @@ async function mikaImport() {
 
 function mikaMstrChanged(sel) {
   // kein extra Toggle nötig
+}
+/* ── 12_passkey.js – Passkey-Verwaltung im Profil ── */
+
+// ── ArrayBuffer ↔ Base64URL Hilfsfunktionen ───────────────────
+function _b64urlToBuffer(b64url) {
+  var s = b64url.replace(/-/g, '+').replace(/_/g, '/');
+  var pad = s.length % 4;
+  if (pad) s += '==='.slice(0, 4 - pad);
+  var bin = atob(s);
+  var buf = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+
+function _bufferToB64url(buf) {
+  var bytes = new Uint8Array(buf);
+  var bin = '';
+  for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// ── Passkey registrieren ───────────────────────────────────────
+async function passkeyRegister(keyName) {
+  try {
+    if (!window.PublicKeyCredential) {
+      throw new Error('Dein Browser unterstützt keine Passkeys.');
+    }
+
+    // Challenge vom Server holen
+    var optR = await apiGet('auth/passkey-reg-challenge');
+    if (!optR || !optR.ok) throw new Error((optR && optR.fehler) || 'Challenge fehlgeschlagen');
+    var opts = optR.data;
+
+    // Optionen in WebAuthn-Format konvertieren
+    var createOpts = {
+      rp:      opts.rp,
+      user: {
+        id:          _b64urlToBuffer(opts.user.id),
+        name:        opts.user.name,
+        displayName: opts.user.displayName,
+      },
+      challenge:         _b64urlToBuffer(opts.challenge),
+      pubKeyCredParams:  opts.pubKeyCredParams,
+      timeout:           opts.timeout || 60000,
+      excludeCredentials: (opts.excludeCredentials || []).map(function(c) {
+        return { type: 'public-key', id: _b64urlToBuffer(c.id) };
+      }),
+      authenticatorSelection: opts.authenticatorSelection || {},
+      attestation: opts.attestation || 'none',
+    };
+
+    // Plattform-Dialog öffnen
+    var cred = await navigator.credentials.create({ publicKey: createOpts });
+
+    // Response an Server schicken
+    var credData = {
+      id:   cred.id,
+      type: cred.type,
+      response: {
+        clientDataJSON:    _bufferToB64url(cred.response.clientDataJSON),
+        attestationObject: _bufferToB64url(cred.response.attestationObject),
+      }
+    };
+
+    var verR = await apiPost('auth/passkey-reg-verify', {
+      credential: credData,
+      name:       keyName || 'Passkey',
+    });
+    if (!verR || !verR.ok) throw new Error((verR && verR.fehler) || 'Registrierung fehlgeschlagen');
+    return { ok: true, name: verR.data.name };
+  } catch(e) {
+    return { ok: false, fehler: e.message || String(e) };
+  }
+}
+
+// ── Passkey löschen ───────────────────────────────────────────
+async function passkeyDelete(id) {
+  var r = await apiDelete('auth/passkeys/' + id);
+  return r && r.ok;
+}
+
+// ── Passkey-Verwaltungs-UI im Profil ─────────────────────────
+async function renderPasskeySection(containerId) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+
+  if (!window.PublicKeyCredential) {
+    el.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:12px 0">' +
+      '&#x26A0;&#xFE0E; Dein Browser unterstützt keine Passkeys (WebAuthn).</div>';
+    return;
+  }
+
+  el.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px 0">&#x23F3; Lade&hellip;</div>';
+
+  var r = await apiGet('auth/passkeys');
+  var passkeys = (r && r.ok && r.data) ? r.data : [];
+
+  var rows = '';
+  if (passkeys.length === 0) {
+    rows = '<div style="color:var(--text2);font-size:13px;padding:8px 0;font-style:italic">Noch keine Passkeys registriert.</div>';
+  } else {
+    rows = '<div style="margin-bottom:12px">';
+    passkeys.forEach(function(pk) {
+      var datum = pk.letzter_login
+        ? new Date(pk.letzter_login).toLocaleDateString('de-DE')
+        : '–';
+      rows +=
+        '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">' +
+          '<span style="font-size:20px">&#x1F511;</span>' +
+          '<div style="flex:1">' +
+            '<div style="font-weight:600;font-size:13px">' + pk.name + '</div>' +
+            '<div style="font-size:11px;color:var(--text2)">Zuletzt verwendet: ' + datum + '</div>' +
+          '</div>' +
+          '<button class="btn btn-danger btn-sm" onclick="passkeyDeleteAndRefresh(' + pk.id + ',\'' + containerId + '\')" title="Passkey löschen">&#x2715;</button>' +
+        '</div>';
+    });
+    rows += '</div>';
+  }
+
+  el.innerHTML =
+    rows +
+    '<div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
+      '<input type="text" id="passkey-new-name" placeholder="Name (z.B. MacBook, iPhone)" ' +
+        'style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)" ' +
+        'onkeydown="if(event.key===\'Enter\')passkeyRegisterAndRefresh(\'' + containerId + '\')" />' +
+      '<button class="btn btn-primary btn-sm" onclick="passkeyRegisterAndRefresh(\'' + containerId + '\')">' +
+        '&#x2795; Passkey hinzufügen' +
+      '</button>' +
+    '</div>' +
+    '<div id="passkey-msg-' + containerId + '" style="display:none;margin-top:8px;font-size:13px;font-weight:600;padding:8px 12px;border-radius:7px"></div>';
+}
+
+async function passkeyRegisterAndRefresh(containerId) {
+  var nameEl = document.getElementById('passkey-new-name');
+  var name = nameEl ? nameEl.value.trim() : '';
+  var msgEl = document.getElementById('passkey-msg-' + containerId);
+
+  if (msgEl) { msgEl.style.display = 'none'; }
+
+  var result = await passkeyRegister(name || 'Passkey');
+  if (result.ok) {
+    if (msgEl) {
+      msgEl.style.background = '#d4edda';
+      msgEl.style.color = '#155724';
+      msgEl.textContent = '✓ Passkey „' + result.name + '" erfolgreich registriert!';
+      msgEl.style.display = 'block';
+    }
+    notify('Passkey „' + result.name + '" registriert.', 'ok');
+    await renderPasskeySection(containerId);
+  } else {
+    if (msgEl) {
+      msgEl.style.background = '#fde8e8';
+      msgEl.style.color = '#cc0000';
+      msgEl.textContent = '❌ ' + result.fehler;
+      msgEl.style.display = 'block';
+    }
+  }
+}
+
+async function passkeyDeleteAndRefresh(id, containerId) {
+  if (!confirm('Passkey wirklich löschen?')) return;
+  var ok = await passkeyDelete(id);
+  if (ok) {
+    notify('Passkey gelöscht.', 'ok');
+    await renderPasskeySection(containerId);
+  } else {
+    notify('Fehler beim Löschen.', 'err');
+  }
 }
 /* ── 10_veranstaltungen.js ── */
 async function renderVeranstaltungen() {
