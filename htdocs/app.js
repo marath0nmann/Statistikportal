@@ -1215,7 +1215,8 @@ async function showApp() {
   buildFooter();
   await loadDisziplinen();
   if (currentUser) loadAthleten();  // parallel, nicht abwarten nötig
-  navigate(currentUser ? 'dashboard' : 'dashboard');
+  restoreFromHash();  // Tab aus URL-Hash wiederherstellen
+  renderPage();
 }
 
 function showUserMenu() {
@@ -1709,6 +1710,7 @@ function navigate(tab) {
   state.tab    = tab;
   state.page   = 1;
   state.veranstPage = 1;
+  syncHash();
   // subTab nur für Tabs mit eigenen Sub-Tabs zurücksetzen
   if (tab === 'ergebnisse') state.subTab = 'strasse';
   else if (tab === 'eintragen') state.subTab = 'bulk';
@@ -1779,6 +1781,49 @@ async function renderPage() {
 
 // ── DASHBOARD ──────────────────────────────────────────────
 
+
+
+// ── Hash-Routing ─────────────────────────────────────────────
+function syncHash() {
+  if (!history.replaceState) return;
+  var hash = state.tab;
+  if (state.tab === 'admin' && state.adminTab) hash += '/' + state.adminTab;
+  else if (state.tab === 'ergebnisse' && state.subTab) hash += '/' + state.subTab;
+  else if (state.tab === 'rekorde'    && state.subTab) hash += '/' + state.subTab;
+  else if (state.tab === 'eintragen'  && state.subTab) hash += '/' + state.subTab;
+  history.replaceState(null, '', '#' + hash);
+}
+
+function restoreFromHash() {
+  var hash = window.location.hash.replace('#', '');
+  if (!hash) return;
+  var parts  = hash.split('/');
+  var tab    = parts[0].toLowerCase();
+  var sub    = parts[1] ? parts[1].toLowerCase() : '';
+  var validTabs = ['dashboard','veranstaltungen','ergebnisse','athleten','rekorde','eintragen','admin'];
+  if (validTabs.indexOf(tab) < 0) return;
+
+  state.tab = tab;
+
+  if (tab === 'admin' && sub) {
+    var validAdmin = ['benutzer','registrierungen','disziplinen','altersklassen',
+                      'meisterschaften','darstellung','dashboard_cfg','papierkorb'];
+    if (validAdmin.indexOf(sub) >= 0) state.adminTab = sub;
+  } else if (tab === 'ergebnisse' && sub) {
+    state.subTab = sub;
+  } else if (tab === 'rekorde' && sub) {
+    state.subTab = sub;
+  } else if (tab === 'eintragen' && sub) {
+    var validEint = ['bulk','raceresult','mikatiming'];
+    if (validEint.indexOf(sub) >= 0) state.subTab = sub;
+  }
+}
+
+// Browser Back/Forward
+window.addEventListener('popstate', function() {
+  restoreFromHash();
+  renderPage();
+});
 /* ── 03_dashboard.js ── */
 async function renderDashboard() {
   var ds = getDarstellungSettings();
@@ -5952,14 +5997,14 @@ function rrukConfirm() {
 function adminSubtabs() {
   var t = state.adminTab || 'benutzer';
   return '<div class="subtabs" style="margin-bottom:20px">' +
-    '<button class="subtab' + (t==='benutzer'       ? ' active' : '') + '" onclick="state.adminTab=\'benutzer\';renderAdmin()">👥 Benutzer</button>' +
-    '<button class="subtab' + (t==='registrierungen'? ' active' : '') + '" onclick="state.adminTab=\'registrierungen\';renderAdmin()">📝 Registrierungen</button>' +
-    '<button class="subtab' + (t==='disziplinen'    ? ' active' : '') + '" onclick="state.adminTab=\'disziplinen\';renderAdmin()">🏷️ Disziplinen</button>' +
-    '<button class="subtab' + (t==='altersklassen'  ? ' active' : '') + '" onclick="state.adminTab=\'altersklassen\';renderAdmin()">👤 Altersklassen</button>' +
-    '<button class="subtab' + (t==='meisterschaften' ? ' active' : '') + '" onclick="state.adminTab=\'meisterschaften\';renderAdmin()">🏅 Meisterschaften</button>' +
-    '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="state.adminTab=\'darstellung\';renderAdmin()">🎨 Darstellung</button>' +
-    '<button class="subtab' + (t==='dashboard_cfg'   ? ' active' : '') + '" onclick="state.adminTab=\'dashboard_cfg\';renderAdmin()">📊︎ Dashboard</button>' +
-    '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="state.adminTab=\'papierkorb\';renderAdmin()">🗑️ Papierkorb</button>' +
+    '<button class="subtab' + (t==='benutzer'       ? ' active' : '') + '" onclick="navAdmin(\'benutzer\')">👥 Benutzer</button>' +
+    '<button class="subtab' + (t==='registrierungen'? ' active' : '') + '" onclick="navAdmin(\'registrierungen\')">📝 Registrierungen</button>' +
+    '<button class="subtab' + (t==='disziplinen'    ? ' active' : '') + '" onclick="navAdmin(\'disziplinen\')">🏷️ Disziplinen</button>' +
+    '<button class="subtab' + (t==='altersklassen'  ? ' active' : '') + '" onclick="navAdmin(\'altersklassen\')">👤 Altersklassen</button>' +
+    '<button class="subtab' + (t==='meisterschaften' ? ' active' : '') + '" onclick="navAdmin(\'meisterschaften\')">🏅 Meisterschaften</button>' +
+    '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">🎨 Darstellung</button>' +
+    '<button class="subtab' + (t==='dashboard_cfg'   ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">📊︎ Dashboard</button>' +
+    '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb</button>' +
   '</div>';
 }
 
@@ -6231,6 +6276,12 @@ async function createRekord() {
   else notify((r && r.fehler) || '', 'err');
 }
 
+
+function navAdmin(tab) {
+  state.adminTab = tab;
+  syncHash();
+  renderAdmin();
+}
 // ── ADMIN: DISZIPLINEN ────────────────────────────────────
 async function renderPapierkorb() {
   var el = document.getElementById('main-content');
@@ -7784,9 +7835,9 @@ async function saveAdminAltersklassen() {
   }
 }
 /* ── 09_utils.js ── */
-function setSubTab(t) { state.subTab = t; state.page = 1; state.filters = {}; state.diszFilter = null; renderPage(); }
+function setSubTab(t) { state.subTab = t; state.page = 1; state.filters = {}; state.diszFilter = null; syncHash(); renderPage(); }
 function setDiszFilter(d) { state.diszFilter = d; state.page = 1; loadErgebnisseData(); }
-function setDiszTabFilter(cat, disz) { state.subTab = cat; state.diszFilter = disz; state.page = 1; state.filters = {}; loadErgebnisseData(); }
+function setDiszTabFilter(cat, disz) { state.subTab = cat; state.diszFilter = disz; state.page = 1; state.filters = {}; syncHash(); loadErgebnisseData(); }
 
 var _athSucheTimer = null;
 function setAthletSuche(v) {
