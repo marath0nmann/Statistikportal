@@ -972,7 +972,7 @@ function show2FAChoice(hasTotp, hasPasskey) {
     // Beide verfügbar → Auswahl anbieten
     document.getElementById('login-screen').innerHTML =
       '<div class="login-card">' +
-      '<div style="text-align:center;margin-bottom:20px"><img src="' + (appConfig.logo_datei ? '/' + appConfig.logo_datei : '') + '" style="height:60px;object-fit:contain" onerror="this.style.display='none'"/></div>' +
+      '<div style="text-align:center;margin-bottom:20px"><img src="' + (appConfig.logo_datei ? '/' + appConfig.logo_datei : '') + '" style="height:60px;object-fit:contain" onerror="this.style.display=\'none\'"/></div>' +
       '<h2 style="font-size:18px;font-weight:700;margin:0 0 6px">&#x1F512; Zwei-Faktor-Authentifizierung</h2>' +
       '<p style="color:var(--text2);font-size:13px;margin:0 0 24px">Wähle deine 2FA-Methode:</p>' +
       '<button class="btn btn-primary" style="width:100%;margin-bottom:12px;font-size:15px;padding:14px" onclick="doPasskeyAuth()">' +
@@ -993,7 +993,7 @@ function show2FAChoice(hasTotp, hasPasskey) {
 async function doPasskeyAuth() {
   document.getElementById('login-screen').innerHTML =
     '<div class="login-card" style="text-align:center">' +
-    '<div style="margin-bottom:20px"><img src="' + (appConfig.logo_datei ? '/' + appConfig.logo_datei : '') + '" style="height:60px;object-fit:contain" onerror="this.style.display='none'"/></div>' +
+    '<div style="margin-bottom:20px"><img src="' + (appConfig.logo_datei ? '/' + appConfig.logo_datei : '') + '" style="height:60px;object-fit:contain" onerror="this.style.display=\'none\'"/></div>' +
     '<div style="font-size:48px;margin:16px 0">&#x1F511;</div>' +
     '<h2 style="font-size:18px;font-weight:700;margin:0 0 8px">Passkey-Anmeldung</h2>' +
     '<p style="color:var(--text2);font-size:13px;margin:0 0 20px">Bitte bestätige die Anmeldung in deinem Gerät&hellip;</p>' +

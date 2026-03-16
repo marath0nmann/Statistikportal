@@ -1,11 +1,1 @@
-v533: Passkey / WebAuthn 2FA
-
-- includes/passkey.php: Vollständige WebAuthn-Implementierung ohne externe
-  Libraries (ES256 + RS256, CBOR-Decoder, DER-Encoding)
-- includes/auth.php: 2FA für alle User (nicht nur Admins), TOTP + Passkey
-- API-Endpunkte: passkey-reg-challenge/verify, passkey-auth-challenge/verify,
-  passkeys GET/DELETE
-- auth/me: liefert totp_aktiv + has_passkey
-- Login-Flow: show2FAChoice() zeigt TOTP-/Passkey-Auswahl wenn beide verfügbar
-- Profil: Passkey-Verwaltung (hinzufügen/löschen) für alle User
-- 12_passkey.js: passkeyRegister(), passkeyDelete(), renderPasskeySection()
+v534: Fix Syntax-Fehler in doPasskeyAuth (unescaped quotes)
