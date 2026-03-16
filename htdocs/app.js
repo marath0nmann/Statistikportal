@@ -2251,8 +2251,13 @@ function timelineBadges(rek) {
           var gesamtM = htitels.some(function(t){ return t.label === 'Gesamtbestleistung M\u00e4nner'; });
           var gesamtW = htitels.some(function(t){ return t.label === 'Gesamtbestleistung Frauen'; });
           var gesamt  = gesamtM || gesamtW;
-          var hasMaenner = htitels.some(function(t){ return t.label === 'Bestleistung M\u00e4nner' || t.label === 'Bestleistung MHK'; });
-          var hasFrauen  = htitels.some(function(t){ return t.label === 'Bestleistung Frauen'  || t.label === 'Bestleistung WHK'; });
+          var _mhnLabel = htitels.find(function(t){ return t.label === 'Bestleistung M\u00e4nner' || t.label === 'Bestleistung MHK'; });
+          var _whnLabel = htitels.find(function(t){ return t.label === 'Bestleistung Frauen'  || t.label === 'Bestleistung WHK'; });
+          var hasMaenner = !!_mhnLabel;
+          var hasFrauen  = !!_whnLabel;
+          // Label aus tatsächlichem Titel übernehmen (WHK/MHK statt Frauen/Männer)
+          var mhnText = _mhnLabel ? _mhnLabel.label.replace('Bestleistung ', '') : 'M\u00e4nner';
+          var whnText = _whnLabel ? _whnLabel.label.replace('Bestleistung ', '') : 'Frauen';
           var akM = htitels.filter(function(t){ return /^Bestleistung M\d/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
           var akW = htitels.filter(function(t){ return /^Bestleistung W\d/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
 
@@ -2260,11 +2265,11 @@ function timelineBadges(rek) {
           if (gesamtM) parts.push('Gesamtbestleistung M\u00e4nner');
           if (gesamtW) parts.push('Gesamtbestleistung Frauen');
           var mParts = [];
-          if (hasMaenner) mParts.push('M\u00e4nner');
+          if (hasMaenner) mParts.push(mhnText);
           if (akM.length) mParts.push(compressAKList(akM));
           if (mParts.length) parts.push('Bestleistung ' + joinList(mParts));
           var wParts = [];
-          if (hasFrauen) wParts.push('Frauen');
+          if (hasFrauen) wParts.push(whnText);
           if (akW.length) wParts.push(compressAKList(akW));
           if (wParts.length) parts.push('Bestleistung ' + joinList(wParts));
 
