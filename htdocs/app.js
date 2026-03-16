@@ -8999,7 +8999,7 @@ async function uitsImport() {
   var status = document.getElementById('uits-status');
   if (status) status.textContent = 'Importiere ' + items.length + ' Einträge\u2026';
 
-  var r = await apiPost('ergebnisse/bulk', { eintraege: items });
+  var r = await apiPost('ergebnisse/bulk', { items: items });
   if (r && r.ok) {
     var cnt = r.data && r.data.imported !== undefined ? r.data.imported : items.length;
     notify('\u2705 ' + cnt + ' Ergebnis(se) importiert.', 'ok');

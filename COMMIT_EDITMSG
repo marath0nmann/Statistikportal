@@ -1,6 +1,1 @@
-v568: uitslagen.nl: Disziplin-Dropdown auf gewählte Kategorie filtern
-
-- uitsDiszOptHtml(disziplinen, selectedMid, filterKat): nur Disziplinen
-  der gewählten Kategorie anzeigen
-- uitsRenderPreview: _uitsKat beim Render übergeben
-- Import: war bereits korrekt, Fehler kam von altem Bug (mapping_id→id)
+v569: uitslagen.nl: eintraege → items (bulk-Endpunkt erwartet 'items')
