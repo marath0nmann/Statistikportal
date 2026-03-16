@@ -1279,10 +1279,49 @@ function showUserMenu() {
 }
 
 async function showTotpSetupInProfile() {
-  // TOTP-Setup für bereits eingeloggte User
-  // Der API-Endpunkt setzt die pending Session serverseitig
-  closeModal();
-  await showTotpSetup(true); // true = aus Profil heraus → kein finalizeLogin nötig
+  // TOTP-Setup für bereits eingeloggte User — läuft im Modal, nicht im Login-Screen
+  var r = await apiGet('auth/totp-setup');
+  if (!r || !r.ok) { notify('Fehler: ' + ((r && r.fehler) || 'Unbekannt'), 'err'); return; }
+  var d = r.data;
+  showModal(
+    '<h2>&#x1F512; 2FA einrichten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<p style="color:var(--text2);font-size:13px;margin:0 0 16px">Scanne den QR-Code mit einer Authenticator-App (z.B. Google/Microsoft Authenticator).</p>' +
+    '<div style="text-align:center;margin-bottom:16px">' +
+      '<img src="' + d.qr_url + '" style="width:180px;height:180px;border-radius:12px;border:1px solid var(--border)"/>' +
+      '<p style="font-size:11px;color:var(--text2);margin:8px 0 4px">Oder manuell eingeben:</p>' +
+      '<code style="font-size:12px;font-weight:700;background:var(--surf2);padding:6px 12px;border-radius:6px;display:inline-block;word-break:break-all">' + d.secret + '</code>' +
+    '</div>' +
+    '<div class="form-group" style="margin-bottom:12px"><label>Code aus der App bestätigen</label>' +
+      '<input type="text" id="totp-profil-code" inputmode="numeric" maxlength="9" placeholder="000 000"' +
+        ' style="letter-spacing:4px;font-size:22px;text-align:center;font-weight:700"' +
+        ' onkeydown="if(event.key==='Enter')doTotpSetupInProfile()"/>' +
+    '</div>' +
+    '<div id="totp-profil-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="doTotpSetupInProfile()">Aktivieren</button>' +
+    '</div>'
+  , false, true);
+  setTimeout(function() { var el = document.getElementById('totp-profil-code'); if (el) el.focus(); }, 100);
+}
+
+async function doTotpSetupInProfile() {
+  var code  = (document.getElementById('totp-profil-code').value || '').replace(/\s+/g, '');
+  var errEl = document.getElementById('totp-profil-err');
+  errEl.style.display = 'none';
+  if (!code) { errEl.textContent = 'Bitte Code eingeben.'; errEl.style.display = 'block'; return; }
+  var r = await apiPost('auth/totp-setup', { code: code });
+  if (r && r.ok) {
+    closeModal();
+    if (currentUser) currentUser.totp_aktiv = true;
+    notify('✅ TOTP aktiviert!', 'ok');
+    if (r.data && r.data.backup_codes) showBackupCodes(r.data.backup_codes);
+  } else {
+    errEl.textContent = '❌ ' + ((r && r.fehler) || 'Ungültiger Code.');
+    errEl.style.display = 'block';
+    document.getElementById('totp-profil-code').value = '';
+    document.getElementById('totp-profil-code').focus();
+  }
 }
 
 async function uploadAvatar(input) {
