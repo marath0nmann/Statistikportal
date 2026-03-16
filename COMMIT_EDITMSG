@@ -1,6 +1,5 @@
-v541: passkey.php: Arrow Functions → PHP 7.x kompatibel
+v542: Fix Login-Response: has_totp + has_passkey wurden nicht weitergegeben
 
-fn() Arrow Functions erfordern PHP 7.4+ — all-inkl.com läuft möglicherweise
-auf einer älteren Version. Fatal Error beim Laden von passkey.php verhinderte
-has_passkey im Login-Response.
-Ersetzt durch klassische function($r) { return ...; } Syntax.
+api/index.php: jsonOk() im Login-Endpunkt enthielt nur totp_required/totp_setup,
+hat has_totp und has_passkey aus loginStep1 ignoriert → Frontend sah nie
+has_passkey:true → zeigte immer TOTP statt Passkey-Dialog.

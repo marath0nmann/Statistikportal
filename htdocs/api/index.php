@@ -141,10 +141,12 @@ if ($res === 'auth') {
         $result = Auth::loginStep1($body['benutzername'] ?? '', $body['passwort'] ?? '');
         if (!$result['ok']) jsonErr($result['fehler'], 401);
         if (!empty($result['totp_required'])) {
-            // Kein vollständiger Login – TOTP noch ausstehend
+            // Kein vollständiger Login – 2FA noch ausstehend
             jsonOk([
                 'totp_required' => true,
                 'totp_setup'    => !empty($result['totp_setup']),
+                'has_totp'      => !empty($result['has_totp']),
+                'has_passkey'   => !empty($result['has_passkey']),
             ]);
         }
         jsonOk(['rolle' => $result['rolle'], 'name' => $result['name']]);
