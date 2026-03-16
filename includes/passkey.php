@@ -277,8 +277,12 @@ class Passkey {
 
     // ── Prüfen ob User mindestens einen Passkey hat ────────────
     public static function userHasPasskey(int $userId): bool {
-        $r = DB::fetchOne('SELECT COUNT(*) AS n FROM ' . DB::tbl('passkeys') . ' WHERE user_id = ?', [$userId]);
-        return ($r['n'] ?? 0) > 0;
+        try {
+            $r = DB::fetchOne('SELECT COUNT(*) AS n FROM ' . DB::tbl('passkeys') . ' WHERE user_id = ?', [$userId]);
+            return ($r['n'] ?? 0) > 0;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 
     // ── Passkey löschen ────────────────────────────────────────

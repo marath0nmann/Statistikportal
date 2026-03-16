@@ -244,6 +244,7 @@ if ($res === 'auth') {
             // totp_aktiv + Passkey-Status ergänzen
             $row = DB::fetchOne('SELECT totp_aktiv FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$user['id']]);
             $user['totp_aktiv']  = !empty($row['totp_aktiv']);
+            try { Passkey::migrate(); } catch (\Exception $e) {}
             $user['has_passkey'] = Passkey::userHasPasskey($user['id']);
             jsonOk($user);
         }
