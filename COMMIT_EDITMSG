@@ -1,15 +1,4 @@
-v550: Vollständiges Hash-Routing
+v551: Fix Hash-Routing: restoreFromHash() vor buildNav()
 
-URL-Schema:
-  #dashboard
-  #ergebnisse/sprint       (subTab = Kategorie)
-  #rekorde/strasse
-  #eintragen/raceresult
-  #admin/disziplinen       (adminTab)
-
-- syncHash(): setzt history.replaceState bei jedem Zustandswechsel
-- restoreFromHash(): liest Hash beim Start und stellt Tab/SubTab wieder her
-- popstate: Browser Back/Forward funktioniert
-- navAdmin(): ersetzt inline state.adminTab = '...'; renderAdmin()
-- setSubTab/setDiszTabFilter: rufen syncHash() auf
-- showApp: navigate(dashboard) → restoreFromHash() + renderPage()
+buildNav() rendert den aktiven Tab-Highlight — muss also NACH
+restoreFromHash() aufgerufen werden, nicht davor.

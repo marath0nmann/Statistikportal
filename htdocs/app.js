@@ -1211,11 +1211,11 @@ async function showApp() {
     }
   }
   applyVersionVisibility();
+  restoreFromHash();  // Tab aus URL-Hash wiederherstellen — VOR buildNav!
   buildNav();
   buildFooter();
   await loadDisziplinen();
   if (currentUser) loadAthleten();  // parallel, nicht abwarten nötig
-  restoreFromHash();  // Tab aus URL-Hash wiederherstellen
   renderPage();
 }
 
