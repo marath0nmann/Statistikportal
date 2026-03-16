@@ -1,11 +1,9 @@
-v554: RaceResult: AK-Normalisierung (normalizeAK)
+v555: normalizeAK: Regex-Korruption behoben
 
-Neue Funktion normalizeAK() extrahiert DLV-Kürzel aus RaceResult-Labels:
+Python \b in Raw-String wurde als ASCII-Backspace (0x08) in die JS-Datei
+geschrieben → Regex /\b([MW]U?\d{2})\b/ war komplett kaputt.
+Neuschreiben mit (?:^|\s)...(?:\s|$) statt \b — funktioniert korrekt:
   "Seniorinnen W40" → "W40"
-  "Seniorinnen W65" → "W65"
   "Senioren M50"    → "M50"
+  "Senior W65"      → "W65"
   "Männliche Jugend U16" → "MU16"
-  "W 40"            → "W40"
-  "AK M35"          → "M35"
-
-Wird angewendet wenn iAK >= 0 (direktes AK-Feld aus RaceResult-Daten).
