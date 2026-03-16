@@ -1,1 +1,1 @@
-v539: Notfall-Reset: TOTP für alle aktiven User deaktivieren (egal ob Secret)
+v540: Notfall-Diagnose-Endpunkt (passkeys-Tabelle + has_passkey prüfen)
