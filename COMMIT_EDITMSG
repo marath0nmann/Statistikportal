@@ -1,1 +1,10 @@
-v544: Debug COSE-Key Parsing
+v545: Passkey: COSE-Key Binary-Bytes korrekt in JSON speichern
+
+Problem: COSE Public Key enthält raw Bytes (x/y Koordinaten) die kein
+valides UTF-8 sind → json_encode() gibt null → DB speichert "null" → 
+json_decode() → null → verifySignature crash.
+
+Fix: Byte-Strings werden vor JSON-Speicherung base64-kodiert (__b64__ Marker)
+und beim Lesen wiederhergestellt.
+
+Kaputte Passkeys (null JSON) werden automatisch gelöscht → User kann neu registrieren.

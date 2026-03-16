@@ -153,8 +153,10 @@ class Passkey {
                 );
             }
 
-            // Public Key serialisieren
+            // Public Key serialisieren: Byte-Strings base64-kodieren (JSON kann kein Binary)
+            $pubKeyData = self::encodeKeyBytesForStorage($pubKeyData);
             $pubKeyJson = json_encode($pubKeyData);
+            if ($pubKeyJson === null) throw new Exception('Public Key JSON-Encoding fehlgeschlagen.');
 
             // Duplikat-Check
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('passkeys') . ' WHERE credential_id = ?', [$credIdB64]);
@@ -255,6 +257,12 @@ class Passkey {
             $verifyData    = $authData . $clientDataHash;
 
             $pubKeyData = json_decode($pk['public_key'], true);
+            if (!is_array($pubKeyData)) {
+                // Kaputten Passkey löschen damit User neu registrieren kann
+                DB::query('DELETE FROM ' . DB::tbl('passkeys') . ' WHERE id = ?', [$pk['id']]);
+                throw new Exception('Passkey-Daten in der Datenbank ungültig. Bitte Passkey neu registrieren.');
+            }
+            $pubKeyData = self::decodeKeyBytesFromStorage($pubKeyData);
             if (!self::verifySignature($verifyData, $signature, $pubKeyData))
                 throw new Exception('Signatur ungültig.');
 
@@ -321,6 +329,32 @@ class Passkey {
     }
 
     // ── Signatur prüfen (ES256 + RS256) ───────────────────────
+    // Byte-Strings in COSE-Key base64-kodieren für JSON-Storage
+    private static function encodeKeyBytesForStorage(array $key): array {
+        $result = [];
+        foreach ($key as $k => $v) {
+            if (is_string($v) && !mb_detect_encoding($v, 'UTF-8', true)) {
+                $result[$k] = ['__b64__' => base64_encode($v)];
+            } else {
+                $result[$k] = $v;
+            }
+        }
+        return $result;
+    }
+
+    // base64-dekodierte Byte-Strings aus Storage wiederherstellen
+    private static function decodeKeyBytesFromStorage(array $key): array {
+        $result = [];
+        foreach ($key as $k => $v) {
+            if (is_array($v) && isset($v['__b64__'])) {
+                $result[$k] = base64_decode($v['__b64__']);
+            } else {
+                $result[$k] = $v;
+            }
+        }
+        return $result;
+    }
+
     private static function verifySignature(string $data, string $sig, array $coseKey): bool {
         // CBOR Map Keys sind Strings (auch negative Integers → "-7", "3" etc.)
         $alg = (int)($coseKey['3'] ?? $coseKey[3] ?? -7);
