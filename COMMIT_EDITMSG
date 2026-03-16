@@ -1,1 +1,6 @@
-v540: Notfall-Diagnose-Endpunkt (passkeys-Tabelle + has_passkey prüfen)
+v541: passkey.php: Arrow Functions → PHP 7.x kompatibel
+
+fn() Arrow Functions erfordern PHP 7.4+ — all-inkl.com läuft möglicherweise
+auf einer älteren Version. Fatal Error beim Laden von passkey.php verhinderte
+has_passkey im Login-Response.
+Ersetzt durch klassische function($r) { return ...; } Syntax.
