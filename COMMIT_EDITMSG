@@ -1,4 +1,14 @@
-v551: Fix Hash-Routing: restoreFromHash() vor buildNav()
+v552: Fix Disziplin-Mapping: UNIQUE auf (disziplin, kategorie_id) statt nur disziplin
 
-buildNav() rendert den aktiven Tab-Highlight — muss also NACH
-restoreFromHash() aufgerufen werden, nicht davor.
+Problem: "5.000m Bahn" + "5.000m Cross" → ON DUPLICATE KEY UPDATE überschrieb
+kategorie_id + UPDATE ergebnisse WHERE disziplin='5.000m' migrierte ALLE Einträge.
+
+Fixes:
+- CREATE TABLE: UNIQUE KEY uq_disz_kat (disziplin, kategorie_id)
+- Migration: DROP INDEX uq_disz/disziplin → ADD uq_disz_kat
+- POST: prüft (disziplin, kategorie_id) pair, kein ON DUPLICATE KEY UPDATE mehr
+- Neue Disziplin hängt keine bestehenden Ergebnisse um
+
+Datenbankkorrektur (manuell in phpMyAdmin):
+  UPDATE ergebnisse SET disziplin_mapping_id=67 WHERE disziplin_mapping_id=138;
+  DELETE FROM disziplin_mapping WHERE id=138;
