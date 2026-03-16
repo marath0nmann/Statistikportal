@@ -5092,7 +5092,7 @@ function rrBestDisz(rrName, diszList) {
     .replace(/\s+/g, ' ').trim();
 
   // Zahl + Einheit extrahieren und in Meter normalisieren
-  var qNorm = q.replace(/(\d)\.(\d{3})\b/g, '$1$2'); // 5.000 → 5000
+  var qNorm = q.replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2'); // 5.000 → 5000
   var numMatch = qNorm.match(/(\d+[,.]?\d*)\s*(km|m\b)/);
   var numKey = ''; var numMeters = null;
   if (numMatch) {
@@ -5106,7 +5106,7 @@ function rrBestDisz(rrName, diszList) {
 
   // Hilfsfunktion: Meterzahl aus Disziplin-String extrahieren
   function diszToMeters(s) {
-    var m = s.replace(/(\d)\.(\d{3})\b/g, '$1$2').match(/(\d+[,.]?\d*)\s*(km|m\b)/);
+    var m = s.replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2').match(/(\d+[,.]?\d*)\s*(km|m\b)/);
     if (!m) return null;
     var v = parseFloat(m[1].replace(',','.'));
     return m[2] === 'km' ? v * 1000 : v;
