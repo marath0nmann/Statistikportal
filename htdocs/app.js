@@ -3781,6 +3781,34 @@ function renderEintragen() {
       '<div class="panel" style="padding:24px">' +
         '<div class="panel-title" style="margin-bottom:4px">&#x1F4CB; Bulk-Eintragen</div>' +
         '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Mehrere Ergebnisse auf einmal eintragen &ndash; alle geh&ouml;ren zur selben Veranstaltung.</div>' +
+        '<div style="margin-bottom:14px">' +
+          '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
+          '<textarea id="bk-paste-area" rows="4" oninput="bulkPasteInput()" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl: https://uitslagen.nl/uitslag?id=2025110916317&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
+            '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
+            '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
+            '<select id="bk-import-kat" onchange="bulkImportKatChanged()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+              '<option value="">&#x2013; bitte w&auml;hlen &#x2013;</option>' +
+              (function() {
+                var seen={}, opts='', disz=state.disziplinen||[], kats=[];
+                for (var i=0;i<disz.length;i++){var d=disz[i];if(d.tbl_key&&!seen[d.tbl_key]){seen[d.tbl_key]=true;kats.push({key:d.tbl_key,name:d.kategorie});}}
+                for (var ki=0;ki<kats.length;ki++){opts+='<option value="'+kats[ki].key+'">'+kats[ki].name+'</option>';}
+                return opts;
+              })() +
+            '</select>' +
+          '</div>' +
+          '<div style="display:flex;gap:8px;margin-top:8px;align-items:center">' +
+            '<button class="btn btn-primary btn-sm" id="bk-einlesen-btn" onclick="bulkEinlesen()">&#x25B6; Einlesen</button>' +
+            '<div id="bk-import-status" style="font-size:12px;color:var(--text2)"></div>' +
+          '</div>' +
+          '<details id="bk-import-debug-wrap" style="display:none;margin-top:8px">' +
+            '<summary style="cursor:pointer;font-size:12px;color:var(--text2);padding:4px 0">&#x1F50D; Import-Debug</summary>' +
+            '<div style="position:relative">' +
+              '<button onclick="(function(){var el=document.getElementById(\'bk-import-debug\');var txt=el.innerText||el.textContent;if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){var b=el.parentNode.querySelector(\'button\');var old=b.textContent;b.textContent=\'\u2713 Kopiert!\';setTimeout(function(){b.textContent=old;},2000);});}else{var r=document.createRange();r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}})()" style="position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer">&#x1F4CB; Kopieren</button>' +
+              '<pre id="bk-import-debug" style="font-size:10px;overflow-x:auto;background:var(--surf2);padding:8px;padding-right:80px;border-radius:6px;white-space:pre-wrap;color:var(--text2);max-height:300px;overflow-y:auto"></pre>' +
+            '</div>' +
+          '</details>' +
+        '</div>' +
         '<div style="display:flex;gap:8px;margin-bottom:16px">' +
           '<button id="bk-toggle-neu" class="btn btn-primary btn-sm" onclick="bkToggleVeranst(\'neu\')">+ Neue Veranstaltung</button>' +
           '<button id="bk-toggle-best" class="btn btn-ghost btn-sm" onclick="bkToggleVeranst(\'best\')">&#x1F4C5; Bestehende w&auml;hlen</button>' +
@@ -3812,34 +3840,6 @@ function renderEintragen() {
           '<select id="bk-veranst-sel" style="width:100%;max-width:500px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text)">' +
             '<option value="">&#x2013; laden&hellip;</option>' +
           '</select>' +
-        '</div>' +
-        '<div style="margin-bottom:14px">' +
-          '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
-          '<textarea id="bk-paste-area" rows="4" oninput="bulkPasteInput()" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl: https://uitslagen.nl/uitslag?id=2025110916317&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
-          '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
-            '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
-            '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
-            '<select id="bk-import-kat" onchange="bulkImportKatChanged()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
-              '<option value="">&#x2013; bitte w&auml;hlen &#x2013;</option>' +
-              (function() {
-                var seen={}, opts='', disz=state.disziplinen||[], kats=[];
-                for (var i=0;i<disz.length;i++){var d=disz[i];if(d.tbl_key&&!seen[d.tbl_key]){seen[d.tbl_key]=true;kats.push({key:d.tbl_key,name:d.kategorie});}}
-                for (var ki=0;ki<kats.length;ki++){opts+='<option value="'+kats[ki].key+'">'+kats[ki].name+'</option>';}
-                return opts;
-              })() +
-            '</select>' +
-          '</div>' +
-          '<div style="display:flex;gap:8px;margin-top:8px;align-items:center">' +
-            '<button class="btn btn-primary btn-sm" id="bk-einlesen-btn" onclick="bulkEinlesen()">&#x25B6; Einlesen</button>' +
-            '<div id="bk-import-status" style="font-size:12px;color:var(--text2)"></div>' +
-          '</div>' +
-          '<details id="bk-import-debug-wrap" style="display:none;margin-top:8px">' +
-            '<summary style="cursor:pointer;font-size:12px;color:var(--text2);padding:4px 0">&#x1F50D; Import-Debug</summary>' +
-            '<div style="position:relative">' +
-              '<button onclick="(function(){var el=document.getElementById(\'bk-import-debug\');var txt=el.innerText||el.textContent;if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){var b=el.parentNode.querySelector(\'button\');var old=b.textContent;b.textContent=\'\u2713 Kopiert!\';setTimeout(function(){b.textContent=old;},2000);});}else{var r=document.createRange();r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}})()" style="position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer">&#x1F4CB; Kopieren</button>' +
-              '<pre id="bk-import-debug" style="font-size:10px;overflow-x:auto;background:var(--surf2);padding:8px;padding-right:80px;border-radius:6px;white-space:pre-wrap;color:var(--text2);max-height:300px;overflow-y:auto"></pre>' +
-            '</div>' +
-          '</details>' +
         '</div>' +
 
         '<div style="overflow-x:auto">' +
