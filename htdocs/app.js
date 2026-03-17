@@ -4116,6 +4116,24 @@ async function bulkSubmit() {
   }
   if (!items.length) { notify('Keine Eintr&auml;ge zum Speichern!', 'err'); return; }
 
+  // Unbekannte AKs prüfen und Dialog anzeigen (wie im RaceResult-Import)
+  var _unknownAKs = {};
+  items.forEach(function(it) {
+    if (it.altersklasse && !isValidDlvAK(it.altersklasse)) {
+      _unknownAKs[it.altersklasse] = null;
+    }
+  });
+  if (Object.keys(_unknownAKs).length > 0) {
+    var _akResolved = await rrUnknownAKModal(_unknownAKs);
+    if (!_akResolved) return; // Abgebrochen
+    // Aufgelöste AKs in items übernehmen
+    items.forEach(function(it) {
+      if (it.altersklasse && _akResolved[it.altersklasse] !== undefined) {
+        it.altersklasse = _akResolved[it.altersklasse] || it.altersklasse;
+      }
+    });
+  }
+
   document.getElementById('bulk-status').innerHTML = '&#x23F3; Speichert ' + items.length + ' Eintr&auml;ge&hellip;';
   var r = await apiPost('ergebnisse/bulk', { items: items });
   if (r && r.ok) {

@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v589 – Fix Bulk-Submit: unbekannte AKs werden abgefragt
+
+- `bulkSubmit()`: fehlende AK-Validierung ergänzt
+- Unbekannte AKs (z.B. "M51") → `rrUnknownAKModal()` öffnet sich
+  (identisch zum RaceResult-Import: hinzufügen oder korrigieren)
+- Aufgelöste AKs werden in alle betroffenen Items übernommen
+- Abbrechen im Dialog → kein Speichern
+
+---
+
+
 ## v588 – Fix RaceResult-Import: Disziplin-Match robuster
 
 - Beide Wege funktionieren jetzt:
