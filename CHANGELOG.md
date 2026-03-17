@@ -5,6 +5,30 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v588 – Fix RaceResult-Import: Disziplin-Match robuster
+
+- Beide Wege funktionieren jetzt:
+  1. Contest-Name mit Distanz (z.B. "M50 - 3500m" → "3.500m") — Cross/NRW
+  2. Listennamen direkt (z.B. "02-ERGEBNISSE|Marathon") — Straße/Bahn
+  3. Sub-Key-Namen mit Distanz (z.B. "#2_400m Lauf") — Bahn
+- _rrWalkData: Sub-Key als Disziplin-Quelle wenn er Meter/km enthält,
+  sonst Contest-Name von oben beibehalten
+- Top-Level-Dispatch: keyName || listName als Fallback-Kette
+
+---
+
+
+## v587 – Fix RaceResult-Import: Disziplin + Kategorie
+
+- Disziplin war immer "(keine)": Listennamen enthalten keine Meter,
+  aber Top-Level-Gruppen-Key enthält Contest-Name mit Distanz
+  z.B. "#1_MJU18 / M50 bis 80 - 3500m" → rrBestDisz findet "3.500m"
+- _rrWalkData: Top-Level-Keys als contestName übergeben
+- Importkategorie wird beim Import auch in bk-kat (Tabellen-Kategorie) gesetzt
+
+---
+
+
 ## v586 – Fix: Zeilennumerierung nach Import
 
 - Leerzeile wurde entfernt (v585), aber Nummern blieben fix im HTML
