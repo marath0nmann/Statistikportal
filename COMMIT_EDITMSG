@@ -1,5 +1,9 @@
-v577: Eintragen: "Ergebnisse einfügen" nach ganz oben verschoben
+v578: Import-Debug stark erweitert
 
-Veranstaltungsname und Ort ergeben sich meist aus dem Import —
-daher kommt der Paste/URL-Block jetzt zuerst, die Veranstaltungs-
-felder (Datum, Ort, Name, Kategorie) danach.
+Strukturiertes Debug-Log mit:
+- Header: App-Version, Verein, Zeitstempel, URL, Quelle, Kategorie
+- RaceResult: Event-ID, Eventname, Listen-Anzahl, Gefunden
+- MikaTiming: Verein, Basis-URL, Gefunden
+- uitslagen.nl: Eventname, Datum, Ort, Gesamt, Gefunden
+- Ergebnisse-Liste: Nr. / Name / AK / Zeit / Platz / → Disziplin
+- _bkDebugInit/_bkDebugHeader/_bkDebugLine/_bkDebugSep als Helfer
