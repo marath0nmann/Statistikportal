@@ -5,6 +5,19 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v581 – Fix RaceResult-Import im Bulk-Eintragen
+
+- `bulkImportFromRR`: PHP-Proxy lieferte nur Metadaten (title/date/location),
+  nie `cfg.lists` → 0 Listen, 0 Ergebnisse
+- Fix: Config direkt via Browser-Fetch von `RRPublish/data/config` (wie `rrFetch()`)
+- Datum + Ort werden weiterhin per PHP-Proxy befüllt
+- Ergebnis-Listen per PHP-Proxy geladen (unveränderter Mechanismus)
+- Blacklist für interne Listen (`__PARTICIPANTS`, `TEILNEHMER` etc.)
+- Debug-Log: API-Key (gekürzt), Datum, Ort, Listen gesamt/durchsucht
+
+---
+
+
 ## v580 – Build-Sicherheit: Syntax-Check + jstools.py
 
 - `build.sh`: Pflicht-Syntax-Check vor jedem Build — bricht bei Fehler ab
