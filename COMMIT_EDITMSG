@@ -1,12 +1,1 @@
-v580: Build-Sicherheit: Syntax-Check + jstools.py
-
-- build.sh: Pflicht-Syntax-Check vor jedem Build (bricht bei Fehler ab)
-  - Standalone-Module einzeln geprüft
-  - Split-Module (03-09) kombiniert geprüft  
-  - Kein ZIP wird gebaut wenn Fehler vorhanden
-- jstools.py: Python-Hilfsbibliothek für sichere JS-Änderungen
-  - replace_in_file(): str_replace mit Rollback bei Syntax-Fehler
-  - insert_before/after(): sichere Einfüge-Operationen
-  - check_all_modules(): vollständiger Syntax-Check
-  - add_changelog(), set_commit_msg(): Docs-Helfer
-  - show_around(): Debugging-Kontext anzeigen
+v581: Fix bulkImportFromRR: direkter Browser-Fetch statt PHP-Proxy
