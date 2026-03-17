@@ -5,6 +5,15 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v585 – Fix: leere erste Zeile beim Import
+
+- `renderEintragen()` fügt beim Start automatisch eine leere Zeile ein
+- `bulkFillFromImport()`: leere Zeilen (kein Athlet, kein Ergebnis)
+  werden vor dem Befüllen entfernt
+
+---
+
+
 ## v584 – Bulk-Eintragen: Textarea + AK-Feld verbessert
 
 - Textarea "Ergebnisse einfügen": `rows=4` → `rows=10`

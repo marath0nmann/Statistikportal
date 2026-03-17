@@ -4681,6 +4681,13 @@ function bulkFillFromImport(rows, statusEl) {
   var tbody = document.getElementById('bulk-rows');
   if (!tbody) return;
 
+  // Leere Zeilen entfernen die beim Render automatisch hinzugefügt wurden
+  Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
+    var athVal = (tr.querySelector('.bk-athlet') || {}).value || '';
+    var resVal = (tr.querySelector('.bk-res')    || {}).value || '';
+    if (!athVal && !resVal) tr.parentNode.removeChild(tr);
+  });
+
   rows.forEach(function(row) {
     bulkAddRow();
     var tr = tbody.lastElementChild;
