@@ -5,6 +5,22 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v579 – Import-Debug erweitert (Fix weißer Bildschirm v578)
+
+v578 hatte einen Syntax-Fehler durch `'` in Regex-Zeichenklasse sowie
+fehlerhafte Klammern in neu eingefügten Template-Strings → weiße Seite.
+
+Neuimplementierung mit zuverlässigem `str_replace`-Ansatz:
+- **Header:** Version + Verein, Zeitstempel, URL, Quelle, Importkategorie
+- **RaceResult:** Event-ID, Eventname, Listen-Anzahl, TuS-Einträge
+- **MikaTiming:** Verein, Basis-URL, TuS-Einträge
+- **uitslagen.nl:** Eventname, Datum, Ort, Gesamt, TuS-Einträge
+- **Ergebnisliste** je Import: Nr. / Name / AK / Zeit / Platz / → Disziplin
+- Neue Helfer: `_bkDebugInit`, `_bkDbgHeader`, `_bkDbgLine`, `_bkDbgSep`
+
+---
+
+
 ## v578 – Import-Debug stark erweitert
 
 Strukturiertes Debug-Log mit Kopieren-Button:

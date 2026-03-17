@@ -4136,72 +4136,62 @@ async function bulkSubmit() {
 // ── URL-Erkennung ───────────────────────────────────────────────────────────
 
 // ── Debug-Helfer für Bulk-Import ─────────────────────────────────────────────
-var _bkDebugLines = [];
+var _bkDbgLines = [];
 
+function _bkDbgFlush() {
+  var wrap = document.getElementById('bk-import-debug-wrap');
+  var pre  = document.getElementById('bk-import-debug');
+  if (wrap) { wrap.style.display = ''; wrap.open = true; }
+  if (pre)  pre.textContent = _bkDbgLines.join('\n');
+}
 function _bkDebugClear() {
-  _bkDebugLines = [];
+  _bkDbgLines = [];
   var wrap = document.getElementById('bk-import-debug-wrap');
   var pre  = document.getElementById('bk-import-debug');
   if (wrap) wrap.style.display = 'none';
   if (pre)  pre.textContent = '';
 }
-
-function _bkDebugFlush() {
-  var wrap = document.getElementById('bk-import-debug-wrap');
-  var pre  = document.getElementById('bk-import-debug');
-  if (wrap) { wrap.style.display = ''; wrap.open = true; }
-  if (pre)  pre.textContent = _bkDebugLines.join('\n');
-}
-
 function _bkDebugSet(text) {
-  _bkDebugLines = text.split('\n');
-  _bkDebugFlush();
+  _bkDbgLines = text ? text.split('\n') : [];
+  _bkDbgFlush();
 }
-
 function _bkDebugAppend(text) {
-  _bkDebugLines = _bkDebugLines.concat(text.replace(/^\n/,'').split('\n'));
-  _bkDebugFlush();
+  if (text) _bkDbgLines = _bkDbgLines.concat(text.split('\n'));
+  _bkDbgFlush();
 }
-
-function _bkDebugLine(label, value) {
-  var pad = 16;
-  var l = (label + ':').padEnd(pad, ' ');
-  _bkDebugLines.push(l + (value !== undefined ? value : ''));
-  _bkDebugFlush();
+function _bkDbgLine(label, val) {
+  _bkDbgLines.push((label + ':').padEnd(16, ' ') + (val !== undefined ? val : ''));
+  _bkDbgFlush();
 }
-
-function _bkDebugHeader(title) {
-  var line = '\u2500\u2500 ' + title + ' ';
-  while (line.length < 52) line += '\u2500';
-  _bkDebugLines.push(line);
-  _bkDebugFlush();
+function _bkDbgHeader(title) {
+  var s = '\u2500\u2500 ' + title + ' ';
+  while (s.length < 52) { s += '\u2500'; }
+  _bkDbgLines.push(s);
+  _bkDbgFlush();
 }
-
-function _bkDebugSep() {
-  _bkDebugLines.push('');
-  _bkDebugFlush();
+function _bkDbgSep() {
+  _bkDbgLines.push('');
+  _bkDbgFlush();
 }
-
 function _bkDebugInit(url, quelle, kat) {
-  _bkDebugLines = [];
-  var now = new Date();
-  var pad2 = function(n){ return String(n).padStart(2,'0'); };
-  var zeitStr = pad2(now.getDate()) + '.' + pad2(now.getMonth()+1) + '.' + now.getFullYear() +
-                '  ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds());
-  var verStr  = (document.getElementById('header-version')||{}).textContent || '?';
-  var vereinStr = (appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '?';
-
-  var sep = '';
-  for (var i=0;i<52;i++) sep += '\u2550';
-  _bkDebugLines.push(sep);
-  _bkDebugLine('App',     verStr + '  |  ' + vereinStr);
-  _bkDebugLine('Zeit',    zeitStr);
-  _bkDebugLine('URL',     url || '–');
-  _bkDebugLine('Quelle',  quelle || '–');
-  _bkDebugLine('Kategorie', kat || '–');
-  _bkDebugLines.push(sep);
-  _bkDebugLines.push('');
-  _bkDebugFlush();
+  _bkDbgLines = [];
+  var now   = new Date();
+  var p2    = function(n) { return String(n).padStart(2, '0'); };
+  var zeit  = p2(now.getDate()) + '.' + p2(now.getMonth() + 1) + '.' + now.getFullYear() +
+              '  ' + p2(now.getHours()) + ':' + p2(now.getMinutes()) + ':' + p2(now.getSeconds());
+  var ver   = ((document.getElementById('header-version') || {}).textContent || '?').replace(/^v/, 'v');
+  var club  = (appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '?';
+  var sep   = '';
+  for (var si = 0; si < 52; si++) { sep += '\u2550'; }
+  _bkDbgLines.push(sep);
+  _bkDbgLine('App',       ver + '  |  ' + club);
+  _bkDbgLine('Zeit',      zeit);
+  _bkDbgLine('URL',       url || '\u2013');
+  _bkDbgLine('Quelle',    quelle || '\u2013');
+  _bkDbgLine('Kategorie', kat || '\u2013');
+  _bkDbgLines.push(sep);
+  _bkDbgLines.push('');
+  _bkDbgFlush();
 }
 
 function bulkDetectUrl(text) {
@@ -4244,7 +4234,9 @@ async function bulkImportUrl() {
   if (!urlType || !kat) return;
 
   if (statusEl) statusEl.textContent = '⏳ Lade…';
-  _bkDebugClear();
+  var _bkQuelle = urlType === 'raceresult' ? 'RaceResult' :
+                  urlType === 'mikatiming' ? 'MikaTiming' : 'uitslagen.nl';
+  _bkDebugInit(raw, _bkQuelle, kat);
 
   try {
     if (urlType === 'raceresult') {
@@ -4271,8 +4263,8 @@ async function bulkImportFromRR(url, kat, statusEl) {
   var eventName = cfg.eventname || '';
   var vereinCfg = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
   var vereinParts = vereinCfg.split(/\s+/).filter(function(p){ return p.length > 1; });
-  _bkDebugHeader('RaceResult');
-  _bkDebugLine('Event-ID', eid);
+  _bkDbgHeader('RaceResult');
+  _bkDbgLine('Event-ID', eid);
   var lists = cfg.lists || [];
   var disziplinen = state.disziplinen || [];
   var diszList = disziplinen.map(function(d){ return d.disziplin; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
@@ -4315,22 +4307,24 @@ async function bulkImportFromRR(url, kat, statusEl) {
       else if (val && typeof val==='object') { Object.keys(val).forEach(function(sk){ if(Array.isArray(val[sk])) processRRRows(val[sk], sk||key); }); }
     });
   }
-  _bkDebugLine('Listen',   listsChecked + ' durchsucht');
-  _bkDebugLine('Gefunden', rrRows.length + ' TuS-Einträge');
+  _bkDbgLine('Eventname',  eventName || '–');
+  _bkDbgLine('Listen',     listsChecked + ' durchsucht');
+  _bkDbgLine('Gefunden',   rrRows.length + ' TuS-Einträge');
   if (rrRows.length) {
-    _bkDebugSep();
-    _bkDebugHeader('Ergebnisse');
-    rrRows.forEach(function(r, i) {
-      _bkDebugLines.push(
-        String(i+1).padStart(2,' ') + '.  ' +
-        (r.name||'?').padEnd(22,' ') +
-        (r.ak||'  ').padEnd(6,' ') +
-        (r.resultat||'').padEnd(10,' ') +
-        (r.platz ? 'Platz ' + r.platz : '').padEnd(9,' ') +
-        '→ ' + (r.disziplin||'(keine)')
+    _bkDbgSep();
+    _bkDbgHeader('Ergebnisse');
+    for (var _di = 0; _di < rrRows.length; _di++) {
+      var _dr = rrRows[_di];
+      _bkDbgLines.push(
+        String(_di+1).padStart(2,' ') + '.  ' +
+        (_dr.name||'?').padEnd(22,' ') +
+        (_dr.ak||'  ').padEnd(6,' ') +
+        (_dr.resultat||'').padEnd(10,' ') +
+        (_dr.platz ? 'Platz\u00a0' + _dr.platz : '').padEnd(9,' ') +
+        '\u2192 ' + (_dr.disziplin||'(keine)')
       );
-    });
-    _bkDebugFlush();
+    }
+    _bkDbgFlush();
   }
   bulkFillFromImport(rrRows, statusEl);
 }
@@ -4343,29 +4337,30 @@ async function bulkImportFromMika(url, kat, statusEl) {
   var r = await apiGet('mika-fetch?base_url=' + encodeURIComponent(baseUrl) + '&club=' + encodeURIComponent(vereinRaw));
   if (!r || !r.ok) { if(statusEl) statusEl.textContent = '❌ ' + (r && r.fehler || 'Fehler'); return; }
 
-
-  _bkDebugHeader('MikaTiming');
-  _bkDebugLine('Verein',    vereinRaw);
-  _bkDebugLine('Basis-URL', baseUrl);
+  _bkDbgHeader('MikaTiming');
+  _bkDbgLine('Verein',    vereinRaw);
+  _bkDbgLine('Basis-URL', baseUrl);
 
   var rows = mikaExtractRowsForBulk(r.data, kat);
-  _bkDebugLine('Gefunden',  rows.length + ' TuS-Einträge');
+  _bkDbgLine('Gefunden',  rows.length + ' TuS-Einträge');
   if (rows.length) {
-    _bkDebugSep();
-    _bkDebugHeader('Ergebnisse');
-    rows.forEach(function(row, i) {
-      _bkDebugLines.push(
-        String(i+1).padStart(2,' ') + '.  ' +
-        (row.name||'?').padEnd(22,' ') +
-        (row.ak||'  ').padEnd(6,' ') +
-        (row.resultat||'').padEnd(10,' ') +
-        (row.platz ? 'Platz ' + row.platz : '').padEnd(9,' ') +
-        '→ ' + (row.disziplin||'(keine)')
+    _bkDbgSep();
+    _bkDbgHeader('Ergebnisse');
+    for (var _mi = 0; _mi < rows.length; _mi++) {
+      var _mr = rows[_mi];
+      _bkDbgLines.push(
+        String(_mi+1).padStart(2,' ') + '.  ' +
+        (_mr.name||'?').padEnd(22,' ') +
+        (_mr.ak||'  ').padEnd(6,' ') +
+        (_mr.resultat||'').padEnd(10,' ') +
+        (_mr.platz ? 'Platz\u00a0' + _mr.platz : '').padEnd(9,' ') +
+        '\u2192 ' + (_mr.disziplin||'(keine)')
       );
-    });
-    _bkDebugFlush();
+    }
+    _bkDbgFlush();
   }
   bulkFillFromImport(rows, statusEl);
+}
 
 // ── Uitslagen → Bulk ────────────────────────────────────────────────────────
 async function bulkImportFromUits(url, kat, statusEl) {
@@ -4378,28 +4373,29 @@ async function bulkImportFromUits(url, kat, statusEl) {
 
   var parsed = uitsParseHTML(r.data.html, idMatch[1]);
   var _uOwn = parsed.rows.filter(function(r){return r.ownClub;});
-  _bkDebugHeader('uitslagen.nl');
-  _bkDebugLine('Eventname',  parsed.eventName || '–');
-  _bkDebugLine('Datum',      parsed.eventDate || '–');
-  _bkDebugLine('Ort',        parsed.eventOrt  || '–');
-  _bkDebugLine('Gesamt',     parsed.rows.length + ' Einträge');
-  _bkDebugLine('Gefunden',   _uOwn.length + ' TuS-Einträge');
+  _bkDbgHeader('uitslagen.nl');
+  _bkDbgLine('Eventname',  parsed.eventName || '–');
+  _bkDbgLine('Datum',      parsed.eventDate || '–');
+  _bkDbgLine('Ort',        parsed.eventOrt  || '–');
+  _bkDbgLine('Gesamt',     parsed.rows.length + ' Einträge');
+  _bkDbgLine('Gefunden',   _uOwn.length + ' TuS-Einträge');
   if (_uOwn.length) {
-    _bkDebugSep();
-    _bkDebugHeader('Ergebnisse');
-    _uOwn.forEach(function(r, i) {
-      var diszMid = uitsAutoDiszMatchKat(r.kategorie, state.disziplinen||[], kat);
-      var diszName = diszMid ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==diszMid;})||{}).disziplin||'?' : '(keine)';
-      _bkDebugLines.push(
-        String(i+1).padStart(2,' ') + '.  ' +
-        (r.name||'?').padEnd(22,' ') +
-        (r.ak||'  ').padEnd(6,' ') +
-        (r.zeit||'').padEnd(10,' ') +
-        (r.platz ? 'Platz ' + r.platz : '').padEnd(9,' ') +
-        '→ ' + diszName + '  [' + r.kategorie + ']'
+    _bkDbgSep();
+    _bkDbgHeader('Ergebnisse');
+    for (var _ui = 0; _ui < _uOwn.length; _ui++) {
+      var _ur = _uOwn[_ui];
+      var _umid = uitsAutoDiszMatchKat(_ur.kategorie, state.disziplinen||[], kat);
+      var _udn = _umid ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==_umid;})||{}).disziplin||'?' : '(keine)';
+      _bkDbgLines.push(
+        String(_ui+1).padStart(2,' ') + '.  ' +
+        (_ur.name||'?').padEnd(22,' ') +
+        (_ur.ak||'  ').padEnd(6,' ') +
+        (_ur.zeit||'').padEnd(10,' ') +
+        (_ur.platz ? 'Platz\u00a0' + _ur.platz : '').padEnd(9,' ') +
+        '\u2192 ' + _udn + '  [' + _ur.kategorie + ']'
       );
-    });
-    _bkDebugFlush();
+    }
+    _bkDbgFlush();
   }
 
   // Veranstaltungsfelder vorausfüllen
@@ -4837,6 +4833,1609 @@ function bkSyncDatum(val) {
   document.querySelectorAll('#bulk-rows .bk-zeilendatum').forEach(function(el) {
     el.value = formatted;
   });
+}
+// ── RACERESULT-IMPORT ──────────────────────────────────────
+function rrKatChanged() {
+  var kat = (document.getElementById('rr-kat') || {}).value || '';
+  var btn = document.getElementById('rr-load-btn');
+  if (btn) btn.disabled = !kat;
+  // Gewählte Kategorie merken für Disziplin-Filterung in der Preview
+  window._rrKat = kat;
+}
+
+async function rrFetch() {
+  var raw = ((document.getElementById('rr-url') || {}).value || '').trim();
+  if (!raw) { notify('Bitte URL oder Event-ID eingeben.', 'err'); return; }
+
+  var preview = document.getElementById('rr-preview');
+  preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; Lade&hellip;</div>';
+
+  // Wenn URL nicht raceresult.com → serverseitig auf RRPublish prüfen
+  if (raw.indexOf('raceresult.com') < 0 && raw.match(/^https?:\/\//)) {
+    preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; Suche RaceResult-Quelle\u2026</div>';
+    var foundId = null;
+    try {
+      var proxyResp = await apiGet('rr-fetch?proxy_url=' + encodeURIComponent(raw));
+      if (proxyResp && proxyResp.ok && proxyResp.data && proxyResp.data.event_id) {
+        foundId = proxyResp.data.event_id;
+      }
+    } catch(ep) {}
+
+    if (foundId) {
+      raw = 'https://my.raceresult.com/' + foundId + '/';
+      notify('RaceResult Event-ID ' + foundId + ' gefunden \u2192 ' + raw, 'ok');
+      document.getElementById('rr-url').value = raw;
+    } else {
+      preview.innerHTML =
+        '<div style="padding:20px;color:var(--text2);font-size:13px">' +
+          '<strong>Keine RaceResult-Event-ID gefunden.</strong><br><br>' +
+          'Diese Seite l\u00e4dt die Ergebnisse dynamisch \u2013 der Server-Proxy kann sie nicht auslesen.<br><br>' +
+          'Bitte \u00f6ffne die Ergebnisseite, schaue im Browser-Entwicklertool (Netzwerk-Tab) nach ' +
+          'einem Request an <code>my.raceresult.com/<strong>XXXXX</strong>/</code> und trage ' +
+          'diese URL direkt ein.' +
+        '</div>';
+      return;
+    }
+  }
+
+  var eventId = (raw.match(/(\d{4,7})/) || [])[1];
+  if (!eventId) { notify('Keine g\u00fcltige Event-ID gefunden.', 'err'); return; }
+
+  var _rrDebug = { totalRows: 0, clubSamples: [], dataFields: [], iClub: 7, cfgKeys: [], cfgKey: '', errors: [] };
+  window._rrDebug = _rrDebug;
+  try {
+    var cfgResp = await fetch('https://my.raceresult.com/' + eventId + '/RRPublish/data/config?lang=de&page=results&noVisitor=1');
+    if (!cfgResp.ok) throw new Error('HTTP ' + cfgResp.status + ' bei config');
+    var cfgText = await cfgResp.text();
+    var cfg;
+    try { cfg = JSON.parse(cfgText); } catch(e) { throw new Error('Config kein JSON: ' + cfgText.slice(0, 200)); }
+    if (!cfg || typeof cfg !== 'object') throw new Error('Config ungültig: ' + cfgText.slice(0, 200));
+
+    _rrDebug.cfgRaw = JSON.stringify(cfg).slice(0, 800);
+    var apiKey     = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
+    var eventName  = cfg.EventName || cfg.Name || cfg.eventname || '';
+    var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.eventDatum || cfg.StartDate || cfg.start_date || cfg.datestring || cfg.Datestring || '';
+    var eventDate = '';
+    if (_cfgDateRaw) {
+      var _ds = String(_cfgDateRaw).trim();
+      // ISO oder YYYY-MM-DD?
+      if (/^\d{4}-\d{2}-\d{2}/.test(_ds)) {
+        eventDate = _ds.slice(0,10);
+      // DD.MM.YYYY?
+      } else if (/^\d{2}\.\d{2}\.\d{4}/.test(_ds)) {
+        var _p = _ds.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+        eventDate = _p[3]+'-'+_p[2]+'-'+_p[1];
+      // Unix-Timestamp (Sekunden, 9-10 Stellen)?
+      } else if (/^\d{9,10}$/.test(_ds)) {
+        var _d = new Date(parseInt(_ds) * 1000);
+        eventDate = _d.toISOString().slice(0,10);
+      }
+    }
+    var eventOrtCfg = cfg.City || cfg.city || cfg.Location || cfg.location || cfg.Place || cfg.place || cfg.Venue || cfg.venue || cfg.Ort || cfg.ort || '';
+
+    // Datum aus cfg.infotext extrahieren (enthält manchmal HTML mit Datum)
+    if (!_cfgDateRaw) {
+      var _infoRaw = String(cfg.infotext || cfg.InfoText || '');
+      // DD.MM.YYYY oder YYYY-MM-DD im Infotext suchen
+      var _infoDateM = _infoRaw.match(/(\d{2})\.(\d{2})\.(\d{4})/) || _infoRaw.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (_infoDateM) _cfgDateRaw = _infoDateM[0];
+      _rrDebug.infotext = _infoRaw.replace(/<[^>]+>/g,'').slice(0, 200);
+    }
+    // Datum aus ListSelector / lists-Keys extrahieren
+    if (!_cfgDateRaw) {
+      var _lsRaw = String(cfg.ListSelector || '');
+      var _lsDateM = _lsRaw.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+      if (_lsDateM) _cfgDateRaw = _lsDateM[0];
+    }
+    // Datum aus cfg (alle Keys) nach DD.MM.YYYY suchen
+    if (!_cfgDateRaw) {
+      var _cfgStr = JSON.stringify(cfg);
+      var _anyDateM = _cfgStr.match(/"(\d{2})\.(\d{2})\.(\d{4})"/);
+      if (_anyDateM) _cfgDateRaw = _anyDateM[1] + '.' + _anyDateM[2] + '.' + _anyDateM[3];
+      if (!_cfgDateRaw) {
+        var _anyIsoM = _cfgStr.match(/"(\d{4}-\d{2}-\d{2})"/);
+        if (_anyIsoM) _cfgDateRaw = _anyIsoM[1];
+      }
+      _rrDebug.cfgStrDateSearch = _cfgStr.slice(0, 500);
+    }
+    // Komma und Land abschneiden: "Wachtendonk, Deutschland" → "Wachtendonk"
+    if (eventOrtCfg) eventOrtCfg = eventOrtCfg.split(',')[0].trim();
+
+    // Datum-Fallback: PHP-Proxy fetcht HTML-Titel (enthält Datum bei den meisten Events)
+    if (!eventDate) {
+      try {
+        var _prx = await apiGet('rr-fetch?event_id=' + encodeURIComponent(eventId));
+        if (_prx && _prx.ok) {
+          if (_prx.data.date) eventDate = _prx.data.date;
+          if (_prx.data.location) window._rrProxyLocation = _prx.data.location;
+          _rrDebug.titleFetch = _prx.data.title + ' → Datum:' + (eventDate||'?') + ' Ort:' + (_prx.data.location||'?');
+          if (_prx.data.htmlSnippet) _rrDebug.htmlSnippet = _prx.data.htmlSnippet;
+        } else {
+          _rrDebug.titleFetch = 'Fetch fehlgeschlagen';
+        }
+      } catch(e) { _rrDebug.titleFetch = 'Fehler: ' + String(e); }
+    }
+    var contestObj = cfg.contests || cfg.Contests || {};
+    _rrDebug.cfgKeys = Object.keys(cfg).slice(0, 20);
+    // listname aus Config ermitteln
+    // lists kann sein: Array [{Name:"01_Ergebnislisten|Final", Contest:"0", ...}]
+    //                  oder Objekt {"02-ERGEBNISSE|xyz": {...}}
+    var listName = '';
+    var listContest = null; // Contest-Einschränkung aus List-Eintrag ("0" = alle)
+    var listSource = cfg.list || cfg.lists || {};
+    var _listCandidates = []; // alle nicht-geblacklisteten Listen für Fallback
+    var _contestListMap = {}; // contestId → spezifische listName
+    var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','EINZEL','FINAL','WERTUNG','RANKING','OVERALL'];
+    // Listen die keine Einzelergebnisse enthalten und übersprungen werden sollen
+    var _listBlacklist = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','OVERALL RANKING','OVERALL-RANKING','MANNSCHAFT','TEAM RANKING','SPECIAL','LIVE','TOP10','TOP 10','TOP5','TOP 5','LEADERBOARD','SCHNELLSTE','FASTEST','SIEGER','WINNER','PARTICIPANTS','STATISTIC','TEILNEHMER','ALPHABET','STADTMEISTER'];
+    function _listIsBlacklisted(entry) {
+      var ename = (entry.Name || entry.name || entry.listname || '').toUpperCase();
+      var showAs = (entry.ShowAs || entry.showAs || '').toUpperCase();
+      // z_-Prefix = interne/Spezial-Liste
+      if ((entry.Name||'').startsWith('z_') || (entry.Name||'').startsWith('Z_')) return true;
+      for (var bi = 0; bi < _listBlacklist.length; bi++) {
+        if (ename.indexOf(_listBlacklist[bi]) >= 0 || showAs.indexOf(_listBlacklist[bi]) >= 0) return true;
+      }
+      return false;
+    }
+    if (Array.isArray(listSource)) {
+      // Prüfen: Array of Objects oder String-Array?
+      var _isStrArr = listSource.length > 0 && typeof listSource[0] === 'string';
+      if (_isStrArr) {
+        // String-Array: ["Ergebnislisten|Siegerliste", "Ergebnislisten|1.2 Zieleinlaufliste netto", ...]
+        var _strListBlacklisted = function(s) {
+          var u = s.toUpperCase();
+          if (u.startsWith('__') || u.startsWith('Z_')) return true;
+          for (var bi = 0; bi < _listBlacklist.length; bi++) {
+            if (u.indexOf(_listBlacklist[bi]) >= 0) return true;
+          }
+          return false;
+        };
+        // Alle nicht-geblacklisteten als Kandidaten sammeln (dedupliziert)
+        var _seenLists = {};
+        for (var lk2 = 0; lk2 < listSource.length; lk2++) {
+          var ls = listSource[lk2];
+          if (!_strListBlacklisted(ls) && !_seenLists[ls]) { _seenLists[ls]=1; _listCandidates.push(ls); }
+        }
+        // Prio-Suche
+        for (var lp2 = 0; lp2 < listPrio.length && !listName; lp2++) {
+          for (var lk2 = 0; lk2 < _listCandidates.length && !listName; lk2++) {
+            if (_listCandidates[lk2].toUpperCase().indexOf(listPrio[lp2]) >= 0) listName = _listCandidates[lk2];
+          }
+        }
+        if (!listName && _listCandidates.length) listName = _listCandidates[0];
+        if (!listName && listSource.length) listName = listSource[0];
+        _rrDebug.listsRaw = JSON.stringify(listSource).slice(0, 400);
+      } else {
+      // Array of Objects
+      for (var lk = 0; lk < listSource.length && !listName; lk++) {
+        var entry = listSource[lk];
+        var ename = entry.Name || entry.name || entry.listname || '';
+        var lkey = ename.toUpperCase();
+        if (_listIsBlacklisted(entry)) continue;
+        for (var lp = 0; lp < listPrio.length; lp++) {
+          if (lkey.indexOf(listPrio[lp]) >= 0) {
+            listName = ename;
+            listContest = entry.Contest !== undefined ? String(entry.Contest) : null;
+            break;
+          }
+        }
+      }
+      // Fallback: ersten nicht-geblacklisteten Eintrag nehmen
+      if (!listName) {
+        for (var lk = 0; lk < listSource.length; lk++) {
+          var entry = listSource[lk];
+          var ename = entry.Name || entry.name || entry.listname || '';
+          if (!_listIsBlacklisted(entry)) {
+            listName = ename;
+            listContest = entry.Contest !== undefined ? String(entry.Contest) : null;
+            break;
+          }
+        }
+      }
+      if (!listName && listSource.length) {
+        var e0 = listSource[0];
+        listName = e0.Name || e0.name || e0.listname || '';
+        listContest = e0.Contest !== undefined ? String(e0.Contest) : null;
+      }
+      _rrDebug.listsRaw = JSON.stringify(listSource.map(function(e){return e.Name||e.name||'';}));
+      // Contest→ListName-Map: jeder Contest bekommt seine spezifische Liste
+      for (var _clj = 0; _clj < listSource.length; _clj++) {
+        var _cle = listSource[_clj];
+        var _clName = _cle.Name || _cle.name || '';
+        var _clContest = String(_cle.Contest !== undefined ? _cle.Contest : '');
+        if (_clName && _clContest && !_listIsBlacklisted(_cle)) {
+          if (!_contestListMap[_clContest]) _contestListMap[_clContest] = _clName;
+        }
+      }
+      _rrDebug.contestListMap = _contestListMap;
+      } // end Array of Objects
+    } else if (listSource && typeof listSource === 'object') {
+      var listKeys = Object.keys(listSource);
+      for (var lk = 0; lk < listKeys.length && !listName; lk++) {
+        var lkey = listKeys[lk].toUpperCase();
+        if (lkey.indexOf('STAFF') >= 0 || lkey.indexOf('RELAY') >= 0) continue;
+        for (var lp = 0; lp < listPrio.length; lp++) {
+          if (lkey.indexOf(listPrio[lp]) >= 0) { listName = listKeys[lk]; break; }
+        }
+      }
+      if (!listName && listKeys.length) listName = listKeys[0];
+      _rrDebug.listsRaw = JSON.stringify(Object.keys(listSource)).slice(0, 200);
+    }
+    if (!listName) listName = '02-ERGEBNISSE|Ergebnisse_Ges';
+
+    // Contest=0 bedeutet: Liste gilt für alle Contests auf einmal → erst Contest 0 versuchen
+    var contestIds = Object.keys(contestObj);
+    if (!contestIds.length) contestIds = ['1'];
+    if (listContest === '0') {
+      // Erst Contest 0 versuchen; nur auf einzelne Contests ausweichen wenn Contest 0 leer
+      contestIds = ['0']; // _fallbackIds werden unten bei Bedarf nachgeladen
+      window._rrFallbackIds = Object.keys(contestObj).filter(function(k){ return k !== '0'; });
+    } else {
+      window._rrFallbackIds = [];
+    }
+
+    _rrDebug.cfgOrt = eventOrtCfg;
+    _rrDebug.cfgKey = apiKey;
+    _rrDebug.cfgDateRaw = _cfgDateRaw + (_rrDebug.titleFetch ? ' | Titel-Fetch: ' + _rrDebug.titleFetch : '');
+    _rrDebug.cfgAllKeys = JSON.stringify(Object.keys(cfg)).slice(0, 300);
+    _rrDebug.cfgTime = cfg.Time !== undefined ? String(cfg.Time) : '–'; // dynamischer Serverwert, kein Datum
+    // Datum ins Eingabefeld übernehmen wenn per Proxy gefunden
+    if (eventDate) {
+      var _datEl = document.getElementById('rr-datum');
+      if (_datEl && !_datEl.value) {
+        var _dp = eventDate.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (_dp) _datEl.value = _dp[3] + '.' + _dp[2] + '.' + _dp[1];
+      }
+    }
+
+    _rrDebug.eventDate = eventDate;
+    _rrDebug.cfgEventName = cfg.eventname || '';
+    _rrDebug.contestSample = JSON.stringify(contestObj).slice(0, 150);
+    _rrDebug.listName = listName;
+    _rrDebug.listContest = listContest;
+
+    // Spaltenindizes: Defaults, werden per DataFields überschrieben
+    var iName=3; var iClub=6; var iAK=-1; var iZeit=8; var iNetto=7; var iPlatz=2;
+    var iYear=-1; var iGeschlecht=-1;
+
+    var base4 = 'https://my.raceresult.com/' + eventId + '/RRPublish/data/list';
+    var hdrs  = { 'Origin': 'https://my.raceresult.com', 'Referer': 'https://my.raceresult.com/' };
+    var allResults = [];
+    var allRowsForAK = [];
+    window._rrAllRowsForAK = allRowsForAK;
+    // eventOrt HIER deklarieren (vor dem Extraktionsblock der weiter oben steht → wird durch Hoisting korrekt)
+    var eventOrt = window._rrProxyLocation || eventOrtCfg || '';
+    window._rrProxyLocation = null; // Reset
+    // Ort aus Veranstaltungsname wenn noch leer
+    if (!eventOrt && eventName) {
+      var _enWords = eventName.trim().split(/\s+/);
+      if (_enWords.length > 1) eventOrt = _enWords[_enWords.length - 1];
+    }
+
+    // clubPhrase vor dem Loop definieren damit es im URL-Build verfügbar ist
+    var vereinRawGlobal = (appConfig.verein_kuerzel || appConfig.verein_name || '');
+    var clubPhrase = vereinRawGlobal.toLowerCase().trim();
+
+    for (var ci = 0; ci < contestIds.length; ci++) {
+      var cid   = contestIds[ci];
+      var cname = contestObj[cid] || (cid === '0' ? '' : ('Contest ' + cid));
+      preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; ' + (ci+1) + '/' + contestIds.length + ': ' + cname + '&hellip;</div>';
+      try {
+        var url = base4 +
+          '?key='      + apiKey +
+          '&listname=' + encodeURIComponent(_contestListMap[cid] || listName) +
+          '&page=results&contest=' + cid +
+          '&r=search&l=9999&term=';
+        var _ac = new AbortController();
+        var _t  = setTimeout(function(){ _ac.abort(); }, 12000);
+        var resp;
+        try { resp = await fetch(url, { headers: hdrs, signal: _ac.signal }); }
+        catch(fe) { clearTimeout(_t); continue; }
+        clearTimeout(_t);
+        if (!resp.ok) continue;
+
+        var payload = JSON.parse(await resp.text());
+        _rrDebug.topKeys = Object.keys(payload);
+
+        // cname für contest=0 aus groupFilters aktiven Filter ableiten
+        if (!cname) {
+          var _gfActive = (payload.groupFilters || []).filter(function(g){ return g.Type === 1 && g.Value; });
+          cname = _gfActive.length ? _gfActive[0].Value : ('Contest ' + cid);
+        }
+
+        // DataFields immer frisch aus Response — nicht Contest-übergreifend wiederverwenden
+        var df = payload.DataFields || [];
+        if (!Array.isArray(df) || df.length === 0) {
+          // Keine DataFields im r=search → r=all versuchen (Suchfunktion ggf. defekt)
+          var _acPre = new AbortController(); var _tPre = setTimeout(function(){ _acPre.abort(); }, 15000);
+          try {
+            var _respPre = await fetch(base4 + '?key=' + apiKey + '&listname=' + encodeURIComponent(_contestListMap[cid] || listName) + '&page=results&contest=' + cid + '&r=all&l=de&_=1', { headers: hdrs, signal: _acPre.signal });
+            clearTimeout(_tPre);
+            if (_respPre.ok) {
+              var _payPre = JSON.parse(await _respPre.text());
+              if ((_payPre.DataFields || []).length > 0) {
+                payload = _payPre;
+                df = _payPre.DataFields;
+              }
+            }
+          } catch(ePre) { clearTimeout(_tPre); }
+          if (!df.length) {
+            _rrDebug.errors = _rrDebug.errors || [];
+            _rrDebug.errors.push('Contest ' + cid + ': keine DataFields, Liste übersprungen');
+            continue;
+          }
+        }
+        // Immer zurücksetzen — auch wenn df leer (wird dann mit Defaults gespeichert)
+        iAK = -1; iYear = -1; iGeschlecht = -1; var iAKPlatz = -1;
+        iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
+        if (Array.isArray(df) && df.length > 0) {
+          for (var fi = 0; fi < df.length; fi++) {
+            var f = df[fi].toLowerCase();
+            if (f.indexOf('anzeigename') >= 0 || f.indexOf('lfname') >= 0) iName = fi;
+            else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
+            else if (f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]' || f.indexOf('akabk') >= 0 || f.indexOf('ak_abk') >= 0 || f === 'es_akabkürzung') iAK = fi;
+            else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* skip */ }
+            else if (f === 'year' || f === 'yob' || f === 'birthyear' || f === 'es_jahrgang') iYear = fi;
+            else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht') iGeschlecht = fi;
+            else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
+            else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0 || f === 'ziel' || f.indexOf('ziel') >= 0 || f.indexOf('finish') >= 0) iZeit = fi;
+            else if (f.indexOf('akpl') >= 0) iAKPlatz = fi;  // AKPlp, AKPl.P direkt
+            else if (f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0 || f.indexOf('statusplatz') >= 0) {
+              // MitStatus([AKPlp]) / StatusPlatz([AKPl.P]) = AK-Platz
+              if (f.indexOf('akpl') >= 0) iAKPlatz = fi;
+              else iPlatz = fi;
+            }
+          }
+          if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
+          // Kein Netto-Feld gefunden: iZeit als Netto verwenden (Brutto als Fallback)
+          if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
+          // Sicherheits-Check: iNetto und iClub dürfen nicht gleich sein
+          if (iNetto >= 0 && iNetto === iClub) iNetto = iZeit >= 0 && iZeit !== iClub ? iZeit : -1;
+          _rrDebug.iClub = iClub; _rrDebug.dfLog = df.join(', ');
+        }
+
+        // Wenn r=search keine Zeilen liefert aber DataFields vorhanden: r=all laden
+        var _searchRows = Object.values(payload.data || {}).reduce(function(n,v){
+          return n + (Array.isArray(v) ? v.length : Object.values(v||{}).reduce(function(m,r){ return m+(Array.isArray(r)?r.length:0); }, 0));
+        }, 0);
+        // r=all Fallback: wenn r=search 0 Zeilen liefert (Suchfunktion defekt) oder keine DataFields
+        if (_searchRows === 0) {
+          var _acAll = new AbortController(); var _tAll = setTimeout(function(){ _acAll.abort(); }, 15000);
+          try {
+            var _respAll = await fetch(base4 + '?key=' + apiKey + '&listname=' + encodeURIComponent(_contestListMap[cid] || listName) + '&page=results&contest=' + cid + '&r=all&l=de&_=1', { headers: hdrs, signal: _acAll.signal });
+            clearTimeout(_tAll);
+            if (_respAll.ok) {
+              payload = JSON.parse(await _respAll.text());
+              // DataFields neu kalibrieren wenn jetzt vorhanden
+              var _dfAll = payload.DataFields || [];
+              if (_dfAll.length > 0) {
+                df = _dfAll;
+                _rrDebug.dataFields = _dfAll;
+                // Kalibrierung wiederholen
+                iAK = -1; iYear = -1; iGeschlecht = -1; var iAKPlatz = -1;
+                iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
+                for (var _fai = 0; _fai < _dfAll.length; _fai++) {
+                  var _fa = _dfAll[_fai].toLowerCase();
+                  if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('lfname') >= 0) iName = _fai;
+                  else if (_fa.indexOf('club') >= 0 || _fa.indexOf('verein') >= 0) iClub = _fai;
+                  else if (_fa.indexOf('agegroup') >= 0 || _fa.indexOf('akabk') >= 0) iAK = _fai;
+                  else if (_fa === 'year' || _fa === 'yob') iYear = _fai;
+                  else if (_fa.indexOf('geschlechtmw') >= 0) iGeschlecht = _fai;
+                  else if (_fa.indexOf('chip') >= 0 || _fa.indexOf('netto') >= 0) iNetto = _fai;
+                  else if (_fa.indexOf('gun') >= 0 || _fa.indexOf('brutto') >= 0 || _fa === 'ziel' || _fa.indexOf('finish') >= 0 || _fa.indexOf('ziel') >= 0) iZeit = _fai;
+                  else if (_fa.indexOf('akpl') >= 0) iAKPlatz = _fai;
+                  else if (_fa.indexOf('mitstatus') >= 0 || _fa.indexOf('statusplatz') >= 0) { if (_fa.indexOf('akpl') >= 0) iAKPlatz = _fai; else iPlatz = _fai; }
+                }
+                if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
+                if (iNetto >= 0 && iNetto === iClub) iNetto = (iZeit >= 0 && iZeit !== iClub) ? iZeit : -1;
+                _rrDebug.iClub = iClub; _rrDebug.dfLog = _dfAll.join(', ');
+              }
+            }
+          } catch(eAll) { clearTimeout(_tAll); }
+        }
+
+        // Daten flachmachen: {Contest: {Gruppe: [rows]}} -> {Contest/Gruppe: [rows]}
+        var dRaw = payload.data || {};
+        var _dks = Object.keys(dRaw);
+        if (!_rrDebug.dataKeys) _rrDebug.dataKeys = JSON.stringify(_dks).slice(0, 200);
+        var gf = payload.groupFilters || [];
+        if (!_rrDebug.groupFilters) _rrDebug.groupFilters = JSON.stringify(gf).slice(0, 200);
+
+        _dks.forEach(function(k) {
+          var v = dRaw[k];
+          // Struktur-Erkennung:
+          // A) v ist direkt eine Row: ["BIB","ID",...] → Array dessen erster Eintrag kein Array ist
+          // B) v ist Array von Rows: [["BIB",...],["BIB",...]] → Array von Arrays
+          // C) v ist Objekt mit Gruppen-Keys: {"Gruppe1": [rows], ...}
+          var groups;
+          if (Array.isArray(v)) {
+            if (v.length > 0 && Array.isArray(v[0])) {
+              groups = { '': v };          // B: Array von Rows
+            } else if (v.length > 0 && !Array.isArray(v[0])) {
+              groups = { '': [v] };        // A: v ist selbst eine Row
+            } else {
+              groups = { '': v };
+            }
+          } else if (v && typeof v === 'object') {
+            groups = v;                    // C: Gruppen-Objekt
+          } else {
+            groups = {};
+          }
+          Object.keys(groups).forEach(function(k2) {
+            var rows = groups[k2];
+            if (!Array.isArray(rows)) return;
+            rows.forEach(function(row) {
+              if (!Array.isArray(row) || row.length < 4) return;
+              _rrDebug.totalRows++;
+              var clubVal = iClub >= 0 ? String(row[iClub] || '').trim() : '';
+              if (clubVal && _rrDebug.clubSamples.indexOf(clubVal) < 0 && _rrDebug.clubSamples.length < 20)
+                _rrDebug.clubSamples.push(clubVal);
+              // Alle Rows für AK-Platz-Berechnung speichern (Zeit + AK oder Jahr+Geschlecht)
+              var gkey = k2 ? (k + '/' + k2) : k;
+              var gParts = gkey.split('/');
+              // Gruppen-Keys für Debug sammeln
+              if (!_rrDebug.groupKeysSample) _rrDebug.groupKeysSample = {};
+              if (Object.keys(_rrDebug.groupKeysSample).length < 10) _rrDebug.groupKeysSample[gkey] = 1;
+              var _akFromGroup = '';
+              // gk: vollen Pfad speichern für Disziplin-Erkennung
+              // Letzter Teil für AK/Geschlecht-Erkennung
+              var gk = gkey; // vollständiger Pfad z.B. "#1_Halbmarathon/#1_Männlich"
+              var gkLast = gParts[gParts.length-1]; // letzter Teil für AK-Erkennung
+              if (iAK < 0 && gParts.length > 1) {
+                var _gkClean = gkLast.replace(/^#[0-9]+_/, '').trim();
+                if (/männl|male|herren|männlich/i.test(_gkClean)) _akFromGroup = 'M';
+                else if (/weibl|female|frauen|weiblich/i.test(_gkClean)) _akFromGroup = 'W';
+                // AK direkt aus Gruppen-Key lesen (z.B. "M35", "W45")
+                var _akMatch = _gkClean.match(/^([MW]\d{2}|[MW]U\d{2}|[MW])$/i);
+                if (_akMatch) _akFromGroup = normalizeAK(_akMatch[1].toUpperCase());
+              }
+              var _zeit4ak = String(row[iNetto] || row[iZeit] || '').trim();
+              if (_zeit4ak) {
+                var _ak4 = iAK >= 0 ? String(row[iAK]||'').trim() : '';
+                var _yr4 = iYear >= 0 ? String(row[iYear]||'').trim() : '';
+                var _gs4 = iGeschlecht >= 0 ? String(row[iGeschlecht]||'').toUpperCase().trim() : '';
+                // Geschlecht aus Gruppen-Key als Fallback
+                if (!_gs4 && _akFromGroup) _gs4 = _akFromGroup[0]; // 'M' oder 'W'
+                allRowsForAK.push({ ak: _ak4, zeit: _zeit4ak, year: _yr4, geschlecht: _gs4 });
+              }
+              if (clubPhrase && clubVal.toLowerCase().indexOf(clubPhrase) < 0) return;
+              var _akRaw4 = iAK >= 0 ? String(row[iAK]||'').trim() : '';
+              var _akPlatzFromRow = ''; // Platz aus kombiniertem AK-Feld "74. M35"
+              if (_akRaw4 && /^\d+\.?\s*[A-Z]/.test(_akRaw4)) {
+                var _akSplit = _akRaw4.match(/^(\d+)\.?\s*(.+)$/);
+                if (_akSplit) { _akPlatzFromRow = _akSplit[1]; _akRaw4 = _akSplit[2].trim(); }
+              }
+              // iAKPlatz direkt aus Daten lesen wenn vorhanden
+              if (iAKPlatz >= 0 && !_akPlatzFromRow) {
+                var _akpRaw = String(row[iAKPlatz]||'').trim().replace(/\./,'');
+                if (_akpRaw && /^\d+$/.test(_akpRaw)) _akPlatzFromRow = _akpRaw;
+              }
+              allResults.push({ raw: row, contestName: cname, groupKey: gk, akFromGroup: _akFromGroup, akPlatzFromRow: _akPlatzFromRow, iAKPlatz: iAKPlatz,
+                iYear: iYear, iGeschlecht: iGeschlecht,
+                iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
+            });
+          });
+        });
+      } catch(e2) { continue; }
+    }
+    // Fallback: wenn Contest 0 keine Treffer → einzelne Contests probieren
+    if (!allResults.length && window._rrFallbackIds && window._rrFallbackIds.length) {
+      contestIds = window._rrFallbackIds;
+      for (var ci2 = 0; ci2 < contestIds.length; ci2++) {
+        var cid2 = contestIds[ci2];
+        var cname2 = contestObj[cid2] || ('Contest ' + cid2);
+        var _ac2 = new AbortController(); var _t2 = setTimeout(function(){ _ac2.abort(); }, 12000);
+        try {
+          var resp2 = await fetch(base4 + '?key=' + apiKey + '&listname=' + encodeURIComponent(_contestListMap[cid] || listName) + '&page=results&contest=' + cid2 + '&r=all&l=de&_=1', { headers: hdrs, signal: _ac2.signal });
+          clearTimeout(_t2);
+          if (!resp2.ok) continue;
+          var payload2 = JSON.parse(await resp2.text());
+          var df2 = payload2.DataFields || [];
+          if (Array.isArray(df2) && df2.length > 0) {
+            iAK = -1; iYear = -1; iGeschlecht = -1; iAKPlatz = -1;
+            iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
+            for (var fi2 = 0; fi2 < df2.length; fi2++) {
+              var f2 = df2[fi2].toLowerCase();
+              if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('lfname') >= 0) iName = fi2;
+              else if (f2.indexOf('club') >= 0 || f2.indexOf('verein') >= 0) iClub = fi2;
+              else if (f2.indexOf('agegroup') >= 0 || f2.indexOf('akabk') >= 0 || f2.indexOf('ak_abk') >= 0 || f2 === 'es_akabkürzung') iAK = fi2;
+              else if (f2 === 'year' || f2 === 'yob' || f2 === 'es_jahrgang') iYear = fi2;
+              else if (f2.indexOf('geschlechtmw') >= 0 || f2 === 'es_geschlecht') iGeschlecht = fi2;
+              else if (f2.indexOf('chip') >= 0 || f2.indexOf('netto') >= 0) iNetto = fi2;
+              else if (f2.indexOf('gun') >= 0 || f2.indexOf('brutto') >= 0 || f2 === 'ziel' || f2.indexOf('finish') >= 0) iZeit = fi2;
+              else if (f2.indexOf('akpl') >= 0) iAKPlatz = fi2;  // AKPlp, AKPl.P direkt
+              else if (f2.indexOf('autorankp') >= 0 || f2.indexOf('mitstatus') >= 0 || f2.indexOf('statusplatz') >= 0) {
+                if (f2.indexOf('akpl') >= 0) iAKPlatz = fi2;
+                else iPlatz = fi2;
+              }
+            }
+            if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
+            if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
+            if (iNetto >= 0 && iNetto === iClub) iNetto = iZeit >= 0 && iZeit !== iClub ? iZeit : -1;
+          }
+          var dRaw2 = payload2.data || {};
+          Object.keys(dRaw2).forEach(function(k) {
+            var v = dRaw2[k]; var groups = Array.isArray(v) ? (v.length>0&&Array.isArray(v[0]) ? {"":v} : {"": [v]}) : (v&&typeof v==="object"?v:{});
+            Object.keys(groups).forEach(function(k2) {
+              var rows2 = groups[k2]; if (!Array.isArray(rows2)) return;
+              var gk2 = k2 ? (k + '/' + k2) : k;
+              var gkClean2 = gk2.replace(/^#[0-9]+_/,'').trim();
+              rows2.forEach(function(row) {
+                if (!Array.isArray(row) || row.length < 4) return;
+                var clubVal2 = iClub >= 0 ? String(row[iClub]||'').trim() : '';
+                if (!clubPhrase || clubVal2.toLowerCase().indexOf(clubPhrase) >= 0) {
+                  allResults.push({ raw: row, contestName: cname2, groupKey: gkClean2, akFromGroup: '',
+                    iYear: iYear, iGeschlecht: iGeschlecht,
+                    iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
+                }
+              });
+            });
+          });
+        } catch(e3) { clearTimeout(_t2); continue; }
+      }
+    }
+    // Listen-Fallback: wenn keine Ergebnisse, nächste Kandidaten-Liste versuchen
+    var _listFallbackIdx = _listCandidates.indexOf(listName) + 1;
+    while (!allResults.length && _listFallbackIdx < _listCandidates.length) {
+      var _fbListName = _listCandidates[_listFallbackIdx++];
+      _rrDebug.listName = _fbListName;
+      preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; Liste \"' + _fbListName + '\" versuchen…</div>';
+      for (var _fci = 0; _fci < contestIds.length; _fci++) {
+        var _fcid = contestIds[_fci];
+        var _fac = new AbortController(); var _ft = setTimeout(function(){ _fac.abort(); }, 12000);
+        try {
+          var _fr = await fetch(base4 + '?key=' + apiKey + '&listname=' + encodeURIComponent(_fbListName) + '&page=results&contest=' + _fcid + '&r=all&l=de&_=1', { headers: hdrs, signal: _fac.signal });
+          clearTimeout(_ft);
+          if (!_fr.ok) continue;
+          var _fp = JSON.parse(await _fr.text());
+          var _fdf = _fp.DataFields || [];
+          if (!Array.isArray(_fdf) || _fdf.length === 0) continue;
+          // Kalibrieren
+          iAK = -1; iYear = -1; iGeschlecht = -1; var _fiAKPlatz = -1;
+          iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
+          for (var _ffi = 0; _ffi < _fdf.length; _ffi++) {
+            var _ff = _fdf[_ffi].toLowerCase();
+            if (_ff.indexOf('anzeigename') >= 0 || _ff.indexOf('lfname') >= 0) iName = _ffi;
+            else if (_ff.indexOf('club') >= 0 || _ff.indexOf('verein') >= 0) iClub = _ffi;
+            else if (_ff.indexOf('agegroup') >= 0 || _ff.indexOf('akabk') >= 0 || _ff === 'es_akabkürzung') iAK = _ffi;
+            else if (_ff === 'year' || _ff === 'yob' || _ff === 'es_jahrgang') iYear = _ffi;
+            else if (_ff.indexOf('geschlechtmw') >= 0 || _ff === 'es_geschlecht') iGeschlecht = _ffi;
+            else if (_ff.indexOf('chip') >= 0 || _ff.indexOf('netto') >= 0) iNetto = _ffi;
+            else if (_ff.indexOf('gun') >= 0 || _ff.indexOf('brutto') >= 0 || _ff.indexOf('ziel') >= 0) iZeit = _ffi;
+            else if (_ff.indexOf('mitstatus') >= 0 || _ff.indexOf('statusplatz') >= 0) { if (_ff.indexOf('akpl') >= 0) _fiAKPlatz = _ffi; else iPlatz = _ffi; }
+          }
+          if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
+          if (iNetto >= 0 && iNetto === iClub) iNetto = (iZeit >= 0 && iZeit !== iClub) ? iZeit : -1;
+          _rrDebug.iClub = iClub; _rrDebug.dfLog = _fdf.join(', ');
+          _rrDebug.dataFields = _fdf;
+          // Rows verarbeiten
+          var _fdRaw = _fp.data || {};
+          var _fDks = Object.keys(_fdRaw);
+          _fDks.forEach(function(k) {
+            var v = _fdRaw[k];
+            var groups = Array.isArray(v) ? (v.length>0&&Array.isArray(v[0]) ? {"":v} : {"": [v]}) : (v&&typeof v==="object"?v:{});
+            Object.keys(groups).forEach(function(k2) {
+              var rows = groups[k2];
+              if (!Array.isArray(rows)) return;
+              rows.forEach(function(row) {
+                if (!Array.isArray(row) || row.length < 4) return;
+                _rrDebug.totalRows++;
+                var clubVal = iClub >= 0 ? String(row[iClub] || '').trim() : '';
+                if (clubVal && _rrDebug.clubSamples.indexOf(clubVal) < 0 && _rrDebug.clubSamples.length < 20) _rrDebug.clubSamples.push(clubVal);
+                if (clubPhrase && clubVal.toLowerCase().indexOf(clubPhrase) < 0) return;
+                var gkey = k2 ? (k + '/' + k2) : k;
+                var gk = gkey;
+                allResults.push({ raw: row, contestName: _fdf[0] || _fbListName, groupKey: gk, akFromGroup: '', akPlatzFromRow: '', iAKPlatz: _fiAKPlatz,
+                  iYear: iYear, iGeschlecht: iGeschlecht, iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
+              });
+            });
+          });
+        } catch(e) { clearTimeout(_ft); }
+      }
+      if (allResults.length) {
+        listName = _fbListName;
+        _rrDebug.listName = _fbListName;
+      }
+    }
+
+    if (!allResults.length) {
+      var dbgClubs = _rrDebug.clubSamples.length ? _rrDebug.clubSamples.slice(0,10).join(', ') : '(keine)';
+      var vereinRaw2 = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
+      var _noResVer = (document.getElementById('header-version') || {}).textContent || '';
+      var _noResText = [
+        'Keine Vereins-Ergebnisse gefunden.',
+        'App: ' + _noResVer + ' | ' + new Date().toLocaleString('de-DE'),
+        'URL: https://my.raceresult.com/' + eventId + '/',
+        contestIds.length + ' Contest(s) | Listname: ' + listName,
+        'Gesamt-Zeilen: ' + _rrDebug.totalRows,
+        'DataFields: ' + (_rrDebug.dataFields.join(', ') || '(keine)'),
+        'iClub-Index: ' + _rrDebug.iClub,
+        'Suchbegriff: "' + vereinRaw2 + '"',
+        'Club-Werte (Sample): ' + dbgClubs,
+        'Top-Level Keys: ' + ((_rrDebug.topKeys||[]).join(', ')||'?'),
+        'Config-Keys: ' + ((_rrDebug.cfgKeys||[]).join(', ')||'?'),
+        'API-Key: "' + (_rrDebug.cfgKey||'leer') + '" | Datum-Raw: ' + JSON.stringify(_rrDebug.cfgDateRaw||'(leer)') + ' → ' + (_rrDebug.eventDate||'leer') + ' | cfg.eventname: ' + (_rrDebug.cfgEventName||'–'),
+        'Fehler: ' + ((_rrDebug.errors||[]).join('; ')||'keine'),
+        'contestListMap: ' + JSON.stringify(_rrDebug.contestListMap||{}),
+        'Contests: ' + (_rrDebug.contestSample||'?'),
+        'groupFilters: ' + (_rrDebug.groupFilters||'–'),
+        'data-Keys: ' + (_rrDebug.dataKeys||'–'),
+        'ListName: ' + (_rrDebug.listName||'?') + (_rrDebug.listContest !== undefined ? ' (Contest=' + _rrDebug.listContest + ')' : ''),
+        'lists-Raw: ' + (_rrDebug.listsRaw||'?'),
+      ].join('\n');
+      preview.innerHTML =
+        '<div style="background:var(--surf2);border-radius:10px;padding:16px">' +
+          '<strong>&#x274C; Keine Vereins-Ergebnisse gefunden.</strong>' +
+          '<div style="position:relative;margin-top:10px">' +
+            '<button onclick="(function(){var el=document.getElementById(\'rr-nores-dbg\');var txt=el.innerText||el.textContent;if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){var b=el.parentNode.querySelector(\'button\');var old=b.textContent;b.textContent=\'\u2713 Kopiert!\';setTimeout(function(){b.textContent=old;},2000);});}else{var r=document.createRange();r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}})();" style="position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer">&#x1F4CB; Kopieren</button>' +
+            '<pre id="rr-nores-dbg" style="font-size:11px;overflow-x:auto;background:var(--surface);padding:10px;padding-right:80px;border-radius:6px;white-space:pre-wrap;color:var(--text2);margin:0">' + _noResText.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</pre>' +
+          '</div>' +
+        '</div>';
+      return;
+    }
+    _rrDebug.resolvedDate = eventDate;
+    // Bestehende Ergebnisse für gematchte Athleten laden (Duplikat-Check)
+    var _matchedIds = {};
+    allResults.forEach(function(r){ if(r.athletId) _matchedIds[r.athletId]=1; });
+    var _existingMap = {}; // athletId → [{disziplin, resultat}]
+    var _aidList = Object.keys(_matchedIds);
+    if (_aidList.length) {
+      try {
+        var _er = await apiGet('ergebnisse?limit=9999&offset=0&athlet_id=' + _aidList[0] + '&sort=datum&dir=DESC');
+        // Für alle Athleten auf einmal ist komplex — lade pro Athlet lazy in rrRenderPreview
+      } catch(e) {}
+    }
+    rrRenderPreview(allResults, eventId, eventName, eventDate, contestObj, eventOrt, allRowsForAK);
+    // Duplikat-Check: vorhandene Ergebnisse pro Athlet laden und Zeilen markieren
+    rrCheckDuplicates(allResults);
+
+  } catch(e) {
+    preview.innerHTML =
+      '<div style="background:#fff0ee;border-radius:10px;padding:16px;color:#b03020">&#x274C; Fehler: ' + e.message + '</div>';
+  }
+}
+
+function rrBestDisz(rrName, diszList) {
+  // Mehrsprachiges Format auflösen: "{DE:Köln Marathon|EN:Cologne Marathon}" → "Köln Marathon"
+  var _ml = (rrName||'').match(/\{DE:([^|}]+)/i);
+  if (_ml) rrName = _ml[1].trim();
+  else { var _mlen = (rrName||'').match(/\{[A-Z]{2}:([^|}]+)/i); if (_mlen) rrName = _mlen[1].trim(); }
+  // Extrahiert Schlüsselbegriffe aus dem RR-Namen und sucht besten Treffer in System-Disziplinen
+  var q = rrName.toLowerCase()
+    .replace(/^#\d+_/, '')  // "#1_STADTWERKE Halbmarathon" → "stadtwerke halbmarathon"
+    .replace(/lauf|rennen|wettbewerb|gesamt|einzel|lauf-/gi, '')
+    .replace(/\s+/g, ' ').trim();
+
+  // Zahl + Einheit extrahieren und in Meter normalisieren
+  var qNorm = q.replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2'); // 5.000 → 5000
+  var numMatch = qNorm.match(/(\d+[,.]?\d*)\s*(km|m\b)/);
+  var numKey = ''; var numMeters = null;
+  if (numMatch) {
+    var numVal = parseFloat(numMatch[1].replace(',','.'));
+    var numUnit = numMatch[2];
+    numMeters = numUnit === 'km' ? numVal * 1000 : numVal;
+    // Kanonische Darstellung: >= 1000m als km
+    if (numMeters >= 1000) { numKey = (numMeters / 1000) + 'km'; }
+    else { numKey = numMeters + 'm'; }
+  }
+
+  // Hilfsfunktion: Meterzahl aus Disziplin-String extrahieren
+  function diszToMeters(s) {
+    var m = s.replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2').match(/(\d+[,.]?\d*)\s*(km|m\b)/);
+    if (!m) return null;
+    var v = parseFloat(m[1].replace(',','.'));
+    return m[2] === 'km' ? v * 1000 : v;
+  }
+
+  var best = ''; var bestScore = -1;
+  for (var i = 0; i < diszList.length; i++) {
+    var d = diszList[i]; var dl = d.toLowerCase(); var score = 0;
+    // Exakter Treffer
+    if (dl === q) return d;
+    // Meter-Vergleich: 300m == 0,3km
+    if (numMeters !== null) {
+      var dMeters = diszToMeters(dl);
+      if (dMeters !== null && Math.abs(dMeters - numMeters) < 0.01) {
+        score += (dl === numKey) ? 20 : 15;
+      }
+    }
+    // Einzelne Wörter matchen
+    var words = q.split(/\s+/);
+    for (var w = 0; w < words.length; w++) {
+      if (words[w].length > 2 && dl.indexOf(words[w]) >= 0) score += 2;
+    }
+    // Keyword-Bonus — Marathon vs Halbmarathon präzise unterscheiden
+    var _qHalb = q.indexOf('halb') >= 0 || q.indexOf('half') >= 0;
+    var _dHalb = dl.indexOf('halb') >= 0;
+    if (q.indexOf('marathon') >= 0 && dl.indexOf('marathon') >= 0) {
+      score += (_qHalb === _dHalb) ? 10 : -5; // Match: +10, Mismatch: -5
+    }
+    if (_qHalb && _dHalb) score += 5;
+    if (q.indexOf('walking') >= 0 && dl.indexOf('walk') >= 0) score += 5;
+    if (score > bestScore) { bestScore = score; best = d; }
+  }
+  return bestScore > 0 ? best : '';
+}
+
+function normalizeAK(raw) {
+  if (!raw) return '';
+  var s = raw.trim();
+  // Bereits DLV-Format: M40, W65, MU16, M, W
+  if (/^[MW]U?\d{0,2}$/.test(s)) return s;
+  // "W 40" / "M 50" → "W40" / "M50"
+  var sm = s.match(/^([MW])\s+(\d{2})$/i);
+  if (sm) return sm[1].toUpperCase() + sm[2];
+  // Kern-Match: [MW] gefolgt von optionalem U und 2 Ziffern irgendwo im String
+  // z.B. "Seniorinnen W40" → "W40", "AK M35" → "M35", "Senior W65" → "W65"
+  var dm = s.match(/(?:^|\s)([MW]U?\d{2})(?:\s|$)/i);
+  if (dm) return dm[1].toUpperCase();
+  // Jugend mit Geschlecht im Text: "Männliche Jugend U16" → "MU16"
+  if (/m.nnl|male|herren|m.nner/i.test(s)) {
+    var ju = s.match(/U\s*(\d{1,2})/i);
+    if (ju) return 'MU' + ju[1];
+  }
+  if (/weibl|female|frauen|damen/i.test(s)) {
+    var jw = s.match(/U\s*(\d{1,2})/i);
+    if (jw) return 'WU' + jw[1];
+  }
+  // Nur Geschlecht
+  if (/^(m.nner|herren|male|men)$/i.test(s))    return 'M';
+  if (/^(frauen|damen|female|women)$/i.test(s))  return 'W';
+  return s;
+}
+
+function calcDlvAK(jahrgang, geschlecht, eventJahr) {
+  var alter = eventJahr - parseInt(jahrgang);
+  if (isNaN(alter) || alter < 5) return '';
+  var g = (geschlecht || '').toUpperCase() === 'W' ? 'W' : 'M';
+  if (alter < 13) return g + 'U12';
+  if (alter < 15) return g + 'U14';
+  if (alter < 17) return g + 'U16';
+  if (alter < 19) return g + 'U18';
+  if (alter < 21) return g + 'U20';
+  if (alter < 23) return g + 'U23';
+  if (alter < 30) return g;  // Hauptklasse: M / W
+  var stufe = Math.floor(alter / 5) * 5;
+  if (stufe > 75) stufe = 75;
+  return g + stufe;
+}
+
+// Prüft ob ein AK-Wert dem DLV-Standard entspricht
+function isValidDlvAK(ak) {
+  if (!ak || ak === '') return true; // leer ist ok
+  return /^[MW](U(12|14|16|18|20|23)|[0-9]{2}|)$/.test(ak);
+}
+
+function _rrRefreshAKPlatz() {
+  // Nur AK-Platz-Spalten neu berechnen ohne das Datum-Feld zu überschreiben
+  var s = window._rrState;
+  if (!s || !s.results) return;
+  var _datumFeld = ((document.getElementById('rr-datum') || {}).value || '').trim();
+  var _dpf = _datumFeld.match(/(\d{4})/);
+  var _jahr = _dpf ? parseInt(_dpf[1]) : new Date().getFullYear();
+  // Warnhinweis ausblenden wenn Datum gesetzt
+  var warnEl = document.getElementById('rr-datum-warn');
+  if (warnEl) warnEl.style.display = _datumFeld ? 'none' : '';
+  // AK-Platz-Zellen (7. td, Index 6) in jeder Tabellenzeile aktualisieren
+  var trs = document.querySelectorAll('#rr-tabelle tbody tr');
+  for (var i = 0; i < trs.length; i++) {
+    var r = s.results[i];
+    if (!r) continue;
+    var raw = r.raw;
+    var netto = String(raw[r.iNetto] || raw[r.iZeit] || '').trim();
+    var _jahrgang = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
+    var _geschlecht = '';
+    var selEl = trs[i].querySelector('.rr-athlet');
+    var _athId = selEl ? parseInt(selEl.value) || 0 : 0;
+    if (_athId) {
+      var _ath = state._athletenMap && state._athletenMap[_athId];
+      if (_ath) _geschlecht = _ath.geschlecht || '';
+    }
+    if (!_geschlecht) _geschlecht = r.akFromGroup === 'W' ? 'W' : r.akFromGroup === 'M' ? 'M' : '';
+    var ak = '';
+    if (r.iAK >= 0) {
+      ak = String(raw[r.iAK] || '').trim();
+    } else if (_jahrgang && _geschlecht) {
+      ak = calcDlvAK(_jahrgang, _geschlecht, _jahr);
+    } else {
+      ak = r.akFromGroup || '';
+    }
+    var platz = calcAKPlatz(ak, netto, _jahr) || '–';
+    // AK = 6. td (Index 5), Platz = 7. td (Index 6)
+    var tds = trs[i].querySelectorAll('td');
+    if (tds[5]) tds[5].textContent = ak;
+    if (tds[6]) tds[6].textContent = platz;
+  }
+}
+
+function calcAKPlatz(ak, zeitStr, eventJahr) {
+  var allRowsForAK = window._rrAllRowsForAK || [];
+  if (!ak || !zeitStr || !allRowsForAK.length) return null;
+  function toSec(s) {
+    var p = s.replace(/[^0-9:]/g, '').split(':').map(Number);
+    if (p.length === 3) return p[0]*3600 + p[1]*60 + p[2];
+    if (p.length === 2) return p[0]*60 + p[1];
+    return p[0] || 0;
+  }
+  var eigeneZeit = toSec(zeitStr);
+  if (!eigeneZeit) return null;
+  var besser = 0;
+  for (var _i = 0; _i < allRowsForAK.length; _i++) {
+    var r = allRowsForAK[_i];
+    // AK aus Feld oder aus Jahr+Geschlecht berechnen
+    var rAk = r.ak;
+    if (!rAk && r.year && r.geschlecht && eventJahr) {
+      rAk = calcDlvAK(r.year, r.geschlecht, eventJahr);
+    }
+    if (rAk !== ak) continue;
+    var rZeit = toSec(r.zeit);
+    if (rZeit > 0 && rZeit < eigeneZeit) besser++;
+  }
+  return besser + 1;
+}
+
+function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eventOrt, allRowsForAK) {
+  // allRowsForAK auch auf window setzen damit calcAKPlatz es findet
+  if (allRowsForAK) window._rrAllRowsForAK = allRowsForAK;
+  var preview = document.getElementById('rr-preview');
+  var today = new Date().toISOString().slice(0,10);
+  var guessDate = eventDate ? eventDate.slice(0,10) : '';
+  // rr-datum-Feld auslesen falls bereits manuell befüllt (Format TT.MM.JJJJ oder YYYY-MM-DD)
+  var _datumFeld = ((document.getElementById('rr-datum') || {}).value || '').trim();
+  if (_datumFeld && !guessDate) {
+    var _dpf = _datumFeld.match(/(\d{4})/);
+    if (_dpf) guessDate = _dpf[1] + '-01-01';
+  }
+  var _rrEventJahr = parseInt((guessDate || '').slice(0,4)) || new Date().getFullYear();
+  window._rrState = { results: results, eventId: eventId, eventName: eventName, contestObj: contestObj, eventOrt: eventOrt };
+
+  // System-Disziplinen aus datalist lesen
+  // Disziplinen aus state (von API)
+  var _kat = window._rrKat || '';
+  var diszList = (state.disziplinen || [])
+    .filter(function(d) { return !_kat || d.tbl_key === _kat; })
+    .map(function(d) { return typeof d === 'object' ? d.disziplin : d; })
+    .filter(Boolean);
+  if (!diszList.length) {
+    var dlOpts = document.querySelectorAll("#disz-list option");
+    for (var di = 0; di < dlOpts.length; di++) diszList.push(dlOpts[di].value);
+  }
+
+  // Debug
+  var _dbgFirst = results.length ? results[0] : null;
+  var _dbgRaw = _dbgFirst ? JSON.stringify(_dbgFirst.raw) : '(leer)';
+  var _dbg = window._rrDebug || {};
+  var _dbgLines = [];
+  var _appVer = (document.getElementById('header-version') || {}).textContent || '';
+  _dbgLines.push('App: ' + _appVer + ' | ' + new Date().toLocaleString('de-DE'));
+  // Spaltenindizes
+  if (_dbgFirst) {
+    _dbgLines.push('Spalten: iName='+_dbgFirst.iName+' iClub='+_dbgFirst.iClub+' iAK='+_dbgFirst.iAK+' iNetto='+_dbgFirst.iNetto+' iPlatz='+_dbgFirst.iPlatz+' iYear='+_dbgFirst.iYear+' iGeschlecht='+_dbgFirst.iGeschlecht);
+    _dbgLines.push('DataFields: ' + (_dbg.dfLog || '–'));
+  }
+  // Event-Metadaten
+  _dbgLines.push('eventName: ' + (eventName||'–') + ' | eventDate: ' + (eventDate||'leer') + ' | eventOrt: ' + (eventOrt||'leer'));
+  _dbgLines.push('cfgDateRaw: ' + JSON.stringify(_dbg.cfgDateRaw||'') + ' | cfg.eventname: ' + (_dbg.cfgEventName||'–'));
+
+  _dbgLines.push('cfg-Keys: ' + (_dbg.cfgAllKeys||'–'));
+  _dbgLines.push('cfg (roh): ' + (_dbg.cfgRaw||'–'));
+  // Contest-Infos
+  _dbgLines.push('contests: ' + JSON.stringify(contestObj).slice(0,200));
+  _dbgLines.push('listName: ' + (_dbg.listName||'–') + ' | listContest: ' + (_dbg.listContest||'–'));
+  // Disziplin-Mapping
+  _dbgLines.push('diszList ('+diszList.length+'): ' + diszList.slice(0,20).join(', ') + (diszList.length>20?' …':''));
+  if (_dbgFirst) {
+    var _cname = _dbgFirst.contestName || '';
+    var _cnResolved = _cname;
+    if (!_cnResolved || _cnResolved.match(/^Contest \d+$/i)) {
+      // Gleiche Logik wie Render-Loop: groupKey splitten
+      var _gkP = (_dbgFirst.groupKey || '').split('/');
+      var _gkN = (_gkP[0] || '').replace(/^#\d+_/, '');
+      if (_gkN && !_gkN.match(/^(M[aä]nner|Frauen|Weiblich|M[aä]nnlich|Male|Female|mixed)$/i))
+        _cnResolved = _gkN;
+      else if (_gkP.length > 1) _cnResolved = _gkP[1].replace(/^#\d+_/, '');
+    }
+    _dbgLines.push('contestName[0]: "' + _cname + '" groupKey: "' + (_dbgFirst.groupKey||'') + '" → rrBestDisz: "' + rrBestDisz(_cnResolved, diszList) + '"');
+    // Alle einzigartigen contestNames
+    var _cnames = {}; results.forEach(function(r){ if(r.contestName) _cnames[r.contestName]=1; });
+    _dbgLines.push('alle contestNames: ' + Object.keys(_cnames).join(', '));
+  }
+  // Club-Samples
+  _dbgLines.push('clubSamples (' + (_dbg.clubSamples||[]).length + '): ' + (_dbg.clubSamples||[]).slice(0,10).join(', '));
+  _dbgLines.push('totalRows: ' + (_dbg.totalRows||0) + ' | Treffer: ' + results.length);
+  var _ak4debug = window._rrAllRowsForAK || [];
+  var _ak4sample = _ak4debug.length ? JSON.stringify(_ak4debug[0]) + ' … (' + _ak4debug.length + ' rows)' : '(leer!)';
+  var _akPlatzTest = '';
+  if (results.length) {
+    var _r0 = results[0]; var _raw0 = _r0.raw;
+    var _netto0 = String(_raw0[_r0.iNetto]||'').trim();
+    var _yr0 = _r0.iYear >= 0 ? String(_raw0[_r0.iYear]||'').trim() : '';
+    var _g0 = '';
+    // Geschlecht aus Athleten-Profil des gematchten Athleten
+    var _chk0 = document.querySelector('.rr-chk[data-idx="0"]');
+    var _ath0 = _chk0 ? _chk0.closest('tr').querySelector('.rr-athlet') : null;
+    var _athId0 = _ath0 ? parseInt(_ath0.value)||0 : 0;
+    if (_athId0) { var _dbgA0 = state._athletenMap && state._athletenMap[_athId0]; if (_dbgA0) _g0 = _dbgA0.geschlecht||''; }
+    var _ak0 = (_yr0 && _g0) ? calcDlvAK(_yr0, _g0, _rrEventJahr) : '(kein Jahr/Geschlecht: yr='+_yr0+' g='+_g0+')';
+    var _platz0 = calcAKPlatz(_ak0, _netto0, _rrEventJahr);
+    var _gs0sample = _ak4debug.length ? _ak4debug.filter(function(x){return !!x.geschlecht;}).length : 0;
+    _akPlatzTest = 'AK-Test[0]: year=' + _yr0 + ' g=' + _g0 + ' → ak=' + _ak0 + ' netto=' + _netto0 + ' → Platz ' + _platz0 + ' | rows mit g: ' + _gs0sample;
+    // Test für zweiten Treffer (Tanja)
+    if (results.length > 1) {
+      var _r1 = results[1]; var _raw1 = _r1.raw;
+      var _netto1 = String(_raw1[_r1.iNetto]||'').trim();
+      var _yr1 = _r1.iYear >= 0 ? String(_raw1[_r1.iYear]||'').trim() : '';
+      var _g1 = '';
+      var _chk1 = document.querySelector('.rr-chk[data-idx="1"]');
+      var _ath1 = _chk1 ? _chk1.closest('tr').querySelector('.rr-athlet') : null;
+      var _athId1 = _ath1 ? parseInt(_ath1.value)||0 : 0;
+      if (_athId1) { var _dbgA1 = state._athletenMap && state._athletenMap[_athId1]; if (_dbgA1) _g1 = _dbgA1.geschlecht||''; }
+      var _ak1 = (_yr1 && _g1) ? calcDlvAK(_yr1, _g1, _rrEventJahr) : '(fehlt: yr='+_yr1+' g='+_g1+')';
+      var _platz1 = calcAKPlatz(_ak1, _netto1, _rrEventJahr);
+      // Wie viele W45-Rows gibt es?
+      var _w45count = _ak4debug.filter(function(x){ return x.geschlecht==='W' && x.year && (_rrEventJahr-parseInt(x.year))>=45 && (_rrEventJahr-parseInt(x.year))<50; }).length;
+      _akPlatzTest += '\nAK-Test[1]: year=' + _yr1 + ' g=' + _g1 + ' → ak=' + _ak1 + ' netto=' + _netto1 + ' → Platz ' + _platz1 + ' | W45-Rows(2026): ' + _w45count;
+    }
+  }
+  // Erste 5 eindeutige Gruppen-Keys aus den rohen Daten
+  var _gkSample = Object.keys((window._rrDebug||{}).groupKeysSample||{}).slice(0,8).join(' | ');
+  _dbgLines.push('allRowsForAK[0]: ' + _ak4sample + ' | Gruppen-Keys: ' + (_gkSample||'–'));
+  _dbgLines.push(_akPlatzTest);
+  // Rohdaten erster Treffer
+  if (_dbgFirst) _dbgLines.push('raw[0]: ' + _dbgRaw);
+  var _dbgIdx = _dbgLines.join('\n');
+
+  var rows = '';
+  for (var i = 0; i < results.length; i++) {
+    var r = results[i];
+    var raw = r.raw;
+    var name  = String(raw[r.iName]  || '').trim();
+    // "Nachname, Vorname" (LFNAME-Format) → "Vorname Nachname"
+    if (name.indexOf(',') > 0) { var _np = name.split(','); name = (_np[1]||'').trim() + ' ' + (_np[0]||'').trim(); name = name.trim(); }
+    var club  = String(raw[r.iClub]  || '').trim();
+    var ak = '';
+    if (r.iAK >= 0 && String(raw[r.iAK] || '').trim()) {
+      ak = normalizeAK(String(raw[r.iAK] || '').trim()); // AK normalisieren: "Seniorinnen W40" → "W40"
+      if (/^\d+\.?\s*[A-Z]/.test(ak)) { var _aksp3 = ak.match(/^(\d+)\.?\s*(.+)$/); if (_aksp3) ak = normalizeAK(_aksp3[2].trim()); }
+    } else {
+      var _jahrgang = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
+      var _geschlecht = '';
+      if (athletId) {
+        // _athletenMap bevorzugen (aktueller als state.athleten-Cache)
+        var _ath = (state._athletenMap && state._athletenMap[athletId]);
+        if (_ath) {
+          _geschlecht = _ath.geschlecht || '';
+        } else {
+          for (var _si=0; _si<state.athleten.length; _si++) {
+            if (state.athleten[_si].id == athletId) { _geschlecht = state.athleten[_si].geschlecht || ''; break; }
+          }
+        }
+      }
+      if (!_geschlecht && r.iGeschlecht >= 0) {
+        var _gv = String(raw[r.iGeschlecht] || '').toUpperCase();
+        _geschlecht = (_gv === 'W' || _gv === 'F' || _gv === 'FEMALE') ? 'W' : (_gv === 'M' || _gv === 'MALE') ? 'M' : '';
+      }
+      if (!_geschlecht) _geschlecht = r.akFromGroup === 'W' ? 'W' : r.akFromGroup === 'M' ? 'M' : '';
+      if (_jahrgang && _geschlecht) {
+        ak = calcDlvAK(_jahrgang, _geschlecht, _rrEventJahr);
+      } else {
+        ak = r.akFromGroup || '';
+      }
+    }
+    var zeit  = String(raw[r.iZeit]  || '').trim();
+    var netto = String(raw[r.iNetto] || '').trim();
+    // iPlatz zeigt auf AUTORANKP (Gesamtplatz) — AK-Platz selbst berechnen
+    var platzAKnum = r.akPlatzFromRow || calcAKPlatz(ak, netto || zeit, _rrEventJahr) || '';
+    var _cn = r.contestName || '';
+    // Contest 0 / "Contest N" → Disziplin aus groupKey oder cfg.contests
+    if (!_cn || _cn.match(/^Contest \d+$/i)) {
+      // groupKey z.B. "#2_Westenergie Marathon/#4_Weiblich" → ersten Teil nutzen
+      var _gkParts = (r.groupKey || '').split('/');
+      var _gkFirst = _gkParts[0] || '';
+      var _gkName = _gkFirst.replace(/^#\d+_/, '');
+      if (_gkName && !_gkName.match(/^(M[aä]nner|Frauen|Weiblich|M[aä]nnlich|Male|Female|mixed)$/i))
+        _cn = _gkName;
+      else if (_gkParts.length > 1)
+        _cn = _gkParts[1].replace(/^#\d+_/, '');
+    }
+    var disz  = rrBestDisz(_cn, diszList);
+
+    // Athlet-Matching: Name normalisieren (SS↔ß, Umlaute, Komma, Groß/Klein)
+    var athletId = '';
+    var nNorm = _normN(name);
+    var parts = nNorm.split(' ').filter(function(p) { return p.length >= 3; });
+    // Exakter Treffer (nach Normalisierung)
+    for (var ai = 0; ai < state.athleten.length && !athletId; ai++) {
+      var a = state.athleten[ai];
+      if (!a.name_nv) continue;
+      if (_normN(a.name_nv) === nNorm) { athletId = a.id; }
+    }
+    // Fallback: alle Namensteile vorhanden (Wortgrenze)
+    if (!athletId) {
+      for (var ai = 0; ai < state.athleten.length && !athletId; ai++) {
+        var a = state.athleten[ai];
+        if (!a.name_nv) continue;
+        var aNorm = _normN(a.name_nv);
+        var allMatch = parts.length > 0 && parts.every(function(p) {
+          return aNorm.indexOf(p) >= 0;
+        });
+        if (allMatch) { athletId = a.id; }
+      }
+    }
+
+    var athOptHtml = '<option value="">&#x2013; manuell &#x2013;</option>';
+    for (var ai = 0; ai < state.athleten.length; ai++) {
+      var a = state.athleten[ai];
+      athOptHtml += '<option value="' + a.id + '"' + (a.id == athletId ? ' selected' : '') + '>' + a.name_nv + '</option>';
+    }
+
+    rows +=
+      '<tr class="rr-preview-row" data-athlet="' + (athletId||'') + '" data-disz="' + disz + '" data-zeit="' + (netto||zeit) + '" data-datum="' + (window._rrState&&window._rrState.eventDatum||'') + '" style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:6px"><input type="checkbox" class="rr-chk" data-idx="' + i + '" checked style="width:14px;height:14px;cursor:pointer"/></td>' +
+        '<td style="padding:4px 6px"><select class="rr-athlet" class="bk-input-sel">' + athOptHtml + '</select></td>' +
+        '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + name + '</td>' +
+        '<td style="padding:4px 6px">' + (function(sel){ var s = '<select class="rr-disz" class="bk-input-sel">';s += '<option value="">' + (sel ? '' : '\u2013 bitte w\u00e4hlen \u2013') + '</option>';for(var oi=0;oi<diszList.length;oi++){s += '<option value="'+diszList[oi]+'"'+(diszList[oi]===sel?' selected':'')+'>'+diszList[oi]+'</option>';}s += '</select>'; return s; })(disz) + '</td>' +
+        '<td style="padding:4px 6px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:14px;color:var(--result-color)">' + (netto || zeit) + '</td>' +
+        (function() {
+          var _akOk = isValidDlvAK(ak);
+          var _akStyle = _akOk ? 'padding:4px 6px;font-size:12px;color:var(--text2)' : 'padding:4px 6px;font-size:12px;font-weight:600;color:var(--accent);cursor:pointer;title="Unbekannte AK – klicken zum Bearbeiten"';
+          return '<td style="' + _akStyle + '" class="rr-ak-cell' + (_akOk ? '' : ' rr-ak-unknown') + '" data-ak="' + ak.replace(/"/g,'&quot;') + '" title="' + (_akOk ? 'Altersklasse' : '⚠ Unbekannte AK – wird nicht blind übernommen') + '">' + (ak || '–') + (_akOk ? '' : ' ⚠') + '</td>';
+        })() +
+        '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + (platzAKnum || '–') + '</td>' +
+        '<td class="rr-mstr" style="padding:4px 6px;display:none">' +
+          '<select class="rr-mstr-sel" onchange="rrMstrChanged(this)" style="padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:90px">' +
+            mstrOptions(0) +
+          '</select>' +
+        '</td>' +
+        '<td class="rr-mstr rr-mstr-platz-td" style="padding:4px 6px;display:none">' +
+          '<input type="number" class="rr-mstr-platz" min="1" placeholder="Platz" value="' + (platzAKnum||'') + '" style="width:60px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+        '</td>' +
+        '<td style="padding:4px 6px;font-size:11px;color:var(--text2)">' + club + '</td>' +
+      '</tr>';
+  }
+
+  preview.innerHTML =
+    '<details style="margin-bottom:12px"><summary style="cursor:pointer;font-size:12px;color:var(--text2);padding:4px 0">&#x1F50D; Spalten-Debug</summary>' +
+      '<div style="position:relative">' +
+        '<button onclick="(function(){var el=document.getElementById(\'rr-dbg-pre\');var txt=el.innerText||el.textContent;if(navigator.clipboard){navigator.clipboard.writeText(txt).then(function(){var b=el.parentNode.querySelector(\'button\');var old=b.textContent;b.textContent=\'&#x2713; Kopiert!\';setTimeout(function(){b.textContent=old;},2000);});}else{var r=document.createRange();r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);}})()" style="position:absolute;top:6px;right:6px;font-size:11px;padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer">&#x1F4CB; Kopieren</button>' +
+        '<pre id="rr-dbg-pre" style="font-size:10px;overflow-x:auto;background:var(--surf2);padding:8px 8px 8px 8px;padding-right:80px;border-radius:6px;white-space:pre-wrap;color:var(--text2)">' + _dbgIdx + '\n' + _dbgRaw + '</pre>' +
+      '</div></details>' +
+    '<div style="background:var(--surf2);border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end">' +
+      '<div style="flex:1;min-width:200px"><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Veranstaltungsname</div>' +
+        '<input id="rr-evname" type="text" value="' + eventName + '" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:100%"/></div>' +
+      '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Datum</div>' +
+        '<input id="rr-datum" type="text" value="' + (guessDate ? guessDate.split('-').reverse().join('.') : '') + '" placeholder="TT.MM.JJJJ" onchange="_rrRefreshAKPlatz()" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
+      '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Ort</div>' +
+        '<input id="rr-ort" type="text" value="' + (eventOrt||'') + '" placeholder="z.B. D\u00fcsseldorf" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:min(150px,100%)"/></div>' +
+      '<span style="font-size:12px;color:var(--text2);align-self:center">&#x2705; ' + results.length + ' Vereins-Ergebnis(se) &bull; Event ' + eventId + '</span>' +
+      '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;align-self:center">' +
+        '<input type="checkbox" id="rr-mstr-toggle" onchange="importToggleMstr(\'rr\',this.checked,document.getElementById(\'rr-mstr-global\').value)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
+        'Meisterschaft' +
+      '</label>' +
+      '<select id="rr-mstr-global" onchange="if(document.getElementById(\'rr-mstr-toggle\').checked)importToggleMstr(\'rr\',true,this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+        mstrOptions(0) +
+      '</select>' +
+    '</div>' +
+    (!guessDate ? '<div id="rr-datum-warn" style="margin-bottom:10px;padding:8px 12px;background:#7c3a00;color:#ffb347;border-radius:7px;font-size:13px;font-weight:600">&#x26A0;&#xFE0E; Bitte Datum eintragen — es beeinflusst die AK-Platzierung!</div>' : '<div id="rr-datum-warn" style="display:none"></div>') +
+    '<div id="rr-tabelle" style="overflow-x:auto;margin-bottom:12px">' +
+      '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+        '<thead><tr style="color:var(--text2);border-bottom:2px solid var(--border)">' +
+          '<th style="padding:6px;width:30px"><input type="checkbox" checked onclick="rrToggleAll(this.checked)" style="cursor:pointer"/></th>' +
+          '<th style="padding:6px;text-align:left">Athlet (System)</th>' +
+          '<th style="padding:6px;text-align:left">Name (RR)</th>' +
+          '<th style="padding:6px;text-align:left">Disziplin</th>' +
+          '<th style="padding:6px;text-align:left">Netto-Zeit</th>' +
+          '<th style="padding:6px;text-align:left">AK</th>' +
+          '<th style="padding:6px;text-align:left">Platz AK</th>' +
+          '<th class="rr-mstr-th" style="padding:6px;text-align:left;display:none">Meisterschaft</th>' +
+          '<th class="rr-mstr-th" style="padding:6px;text-align:left;display:none">Platz MS</th>' +
+          '<th style="padding:6px;text-align:left">Verein</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>' +
+    '<div style="display:flex;gap:10px;align-items:center">' +
+      '<button class="btn btn-primary" onclick="rrImport()">&#x1F4BE; Ausgew\u00e4hlte importieren</button>' +
+      '<span id="rr-status" style="font-size:13px;color:var(--text2)"></span>' +
+    '</div>';
+}
+
+function rrToggleAll(val) {
+  var chks = document.querySelectorAll('.rr-chk');
+  for (var i = 0; i < chks.length; i++) chks[i].checked = val;
+}
+
+async function rrCheckDuplicates(results) {
+  // Sammle alle gematchten Athlet-IDs
+  var athIds = {};
+  results.forEach(function(r){ if(r.athletId) athIds[r.athletId] = 1; });
+  if (!Object.keys(athIds).length) return;
+
+  // Lade Ergebnisse für diese Athleten (alle auf einmal per bulk-Query nicht möglich → einzeln)
+  var existMap = {}; // "athletId|disziplin|resultat" → true
+  for (var _aid in athIds) {
+    try {
+      var _r = await apiGet('ergebnisse?limit=2000&offset=0&athlet_id=' + _aid);
+      if (_r && _r.ok) {
+        (_r.data.rows || []).forEach(function(e) {
+          existMap[_aid + '|' + e.disziplin + '|' + e.resultat] = true;
+        });
+      }
+    } catch(e) {}
+  }
+
+  // Preview-Zeilen markieren
+  var rows = document.querySelectorAll('.rr-preview-row');
+  var dupCount = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var aId  = row.dataset.athlet;
+    var disz = row.dataset.disz;
+    var zeit = row.dataset.zeit;
+    if (!aId || !disz || !zeit) continue;
+    var key  = aId + '|' + disz + '|' + zeit;
+    if (existMap[key]) {
+      dupCount++;
+      row.style.opacity = '0.45';
+      row.title = 'Duplikat – bereits im System vorhanden';
+      // Checkbox deaktivieren
+      var chk = row.querySelector('.rr-chk');
+      if (chk) { chk.checked = false; chk.disabled = true; }
+      // Badge
+      var firstTd = row.querySelector('td:first-child');
+      if (firstTd) firstTd.innerHTML += ' <span class="badge" style="background:var(--accent);color:#fff;font-size:10px">✕ Dup</span>';
+    }
+  }
+  if (dupCount > 0) {
+    var status = document.getElementById('rr-status');
+    if (status) status.innerHTML = '<span style="color:var(--text2);font-size:12px">&#x26A0;︎ ' + dupCount + ' Duplikat(e) erkannt und abgewählt</span>';
+  }
+}
+
+
+function rrMstrChanged(sel) {
+  // kein extra Toggle nötig — beide Zellen immer sichtbar wenn Meisterschaft aktiv
+}
+
+async function rrImport() {
+  var _datumRaw = ((document.getElementById('rr-datum') || {}).value || '').trim();
+  // TT.MM.JJJJ → YYYY-MM-DD
+  var datum = '';
+  if (_datumRaw) {
+    var _dp = _datumRaw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (_dp) datum = _dp[3] + '-' + _dp[2].padStart(2,'0') + '-' + _dp[1].padStart(2,'0');
+    else datum = _datumRaw; // bereits YYYY-MM-DD oder ähnlich
+  }
+  var ort    = ((document.getElementById('rr-ort')    || {}).value || '').trim();
+  var evname = ((document.getElementById('rr-evname') || {}).value || '').trim();
+  if (!datum) { notify("Bitte Datum ausfüllen!", "err"); return; }
+  if (!ort)   { notify("Bitte Ort ausfüllen!", "err"); return; }
+
+  var rrState = window._rrState;
+  var eventId = (rrState && rrState.eventId) || "";
+  var rrKatKey = (window._rrState && window._rrState.rrKatKey) || '';
+  var chks = document.querySelectorAll('.rr-chk');
+  var aths = document.querySelectorAll('.rr-athlet');
+  var diszInputs = document.querySelectorAll('.rr-disz');
+
+  // Unzugeordnete Athleten sammeln (ausgewählt, aber kein Athlet gesetzt)
+  var unmatched = [];
+  for (var _ui = 0; _ui < chks.length; _ui++) {
+    if (!chks[_ui].checked) continue;
+    var _uidx = parseInt(chks[_ui].getAttribute('data-idx'), 10);
+    var _ur = rrState.results[_uidx];
+    var _uAthId = aths[_ui] ? parseInt(aths[_ui].value) || 0 : 0;
+    if (!_uAthId) {
+      unmatched.push({ rowIdx: _ui, dataIdx: _uidx, name: _ur ? (String(_ur.raw[_ur.iName]||'').trim()) : '', year: _ur && _ur.iYear>=0 ? String(_ur.raw[_ur.iYear]||'').trim() : '', geschlecht: _ur && _ur.iGeschlecht>=0 ? String(_ur.raw[_ur.iGeschlecht]||'').trim() : '', athSel: aths[_ui] });
+    }
+  }
+  if (unmatched.length > 0) {
+    var _resolved = await rrUnmatchedModal(unmatched);
+    if (_resolved === null) return; // Abgebrochen
+  }
+
+  var items = [];
+  var gjUpdates = []; // { athletId, name, jahrRR } — Geburtsjahr-Vorschläge
+
+  for (var i = 0; i < chks.length; i++) {
+    if (!chks[i].checked) continue;
+    var idx = parseInt(chks[i].getAttribute('data-idx'), 10);
+    var r   = rrState.results[idx];
+    var raw = r.raw;
+    var athletId = aths[i] ? parseInt(aths[i].value) || null : null;
+    var disziplin = diszInputs[i] ? diszInputs[i].value.trim() : '';
+    if (!athletId || !disziplin) continue;
+
+    // Geburtsjahr aus RR-Daten — prüfen ob DB-Athlet noch keines hat
+    var _rrYear = r.iYear >= 0 ? parseInt(String(raw[r.iYear] || '').trim()) : 0;
+    if (_rrYear > 1900 && _rrYear < 2020) {
+      var _dbAthlet = state._athletenMap && state._athletenMap[athletId];
+      if (_dbAthlet && !_dbAthlet.geburtsjahr) {
+        // Noch nicht in gjUpdates?
+        var _alreadyQueued = gjUpdates.some(function(u) { return u.athletId === athletId; });
+        if (!_alreadyQueued) {
+          gjUpdates.push({ athletId: athletId, name: _dbAthlet.name_nv || '', jahrRR: _rrYear });
+        }
+      }
+    }
+    var zeit     = String(raw[r.iNetto] || raw[r.iZeit] || '').trim();
+    var ak = '';
+    if (r.iAK >= 0) {
+      ak = String(raw[r.iAK] || '').trim();
+      // Kombiniertes AK+Platz-Feld aufsplitten: "74. M35" → ak=M35
+      if (/^\d+\.?\s*[A-Z]/.test(ak)) { var _aksp4 = ak.match(/^(\d+)\.?\s*(.+)$/); if (_aksp4) ak = _aksp4[2].trim(); }
+      ak = normalizeAK(ak); // "Seniorinnen W40" → "W40" etc.
+    } else {
+      var _jahrgang2 = r.iYear >= 0 ? String(raw[r.iYear] || '').trim() : '';
+      var _geschlecht2 = '';
+      var _selAthlet = document.querySelectorAll('.rr-athlet')[i];
+      var _athId2 = _selAthlet ? parseInt(_selAthlet.value) || 0 : 0;
+      if (_athId2) {
+        var _ath2 = (state._athletenMap && state._athletenMap[_athId2]);
+        if (_ath2) {
+          _geschlecht2 = _ath2.geschlecht || '';
+        } else {
+          for (var _si2=0; _si2<state.athleten.length; _si2++) {
+            if (state.athleten[_si2].id == _athId2) { _geschlecht2 = state.athleten[_si2].geschlecht || ''; break; }
+          }
+        }
+      }
+      if (!_geschlecht2 && r.iGeschlecht >= 0) {
+        var _gv2 = String(raw[r.iGeschlecht] || '').toUpperCase();
+        _geschlecht2 = (_gv2 === 'W' || _gv2 === 'F') ? 'W' : (_gv2 === 'M') ? 'M' : '';
+      }
+      if (!_geschlecht2) _geschlecht2 = r.akFromGroup === 'W' ? 'W' : r.akFromGroup === 'M' ? 'M' : '';
+      if (_jahrgang2 && _geschlecht2) {
+        var _datum = ((document.getElementById('rr-datum') || {}).value || '').trim();
+        var _dp2 = _datum.match(/(\d{4})/); // Jahr aus beliebigem Format
+        var _eventJahr2 = _dp2 ? parseInt(_dp2[1]) : new Date().getFullYear();
+        ak = calcDlvAK(_jahrgang2, _geschlecht2, _eventJahr2);
+      } else {
+        ak = r.akFromGroup || '';
+      }
+    }
+    var platzAKv = r.akPlatzFromRow ? parseInt(r.akPlatzFromRow) : (calcAKPlatz(ak, String(raw[r.iNetto] || raw[r.iZeit] || '').trim(), _eventJahr2) || null);
+    // Meisterschaft + Platz MS
+    var _mstrSel = document.querySelectorAll('.rr-mstr-sel')[i];
+    var _mstrVal = _mstrSel ? (parseInt(_mstrSel.value) || null) : null;
+    var _mstrPlatzEl = document.querySelectorAll('.rr-mstr-platz')[i];
+    var _mstrPlatz = (_mstrPlatzEl && _mstrPlatzEl.value) ? (parseInt(_mstrPlatzEl.value) || null) : null;
+    items.push({
+      datum: datum, ort: ort, veranstaltung_name: evname,
+      athlet_id: athletId, disziplin: disziplin,
+      resultat: zeit, altersklasse: ak,
+      ak_platzierung: platzAKv,
+      meisterschaft: _mstrVal,
+      ak_platz_meisterschaft: _mstrPlatz,
+      import_quelle: 'raceresult:' + eventId
+    });
+  }
+
+  if (!items.length) { notify('Keine gültigen Einträge (Athlet + Disziplin benötigt).', 'err'); return; }
+
+  // Unbekannte AK auflösen: alle eindeutigen unbekannten AK sammeln
+  var _unknownAKs = {};
+  items.forEach(function(it) { if (it.altersklasse && !isValidDlvAK(it.altersklasse)) _unknownAKs[it.altersklasse] = null; });
+  if (Object.keys(_unknownAKs).length > 0) {
+    var _akResolved = await rrUnknownAKModal(_unknownAKs);
+    if (_akResolved === null) return; // Abgebrochen
+    // Auflösung auf items anwenden
+    items.forEach(function(it) {
+      if (it.altersklasse && _akResolved.hasOwnProperty(it.altersklasse)) {
+        it.altersklasse = _akResolved[it.altersklasse] || '';
+      }
+    });
+  }
+
+  document.getElementById('rr-status').innerHTML = '&#x23F3; Importiere ' + items.length + ' Ergebnis(se)\u2026';
+  var r2 = await apiPost('ergebnisse/bulk', { items: items });
+  if (r2 && r2.ok) {
+    var msg = r2.data.imported + ' importiert';
+    if (r2.data.skipped) msg += ', ' + r2.data.skipped + ' Duplikate \u00fcbersprungen';
+    notify(msg, 'ok');
+    document.getElementById('rr-status').innerHTML = '&#x2705; ' + msg;
+    // Geburtsjahr-Vorschläge anzeigen falls vorhanden
+    if (gjUpdates.length > 0) {
+      setTimeout(function() { _rrShowGjModal(gjUpdates); }, 400);
+    }
+  } else {
+    notify((r2 && r2.fehler) ? r2.fehler : 'Fehler', 'err');
+    document.getElementById('rr-status').innerHTML = '';
+  }
+}
+
+function _rrShowGjModal(updates) {
+  var rows = '';
+  for (var i = 0; i < updates.length; i++) {
+    var u = updates[i];
+    rows +=
+      '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:6px 8px">' + u.name + '</td>' +
+        '<td style="padding:6px 8px;text-align:center;font-weight:700;color:var(--primary)">' + u.jahrRR + '</td>' +
+        '<td style="padding:6px 8px;text-align:center">' +
+          '<input type="checkbox" data-gj-id="' + u.athletId + '" data-gj-year="' + u.jahrRR + '" checked style="width:15px;height:15px;cursor:pointer"/>' +
+        '</td>' +
+      '</tr>';
+  }
+  showModal(
+    '<h2>&#x1F382; Geburtsjahr übernehmen? <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<p style="font-size:13px;color:var(--text2);margin-bottom:10px">' +
+      'Für folgende Athleten wurde in den RaceResult-Daten ein Geburtsjahr gefunden, ' +
+      'das noch nicht in der Datenbank hinterlegt ist. Welche sollen übernommen werden?' +
+    '</p>' +
+    '<div class="table-scroll" style="margin-bottom:12px">' +
+      '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+        '<thead><tr style="border-bottom:2px solid var(--border)">' +
+          '<th style="text-align:left;padding:6px 8px">Athlet</th>' +
+          '<th style="padding:6px 8px">Jahrgang</th>' +
+          '<th style="padding:6px 8px">&#x2713; Übern.</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Überspringen</button>' +
+      '<button class="btn btn-primary" onclick="_rrSaveGj()">&#x1F4BE; Geburtsjahr speichern</button>' +
+    '</div>'
+  );
+}
+
+async function _rrSaveGj() {
+  var chks = document.querySelectorAll('[data-gj-id]');
+  var ok = 0;
+  for (var i = 0; i < chks.length; i++) {
+    if (!chks[i].checked) continue;
+    var aid  = parseInt(chks[i].getAttribute('data-gj-id'));
+    var jahr = parseInt(chks[i].getAttribute('data-gj-year'));
+    var res = await apiPut('athleten/' + aid, { geburtsjahr: jahr });
+    if (res && res.ok) ok++;
+  }
+  closeModal();
+  if (ok > 0) {
+    notify(ok + ' Geburtsjahr' + (ok > 1 ? 'e' : '') + ' gespeichert.', 'ok');
+    await loadAthleten();
+  }
+}
+
+async function deleteErgebnis(subTab, id) {
+  if (!confirm('Ergebnis in den Papierkorb verschieben?')) return;
+  var r = await apiDel(subTab + '/' + id);
+  if (r && r.ok) { notify('Gel\u00f6scht.', 'ok'); await loadErgebnisseData(); }
+  else notify('Fehler: ' + ((r && r.fehler) || ''), 'err');
+}
+
+async function deleteRekord(id) {
+  if (!confirm('Diesen Vereinsrekord wirklich l&ouml;schen?')) return;
+  var r = await apiDel('rekorde/' + id);
+  if (r && r.ok) { notify('Gel&ouml;scht.', 'ok'); await renderRekorde(); }
+  else notify('Fehler: ' + ((r && r.fehler) || ''), 'err');
+}
+
+// ── ADMIN ──────────────────────────────────────────────────
+
+
+// ── Modal für unzugeordnete Athleten ────────────────────────────────────────
+async function rrUnmatchedModal(unmatched) {
+  return new Promise(function(resolve) {
+    // Athleten-Optionen
+    var athOpts = '<option value="">– zuordnen –</option>';
+    (state.athleten || []).forEach(function(a) {
+      athOpts += '<option value="' + a.id + '">' + a.name_nv + '</option>';
+    });
+
+    // Zeilen aufbauen
+    var rows = '';
+    unmatched.forEach(function(u, i) {
+      var nameNorm = u.name.replace(/^([^,]+),\s*(.+)$/, '$2 $1'); // "Nachname, Vorname" → "Vorname Nachname"
+      rows +=
+        '<tr style="border-bottom:1px solid var(--border)" id="rrm-row-' + i + '">' +
+          '<td style="padding:8px 10px;font-weight:600;font-size:13px">' + (u.name || '–') + '</td>' +
+          '<td style="padding:8px 10px;font-size:12px;color:var(--text2)">' + (u.year || '–') + (u.geschlecht ? ' · ' + u.geschlecht : '') + '</td>' +
+          '<td style="padding:6px 10px">' +
+            '<div style="display:flex;gap:6px;align-items:center">' +
+              '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
+                '<input type="radio" name="rrm-action-' + i + '" value="zuordnen" checked onchange="rrmToggle(' + i + ',\'zuordnen\')"> Zuordnen' +
+              '</label>' +
+              '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
+                '<input type="radio" name="rrm-action-' + i + '" value="neu" onchange="rrmToggle(' + i + ',\'neu\')"> Neu anlegen' +
+              '</label>' +
+              '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
+                '<input type="radio" name="rrm-action-' + i + '" value="skip" onchange="rrmToggle(' + i + ',\'skip\')"> Überspringen' +
+              '</label>' +
+            '</div>' +
+            '<div id="rrm-zuordnen-' + i + '" style="margin-top:6px">' +
+              '<select id="rrm-sel-' + i + '" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' + athOpts + '</select>' +
+            '</div>' +
+            '<div id="rrm-neu-' + i + '" style="margin-top:6px;display:none">' +
+              '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+                '<input id="rrm-vorname-' + i + '" type="text" placeholder="Vorname" value="' + (nameNorm.split(' ')[0]||'') + '" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
+                '<input id="rrm-nachname-' + i + '" type="text" placeholder="Nachname" value="' + (nameNorm.split(' ').slice(1).join(' ')||'') + '" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
+                '<select id="rrm-geschlecht-' + i + '" style="width:80px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
+                  '<option value="">G.</option><option value="M"' + (u.geschlecht==='M'?' selected':'') + '>M</option><option value="W"' + (u.geschlecht==='W'?' selected':'') + '>W</option>' +
+                '</select>' +
+                '<input id="rrm-gebj-' + i + '" type="number" placeholder="Jahrg." value="' + (u.year||'') + '" min="1920" max="2020" style="width:90px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
+              '</div>' +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+    });
+
+    var html =
+      '<h3 style="margin:0 0 16px;font-size:17px">⚠︎ Unbekannte Athleten</h3>' +
+      '<p style="color:var(--text2);font-size:13px;margin:0 0 16px">' + unmatched.length + ' Athlet(en) konnten nicht automatisch zugeordnet werden. Bitte für jeden Athleten eine Aktion wählen:</p>' +
+      '<div style="overflow-x:auto;margin-bottom:20px">' +
+        '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+          '<thead><tr style="background:var(--surf2)">' +
+            '<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase">Name (RR)</th>' +
+            '<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase">Jahrg./G.</th>' +
+            '<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase">Aktion</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+        '<button class="btn btn-ghost" onclick="closeModal();window._rrmResolve(null)">Abbrechen</button>' +
+        '<button class="btn btn-primary" onclick="rrmConfirm(' + unmatched.length + ')">Weiter →</button>' +
+      '</div>';
+
+    window._rrmResolve = resolve;
+    window._rrmUnmatched = unmatched;
+    showModal(html, true); // true = breit
+  });
+}
+
+function rrmToggle(i, action) {
+  document.getElementById('rrm-zuordnen-' + i).style.display = action === 'zuordnen' ? 'block' : 'none';
+  document.getElementById('rrm-neu-' + i).style.display = action === 'neu' ? 'block' : 'none';
+}
+
+async function rrmConfirm(count) {
+  var unmatched = window._rrmUnmatched || [];
+  // Für jeden Athleten die gewählte Aktion ausführen
+  for (var i = 0; i < count; i++) {
+    var u = unmatched[i];
+    if (!u) continue;
+    var radios = document.querySelectorAll('input[name="rrm-action-' + i + '"]');
+    var action = 'skip';
+    radios.forEach(function(r) { if (r.checked) action = r.value; });
+
+    if (action === 'zuordnen') {
+      var selVal = (document.getElementById('rrm-sel-' + i) || {}).value;
+      if (selVal && u.athSel) u.athSel.value = selVal;
+
+    } else if (action === 'neu') {
+      var vn = ((document.getElementById('rrm-vorname-' + i) || {}).value || '').trim();
+      var nn = ((document.getElementById('rrm-nachname-' + i) || {}).value || '').trim();
+      var g  = ((document.getElementById('rrm-geschlecht-' + i) || {}).value || '').trim();
+      var gj = ((document.getElementById('rrm-gebj-' + i) || {}).value || '').trim();
+      if (!vn || !nn) { notify('Bitte Vor- und Nachname angeben.', 'err'); return; }
+      var r2 = await apiPost('athleten', { name_nv: nn + ', ' + vn, vorname: vn, nachname: nn, geschlecht: g, geburtsjahr: gj ? parseInt(gj) : null });
+      if (r2 && r2.ok && r2.data && r2.data.id) {
+        // state.athleten aktualisieren
+        var newAth = { id: r2.data.id, name_nv: nn + ', ' + vn, vorname: vn, nachname: nn, geschlecht: g, geburtsjahr: gj ? parseInt(gj) : null };
+        state.athleten.push(newAth);
+        if (state._athletenMap) state._athletenMap[newAth.id] = newAth;
+        if (u.athSel) {
+          var opt = document.createElement('option');
+          opt.value = newAth.id; opt.text = newAth.name_nv; opt.selected = true;
+          u.athSel.appendChild(opt);
+          u.athSel.value = newAth.id;
+        }
+        notify('Athlet "' + newAth.name_nv + '" angelegt.', 'ok');
+      } else {
+        notify((r2 && r2.fehler) ? r2.fehler : 'Fehler beim Anlegen.', 'err');
+        return;
+      }
+
+    } else {
+      // skip: Checkbox deaktivieren
+      if (u.athSel) {
+        var row = u.athSel.closest('tr');
+        if (row) {
+          var chk = row.querySelector('.rr-chk');
+          if (chk) chk.checked = false;
+        }
+      }
+    }
+  }
+  closeModal();
+  if (window._rrmResolve) window._rrmResolve(true);
+}
+
+// ── Unbekannte AK auflösen ──────────────────────────────────────────────────
+
+async function rrUnknownAKModal(unknownAKs) {
+  // DLV-AK-Optionen für Dropdown
+  var dlvAKs = [
+    'M','W',
+    'MU12','WU12','MU14','WU14','MU16','WU16','MU18','WU18','MU20','WU20','MU23','WU23',
+    'M30','W30','M35','W35','M40','W40','M45','W45','M50','W50',
+    'M55','W55','M60','W60','M65','W65','M70','W70','M75','W75'
+  ];
+  var dlvOpts = '<option value="">– leer lassen –</option>';
+  dlvAKs.forEach(function(a) { dlvOpts += '<option value="' + a + '">' + a + '</option>'; });
+
+  var rows = '';
+  Object.keys(unknownAKs).forEach(function(rawAK, i) {
+    rows +=
+      '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:10px 12px;font-weight:600;font-size:13px;color:var(--accent)">' + rawAK + '</td>' +
+        '<td style="padding:6px 12px">' +
+          '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+            '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
+              '<input type="radio" name="rruk-action-' + i + '" value="map" checked onchange="rrukToggle(' + i + ',\'map\')"> DLV-AK zuordnen' +
+            '</label>' +
+            '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
+              '<input type="radio" name="rruk-action-' + i + '" value="keep" onchange="rrukToggle(' + i + ',\'keep\')"> So übernehmen' +
+            '</label>' +
+            '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
+              '<input type="radio" name="rruk-action-' + i + '" value="empty" onchange="rrukToggle(' + i + ',\'empty\')"> Leer lassen' +
+            '</label>' +
+          '</div>' +
+          '<div id="rruk-map-' + i + '" style="margin-top:6px">' +
+            '<select id="rruk-sel-' + i + '" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text);width:120px">' +
+              dlvOpts +
+            '</select>' +
+          '</div>' +
+        '</td>' +
+      '</tr>';
+  });
+
+  var html =
+    '<h2>\u26A0\uFE0E Unbekannte Altersklassen <button class="modal-close" onclick="rrukCancel()">\u2715</button></h2>' +
+    '<p style="font-size:13px;color:var(--text2);margin-bottom:12px">' +
+      'Die folgenden Altersklassen entsprechen nicht dem DLV-Standard. Bitte f\u00fcr jede AK w\u00e4hlen wie sie \u00fcbernommen werden soll.' +
+    '</p>' +
+    '<div class="table-scroll" style="max-height:50vh">' +
+      '<table style="width:100%;border-collapse:collapse">' +
+        '<thead><tr style="background:var(--surf2)">' +
+          '<th style="padding:8px 12px;text-align:left;font-size:12px">Roher AK-Wert</th>' +
+          '<th style="padding:8px 12px;text-align:left;font-size:12px">Behandlung</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="rrukCancel()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="rrukConfirm()">&#x1F4BE; Weiter</button>' +
+    '</div>';
+
+  return new Promise(function(resolve) {
+    window._rrukResolve = resolve;
+    window._rrukKeys = Object.keys(unknownAKs);
+    showModal(html, true);
+  });
+}
+
+function rrukToggle(i, action) {
+  var mapDiv = document.getElementById('rruk-map-' + i);
+  if (mapDiv) mapDiv.style.display = action === 'map' ? 'block' : 'none';
+}
+
+function rrukCancel() {
+  closeModal();
+  if (window._rrukResolve) { window._rrukResolve(null); window._rrukResolve = null; }
+}
+
+function rrukConfirm() {
+  var keys = window._rrukKeys || [];
+  var resolved = {};
+  keys.forEach(function(rawAK, i) {
+    var action = 'map';
+    var radios = document.querySelectorAll('input[name="rruk-action-' + i + '"]');
+    radios.forEach(function(r) { if (r.checked) action = r.value; });
+    if (action === 'map') {
+      var sel = document.getElementById('rruk-sel-' + i);
+      resolved[rawAK] = sel ? (sel.value || '') : '';
+    } else if (action === 'keep') {
+      resolved[rawAK] = rawAK; // unverändert
+    } else {
+      resolved[rawAK] = ''; // leer
+    }
+  });
+  closeModal();
+  if (window._rrukResolve) { window._rrukResolve(resolved); window._rrukResolve = null; }
 }
 // ── RACERESULT-IMPORT ──────────────────────────────────────
 function rrKatChanged() {
