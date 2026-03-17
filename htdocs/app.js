@@ -4727,6 +4727,13 @@ function bulkFillFromImport(rows, statusEl) {
     if (platzEl && row.platz) platzEl.value = row.platz;
   });
 
+  // Zeilennummern neu durchzählen
+  var allRows = tbody.querySelectorAll('tr');
+  for (var ni = 0; ni < allRows.length; ni++) {
+    var numCell = allRows[ni].querySelector('td:first-child');
+    if (numCell) numCell.textContent = ni + 1;
+  }
+
   if (statusEl) statusEl.textContent = '✅ ' + rows.length + ' Zeilen eingefügt';
   // Paste-Feld leeren
   var pasteEl = document.getElementById('bk-paste-area');
