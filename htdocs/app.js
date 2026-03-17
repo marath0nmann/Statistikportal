@@ -4136,21 +4136,72 @@ async function bulkSubmit() {
 // ── URL-Erkennung ───────────────────────────────────────────────────────────
 
 // ── Debug-Helfer für Bulk-Import ─────────────────────────────────────────────
+var _bkDebugLines = [];
+
 function _bkDebugClear() {
+  _bkDebugLines = [];
   var wrap = document.getElementById('bk-import-debug-wrap');
   var pre  = document.getElementById('bk-import-debug');
   if (wrap) wrap.style.display = 'none';
   if (pre)  pre.textContent = '';
 }
-function _bkDebugSet(text) {
+
+function _bkDebugFlush() {
   var wrap = document.getElementById('bk-import-debug-wrap');
   var pre  = document.getElementById('bk-import-debug');
   if (wrap) { wrap.style.display = ''; wrap.open = true; }
-  if (pre)  pre.textContent = text;
+  if (pre)  pre.textContent = _bkDebugLines.join('\n');
 }
+
+function _bkDebugSet(text) {
+  _bkDebugLines = text.split('\n');
+  _bkDebugFlush();
+}
+
 function _bkDebugAppend(text) {
-  var pre = document.getElementById('bk-import-debug');
-  if (pre) pre.textContent += text;
+  _bkDebugLines = _bkDebugLines.concat(text.replace(/^\n/,'').split('\n'));
+  _bkDebugFlush();
+}
+
+function _bkDebugLine(label, value) {
+  var pad = 16;
+  var l = (label + ':').padEnd(pad, ' ');
+  _bkDebugLines.push(l + (value !== undefined ? value : ''));
+  _bkDebugFlush();
+}
+
+function _bkDebugHeader(title) {
+  var line = '\u2500\u2500 ' + title + ' ';
+  while (line.length < 52) line += '\u2500';
+  _bkDebugLines.push(line);
+  _bkDebugFlush();
+}
+
+function _bkDebugSep() {
+  _bkDebugLines.push('');
+  _bkDebugFlush();
+}
+
+function _bkDebugInit(url, quelle, kat) {
+  _bkDebugLines = [];
+  var now = new Date();
+  var pad2 = function(n){ return String(n).padStart(2,'0'); };
+  var zeitStr = pad2(now.getDate()) + '.' + pad2(now.getMonth()+1) + '.' + now.getFullYear() +
+                '  ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + ':' + pad2(now.getSeconds());
+  var verStr  = (document.getElementById('header-version')||{}).textContent || '?';
+  var vereinStr = (appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '?';
+
+  var sep = '';
+  for (var i=0;i<52;i++) sep += '\u2550';
+  _bkDebugLines.push(sep);
+  _bkDebugLine('App',     verStr + '  |  ' + vereinStr);
+  _bkDebugLine('Zeit',    zeitStr);
+  _bkDebugLine('URL',     url || '–');
+  _bkDebugLine('Quelle',  quelle || '–');
+  _bkDebugLine('Kategorie', kat || '–');
+  _bkDebugLines.push(sep);
+  _bkDebugLines.push('');
+  _bkDebugFlush();
 }
 
 function bulkDetectUrl(text) {
@@ -4220,8 +4271,8 @@ async function bulkImportFromRR(url, kat, statusEl) {
   var eventName = cfg.eventname || '';
   var vereinCfg = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
   var vereinParts = vereinCfg.split(/\s+/).filter(function(p){ return p.length > 1; });
-  _bkDebugSet('RaceResult Event ' + eid + ': ' + eventName +
-    '\nKategorie: ' + kat + ' | Verein: ' + vereinCfg);
+  _bkDebugHeader('RaceResult');
+  _bkDebugLine('Event-ID', eid);
   var lists = cfg.lists || [];
   var disziplinen = state.disziplinen || [];
   var diszList = disziplinen.map(function(d){ return d.disziplin; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
@@ -4264,7 +4315,23 @@ async function bulkImportFromRR(url, kat, statusEl) {
       else if (val && typeof val==='object') { Object.keys(val).forEach(function(sk){ if(Array.isArray(val[sk])) processRRRows(val[sk], sk||key); }); }
     });
   }
-  _bkDebugAppend('\n' + listsChecked + ' Listen | ' + rrRows.length + ' TuS-Eintr\u00e4ge gefunden');
+  _bkDebugLine('Listen',   listsChecked + ' durchsucht');
+  _bkDebugLine('Gefunden', rrRows.length + ' TuS-Einträge');
+  if (rrRows.length) {
+    _bkDebugSep();
+    _bkDebugHeader('Ergebnisse');
+    rrRows.forEach(function(r, i) {
+      _bkDebugLines.push(
+        String(i+1).padStart(2,' ') + '.  ' +
+        (r.name||'?').padEnd(22,' ') +
+        (r.ak||'  ').padEnd(6,' ') +
+        (r.resultat||'').padEnd(10,' ') +
+        (r.platz ? 'Platz ' + r.platz : '').padEnd(9,' ') +
+        '→ ' + (r.disziplin||'(keine)')
+      );
+    });
+    _bkDebugFlush();
+  }
   bulkFillFromImport(rrRows, statusEl);
 }
 
@@ -4276,12 +4343,29 @@ async function bulkImportFromMika(url, kat, statusEl) {
   var r = await apiGet('mika-fetch?base_url=' + encodeURIComponent(baseUrl) + '&club=' + encodeURIComponent(vereinRaw));
   if (!r || !r.ok) { if(statusEl) statusEl.textContent = '❌ ' + (r && r.fehler || 'Fehler'); return; }
 
-  _bkDebugSet('MikaTiming\nVerein: ' + vereinRaw + '\nKategorie: ' + kat);
+
+  _bkDebugHeader('MikaTiming');
+  _bkDebugLine('Verein',    vereinRaw);
+  _bkDebugLine('Basis-URL', baseUrl);
 
   var rows = mikaExtractRowsForBulk(r.data, kat);
-  _bkDebugAppend('\n' + rows.length + ' TuS-Eintr\u00e4ge gefunden');
+  _bkDebugLine('Gefunden',  rows.length + ' TuS-Einträge');
+  if (rows.length) {
+    _bkDebugSep();
+    _bkDebugHeader('Ergebnisse');
+    rows.forEach(function(row, i) {
+      _bkDebugLines.push(
+        String(i+1).padStart(2,' ') + '.  ' +
+        (row.name||'?').padEnd(22,' ') +
+        (row.ak||'  ').padEnd(6,' ') +
+        (row.resultat||'').padEnd(10,' ') +
+        (row.platz ? 'Platz ' + row.platz : '').padEnd(9,' ') +
+        '→ ' + (row.disziplin||'(keine)')
+      );
+    });
+    _bkDebugFlush();
+  }
   bulkFillFromImport(rows, statusEl);
-}
 
 // ── Uitslagen → Bulk ────────────────────────────────────────────────────────
 async function bulkImportFromUits(url, kat, statusEl) {
@@ -4293,11 +4377,30 @@ async function bulkImportFromUits(url, kat, statusEl) {
   if (!r || !r.ok) { if(statusEl) statusEl.textContent = '❌ ' + (r && r.fehler || 'Fehler'); return; }
 
   var parsed = uitsParseHTML(r.data.html, idMatch[1]);
-  _bkDebugSet('uitslagen.nl: ' + parsed.eventName +
-    '\nDatum: ' + parsed.eventDate + '  Ort: ' + parsed.eventOrt +
-    '\nKategorie: ' + kat +
-    '\nGesamt-Eintr\u00e4ge: ' + parsed.rows.length +
-    '\nTuS-Eintr\u00e4ge: ' + parsed.rows.filter(function(r){return r.ownClub;}).length);
+  var _uOwn = parsed.rows.filter(function(r){return r.ownClub;});
+  _bkDebugHeader('uitslagen.nl');
+  _bkDebugLine('Eventname',  parsed.eventName || '–');
+  _bkDebugLine('Datum',      parsed.eventDate || '–');
+  _bkDebugLine('Ort',        parsed.eventOrt  || '–');
+  _bkDebugLine('Gesamt',     parsed.rows.length + ' Einträge');
+  _bkDebugLine('Gefunden',   _uOwn.length + ' TuS-Einträge');
+  if (_uOwn.length) {
+    _bkDebugSep();
+    _bkDebugHeader('Ergebnisse');
+    _uOwn.forEach(function(r, i) {
+      var diszMid = uitsAutoDiszMatchKat(r.kategorie, state.disziplinen||[], kat);
+      var diszName = diszMid ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==diszMid;})||{}).disziplin||'?' : '(keine)';
+      _bkDebugLines.push(
+        String(i+1).padStart(2,' ') + '.  ' +
+        (r.name||'?').padEnd(22,' ') +
+        (r.ak||'  ').padEnd(6,' ') +
+        (r.zeit||'').padEnd(10,' ') +
+        (r.platz ? 'Platz ' + r.platz : '').padEnd(9,' ') +
+        '→ ' + diszName + '  [' + r.kategorie + ']'
+      );
+    });
+    _bkDebugFlush();
+  }
 
   // Veranstaltungsfelder vorausfüllen
   if (parsed.eventDate) {

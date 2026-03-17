@@ -5,6 +5,19 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v578 – Import-Debug stark erweitert
+
+Strukturiertes Debug-Log mit Kopieren-Button:
+- **Header:** App-Version + Verein, Zeitstempel, URL, Quelle, Importkategorie
+- **RaceResult:** Event-ID, Eventname, Listen-Anzahl, gefundene TuS-Einträge
+- **MikaTiming:** Verein, Basis-URL, gefundene Einträge
+- **uitslagen.nl:** Eventname, Datum, Ort, Gesamt-Einträge, TuS-Einträge
+- **Ergebnisse-Liste:** Nr. · Name · AK · Zeit · Platz · → Disziplin
+- Neue Helfer: `_bkDebugInit`, `_bkDebugHeader`, `_bkDebugLine`, `_bkDebugSep`
+
+---
+
+
 ## v577 – Eintragen: „Ergebnisse einfügen" nach oben
 
 - Import-Block (Textarea + Einlesen) steht jetzt ganz oben
