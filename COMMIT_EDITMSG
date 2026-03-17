@@ -1,11 +1,12 @@
-v579: Import-Debug erweitert (Fix weißer Bildschirm)
+v580: Build-Sicherheit: Syntax-Check + jstools.py
 
-v578 hatte Syntax-Fehler durch ' in Regex /^[0-9:.,'-]+$/ und 
-fehlerhafte Klammern in den neuen Debug-Helfer-Strings.
-
-Neuansatz: 07_eintragen.js auf v577 zurückgesetzt, dann sauber
-per str_replace und line-by-line Ersetzung erweitert.
-
-Debug-Log enthält jetzt:
-- Header: Version, Verein, Zeitstempel, URL, Quelle, Kategorie
-- Pro Quelle: Event-Details + Ergebnisliste mit Name/AK/Zeit/Platz/Disziplin
+- build.sh: Pflicht-Syntax-Check vor jedem Build (bricht bei Fehler ab)
+  - Standalone-Module einzeln geprüft
+  - Split-Module (03-09) kombiniert geprüft  
+  - Kein ZIP wird gebaut wenn Fehler vorhanden
+- jstools.py: Python-Hilfsbibliothek für sichere JS-Änderungen
+  - replace_in_file(): str_replace mit Rollback bei Syntax-Fehler
+  - insert_before/after(): sichere Einfüge-Operationen
+  - check_all_modules(): vollständiger Syntax-Check
+  - add_changelog(), set_commit_msg(): Docs-Helfer
+  - show_around(): Debugging-Kontext anzeigen
