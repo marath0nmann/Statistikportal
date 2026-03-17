@@ -1814,7 +1814,7 @@ function restoreFromHash() {
   } else if (tab === 'rekorde' && sub) {
     state.subTab = sub;
   } else if (tab === 'eintragen' && sub) {
-    var validEint = ['bulk','raceresult','mikatiming','uitslagen'];
+    var validEint = ['bulk'];
     if (validEint.indexOf(sub) >= 0) state.subTab = sub;
   }
 }
@@ -3771,23 +3771,12 @@ function setRekView(v) {
 /* ── 07_eintragen.js ── */
 function renderEintragen() {
   var sub = state.subTab || 'bulk';
-  var isRR = sub === 'raceresult';
-  var isBulk = sub === 'bulk';
-  var isMika  = sub === 'mikatiming';
-  var isUits  = sub === 'uitslagen';
-
-  var tabHtml = '<div class="subtabs" style="margin-bottom:20px">' +
-    '<button class="subtab' + (sub==='bulk'       ? ' active' : '') + '" onclick="setSubTab(\'bulk\')">📋︎ Bulk-Eintragen</button>' +
-    '<button class="subtab' + (sub==='raceresult' ? ' active' : '') + '" onclick="setSubTab(\'raceresult\')">🌍︎ RaceResult-Import</button>' +
-    '<button class="subtab' + (sub==='mikatiming' ? ' active' : '') + '" onclick="setSubTab(\'mikatiming\')">⏱︎ MikaTiming-Import</button>' +
-    '<button class="subtab' + (sub==='uitslagen' ? ' active' : '') + '" onclick="setSubTab(\'uitslagen\')">&#x1F1F3;&#x1F1F1; uitslagen.nl</button>' +
-  '</div>';
+  var isBulk = true; // Eintragen ist jetzt immer Bulk
+  var tabHtml = ''; // kein SubTab-Menü mehr
 
   var today = new Date().toISOString().slice(0, 10);
 
-  var content = '';
-
-  if (isBulk) {
+  var content = ''; {
     content =
       '<div class="panel" style="padding:24px">' +
         '<div class="panel-title" style="margin-bottom:4px">&#x1F4CB; Bulk-Eintragen</div>' +
@@ -3825,9 +3814,26 @@ function renderEintragen() {
           '</select>' +
         '</div>' +
         '<div style="margin-bottom:14px">' +
-          '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen (Smart-Paste)</label>' +
-          '<textarea id="bk-paste-area" rows="6" placeholder="Ergebnisse per Copy &amp; Paste einf&uuml;gen, z.B.:&#10;Europa-Meisterschaften; Madeira&#10;W65&#10;11.10.25&#10;400 m&#10;Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
-          '<button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="bulkParsePaste()">&#x1F4CB; Einlesen</button>' +
+          '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen (Smart-Paste oder Import-URL)</label>' +
+          '<textarea id="bk-paste-area" rows="4" oninput="bulkPasteInput()" placeholder="Ergebnisse einfügen oder URL eingeben:&#10;&#10;RaceResult:  https://my.raceresult.com/354779/&#10;MikaTiming:  https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl: https://uitslagen.nl/uitslag?id=2025110916317&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<div style="display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap">' +
+            '<button class="btn btn-ghost btn-sm" onclick="bulkParsePaste()">&#x1F4CB; Einlesen</button>' +
+            '<div id="bk-import-kat-wrap" style="display:none;display:flex;gap:8px;align-items:center">' +
+              '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Kategorie:</label>' +
+              '<select id="bk-import-kat" onchange="bulkImportKatChanged()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+                '<option value="">&#x2013; bitte w&auml;hlen &#x2013;</option>' +
+                (function() {
+                  var seen={}, opts='', disz=state.disziplinen||[], kats=[];
+                  for (var i=0;i<disz.length;i++){var d=disz[i];if(d.tbl_key&&!seen[d.tbl_key]){seen[d.tbl_key]=true;kats.push({key:d.tbl_key,name:d.kategorie});}}
+                  for (var ki=0;ki<kats.length;ki++){opts+='<option value="'+kats[ki].key+'">'+kats[ki].name+'</option>';}
+                  return opts;
+                })() +
+              '</select>' +
+              '<button class="btn btn-primary btn-sm" id="bk-import-btn" onclick="bulkImportUrl()" disabled>&#x1F50D; Import starten</button>' +
+            '</div>' +
+            '<div id="bk-import-status" style="font-size:12px;color:var(--text2)"></div>' +
+          '</div>' +
+          '<div id="bk-import-debug" style="display:none;margin-top:8px;background:var(--surf2);border-radius:8px;padding:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;color:var(--text2);max-height:180px;overflow-y:auto"></div>' +
         '</div>' +
 
         '<div style="overflow-x:auto">' +
@@ -3853,113 +3859,8 @@ function renderEintragen() {
           '<span id="bulk-status" style="font-size:13px;color:var(--text2)"></span>' +
         '</div>' +
       '</div>';
-  } else if (isRR) {
-    content =
-      '<div class="panel" style="padding:24px">' +
-        '<div class="panel-title" style="margin-bottom:4px">&#x1F30D; RaceResult-Import</div>' +
-        '<div style="color:var(--text2);font-size:13px;margin-bottom:20px">Ergebnisse direkt von <strong>my.raceresult.com</strong> importieren. Alle TuS&nbsp;Oedt-Starter werden automatisch gefunden.</div>' +
-        '<div style="margin-bottom:14px">' +
-          '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Kategorie <span style="color:var(--accent)">*</span></label>' +
-          '<select id="rr-kat" onchange="rrKatChanged()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);min-width:220px">' +
-            '<option value="">&#x2013; bitte w\u00e4hlen &#x2013;</option>' +
-            (function() {
-              var seen = {}, opts = '';
-              var disz = state.disziplinen || [];
-              // Kategorien in ihrer Reihenfolge sammeln
-              var kats = [];
-              for (var i = 0; i < disz.length; i++) {
-                var d = disz[i];
-                if (d.tbl_key && !seen[d.tbl_key]) { seen[d.tbl_key] = true; kats.push({ key: d.tbl_key, name: d.kategorie }); }
-              }
-              for (var ki = 0; ki < kats.length; ki++) {
-                opts += '<option value="' + kats[ki].key + '"' + (kats[ki].key === 'strasse' ? ' selected' : '') + '>' + kats[ki].name + '</option>';
-              }
-              return opts;
-            })() +
-          '</select>' +
-        '</div>' +
-        '<div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:20px">' +
-          '<div style="flex:1"><label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">RaceResult-URL oder Event-ID</label>' +
-            '<input type="text" id="rr-url" placeholder="https://my.raceresult.com/354779/" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text)"/>' +
-          '</div>' +
-          '<button class="btn btn-primary" id="rr-load-btn" onclick="rrFetch()" style="white-space:nowrap" disabled>&#x1F50D; Ergebnisse laden</button>' +
-        '</div>' +
-        '<div id="rr-preview"></div>' +
-      '</div>';
-  }
 
-  // MikaTiming-Inhalt
-  if (isMika) {
-    content =
-      '<div class="panel" style="padding:24px">' +
-        '<div class="panel-title" style="margin-bottom:4px">⏱︎ MikaTiming-Import</div>' +
-        '<div style="color:var(--text2);font-size:13px;margin-bottom:20px">Ergebnisse von <strong>r.mikatiming.com</strong> importieren. TuS&nbsp;Oedt-Starter werden automatisch per Vereinssuche gefunden.</div>' +
-        '<div style="margin-bottom:14px">' +
-          '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Kategorie <span style="color:var(--accent)">*</span></label>' +
-          '<select id="mika-kat" onchange="mikaKatChanged()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);min-width:220px">' +
-            '<option value="">– bitte wählen –</option>' +
-            (function() {
-              var seen = {}, opts = '';
-              (state.disziplinen || []).forEach(function(d) {
-                if (d.tbl_key && !seen[d.tbl_key]) { seen[d.tbl_key] = true; opts += '<option value="' + d.tbl_key + '"' + (d.tbl_key==='strasse'?' selected':'') + '>' + d.kategorie + '</option>'; }
-              });
-              return opts;
-            })() +
-          '</select>' +
-        '</div>' +
-        '<div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:20px">' +
-          '<div style="flex:1"><label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">MikaTiming Such-URL</label>' +
-            '<input type="text" id="mika-url" placeholder="https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start" oninput="mikaKatChanged()" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text)"/>' +
-          '</div>' +
-          '<button class="btn btn-primary" id="mika-load-btn" onclick="mikaFetch()" style="white-space:nowrap" disabled>🔍 Ergebnisse laden</button>' +
-        '</div>' +
-        '<div id="mika-preview"><div style="color:var(--text2);font-size:13px">Bitte URL eingeben und Kategorie wählen.</div></div>' +
-        '<div id="mika-status" style="margin-top:10px;font-size:13px"></div>' +
-      '</div>';
-  }
-
-if (isUits) {
-    content =
-      '<div class="panel" style="padding:24px">' +
-        '<div class="panel-title" style="margin-bottom:4px">&#x1F1F3;&#x1F1F1; uitslagen.nl Import</div>' +
-        '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Ergebnisse von <strong>uitslagen.nl</strong> importieren. TuS&nbsp;Oedt-Starter werden automatisch per Vereinssuche gefunden.</div>' +
-        '<div style="margin-bottom:12px">' +
-          '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Kategorie (Disziplin-Vorauswahl)</label>' +
-          '<select id="uits-kat" onchange="uitsKatChanged()" style="padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);min-width:220px">' +
-            '<option value="">&#x2013; bitte w\u00e4hlen &#x2013;</option>' +
-            (function() {
-              var seen = {}, opts = '';
-              var disz = state.disziplinen || [];
-              var kats = [];
-              for (var i = 0; i < disz.length; i++) {
-                var d = disz[i];
-                if (d.tbl_key && !seen[d.tbl_key]) { seen[d.tbl_key] = true; kats.push({ key: d.tbl_key, name: d.kategorie }); }
-              }
-              for (var ki = 0; ki < kats.length; ki++) {
-                opts += '<option value="' + kats[ki].key + '">' + kats[ki].name + '</option>';
-              }
-              return opts;
-            })() +
-          '</select>' +
-        '</div>' +
-        '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">' +
-          '<input type="text" id="uits-url" placeholder="https://uitslagen.nl/uitslag?id=2025110916317" ' +
-            'style="flex:1;min-width:280px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text)" ' +
-            'onkeydown="if(event.key===\'Enter\')uitsFetch()"/>' +
-          '<button class="btn btn-primary" id="uits-load-btn" onclick="uitsFetch()" disabled>&#x1F50D; Ergebnisse laden</button>' +
-        '</div>' +
-        '<div id="uits-preview"><div style="color:var(--text2);font-size:13px">Bitte uitslagen.nl-URL eingeben und Laden klicken.</div></div>' +
-      '</div>';
-  }
-
-  document.getElementById('main-content').innerHTML = tabHtml + content;
-  if (isRR) {
-    // Straße als Default setzen falls noch kein Wert
-    var _rrKatEl = document.getElementById('rr-kat');
-    if (_rrKatEl && !_rrKatEl.value) _rrKatEl.value = 'strasse';
-    rrKatChanged(); // Button aktivieren
-  }
-  if (isMika) mikaKatChanged();
+    document.getElementById('main-content').innerHTML = tabHtml + content;
 
   if (isBulk) {
     bulkAddRow();
@@ -4226,10 +4127,357 @@ async function bulkSubmit() {
 }
 
 
+// ── URL-Erkennung ───────────────────────────────────────────────────────────
+function bulkDetectUrl(text) {
+  var t = text.trim();
+  if (/^https?:\/\/my\.raceresult\.com\//i.test(t))   return 'raceresult';
+  if (/^https?:\/\/[^\/]*\.mikatiming\.(com|de|net)/i.test(t)) return 'mikatiming';
+  if (/^https?:\/\/uitslagen\.nl\//i.test(t))          return 'uitslagen';
+  return null;
+}
+
+function bulkPasteInput() {
+  var raw = ((document.getElementById('bk-paste-area') || {}).value || '').trim();
+  var katWrap = document.getElementById('bk-import-kat-wrap');
+  var statusEl = document.getElementById('bk-import-status');
+  var btnEl = document.getElementById('bk-import-btn');
+  if (!katWrap) return;
+  var urlType = bulkDetectUrl(raw);
+  if (urlType) {
+    katWrap.style.display = 'flex';
+    if (statusEl) statusEl.textContent = urlType === 'raceresult' ? '🌍 RaceResult-URL erkannt' :
+                                         urlType === 'mikatiming' ? '⏱ MikaTiming-URL erkannt' :
+                                         '🇳🇱 uitslagen.nl erkannt';
+    // Button aktivieren wenn Kategorie gewählt
+    var katEl = document.getElementById('bk-import-kat');
+    if (btnEl) btnEl.disabled = !(katEl && katEl.value);
+  } else {
+    katWrap.style.display = 'none';
+    if (statusEl) statusEl.textContent = '';
+  }
+}
+
+function bulkImportKatChanged() {
+  var katEl = document.getElementById('bk-import-kat');
+  var btnEl = document.getElementById('bk-import-btn');
+  if (btnEl) btnEl.disabled = !(katEl && katEl.value);
+}
+
+async function bulkImportUrl() {
+  var raw = ((document.getElementById('bk-paste-area') || {}).value || '').trim();
+  var kat = ((document.getElementById('bk-import-kat') || {}).value || '').trim();
+  var debugEl = document.getElementById('bk-import-debug');
+  var statusEl = document.getElementById('bk-import-status');
+  var urlType = bulkDetectUrl(raw);
+  if (!urlType || !kat) return;
+
+  if (statusEl) statusEl.textContent = '⏳ Lade…';
+  if (debugEl) { debugEl.style.display = 'none'; debugEl.textContent = ''; }
+
+  try {
+    if (urlType === 'raceresult') {
+      await bulkImportFromRR(raw, kat, debugEl, statusEl);
+    } else if (urlType === 'mikatiming') {
+      await bulkImportFromMika(raw, kat, debugEl, statusEl);
+    } else if (urlType === 'uitslagen') {
+      await bulkImportFromUits(raw, kat, debugEl, statusEl);
+    }
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '❌ ' + e.message;
+  }
+}
+
+// ── RR → Bulk ────────────────────────────────────────────────────────────────────────────
+async function bulkImportFromRR(url, kat, debugEl, statusEl) {
+  var eventId = url.match(/raceresult\.com\/(\d+)/i);
+  if (!eventId) { if(statusEl) statusEl.textContent = '❌ Keine Event-ID in URL'; return; }
+  var eid = eventId[1];
+  if (statusEl) statusEl.textContent = '⏳ Lade RaceResult-Konfiguration…';
+  var cfgR = await apiGet('rr-fetch?event_id=' + eid + '&r=all');
+  if (!cfgR || !cfgR.ok) { if(statusEl) statusEl.textContent = '❌ ' + (cfgR && cfgR.fehler || 'Fehler'); return; }
+  var cfg = cfgR.data;
+  var eventName = cfg.eventname || '';
+  var vereinCfg = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
+  var vereinParts = vereinCfg.split(/\s+/).filter(function(p){ return p.length > 1; });
+  if (debugEl) {
+    debugEl.style.display = 'block';
+    debugEl.textContent = 'RaceResult Event ' + eid + ': ' + eventName +
+      '\nKategorie: ' + kat + ' | Verein: ' + vereinCfg;
+  }
+  var lists = cfg.lists || [];
+  var disziplinen = state.disziplinen || [];
+  var diszList = disziplinen.map(function(d){ return d.disziplin; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
+  var rrRows = [];
+  var listsChecked = 0;
+  for (var li = 0; li < lists.length; li++) {
+    var listName = lists[li].Key || lists[li].Name || '';
+    if (!listName || /TEILNEHMER|ALPHABET/i.test(listName)) continue;
+    var lr = await apiGet('rr-fetch?event_id=' + eid + '&r=' + encodeURIComponent(listName));
+    if (!lr || !lr.ok) continue;
+    listsChecked++;
+    var data = lr.data; if (!data || typeof data !== 'object') continue;
+    function processRRRows(rowArr, cname) {
+      if (!Array.isArray(rowArr)) return;
+      rowArr.forEach(function(row) {
+        if (!Array.isArray(row)) return;
+        var rowStr = row.join(' ').toLowerCase();
+        var isOwn = vereinParts.every(function(p){ return rowStr.indexOf(p) >= 0; });
+        if (!isOwn) return;
+        var name='', zeit='', ak='', platz=0;
+        row.forEach(function(cell) {
+          var s = String(cell||'').trim(); if (!s) return;
+          if (s.match(/^\d+\.?$/) && parseInt(s)<1000 && !platz) { platz=parseInt(s)||0; return; }
+          if (s.match(/^\d{1,2}:\d{2}/) || s.match(/^\d{2}:\d{2}:\d{2}/)) { if(!zeit) zeit=s; return; }
+          if (s.match(/^[MW]\d{2}$/) || s.match(/^[MW]U\d{1,2}$/) || s==='M'||s==='W') { ak=s; return; }
+          if (s.length>3 && !s.match(/^[0-9:.,'-]+$/) && !vereinParts.some(function(p){return s.toLowerCase().indexOf(p)>=0;})) name=s;
+        });
+        if (!name || !zeit) return;
+        ak = normalizeAK(ak);
+        var disz = rrBestDisz(cname||'', diszList);
+        var diszObj = disziplinen.find(function(d){ return d.disziplin===disz && (!kat||d.tbl_key===kat); });
+        var isDup = rrRows.some(function(r){ return r.name===name && r.resultat===zeit; });
+        if (!isDup) rrRows.push({ name:name, resultat:zeit, ak:ak, platz:platz,
+          disziplin: diszObj?diszObj.disziplin:disz, diszMid: diszObj?(diszObj.id||diszObj.mapping_id):null });
+      });
+    }
+    Object.keys(data).forEach(function(key) {
+      var val = data[key];
+      if (Array.isArray(val)) { if (val.length && Array.isArray(val[0])) processRRRows(val, key); else processRRRows([val], key); }
+      else if (val && typeof val==='object') { Object.keys(val).forEach(function(sk){ if(Array.isArray(val[sk])) processRRRows(val[sk], sk||key); }); }
+    });
+  }
+  if (debugEl) debugEl.textContent += '\n' + listsChecked + ' Listen | ' + rrRows.length + ' TuS-Einträge';
+  bulkFillFromImport(rrRows, statusEl);
+}
+
+// ── MikaTiming → Bulk ───────────────────────────────────────────────────────
+async function bulkImportFromMika(url, kat, debugEl, statusEl) {
+  if (statusEl) statusEl.textContent = '⏳ Lade MikaTiming-Daten…';
+  var baseUrl = url.split('?')[0].replace(/\/?$/, '/');
+  var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '').trim();
+  var r = await apiGet('mika-fetch?base_url=' + encodeURIComponent(baseUrl) + '&club=' + encodeURIComponent(vereinRaw));
+  if (!r || !r.ok) { if(statusEl) statusEl.textContent = '❌ ' + (r && r.fehler || 'Fehler'); return; }
+
+  if (debugEl) {
+    debugEl.style.display = 'block';
+    debugEl.textContent = 'MikaTiming
+Verein: ' + vereinRaw + '
+Kategorie: ' + kat;
+  }
+
+  var rows = mikaExtractRowsForBulk(r.data, kat);
+  if (debugEl) debugEl.textContent += '
+' + rows.length + ' TuS-Einträge gefunden';
+  bulkFillFromImport(rows, statusEl);
+}
+
+// ── Uitslagen → Bulk ────────────────────────────────────────────────────────
+async function bulkImportFromUits(url, kat, debugEl, statusEl) {
+  if (statusEl) statusEl.textContent = '⏳ Lade uitslagen.nl-Daten…';
+  var idMatch = url.match(/[?&]id=([^&]+)/);
+  if (!idMatch) { if(statusEl) statusEl.textContent = '❌ Keine Event-ID'; return; }
+
+  var r = await apiGet('uits-fetch?url=' + encodeURIComponent('https://uitslagen.nl/uitslag?id=' + idMatch[1]));
+  if (!r || !r.ok) { if(statusEl) statusEl.textContent = '❌ ' + (r && r.fehler || 'Fehler'); return; }
+
+  var parsed = uitsParseHTML(r.data.html, idMatch[1]);
+  if (debugEl) {
+    debugEl.style.display = 'block';
+    debugEl.textContent = 'uitslagen.nl: ' + parsed.eventName +
+      '
+Datum: ' + parsed.eventDate + '  Ort: ' + parsed.eventOrt +
+      '
+Kategorie: ' + kat +
+      '
+Gesamt-Einträge: ' + parsed.rows.length +
+      '
+TuS-Einträge: ' + parsed.rows.filter(function(r){return r.ownClub;}).length;
+  }
+
+  // Veranstaltungsfelder vorausfüllen
+  if (parsed.eventDate) {
+    var datEl = document.getElementById('bk-datum');
+    if (datEl && !datEl.value) datEl.value = parsed.eventDate;
+  }
+  if (parsed.eventOrt) {
+    var ortEl = document.getElementById('bk-ort');
+    if (ortEl && !ortEl.value) ortEl.value = parsed.eventOrt;
+  }
+  if (parsed.eventName) {
+    var evEl = document.getElementById('bk-evname');
+    if (evEl && !evEl.value) evEl.value = parsed.eventName;
+  }
+
+  var ownRows = parsed.rows.filter(function(row) { return row.ownClub; });
+  var bulkRows = ownRows.map(function(row) {
+    // Disziplin aus Kategorie + gewähltem kat
+    var diszObj = uitsAutoDiszMatchKat(row.kategorie, state.disziplinen, kat);
+    var disz = diszObj ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==diszObj;}) || {}).disziplin || '' : '';
+    return {
+      name:      row.name,
+      resultat:  row.zeit,
+      ak:        row.ak,
+      platz:     row.platz,
+      disziplin: disz,
+      diszMid:   diszObj,
+    };
+  });
+
+  bulkFillFromImport(bulkRows, statusEl);
+}
+
+// ── Bulk-Tabelle füllen ──────────────────────────────────────────────────────
+
+// ── RaceResult → Bulk-Zeilen extrahieren ────────────────────────
+function rrExtractRowsForBulk(data, vereinCfg, kat) {
+  // data ist die rr-fetch r=all Response — flaches Objekt mit gruppierten Rows
+  // Wir iterieren alle Keys und suchen nach Vereins-Matches
+  var disziplinen = state.disziplinen || [];
+  var diszList = disziplinen.map(function(d){ return d.disziplin; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
+  var rows = [];
+  var vereinLower = vereinCfg.toLowerCase();
+
+  function processRows(rowArr, contestName) {
+    if (!Array.isArray(rowArr)) return;
+    rowArr.forEach(function(row) {
+      if (!Array.isArray(row)) return;
+      // Vereins-Check: irgendein Feld enthält den Vereinsnamen
+      var rowStr = row.join(' ').toLowerCase();
+      if (!rowStr.includes(vereinLower)) return;
+      // Name: letztes nicht-numerisches, nicht-Zeit Feld
+      var name = '', zeit = '', ak = '', platz = 0;
+      row.forEach(function(cell) {
+        var s = String(cell || '').trim();
+        if (s.match(/^\d+\.?$/) && !platz) { platz = parseInt(s) || 0; return; }
+        if (s.match(/^\d{1,2}:\d{2}[,.]?/)) { if (!zeit) zeit = s; return; }
+        if (s.match(/^[MW]\d{2}$/) || s.match(/^[MW]U\d{1,2}$/)) { ak = s; return; }
+        if (s.length > 3 && !s.match(/^[0-9:.,']+$/) && !s.toLowerCase().includes(vereinLower)) { name = s; }
+      });
+      if (!name || !zeit) return;
+      var disz = rrBestDisz(contestName || '', diszList);
+      var diszObj = disziplinen.find(function(d){ return d.disziplin === disz && (!kat || d.tbl_key === kat); });
+      rows.push({ name: name, resultat: zeit, ak: ak, platz: platz,
+                  disziplin: diszObj ? diszObj.disziplin : disz,
+                  diszMid: diszObj ? (diszObj.id || diszObj.mapping_id) : null });
+    });
+  }
+
+  // data kann verschiedene Strukturen haben
+  if (data && typeof data === 'object') {
+    Object.keys(data).forEach(function(key) {
+      var val = data[key];
+      if (Array.isArray(val)) {
+        // Direkte Row-Arrays
+        if (val.length && Array.isArray(val[0])) {
+          processRows(val, key);
+        } else {
+          processRows(val, key);
+        }
+      } else if (val && typeof val === 'object') {
+        // Verschachtelt: { contestName: [rows] }
+        Object.keys(val).forEach(function(subKey) {
+          if (Array.isArray(val[subKey])) processRows(val[subKey], subKey || key);
+        });
+      }
+    });
+  }
+  return rows;
+}
+
+// ── MikaTiming → Bulk-Zeilen extrahieren ─────────────────────────
+function mikaExtractRowsForBulk(data, kat) {
+  var results = data && data.results ? data.results : [];
+  var disziplinen = state.disziplinen || [];
+  var diszList = disziplinen.map(function(d){ return d.disziplin; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
+
+  return results.map(function(res) {
+    var contestName = res.contest || res.disziplin || '';
+    var disz = rrBestDisz(contestName, diszList);
+    var diszObj = disziplinen.find(function(d){ return d.disziplin === disz && (!kat || d.tbl_key === kat); });
+    return {
+      name:      res.name || '',
+      resultat:  res.netto || res.zeit || '',
+      ak:        res.ak || '',
+      platz:     parseInt(res.platz_ak) || 0,
+      disziplin: diszObj ? diszObj.disziplin : disz,
+      diszMid:   diszObj ? (diszObj.id || diszObj.mapping_id) : null,
+    };
+  });
+}
+
+function bulkFillFromImport(rows, statusEl) {
+  if (!rows.length) {
+    if (statusEl) statusEl.textContent = '⚠ Keine TuS-Einträge gefunden';
+    return;
+  }
+  var tbody = document.getElementById('bulk-rows');
+  if (!tbody) return;
+
+  rows.forEach(function(row) {
+    bulkAddRow();
+    var tr = tbody.lastElementChild;
+    if (!tr) return;
+
+    // Athlet per Name matchen
+    var athSel = tr.querySelector('.bk-athlet');
+    if (athSel && row.name) {
+      var matched = uitsAutoMatch(row.name, state.athleten || []);
+      if (matched) {
+        athSel.value = matched;
+        // AK aktualisieren
+        var idx = _bulkRowCount - 1;
+        bkUpdateAK(athSel, idx);
+      }
+    }
+    // Disziplin setzen
+    var diszSel = tr.querySelector('.bk-disz');
+    if (diszSel && row.disziplin) {
+      // Suche nach matching option
+      for (var i = 0; i < diszSel.options.length; i++) {
+        if (diszSel.options[i].text.indexOf(row.disziplin) >= 0 ||
+            diszSel.options[i].value === row.disziplin) {
+          diszSel.value = diszSel.options[i].value;
+          break;
+        }
+      }
+    }
+    // Ergebnis
+    var resEl = tr.querySelector('.bk-res');
+    if (resEl && row.resultat) resEl.value = row.resultat;
+    // AK
+    var akSel = tr.querySelector('.bk-ak');
+    if (akSel && row.ak) { akSel.value = row.ak; }
+    // Platz
+    var platzEl = tr.querySelector('.bk-platz');
+    if (platzEl && row.platz) platzEl.value = row.platz;
+  });
+
+  if (statusEl) statusEl.textContent = '✅ ' + rows.length + ' Zeilen eingefügt';
+  // Paste-Feld leeren
+  var pasteEl = document.getElementById('bk-paste-area');
+  if (pasteEl) pasteEl.value = '';
+  var katWrap = document.getElementById('bk-import-kat-wrap');
+  if (katWrap) katWrap.style.display = 'none';
+}
+
 // ── Smart-Paste Parser ──────────────────────────────────────────────────────
 function bulkParsePaste() {
   var raw = (document.getElementById('bk-paste-area') || {}).value || '';
   if (!raw.trim()) return;
+
+  // URL-Erkennung: wenn URL → Import starten
+  var urlType = bulkDetectUrl(raw.trim());
+  if (urlType) {
+    var kat = ((document.getElementById('bk-import-kat') || {}).value || '');
+    if (!kat) {
+      notify('Bitte zuerst eine Kategorie wählen.', 'err');
+      var katWrap = document.getElementById('bk-import-kat-wrap');
+      if (katWrap) katWrap.style.display = 'flex';
+      return;
+    }
+    bulkImportUrl();
+    return;
+  }
 
   var lines = raw.split(/\r?\n/).map(function(l) { return l.trim(); }).filter(function(l) { return l; });
   if (!lines.length) return;
