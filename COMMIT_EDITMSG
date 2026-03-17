@@ -1,9 +1,11 @@
-v578: Import-Debug stark erweitert
+v579: Import-Debug erweitert (Fix weißer Bildschirm)
 
-Strukturiertes Debug-Log mit:
-- Header: App-Version, Verein, Zeitstempel, URL, Quelle, Kategorie
-- RaceResult: Event-ID, Eventname, Listen-Anzahl, Gefunden
-- MikaTiming: Verein, Basis-URL, Gefunden
-- uitslagen.nl: Eventname, Datum, Ort, Gesamt, Gefunden
-- Ergebnisse-Liste: Nr. / Name / AK / Zeit / Platz / → Disziplin
-- _bkDebugInit/_bkDebugHeader/_bkDebugLine/_bkDebugSep als Helfer
+v578 hatte Syntax-Fehler durch ' in Regex /^[0-9:.,'-]+$/ und 
+fehlerhafte Klammern in den neuen Debug-Helfer-Strings.
+
+Neuansatz: 07_eintragen.js auf v577 zurückgesetzt, dann sauber
+per str_replace und line-by-line Ersetzung erweitert.
+
+Debug-Log enthält jetzt:
+- Header: Version, Verein, Zeitstempel, URL, Quelle, Kategorie
+- Pro Quelle: Event-Details + Ergebnisliste mit Name/AK/Zeit/Platz/Disziplin
