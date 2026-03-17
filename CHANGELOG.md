@@ -5,6 +5,15 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v590 – Meisterschaft: AK-Platz → MS-Platz
+
+- `importToggleMstr()`: beim Einblenden der Meisterschafts-Spalten
+  wird der AK-Platz der jeweiligen Zeile in das MS-Platz-Feld kopiert
+  (gilt für alle Import-Quellen: Bulk, RaceResult, MikaTiming, uitslagen)
+
+---
+
+
 ## v589 – Fix Bulk-Submit: unbekannte AKs werden abgefragt
 
 - `bulkSubmit()`: fehlende AK-Validierung ergänzt
