@@ -5,6 +5,24 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v593 – Fix "Ergebnis bearbeiten": richtige Kategorie vorausgewählt
+
+- Kategorie wurde immer auf den aktuellen Ergebnisse-Tab (z.B. "Straße") gesetzt
+- Fix: Kategorie aus `mapping_id` des Ergebnisses via `state.disziplinen` ermitteln
+- Fallback: subTab wenn keine mapping_id vorhanden
+
+---
+
+
+## v592 – Fix "Ergebnis bearbeiten": AK-Validierung
+
+- `saveEditErgebnis()`: fehlende AK-Prüfung ergänzt
+- Unbekannte AKs (z.B. M51, M52) → `rrUnknownAKModal()` öffnet sich
+- Aufgelöste AK wird vor dem Speichern übernommen
+
+---
+
+
 ## v591 – Fix isValidDlvAK: nur echte DLV-Altersklassen
 
 - Regex `[0-9]{2}` erlaubte beliebige Zahlen (M51, M99 waren "gültig")

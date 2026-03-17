@@ -2621,12 +2621,20 @@ function _editAthletPick(id, name) {
 
 async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, athletName, mappingId, mstrPlatz) {
   mstr = parseInt(mstr, 10) || '';
+  // Kategorie aus der Disziplin des Ergebnisses ableiten
+  var _diszKat = '';
+  if (mappingId) {
+    var _diszMatch = (state.disziplinen || []).find(function(d) { return d.id == mappingId; });
+    if (_diszMatch) _diszKat = _diszMatch.tbl_key || '';
+  }
+  // Fallback: subTab (aktueller Ergebnisse-Tab)
+  var _activeKat = _diszKat || subTab || '';
   // Kategorie-Optionen aufbauen
   var katSeen = {}, katOpts = '<option value="">Alle Kategorien</option>';
   (state.disziplinen || []).forEach(function(d) {
     if (d.tbl_key && !katSeen[d.tbl_key]) {
       katSeen[d.tbl_key] = true;
-      var sel = d.tbl_key === subTab ? ' selected' : '';
+      var sel = d.tbl_key === _activeKat ? ' selected' : '';
       katOpts += '<option value="' + d.tbl_key + '"' + sel + '>' + d.kategorie + '</option>';
     }
   });
@@ -2718,6 +2726,13 @@ async function saveEditErgebnis(id, subTab) {
   var mstr = ((document.getElementById('edit-mstr') || {}).value || '').trim();
   var mstrPlatz = ((document.getElementById('edit-mstr-platz') || {}).value || '').trim();
   if (!disz || !res) { notify('Disziplin und Ergebnis sind Pflicht!', 'err'); return; }
+  // Unbekannte AK prüfen
+  if (ak && !isValidDlvAK(ak)) {
+    var _akMap = {}; _akMap[ak] = null;
+    var _resolved = await rrUnknownAKModal(_akMap);
+    if (!_resolved) return;
+    ak = _resolved[ak] || ak;
+  }
   var newAthletId = ((document.getElementById('edit-athlet-id') || {}).value || '').trim();
   var body = { disziplin: disz, resultat: res, altersklasse: ak, pace: calcPace(disz, res) };
   if (editMappingId) body.disziplin_mapping_id = editMappingId;
