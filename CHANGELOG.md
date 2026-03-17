@@ -5,6 +5,30 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v584 – Bulk-Eintragen: Textarea + AK-Feld verbessert
+
+- Textarea "Ergebnisse einfügen": `rows=4` → `rows=10`
+- AK-Feld: `<select>` → `<input type="text">` (freie Eingabe, Placeholder "z.B. M45")
+- `bkUpdateAK()`: befüllt Text-Input statt Select
+- Validierung beim Speichern bleibt: `isValidDlvAK()` prüft weiterhin
+  ob die AK bekannt ist (rrUnknownAKModal bei unbekannten AKs)
+
+---
+
+
+## v583 – Fix RaceResult-Import: DataFields-Parser + AK-Platz
+
+- Response-Struktur ist dreistufig: data → {Gruppe → {AK-Gruppe → [[Zeilen]]}}
+- DataFields auslesen: FIRSTNAME+LASTNAME → "Nachname, Vorname"
+  YEAR+SEX → AK-Berechnung via calcDlvAK() als Fallback
+  MitStatus([AKPl.p]) → AK-Platz (ohne Gesamtplatz)
+- AK aus Sub-Gruppen-Key: "#3_M50 - Kurze Cross" → "M50"
+- _rrWalkData(): rekursiv alle Ebenen durchsuchen
+- Leere erste Zeile: war ein falscher Treffer ohne Name/Zeit, jetzt gefiltert
+
+---
+
+
 ## v582 – Fix RaceResult-Import: Listen direkt im Browser fetchen
 
 - PHP-Proxy lieferte nur HTML-Metadaten, ignorierte `r=`-Parameter komplett

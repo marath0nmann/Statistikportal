@@ -3783,7 +3783,7 @@ function renderEintragen() {
         '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Mehrere Ergebnisse auf einmal eintragen &ndash; alle geh&ouml;ren zur selben Veranstaltung.</div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
-          '<textarea id="bk-paste-area" rows="4" oninput="bulkPasteInput()" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl: https://uitslagen.nl/uitslag?id=2025110916317&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl: https://uitslagen.nl/uitslag?id=2025110916317&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
             '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
             '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
@@ -4000,7 +4000,7 @@ function bulkRowHtml(idx) {
     '<td style="padding:4px 6px"><select class="bk-athlet" onchange="bkUpdateAK(this,' + idx + ')" style="' + fld + '">' + athOptHtml + '</select></td>' +
     '<td style="padding:4px 6px"><select class="bk-disz" style="' + fld + '">' + bkDiszOpts((document.getElementById('bk-kat')||{}).value||'') + '</select></td>' +
     '<td style="padding:4px 6px"><input class="bk-res" type="text" placeholder="00:45:00" style="' + fld + '"/></td>' +
-    '<td style="padding:4px 6px"><select class="bk-ak" id="bk-ak-' + idx + '" style="' + fld + '">' + bkAkOpts('') + '</select></td>' +
+    '<td style="padding:4px 6px"><input type="text" class="bk-ak" id="bk-ak-' + idx + '" placeholder="z.B. M45" maxlength="8" style="' + fld + '"/></td>' +
     '<td style="padding:4px 6px"><input class="bk-platz" type="number" placeholder="1" min="1" style="' + fld + '"/></td>' +
     '<td class="bk-mstr" style="padding:4px 6px;display:none">' +
       '<select class="bk-mstr-sel" style="' + fld + '">' + mstrOptions(0) + '</select>' +
@@ -4018,18 +4018,16 @@ function bkUpdateAK(athSel, idx) {
   var opt = athSel.options[athSel.selectedIndex];
   var g    = opt ? (opt.dataset.g    || '') : '';
   var gebj = opt ? (opt.dataset.gebj || '') : '';
-  var akSel = document.getElementById('bk-ak-' + idx);
-  if (!akSel) return;
-  var prev = akSel.value;
-  akSel.innerHTML = bkAkOpts(g);
-  // AK automatisch vorbelegen wenn noch kein Wert gesetzt
-  if (!prev && g && gebj) {
+  var akInp = document.getElementById('bk-ak-' + idx);
+  if (!akInp) return;
+  var prev = akInp.value;
+  // AK automatisch vorbelegen wenn noch kein Wert gesetzt oder Athlet gewechselt
+  if (g && gebj) {
     var eventJahr = _bkEventJahr();
     var ak = calcDlvAK(parseInt(gebj), g, eventJahr);
-    if (ak) { akSel.value = ak; return; }
+    if (ak) { akInp.value = ak; return; }
   }
-  // vorherigen Wert wiederherstellen falls noch passt
-  if (prev) { for (var i=0;i<akSel.options.length;i++) { if (akSel.options[i].value===prev) { akSel.value=prev; break; } } }
+  // Vorherigen Wert behalten wenn kein neuer berechnet werden konnte
 }
 
 function _bkEventJahr() {
@@ -4282,7 +4280,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
   _bkDbgLine('Eventname', eventName || '\u2013');
   _bkDbgLine('API-Key',   apiKey ? apiKey.slice(0, 8) + '\u2026' : '(leer)');
 
-  // 2. Datum + Ort via PHP-Proxy (CORS-sicherer HTML-Parser)
+  // 2. Datum + Ort via PHP-Proxy
   var prxResp = await apiGet('rr-fetch?event_id=' + encodeURIComponent(eid));
   if (prxResp && prxResp.ok && prxResp.data) {
     var pd = prxResp.data;
@@ -4297,14 +4295,14 @@ async function bulkImportFromRR(url, kat, statusEl) {
   }
 
   // 3. Listen aus Config
-  var lists = cfg.list || cfg.lists || [];
+  var lists   = cfg.list || cfg.lists || [];
   var listArr = Array.isArray(lists)
     ? lists
     : Object.keys(lists).map(function(k) { return { Name: k }; });
 
   var _blistBl = ['STAFF','RELAY','MANNSCHAFT','TEAM RANKING','AGGREGATE',
     'OVERALL RANKING','LIVE','TOP10','TOP 10','LEADERBOARD','SIEGER','WINNER',
-    'PARTICIPANTS','STATISTIC','TEILNEHMER','ALPHABET','STADTMEISTER','__PARTICIPANTS'];
+    'PARTICIPANTS','STATISTIC','TEILNEHMER','ALPHABET','STADTMEISTER'];
 
   _bkDbgLine('Listen gesamt', listArr.length);
   _bkDbgSep();
@@ -4316,95 +4314,161 @@ async function bulkImportFromRR(url, kat, statusEl) {
   var listsChecked = 0;
   var base         = 'https://my.raceresult.com/' + eid + '/RRPublish/data/list';
 
+  // AK aus Gruppen-/Sub-Gruppen-Key extrahieren: "#3_M50" → "M50"
+  function _rrAKFromKey(key) {
+    var m = (key || '').match(/#\d+_([MW](?:U?\d+)?)(?:\s|$)/);
+    return m ? normalizeAK(m[1]) : '';
+  }
+
+  // Eine einzelne Zeile (Array) verarbeiten
+  function _rrProcessRow(row, groupAK, listName, dataFields) {
+    if (!Array.isArray(row) || row.length < 2) return;
+    var rowStr = row.join(' ').toLowerCase();
+    var isOwn = vereinParts.every(function(p) { return rowStr.indexOf(p) >= 0; });
+    if (!isOwn) return;
+
+    var rName = '', rZeit = '', rAK = groupAK || '', rPlatz = 0;
+
+    // Wenn DataFields bekannt: strukturiert auslesen
+    if (dataFields && dataFields.length) {
+      var fields = {};
+      for (var fi = 0; fi < dataFields.length && fi < row.length; fi++) {
+        fields[dataFields[fi].toUpperCase()] = String(row[fi] || '').trim();
+      }
+      // Vorname + Nachname zusammensetzen
+      var fn = fields['FIRSTNAME'] || fields['VORNAME'] || '';
+      var ln = fields['LASTNAME']  || fields['NAME']    || fields['NACHNAME'] || '';
+      if (ln && fn) rName = ln + ', ' + fn;
+      else if (ln)  rName = ln;
+      else if (fn)  rName = fn;
+
+      // Zeit
+      rZeit = fields['TIME'] || fields['NETTO'] || fields['BRUTTO'] ||
+              fields['NETTOZEIT'] || fields['BRUTTOZEIT'] || '';
+      // Zeitformat normalisieren: Komma → Punkt
+      rZeit = rZeit.replace(',', '.');
+
+      // AK-Platz: Feld das "AKPl" enthält, z.B. "MitStatus([AKPl.p])"
+      for (var fk in fields) {
+        if (fk.indexOf('AKPL') >= 0 || fk.indexOf('AK_PL') >= 0 || fk.indexOf('AK-PL') >= 0) {
+          var pv = fields[fk].replace(/[^0-9]/g, '');
+          if (pv) rPlatz = parseInt(pv) || 0;
+          break;
+        }
+      }
+
+      // AK aus AGECLASS/AK-Feld
+      if (!rAK) {
+        var akField = fields['AGECLASS'] || fields['AK'] || fields['ALTERSKLASSE'] || '';
+        if (akField) rAK = normalizeAK(akField);
+      }
+
+      // Geschlecht + Jahrgang für AK-Berechnung als Fallback
+      if (!rAK) {
+        var yr = parseInt(fields['YEAR'] || fields['JAHRGANG'] || '0');
+        var sx = fields['SEX'] || fields['GESCHLECHT'] || '';
+        if (yr > 1900) {
+          var evYear = parseInt(
+            ((document.getElementById('bk-datum') || {}).value || '').slice(0, 4)
+          ) || new Date().getFullYear();
+          var g = /^[WwFf]/.test(sx) ? 'W' : 'M';
+          rAK = calcDlvAK(yr, g, evYear);
+        }
+      }
+    } else {
+      // Fallback: heuristisches Parsing (altes Verfahren)
+      for (var ci = 0; ci < row.length; ci++) {
+        var s = String(row[ci] || '').trim();
+        if (!s) continue;
+        // AK-Platz: "1." oder "12." am Anfang
+        if (!rPlatz && /^\d{1,3}\.$/.test(s)) { rPlatz = parseInt(s) || 0; continue; }
+        if (/^\d+$/.test(s) && parseInt(s) < 1000 && !rPlatz) { rPlatz = parseInt(s) || 0; continue; }
+        if (/^\d{1,2}:\d{2}/.test(s) || /^\d{2}:\d{2}:\d{2}/.test(s)) { if (!rZeit) rZeit = s; continue; }
+        if (/^[MW]\d{2}$/.test(s) || /^[MW]U\d{1,2}$/.test(s)) { rAK = s; continue; }
+        if (s.length > 3 && !/^[0-9:.,]+$/.test(s) &&
+            !vereinParts.some(function(p) { return s.toLowerCase().indexOf(p) >= 0; })) {
+          if (!rName) rName = s;
+        }
+      }
+      rAK = rAK || groupAK;
+    }
+
+    if (!rName || !rZeit) return;
+    rAK = normalizeAK(rAK) || groupAK;
+
+    var disz    = rrBestDisz(listName || '', diszList);
+    var diszObj = disziplinen.find(function(d) {
+      return d.disziplin === disz && (!kat || d.tbl_key === kat);
+    });
+
+    if (!rrRows.some(function(r) { return r.name === rName && r.resultat === rZeit; })) {
+      rrRows.push({
+        name:      rName,
+        resultat:  rZeit.replace(',', '.'),
+        ak:        rAK,
+        platz:     rPlatz,
+        disziplin: diszObj ? diszObj.disziplin : disz,
+        diszMid:   diszObj ? (diszObj.id || diszObj.mapping_id) : null
+      });
+    }
+  }
+
+  // Rekursiv alle Ebenen der Response durchsuchen
+  function _rrWalkData(obj, groupAK, listName, dataFields) {
+    if (!obj || typeof obj !== 'object') return;
+    if (Array.isArray(obj)) {
+      if (obj.length && Array.isArray(obj[0])) {
+        // Array von Zeilen
+        for (var i = 0; i < obj.length; i++) {
+          _rrProcessRow(obj[i], groupAK, listName, dataFields);
+        }
+      } else {
+        for (var i = 0; i < obj.length; i++) {
+          _rrWalkData(obj[i], groupAK, listName, dataFields);
+        }
+      }
+    } else {
+      Object.keys(obj).forEach(function(key) {
+        // AK aus Schlüssel ableiten: "#3_M50 - Kurze Cross" → "M50"
+        var akFromKey = _rrAKFromKey(key) || groupAK;
+        _rrWalkData(obj[key], akFromKey, listName, dataFields);
+      });
+    }
+  }
+
   for (var li = 0; li < listArr.length; li++) {
     var le       = listArr[li];
     var listName = le.Name || le.name || '';
     var contest  = le.Contest || le.contest || '0';
     if (!listName) continue;
 
-    // Blacklist
     var nu = listName.toUpperCase();
     var skip = false;
-    for (var bi = 0; bi < _blistBl.length; bi++) {
-      if (nu.indexOf(_blistBl[bi]) >= 0) { skip = true; break; }
+    var bbl  = _blistBl;
+    for (var bi = 0; bi < bbl.length; bi++) {
+      if (nu.indexOf(bbl[bi]) >= 0) { skip = true; break; }
     }
-    if (nu.indexOf('__') === 0) skip = true;  // interne Listen
+    if (nu.indexOf('__') === 0 || nu.indexOf('Z_') === 0) skip = true;
     if (skip) continue;
 
-    // Ergebnisse direkt im Browser laden
     var listUrl = base + '?key=' + encodeURIComponent(apiKey) +
       '&listname=' + encodeURIComponent(listName) +
       '&page=results&contest=' + encodeURIComponent(contest) +
       '&r=all&l=de&_=1';
 
-    var listData;
+    var listResp;
     try {
-      var lr = await fetch(listUrl);
-      if (!lr.ok) continue;
-      listData = await lr.json();
+      var lf = await fetch(listUrl);
+      if (!lf.ok) continue;
+      listResp = await lf.json();
     } catch(e) { continue; }
 
     listsChecked++;
-    if (!listData || typeof listData !== 'object') continue;
 
-    // Row-Arrays extrahieren und Vereins-Einträge finden
-    function _bulkRRProcess(rowArr, cname) {
-      if (!Array.isArray(rowArr)) return;
-      for (var ri = 0; ri < rowArr.length; ri++) {
-        var row = rowArr[ri];
-        if (!Array.isArray(row)) continue;
-        var rowStr = row.join(' ').toLowerCase();
-        var isOwn = vereinParts.every(function(p) { return rowStr.indexOf(p) >= 0; });
-        if (!isOwn) continue;
-        var rName = '', rZeit = '', rAK = '', rPlatz = 0;
-        for (var ci = 0; ci < row.length; ci++) {
-          var s = String(row[ci] || '').trim();
-          if (!s) continue;
-          if (/^\d+\.?$/.test(s) && parseInt(s) < 1000 && !rPlatz) { rPlatz = parseInt(s) || 0; continue; }
-          if (/^\d{1,2}:\d{2}/.test(s) || /^\d{2}:\d{2}:\d{2}/.test(s)) { if (!rZeit) rZeit = s; continue; }
-          if (/^[MW]\d{2}$/.test(s) || /^[MW]U\d{1,2}$/.test(s) || s === 'M' || s === 'W') { rAK = s; continue; }
-          if (s.length > 3 && !/^[0-9:.,]+$/.test(s) &&
-              !vereinParts.some(function(p) { return s.toLowerCase().indexOf(p) >= 0; })) {
-            rName = s;
-          }
-        }
-        if (!rName || !rZeit) continue;
-        rAK = normalizeAK(rAK);
-        var disz    = rrBestDisz(cname || '', diszList);
-        var diszObj = disziplinen.find(function(d) {
-          return d.disziplin === disz && (!kat || d.tbl_key === kat);
-        });
-        if (!rrRows.some(function(r) { return r.name === rName && r.resultat === rZeit; })) {
-          rrRows.push({
-            name:      rName,
-            resultat:  rZeit,
-            ak:        rAK,
-            platz:     rPlatz,
-            disziplin: diszObj ? diszObj.disziplin : disz,
-            diszMid:   diszObj ? (diszObj.id || diszObj.mapping_id) : null
-          });
-        }
-      }
-    }
+    var dataFields = (listResp && listResp.DataFields) ? listResp.DataFields : null;
+    var dataObj    = (listResp && listResp.data !== undefined) ? listResp.data : listResp;
 
-    // Verschiedene Response-Strukturen abdecken
-    if (Array.isArray(listData)) {
-      if (listData.length && Array.isArray(listData[0])) {
-        _bulkRRProcess(listData, listName);
-      }
-    } else {
-      Object.keys(listData).forEach(function(key) {
-        var val = listData[key];
-        if (Array.isArray(val)) {
-          if (val.length && Array.isArray(val[0])) { _bulkRRProcess(val, key); }
-          else { _bulkRRProcess([val], key); }
-        } else if (val && typeof val === 'object') {
-          Object.keys(val).forEach(function(sk) {
-            if (Array.isArray(val[sk])) { _bulkRRProcess(val[sk], sk || key); }
-          });
-        }
-      });
-    }
+    _rrWalkData(dataObj, '', listName, dataFields);
   }
 
   _bkDbgLine('Listen durchsucht', listsChecked);
