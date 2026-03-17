@@ -4258,10 +4258,12 @@ async function bulkImportFromRR(url, kat, statusEl) {
   var eid = _eidM[1];
   if (statusEl) statusEl.textContent = '\u23f3 Lade RaceResult-Konfiguration\u2026';
 
-  // Config direkt vom Browser fetchen (wie rrFetch)
+  // 1. Config direkt im Browser fetchen
   var cfg;
   try {
-    var cfgResp = await fetch('https://my.raceresult.com/' + eid + '/RRPublish/data/config?lang=de&page=results&noVisitor=1');
+    var cfgResp = await fetch(
+      'https://my.raceresult.com/' + eid + '/RRPublish/data/config?lang=de&page=results&noVisitor=1'
+    );
     if (!cfgResp.ok) throw new Error('HTTP ' + cfgResp.status);
     cfg = await cfgResp.json();
   } catch(e) {
@@ -4280,66 +4282,73 @@ async function bulkImportFromRR(url, kat, statusEl) {
   _bkDbgLine('Eventname', eventName || '\u2013');
   _bkDbgLine('API-Key',   apiKey ? apiKey.slice(0, 8) + '\u2026' : '(leer)');
 
-  // Datum + Ort aus Config (wie rrFetch)
+  // 2. Datum + Ort via PHP-Proxy (CORS-sicherer HTML-Parser)
   var prxResp = await apiGet('rr-fetch?event_id=' + encodeURIComponent(eid));
   if (prxResp && prxResp.ok && prxResp.data) {
     var pd = prxResp.data;
-    if (pd.date) {
-      var datEl = document.getElementById('bk-datum');
-      if (datEl && !datEl.value) datEl.value = pd.date;
-    }
-    if (pd.location) {
-      var ortEl = document.getElementById('bk-ort');
-      if (ortEl && !ortEl.value) ortEl.value = pd.location;
-    }
-    _bkDbgLine('Datum',  pd.date || '\u2013');
-    _bkDbgLine('Ort',    pd.location || '\u2013');
+    var datEl = document.getElementById('bk-datum');
+    var ortEl = document.getElementById('bk-ort');
+    var evEl  = document.getElementById('bk-evname');
+    if (pd.date     && datEl && !datEl.value) datEl.value = pd.date;
+    if (pd.location && ortEl && !ortEl.value) ortEl.value = pd.location;
+    if (eventName   && evEl  && !evEl.value)  evEl.value  = eventName;
+    _bkDbgLine('Datum', pd.date     || '\u2013');
+    _bkDbgLine('Ort',   pd.location || '\u2013');
   }
 
-  // Eventname in Formular eintragen
-  if (eventName) {
-    var evEl = document.getElementById('bk-evname');
-    if (evEl && !evEl.value) evEl.value = eventName;
-  }
-
-  // Listen aus Config
+  // 3. Listen aus Config
   var lists = cfg.list || cfg.lists || [];
-  var listArr = Array.isArray(lists) ? lists : Object.keys(lists).map(function(k) { return { Name: k }; });
-  var _listBlacklist = ['STAFF','RELAY','MANNSCHAFT','TEAM','AGGREGATE','OVERALL RANKING',
-    'LIVE','TOP10','TOP 10','LEADERBOARD','SIEGER','WINNER','PARTICIPANTS',
-    'STATISTIC','TEILNEHMER','ALPHABET','STADTMEISTER','__PARTICIPANTS'];
+  var listArr = Array.isArray(lists)
+    ? lists
+    : Object.keys(lists).map(function(k) { return { Name: k }; });
+
+  var _blistBl = ['STAFF','RELAY','MANNSCHAFT','TEAM RANKING','AGGREGATE',
+    'OVERALL RANKING','LIVE','TOP10','TOP 10','LEADERBOARD','SIEGER','WINNER',
+    'PARTICIPANTS','STATISTIC','TEILNEHMER','ALPHABET','STADTMEISTER','__PARTICIPANTS'];
 
   _bkDbgLine('Listen gesamt', listArr.length);
   _bkDbgSep();
 
-  var disziplinen = state.disziplinen || [];
-  var diszList    = disziplinen.map(function(d) { return d.disziplin; }).filter(function(v, i, a) { return a.indexOf(v) === i; });
-  var rrRows      = [];
+  var disziplinen  = state.disziplinen || [];
+  var diszList     = disziplinen.map(function(d) { return d.disziplin; })
+                                .filter(function(v, i, a) { return a.indexOf(v) === i; });
+  var rrRows       = [];
   var listsChecked = 0;
+  var base         = 'https://my.raceresult.com/' + eid + '/RRPublish/data/list';
 
   for (var li = 0; li < listArr.length; li++) {
-    var listEntry = listArr[li];
-    var listName  = listEntry.Name || listEntry.name || '';
-    var showAs    = listEntry.ShowAs || listEntry.showAs || listName;
+    var le       = listArr[li];
+    var listName = le.Name || le.name || '';
+    var contest  = le.Contest || le.contest || '0';
     if (!listName) continue;
+
     // Blacklist
-    var nameUp = listName.toUpperCase();
+    var nu = listName.toUpperCase();
     var skip = false;
-    for (var bi = 0; bi < _listBlacklist.length; bi++) {
-      if (nameUp.indexOf(_listBlacklist[bi]) >= 0) { skip = true; break; }
+    for (var bi = 0; bi < _blistBl.length; bi++) {
+      if (nu.indexOf(_blistBl[bi]) >= 0) { skip = true; break; }
     }
+    if (nu.indexOf('__') === 0) skip = true;  // interne Listen
     if (skip) continue;
 
-    // Ergebnisse per PHP-Proxy laden
-    var lr = await apiGet('rr-fetch?event_id=' + eid + '&r=' + encodeURIComponent(listName));
-    if (!lr || !lr.ok) continue;
+    // Ergebnisse direkt im Browser laden
+    var listUrl = base + '?key=' + encodeURIComponent(apiKey) +
+      '&listname=' + encodeURIComponent(listName) +
+      '&page=results&contest=' + encodeURIComponent(contest) +
+      '&r=all&l=de&_=1';
+
+    var listData;
+    try {
+      var lr = await fetch(listUrl);
+      if (!lr.ok) continue;
+      listData = await lr.json();
+    } catch(e) { continue; }
+
     listsChecked++;
+    if (!listData || typeof listData !== 'object') continue;
 
-    var data = lr.data;
-    if (!data || typeof data !== 'object') continue;
-
-    // TuS-Einträge aus Row-Arrays extrahieren
-    function _processRRBulkRows(rowArr, cname) {
+    // Row-Arrays extrahieren und Vereins-Einträge finden
+    function _bulkRRProcess(rowArr, cname) {
       if (!Array.isArray(rowArr)) return;
       for (var ri = 0; ri < rowArr.length; ri++) {
         var row = rowArr[ri];
@@ -4354,16 +4363,18 @@ async function bulkImportFromRR(url, kat, statusEl) {
           if (/^\d+\.?$/.test(s) && parseInt(s) < 1000 && !rPlatz) { rPlatz = parseInt(s) || 0; continue; }
           if (/^\d{1,2}:\d{2}/.test(s) || /^\d{2}:\d{2}:\d{2}/.test(s)) { if (!rZeit) rZeit = s; continue; }
           if (/^[MW]\d{2}$/.test(s) || /^[MW]U\d{1,2}$/.test(s) || s === 'M' || s === 'W') { rAK = s; continue; }
-          if (s.length > 3 && !/^[0-9:.,]+$/.test(s) && !vereinParts.some(function(p) { return s.toLowerCase().indexOf(p) >= 0; })) {
+          if (s.length > 3 && !/^[0-9:.,]+$/.test(s) &&
+              !vereinParts.some(function(p) { return s.toLowerCase().indexOf(p) >= 0; })) {
             rName = s;
           }
         }
         if (!rName || !rZeit) continue;
         rAK = normalizeAK(rAK);
-        var disz = rrBestDisz(cname || '', diszList);
-        var diszObj = disziplinen.find(function(d) { return d.disziplin === disz && (!kat || d.tbl_key === kat); });
-        var isDup = rrRows.some(function(r) { return r.name === rName && r.resultat === rZeit; });
-        if (!isDup) {
+        var disz    = rrBestDisz(cname || '', diszList);
+        var diszObj = disziplinen.find(function(d) {
+          return d.disziplin === disz && (!kat || d.tbl_key === kat);
+        });
+        if (!rrRows.some(function(r) { return r.name === rName && r.resultat === rZeit; })) {
           rrRows.push({
             name:      rName,
             resultat:  rZeit,
@@ -4376,18 +4387,24 @@ async function bulkImportFromRR(url, kat, statusEl) {
       }
     }
 
-    Object.keys(data).forEach(function(key) {
-      var val = data[key];
-      if (Array.isArray(val)) {
-        if (val.length && Array.isArray(val[0])) {
-          _processRRBulkRows(val, key);
-        }
-      } else if (val && typeof val === 'object') {
-        Object.keys(val).forEach(function(sk) {
-          if (Array.isArray(val[sk])) { _processRRBulkRows(val[sk], sk || key); }
-        });
+    // Verschiedene Response-Strukturen abdecken
+    if (Array.isArray(listData)) {
+      if (listData.length && Array.isArray(listData[0])) {
+        _bulkRRProcess(listData, listName);
       }
-    });
+    } else {
+      Object.keys(listData).forEach(function(key) {
+        var val = listData[key];
+        if (Array.isArray(val)) {
+          if (val.length && Array.isArray(val[0])) { _bulkRRProcess(val, key); }
+          else { _bulkRRProcess([val], key); }
+        } else if (val && typeof val === 'object') {
+          Object.keys(val).forEach(function(sk) {
+            if (Array.isArray(val[sk])) { _bulkRRProcess(val[sk], sk || key); }
+          });
+        }
+      });
+    }
   }
 
   _bkDbgLine('Listen durchsucht', listsChecked);

@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v582 – Fix RaceResult-Import: Listen direkt im Browser fetchen
+
+- PHP-Proxy lieferte nur HTML-Metadaten, ignorierte `r=`-Parameter komplett
+- Fix: Listen-Requests direkt im Browser von `RRPublish/data/list?key=...` holen
+  (RaceResult erlaubt Cross-Origin, kein PHP-Proxy nötig)
+- Datum/Ort weiterhin per PHP-Proxy (HTML-Parser)
+- Contest-ID aus `cfg.lists[].Contest` korrekt übergeben
+- `__`-Prefix-Listen (interne) werden übersprungen
+
+---
+
+
 ## v581 – Fix RaceResult-Import im Bulk-Eintragen
 
 - `bulkImportFromRR`: PHP-Proxy lieferte nur Metadaten (title/date/location),
