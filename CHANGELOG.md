@@ -5,6 +5,21 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v580 – Build-Sicherheit: Syntax-Check + jstools.py
+
+- `build.sh`: Pflicht-Syntax-Check vor jedem Build — bricht bei Fehler ab
+  - Standalone-Module einzeln geprüft
+  - Split-Module (03–09) kombiniert geprüft
+  - Kein ZIP wird gebaut wenn Syntax-Fehler vorhanden
+- `jstools.py`: Python-Hilfsbibliothek für sichere JS-Änderungen
+  - `replace_in_file()`: str_replace mit automatischem Rollback bei Syntax-Fehler
+  - `insert_before/after()`: sichere Einfüge-Operationen
+  - `check_all_modules()`: vollständiger Modul-Check
+  - `add_changelog()`, `set_commit_msg()`: Docs-Helfer
+
+---
+
+
 ## v579 – Import-Debug erweitert (Fix weißer Bildschirm v578)
 
 v578 hatte einen Syntax-Fehler durch `'` in Regex-Zeichenklasse sowie
