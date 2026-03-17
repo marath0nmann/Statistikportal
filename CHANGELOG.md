@@ -5,6 +5,265 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v574 – Fix Syntax-Fehler: nackter Block in `renderEintragen`
+
+- In v570: `if (isBulk) {` → `var content = ''; {` → nie geschlossener Block
+- `Unexpected end of input` ließ gesamte Seite leer (seit v570)
+- Fix: nackten Block-Öffner entfernt
+
+---
+
+
+## v573 – Docs-Pflege + Build-Script Erinnerung
+
+- CHANGELOG.md: rückwirkend alle Versionen v533–v572 dokumentiert
+- README.md: vollständig aktualisiert (Dateistruktur, Features v572, API-Endpunkte)
+- build.sh: CHANGELOG-Prüfung + Erinnerung nach jedem Build
+
+---
+
+
+## v572 – Fix Syntax-Fehler in bulkImportFromMika/Uits (literal Newlines)
+
+- JS-Strings enthielten unescapte `\n` → Syntax-Fehler → leere Seite
+- Korrigiert in `bulkImportFromMika` und `bulkImportFromUits`
+
+---
+
+## v571 – Fix Syntax-Fehler in bulkImportFromRR
+
+- Literal Newlines in Debug-String behoben
+
+---
+
+## v570 – Eintragen: SubTabs entfernt, URL-Import in Bulk integriert
+
+- `renderEintragen`: kein SubTab-Menü mehr — alles in einem Panel
+- URL-Erkennung im Smart-Paste-Feld: RaceResult / MikaTiming / uitslagen.nl
+- Kategorie-Dropdown erscheint automatisch bei erkannter URL
+- `bulkImportFromRR`: vollständiger RR-Parser mit Listen-Iteration, AK-Normalisierung, Disziplin-Matching
+- `bulkImportFromMika`, `bulkImportFromUits`: integriert
+- Debug-Fenster zeigt Event-Name, Listen-Anzahl, gefundene Einträge
+- Hash-Route: nur noch `#eintragen`
+
+---
+
+## v569 – uitslagen.nl: `eintraege` → `items` (Bulk-Endpunkt)
+
+- Bulk-Endpunkt erwartet `items`, Import schickte `eintraege` → keine Einträge
+- Fix: korrekter Key im API-Call
+
+---
+
+## v568 – uitslagen.nl: Disziplin-Dropdown auf Kategorie filtern
+
+- `uitsDiszOptHtml(disziplinen, selectedMid, filterKat)`: nur Disziplinen der gewählten Kategorie
+- `uitsRenderPreview`: `_uitsKat` beim Render übergeben
+
+---
+
+## v567 – uitslagen.nl: Feldnamen `id`/`kategorie` statt `mapping_id`/`kategorie_name`
+
+- `state.disziplinen` nutzt `id` (nicht `mapping_id`) und `kategorie` (nicht `kategorie_name`)
+- Auto-Match fand keine Cross-Disziplinen, Dropdowns zeigten `undefined`
+
+---
+
+## v566 – uitslagen.nl: Kategorie-Auswahl + Disziplin-Auto-Match
+
+- Kategorie-Dropdown (wie RaceResult/MikaTiming) vor URL-Feld
+- Laden-Button erst aktiv wenn Kategorie gewählt
+- `uitsAutoDiszMatchKat()`: Disziplin-Match innerhalb gewählter Kategorie
+- `uitslagen` in Hash-Route-Liste
+
+---
+
+## v565 – uitslagen.nl: alle Kategorie-Container iterieren
+
+- Seite hat 30 `.uitslagen`-Divs (je einer pro Kategorie)
+- Parser iterierte nur ersten Container (21 statt 527 Einträge)
+- Fix: `querySelectorAll('.uitslagen')` + äußeres `forEach`
+
+---
+
+## v564 – uitslagen.nl: Content vor innerHTML gesetzt
+
+- `isUits`-Block setzte Content nach dem `innerHTML`-Aufruf → leere Seite
+
+---
+
+## v563 – uitslagen.nl Import
+
+- Neuer Import-Tab in Eintragen (später in Bulk integriert)
+- `13_uitslagen.js`: HTML-Scraper, DOM-Parsing, AK-Mapping (MSEN→M, VSEN→W, M45→M45 etc.)
+- `api/index.php`: `uits-fetch` Proxy (cURL, nur uitslagen.nl-URLs)
+
+---
+
+## v562 – Timeline: Gesamtrekord aktualisiert `bestByG` mit
+
+- Wenn Athlet X Gesamtrekord bricht, wurde `bestByG[g]` nicht gesetzt
+- Folge: nächste Athletin bekam fälschlich "Bestleistung Frauen"
+- Fix: `bestByG[g] = val` beim Gesamtrekord-Update
+
+---
+
+## v561 – Fix `vorher_val`: `TIME_TO_SEC('13:48,49')` → 49680s statt 828s
+
+- MySQL `TIME_TO_SEC('13:48,49')` interpretiert als `HH:MM` (13h 48min)
+- Fix: `CONCAT('00:', REPLACE(resultat, ',', '.'))` vor `TIME_TO_SEC`
+- Gilt für Legacy-Tabellen (ohne `resultat_num`)
+
+---
+
+## v560 – Hall of Fame: "Bestleistung WHK/MHK" statt "Frauen/Männer"
+
+- Bei `merge_ak=1` werden Jugend-AKs zu WHK/MHK zusammengefasst
+- Label zeigte trotzdem "Bestleistung Frauen" weil `$g=geschlecht` unabhängig von AK
+- API: `$ak === 'WHK'` → Label "Bestleistung WHK"
+- Dashboard HoF: tatsächlichen Label-Text verwenden statt hartkodiert
+
+---
+
+## v559 – Rekorde `by_ak`: `e.disziplin=?` → `$diszCond`
+
+- `by_ak`-Query filterte per Name statt per `mapping_id` → Kategorien gemischt
+- Fix: `$diszCond` + `$diszParam` konsistent wie `gesamt`/`maenner`/`frauen`
+
+---
+
+## v558 – Rekorde: `mapping_id` Fallback aus `(kat, disz)` nachschlagen
+
+- Wenn keine `mapping_id` übergeben → automatisch aus `(kat, disz)` ermitteln
+- Verhindert Mischung bei gleichnamigen Disziplinen ohne Frontend-Fix
+
+---
+
+## v557 – Disziplin `mapping_id` durchgängig verwenden
+
+- Rekorde API-Call schickt `mapping_id` mit
+- `navigateToDisz(disz, mappingId)`: zweites Argument
+- Dashboard-Links: `data-rek-mid` Attribut
+- Auto-Migration: nur bei eindeutigen Disziplin-Namen (1 Mapping)
+
+---
+
+## v556 – RaceResult Import: `normalizeAK()` im Import-Loop
+
+- `normalizeAK()` nur beim Anzeigen aufgerufen, nicht beim Import
+- „Seniorinnen W40" kam roh in `isValidDlvAK()` → unbekannte AK Dialog
+
+---
+
+## v555 – `normalizeAK`: Regex-Korruption behoben
+
+- Python `\b` als Backspace-Byte (0x08) in JS-Datei geschrieben → Regex kaputt
+- Neuschreiben mit `(?:^|\s)..(?:\s|$)` statt `\b`
+
+---
+
+## v554 – RaceResult: AK-Normalisierung (`normalizeAK`)
+
+- Neue Funktion extrahiert DLV-Kürzel aus RaceResult-Labels
+- "Seniorinnen W40" → "W40", "Senioren M50" → "M50", "Männliche Jugend U16" → "MU16"
+
+---
+
+## v553 – RaceResult: Disziplin-Match "3000m" ↔ "3.000m" repariert
+
+- Regex `\b` matcht nicht vor `m` → `3.000m` wurde nicht zu `3000m` normalisiert
+- Fix: `\b` → `(?!\d)` in `qNorm` und `diszToMeters`
+
+---
+
+## v552 – Fix Disziplin-Mapping: UNIQUE auf `(disziplin, kategorie_id)`
+
+- UNIQUE KEY war `(disziplin)` → gleicher Name in verschiedenen Kategorien überschrieb sich
+- `ON DUPLICATE KEY UPDATE` entfernt
+- Neue Disziplin hängt keine bestehenden Ergebnisse um
+- Datenbankkorrektur: `UPDATE ergebnisse SET disziplin_mapping_id=67 WHERE disziplin_mapping_id=138`
+
+---
+
+## v551 – Fix Hash-Routing: `restoreFromHash()` vor `buildNav()`
+
+- `buildNav()` rendert aktiven Tab-Highlight → muss nach `restoreFromHash()` kommen
+
+---
+
+## v550 – Vollständiges Hash-Routing
+
+- URL-Schema: `#dashboard`, `#ergebnisse/sprint`, `#admin/disziplinen`, `#eintragen`
+- `syncHash()`, `restoreFromHash()`, `popstate` für Back/Forward
+- `navAdmin()` ersetzt inline `state.adminTab`
+
+---
+
+## v549 – URL-Hash Navigation (Basis)
+
+- Tab-Wechsel: `history.replaceState` → F5 stellt aktiven Tab wieder her
+
+---
+
+## v548 – Fix Syntax-Fehler in `showTotpSetupInProfile`
+
+- Unescapte einfache Anführungszeichen in `onkeydown`
+
+---
+
+## v547 – TOTP-Setup im Profil: eigenes Modal
+
+- `showTotpSetupInProfile` öffnet Modal statt Login-Screen zu überschreiben
+
+---
+
+## v546 – Passkey-Löschen: zwei Bugs gefixt
+
+- `apiDelete()` → `apiDel()` (Funktion existiert nicht)
+- `$path[2]` → `$parts[2]` (war Zeichen-Index statt Pfad-Segment)
+
+---
+
+## v545 – Passkey: COSE-Key Binary-Bytes korrekt in JSON speichern
+
+- `json_encode()` gab `null` für rohe Byte-Strings → kaputte DB-Einträge
+- Byte-Strings werden base64-kodiert (`__b64__` Marker), beim Lesen wiederhergestellt
+- Kaputte Passkeys werden automatisch gelöscht
+
+---
+
+## v544–v543 – Passkey: CBOR-Decoder Fixes
+
+- CBOR Map-Keys als Strings speichern (negative Integers: `-2` → `"-2"`)
+- Major Type 6 (Tag) ignorieren, Major Type 7 korrekt
+
+---
+
+## v542 – Fix Login-Response: `has_totp` + `has_passkey` weitergegeben
+
+- `api/index.php`: `jsonOk()` enthielt nur `totp_required/totp_setup`
+- `has_totp` und `has_passkey` aus `loginStep1` wurden ignoriert
+
+---
+
+## v541 – passkey.php: PHP 7.x Kompatibilität
+
+- Arrow Functions `fn()` → klassische `function($r) { return ...; }`
+
+---
+
+## v533–v540 – Passkey / WebAuthn 2FA
+
+- `includes/passkey.php`: vollständiger WebAuthn-Stack ohne externe Libraries
+- ES256 (ECDSA P-256) + RS256 (RSASSA-PKCS1-v1_5), CBOR-Decoder, DER-Encoding
+- Login-Flow: Passwort → `show2FAChoice()` → TOTP oder Passkey
+- Profil: Passkey-Verwaltung (hinzufügen/löschen) für alle User
+- 2FA für alle User, nicht nur Admins
+
+---
+
+
+
 ## v504 – RaceResult: String-Array-Listen + Siegerliste-Blacklist
 
 - `cfg.lists` als String-Array wird korrekt ausgewertet (war bisher nicht implementiert)

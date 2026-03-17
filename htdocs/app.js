@@ -3776,8 +3776,8 @@ function renderEintragen() {
 
   var today = new Date().toISOString().slice(0, 10);
 
-  var content = ''; {
-    content =
+  var content = '';
+  content =
       '<div class="panel" style="padding:24px">' +
         '<div class="panel-title" style="margin-bottom:4px">&#x1F4CB; Bulk-Eintragen</div>' +
         '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Mehrere Ergebnisse auf einmal eintragen &ndash; alle geh&ouml;ren zur selben Veranstaltung.</div>' +
@@ -3860,7 +3860,7 @@ function renderEintragen() {
         '</div>' +
       '</div>';
 
-    document.getElementById('main-content').innerHTML = tabHtml + content;
+  document.getElementById('main-content').innerHTML = tabHtml + content;
 
   if (isBulk) {
     bulkAddRow();
