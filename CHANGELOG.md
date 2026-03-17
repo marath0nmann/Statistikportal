@@ -5,6 +5,15 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v577 – Eintragen: „Ergebnisse einfügen" nach oben
+
+- Import-Block (Textarea + Einlesen) steht jetzt ganz oben
+- Veranstaltungsfelder (Datum, Ort, Name, Kategorie) folgen danach
+- Logik: Veranstaltungsname und Ort werden meist aus dem Import befüllt
+
+---
+
+
 ## v576 – Eintragen UI aufgeräumt
 
 - **Doppeltes "Kategorie"** behoben: obere Kategorie bleibt für Disziplin-Zuordnung
