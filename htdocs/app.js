@@ -5820,7 +5820,7 @@ function calcDlvAK(jahrgang, geschlecht, eventJahr) {
 // Prüft ob ein AK-Wert dem DLV-Standard entspricht
 function isValidDlvAK(ak) {
   if (!ak || ak === '') return true; // leer ist ok
-  return /^[MW](U(12|14|16|18|20|23)|[0-9]{2}|)$/.test(ak);
+  return /^[MW](U(12|14|16|18|20|23)|(30|35|40|45|50|55|60|65|70|75|80|85)|)$/.test(ak);
 }
 
 function _rrRefreshAKPlatz() {
@@ -7423,7 +7423,7 @@ function calcDlvAK(jahrgang, geschlecht, eventJahr) {
 // Prüft ob ein AK-Wert dem DLV-Standard entspricht
 function isValidDlvAK(ak) {
   if (!ak || ak === '') return true; // leer ist ok
-  return /^[MW](U(12|14|16|18|20|23)|[0-9]{2}|)$/.test(ak);
+  return /^[MW](U(12|14|16|18|20|23)|(30|35|40|45|50|55|60|65|70|75|80|85)|)$/.test(ak);
 }
 
 function _rrRefreshAKPlatz() {
