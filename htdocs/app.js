@@ -4324,7 +4324,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
     var datEl = document.getElementById('bk-datum');
     var ortEl = document.getElementById('bk-ort');
     var evEl  = document.getElementById('bk-evname');
-    if (pd.date     && datEl && !datEl.value) datEl.value = pd.date;
+    if (pd.date     && datEl) { datEl.value = pd.date; bkSyncDatum(pd.date); }
     if (pd.location && ortEl && !ortEl.value) ortEl.value = pd.location;
     if (eventName   && evEl  && !evEl.value)  evEl.value  = eventName;
     _bkDbgLine('Datum', pd.date     || '\u2013');
@@ -4618,7 +4618,7 @@ async function bulkImportFromUits(url, kat, statusEl) {
   // Veranstaltungsfelder vorausfüllen
   if (parsed.eventDate) {
     var datEl = document.getElementById('bk-datum');
-    if (datEl && !datEl.value) datEl.value = parsed.eventDate;
+    if (datEl) { datEl.value = parsed.eventDate; bkSyncDatum(parsed.eventDate); }
   }
   if (parsed.eventOrt) {
     var ortEl = document.getElementById('bk-ort');
