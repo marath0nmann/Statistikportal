@@ -10330,9 +10330,16 @@ function importToggleMstr(prefix, show, mstrVal) {
   document.querySelectorAll('.' + prefix + '-mstr-sel').forEach(function(s) {
     s.value = show ? (mstrVal || '') : '';
   });
-  // Platz-Felder: beim Einblenden defaultValue (= AK-Platz aus HTML) wiederherstellen
+  // MS-Platz-Felder: beim Einblenden AK-Platz der jeweiligen Zeile übernehmen
   document.querySelectorAll('.' + prefix + '-mstr-platz').forEach(function(inp) {
-    inp.value = show ? (inp.defaultValue || '') : '';
+    if (show) {
+      // AK-Platz aus derselben Tabellenzeile lesen
+      var tr = inp.closest('tr');
+      var akPlatz = tr ? (tr.querySelector('.' + prefix + '-platz') || {}).value : '';
+      inp.value = akPlatz || inp.defaultValue || '';
+    } else {
+      inp.value = '';
+    }
   });
 }
 /* ── 11_mikatiming.js ── */
