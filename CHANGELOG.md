@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v594 – Fix Import-Datum wird korrekt übernommen
+
+- `bk-datum` hat `value=today` als Standardwert beim Rendern
+- Bedingung `!datEl.value` verhinderte das Überschreiben → immer heutiges Datum
+- Fix: Import-Datum überschreibt immer das vorausgefüllte heute-Datum
+- `bkSyncDatum()` wird nach dem Setzen aufgerufen → Zeilendaten synchronisiert
+- Gilt für RaceResult, MikaTiming und uitslagen.nl
+
+---
+
+
 ## v593 – Fix "Ergebnis bearbeiten": richtige Kategorie vorausgewählt
 
 - Kategorie wurde immer auf den aktuellen Ergebnisse-Tab (z.B. "Straße") gesetzt
