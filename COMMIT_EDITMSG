@@ -1,1 +1,1 @@
-v581: Fix bulkImportFromRR: direkter Browser-Fetch statt PHP-Proxy
+v582: Fix RaceResult-Import: Listen direkt im Browser fetchen
