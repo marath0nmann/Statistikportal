@@ -5,6 +5,20 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v576 – Eintragen UI aufgeräumt
+
+- **Doppeltes "Kategorie"** behoben: obere Kategorie bleibt für Disziplin-Zuordnung
+  in der Bulk-Tabelle; untere heißt jetzt "Importkategorie" und erscheint nur
+  wenn eine URL erkannt wurde
+- **"Einlesen" + "Import starten"** zu einem Button zusammengefasst:
+  URL im Textarea → Import wird gestartet; Text → Smart-Paste-Parser
+- **Debug-Ausgabe** als `<details>`-Panel mit `📋 Kopieren`-Button (identisch zu RaceResult)
+- `_bkDebugSet`, `_bkDebugAppend`, `_bkDebugClear` als zentrale Helfer
+- `bulkEinlesen()` als neuer Einstiegspunkt für den Einlesen-Button
+
+---
+
+
 ## v574 – Fix Syntax-Fehler: nackter Block in `renderEintragen`
 
 - In v570: `if (isBulk) {` → `var content = ''; {` → nie geschlossener Block

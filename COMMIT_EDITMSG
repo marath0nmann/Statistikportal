@@ -1,8 +1,9 @@
-v574: Fix Syntax-Fehler: nackter Block in renderEintragen nicht geschlossen
+v576: Eintragen UI aufgeräumt
 
-In v570 wurde "if (isBulk) {" durch "var content = ''; {" ersetzt —
-ein nackter Block der nie geschlossen wurde. Dieser erzeugte einen
-Balance-Fehler der als "Unexpected end of input" in Node.js/Browser
-erschien und die gesamte Seite leer ließ.
-
-Fix: nackten Block-Öffner entfernt, content direkt als Statement.
+- Doppeltes "Kategorie" behoben: obere bleibt für Disziplin-Zuordnung,
+  untere heißt jetzt "Importkategorie" — erscheint nur bei URL-Erkennung
+- "Einlesen" + "Import starten" zusammengeführt zu einem "▶ Einlesen"-Button:
+  bei URL → Import, bei Text → Smart-Paste
+- Debug-Ausgabe als <details>-Panel mit 📋 Kopieren-Button (wie RaceResult)
+- _bkDebugSet/_bkDebugAppend/_bkDebugClear als zentrale Helfer
+- bulkEinlesen() als neuer zentraler Einstiegspunkt
