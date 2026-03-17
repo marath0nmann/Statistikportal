@@ -4260,14 +4260,11 @@ async function bulkImportFromMika(url, kat, debugEl, statusEl) {
 
   if (debugEl) {
     debugEl.style.display = 'block';
-    debugEl.textContent = 'MikaTiming
-Verein: ' + vereinRaw + '
-Kategorie: ' + kat;
+    debugEl.textContent = 'MikaTiming\nVerein: ' + vereinRaw + '\nKategorie: ' + kat;
   }
 
   var rows = mikaExtractRowsForBulk(r.data, kat);
-  if (debugEl) debugEl.textContent += '
-' + rows.length + ' TuS-Einträge gefunden';
+  if (debugEl) debugEl.textContent += '\n' + rows.length + ' TuS-Eintr\u00e4ge gefunden';
   bulkFillFromImport(rows, statusEl);
 }
 
@@ -4284,14 +4281,10 @@ async function bulkImportFromUits(url, kat, debugEl, statusEl) {
   if (debugEl) {
     debugEl.style.display = 'block';
     debugEl.textContent = 'uitslagen.nl: ' + parsed.eventName +
-      '
-Datum: ' + parsed.eventDate + '  Ort: ' + parsed.eventOrt +
-      '
-Kategorie: ' + kat +
-      '
-Gesamt-Einträge: ' + parsed.rows.length +
-      '
-TuS-Einträge: ' + parsed.rows.filter(function(r){return r.ownClub;}).length;
+      '\nDatum: ' + parsed.eventDate + '  Ort: ' + parsed.eventOrt +
+      '\nKategorie: ' + kat +
+      '\nGesamt-Eintr\u00e4ge: ' + parsed.rows.length +
+      '\nTuS-Eintr\u00e4ge: ' + parsed.rows.filter(function(r){return r.ownClub;}).length;
   }
 
   // Veranstaltungsfelder vorausfüllen

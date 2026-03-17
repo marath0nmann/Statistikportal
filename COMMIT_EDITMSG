@@ -1,11 +1,1 @@
-v570: Eintragen: SubTabs entfernt, URL-Import in Bulk integriert
-
-- renderEintragen: kein SubTab-Menü mehr (isBulk immer true)
-- bulkImportFromRR: vollständiger RR-Parser mit Listen-Iteration,
-  Vereins-Filter, AK-Normalisierung, Disziplin-Matching
-- bulkImportFromMika, bulkImportFromUits: bereits vorhanden
-- bulkDetectUrl: erkennt RaceResult/MikaTiming/uitslagen.nl-URLs
-- URL im Smart-Paste → Kategorie-Dropdown erscheint → Import startet
-- Hash-Route: nur noch #eintragen (kein /raceresult etc.)
-- 08_raceresult.js, 11_mikatiming.js, 13_uitslagen.js bleiben als
-  Funktionsbibliotheken (normalizeAK, rrBestDisz, uitsParseHTML etc.)
+v571: Fix Syntax-Fehler: literal Newlines in JS-Strings
