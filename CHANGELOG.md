@@ -5,6 +5,35 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v596 – RaceResult-Import: vollständige rrFetch-Logik
+
+- `bulkImportFromRR` nutzt jetzt denselben erprobten Parsing-Ansatz wie `rrFetch()`
+- `_calibrateDF()`: DataFields-Kalibrierung für alle bekannten Feldnamen
+  (AnzeigeName, VereinSchule, AGEGROUP1.NAMESHORT, MitStatus([AKPl.p]), ...)
+- `r=search` zuerst, `r=all` als Fallback (Suchfunktion manchmal defekt)
+- Alle Contests einzeln durchlaufen (nicht mehr alle Listen)
+- Listen-Fallback: andere Kandidaten-Listen wenn Contest 0 leer
+- AK aus DataFields, Gruppen-Key oder Jahrgang+Geschlecht
+- AK-Platz via iAKPlatz-Index
+- Disziplin via rrBestDisz(contestName, diszList)
+
+---
+
+
+## v595 – Fix RaceResult-Import: verschiedene DataFields-Varianten
+
+- Neusser Erftlauf: DataFields nutzt "AnzeigeName", "VereinSchule", "AGEGROUP1.NAMESHORT"
+  statt FIRSTNAME/LASTNAME/CLUB/AGECLASS → 0 Treffer
+- _rrProcessRow: erweiterte Feldnamen-Erkennung:
+  Name: ANZEIGENAME | DISPLAYNAME | FULLNAME
+  Verein: CLUB | VEREIN | VEREINSCHULE | TEAM | ORGANISATION
+  AK: AGECLASS | AGEGROUP* | *NAMESHORT
+  Zeit: TIME | NETTO | BRUTTO | ZEIT
+- Vereins-Check via Club-Feld (präziser als rowStr-Suche)
+
+---
+
+
 ## v594 – Fix Import-Datum wird korrekt übernommen
 
 - `bk-datum` hat `value=today` als Standardwert beim Rendern
