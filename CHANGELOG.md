@@ -5,6 +5,14 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v586 – Fix: Zeilennumerierung nach Import
+
+- Leerzeile wurde entfernt (v585), aber Nummern blieben fix im HTML
+- `bulkFillFromImport()`: Nummern nach dem Einfügen neu durchzählen (1, 2, 3...)
+
+---
+
+
 ## v585 – Fix: leere erste Zeile beim Import
 
 - `renderEintragen()` fügt beim Start automatisch eine leere Zeile ein
