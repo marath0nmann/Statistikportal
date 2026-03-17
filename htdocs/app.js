@@ -4234,6 +4234,10 @@ async function bulkImportUrl() {
   if (statusEl) statusEl.textContent = '⏳ Lade…';
   var _bkQuelle = urlType === 'raceresult' ? 'RaceResult' :
                   urlType === 'mikatiming' ? 'MikaTiming' : 'uitslagen.nl';
+  // Importkategorie auch in das Kategorie-Feld der Tabelle übertragen
+  var _bkKatEl = document.getElementById('bk-kat');
+  if (_bkKatEl && kat && !_bkKatEl.value) _bkKatEl.value = kat;
+  else if (_bkKatEl && kat) _bkKatEl.value = kat;
   _bkDebugInit(raw, _bkQuelle, kat);
 
   try {
@@ -4429,9 +4433,12 @@ async function bulkImportFromRR(url, kat, statusEl) {
       }
     } else {
       Object.keys(obj).forEach(function(key) {
-        // AK aus Schlüssel ableiten: "#3_M50 - Kurze Cross" → "M50"
-        var akFromKey = _rrAKFromKey(key) || groupAK;
-        _rrWalkData(obj[key], akFromKey, listName, dataFields);
+        var akFromKey  = _rrAKFromKey(key) || groupAK;
+        // Sub-Key-Name als Disziplin-Kandidat wenn er Meter/km enthält,
+        // sonst den Contest-Namen von oben weiterverwenden
+        var keyName    = key.replace(/^#\d+_/, '');
+        var nameForDisz = /\d+\s*(km|m\b)/i.test(keyName) ? keyName : listName;
+        _rrWalkData(obj[key], akFromKey, nameForDisz, dataFields);
       });
     }
   }
@@ -4468,7 +4475,20 @@ async function bulkImportFromRR(url, kat, statusEl) {
     var dataFields = (listResp && listResp.DataFields) ? listResp.DataFields : null;
     var dataObj    = (listResp && listResp.data !== undefined) ? listResp.data : listResp;
 
-    _rrWalkData(dataObj, '', listName, dataFields);
+    // Top-Level: verschachteltes Objekt → Keys als Contest-Namen nutzen
+    // Flaches Array → listName direkt an rrBestDisz
+    if (dataObj && !Array.isArray(dataObj) && typeof dataObj === 'object') {
+      Object.keys(dataObj).forEach(function(topKey) {
+        var keyName     = topKey.replace(/^#\d+_/, '');
+        // Contest-Name hat Vorrang, dann Key-Name, dann Listenname als Fallback
+        var contestName = keyName || listName;
+        var akFromTop   = _rrAKFromKey(topKey);
+        _rrWalkData(dataObj[topKey], akFromTop, contestName, dataFields);
+      });
+    } else {
+      // Flache Struktur (Array oder direkte Werte): Listenname für Disziplin-Match
+      _rrWalkData(dataObj, '', listName, dataFields);
+    }
   }
 
   _bkDbgLine('Listen durchsucht', listsChecked);
