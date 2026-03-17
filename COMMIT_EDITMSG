@@ -1,1 +1,8 @@
-v571: Fix Syntax-Fehler: literal Newlines in JS-Strings
+v574: Fix Syntax-Fehler: nackter Block in renderEintragen nicht geschlossen
+
+In v570 wurde "if (isBulk) {" durch "var content = ''; {" ersetzt —
+ein nackter Block der nie geschlossen wurde. Dieser erzeugte einen
+Balance-Fehler der als "Unexpected end of input" in Node.js/Browser
+erschien und die gesamte Seite leer ließ.
+
+Fix: nackten Block-Öffner entfernt, content direkt als Statement.

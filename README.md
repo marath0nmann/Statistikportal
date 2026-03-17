@@ -1,5 +1,5 @@
 # TuS Oedt – Leichtathletik Statistik
-## Version v571 | Stand: März 2026
+## Version v574 | Stand: März 2026
 
 ---
 
@@ -16,85 +16,103 @@ deine-domain.de/
 ├── includes/
 │   ├── config.php          ← Datenbank-Zugangsdaten ← ANPASSEN!
 │   ├── db.php              ← Datenbankverbindung
-│   ├── auth.php            ← Authentifizierung + TOTP
-│   └── totp.php            ← 2-Faktor-Authentifizierung
-├── modules/                ← JS-Quellmodule (00–11)
-│   ├── 00_globals.js
-│   ├── 02a_config.js       ← Meisterschaftstypen, Badges, Themes
+│   ├── auth.php            ← Authentifizierung + 2FA
+│   ├── passkey.php         ← WebAuthn/Passkey-Implementierung
+│   ├── totp.php            ← TOTP (RFC 6238)
+│   └── settings.php        ← Einstellungen-Helper
+├── modules/                ← JS-Quellmodule
+│   ├── 00_globals.js       ← Globaler State
+│   ├── 02a_config.js       ← Konfiguration, Themes
+│   ├── 02b_setup.js        ← Ersteinrichtung
+│   ├── 02c_auth.js         ← Login, Profil, Passkey-UI
+│   ├── 02d_nav.js          ← Navigation, Hash-Routing
 │   ├── 03_dashboard.js     ← Timeline, Bestleistungen, Hall of Fame
-│   ├── 04_ergebnisse.js    ← Ergebnisliste + Bearbeiten-Dialog
+│   ├── 04_ergebnisse.js    ← Ergebnisliste + Filter
+│   ├── 05_athleten.js      ← Athleten-Verwaltung
 │   ├── 06_rekorde.js       ← Bestleistungen-Tab
-│   ├── 07_eintragen.js     ← Bulk-Eintragen + Smart-Paste
-│   ├── 08_raceresult.js    ← RaceResult-Import
-│   ├── 09*.js              ← Admin-Tabs
-│   ├── 10_utils.js         ← Gemeinsame Hilfsfunktionen
-│   └── 11_mikatiming.js    ← MikaTiming-Import
-├── build.sh                ← Build-Script (concateniert Module → app.js)
+│   ├── 07_eintragen.js     ← Bulk-Eintragen + URL-Import
+│   ├── 08_raceresult.js    ← RaceResult-Parser
+│   ├── 09*_admin_*.js      ← Admin-Tabs
+│   ├── 10_utils.js         ← Hilfsfunktionen
+│   ├── 11_mikatiming.js    ← MikaTiming-Import
+│   ├── 12_passkey.js       ← Passkey-Verwaltung
+│   └── 13_uitslagen.js     ← uitslagen.nl-Import
+├── build.sh                ← Build-Script
 └── sql/
-    ├── schema.sql          ← Datenbankstruktur (einmalig ausführen)
+    ├── schema.sql          ← Datenbankstruktur (einmalig)
     └── import_data.sql     ← Historische Daten (einmalig)
 ```
 
 ---
 
-### ✨ Aktuelle Features (v571)
+### ✨ Aktuelle Features (v574)
 
 **Dashboard**
-- Konfigurierbare Widget-Layouts (Statistik-Karten, Timeline, Veranstaltungen, Hall of Fame)
-- Hall-of-Fame-Widget: Athleten mit Bestenlisten-Titeln, sortiert nach Titelanzahl
-- Timeline: zwei Label-Spuren (Vereinsrekorde gold/silber + persönlich grün), Filterung nach Typ
-- Neueste Bestleistungen mit Kategorie-Suffix immer korrekt (Race Condition gefixt)
+- Konfigurierbare Widget-Layouts (Timeline, Bestleistungen, Veranstaltungen, Hall of Fame)
+- Timeline: Vereinsrekorde (Gold/Silber) + persönliche Bestleistungen (Grün)
+- Korrekte Label-Logik: WHK/MHK statt "Frauen/Männer" bei merge_ak
+- Hall of Fame: Athleten mit Bestenlisten-Titeln
 
 **Bestleistungen / Rekorde**
-- Bestleistungen nach Kategorie, Disziplin (mit Suffix), AK, Geschlecht
-- Pace-Berechnung für alle Disziplinen ≥ 1 km
-- Medal-Badges: Gold/Silber/Bronze mit farbigem Hintergrund
+- Filter nach Kategorie, Disziplin, AK, Geschlecht
+- Disziplin-Trennung bei gleichnamigen Disziplinen in verschiedenen Kategorien (mapping_id)
+- Pace-Berechnung für alle Disziplinen ≥ 1km
 
 **Ergebnisse**
-- Filter nach Athlet, Kategorie, Disziplin, AK, Jahr, Meisterschaft (Mehrfachauswahl)
-- Bearbeiten-Dialog: Kategorie-Filter + Disziplin mit Suffix + korrekte `mapping_id`
+- Filter nach Athlet, Kategorie, Disziplin, AK, Jahr, Meisterschaft
+- Bearbeiten-Dialog mit korrekter mapping_id
 
-**Eintragen**
-- **Bulk-Eintragen**: Smart-Paste (parst Veranstaltung, AK, Datum, Disziplin, Name, Zeit, Platz aus Clipboard-Text), Datum pro Zeile, Meisterschaft
-- **RaceResult-Import**: my.raceresult.com, automatisches Athlet-Matching, Modal für unbekannte Athleten (zuordnen / neu anlegen / überspringen), AK-Platz-Berechnung, Meisterschaft + Platz MS
-- **MikaTiming-Import**: cURL-Proxy, Session-Persistenz, Meisterschaft + Platz MS
-- **Meisterschaft-Checkbox**: aktiviert Meisterschaft-Spalten + wendet gewählten Typ sofort auf alle Zeilen an; Platz MS aus AK-Platz vorbelegt
+**Eintragen (vereinfacht)**
+- **Bulk-Eintragen**: Smart-Paste, Datum pro Zeile, Meisterschaft
+- **URL-Import** direkt im Paste-Feld (automatische Erkennung):
+  - `my.raceresult.com/...` → RaceResult-Import
+  - `*.mikatiming.com/...` → MikaTiming-Import
+  - `uitslagen.nl/uitslag?id=...` → uitslagen.nl-Import
+- Kategorie-Auswahl → gefilterte Disziplin-Vorauswahl
+- Debug-Fenster für alle Import-Quellen
+
+**2FA / Sicherheit**
+- Passkey (WebAuthn) als Alternative zu TOTP — für alle User
+- Login: Passwort → TOTP oder Passkey (je was registriert)
+- Passkey-Verwaltung im Profil (hinzufügen/löschen)
+- Hash-Routing: F5 stellt aktiven Tab wieder her, Back/Forward funktioniert
 
 **Admin**
 - Dashboard-Layout-Editor
-- Altersklassen-Verwaltung (Jugend-AKs konfigurierbar)
-- Meisterschaftstypen konfigurierbar (Olympia, WM, EM, DM, NRW, NR, Regio + eigene)
-- Footer-URLs, Club-Logo, Farben, Dark Mode
+- Altersklassen-Verwaltung
+- Meisterschaftstypen konfigurierbar
+- Disziplin-Mapping: UNIQUE auf `(disziplin, kategorie_id)` — gleicher Name in verschiedenen Kategorien möglich
 
 ---
 
 ### 🔧 Schritt-für-Schritt-Setup (Neuinstallation)
 
-#### 1. Datenbank bei all-inkl anlegen
-1. KAS öffnen → **Datenbanken**
-2. Neue MySQL-Datenbank anlegen
-3. Notiere: **Datenbankname**, **Benutzer**, **Passwort**, **Host**
+#### 1. Datenbank anlegen (all-inkl.com KAS)
+1. KAS → Datenbanken → Neue MySQL-Datenbank
+2. Notiere: Datenbankname, Benutzer, Passwort, Host
 
 #### 2. `includes/config.php` anlegen
 ```php
 <?php
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'p123456_statistik');   // ← dein Datenbankname
-define('DB_USER', 'p123456_statistik');   // ← dein Datenbankbenutzer
-define('DB_PASS', 'DEIN_PASSWORT');       // ← dein Passwort
-define('TBL_PREFIX', 'tus_');             // ← Tabellen-Präfix
+define('DB_HOST',    'localhost');
+define('DB_NAME',    'p123456_statistik');
+define('DB_USER',    'p123456_statistik');
+define('DB_PASS',    'DEIN_PASSWORT');
+define('DB_CHARSET', 'utf8mb4');
+define('TABLE_PREFIX', '');
+define('SESSION_NAME',     'stat_session');
+define('SESSION_LIFETIME', 86400 * 30);
 ```
 
 #### 3. Datenbankstruktur importieren (phpMyAdmin)
-1. Deine Datenbank auswählen → Reiter **Importieren**
-2. Datei `sql/schema.sql` hochladen → **OK**
+1. Datenbank auswählen → Importieren
+2. `sql/schema.sql` hochladen → OK
 
-#### 4. Daten importieren
-1. Reiter **Importieren**
-2. Datei `sql/import_data.sql` hochladen → **OK**
+#### 4. Historische Daten importieren (optional)
+1. `sql/import_data.sql` hochladen → OK
 
 #### 5. Dateien per FTP hochladen
-Alle Dateien in dein Web-Verzeichnis hochladen.  
+Alle Dateien ins Web-Verzeichnis.  
 **WICHTIG:** `includes/config.php` niemals öffentlich zugänglich machen.
 
 ---
@@ -102,19 +120,18 @@ Alle Dateien in dein Web-Verzeichnis hochladen.
 ### 🛠️ Entwicklung & Build
 
 ```bash
-# app.js + app.css aus Modulen bauen und ZIP erzeugen
 bash /home/claude/dev/build.sh
 ```
 
-Die Version wird automatisch in `app.js`, `app.css` und `index.html` eingetragen (via `sed`).  
-Output: `/mnt/user-data/outputs/tus-oedt-statistik-vXXX.zip`
+Erzeugt:
+- `htdocs/app.js` aus allen Modulen (concateniert)
+- Versionsnummer in `index.html` gebumt
+- ZIP-Paket in `/mnt/user-data/outputs/tus-oedt-statistik-vXXX.zip`
 
-**Modul-Reihenfolge** (build.sh):
-```
-00_globals → 02a_config → 02b_setup → 02c_auth → 02d_nav →
-03_dashboard → 04_ergebnisse → 05_veranstaltungen → 06_rekorde →
-07_eintragen → 08_raceresult → 09*_admin_* → 10_utils → 11_mikatiming
-```
+**Nach jedem Build aktualisieren:**
+- `COMMIT_EDITMSG` — Kurzbeschreibung der Änderungen
+- `README.md` — Version + Features
+- `CHANGELOG.md` — Detaillierter Eintrag
 
 ---
 
@@ -122,25 +139,28 @@ Output: `/mnt/user-data/outputs/tus-oedt-statistik-vXXX.zip`
 
 | Methode | Endpunkt | Beschreibung |
 |---------|----------|--------------|
-| GET | `disziplinen` | Alle Disziplinen mit Kategorie + mapping_id |
-| GET | `rekorde?kat=&disz=&merge_ak=` | Bestleistungen |
+| GET | `disziplinen` | Alle Disziplinen mit mapping_id |
+| GET | `rekorde?kat=&disz=&mapping_id=&merge_ak=` | Bestleistungen |
 | GET | `ergebnisse?...` | Ergebnisliste mit Filtern |
-| POST | `ergebnisse/bulk` | Bulk-Import (inkl. meisterschaft, ak_platz_meisterschaft) |
-| PUT | `ergebnisse/{id}` | Ergebnis bearbeiten (disziplin_mapping_id direkt) |
-| GET | `mika-fetch?base_url=&club=` | MikaTiming Proxy |
-| GET | `altersklassen` | Verwendete AKs + Jugend-Status |
-| POST | `einstellungen` | Einstellungen speichern (jugend_aks, meisterschaft_typen, …) |
-| POST | `athleten` | Athlet anlegen (name_nv, vorname, nachname, geschlecht, geburtsjahr) |
+| POST | `ergebnisse/bulk` | Bulk-Import (`items`-Array) |
+| PUT | `ergebnisse/{id}` | Ergebnis bearbeiten |
+| GET | `rr-fetch?event_id=&r=` | RaceResult-Proxy |
+| GET | `mika-fetch?base_url=&club=` | MikaTiming-Proxy |
+| GET | `uits-fetch?url=` | uitslagen.nl-Proxy |
+| GET | `auth/passkey-reg-challenge` | Passkey-Registrierung |
+| POST | `auth/passkey-reg-verify` | Passkey speichern |
+| POST | `auth/passkey-auth-challenge` | Passkey-Login |
+| POST | `auth/passkey-auth-verify` | Passkey-Login verifizieren |
 
 ---
 
 ### 🏷️ Disziplin-System
 
-Disziplinen sind eindeutig über `disziplin_mapping_id` identifiziert — nicht über den Namen.  
-„800m (Bahn)" und „800m (Straße)" haben **denselben Namen** aber **verschiedene IDs**.
+Disziplinen sind eindeutig über `disziplin_mapping_id` identifiziert.  
+„5.000m (Bahn)" und „5.000m (Cross)" haben **denselben Namen** aber **verschiedene IDs**.
 
-- `diszMitKat(disziplin, mappingId)` → Anzeigename mit Suffix
-- `kat_suffix_override`: Pro Disziplin konfigurierbares Suffix (Admin → Disziplinen)
+- UNIQUE KEY: `(disziplin, kategorie_id)` — gleicher Name in verschiedenen Kategorien erlaubt
+- `mapping_id` muss bei allen API-Calls übergeben werden (Rekorde, Ergebnisse-Filter)
 
 ---
 
@@ -148,6 +168,9 @@ Disziplinen sind eindeutig über `disziplin_mapping_id` identifiziert — nicht 
 
 Die API führt beim Start automatisch `ALTER TABLE … ADD COLUMN IF NOT EXISTS` aus für:
 - `benutzer.avatar_pfad`
+- `benutzer.totp_pending`
 - `disziplin_mapping.*` (anzeige_name, fmt_override, kat_suffix_override, hof_exclude)
+- `disziplin_mapping`: UNIQUE KEY `uq_disz_kat (disziplin, kategorie_id)`
 - `ergebnisse.disziplin_mapping_id`
-- `ergebnisse*.ak_platz_meisterschaft` (alle 5 Tabellen)
+- `ergebnisse*.ak_platz_meisterschaft`
+- `passkeys` Tabelle (WebAuthn)
