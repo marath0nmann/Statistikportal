@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v591 – Fix isValidDlvAK: nur echte DLV-Altersklassen
+
+- Regex `[0-9]{2}` erlaubte beliebige Zahlen (M51, M99 waren "gültig")
+- Fix: nur tatsächliche DLV-Senioren-AKs: 30|35|40|45|50|55|60|65|70|75|80|85
+- Jugend unverändert: MU/WU + 12|14|16|18|20|23
+- Hauptklasse M/W weiterhin gültig
+- Fix in beiden Modulen: 07_eintragen.js + 08_raceresult.js
+
+---
+
+
 ## v590 – Meisterschaft: AK-Platz → MS-Platz
 
 - `importToggleMstr()`: beim Einblenden der Meisterschafts-Spalten
