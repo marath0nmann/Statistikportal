@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v617 – Fix Bestleistungen-Reihenfolge
+
+- Problem: LIMIT 50 auf allen Ergebnissen → JS-seitige Deduplizierung
+  → ältere Nicht-PBs eines Athleten füllten den Pool und verdängten
+  andere Athleten (z.B. Kiekhöfel 2021+2022+2023 vor Koppers 2024)
+- Fix: SQL-Subquery berechnet MIN/MAX per athlet_id (je nach sort_dir)
+  JOIN auf dieses PB-Ergebnis → genau 1 Ergebnis pro Athlet, nach PB sortiert
+- Gilt für gesamt, Männer, Frauen und alle AK-Kacheln
+
+---
+
+
 ## v616 – Fix RR-Import: RANK1p/RANK3p Feldnamen
 
 - Hülskens Marathon: DataFields "RANK1p" (Gesamtplatz) und "RANK3p" (AK-Platz)

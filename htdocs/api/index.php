@@ -1821,31 +1821,57 @@ if ($res === 'rekorde') {
         }
         $paceField = ($fmt === 'min' && (strpos($tbl,'strasse') !== false || $unified)) ? ", e.pace" : "";
 
+        // Hilfsfunktion: Bestleistung pro Athlet (1 Ergebnis je Athlet, nach Ergebnis sortiert)
+        // Subquery: pro Athlet nur das beste resultat_num/resultat ermitteln,
+        // dann mit diesem die vollständige Zeile joinen.
+        $bestFn = $dir === 'ASC' ? 'MIN' : 'MAX';
+        $pbSubquery = "(SELECT athlet_id, $bestFn($sortCol) AS pb_val
+                         FROM $tbl pb_e
+                         JOIN " . DB::tbl('veranstaltungen') . " pb_v ON pb_v.id=pb_e.veranstaltung_id
+                         WHERE {$diszCond}
+                           AND pb_e.geloescht_am IS NULL AND pb_v.geloescht_am IS NULL
+                         GROUP BY athlet_id) pb";
+
+        // Params für Subquery-JOIN: $diszParam einmal für Subquery, einmal für äußere WHERE
+        $pbParams2 = [$diszParam, $diszParam];
+
         $top_gesamt = DB::fetchAll(
             "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
-             FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
+             FROM $tbl e
+             JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
+             $joinVer
+             JOIN $pbSubquery ON pb.athlet_id = e.athlet_id AND $sortCol = pb.pb_val
              WHERE $diszCond AND e.geloescht_am IS NULL
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
-             ORDER BY $sortCol $dir LIMIT 50", [$diszParam]);
+             GROUP BY a.id
+             ORDER BY pb.pb_val $dir LIMIT 50", $pbParams2);
 
         $top_m = DB::fetchAll(
             "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id
-             FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
+             FROM $tbl e
+             JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
+             $joinVer
+             JOIN $pbSubquery ON pb.athlet_id = e.athlet_id AND $sortCol = pb.pb_val
              WHERE $diszCond AND e.geloescht_am IS NULL
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
                AND (a.geschlecht='M' OR (a.geschlecht IS NULL AND e.altersklasse LIKE 'M%'))
-             ORDER BY $sortCol $dir LIMIT 50", [$diszParam]);
+             GROUP BY a.id
+             ORDER BY pb.pb_val $dir LIMIT 50", $pbParams2);
 
         $top_w = DB::fetchAll(
             "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id
-             FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
+             FROM $tbl e
+             JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
+             $joinVer
+             JOIN $pbSubquery ON pb.athlet_id = e.athlet_id AND $sortCol = pb.pb_val
              WHERE $diszCond AND e.geloescht_am IS NULL
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
                AND (a.geschlecht='W' OR (a.geschlecht IS NULL AND (e.altersklasse LIKE 'W%' OR e.altersklasse LIKE 'F%')))
-             ORDER BY $sortCol $dir LIMIT 50", [$diszParam]);
+             GROUP BY a.id
+             ORDER BY pb.pb_val $dir LIMIT 50", $pbParams2);
 
         $aks_rows = DB::fetchAll(
             "SELECT DISTINCT $akExpr AS altersklasse FROM $tbl e
@@ -1857,13 +1883,23 @@ if ($res === 'rekorde') {
         $all_ak = [];
         foreach ($aks_rows as $ak_row) {
             $ak_val = $ak_row['altersklasse'];
+            $pbSubAK = "(SELECT athlet_id, $bestFn($sortCol) AS pb_val
+                          FROM $tbl pb_e
+                          JOIN " . DB::tbl('veranstaltungen') . " pb_v ON pb_v.id=pb_e.veranstaltung_id
+                          WHERE {$diszCond} AND $akExpr=?
+                            AND pb_e.geloescht_am IS NULL AND pb_v.geloescht_am IS NULL
+                          GROUP BY athlet_id) pb";
             $ak_results = DB::fetchAll(
                 "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                         $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
-                 FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
+                 FROM $tbl e
+                 JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
+                 $joinVer
+                 JOIN $pbSubAK ON pb.athlet_id = e.athlet_id AND $sortCol = pb.pb_val
                  WHERE $diszCond AND $akExpr=?
                    AND e.geloescht_am IS NULL AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
-                 ORDER BY $sortCol $dir LIMIT 50", [$diszParam, $ak_val]);
+                 GROUP BY a.id
+                 ORDER BY pb.pb_val $dir LIMIT 50", [$diszParam, $ak_val, $diszParam, $ak_val]);
             $all_ak[$ak_val] = $ak_results;
         }
 
