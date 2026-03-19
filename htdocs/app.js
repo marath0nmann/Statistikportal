@@ -2760,7 +2760,7 @@ function editKatChanged() {
   var prevVal = diszSel.value; // mapping_id oder disziplin-name
   var seen = {}, list = [];
   (state.disziplinen || [])
-    .filter(function(d) { return !kat || d.tbl_key === kat; })
+    .filter(function(d) { return !kat || (bkKatMitGruppen(kat)||[kat]).indexOf(d.tbl_key) >= 0; })
     .forEach(function(d) {
       var key = d.id ? String(d.id) : d.disziplin;
       if (!seen[key]) { seen[key] = true; list.push(d); }
@@ -3798,7 +3798,7 @@ function renderEintragen() {
         '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Mehrere Ergebnisse auf einmal eintragen &ndash; alle geh&ouml;ren zur selben Veranstaltung.</div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
-          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl: https://uitslagen.nl/uitslag?id=2025110916317&#10;la.de:        https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
             '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
             '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
@@ -3936,15 +3936,40 @@ function bkAkOpts(geschlecht) {
   for (var i = 0; i < list.length; i++) opts += '<option value="' + list[i] + '">' + list[i] + '</option>';
   return opts;
 }
+// Gibt alle tbl_keys zurück die für eine gewählte Kategorie angezeigt werden sollen
+// inkl. Gruppen-Partner aus appConfig.kategoriegruppen
+function bkKatMitGruppen(kat) {
+  if (!kat) return null; // null = alle
+  var erlaubt = [kat];
+  var gruppen = [];
+  try { gruppen = JSON.parse(appConfig.kategoriegruppen || '[]'); } catch(e) {}
+  for (var gi = 0; gi < gruppen.length; gi++) {
+    var g = gruppen[gi].mitglieder || [];
+    if (g.indexOf(kat) >= 0) {
+      for (var mi = 0; mi < g.length; mi++) {
+        if (erlaubt.indexOf(g[mi]) < 0) erlaubt.push(g[mi]);
+      }
+    }
+  }
+  return erlaubt;
+}
+
 function bkDiszOpts(kat) {
+  var erlaubt = bkKatMitGruppen(kat); // null = alle, sonst Array
   var opts = '<option value="">– wählen –</option>';
   var list = state.disziplinen || [];
   for (var i = 0; i < list.length; i++) {
     var item = list[i];
     var d = (typeof item === 'object') ? item.disziplin : item;
     var k = (typeof item === 'object') ? item.tbl_key : '';
-    if (kat && k && k !== kat) continue;
-    opts += '<option value="' + d + '">' + d + '</option>';
+    if (erlaubt && k && erlaubt.indexOf(k) < 0) continue;
+    // Kategoriesuffix zeigen wenn Gruppe aktiv (z.B. 'Weitsprung (Sprung&Wurf)')
+    var label = d;
+    if (erlaubt && erlaubt.length > 1 && k && k !== kat) {
+      var katObj = (state.disziplinen || []).find(function(x) { return x.tbl_key === k && x.kategorie; });
+      if (katObj) label = d + ' (' + katObj.kategorie + ')';
+    }
+    opts += '<option value="' + d + '">' + label + '</option>';
   }
   return opts;
 }
@@ -4285,6 +4310,8 @@ async function bulkImportUrl() {
       await bulkImportFromMika(raw, kat, statusEl);
     } else if (urlType === 'uitslagen') {
       await bulkImportFromUits(raw, kat, statusEl);
+    } else if (urlType === 'leichtathletik') {
+      await bulkImportFromLA(raw, kat, statusEl);
     }
   } catch(e) {
     if (statusEl) statusEl.textContent = '❌ ' + e.message;
@@ -4419,7 +4446,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
           if(pi>=0){var pr=String(row[pi]||'').trim().replace(/\.$/,'');if(/^\d+$/.test(pr))rP=parseInt(pr)||0;}
           if(!rName)return;
           var disz=rrBestDisz(cnD,diszList);
-          var dObj=disziplinen.find(function(d){return d.disziplin===disz&&(!kat||d.tbl_key===kat);});
+          var dObj=disziplinen.find(function(d){return d.disziplin===disz&&(!kat||(bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key)>=0);});
           if(!allResults.some(function(r){return r.name===rName&&r.resultat===rZeit;})){
             allResults.push({name:rName,resultat:rZeit,ak:rAK,platz:rP,
               disziplin:dObj?dObj.disziplin:disz,diszMid:dObj?(dObj.id||dObj.mapping_id):null});
@@ -4618,7 +4645,7 @@ function rrExtractRowsForBulk(data, vereinCfg, kat) {
       });
       if (!name || !zeit) return;
       var disz = rrBestDisz(contestName || '', diszList);
-      var diszObj = disziplinen.find(function(d){ return d.disziplin === disz && (!kat || d.tbl_key === kat); });
+      var diszObj = disziplinen.find(function(d){ return d.disziplin === disz && (!kat || (bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key) >= 0); });
       rows.push({ name: name, resultat: zeit, ak: ak, platz: platz,
                   disziplin: diszObj ? diszObj.disziplin : disz,
                   diszMid: diszObj ? (diszObj.id || diszObj.mapping_id) : null });
@@ -4656,7 +4683,7 @@ function mikaExtractRowsForBulk(data, kat) {
   return results.map(function(res) {
     var contestName = res.contest || res.disziplin || '';
     var disz = rrBestDisz(contestName, diszList);
-    var diszObj = disziplinen.find(function(d){ return d.disziplin === disz && (!kat || d.tbl_key === kat); });
+    var diszObj = disziplinen.find(function(d){ return d.disziplin === disz && (!kat || (bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key) >= 0); });
     return {
       name:      res.name || '',
       resultat:  res.netto || res.zeit || '',
@@ -8224,6 +8251,7 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='meisterschaften' ? ' active' : '') + '" onclick="navAdmin(\'meisterschaften\')">🏅 Meisterschaften</button>' +
     '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">🎨 Darstellung</button>' +
     '<button class="subtab' + (t==='dashboard_cfg'   ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">📊︎ Dashboard</button>' +
+    '<button class="subtab' + (t==='kat_gruppen'    ? ' active' : '') + '" onclick="navAdmin(\'kat_gruppen\')">🔗 Kat.-Gruppen</button>' +
     '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb</button>' +
   '</div>';
 }
@@ -8233,6 +8261,7 @@ async function renderAdmin() {
   if (state.adminTab === 'disziplinen')    { await renderAdminDisziplinen(); return; }
   if (state.adminTab === 'altersklassen')  { await renderAdminAltersklassen(); return; }
   if (state.adminTab === 'meisterschaften'){ await renderAdminMeisterschaften(); return; }
+  if (state.adminTab === 'kat_gruppen')    { await renderAdminKategorieGruppen(); return; }
   if (state.adminTab === 'papierkorb')     { await renderPapierkorb(); return; }
   if (state.adminTab === 'darstellung')    { renderAdminDarstellung(); return; }
   if (state.adminTab === 'dashboard_cfg')  { await renderAdminDashboard(); return; }
@@ -9984,6 +10013,133 @@ async function saveNeueDisziplin() {
     notify((r && r.fehler) || 'Fehler beim Anlegen.', 'err');
   }
 }
+
+// ── Kategorie-Gruppen ────────────────────────────────────────────────────────
+
+async function renderAdminKategorieGruppen() {
+  var el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
+
+  var r = await apiGet('einstellungen');
+  if (!r || !r.ok) { el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)">Fehler beim Laden.</div>'; return; }
+
+  // Verfügbare Kategorien aus state.disziplinen
+  var katMap = {};
+  (state.disziplinen || []).forEach(function(d) {
+    if (d.tbl_key && d.kategorie) katMap[d.tbl_key] = d.kategorie;
+  });
+  var allKats = Object.keys(katMap);
+
+  // Gruppen laden
+  var GRUPPEN = [];
+  try { GRUPPEN = JSON.parse(r.data.kategoriegruppen || '[]'); } catch(e) {}
+  window._katGruppen = GRUPPEN;
+
+  function _katLabel(key) { return katMap[key] ? katMap[key] + ' (' + key + ')' : key; }
+
+  function renderList() {
+    if (!GRUPPEN.length) return '<div style="color:var(--text2);padding:12px 0">Keine Gruppen definiert.</div>';
+    return GRUPPEN.map(function(g, i) {
+      var members = (g.mitglieder || []).map(_katLabel).join(' + ');
+      return '<div class="user-row" style="gap:8px">' +
+        '<div style="flex:1;font-size:13px">' +
+          '<span style="font-weight:600;color:var(--text)">' + members + '</span>' +
+        '</div>' +
+        '<button class="btn btn-ghost btn-sm" onclick="katGruppeEdit(' + i + ')">✏️</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="katGruppeDelete(' + i + ')">✕</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  function buildHtml() {
+    return adminSubtabs() +
+      '<div class="panel" style="max-width:600px">' +
+        '<div class="panel-header">' +
+          '<div class="panel-title">🔗 Kategorie-Gruppen</div>' +
+          '<button class="btn btn-primary btn-sm" onclick="katGruppeAdd()">+ Gruppe hinzufügen</button>' +
+        '</div>' +
+        '<div class="panel-body" id="kat-gruppe-list">' + renderList() + '</div>' +
+        '<div class="panel-body" style="border-top:1px solid var(--border);padding-top:12px;font-size:12px;color:var(--text2)">' +
+          'Wenn Kategorien in einer Gruppe sind, werden beim Eintragen die Disziplinen aller Gruppenmitglieder gemeinsam angezeigt. ' +
+          'Der gespeicherte <code>tbl_key</code> der Disziplin bleibt unverändert — Bestenlisten sind nicht betroffen.' +
+        '</div>' +
+      '</div>';
+  }
+
+  el.innerHTML = buildHtml();
+
+  window._katGruppenRefresh = function() {
+    var listEl = document.getElementById('kat-gruppe-list');
+    if (listEl) listEl.innerHTML = renderList();
+  };
+}
+
+function _katGruppenSave(cb) {
+  apiPost('einstellungen', { kategoriegruppen: JSON.stringify(window._katGruppen || []) }).then(function(r) {
+    if (r && r.ok) {
+      appConfig.kategoriegruppen = JSON.stringify(window._katGruppen || []);
+      if (window._katGruppenRefresh) window._katGruppenRefresh();
+      if (cb) cb();
+    } else {
+      notify('Fehler beim Speichern.', 'err');
+    }
+  });
+}
+
+function _katGruppeModal(title, existing, onSave) {
+  var katMap = {};
+  (state.disziplinen || []).forEach(function(d) {
+    if (d.tbl_key && d.kategorie) katMap[d.tbl_key] = d.kategorie;
+  });
+  var allKats = Object.keys(katMap);
+  var checkboxes = allKats.map(function(k) {
+    var checked = existing.indexOf(k) >= 0 ? ' checked' : '';
+    return '<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer">' +
+      '<input type="checkbox" value="' + k + '"' + checked + ' style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
+      '<span>' + (katMap[k] || k) + ' <code style="font-size:11px;color:var(--text2)">(' + k + ')</code></span>' +
+    '</label>';
+  }).join('');
+
+  showModal(
+    '<h3 style="margin:0 0 16px;font-family:\'Barlow Condensed\',sans-serif;font-size:20px">' + title + '</h3>' +
+    '<div style="margin-bottom:8px;font-size:13px;color:var(--text2)">Mindestens 2 Kategorien wählen:</div>' +
+    '<div id="kat-gruppe-checks" style="border:1px solid var(--border);border-radius:8px;padding:8px 14px;margin-bottom:16px">' + checkboxes + '</div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="katGruppeModalSave()">Speichern</button>' +
+    '</div>'
+  );
+  window._katGruppeModalCb = onSave;
+}
+
+function katGruppeModalSave() {
+  var checked = Array.from(document.querySelectorAll('#kat-gruppe-checks input:checked')).map(function(cb) { return cb.value; });
+  if (checked.length < 2) { notify('Bitte mindestens 2 Kategorien wählen.', 'err'); return; }
+  closeModal();
+  if (window._katGruppeModalCb) window._katGruppeModalCb(checked);
+}
+
+function katGruppeAdd() {
+  _katGruppeModal('Neue Kategorie-Gruppe', [], function(mitglieder) {
+    (window._katGruppen = window._katGruppen || []).push({ mitglieder: mitglieder });
+    _katGruppenSave();
+  });
+}
+
+function katGruppeEdit(idx) {
+  var g = window._katGruppen[idx] || {};
+  _katGruppeModal('Gruppe bearbeiten', g.mitglieder || [], function(mitglieder) {
+    window._katGruppen[idx] = { mitglieder: mitglieder };
+    _katGruppenSave();
+  });
+}
+
+function katGruppeDelete(idx) {
+  var g = window._katGruppen[idx] || {};
+  if (!confirm('Gruppe "' + (g.mitglieder||[]).join(' + ') + '" wirklich löschen?')) return;
+  window._katGruppen.splice(idx, 1);
+  _katGruppenSave();
+}
 /* ── 09d_admin_altersklassen.js ── */
 
 async function renderAdminAltersklassen() {
@@ -11166,194 +11322,157 @@ async function uitsImport() {
 // ── leichtathletik.de Import ────────────────────────────────────────────────
 
 async function bulkImportFromLA(url, kat, statusEl) {
-  // Event-ID aus verschiedenen URL-Varianten extrahieren
-  var _eidM = url.match(/\/Competitions\/(?:Resultoverview|Competitoroverview|Details|CurrentList\/\d+)\/(\d+)/i);
-  if (!_eidM) { if (statusEl) statusEl.textContent = '\u274c Keine Event-ID in URL'; return; }
-  var eid = _eidM[1];
-  if (statusEl) statusEl.textContent = '\u23f3 Lade leichtathletik.de Ergebnisübersicht\u2026';
+  // Event-ID aus URL extrahieren
+  var eidM = url.match(/leichtathletik\.de\/Competitions\/(?:Resultoverview|Competitoroverview|CurrentList\/\d+)\/(\d+)/i);
+  if (!eidM) { if (statusEl) statusEl.textContent = '\u274c Keine Event-ID in URL'; return; }
+  var eventId = eidM[1];
+  if (statusEl) statusEl.textContent = '\u23f3 Lade Ergebnis\u00fcbersicht\u2026';
 
-  var laBase = 'https://ergebnisse.leichtathletik.de/Competitions/';
-  var clubPhrase = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
-  var vereinParts = clubPhrase.split(/\s+/).filter(function(p) { return p.length > 1; });
+  var vereinParts = (appConfig.verein_kuerzel || appConfig.verein_name || '')
+    .toLowerCase().trim().split(/\s+/).filter(function(p) { return p.length > 1; });
 
-  _bkDbgHeader('leichtathletik.de');
-  _bkDbgLine('Event-ID', eid);
-
-  // Hilfsfunktion: HTML per PHP-Proxy laden
-  async function _laFetch(fetchUrl) {
-    var r = await apiGet('la-fetch?url=' + encodeURIComponent(fetchUrl));
-    if (!r || !r.ok) throw new Error('Proxy-Fehler: ' + (r && r.fehler || 'unbekannt'));
+  async function _laFetch(pageUrl) {
+    var r = await apiGet('la-fetch?url=' + encodeURIComponent(pageUrl));
+    if (!r || !r.ok) throw new Error('Fetch fehlgeschlagen: ' + pageUrl);
     return r.data.html;
   }
 
-  // Hilfsfunktion: HTML-String in DOM parsen
-  function _parseHTML(html) {
-    var dp = new DOMParser();
-    return dp.parseFromString(html, 'text/html');
+  function _parse(html) {
+    var doc = document.implementation.createHTMLDocument('');
+    doc.documentElement.innerHTML = html;
+    return doc;
   }
 
-  // 1. Resultoverview laden → Disziplin-Links + Eventname + Datum
-  var overviewHTML;
-  try {
-    overviewHTML = await _laFetch(laBase + 'Resultoverview/' + eid);
-  } catch(e) {
-    if (statusEl) statusEl.textContent = '\u274c ' + e.message;
-    _bkDbgLine('Fehler', String(e));
-    return;
+  // 1. Ergebnisübersicht laden
+  var overviewUrl = 'https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/' + eventId;
+  var overviewHtml;
+  try { overviewHtml = await _laFetch(overviewUrl); }
+  catch(e) { if (statusEl) statusEl.textContent = '\u274c ' + e.message; return; }
+
+  var ovDoc  = _parse(overviewHtml);
+  var ovText = ovDoc.body ? ovDoc.body.textContent : '';
+
+  // Eventname + Datum aus Text: "13. DEZ 2025 NAME - ORT"
+  var eventName = '', eventDate = '', eventOrt = '';
+  var metaM = ovText.match(/(\d{1,2}\.\s*(?:Jan|Feb|M\u00e4r|Apr|Mai|Jun|Jul|Aug|Sep|Okt|Nov|Dez)\w*\.?\s*\d{4})\s+(.+?)(?:\n|$)/i);
+  if (metaM) {
+    var datM = metaM[1].match(/(\d{1,2})\.\s*(\w+)\.?\s*(\d{4})/);
+    if (datM) {
+      var monMap = {jan:1,feb:2,'m\u00e4r':3,apr:4,mai:5,jun:6,jul:7,aug:8,sep:9,okt:10,nov:11,dez:12};
+      var mon = monMap[datM[2].toLowerCase().slice(0,3)] || 0;
+      if (mon) eventDate = datM[3] + '-' + String(mon).padStart(2,'0') + '-' + datM[1].padStart(2,'0');
+    }
+    var nameOrt = metaM[2].trim(), dashIdx = nameOrt.lastIndexOf(' - ');
+    if (dashIdx > 0) { eventName = nameOrt.slice(0, dashIdx).trim(); eventOrt = nameOrt.slice(dashIdx+3).trim(); }
+    else eventName = nameOrt;
   }
 
-  var overviewDoc = _parseHTML(overviewHTML);
-
-  // Eventname + Datum aus Seite extrahieren
-  var eventName = '';
-  var eventDate = '';
-  var bodyText = (overviewDoc.body || {}).textContent || '';
-  // Format: "13. DEZ 2025 15. DÜSSELDORFER ADVENT-INDOOR-MEETING - DÜSSELDORF"
-  var _dateM = bodyText.match(/(\d{1,2})\.\s*(JAN|FEB|MÄR|APR|MAI|JUN|JUL|AUG|SEP|OKT|NOV|DEZ)\s*(\d{4})\s+([^\n]+)/i);
-  if (_dateM) {
-    var _moMap = {JAN:'01',FEB:'02','MÄR':'03',APR:'04',MAI:'05',JUN:'06',
-                  JUL:'07',AUG:'08',SEP:'09',OKT:'10',NOV:'11',DEZ:'12'};
-    var _mo = _moMap[_dateM[2].toUpperCase()] || '01';
-    eventDate = _dateM[3] + '-' + _mo + '-' + _dateM[1].padStart(2,'0');
-    eventName = _dateM[4].trim().replace(/\s*-\s*[A-ZÄÖÜ]+\s*$/, '').trim();
-  }
-
+  _bkDbgHeader('leichtathletik.de');
+  _bkDbgLine('Event-ID',  eventId);
   _bkDbgLine('Eventname', eventName || '\u2013');
   _bkDbgLine('Datum',     eventDate || '\u2013');
+  _bkDbgLine('Ort',       eventOrt  || '\u2013');
 
-  // Formularfelder befüllen
   var datEl = document.getElementById('bk-datum');
   var ortEl = document.getElementById('bk-ort');
   var evEl  = document.getElementById('bk-evname');
   if (eventDate && datEl) { datEl.value = eventDate; bkSyncDatum(eventDate); }
-  if (eventName && evEl  && !evEl.value) evEl.value = eventName;
-  // Ort aus Event-Name extrahieren (letztes Wort nach " - ")
-  if (!ortEl || !ortEl.value) {
-    var _ortM = bodyText.match(/\d{4}\s+[^\n]+-\s*([A-ZÄÖÜ][A-ZÄÖÜ\s]+?)(?:\n|Zeitplan)/);
-    if (_ortM && ortEl) ortEl.value = _ortM[1].trim();
-  }
+  if (eventOrt  && ortEl && !ortEl.value) ortEl.value = eventOrt;
+  if (eventName && evEl  && !evEl.value)  evEl.value  = eventName;
 
-  // Alle CurrentList-Links mit Disziplinname sammeln
-  var listLinks = [];
-  overviewDoc.querySelectorAll('a[href*="CurrentList"]').forEach(function(a) {
-    var href = a.getAttribute('href') || '';
-    var fullUrl = href.startsWith('http') ? href : 'https://ergebnisse.leichtathletik.de' + href;
-    var text = a.textContent.trim();
-    if (text && fullUrl) listLinks.push({ url: fullUrl, diszName: text });
-  });
+  // Alle CurrentList-Links
+  var _seenHref = {};
+  var listLinks = Array.from(ovDoc.querySelectorAll('a[href*="/CurrentList/"]'))
+    .map(function(a) { return { href: a.getAttribute('href') || a.href, text: (a.textContent||'').trim() }; })
+    .filter(function(l) {
+      if (!l.href || !l.text) return false;
+      // Relative URLs zu absoluten machen
+      if (l.href.startsWith('/')) l.href = 'https://ergebnisse.leichtathletik.de' + l.href;
+      if (_seenHref[l.href]) return false;
+      _seenHref[l.href] = true;
+      return true;
+    });
 
-  // Duplikate entfernen (gleiche URL)
-  var _seenUrls = {};
-  listLinks = listLinks.filter(function(l) {
-    if (_seenUrls[l.url]) return false;
-    _seenUrls[l.url] = true;
-    return true;
-  });
-
-  _bkDbgLine('Disziplinen gefunden', listLinks.length);
+  _bkDbgLine('Disziplinen', listLinks.length);
   _bkDbgSep();
 
+  if (!listLinks.length) { if (statusEl) statusEl.textContent = '\u26a0 Keine Ergebnislisten'; return; }
+
   var disziplinen = state.disziplinen || [];
-  var diszList    = disziplinen.map(function(d) { return d.disziplin; })
-                               .filter(function(v, i, a) { return a.indexOf(v) === i; });
-  var allResults  = [];
-  var listsChecked = 0;
+  var diszList    = disziplinen.map(function(d){return d.disziplin;}).filter(function(v,i,a){return a.indexOf(v)===i;});
+  var allResults  = [], listsChecked = 0;
 
-  // 2. Jede Disziplin-Liste laden und TuS-Einträge extrahieren
   for (var li = 0; li < listLinks.length; li++) {
-    var le = listLinks[li];
-    if (statusEl) statusEl.textContent = '\u23f3 ' + (li+1) + '/' + listLinks.length + ': ' + le.diszName + '\u2026';
+    var ll = listLinks[li];
+    if (statusEl) statusEl.textContent = '\u23f3 ' + (li+1) + '/' + listLinks.length + ': ' + ll.text + '\u2026';
 
-    var listHTML;
-    try { listHTML = await _laFetch(le.url); }
-    catch(e) { continue; }
-
+    var listHtml;
+    try { listHtml = await _laFetch(ll.href); } catch(e) { continue; }
     listsChecked++;
-    var listDoc = _parseHTML(listHTML);
 
-    // Alle .entryline-Zeilen verarbeiten
-    listDoc.querySelectorAll('.entryline').forEach(function(row) {
+    var listDoc = _parse(listHtml);
+    var entries = listDoc.querySelectorAll('.entryline');
+    if (!entries.length) continue;
+
+    entries.forEach(function(line) {
       // Verein aus col-2 › secondline
-      var col2 = row.querySelector('.col-2');
-      if (!col2) return;
-      var verein = (col2.querySelector('.secondline') || {}).textContent || '';
-      verein = verein.trim().toLowerCase();
-      var isOwn = vereinParts.every(function(p) { return verein.indexOf(p) >= 0; });
-      if (!isOwn) return;
+      var col2 = line.querySelector('.col-2');
+      var verein = col2 ? ((col2.querySelector('.secondline')||{}).textContent||'').trim() : '';
+      var vereinLow = verein.toLowerCase();
+      if (!vereinParts.every(function(p){return vereinLow.indexOf(p)>=0;})) return;
 
-      // Name aus col-2 › firstline (Format: "Nachname Vorname")
-      var rName = ((col2.querySelector('.firstline') || {}).textContent || '').trim();
+      // Name aus col-2 › firstline
+      var rName = col2 ? ((col2.querySelector('.firstline')||{}).textContent||'').trim() : '';
 
-      // Ergebnis: erste col-4 › firstline
-      var col4s = row.querySelectorAll('.col-4');
-      var rErgebnis = col4s.length > 0
-        ? ((col4s[0].querySelector('.firstline') || {}).textContent || '').trim()
-        : '';
-      // Komma → Punkt (6,93 → 6.93), aber Zeitformat behalten (1:23,45 → 1:23.45)
-      rErgebnis = rErgebnis.replace(',', '.');
+      // Ergebnis aus erstem col-4
+      var col4s = line.querySelectorAll('.col-4');
+      var rZeit = col4s.length > 0 ? ((col4s[0].querySelector('.firstline')||{}).textContent||'').trim().replace(',','.') : '';
 
-      // AK: letzte col-4 › firstline (wenn >1 col-4 vorhanden)
+      // AK aus letztem col-4
       var rAK = '';
       if (col4s.length > 1) {
-        rAK = ((col4s[col4s.length-1].querySelector('.firstline') || {}).textContent || '').trim();
+        var lastFL = (col4s[col4s.length-1].querySelector('.firstline')||{}).textContent||'';
+        rAK = normalizeAK(lastFL.trim());
       }
-      // AK aus Jahrgang ableiten wenn leer oder nur M/W ohne Stufe
-      if (!rAK || rAK === 'M' || rAK === 'W') {
-        var rawAK = rAK;
-        var col3  = row.querySelector('.col-3');
-        var jg    = parseInt(((col3 && col3.querySelector('.secondline')) || {}).textContent || '0');
-        if (jg > 1900 && eventDate) {
-          var evYr = parseInt(eventDate.slice(0,4)) || new Date().getFullYear();
-          // Geschlecht aus AK-Feld oder Name-Heuristik
-          var gescl = /^W/i.test(rawAK) ? 'W' : 'M';
-          var calcAK = calcDlvAK(jg, gescl, evYr);
-          if (calcAK) rAK = calcAK;
+      // Fallback: Jahrgang → AK berechnen
+      if (!rAK) {
+        var col3 = line.querySelector('.col-3');
+        var slJG = col3 ? col3.querySelector('.secondline') : null;
+        var yr   = slJG ? parseInt(slJG.textContent.trim()) : 0;
+        if (yr > 1900) {
+          var g    = /frauen|weiblich|WJU|weibl/i.test(ll.text) ? 'W' : 'M';
+          var evYr = parseInt((eventDate||'').slice(0,4)) || new Date().getFullYear();
+          rAK = calcDlvAK(yr, g, evYr) || '';
         }
       }
-      rAK = normalizeAK(rAK);
 
-      // Rang (AK-Platz) aus col-1 › firstline
-      var col1   = row.querySelector('.col-1');
-      var rangTxt = ((col1 && col1.querySelector('.firstline')) || {}).textContent || '';
-      var rPlatz  = parseInt(rangTxt.replace(/[^0-9]/g,'')) || 0;
+      // AK-Platz aus col-1 › firstline
+      var col1 = line.querySelector('.col-1');
+      var flP  = col1 ? col1.querySelector('.firstline') : null;
+      var rPlatz = flP ? (parseInt(flP.textContent.trim()) || 0) : 0;
 
-      if (!rName || !rErgebnis) return;
+      if (!rName || !rZeit || !/\d/.test(rZeit)) return;
 
-      // Disziplin via rrBestDisz mit Disziplin-Namen aus Link-Text
-      var disz    = rrBestDisz(le.diszName, diszList);
-      var diszObj = disziplinen.find(function(d) {
-        return d.disziplin === disz && (!kat || d.tbl_key === kat);
-      });
+      var disz    = rrBestDisz(ll.text, diszList);
+      var diszObj = disziplinen.find(function(d){return d.disziplin===disz&&(!kat||(bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key)>=0);});
 
-      if (!allResults.some(function(r) { return r.name === rName && r.resultat === rErgebnis; })) {
-        allResults.push({
-          name:      rName,
-          resultat:  rErgebnis,
-          ak:        rAK,
-          platz:     rPlatz,
-          disziplin: diszObj ? diszObj.disziplin : disz,
-          diszMid:   diszObj ? (diszObj.id || diszObj.mapping_id) : null
-        });
+      if (!allResults.some(function(r){return r.name===rName&&r.resultat===rZeit;})) {
+        allResults.push({name:rName, resultat:rZeit, ak:rAK, platz:rPlatz,
+          disziplin:diszObj?diszObj.disziplin:disz,
+          diszMid:diszObj?(diszObj.id||diszObj.mapping_id):null});
       }
     });
   }
 
-  _bkDbgLine('Listen durchsucht', listsChecked);
-  _bkDbgLine('Gefunden',          allResults.length + ' TuS-Eintr\u00e4ge');
+  _bkDbgLine('Listen geladen', listsChecked);
+  _bkDbgLine('Gefunden', allResults.length + ' TuS-Eintr\u00e4ge');
 
   if (allResults.length) {
     _bkDbgSep();
     _bkDbgHeader('Ergebnisse');
     for (var _di = 0; _di < allResults.length; _di++) {
       var _dr = allResults[_di];
-      _bkDbgLines.push(
-        String(_di+1).padStart(2,' ') + '.  ' +
-        (_dr.name||'?').padEnd(22,' ') +
-        (_dr.ak||'  ').padEnd(6,' ') +
-        (_dr.resultat||'').padEnd(10,' ') +
-        (_dr.platz ? 'Platz\u00a0'+_dr.platz : '').padEnd(9,' ') +
-        '\u2192 ' + (_dr.disziplin||'(keine)')
-      );
+      _bkDbgLines.push(String(_di+1).padStart(2,' ')+'.  '+(_dr.name||'?').padEnd(22,' ')+(_dr.ak||'  ').padEnd(6,' ')+(_dr.resultat||'').padEnd(10,' ')+(_dr.platz?'Platz\u00a0'+_dr.platz:'').padEnd(9,' ')+'\u2192 '+(_dr.disziplin||'(keine)'));
     }
     _bkDbgFlush();
   }
