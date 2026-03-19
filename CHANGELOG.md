@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v603 – Fix uitslagen.nl Import: Fallback bei fehlendem Vereinsnamen
+
+- Bei manchen Events trägt der Veranstalter nur Ort/Kürzel statt Vereinsname ein
+  (z.B. Swift Cross: "Willich" statt "TuS Oedt") → 0 Treffer
+- Fallback: wenn 0 Vereinstreffer, alle Einträge übergeben
+  bulkFillFromImport matcht dann per Athleten-Name gegen die DB
+  → nur echte TuS-Athleten bekommen einen Treffer im Dropdown
+
+---
+
+
 ## v602 – Ergebnis-Format: Komma in UI, Punkt für DB
 
 - `fmtRes(v)`: Punkt→Komma für Input-Felder (Anzeige)
