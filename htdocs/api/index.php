@@ -950,6 +950,11 @@ if ($res === 'dashboard' && $method === 'GET') {
         $prevByG      = [];
         $prevByAK     = [];
         $prevByAthlet = [];
+        // Datum wann der jeweilige Bestwert zuletzt gesetzt wurde
+        // → für Co-Debüt-Erkennung (gleiches Datum = kein echter Vorgänger)
+        $bestGesamtDatum = null;
+        $bestByGDatum    = [];
+        $bestByAKDatum   = [];
 
         // fmt auto-korrigieren: wenn Resultate HH:MM:SS-Format haben, ist es 'min' nicht 's'
         if ($fmt === 's' && !empty($ergs)) {
@@ -978,14 +983,18 @@ if ($res === 'dashboard' && $method === 'GET') {
             if ($bestGesamt === null ||
                 ($dir === 'ASC'  && $val < $bestGesamt) ||
                 ($dir === 'DESC' && $val > $bestGesamt)) {
-                $prevGesamt = $bestGesamt;
-                $bestGesamt = $val;
-                $labelClub = $prevGesamt === null ? 'Erste Gesamtleistung' : 'Gesamtbestleistung';
-                if ($vorher === null) $vorher = $prevGesamt;
-                // Geschlechts-Bestleistung mitaktualisieren — verhindert dass der nächste
-                // Athlet desselben Geschlechts fälschlicherweise "Bestleistung Frauen/Männer" bekommt
+                $prevGesamt      = $bestGesamt;
+                $prevGesamtDatum = $bestGesamtDatum;
+                $bestGesamt      = $val;
+                $bestGesamtDatum = $datum;
+                // Co-Debüt: vorheriger Bestwert am selben Tag → kein echter Vorgänger
+                $sameDayGesamt = ($prevGesamt !== null && $prevGesamtDatum === $datum);
+                $labelClub = ($prevGesamt === null || $sameDayGesamt) ? 'Erste Gesamtleistung' : 'Gesamtbestleistung';
+                if ($vorher === null && !$sameDayGesamt) $vorher = $prevGesamt;
+                // Geschlechts-Bestleistung mitaktualisieren
                 if ($g === 'M' || $g === 'W') {
-                    $bestByG[$g] = $val;
+                    $bestByG[$g]      = $val;
+                    $bestByGDatum[$g] = $datum;
                 }
             }
             // 2. Geschlechts-/Hauptklassen-Bestleistung (Gold wenn kein Gesamt-Label)
@@ -993,16 +1002,20 @@ if ($res === 'dashboard' && $method === 'GET') {
                 if (!isset($bestByG[$g]) ||
                     ($dir === 'ASC'  && $val < $bestByG[$g]) ||
                     ($dir === 'DESC' && $val > $bestByG[$g])) {
-                    $prevByG[$g] = $bestByG[$g] ?? null;
-                    $bestByG[$g] = $val;
-                    $isFirst = $prevByG[$g] === null;
+                    $prevByG[$g]      = $bestByG[$g] ?? null;
+                    $prevByGDatum     = $bestByGDatum[$g] ?? null;
+                    $bestByG[$g]      = $val;
+                    $bestByGDatum[$g] = $datum;
+                    // Co-Debüt: vorheriger Bestwert am selben Tag → kein echter Vorgänger
+                    $sameDayG = ($prevByG[$g] !== null && $prevByGDatum === $datum);
+                    $isFirst  = ($prevByG[$g] === null || $sameDayG);
                     // Bei merge_ak: WHK/MHK statt "Frauen"/"Männer" wenn AK eine Hauptklasse ist
                     $gLabel = ($ak === 'WHK') ? 'WHK' : (($ak === 'MHK') ? 'MHK'
                             : (($g === 'M') ? 'Männer' : 'Frauen'));
                     $labelClub = $isFirst
                         ? "Erstes Ergebnis $gLabel"
                         : "Bestleistung $gLabel";
-                    if ($vorher === null) $vorher = $prevByG[$g];
+                    if ($vorher === null && !$sameDayG) $vorher = $prevByG[$g];
                 }
             }
             // 3. AK-Bestleistung (Silber) — immer prüfen, unabhängig von Gesamt/Geschlecht
@@ -1010,13 +1023,17 @@ if ($res === 'dashboard' && $method === 'GET') {
                 if (!isset($bestByAK[$ak]) ||
                     ($dir === 'ASC'  && $val < $bestByAK[$ak]) ||
                     ($dir === 'DESC' && $val > $bestByAK[$ak])) {
-                    $prevByAK[$ak] = $bestByAK[$ak] ?? null;
-                    $bestByAK[$ak] = $val;
+                    $prevByAK[$ak]      = $bestByAK[$ak] ?? null;
+                    $prevByAKDatum      = $bestByAKDatum[$ak] ?? null;
+                    $bestByAK[$ak]      = $val;
+                    $bestByAKDatum[$ak] = $datum;
                     // Nur als AK-Label setzen wenn kein höherwertiges Gesamt/Geschlecht-Label
                     if (!$labelClub) {
-                        $isFirst = $prevByAK[$ak] === null;
+                        // Co-Debüt: vorheriger AK-Bestwert am selben Tag → kein echter Vorgänger
+                        $sameDayAK = ($prevByAK[$ak] !== null && $prevByAKDatum === $datum);
+                        $isFirst   = ($prevByAK[$ak] === null || $sameDayAK);
                         $labelClub = $isFirst ? 'Erste Leistung ' . $ak : 'Bestleistung ' . $ak;
-                        if ($vorher === null) $vorher = $prevByAK[$ak];
+                        if ($vorher === null && !$sameDayAK) $vorher = $prevByAK[$ak];
                     }
                 }
             }
