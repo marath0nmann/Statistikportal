@@ -5,6 +5,19 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v605 – Fix Timeline/PB: Co-Debüt am gleichen Tag
+
+- Problem: Julia und Maren debütieren am selben Tag; Maren bekam "Bestleistung WHK"
+  statt "Erstes Ergebnis Frauen", weil Julias Ergebnis als Vorgänger galt
+- Fix: Datum des bisherigen Bestwerts wird mitgetrackt
+  ($bestGesamtDatum, $bestByGDatum, $bestByAKDatum)
+- Wenn vorheriger Bestwert am gleichen Datum: Co-Debüt → $isFirst = true,
+  $vorher = null → kein "verbessert von X auf Y" wird angezeigt
+- Gilt für alle drei Ebenen: Gesamt, Geschlecht/HK, AK
+
+---
+
+
 ## v604 – Fix uitslagen.nl: Fallback filtert per Athleten-Name
 
 - Statt alle 420 Einträge: `uitsAutoMatch()` gegen Athleten-DB vorab filtern
