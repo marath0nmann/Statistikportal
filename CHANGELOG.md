@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v597 – Fix RaceResult-Import: Key-Rotation + Contest-IDs aus Listen
+
+- RaceResult rotiert `cfg.key` alle ~30s → "key invalid" bei Listen-Requests
+  Fix: Key bei "key invalid" sofort erneuern + Retry; alle 30s proaktiv erneuern
+- Neusser Erftlauf hatte keinen Contest 0 → alle Requests schlugen fehl
+  Fix: Contest-ID direkt aus `cfg.lists[].Contest` nehmen (nicht cfg.contests)
+- Gleiche Liste+Contest-Kombination wird nur einmal abgefragt (Deduplication)
+- `_freshCfg()` Hilfsfunktion für wiederholte Config-Requests
+
+---
+
+
 ## v596 – RaceResult-Import: vollständige rrFetch-Logik
 
 - `bulkImportFromRR` nutzt jetzt denselben erprobten Parsing-Ansatz wie `rrFetch()`
