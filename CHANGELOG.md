@@ -5,6 +5,16 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v610 – Fix RaceResult-Import: Disziplin-Quellenauswahl
+
+- v609-Fix griff nicht: contestName="Ergebnislisten|Zieleinlaufliste" war truthy
+  → kClean mit Distanz wurde nie als Fallback genutzt
+- Fix: alle Kandidaten (contestName, kClean, gk) in Reihenfolge prüfen,
+  erste Quelle die rrBestDisz-Treffer liefert gewinnt
+
+---
+
+
 ## v609 – Fix RaceResult-Import: Disziplin bei Contest=0
 
 - Forstwalder Silvesterlauf: alle Listen haben Contest="0" (alle zusammen)
