@@ -4289,36 +4289,34 @@ async function bulkImportUrl() {
 // ── RR → Bulk ────────────────────────────────────────────────────────────────────────────
 async function bulkImportFromRR(url, kat, statusEl) {
   var _eidM = url.match(/raceresult\.com\/(\d+)/i);
-  if (!_eidM) { if (statusEl) statusEl.textContent = '❌ Keine Event-ID in URL'; return; }
+  if (!_eidM) { if (statusEl) statusEl.textContent = '\u274c Keine Event-ID in URL'; return; }
   var eid = _eidM[1];
-  if (statusEl) statusEl.textContent = '⏳ Lade RaceResult-Konfiguration…';
+  if (statusEl) statusEl.textContent = '\u23f3 Lade RaceResult-Konfiguration\u2026';
 
-  // 1. Config direkt im Browser holen (wie rrFetch)
-  var cfg;
-  try {
-    var cfgResp = await fetch(
+  async function _freshCfg() {
+    var r = await fetch(
       'https://my.raceresult.com/' + eid + '/RRPublish/data/config?lang=de&page=results&noVisitor=1'
     );
-    if (!cfgResp.ok) throw new Error('HTTP ' + cfgResp.status);
-    cfg = await cfgResp.json();
-  } catch(e) {
-    if (statusEl) statusEl.textContent = '❌ Config-Fehler: ' + e.message;
-    _bkDbgLine('Fehler', String(e));
-    return;
+    if (!r.ok) throw new Error('Config HTTP ' + r.status);
+    return await r.json();
   }
 
-  var apiKey    = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
-  var eventName = cfg.EventName || cfg.Name || cfg.eventname || '';
-  var contestObj = cfg.contests || cfg.Contests || {};
-  var vereinCfg  = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
-  var clubPhrase  = vereinCfg;
+  var cfg;
+  try { cfg = await _freshCfg(); }
+  catch(e) {
+    if (statusEl) statusEl.textContent = '\u274c Config-Fehler: ' + e.message;
+    _bkDbgLine('Fehler', String(e)); return;
+  }
+
+  var eventName  = cfg.EventName || cfg.Name || cfg.eventname || '';
+  var contestObj = cfg.contests  || cfg.Contests || {};
+  var clubPhrase  = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
 
   _bkDbgHeader('RaceResult');
   _bkDbgLine('Event-ID',  eid);
-  _bkDbgLine('Eventname', eventName || '–');
-  _bkDbgLine('API-Key',   apiKey ? apiKey.slice(0, 8) + '…' : '(leer)');
+  _bkDbgLine('Eventname', eventName || '\u2013');
+  _bkDbgLine('API-Key',   (cfg.key || '').slice(0, 8) + '\u2026');
 
-  // 2. Datum + Ort via PHP-Proxy
   var prxResp = await apiGet('rr-fetch?event_id=' + encodeURIComponent(eid));
   if (prxResp && prxResp.ok && prxResp.data) {
     var pd = prxResp.data;
@@ -4328,284 +4326,156 @@ async function bulkImportFromRR(url, kat, statusEl) {
     if (pd.date     && datEl) { datEl.value = pd.date; bkSyncDatum(pd.date); }
     if (pd.location && ortEl && !ortEl.value) ortEl.value = pd.location;
     if (eventName   && evEl  && !evEl.value)  evEl.value  = eventName;
-    _bkDbgLine('Datum', pd.date     || '–');
-    _bkDbgLine('Ort',   pd.location || '–');
+    _bkDbgLine('Datum', pd.date     || '\u2013');
+    _bkDbgLine('Ort',   pd.location || '\u2013');
   }
 
-  // 3. Listen + Contests aus Config (exakt wie rrFetch)
   var listSource = cfg.list || cfg.lists || {};
-  var _listCandidates = [];
-  var _contestListMap = {};
-  var listName = '';
-  var listPrio = ['ERGEBNIS','RESULT','GESAMT','FINISH','ZIEL','EINZEL','FINAL','WERTUNG','RANKING','OVERALL'];
-  var _listBlacklist = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','OVERALL RANKING',
+  var listArr    = Array.isArray(listSource) ? listSource
+    : Object.keys(listSource).map(function(k) { return { Name: k, Contest: '0' }; });
+
+  var _bl = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','OVERALL RANKING',
     'MANNSCHAFT','TEAM RANKING','LIVE','TOP10','TOP 10','LEADERBOARD',
     'SIEGER','WINNER','PARTICIPANTS','STATISTIC','TEILNEHMER','ALPHABET','STADTMEISTER'];
-  function _listIsBlacklisted(entry) {
-    var ename = (entry.Name || entry.name || '').toUpperCase();
-    if (ename.startsWith('Z_') || ename.startsWith('__')) return true;
-    for (var bi = 0; bi < _listBlacklist.length; bi++) {
-      if (ename.indexOf(_listBlacklist[bi]) >= 0) return true;
-    }
+  function _blocked(name) {
+    var n = (name||'').toUpperCase();
+    if (n.startsWith('Z_')||n.startsWith('__')) return true;
+    for (var i=0;i<_bl.length;i++){if(n.indexOf(_bl[i])>=0)return true;}
     return false;
   }
 
-  if (Array.isArray(listSource)) {
-    for (var lk = 0; lk < listSource.length; lk++) {
-      var e = listSource[lk];
-      var ename = e.Name || e.name || e.listname || '';
-      if (!ename || _listIsBlacklisted(e)) continue;
-      _listCandidates.push(ename);
-      var cid = String(e.Contest || e.contest || '0');
-      if (cid !== '0') _contestListMap[cid] = ename;
-      for (var lp = 0; lp < listPrio.length && !listName; lp++) {
-        if (ename.toUpperCase().indexOf(listPrio[lp]) >= 0) listName = ename;
-      }
-    }
-  } else {
-    var listKeys = Object.keys(listSource);
-    for (var lp2 = 0; lp2 < listPrio.length && !listName; lp2++) {
-      for (var lk2 = 0; lk2 < listKeys.length && !listName; lk2++) {
-        if (listKeys[lk2].toUpperCase().indexOf(listPrio[lp2]) >= 0) listName = listKeys[lk2];
-      }
-    }
-    if (!listName && listKeys.length) listName = listKeys[0];
-    _listCandidates = listKeys.filter(function(k) { return !_listIsBlacklisted({Name: k}); });
-  }
-  if (!listName && _listCandidates.length) listName = _listCandidates[0];
-  if (!listName) listName = '02-ERGEBNISSE|Ergebnisse_Ges';
-
-  // Contest-IDs (alle, Contest 0 = alle zusammen)
-  var contestIds = ['0'];
-  var contestKeys = Object.keys(contestObj);
-  if (contestKeys.length) {
-    contestIds = contestKeys;
-    // Fallback-IDs für einzelne Contests
-    window._rrFallbackIds = contestKeys;
+  var _seen={}, validLists=[];
+  for (var li=0;li<listArr.length;li++){
+    var le=listArr[li], ln=le.Name||le.name||'', lc=String(le.Contest||le.contest||'0');
+    if(!ln||_blocked(ln))continue;
+    var lkey=ln+'|'+lc;
+    if(_seen[lkey])continue;
+    _seen[lkey]=true;
+    validLists.push({name:ln,contest:lc});
   }
 
-  _bkDbgLine('Listen gesamt', _listCandidates.length);
-  _bkDbgLine('Listname',      listName);
+  _bkDbgLine('Listen gesamt', listArr.length);
+  _bkDbgLine('Davon gepr\u00fcft', validLists.length);
   _bkDbgSep();
 
-  var disziplinen = state.disziplinen || [];
-  var diszList    = disziplinen.map(function(d) { return d.disziplin; })
-                               .filter(function(v, i, a) { return a.indexOf(v) === i; });
-  var allResults  = [];
+  var disziplinen = state.disziplinen||[];
+  var diszList    = disziplinen.map(function(d){return d.disziplin;}).filter(function(v,i,a){return a.indexOf(v)===i;});
+  var allResults  = [], listsChecked = 0;
   var base        = 'https://my.raceresult.com/' + eid + '/RRPublish/data/list';
-  var hdrs        = { 'Origin': 'https://my.raceresult.com', 'Referer': 'https://my.raceresult.com/' };
+  var hdrs        = {'Origin':'https://my.raceresult.com','Referer':'https://my.raceresult.com/'};
+  var iName=3,iClub=6,iAK=-1,iZeit=8,iNetto=7,iPlatz=2,iYear=-1,iGeschlecht=-1,iAKPlatz=-1;
 
-  // Spaltenindizes (Defaults wie in rrFetch, werden per DataFields überschrieben)
-  var iName = 3, iClub = 6, iAK = -1, iZeit = 8, iNetto = 7, iPlatz = 2;
-  var iYear = -1, iGeschlecht = -1, iAKPlatz = -1;
-
-  function _calibrateDF(df) {
-    iAK = -1; iYear = -1; iGeschlecht = -1; iAKPlatz = -1;
-    iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
-    for (var fi = 0; fi < df.length; fi++) {
-      var f = df[fi].toLowerCase();
-      if (f.indexOf('anzeigename') >= 0 || f.indexOf('lfname') >= 0) iName = fi;
-      else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
-      else if (f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]' ||
-               f.indexOf('akabk') >= 0 || f.indexOf('ak_abk') >= 0 ||
-               f === 'es_akabkürzung') iAK = fi;
-      else if (f === 'year' || f === 'yob' || f === 'birthyear' || f === 'es_jahrgang') iYear = fi;
-      else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht') iGeschlecht = fi;
-      else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
-      else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0 ||
-               f === 'ziel' || f.indexOf('ziel') >= 0 || f.indexOf('finish') >= 0) iZeit = fi;
-      else if (f.indexOf('akpl') >= 0) iAKPlatz = fi;
-      else if (f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0 ||
-               f.indexOf('statusplatz') >= 0) {
-        if (f.indexOf('akpl') >= 0) iAKPlatz = fi;
-        else iPlatz = fi;
-      }
+  function _cal(df) {
+    iAK=-1;iYear=-1;iGeschlecht=-1;iAKPlatz=-1;iName=3;iClub=6;iNetto=-1;iZeit=-1;iPlatz=2;
+    for(var fi=0;fi<df.length;fi++){
+      var f=df[fi].toLowerCase();
+      if(f.indexOf('anzeigename')>=0||f.indexOf('lfname')>=0)iName=fi;
+      else if(f.indexOf('club')>=0||f.indexOf('verein')>=0)iClub=fi;
+      else if(f.indexOf('agegroup')>=0||f==='[agegroup1.nameshort]'||f.indexOf('akabk')>=0||f.indexOf('ak_abk')>=0||f==='es_akabk\u00fcrzung')iAK=fi;
+      else if(f==='year'||f==='yob'||f==='birthyear'||f==='es_jahrgang')iYear=fi;
+      else if(f.indexOf('geschlechtmw')>=0||f==='es_geschlecht')iGeschlecht=fi;
+      else if(f.indexOf('chip')>=0||f.indexOf('netto')>=0)iNetto=fi;
+      else if(f.indexOf('gun')>=0||f.indexOf('brutto')>=0||f==='ziel'||f.indexOf('ziel')>=0||f.indexOf('finish')>=0)iZeit=fi;
+      else if(f.indexOf('akpl')>=0)iAKPlatz=fi;
+      else if(f.indexOf('autorankp')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0){if(f.indexOf('akpl')>=0)iAKPlatz=fi;else iPlatz=fi;}
     }
-    if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
-    if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
-    if (iNetto >= 0 && iNetto === iClub) iNetto = (iZeit >= 0 && iZeit !== iClub) ? iZeit : -1;
+    if(iNetto>=0&&iZeit<0)iZeit=iNetto;
+    if(iNetto<0&&iZeit>=0)iNetto=iZeit;
+    if(iNetto>=0&&iNetto===iClub)iNetto=(iZeit>=0&&iZeit!==iClub)?iZeit:-1;
   }
 
-  function _processPayload(payload, cname) {
-    var df = payload.DataFields || [];
-    if (Array.isArray(df) && df.length > 0) _calibrateDF(df);
-
-    var dRaw = payload.data || {};
-    Object.keys(dRaw).forEach(function(k) {
-      var v = dRaw[k];
-      var groups;
-      if (Array.isArray(v)) {
-        groups = (v.length > 0 && Array.isArray(v[0])) ? {'': v} : {'': [v]};
-      } else if (v && typeof v === 'object') {
-        groups = v;
-      } else { return; }
-
-      Object.keys(groups).forEach(function(k2) {
-        var rows = groups[k2];
-        if (!Array.isArray(rows)) return;
-        var gkey = k2 ? (k + '/' + k2) : k;
-        var gkClean = gkey.replace(/^#\d+_/, '');
-
-        // AK aus Gruppen-Key wenn kein iAK
-        var akFromGroup = '';
-        if (iAK < 0) {
-          var _m = gkClean.match(/\b([MW](?:U\d{1,2}|\d{2})|[MW])\b/);
-          if (_m) akFromGroup = normalizeAK(_m[1]);
-        }
-
-        // Disziplin aus Contest-Name oder Gruppen-Key
-        var cnForDisz = cname || gkClean;
-
-        rows.forEach(function(row) {
-          if (!Array.isArray(row) || row.length < 3) return;
-          var clubVal = iClub >= 0 ? String(row[iClub] || '').trim() : '';
-          if (clubPhrase && clubVal.toLowerCase().indexOf(clubPhrase) < 0) return;
-
-          // Name
-          var rName = String(row[iName] || '').trim();
-
-          // Zeit (Netto bevorzugt)
-          var rZeit = String(row[iNetto >= 0 ? iNetto : iZeit] || '').trim();
-          rZeit = rZeit.replace(',', '.');
-          if (!rZeit || !/\d{1,2}:\d{2}/.test(rZeit)) return;
-
-          // AK
-          var rAK = '';
-          if (iAK >= 0) {
-            var akRaw = String(row[iAK] || '').trim();
-            // "74. M35" → AK extrahieren
-            var akSplit = akRaw.match(/^(\d+)\.?\s*(.+)$/);
-            if (akSplit) akRaw = akSplit[2].trim();
-            rAK = normalizeAK(akRaw);
-          }
-          if (!rAK) rAK = akFromGroup;
-          // Fallback: Jahrgang + Geschlecht
-          if (!rAK && iYear >= 0) {
-            var yr = parseInt(String(row[iYear] || '').trim()) || 0;
-            var sx = iGeschlecht >= 0 ? String(row[iGeschlecht] || '').trim() : '';
-            if (yr > 1900) {
-              var evYr = parseInt(((document.getElementById('bk-datum')||{}).value||'').slice(0,4)) || new Date().getFullYear();
-              var g = /^[WwFf]/.test(sx) ? 'W' : 'M';
-              rAK = calcDlvAK(yr, g, evYr) || '';
-            }
-          }
-
-          // AK-Platz
-          var rPlatz = 0;
-          if (iAKPlatz >= 0) {
-            var akpRaw = String(row[iAKPlatz] || '').trim().replace(/\.$/, '');
-            if (/^\d+$/.test(akpRaw)) rPlatz = parseInt(akpRaw) || 0;
-          } else if (iPlatz >= 0) {
-            var plRaw = String(row[iPlatz] || '').trim().replace(/\.$/, '');
-            if (/^\d+$/.test(plRaw)) rPlatz = parseInt(plRaw) || 0;
-          }
-
-          if (!rName) return;
-
-          // Disziplin
-          var disz    = rrBestDisz(cnForDisz, diszList);
-          var diszObj = disziplinen.find(function(d) {
-            return d.disziplin === disz && (!kat || d.tbl_key === kat);
-          });
-
-          // Duplikat-Check
-          if (!allResults.some(function(r) { return r.name === rName && r.resultat === rZeit; })) {
-            allResults.push({
-              name:      rName,
-              resultat:  rZeit,
-              ak:        rAK,
-              platz:     rPlatz,
-              disziplin: diszObj ? diszObj.disziplin : disz,
-              diszMid:   diszObj ? (diszObj.id || diszObj.mapping_id) : null
-            });
+  function _proc(payload, contestName) {
+    var df=payload.DataFields||[];
+    if(Array.isArray(df)&&df.length>0)_cal(df);
+    var dRaw=payload.data||{};
+    Object.keys(dRaw).forEach(function(k){
+      var v=dRaw[k],groups;
+      if(Array.isArray(v)){groups=(v.length>0&&Array.isArray(v[0]))?{'':v}:{'':v.length>0?[v]:v};}
+      else if(v&&typeof v==='object'){groups=v;}else{return;}
+      Object.keys(groups).forEach(function(k2){
+        var rows=groups[k2];if(!Array.isArray(rows))return;
+        var gk=(k2?(k+'/'+k2):k).replace(/^#\d+_/,'');
+        var akFG='';
+        if(iAK<0){var _m=gk.match(/\b([MW](?:U\d{1,2}|\d{2})|[MW])\b/);if(_m)akFG=normalizeAK(_m[1]);}
+        var cnD=contestName||gk;
+        rows.forEach(function(row){
+          if(!Array.isArray(row)||row.length<3)return;
+          var club=iClub>=0?String(row[iClub]||'').trim():'';
+          if(clubPhrase&&club.toLowerCase().indexOf(clubPhrase)<0)return;
+          var rName=String(row[iName]||'').trim();
+          var rZeit=String(row[iNetto>=0?iNetto:iZeit]||'').trim().replace(',','.');
+          if(!rZeit||!/\d{1,2}:\d{2}/.test(rZeit))return;
+          var rAK='';
+          if(iAK>=0){var ar=String(row[iAK]||'').trim(),as=ar.match(/^(\d+)\.?\s*(.+)$/);if(as)ar=as[2].trim();rAK=normalizeAK(ar);}
+          if(!rAK)rAK=akFG;
+          if(!rAK&&iYear>=0){var yr=parseInt(String(row[iYear]||'').trim())||0,sx=iGeschlecht>=0?String(row[iGeschlecht]||'').trim():'';
+            if(yr>1900){var ey=parseInt(((document.getElementById('bk-datum')||{}).value||'').slice(0,4))||new Date().getFullYear();rAK=calcDlvAK(yr,/^[WwFf]/.test(sx)?'W':'M',ey)||'';}}
+          var rP=0,pi=iAKPlatz>=0?iAKPlatz:iPlatz;
+          if(pi>=0){var pr=String(row[pi]||'').trim().replace(/\.$/,'');if(/^\d+$/.test(pr))rP=parseInt(pr)||0;}
+          if(!rName)return;
+          var disz=rrBestDisz(cnD,diszList);
+          var dObj=disziplinen.find(function(d){return d.disziplin===disz&&(!kat||d.tbl_key===kat);});
+          if(!allResults.some(function(r){return r.name===rName&&r.resultat===rZeit;})){
+            allResults.push({name:rName,resultat:rZeit,ak:rAK,platz:rP,
+              disziplin:dObj?dObj.disziplin:disz,diszMid:dObj?(dObj.id||dObj.mapping_id):null});
           }
         });
       });
     });
   }
 
-  // 4. Alle Contests durchlaufen (r=search zuerst, r=all als Fallback)
-  var listsChecked = 0;
-  for (var ci = 0; ci < contestIds.length; ci++) {
-    var cid   = contestIds[ci];
-    var cname = contestObj[cid] || (cid === '0' ? '' : ('Contest ' + cid));
-    if (statusEl) statusEl.textContent = '⏳ Contest ' + (ci + 1) + '/' + contestIds.length + '…';
+  var currentKey=cfg.key||'', keyAt=Date.now();
 
-    var listForContest = _contestListMap[cid] || listName;
-    var payload = null;
+  for(var li=0;li<validLists.length;li++){
+    var le=validLists[li];
+    var cname=contestObj[le.contest]||le.name;
+    if(statusEl)statusEl.textContent='\u23f3 '+(li+1)+'/'+validLists.length+': '+cname+'\u2026';
 
-    // r=search versuchen
-    try {
-      var rSearch = await fetch(base +
-        '?key='      + encodeURIComponent(apiKey) +
-        '&listname=' + encodeURIComponent(listForContest) +
-        '&page=results&contest=' + cid +
-        '&r=search&l=9999&term=',
-        { headers: hdrs });
-      if (rSearch.ok) {
-        var pSearch = await rSearch.json();
-        var df = pSearch.DataFields || [];
-        if (df.length > 0) {
-          payload = pSearch;
-          listsChecked++;
-        }
-      }
-    } catch(e) {}
-
-    // r=all als Fallback (keine DataFields oder 0 Rows)
-    if (!payload || !(payload.DataFields || []).length) {
-      try {
-        var rAll = await fetch(base +
-          '?key='      + encodeURIComponent(apiKey) +
-          '&listname=' + encodeURIComponent(listForContest) +
-          '&page=results&contest=' + cid +
-          '&r=all&l=de&_=1',
-          { headers: hdrs });
-        if (rAll.ok) {
-          payload = await rAll.json();
-          listsChecked++;
-        }
-      } catch(e) {}
+    // Key > 30s alt: erneuern
+    if(Date.now()-keyAt>30000){
+      try{var fc=await _freshCfg();currentKey=fc.key||currentKey;keyAt=Date.now();}catch(e){}
     }
 
-    if (payload) _processPayload(payload, cname);
-  }
+    var payload=null;
 
-  // 5. Listen-Fallback: andere Kandidaten-Listen versuchen
-  if (!allResults.length && _listCandidates.length > 1) {
-    for (var li = 0; li < _listCandidates.length && !allResults.length; li++) {
-      if (_listCandidates[li] === listName) continue;
-      try {
-        var rFb = await fetch(base +
-          '?key='      + encodeURIComponent(apiKey) +
-          '&listname=' + encodeURIComponent(_listCandidates[li]) +
-          '&page=results&contest=0&r=all&l=de&_=1',
-          { headers: hdrs });
-        if (!rFb.ok) continue;
-        var pFb = await rFb.json();
-        listsChecked++;
-        _processPayload(pFb, _listCandidates[li]);
-      } catch(e) {}
+    // r=search zuerst
+    try{
+      var rs=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=search&l=9999&term=',{headers:hdrs});
+      if(rs.ok){var ps=await rs.json();if(!ps.error&&(ps.DataFields||[]).length>0)payload=ps;}
+    }catch(e){}
+
+    // r=all als Fallback
+    if(!payload){
+      try{
+        var ra=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1',{headers:hdrs});
+        if(ra.ok){
+          var pa=await ra.json();
+          if(!pa.error)payload=pa;
+          else if(pa.error==='key invalid'){
+            // Key erneuern + sofort nochmal
+            try{var fc2=await _freshCfg();currentKey=fc2.key||currentKey;keyAt=Date.now();
+              var rr=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1',{headers:hdrs});
+              if(rr.ok){var pr=await rr.json();if(!pr.error)payload=pr;}
+            }catch(e2){}
+          }
+        }
+      }catch(e){}
     }
+
+    if(!payload)continue;
+    listsChecked++;
+    _proc(payload, cname);
   }
 
-  _bkDbgLine('Contests',         contestIds.length);
   _bkDbgLine('Listen durchsucht', listsChecked);
-  _bkDbgLine('Gefunden',          allResults.length + ' TuS-Einträge');
+  _bkDbgLine('Gefunden', allResults.length+' TuS-Eintr\u00e4ge');
 
-  if (allResults.length) {
+  if(allResults.length){
     _bkDbgSep();
     _bkDbgHeader('Ergebnisse');
-    for (var _di = 0; _di < allResults.length; _di++) {
-      var _dr = allResults[_di];
-      _bkDbgLines.push(
-        String(_di + 1).padStart(2, ' ') + '.  ' +
-        (_dr.name || '?').padEnd(22, ' ') +
-        (_dr.ak || '  ').padEnd(6, ' ') +
-        (_dr.resultat || '').padEnd(10, ' ') +
-        (_dr.platz ? 'Platz\u00a0' + _dr.platz : '').padEnd(9, ' ') +
-        '\u2192 ' + (_dr.disziplin || '(keine)')
-      );
+    for(var _di=0;_di<allResults.length;_di++){
+      var _dr=allResults[_di];
+      _bkDbgLines.push(String(_di+1).padStart(2,' ')+'.  '+(_dr.name||'?').padEnd(22,' ')+(_dr.ak||'  ').padEnd(6,' ')+(_dr.resultat||'').padEnd(10,' ')+(_dr.platz?'Platz\u00a0'+_dr.platz:'').padEnd(9,' ')+'\u2192 '+(_dr.disziplin||'(keine)'));
     }
     _bkDbgFlush();
   }
