@@ -5,6 +5,14 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v604 – Fix uitslagen.nl: Fallback filtert per Athleten-Name
+
+- Statt alle 420 Einträge: `uitsAutoMatch()` gegen Athleten-DB vorab filtern
+- Nur Zeilen mit Namens-Treffer werden in die Bulk-Tabelle übertragen
+
+---
+
+
 ## v603 – Fix uitslagen.nl Import: Fallback bei fehlendem Vereinsnamen
 
 - Bei manchen Events trägt der Veranstalter nur Ort/Kürzel statt Vereinsname ein
