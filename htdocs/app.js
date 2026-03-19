@@ -2695,7 +2695,7 @@ async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athle
           '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="form-group"><label>Ergebnis</label><input type="text" id="edit-res" value="' + (res||'') + '" placeholder="z.B. 01:45:30"/></div>' +
+      '<div class="form-group"><label>Ergebnis</label><input type="text" id="edit-res" value="' + fmtRes(res||'') + '" placeholder="z.B. 01:45:30"/></div>' +
       '<div class="form-group"><label>Altersklasse</label><input type="text" id="edit-ak" value="' + (ak||'') + '" placeholder="z.B. M40"/></div>' +
       '<div class="form-group"><label>Platz AK</label><input type="number" id="edit-akp" value="' + (akp||'') + '" min="1"/></div>' +
       '<div class="form-group"><label>Meisterschaft</label><select id="edit-mstr">' + mstrOptions(mstr) + '</select></div>' +
@@ -2720,7 +2720,7 @@ async function saveEditErgebnis(id, subTab) {
   var disz = editMappingId
     ? ((state.disziplinen||[]).find(function(d){return d.id===editMappingId;})||{}).disziplin || editDiszVal
     : editDiszVal;
-  var res  = ((document.getElementById('edit-res') || {}).value || '').trim();
+  var res  = dbRes(((document.getElementById('edit-res') || {}).value || '').trim());
   var ak   = ((document.getElementById('edit-ak') || {}).value || '').trim();
   var akp  = ((document.getElementById('edit-akp') || {}).value || '').trim();
   var mstr = ((document.getElementById('edit-mstr') || {}).value || '').trim();
@@ -3998,6 +3998,7 @@ function diszKm(disz) {
 
 function calcPace(disz, resultat) {
   if (!disz || !resultat) return '';
+  resultat = dbRes(resultat); // Komma→Punkt für Berechnung
   // Distanz aus Disziplinname extrahieren (z.B. "Halbmarathon"→21.0975, "10km"→10, "5 km"→5)
   var km = 0;
   var dl = disz.toLowerCase();
@@ -4148,7 +4149,7 @@ async function bulkSubmit() {
       ort: ort, veranstaltung_name: evname,
       veranstaltung_id: veranstId ? parseInt(veranstId) : null,
       athlet_id: parseInt(athlet_id) || null,
-      disziplin: disziplin, resultat: resultat,
+      disziplin: disziplin, resultat: dbRes(resultat),
       altersklasse: row.querySelector('.bk-ak') ? row.querySelector('.bk-ak').value.trim() : '',
       _zeilendatum: row.querySelector('.bk-zeilendatum') ? row.querySelector('.bk-zeilendatum').value.trim() : '',
       ak_platzierung: row.querySelector('.bk-platz') && row.querySelector('.bk-platz').value ? parseInt(row.querySelector('.bk-platz').value) : null,
@@ -4435,8 +4436,9 @@ async function bulkImportFromRR(url, kat, statusEl) {
           var club=iClub>=0?String(row[iClub]||'').trim():'';
           if(clubPhrase&&club.toLowerCase().indexOf(clubPhrase)<0)return;
           var rName=String(row[iName]||'').trim();
-          var rZeit=String(row[iNetto>=0?iNetto:iZeit]||'').trim().replace(',','.');
-          if(!rZeit||!/\d{1,2}:\d{2}/.test(rZeit))return;
+          var rZeit=String(row[iNetto>=0?iNetto:iZeit]||'').trim();
+          if(!rZeit||!/\d{1,2}:\d{2}|\d+[,.]\d+/.test(rZeit))return;
+          rZeit=fmtRes(rZeit); // Komma als Dezimaltrennzeichen für Anzeige
           var rAK='';
           if(iAK>=0){var ar=String(row[iAK]||'').trim(),as=ar.match(/^(\d+)\.?\s*(.+)$/);if(as)ar=as[2].trim();rAK=normalizeAK(ar);}
           if(!rAK)rAK=akFG;
@@ -4740,7 +4742,7 @@ function bulkFillFromImport(rows, statusEl) {
     }
     // Ergebnis
     var resEl = tr.querySelector('.bk-res');
-    if (resEl && row.resultat) resEl.value = row.resultat;
+    if (resEl && row.resultat) resEl.value = fmtRes(row.resultat);
     // AK
     var akSel = tr.querySelector('.bk-ak');
     if (akSel && row.ak) { akSel.value = row.ak; }
@@ -4943,7 +4945,7 @@ function bulkParsePaste() {
 
     // Ergebnis
     var resEl = tbody.querySelectorAll('.bk-res')[idx];
-    if (resEl) resEl.value = p.resultat;
+    if (resEl) resEl.value = fmtRes(p.resultat);
 
     // AK
     var akEl = tbody.querySelectorAll('.bk-ak')[idx];
@@ -8251,7 +8253,6 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='meisterschaften' ? ' active' : '') + '" onclick="navAdmin(\'meisterschaften\')">🏅 Meisterschaften</button>' +
     '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">🎨 Darstellung</button>' +
     '<button class="subtab' + (t==='dashboard_cfg'   ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">📊︎ Dashboard</button>' +
-    '<button class="subtab' + (t==='kat_gruppen'    ? ' active' : '') + '" onclick="navAdmin(\'kat_gruppen\')">🔗 Kat.-Gruppen</button>' +
     '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb</button>' +
   '</div>';
 }
@@ -8261,7 +8262,6 @@ async function renderAdmin() {
   if (state.adminTab === 'disziplinen')    { await renderAdminDisziplinen(); return; }
   if (state.adminTab === 'altersklassen')  { await renderAdminAltersklassen(); return; }
   if (state.adminTab === 'meisterschaften'){ await renderAdminMeisterschaften(); return; }
-  if (state.adminTab === 'kat_gruppen')    { await renderAdminKategorieGruppen(); return; }
   if (state.adminTab === 'papierkorb')     { await renderPapierkorb(); return; }
   if (state.adminTab === 'darstellung')    { renderAdminDarstellung(); return; }
   if (state.adminTab === 'dashboard_cfg')  { await renderAdminDashboard(); return; }
@@ -9751,6 +9751,41 @@ async function renderAdminDisziplinen() {
       '</tr>';
   }
 
+  // Kategorie-Gruppen Panel aufbauen
+  var _rEin = await apiGet('einstellungen');
+  var _katGr = [];
+  try { _katGr = JSON.parse((_rEin && _rEin.data && _rEin.data.kategoriegruppen) || '[]'); } catch(e) {}
+  window._katGruppen = _katGr;
+  var _katMap2 = {};
+  for (var _ki = 0; _ki < kategorien.length; _ki++) _katMap2[kategorien[_ki].tbl_key] = kategorien[_ki].name;
+  function _katGruppenRows() {
+    if (!window._katGruppen.length) return '<div style="color:var(--text2);padding:12px 0;font-size:13px">Keine Gruppen definiert.</div>';
+    return window._katGruppen.map(function(g, i) {
+      var members = (g.mitglieder || []).map(function(k) { return _katMap2[k] || k; }).join(' + ');
+      return '<div class="user-row" style="gap:8px">' +
+        '<div style="flex:1;font-size:13px;font-weight:600">' + members + '</div>' +
+        '<button class="btn btn-ghost btn-sm" onclick="katGruppeEdit(' + i + ')">&#x270F;&#xFE0E;</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="katGruppeDelete(' + i + ')">&#x2715;</button>' +
+      '</div>';
+    }).join('');
+  }
+  window._katGruppenRefresh = function() {
+    var el2 = document.getElementById('kat-gruppe-list');
+    if (el2) el2.innerHTML = _katGruppenRows();
+  };
+  var katGruppenPanel =
+    '<div class="panel">' +
+      '<div class="panel-header">' +
+        '<div class="panel-title">&#x1F517; Kategorie-Gruppen</div>' +
+        '<button class="btn btn-primary btn-sm" onclick="katGruppeAdd()">+ Gruppe</button>' +
+      '</div>' +
+      '<div class="panel-body" id="kat-gruppe-list">' + _katGruppenRows() + '</div>' +
+      '<div class="panel-body" style="border-top:1px solid var(--border);padding-top:10px;font-size:12px;color:var(--text2)">' +
+        'Gruppen erlauben z.B. Sprung&amp;Wurf-Disziplinen beim Eintragen unter &bdquo;Bahn&ldquo; anzuzeigen. ' +
+        'Der gespeicherte <code>tbl_key</code> bleibt unver&auml;ndert &mdash; Bestenlisten sind nicht betroffen.' +
+      '</div>' +
+    '</div>';
+
   el.innerHTML =
     subTabs +
     '<div class="admin-grid">' +
@@ -9770,6 +9805,7 @@ async function renderAdminDisziplinen() {
           '<tbody>' + mapRows + '</tbody></table>' +
         '</div>' +
       '</div>' +
+      katGruppenPanel +
     '</div>';
 }
 
@@ -10014,75 +10050,13 @@ async function saveNeueDisziplin() {
   }
 }
 
-// ── Kategorie-Gruppen ────────────────────────────────────────────────────────
-
-async function renderAdminKategorieGruppen() {
-  var el = document.getElementById('main-content');
-  el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
-
-  var r = await apiGet('einstellungen');
-  if (!r || !r.ok) { el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)">Fehler beim Laden.</div>'; return; }
-
-  // Verfügbare Kategorien aus state.disziplinen
-  var katMap = {};
-  (state.disziplinen || []).forEach(function(d) {
-    if (d.tbl_key && d.kategorie) katMap[d.tbl_key] = d.kategorie;
-  });
-  var allKats = Object.keys(katMap);
-
-  // Gruppen laden
-  var GRUPPEN = [];
-  try { GRUPPEN = JSON.parse(r.data.kategoriegruppen || '[]'); } catch(e) {}
-  window._katGruppen = GRUPPEN;
-
-  function _katLabel(key) { return katMap[key] ? katMap[key] + ' (' + key + ')' : key; }
-
-  function renderList() {
-    if (!GRUPPEN.length) return '<div style="color:var(--text2);padding:12px 0">Keine Gruppen definiert.</div>';
-    return GRUPPEN.map(function(g, i) {
-      var members = (g.mitglieder || []).map(_katLabel).join(' + ');
-      return '<div class="user-row" style="gap:8px">' +
-        '<div style="flex:1;font-size:13px">' +
-          '<span style="font-weight:600;color:var(--text)">' + members + '</span>' +
-        '</div>' +
-        '<button class="btn btn-ghost btn-sm" onclick="katGruppeEdit(' + i + ')">✏️</button>' +
-        '<button class="btn btn-danger btn-sm" onclick="katGruppeDelete(' + i + ')">✕</button>' +
-      '</div>';
-    }).join('');
-  }
-
-  function buildHtml() {
-    return adminSubtabs() +
-      '<div class="panel" style="max-width:600px">' +
-        '<div class="panel-header">' +
-          '<div class="panel-title">🔗 Kategorie-Gruppen</div>' +
-          '<button class="btn btn-primary btn-sm" onclick="katGruppeAdd()">+ Gruppe hinzufügen</button>' +
-        '</div>' +
-        '<div class="panel-body" id="kat-gruppe-list">' + renderList() + '</div>' +
-        '<div class="panel-body" style="border-top:1px solid var(--border);padding-top:12px;font-size:12px;color:var(--text2)">' +
-          'Wenn Kategorien in einer Gruppe sind, werden beim Eintragen die Disziplinen aller Gruppenmitglieder gemeinsam angezeigt. ' +
-          'Der gespeicherte <code>tbl_key</code> der Disziplin bleibt unverändert — Bestenlisten sind nicht betroffen.' +
-        '</div>' +
-      '</div>';
-  }
-
-  el.innerHTML = buildHtml();
-
-  window._katGruppenRefresh = function() {
-    var listEl = document.getElementById('kat-gruppe-list');
-    if (listEl) listEl.innerHTML = renderList();
-  };
-}
-
 function _katGruppenSave(cb) {
   apiPost('einstellungen', { kategoriegruppen: JSON.stringify(window._katGruppen || []) }).then(function(r) {
     if (r && r.ok) {
       appConfig.kategoriegruppen = JSON.stringify(window._katGruppen || []);
       if (window._katGruppenRefresh) window._katGruppenRefresh();
       if (cb) cb();
-    } else {
-      notify('Fehler beim Speichern.', 'err');
-    }
+    } else { notify('Fehler beim Speichern.', 'err'); }
   });
 }
 
@@ -10454,6 +10428,20 @@ function importToggleMstr(prefix, show, mstrVal) {
       inp.value = '';
     }
   });
+}
+
+// ── Ergebnis-Formatierung ────────────────────────────────────────────────────
+
+// Für Anzeige in Input-Feldern: Punkt → Komma (z.B. "6.93" → "6,93")
+function fmtRes(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).replace('.', ',');
+}
+
+// Für Datenbank / Berechnungen: Komma → Punkt (z.B. "6,93" → "6.93")
+function dbRes(v) {
+  if (v === null || v === undefined) return '';
+  return String(v).replace(',', '.');
 }
 /* ── 11_mikatiming.js ── */
 
@@ -11426,7 +11414,8 @@ async function bulkImportFromLA(url, kat, statusEl) {
 
       // Ergebnis aus erstem col-4
       var col4s = line.querySelectorAll('.col-4');
-      var rZeit = col4s.length > 0 ? ((col4s[0].querySelector('.firstline')||{}).textContent||'').trim().replace(',','.') : '';
+      var rZeit = col4s.length > 0 ? ((col4s[0].querySelector('.firstline')||{}).textContent||'').trim() : '';
+      rZeit = fmtRes(rZeit); // Komma als Dezimaltrennzeichen für Anzeige
 
       // AK aus letztem col-4
       var rAK = '';

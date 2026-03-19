@@ -5,6 +5,28 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v602 – Ergebnis-Format: Komma in UI, Punkt für DB
+
+- `fmtRes(v)`: Punkt→Komma für Input-Felder (Anzeige)
+- `dbRes(v)`: Komma→Punkt für DB-Übertragung und Berechnungen
+- Alle Importer (RR, LA, Mika, Uits): Ergebnisse werden mit Komma angezeigt
+- `bulkSubmit`: `dbRes()` vor dem API-Call
+- `saveEditErgebnis`: `dbRes()` vor dem Speichern
+- "Ergebnis bearbeiten"-Dialog: `fmtRes()` beim Befüllen
+- `calcPace()`: `dbRes()` intern für Berechnung
+
+---
+
+
+## v601 – Kat-Gruppen: in Admin › Disziplinen integriert
+
+- Kein eigener Sub-Tab mehr — Kategorie-Gruppen als drittes Panel im Disziplinen-Tab
+- `renderAdminDisziplinen()`: lädt Einstellungen und rendert Gruppen-Panel inline
+- Standalone `renderAdminKategorieGruppen()` entfernt
+
+---
+
+
 ## v599 – Kategorie-Gruppen: Sprung&Wurf-Disziplinen bei Bahn/Halle
 
 - Neue Einstellung `kategoriegruppen` (JSON) in einstellungen-Tabelle
