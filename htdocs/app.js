@@ -4404,14 +4404,14 @@ async function bulkImportFromRR(url, kat, statusEl) {
       var f=df[fi].toLowerCase();
       if(f.indexOf('anzeigename')>=0||f.indexOf('lfname')>=0||f==='displayname'||f==='fullname')iName=fi;
       else if(f.indexOf('club')>=0||f.indexOf('verein')>=0)iClub=fi;
-      else if(f.indexOf('agegroup')>=0||f==='[agegroup1.nameshort]'||f.indexOf('akabk')>=0||f.indexOf('ak_abk')>=0||f==='es_akabk\u00fcrzung')iAK=fi;
+      else if(f.indexOf('autorankp')>=0||f.indexOf('overallrank')>=0||f.indexOf('withstatus')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0||f.indexOf('agegrouprank')>=0){if(f.indexOf('akpl')>=0||f.indexOf('agegrouprank')>=0)iAKPlatz=fi;else iPlatz=fi;}
+      else if(f.indexOf('akpl')>=0)iAKPlatz=fi;
+      else if((f.indexOf('agegroup')>=0||f==='[agegroup1.nameshort]'||f.indexOf('akabk')>=0||f.indexOf('ak_abk')>=0||f==='es_akabkürzung'||f.indexOf('agegroupname')>=0)&&f.indexOf('rank')<0)iAK=fi;
       else if(f==='year'||f==='yob'||f==='birthyear'||f==='es_jahrgang')iYear=fi;
       else if(f.indexOf('geschlechtmw')>=0||f==='es_geschlecht'||f==='gendermf'||f==='gender'||f==='sex')iGeschlecht=fi;
       else if(f.indexOf('chip')>=0||f.indexOf('netto')>=0)iNetto=fi;
       else if(f.indexOf('gun')>=0||f.indexOf('brutto')>=0||f==='ziel'||f.indexOf('ziel')>=0||f.indexOf('finish')>=0)iZeit=fi;
-      else if(f==='time'||f.indexOf('time')===0)iZeit=fi; // z.B. TIME1, TIME_NET
-      else if(f.indexOf('akpl')>=0)iAKPlatz=fi;
-      else if(f.indexOf('autorankp')>=0||f.indexOf('overallrank')>=0||f.indexOf('withstatus')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0||f.indexOf('agegrouprank')>=0){if(f.indexOf('akpl')>=0||f.indexOf('agegrouprank')>=0)iAKPlatz=fi;else iPlatz=fi;}
+      else if(f==='time'||f.indexOf('time')===0)iZeit=fi;
     }
     if(iNetto>=0&&iZeit<0)iZeit=iNetto;
     if(iNetto<0&&iZeit>=0)iNetto=iZeit;
@@ -4468,7 +4468,9 @@ async function bulkImportFromRR(url, kat, statusEl) {
           if(_dup){
             // AK-Platz bevorzugen: kleinerer Wert aus späterer Liste übernehmen
             if(rP>0&&(_dup.platz===0||rP<_dup.platz))_dup.platz=rP;
-            if(rAK&&!_dup.ak)_dup.ak=rAK;
+            // AK übernehmen wenn besser (echter Wert > Punkt/leer)
+            var _dupAkOk = _dup.ak && _dup.ak !== '.' && _dup.ak.length > 1;
+            if(rAK && rAK !== '.' && rAK.length > 1 && !_dupAkOk) _dup.ak = rAK;
           } else {
             allResults.push({name:rName,resultat:rZeit,ak:rAK,platz:rP,
               disziplin:dObj?dObj.disziplin:disz,diszMid:dObj?(dObj.id||dObj.mapping_id):null});

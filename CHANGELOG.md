@@ -5,6 +5,19 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v615 – Fix _calibrateDF (kompakt): AK-Erkennung korrekt
+
+- Die kompakte _cal-Funktion in _proc (Bulk-Import) war nie aktualisiert worden
+- Alle Fixes aus v613/v614 galten nur für die Spaced-Variante in rrFetch()
+- Fix: Platz-Felder (withstatus/overallrank/agegrouprank) VOR agegroup prüfen
+- Fix: AgeGroup-Erkennung mit &&f.indexOf("rank")<0 Guard
+- Fix: agegroupname-Feldname hinzugefügt
+- "WithStatus([AgeGroupRankp])" → iAKPlatz, nicht mehr iAK
+- "AgeGroupName1" → iAK (korrekt, weil indexOf("rank")<0)
+
+---
+
+
 ## v613 – Fix RaceResult-Import: AK aus Sub-Gruppen-Key
 
 - 2019er Event: "Age Group Results" hat kein AK-Feld in DataFields

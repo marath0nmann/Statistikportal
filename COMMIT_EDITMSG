@@ -1,1 +1,1 @@
-v613: Fix AK: Sub-Gruppen-Key + normalizeAK Fallback MHK/WHK
+v615: Fix kompakte _cal: Platz vor AK, rank<0-Guard, agegroupname
