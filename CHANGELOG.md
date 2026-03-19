@@ -5,6 +5,21 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v598 – Neuer Import: leichtathletik.de
+
+- `14_leichtathletik.js`: neues Modul für ergebnisse.leichtathletik.de
+- PHP-Proxy `la-fetch`: HTML-Proxy nur für ergebnisse.leichtathletik.de URLs
+- Ablauf: Resultoverview → alle CurrentList-Links → pro Liste .entryline parsen
+- DOM-Struktur: col-2›secondline=Verein, col-2›firstline=Name,
+  col-4[0]›firstline=Ergebnis, col-4[last]›firstline=AK, col-1›firstline=Rang
+- Disziplin via rrBestDisz(linkText) — Links enthalten vollen Namen (z.B. "60m Männer Finale")
+- AK-Fallback via calcDlvAK(Jahrgang, Geschlecht, EventJahr)
+- URL-Erkennung: ergebnisse.leichtathletik.de/* → urlType "leichtathletik"
+- Alle URL-Varianten akzeptiert: Resultoverview, Competitoroverview, CurrentList
+
+---
+
+
 ## v597 – Fix RaceResult-Import: Key-Rotation + Contest-IDs aus Listen
 
 - RaceResult rotiert `cfg.key` alle ~30s → "key invalid" bei Listen-Requests

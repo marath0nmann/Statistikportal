@@ -3798,7 +3798,7 @@ function renderEintragen() {
         '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Mehrere Ergebnisse auf einmal eintragen &ndash; alle geh&ouml;ren zur selben Veranstaltung.</div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
-          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl: https://uitslagen.nl/uitslag?id=2025110916317&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl: https://uitslagen.nl/uitslag?id=2025110916317&#10;la.de:        https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Angelika Kappenhagen  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
             '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
             '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
@@ -4230,6 +4230,7 @@ function bulkDetectUrl(text) {
   if (/^https?:\/\/my\.raceresult\.com\//i.test(t))   return 'raceresult';
   if (/^https?:\/\/[^\/]*\.mikatiming\.(com|de|net)/i.test(t)) return 'mikatiming';
   if (/^https?:\/\/uitslagen\.nl\//i.test(t))          return 'uitslagen';
+  if (/^https?:\/\/ergebnisse\.leichtathletik\.de\//i.test(t)) return 'leichtathletik';
   return null;
 }
 
@@ -4242,8 +4243,9 @@ function bulkPasteInput() {
   var urlType = bulkDetectUrl(raw);
   if (urlType) {
     katWrap.style.display = 'flex';
-    var srcText = urlType === 'raceresult' ? '🌍︎ RaceResult' :
-                  urlType === 'mikatiming' ? '⏱︎ MikaTiming' : '🇳🇱 uitslagen.nl';
+    var srcText = urlType === 'raceresult'      ? '🌍︎ RaceResult' :
+                  urlType === 'mikatiming'      ? '⌛︎ MikaTiming' :
+                  urlType === 'leichtathletik'  ? '🏃︎ leichtathletik.de' : '🇳🇱 uitslagen.nl';
     if (srcLabel) srcLabel.textContent = srcText;
     if (statusEl) statusEl.textContent = '';
   } else {
@@ -4265,8 +4267,9 @@ async function bulkImportUrl() {
   if (!urlType || !kat) return;
 
   if (statusEl) statusEl.textContent = '⏳ Lade…';
-  var _bkQuelle = urlType === 'raceresult' ? 'RaceResult' :
-                  urlType === 'mikatiming' ? 'MikaTiming' : 'uitslagen.nl';
+  var _bkQuelle = urlType === 'raceresult'     ? 'RaceResult' :
+                  urlType === 'mikatiming'     ? 'MikaTiming' :
+                  urlType === 'leichtathletik' ? 'leichtathletik.de' : 'uitslagen.nl';
   // Importkategorie auch in das Kategorie-Feld der Tabelle übertragen
   var _bkKatEl = document.getElementById('bk-kat');
   if (_bkKatEl && kat && !_bkKatEl.value) _bkKatEl.value = kat;
@@ -4276,6 +4279,8 @@ async function bulkImportUrl() {
   try {
     if (urlType === 'raceresult') {
       await bulkImportFromRR(raw, kat, statusEl);
+    } else if (urlType === 'leichtathletik') {
+      await bulkImportFromLA(raw, kat, statusEl);
     } else if (urlType === 'mikatiming') {
       await bulkImportFromMika(raw, kat, statusEl);
     } else if (urlType === 'uitslagen') {
@@ -11157,6 +11162,203 @@ async function uitsImport() {
     notify('\u274C Import fehlgeschlagen: ' + msg, 'err');
     if (status) status.textContent = '\u274C ' + msg;
   }
+}
+// ── leichtathletik.de Import ────────────────────────────────────────────────
+
+async function bulkImportFromLA(url, kat, statusEl) {
+  // Event-ID aus verschiedenen URL-Varianten extrahieren
+  var _eidM = url.match(/\/Competitions\/(?:Resultoverview|Competitoroverview|Details|CurrentList\/\d+)\/(\d+)/i);
+  if (!_eidM) { if (statusEl) statusEl.textContent = '\u274c Keine Event-ID in URL'; return; }
+  var eid = _eidM[1];
+  if (statusEl) statusEl.textContent = '\u23f3 Lade leichtathletik.de Ergebnisübersicht\u2026';
+
+  var laBase = 'https://ergebnisse.leichtathletik.de/Competitions/';
+  var clubPhrase = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
+  var vereinParts = clubPhrase.split(/\s+/).filter(function(p) { return p.length > 1; });
+
+  _bkDbgHeader('leichtathletik.de');
+  _bkDbgLine('Event-ID', eid);
+
+  // Hilfsfunktion: HTML per PHP-Proxy laden
+  async function _laFetch(fetchUrl) {
+    var r = await apiGet('la-fetch?url=' + encodeURIComponent(fetchUrl));
+    if (!r || !r.ok) throw new Error('Proxy-Fehler: ' + (r && r.fehler || 'unbekannt'));
+    return r.data.html;
+  }
+
+  // Hilfsfunktion: HTML-String in DOM parsen
+  function _parseHTML(html) {
+    var dp = new DOMParser();
+    return dp.parseFromString(html, 'text/html');
+  }
+
+  // 1. Resultoverview laden → Disziplin-Links + Eventname + Datum
+  var overviewHTML;
+  try {
+    overviewHTML = await _laFetch(laBase + 'Resultoverview/' + eid);
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '\u274c ' + e.message;
+    _bkDbgLine('Fehler', String(e));
+    return;
+  }
+
+  var overviewDoc = _parseHTML(overviewHTML);
+
+  // Eventname + Datum aus Seite extrahieren
+  var eventName = '';
+  var eventDate = '';
+  var bodyText = (overviewDoc.body || {}).textContent || '';
+  // Format: "13. DEZ 2025 15. DÜSSELDORFER ADVENT-INDOOR-MEETING - DÜSSELDORF"
+  var _dateM = bodyText.match(/(\d{1,2})\.\s*(JAN|FEB|MÄR|APR|MAI|JUN|JUL|AUG|SEP|OKT|NOV|DEZ)\s*(\d{4})\s+([^\n]+)/i);
+  if (_dateM) {
+    var _moMap = {JAN:'01',FEB:'02','MÄR':'03',APR:'04',MAI:'05',JUN:'06',
+                  JUL:'07',AUG:'08',SEP:'09',OKT:'10',NOV:'11',DEZ:'12'};
+    var _mo = _moMap[_dateM[2].toUpperCase()] || '01';
+    eventDate = _dateM[3] + '-' + _mo + '-' + _dateM[1].padStart(2,'0');
+    eventName = _dateM[4].trim().replace(/\s*-\s*[A-ZÄÖÜ]+\s*$/, '').trim();
+  }
+
+  _bkDbgLine('Eventname', eventName || '\u2013');
+  _bkDbgLine('Datum',     eventDate || '\u2013');
+
+  // Formularfelder befüllen
+  var datEl = document.getElementById('bk-datum');
+  var ortEl = document.getElementById('bk-ort');
+  var evEl  = document.getElementById('bk-evname');
+  if (eventDate && datEl) { datEl.value = eventDate; bkSyncDatum(eventDate); }
+  if (eventName && evEl  && !evEl.value) evEl.value = eventName;
+  // Ort aus Event-Name extrahieren (letztes Wort nach " - ")
+  if (!ortEl || !ortEl.value) {
+    var _ortM = bodyText.match(/\d{4}\s+[^\n]+-\s*([A-ZÄÖÜ][A-ZÄÖÜ\s]+?)(?:\n|Zeitplan)/);
+    if (_ortM && ortEl) ortEl.value = _ortM[1].trim();
+  }
+
+  // Alle CurrentList-Links mit Disziplinname sammeln
+  var listLinks = [];
+  overviewDoc.querySelectorAll('a[href*="CurrentList"]').forEach(function(a) {
+    var href = a.getAttribute('href') || '';
+    var fullUrl = href.startsWith('http') ? href : 'https://ergebnisse.leichtathletik.de' + href;
+    var text = a.textContent.trim();
+    if (text && fullUrl) listLinks.push({ url: fullUrl, diszName: text });
+  });
+
+  // Duplikate entfernen (gleiche URL)
+  var _seenUrls = {};
+  listLinks = listLinks.filter(function(l) {
+    if (_seenUrls[l.url]) return false;
+    _seenUrls[l.url] = true;
+    return true;
+  });
+
+  _bkDbgLine('Disziplinen gefunden', listLinks.length);
+  _bkDbgSep();
+
+  var disziplinen = state.disziplinen || [];
+  var diszList    = disziplinen.map(function(d) { return d.disziplin; })
+                               .filter(function(v, i, a) { return a.indexOf(v) === i; });
+  var allResults  = [];
+  var listsChecked = 0;
+
+  // 2. Jede Disziplin-Liste laden und TuS-Einträge extrahieren
+  for (var li = 0; li < listLinks.length; li++) {
+    var le = listLinks[li];
+    if (statusEl) statusEl.textContent = '\u23f3 ' + (li+1) + '/' + listLinks.length + ': ' + le.diszName + '\u2026';
+
+    var listHTML;
+    try { listHTML = await _laFetch(le.url); }
+    catch(e) { continue; }
+
+    listsChecked++;
+    var listDoc = _parseHTML(listHTML);
+
+    // Alle .entryline-Zeilen verarbeiten
+    listDoc.querySelectorAll('.entryline').forEach(function(row) {
+      // Verein aus col-2 › secondline
+      var col2 = row.querySelector('.col-2');
+      if (!col2) return;
+      var verein = (col2.querySelector('.secondline') || {}).textContent || '';
+      verein = verein.trim().toLowerCase();
+      var isOwn = vereinParts.every(function(p) { return verein.indexOf(p) >= 0; });
+      if (!isOwn) return;
+
+      // Name aus col-2 › firstline (Format: "Nachname Vorname")
+      var rName = ((col2.querySelector('.firstline') || {}).textContent || '').trim();
+
+      // Ergebnis: erste col-4 › firstline
+      var col4s = row.querySelectorAll('.col-4');
+      var rErgebnis = col4s.length > 0
+        ? ((col4s[0].querySelector('.firstline') || {}).textContent || '').trim()
+        : '';
+      // Komma → Punkt (6,93 → 6.93), aber Zeitformat behalten (1:23,45 → 1:23.45)
+      rErgebnis = rErgebnis.replace(',', '.');
+
+      // AK: letzte col-4 › firstline (wenn >1 col-4 vorhanden)
+      var rAK = '';
+      if (col4s.length > 1) {
+        rAK = ((col4s[col4s.length-1].querySelector('.firstline') || {}).textContent || '').trim();
+      }
+      // AK aus Jahrgang ableiten wenn leer oder nur M/W ohne Stufe
+      if (!rAK || rAK === 'M' || rAK === 'W') {
+        var rawAK = rAK;
+        var col3  = row.querySelector('.col-3');
+        var jg    = parseInt(((col3 && col3.querySelector('.secondline')) || {}).textContent || '0');
+        if (jg > 1900 && eventDate) {
+          var evYr = parseInt(eventDate.slice(0,4)) || new Date().getFullYear();
+          // Geschlecht aus AK-Feld oder Name-Heuristik
+          var gescl = /^W/i.test(rawAK) ? 'W' : 'M';
+          var calcAK = calcDlvAK(jg, gescl, evYr);
+          if (calcAK) rAK = calcAK;
+        }
+      }
+      rAK = normalizeAK(rAK);
+
+      // Rang (AK-Platz) aus col-1 › firstline
+      var col1   = row.querySelector('.col-1');
+      var rangTxt = ((col1 && col1.querySelector('.firstline')) || {}).textContent || '';
+      var rPlatz  = parseInt(rangTxt.replace(/[^0-9]/g,'')) || 0;
+
+      if (!rName || !rErgebnis) return;
+
+      // Disziplin via rrBestDisz mit Disziplin-Namen aus Link-Text
+      var disz    = rrBestDisz(le.diszName, diszList);
+      var diszObj = disziplinen.find(function(d) {
+        return d.disziplin === disz && (!kat || d.tbl_key === kat);
+      });
+
+      if (!allResults.some(function(r) { return r.name === rName && r.resultat === rErgebnis; })) {
+        allResults.push({
+          name:      rName,
+          resultat:  rErgebnis,
+          ak:        rAK,
+          platz:     rPlatz,
+          disziplin: diszObj ? diszObj.disziplin : disz,
+          diszMid:   diszObj ? (diszObj.id || diszObj.mapping_id) : null
+        });
+      }
+    });
+  }
+
+  _bkDbgLine('Listen durchsucht', listsChecked);
+  _bkDbgLine('Gefunden',          allResults.length + ' TuS-Eintr\u00e4ge');
+
+  if (allResults.length) {
+    _bkDbgSep();
+    _bkDbgHeader('Ergebnisse');
+    for (var _di = 0; _di < allResults.length; _di++) {
+      var _dr = allResults[_di];
+      _bkDbgLines.push(
+        String(_di+1).padStart(2,' ') + '.  ' +
+        (_dr.name||'?').padEnd(22,' ') +
+        (_dr.ak||'  ').padEnd(6,' ') +
+        (_dr.resultat||'').padEnd(10,' ') +
+        (_dr.platz ? 'Platz\u00a0'+_dr.platz : '').padEnd(9,' ') +
+        '\u2192 ' + (_dr.disziplin||'(keine)')
+      );
+    }
+    _bkDbgFlush();
+  }
+
+  bulkFillFromImport(allResults, statusEl);
 }
 /* ── 10_veranstaltungen.js ── */
 async function renderVeranstaltungen() {
