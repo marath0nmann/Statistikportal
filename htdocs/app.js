@@ -4601,11 +4601,14 @@ async function bulkImportFromUits(url, kat, statusEl) {
   }
 
   var ownRows = parsed.rows.filter(function(row) { return row.ownClub; });
-  // Fallback: Vereinsname nicht erkannt → alle Einträge; bulkFillFromImport
-  // matcht dann per Name gegen die Athleten-DB (nur Treffer werden befüllt)
-  var rowsToImport = ownRows.length > 0 ? ownRows : parsed.rows;
+  // Fallback: Vereinsname nicht erkannt → per Athleten-Name filtern
+  var rowsToImport = ownRows;
   if (ownRows.length === 0 && parsed.rows.length > 0) {
-    _bkDbgLine('Hinweis', 'Kein Vereinstreffer – alle ' + parsed.rows.length + ' Einträge werden per Name gematcht');
+    var _athleten = state.athleten || [];
+    rowsToImport = parsed.rows.filter(function(row) {
+      return uitsAutoMatch(row.name, _athleten) !== null;
+    });
+    _bkDbgLine('Hinweis', 'Kein Vereinstreffer – ' + rowsToImport.length + ' Namens-Treffer in Athleten-DB');
   }
   var bulkRows = rowsToImport.map(function(row) {
     // Disziplin aus Kategorie + gewähltem kat
