@@ -5,6 +5,36 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v599 – Kategorie-Gruppen: Sprung&Wurf-Disziplinen bei Bahn/Halle
+
+- Neue Einstellung `kategoriegruppen` (JSON) in einstellungen-Tabelle
+- `bkKatMitGruppen(kat)`: gibt alle tbl_keys zurück die für eine Kat. angezeigt werden
+  z.B. bahn → [bahn, sprung_wurf] wenn so konfiguriert
+- `bkDiszOpts()`: zeigt Gruppen-Disziplinen mit Kategoriesuffix "(Sprung & Wurf)"
+- diszObj-Suche in allen Importern berücksichtigt Gruppen-Kategorien
+- `editKatChanged()` in Ergebnis-Bearbeiten-Dialog ebenfalls erweitert
+- Admin-Sub-Tab "🔗 Kat.-Gruppen": Gruppen per Checkbox-Modal konfigurieren
+- tbl_key der Disziplin bleibt unverändert → Bestenlisten nicht betroffen
+
+---
+
+
+## v598 – Neu: leichtathletik.de Import
+
+- URL-Erkennung: `ergebnisse.leichtathletik.de` → Typ "leichtathletik"
+- PHP-Proxy `la-fetch`: lädt HTML von ergebnisse.leichtathletik.de
+- `bulkImportFromLA()` in `14_leichtathletik.js`:
+  1. Resultoverview laden → Eventname, Datum, Ort + alle CurrentList-Links
+  2. Jede Disziplin-Liste laden + .entryline parsen
+     col-2 firstline=Name, secondline=Verein
+     col-4[0] firstline=Ergebnis, col-4[last] firstline=AK
+     col-1 firstline=AK-Platz
+  3. Vereins-Filter, Disziplin via rrBestDisz(Listenname)
+- Unterstützt: /Resultoverview/, /Competitoroverview/, /CurrentList/ URLs
+
+---
+
+
 ## v598 – Neuer Import: leichtathletik.de
 
 - `14_leichtathletik.js`: neues Modul für ergebnisse.leichtathletik.de

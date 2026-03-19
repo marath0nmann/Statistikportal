@@ -617,6 +617,7 @@ if ($res === 'einstellungen') {
                 'disziplin_kategorie_suffix',
                 'footer_datenschutz_text','footer_nutzung_text','footer_impressum_text',
                 'jugend_aks',
+                'kategoriegruppen',
             ];
             $save = [];
             foreach ($erlaubt as $k) {
@@ -3009,6 +3010,26 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
 }
 
 // ── uitslagen.nl Proxy ────────────────────────────────────────────
+if ($res === 'la-fetch' && $method === 'GET') {
+    Auth::requireLogin();
+    $url = trim($_GET['url'] ?? '');
+    if (!$url) jsonErr('url fehlt.', 400);
+    // Nur ergebnisse.leichtathletik.de erlauben
+    $parsed = parse_url($url);
+    if (!$parsed || !isset($parsed['host']) || $parsed['host'] !== 'ergebnisse.leichtathletik.de') {
+        jsonErr('Nur ergebnisse.leichtathletik.de erlaubt.', 403);
+    }
+    $ctx = stream_context_create(['http' => [
+        'timeout'       => 12,
+        'user_agent'    => 'Mozilla/5.0 (compatible)',
+        'header'        => "Accept: text/html,application/xhtml+xml\r\nAccept-Language: de-DE,de;q=0.9\r\n",
+        'ignore_errors' => true,
+    ]]);
+    $html = @file_get_contents($url, false, $ctx);
+    if ($html === false) jsonErr('Seite konnte nicht geladen werden.', 502);
+    jsonOk(['html' => $html]);
+}
+
 if ($res === 'uits-fetch' && $method === 'GET') {
     Auth::requireLogin();
     $url = trim($_GET['url'] ?? '');
