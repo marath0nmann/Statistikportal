@@ -4406,6 +4406,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
       else if(f.indexOf('club')>=0||f.indexOf('verein')>=0)iClub=fi;
       else if(f.indexOf('autorankp')>=0||f.indexOf('overallrank')>=0||f.indexOf('withstatus')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0||f.indexOf('agegrouprank')>=0){if(f.indexOf('akpl')>=0||f.indexOf('agegrouprank')>=0)iAKPlatz=fi;else iPlatz=fi;}
       else if(f.indexOf('akpl')>=0)iAKPlatz=fi;
+      else if(/^rank\dp$/.test(f)){if(f==='rank1p')iPlatz=fi;else iAKPlatz=fi;}
       else if((f.indexOf('agegroup')>=0||f==='[agegroup1.nameshort]'||f.indexOf('akabk')>=0||f.indexOf('ak_abk')>=0||f==='es_akabkürzung'||f.indexOf('agegroupname')>=0)&&f.indexOf('rank')<0)iAK=fi;
       else if(f==='year'||f==='yob'||f==='birthyear'||f==='es_jahrgang')iYear=fi;
       else if(f.indexOf('geschlechtmw')>=0||f==='es_geschlecht'||f==='gendermf'||f==='gender'||f==='sex')iGeschlecht=fi;
@@ -7021,6 +7022,7 @@ async function rrFetch() {
             else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0 || f === 'ziel' || f.indexOf('ziel') >= 0 || f.indexOf('finish') >= 0) iZeit = fi;
             else if (f === 'time' || f.indexOf('time') === 0) iZeit = fi; // z.B. TIME1
             else if (f.indexOf('akpl') >= 0) iAKPlatz = fi;  // AKPlp, AKPl.P direkt
+            else if (/^rank\dp$/.test(f)) { if (f === 'rank1p') iPlatz = fi; else iAKPlatz = fi; }
             else if (f.indexOf('autorankp') >= 0 || f.indexOf('overallrank') >= 0 || f.indexOf('withstatus') >= 0 || f.indexOf('mitstatus') >= 0 || f.indexOf('statusplatz') >= 0) { // withstatus BEFORE agegroup check
               // MitStatus([AKPlp]) / StatusPlatz([AKPl.P]) = AK-Platz
               if (f.indexOf('akpl') >= 0) iAKPlatz = fi;

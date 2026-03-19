@@ -1,1 +1,1 @@
-v615: Fix kompakte _cal: Platz vor AK, rank<0-Guard, agegroupname
+v616: Fix _cal: RANK1p/RANK3p als Platz-Felder erkennen
