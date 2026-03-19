@@ -4432,7 +4432,14 @@ async function bulkImportFromRR(url, kat, statusEl) {
         var gk=(k2?(k+'/'+k2):k).replace(/^#\d+_/,'');
         var akFG='';
         if(iAK<0){var _m=gk.match(/\b([MW](?:U\d{1,2}|\d{2})|[MW])\b/);if(_m)akFG=normalizeAK(_m[1]);}
-        var cnD=contestName||kClean||gk; // Top-Level-Key hat Distanz
+        // Disziplin-Name: beste Quelle mit Distanz-Treffer wählen
+        var cnD=(function(){
+          var cands=[contestName,kClean,gk].filter(Boolean);
+          for(var ci=0;ci<cands.length;ci++){
+            if(rrBestDisz(cands[ci],diszList))return cands[ci];
+          }
+          return contestName||kClean||gk;
+        })();
         rows.forEach(function(row){
           if(!Array.isArray(row)||row.length<3)return;
           var club=iClub>=0?String(row[iClub]||'').trim():'';
