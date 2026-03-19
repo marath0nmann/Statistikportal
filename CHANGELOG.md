@@ -5,6 +5,14 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v620 – Fix Bestleistungen SQL: pbAkExpr
+
+- $akExpr enthält "e.altersklasse" → im AK-Subquery pb_e-Alias nötig
+- Fix: $pbAkExpr = str_replace("e.", "pb_e.", $akExpr)
+
+---
+
+
 ## v619 – Fix Bestleistungen SQL: pbDiszCond
 
 - $diszCond enthält "e.disziplin_mapping_id" → im Subquery pb_e-Alias nötig

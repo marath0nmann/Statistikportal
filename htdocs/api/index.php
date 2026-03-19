@@ -1828,6 +1828,7 @@ if ($res === 'rekorde') {
         // $sortCol/$diszCond enthalten 'e.XYZ' → im Subquery-Alias 'pb_e.XYZ'
         $pbSortCol = str_replace('e.', 'pb_e.', $sortCol);
         $pbDiszCond = str_replace('e.', 'pb_e.', $diszCond);
+        $pbAkExpr   = str_replace('e.', 'pb_e.', $akExpr);
         $pbSubquery = "(SELECT athlet_id, $bestFn($pbSortCol) AS pb_val
                          FROM $tbl pb_e
                          JOIN " . DB::tbl('veranstaltungen') . " pb_v ON pb_v.id=pb_e.veranstaltung_id
@@ -1889,7 +1890,7 @@ if ($res === 'rekorde') {
             $pbSubAK = "(SELECT athlet_id, $bestFn($pbSortCol) AS pb_val
                           FROM $tbl pb_e
                           JOIN " . DB::tbl('veranstaltungen') . " pb_v ON pb_v.id=pb_e.veranstaltung_id
-                          WHERE {$pbDiszCond} AND $akExpr=?
+                          WHERE {$pbDiszCond} AND $pbAkExpr=?
                             AND pb_e.geloescht_am IS NULL AND pb_v.geloescht_am IS NULL
                           GROUP BY athlet_id) pb";
             $ak_results = DB::fetchAll(
