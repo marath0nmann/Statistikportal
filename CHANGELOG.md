@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v608 – Fix RaceResult-Import: AK-Platz statt Gesamtplatz
+
+- Problem: "detaillierte Einlaufliste" hat Gesamtplatz (166, 559, 690),
+  "Ergebnisliste AK" hat AK-Platz (7, 6, 16) — kommt aber später
+- Duplikat-Check übersprang die AK-Liste vollständig
+- Fix: bei Duplikat (gleicher Name + Zeit) wird der Platz aktualisiert,
+  wenn der neue Wert kleiner und > 0 ist (AK-Platz < Gesamtplatz)
+- Außerdem: fehlende AK aus späterer Liste ergänzen
+
+---
+
+
 ## v607 – Fix RaceResult-Import: TIME1 nicht erkannt
 
 - 62. Winterlauf Aachen: DataField heißt "TIME1" statt "TIME"/"NETTO"/"GUN"
