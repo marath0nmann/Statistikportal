@@ -4450,7 +4450,12 @@ async function bulkImportFromRR(url, kat, statusEl) {
           if(!rName)return;
           var disz=rrBestDisz(cnD,diszList);
           var dObj=disziplinen.find(function(d){return d.disziplin===disz&&(!kat||(bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key)>=0);});
-          if(!allResults.some(function(r){return r.name===rName&&r.resultat===rZeit;})){
+          var _dup=allResults.find(function(r){return r.name===rName&&r.resultat===rZeit;});
+          if(_dup){
+            // AK-Platz bevorzugen: kleinerer Wert aus späterer Liste übernehmen
+            if(rP>0&&(_dup.platz===0||rP<_dup.platz))_dup.platz=rP;
+            if(rAK&&!_dup.ak)_dup.ak=rAK;
+          } else {
             allResults.push({name:rName,resultat:rZeit,ak:rAK,platz:rP,
               disziplin:dObj?dObj.disziplin:disz,diszMid:dObj?(dObj.id||dObj.mapping_id):null});
           }
