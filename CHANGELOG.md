@@ -5,6 +5,14 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v619 – Fix Bestleistungen SQL: pbDiszCond
+
+- $diszCond enthält "e.disziplin_mapping_id" → im Subquery pb_e-Alias nötig
+- Fix: $pbDiszCond = str_replace("e.", "pb_e.", $diszCond)
+
+---
+
+
 ## v618 – Fix Bestleistungen SQL: Subquery-Alias
 
 - $sortCol enthält "e.resultat_num" → im Subquery-Alias "pb_e" → Fehler

@@ -1,1 +1,1 @@
-v618: Fix Subquery-Alias: pb_e statt e in pbSortCol
+v619: Fix Subquery: pbDiszCond mit pb_e-Alias
