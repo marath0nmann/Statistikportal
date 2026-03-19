@@ -5,6 +5,33 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v612 – Fix RaceResult-Import: ältere Feldnamen erkannt
+
+- 49. Forstwalder Silvesterlauf 2019: DataFields nutzt englische Feldnamen
+  "DisplayName" → iName war 3 (BIB-Default), Name zeigte Startnummern
+  "GenderMF" → iGeschlecht nicht gesetzt
+  "WithStatus([OverallRankp])" → iPlatz nicht gesetzt
+  "AgeGroupName1" → bereits erkannt via indexOf("agegroup") ✓
+- _calibrateDF erweitert: DisplayName/FullName, GenderMF/Gender/Sex,
+  OverallRank/WithStatus, AgeGroupName
+- Alle Vorkommen in 07_eintragen.js, 08_raceresult.js, template (11+8+3)
+
+---
+
+
+## v611 – DLV-Standard: WHK/MHK statt W/M
+
+- `calcDlvAK()`: Hauptklasse (23-29 Jahre) → MHK/WHK statt M/W
+- `normalizeAK()`: "M"/"W" → MHK/WHK; Männer/Frauen-Texte → MHK/WHK
+- `isValidDlvAK()`: MHK/WHK als gültige AKs anerkannt
+- `uitsAKFromCat()`: MSEN → MHK, VSEN → WHK
+- Bestehende DB-Einträge mit "M"/"W" werden per PHP-CASE-Merge weiterhin
+  korrekt als MHK/WHK angezeigt (keine Datenmigration nötig)
+- Änderungen in: 07_eintragen.js, 08_raceresult.js, 13_uitslagen.js
+
+---
+
+
 ## v610 – Fix RaceResult-Import: Disziplin-Quellenauswahl
 
 - v609-Fix griff nicht: contestName="Ergebnislisten|Zieleinlaufliste" war truthy

@@ -4402,16 +4402,16 @@ async function bulkImportFromRR(url, kat, statusEl) {
     iAK=-1;iYear=-1;iGeschlecht=-1;iAKPlatz=-1;iName=3;iClub=6;iNetto=-1;iZeit=-1;iPlatz=2;
     for(var fi=0;fi<df.length;fi++){
       var f=df[fi].toLowerCase();
-      if(f.indexOf('anzeigename')>=0||f.indexOf('lfname')>=0)iName=fi;
+      if(f.indexOf('anzeigename')>=0||f.indexOf('lfname')>=0||f==='displayname'||f==='fullname')iName=fi;
       else if(f.indexOf('club')>=0||f.indexOf('verein')>=0)iClub=fi;
       else if(f.indexOf('agegroup')>=0||f==='[agegroup1.nameshort]'||f.indexOf('akabk')>=0||f.indexOf('ak_abk')>=0||f==='es_akabk\u00fcrzung')iAK=fi;
       else if(f==='year'||f==='yob'||f==='birthyear'||f==='es_jahrgang')iYear=fi;
-      else if(f.indexOf('geschlechtmw')>=0||f==='es_geschlecht')iGeschlecht=fi;
+      else if(f.indexOf('geschlechtmw')>=0||f==='es_geschlecht'||f==='gendermf'||f==='gender'||f==='sex')iGeschlecht=fi;
       else if(f.indexOf('chip')>=0||f.indexOf('netto')>=0)iNetto=fi;
       else if(f.indexOf('gun')>=0||f.indexOf('brutto')>=0||f==='ziel'||f.indexOf('ziel')>=0||f.indexOf('finish')>=0)iZeit=fi;
       else if(f==='time'||f.indexOf('time')===0)iZeit=fi; // z.B. TIME1, TIME_NET
       else if(f.indexOf('akpl')>=0)iAKPlatz=fi;
-      else if(f.indexOf('autorankp')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0){if(f.indexOf('akpl')>=0)iAKPlatz=fi;else iPlatz=fi;}
+      else if(f.indexOf('autorankp')>=0||f.indexOf('overallrank')>=0||f.indexOf('withstatus')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0){if(f.indexOf('akpl')>=0)iAKPlatz=fi;else iPlatz=fi;}
     }
     if(iNetto>=0&&iZeit<0)iZeit=iNetto;
     if(iNetto<0&&iZeit>=0)iNetto=iZeit;
@@ -5397,16 +5397,16 @@ async function rrFetch() {
         if (Array.isArray(df) && df.length > 0) {
           for (var fi = 0; fi < df.length; fi++) {
             var f = df[fi].toLowerCase();
-            if (f.indexOf('anzeigename') >= 0 || f.indexOf('lfname') >= 0) iName = fi;
+            if (f.indexOf('anzeigename') >= 0 || f.indexOf('lfname') >= 0 || f === 'displayname' || f === 'fullname') iName = fi;
             else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
-            else if (f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]' || f.indexOf('akabk') >= 0 || f.indexOf('ak_abk') >= 0 || f === 'es_akabkürzung') iAK = fi;
+            else if (f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]' || f.indexOf('akabk') >= 0 || f.indexOf('ak_abk') >= 0 || f === 'es_akabkürzung' || f.indexOf('agegroupname') >= 0) iAK = fi;
             else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* skip */ }
             else if (f === 'year' || f === 'yob' || f === 'birthyear' || f === 'es_jahrgang') iYear = fi;
-            else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht') iGeschlecht = fi;
+            else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht' || f === 'gendermf' || f === 'gender' || f === 'sex') iGeschlecht = fi;
             else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
             else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0 || f === 'ziel' || f.indexOf('ziel') >= 0 || f.indexOf('finish') >= 0) iZeit = fi;
             else if (f.indexOf('akpl') >= 0) iAKPlatz = fi;  // AKPlp, AKPl.P direkt
-            else if (f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0 || f.indexOf('statusplatz') >= 0) {
+            else if (f.indexOf('autorankp') >= 0 || f.indexOf('overallrank') >= 0 || f.indexOf('withstatus') >= 0 || f.indexOf('mitstatus') >= 0 || f.indexOf('statusplatz') >= 0) {
               // MitStatus([AKPlp]) / StatusPlatz([AKPl.P]) = AK-Platz
               if (f.indexOf('akpl') >= 0) iAKPlatz = fi;
               else iPlatz = fi;
@@ -5442,11 +5442,11 @@ async function rrFetch() {
                 iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
                 for (var _fai = 0; _fai < _dfAll.length; _fai++) {
                   var _fa = _dfAll[_fai].toLowerCase();
-                  if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('lfname') >= 0) iName = _fai;
+                  if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('lfname') >= 0 || _fa === 'displayname' || _fa === 'fullname') iName = _fai;
                   else if (_fa.indexOf('club') >= 0 || _fa.indexOf('verein') >= 0) iClub = _fai;
-                  else if (_fa.indexOf('agegroup') >= 0 || _fa.indexOf('akabk') >= 0) iAK = _fai;
+                  else if (_fa.indexOf('agegroup') >= 0 || _fa.indexOf('akabk') >= 0 || _fa.indexOf('agegroupname') >= 0) iAK = _fai;
                   else if (_fa === 'year' || _fa === 'yob') iYear = _fai;
-                  else if (_fa.indexOf('geschlechtmw') >= 0) iGeschlecht = _fai;
+                  else if (_fa.indexOf('geschlechtmw') >= 0 || _fa === 'gendermf' || _fa === 'gender') iGeschlecht = _fai;
                   else if (_fa.indexOf('chip') >= 0 || _fa.indexOf('netto') >= 0) iNetto = _fai;
                   else if (_fa.indexOf('gun') >= 0 || _fa.indexOf('brutto') >= 0 || _fa === 'ziel' || _fa.indexOf('finish') >= 0 || _fa.indexOf('ziel') >= 0) iZeit = _fai;
                   else if (_fa.indexOf('akpl') >= 0) iAKPlatz = _fai;
@@ -5562,7 +5562,7 @@ async function rrFetch() {
             iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
             for (var fi2 = 0; fi2 < df2.length; fi2++) {
               var f2 = df2[fi2].toLowerCase();
-              if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('lfname') >= 0) iName = fi2;
+              if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('lfname') >= 0 || f2 === 'displayname' || f2 === 'fullname') iName = fi2;
               else if (f2.indexOf('club') >= 0 || f2.indexOf('verein') >= 0) iClub = fi2;
               else if (f2.indexOf('agegroup') >= 0 || f2.indexOf('akabk') >= 0 || f2.indexOf('ak_abk') >= 0 || f2 === 'es_akabkürzung') iAK = fi2;
               else if (f2 === 'year' || f2 === 'yob' || f2 === 'es_jahrgang') iYear = fi2;
@@ -5786,8 +5786,9 @@ function rrBestDisz(rrName, diszList) {
 function normalizeAK(raw) {
   if (!raw) return '';
   var s = raw.trim();
-  // Bereits DLV-Format: M40, W65, MU16, M, W
-  if (/^[MW]U?\d{0,2}$/.test(s)) return s;
+  // Bereits DLV-Format: MHK, WHK, M40, W65, MU16
+  if (/^[MW]HK$/.test(s)) return s;
+  if (/^[MW]U?\d{0,2}$/.test(s)) return /^[MW]$/.test(s) ? s + 'HK' : s;
   // "W 40" / "M 50" → "W40" / "M50"
   var sm = s.match(/^([MW])\s+(\d{2})$/i);
   if (sm) return sm[1].toUpperCase() + sm[2];
@@ -5805,8 +5806,8 @@ function normalizeAK(raw) {
     if (jw) return 'WU' + jw[1];
   }
   // Nur Geschlecht
-  if (/^(m.nner|herren|male|men)$/i.test(s))    return 'M';
-  if (/^(frauen|damen|female|women)$/i.test(s))  return 'W';
+  if (/^(m.nner|herren|male|men)$/i.test(s))    return 'MHK';
+  if (/^(frauen|damen|female|women)$/i.test(s))  return 'WHK';
   return s;
 }
 
@@ -5820,7 +5821,7 @@ function calcDlvAK(jahrgang, geschlecht, eventJahr) {
   if (alter < 19) return g + 'U18';
   if (alter < 21) return g + 'U20';
   if (alter < 23) return g + 'U23';
-  if (alter < 30) return g;  // Hauptklasse: M / W
+  if (alter < 30) return g + 'HK';  // Hauptklasse: MHK / WHK
   var stufe = Math.floor(alter / 5) * 5;
   if (stufe > 75) stufe = 75;
   return g + stufe;
@@ -5829,7 +5830,7 @@ function calcDlvAK(jahrgang, geschlecht, eventJahr) {
 // Prüft ob ein AK-Wert dem DLV-Standard entspricht
 function isValidDlvAK(ak) {
   if (!ak || ak === '') return true; // leer ist ok
-  return /^[MW](U(12|14|16|18|20|23)|(30|35|40|45|50|55|60|65|70|75|80|85)|)$/.test(ak);
+  return /^[MW](HK|U(12|14|16|18|20|23)|(30|35|40|45|50|55|60|65|70|75|80|85))$/.test(ak);
 }
 
 function _rrRefreshAKPlatz() {
@@ -7000,17 +7001,17 @@ async function rrFetch() {
         if (Array.isArray(df) && df.length > 0) {
           for (var fi = 0; fi < df.length; fi++) {
             var f = df[fi].toLowerCase();
-            if (f.indexOf('anzeigename') >= 0 || f.indexOf('lfname') >= 0) iName = fi;
+            if (f.indexOf('anzeigename') >= 0 || f.indexOf('lfname') >= 0 || f === 'displayname' || f === 'fullname') iName = fi;
             else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
-            else if (f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]' || f.indexOf('akabk') >= 0 || f.indexOf('ak_abk') >= 0 || f === 'es_akabkürzung') iAK = fi;
+            else if (f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]' || f.indexOf('akabk') >= 0 || f.indexOf('ak_abk') >= 0 || f === 'es_akabkürzung' || f.indexOf('agegroupname') >= 0) iAK = fi;
             else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* skip */ }
             else if (f === 'year' || f === 'yob' || f === 'birthyear' || f === 'es_jahrgang') iYear = fi;
-            else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht') iGeschlecht = fi;
+            else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht' || f === 'gendermf' || f === 'gender' || f === 'sex') iGeschlecht = fi;
             else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
             else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0 || f === 'ziel' || f.indexOf('ziel') >= 0 || f.indexOf('finish') >= 0) iZeit = fi;
             else if (f === 'time' || f.indexOf('time') === 0) iZeit = fi; // z.B. TIME1
             else if (f.indexOf('akpl') >= 0) iAKPlatz = fi;  // AKPlp, AKPl.P direkt
-            else if (f.indexOf('autorankp') >= 0 || f.indexOf('mitstatus') >= 0 || f.indexOf('statusplatz') >= 0) {
+            else if (f.indexOf('autorankp') >= 0 || f.indexOf('overallrank') >= 0 || f.indexOf('withstatus') >= 0 || f.indexOf('mitstatus') >= 0 || f.indexOf('statusplatz') >= 0) {
               // MitStatus([AKPlp]) / StatusPlatz([AKPl.P]) = AK-Platz
               if (f.indexOf('akpl') >= 0) iAKPlatz = fi;
               else iPlatz = fi;
@@ -7046,11 +7047,11 @@ async function rrFetch() {
                 iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
                 for (var _fai = 0; _fai < _dfAll.length; _fai++) {
                   var _fa = _dfAll[_fai].toLowerCase();
-                  if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('lfname') >= 0) iName = _fai;
+                  if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('lfname') >= 0 || _fa === 'displayname' || _fa === 'fullname') iName = _fai;
                   else if (_fa.indexOf('club') >= 0 || _fa.indexOf('verein') >= 0) iClub = _fai;
-                  else if (_fa.indexOf('agegroup') >= 0 || _fa.indexOf('akabk') >= 0) iAK = _fai;
+                  else if (_fa.indexOf('agegroup') >= 0 || _fa.indexOf('akabk') >= 0 || _fa.indexOf('agegroupname') >= 0) iAK = _fai;
                   else if (_fa === 'year' || _fa === 'yob') iYear = _fai;
-                  else if (_fa.indexOf('geschlechtmw') >= 0) iGeschlecht = _fai;
+                  else if (_fa.indexOf('geschlechtmw') >= 0 || _fa === 'gendermf' || _fa === 'gender') iGeschlecht = _fai;
                   else if (_fa.indexOf('chip') >= 0 || _fa.indexOf('netto') >= 0) iNetto = _fai;
                   else if (_fa.indexOf('gun') >= 0 || _fa.indexOf('brutto') >= 0 || _fa === 'ziel' || _fa.indexOf('finish') >= 0 || _fa.indexOf('ziel') >= 0) iZeit = _fai;
                   else if (_fa.indexOf('akpl') >= 0) iAKPlatz = _fai;
@@ -7166,7 +7167,7 @@ async function rrFetch() {
             iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
             for (var fi2 = 0; fi2 < df2.length; fi2++) {
               var f2 = df2[fi2].toLowerCase();
-              if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('lfname') >= 0) iName = fi2;
+              if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('lfname') >= 0 || f2 === 'displayname' || f2 === 'fullname') iName = fi2;
               else if (f2.indexOf('club') >= 0 || f2.indexOf('verein') >= 0) iClub = fi2;
               else if (f2.indexOf('agegroup') >= 0 || f2.indexOf('akabk') >= 0 || f2.indexOf('ak_abk') >= 0 || f2 === 'es_akabkürzung') iAK = fi2;
               else if (f2 === 'year' || f2 === 'yob' || f2 === 'es_jahrgang') iYear = fi2;
@@ -7390,8 +7391,9 @@ function rrBestDisz(rrName, diszList) {
 function normalizeAK(raw) {
   if (!raw) return '';
   var s = raw.trim();
-  // Bereits DLV-Format: M40, W65, MU16, M, W
-  if (/^[MW]U?\d{0,2}$/.test(s)) return s;
+  // Bereits DLV-Format: MHK, WHK, M40, W65, MU16
+  if (/^[MW]HK$/.test(s)) return s;
+  if (/^[MW]U?\d{0,2}$/.test(s)) return /^[MW]$/.test(s) ? s + 'HK' : s;
   // "W 40" / "M 50" → "W40" / "M50"
   var sm = s.match(/^([MW])\s+(\d{2})$/i);
   if (sm) return sm[1].toUpperCase() + sm[2];
@@ -7409,8 +7411,8 @@ function normalizeAK(raw) {
     if (jw) return 'WU' + jw[1];
   }
   // Nur Geschlecht
-  if (/^(m.nner|herren|male|men)$/i.test(s))    return 'M';
-  if (/^(frauen|damen|female|women)$/i.test(s))  return 'W';
+  if (/^(m.nner|herren|male|men)$/i.test(s))    return 'MHK';
+  if (/^(frauen|damen|female|women)$/i.test(s))  return 'WHK';
   return s;
 }
 
@@ -7424,7 +7426,7 @@ function calcDlvAK(jahrgang, geschlecht, eventJahr) {
   if (alter < 19) return g + 'U18';
   if (alter < 21) return g + 'U20';
   if (alter < 23) return g + 'U23';
-  if (alter < 30) return g;  // Hauptklasse: M / W
+  if (alter < 30) return g + 'HK';  // Hauptklasse: MHK / WHK
   var stufe = Math.floor(alter / 5) * 5;
   if (stufe > 75) stufe = 75;
   return g + stufe;
@@ -7433,7 +7435,7 @@ function calcDlvAK(jahrgang, geschlecht, eventJahr) {
 // Prüft ob ein AK-Wert dem DLV-Standard entspricht
 function isValidDlvAK(ak) {
   if (!ak || ak === '') return true; // leer ist ok
-  return /^[MW](U(12|14|16|18|20|23)|(30|35|40|45|50|55|60|65|70|75|80|85)|)$/.test(ak);
+  return /^[MW](HK|U(12|14|16|18|20|23)|(30|35|40|45|50|55|60|65|70|75|80|85))$/.test(ak);
 }
 
 function _rrRefreshAKPlatz() {
@@ -10872,8 +10874,8 @@ function uitsAKFromCat(catRaw) {
   // catRaw z.B. "MSEN, LANGE CROSS" oder "M45, KORTE CROSS" oder "VU16, VROUWEN U16"
   var first = (catRaw || '').split(',')[0].trim().toUpperCase();
   // Geschlecht: M=Männer, V=Frauen (Niederländisch: Vrouwen)
-  if (first === 'MSEN') return 'M';
-  if (first === 'VSEN') return 'W';
+  if (first === 'MSEN') return 'MHK';
+  if (first === 'VSEN') return 'WHK';
   // Senioren mit AK: M40, M45, V35, V45 etc.
   var senM = first.match(/^M(\d{2})$/);
   if (senM) return 'M' + senM[1];
@@ -10894,8 +10896,8 @@ function uitsAKFromCat(catRaw) {
 // ── Geschlecht aus Kategorie ────────────────────────────────────
 function uitsGeschlechtFromCat(catRaw) {
   var first = (catRaw || '').split(',')[0].trim().toUpperCase();
-  if (first.charAt(0) === 'M') return 'M';
-  if (first.charAt(0) === 'V') return 'W';
+  if (first.charAt(0) === 'M') return 'MHK';
+  if (first.charAt(0) === 'V') return 'WHK';
   return '';
 }
 
