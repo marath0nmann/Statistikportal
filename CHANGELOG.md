@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v609 – Fix RaceResult-Import: Disziplin bei Contest=0
+
+- Forstwalder Silvesterlauf: alle Listen haben Contest="0" (alle zusammen)
+  contestObj["0"] = undefined → contestName leer → keine Distanz für rrBestDisz
+- Top-Level-Key der Datenstruktur enthält Contest-Name mit Distanz:
+  "#1_Jedermann-Lauf, 4.100m" → kClean = "Jedermann-Lauf, 4.100m"
+- Fix: cnD = contestName || kClean || gk
+  rrBestDisz("Jedermann-Lauf, 4.100m") → "4,1km" ✓
+
+---
+
+
 ## v608 – Fix RaceResult-Import: AK-Platz statt Gesamtplatz
 
 - Problem: "detaillierte Einlaufliste" hat Gesamtplatz (166, 559, 690),

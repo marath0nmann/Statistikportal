@@ -4426,12 +4426,13 @@ async function bulkImportFromRR(url, kat, statusEl) {
       var v=dRaw[k],groups;
       if(Array.isArray(v)){groups=(v.length>0&&Array.isArray(v[0]))?{'':v}:{'':v.length>0?[v]:v};}
       else if(v&&typeof v==='object'){groups=v;}else{return;}
+      var kClean=k.replace(/^#\d+_/,''); // z.B. 'Jedermann-Lauf, 4.100m'
       Object.keys(groups).forEach(function(k2){
         var rows=groups[k2];if(!Array.isArray(rows))return;
         var gk=(k2?(k+'/'+k2):k).replace(/^#\d+_/,'');
         var akFG='';
         if(iAK<0){var _m=gk.match(/\b([MW](?:U\d{1,2}|\d{2})|[MW])\b/);if(_m)akFG=normalizeAK(_m[1]);}
-        var cnD=contestName||gk;
+        var cnD=contestName||kClean||gk; // Top-Level-Key hat Distanz
         rows.forEach(function(row){
           if(!Array.isArray(row)||row.length<3)return;
           var club=iClub>=0?String(row[iClub]||'').trim():'';
