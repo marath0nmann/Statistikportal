@@ -955,6 +955,9 @@ if ($res === 'dashboard' && $method === 'GET') {
         $bestGesamtDatum = null;
         $bestByGDatum    = [];
         $bestByAKDatum   = [];
+        // Datum des allerersten Ergebnisses in dieser Disziplin
+        // Alle Ergebnisse an diesem Tag → "Erste Gesamtleistung"
+        $firstEverDatum  = null;
 
         // fmt auto-korrigieren: wenn Resultate HH:MM:SS-Format haben, ist es 'min' nicht 's'
         if ($fmt === 's' && !empty($ergs)) {
@@ -979,14 +982,30 @@ if ($res === 'dashboard' && $method === 'GET') {
             $vorher    = null;
 
             // ── CLUB-LABELS ────────────────────────────────────────────────
+            // Sonderfall: Alle Ergebnisse am allerersten Tag dieser Disziplin
+            // erhalten "Erste Gesamtleistung" — unabhängig von der Reihenfolge
+            if ($firstEverDatum !== null && $datum === $firstEverDatum && $bestGesamt !== null) {
+                $labelClub = 'Erste Gesamtleistung';
+                if ($g === 'M' || $g === 'W') {
+                    if (!isset($bestByG[$g]) || ($dir==='ASC' ? $val<$bestByG[$g] : $val>$bestByG[$g])) {
+                        $bestByG[$g] = $val; $bestByGDatum[$g] = $datum;
+                    }
+                }
+                if ($ak) {
+                    if (!isset($bestByAK[$ak]) || ($dir==='ASC' ? $val<$bestByAK[$ak] : $val>$bestByAK[$ak])) {
+                        $bestByAK[$ak] = $val; $bestByAKDatum[$ak] = $datum;
+                    }
+                }
             // 1. Gesamtbestzeit (Gold)
-            if ($bestGesamt === null ||
+            } elseif ($bestGesamt === null ||
                 ($dir === 'ASC'  && $val < $bestGesamt) ||
                 ($dir === 'DESC' && $val > $bestGesamt)) {
                 $prevGesamt      = $bestGesamt;
                 $prevGesamtDatum = $bestGesamtDatum;
                 $bestGesamt      = $val;
                 $bestGesamtDatum = $datum;
+                // Erstes Ergebnis überhaupt → firstEverDatum merken
+                if ($prevGesamt === null) $firstEverDatum = $datum;
                 // Co-Debüt: vorheriger Bestwert am selben Tag → kein echter Vorgänger
                 $sameDayGesamt = ($prevGesamt !== null && $prevGesamtDatum === $datum);
                 $labelClub = ($prevGesamt === null || $sameDayGesamt) ? 'Erste Gesamtleistung' : 'Gesamtbestleistung';

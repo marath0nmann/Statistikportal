@@ -5,6 +5,29 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v607 – Fix RaceResult-Import: TIME1 nicht erkannt
+
+- 62. Winterlauf Aachen: DataField heißt "TIME1" statt "TIME"/"NETTO"/"GUN"
+  → _calibrateDF() setzte iZeit=-1 → alle Zeilen verworfen (0 Treffer)
+- Fix: f==='time' || f.indexOf('time')===0 ergänzt (TIME, TIME1, TIME_NET etc.)
+- Fix in: 07_eintragen.js, 08_raceresult.js, new_bulkRR_template.js
+
+---
+
+
+## v606 – Fix Timeline: Co-Debüt alle Athleten am ersten Tag
+
+- Problem: Julia/Maren/Guido debütieren alle am gleichen Tag in 5.200m Cross
+  Guido (bestes Ergebnis) → "Erste Gesamtleistung" ✓
+  Julia (schlechter als Guido) → fiel durch auf Geschlechts-Ebene → "Erstes Ergebnis Frauen"
+  Maren (besser als Julia) → "Bestleistung WHK" (v605-Fix griff, aber falsche Ebene)
+- Fix: $firstEverDatum trackt das Datum des ersten jemals gespeicherten Ergebnisses
+  Alle Ergebnisse mit $datum === $firstEverDatum bekommen "Erste Gesamtleistung"
+  unabhängig davon ob sie besser/schlechter als das bisherige Tages-Beste sind
+
+---
+
+
 ## v605 – Fix Timeline/PB: Co-Debüt am gleichen Tag
 
 - Problem: Julia und Maren debütieren am selben Tag; Maren bekam "Bestleistung WHK"
