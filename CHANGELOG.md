@@ -5,6 +5,14 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v618 – Fix Bestleistungen SQL: Subquery-Alias
+
+- $sortCol enthält "e.resultat_num" → im Subquery-Alias "pb_e" → Fehler
+- Fix: $pbSortCol = str_replace("e.", "pb_e.", $sortCol)
+
+---
+
+
 ## v617 – Fix Bestleistungen-Reihenfolge
 
 - Problem: LIMIT 50 auf allen Ergebnissen → JS-seitige Deduplizierung

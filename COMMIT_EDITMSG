@@ -1,1 +1,1 @@
-v617: Fix Bestleistungen: Bestleistung pro Athlet via SQL-Subquery
+v618: Fix Subquery-Alias: pb_e statt e in pbSortCol
