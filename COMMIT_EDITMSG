@@ -1,1 +1,1 @@
-v616: Fix _cal: RANK1p/RANK3p als Platz-Felder erkennen
+v617: Fix Bestleistungen: Bestleistung pro Athlet via SQL-Subquery
