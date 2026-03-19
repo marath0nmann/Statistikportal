@@ -5,6 +5,16 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v616 – Fix RR-Import: RANK1p/RANK3p Feldnamen
+
+- Hülskens Marathon: DataFields "RANK1p" (Gesamtplatz) und "RANK3p" (AK-Platz)
+  wurden nicht erkannt → Default iPlatz=2 (BIB) → falsche Platzierung
+- Fix: /^rank\dp$/-Muster: rank1p → iPlatz, rankNp (N>1) → iAKPlatz
+- Gilt für alle _cal-Blöcke in 07_eintragen.js, 08_raceresult.js, template
+
+---
+
+
 ## v615 – Fix _calibrateDF (kompakt): AK-Erkennung korrekt
 
 - Die kompakte _cal-Funktion in _proc (Bulk-Import) war nie aktualisiert worden
