@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v613 – Fix RaceResult-Import: AK aus Sub-Gruppen-Key
+
+- 2019er Event: "Age Group Results" hat kein AK-Feld in DataFields
+  AK steckt im Sub-Gruppen-Key: "#5_Jedermann Frauen" → WHK, "#3_W30" → W30
+- akFG: k2clean aus Sub-Key via normalizeAK auflösen
+- normalizeAK: Fallback wenn Männer/Frauen-Text ohne Jugend-Zahl → MHK/WHK
+  "Jedermann Frauen" → WHK, "Jedermann Männer" → MHK
+- calcDlvAK: "F" als Geschlecht erkannt (wie "W") via /^[WwFf]/
+
+---
+
+
 ## v612 – Fix RaceResult-Import: ältere Feldnamen erkannt
 
 - 49. Forstwalder Silvesterlauf 2019: DataFields nutzt englische Feldnamen

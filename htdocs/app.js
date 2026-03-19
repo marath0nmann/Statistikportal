@@ -4431,7 +4431,13 @@ async function bulkImportFromRR(url, kat, statusEl) {
         var rows=groups[k2];if(!Array.isArray(rows))return;
         var gk=(k2?(k+'/'+k2):k).replace(/^#\d+_/,'');
         var akFG='';
-        if(iAK<0){var _m=gk.match(/\b([MW](?:U\d{1,2}|\d{2})|[MW])\b/);if(_m)akFG=normalizeAK(_m[1]);}
+        if(iAK<0){
+          // AK aus Sub-Gruppen-Key: '#5_Jedermann Frauen' → WHK, '#3_W30' → W30
+          var k2clean=k2.replace(/^#\d+_/,'');
+          var _m=k2clean.match(/^([MW](?:HK|U\d{1,2}|\d{2}))$/i);
+          if(_m){akFG=normalizeAK(_m[1]);}
+          else{akFG=normalizeAK(k2clean)||'';}
+        }
         // Disziplin-Name: beste Quelle mit Distanz-Treffer wählen
         var cnD=(function(){
           var cands=[contestName,kClean,gk].filter(Boolean);
@@ -5800,10 +5806,12 @@ function normalizeAK(raw) {
   if (/m.nnl|male|herren|m.nner/i.test(s)) {
     var ju = s.match(/U\s*(\d{1,2})/i);
     if (ju) return 'MU' + ju[1];
+    return 'MHK'; // kein Jugend-Match → Hauptklasse Männer
   }
   if (/weibl|female|frauen|damen/i.test(s)) {
     var jw = s.match(/U\s*(\d{1,2})/i);
     if (jw) return 'WU' + jw[1];
+    return 'WHK'; // kein Jugend-Match → Hauptklasse Frauen
   }
   // Nur Geschlecht
   if (/^(m.nner|herren|male|men)$/i.test(s))    return 'MHK';
@@ -5814,7 +5822,7 @@ function normalizeAK(raw) {
 function calcDlvAK(jahrgang, geschlecht, eventJahr) {
   var alter = eventJahr - parseInt(jahrgang);
   if (isNaN(alter) || alter < 5) return '';
-  var g = (geschlecht || '').toUpperCase() === 'W' ? 'W' : 'M';
+  var g = /^[WwFf]/.test(geschlecht || '') ? 'W' : 'M';
   if (alter < 13) return g + 'U12';
   if (alter < 15) return g + 'U14';
   if (alter < 17) return g + 'U16';
@@ -7405,10 +7413,12 @@ function normalizeAK(raw) {
   if (/m.nnl|male|herren|m.nner/i.test(s)) {
     var ju = s.match(/U\s*(\d{1,2})/i);
     if (ju) return 'MU' + ju[1];
+    return 'MHK'; // kein Jugend-Match → Hauptklasse Männer
   }
   if (/weibl|female|frauen|damen/i.test(s)) {
     var jw = s.match(/U\s*(\d{1,2})/i);
     if (jw) return 'WU' + jw[1];
+    return 'WHK'; // kein Jugend-Match → Hauptklasse Frauen
   }
   // Nur Geschlecht
   if (/^(m.nner|herren|male|men)$/i.test(s))    return 'MHK';
@@ -7419,7 +7429,7 @@ function normalizeAK(raw) {
 function calcDlvAK(jahrgang, geschlecht, eventJahr) {
   var alter = eventJahr - parseInt(jahrgang);
   if (isNaN(alter) || alter < 5) return '';
-  var g = (geschlecht || '').toUpperCase() === 'W' ? 'W' : 'M';
+  var g = /^[WwFf]/.test(geschlecht || '') ? 'W' : 'M';
   if (alter < 13) return g + 'U12';
   if (alter < 15) return g + 'U14';
   if (alter < 17) return g + 'U16';
