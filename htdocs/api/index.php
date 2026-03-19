@@ -3037,6 +3037,34 @@ if ($res === 'uits-fetch' && $method === 'GET') {
     jsonOk(['html' => $html]);
 }
 
+if ($res === 'la-fetch' && $method === 'GET') {
+    Auth::requireLogin();
+    $url = trim($_GET['url'] ?? '');
+    if (!$url || !preg_match('/^https?:\/\/ergebnisse\.leichtathletik\.de\//i', $url))
+        jsonErr('Ungültige leichtathletik.de-URL.', 400);
+
+    $ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0 Safari/537.36';
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT      => $ua,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_HTTPHEADER     => [
+            'Accept: text/html,application/xhtml+xml',
+            'Accept-Language: de-DE,de;q=0.9',
+        ],
+    ]);
+    $html = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if (!$html || $httpCode >= 400)
+        jsonErr('leichtathletik.de nicht erreichbar (HTTP ' . $httpCode . ').', 502);
+
+    jsonOk(['html' => $html]);
+}
+
 jsonErr('Unbekannte Route.', 404);
 
 } catch (Throwable $e) {
