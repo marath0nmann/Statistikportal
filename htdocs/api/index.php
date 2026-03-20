@@ -1811,13 +1811,20 @@ if ($res === 'rekorde') {
         $mergeAK  = ($_GET['merge_ak'] ?? '1') !== '0';
         $akExpr   = buildAkCaseExpr($mergeAK);
 
-        // Sortierung: resultat_num für unified (Sekunden numerisch), LPAD für Legacy-VARCHAR
+        // Sortierung: denselben valExpr wie Timeline verwenden (korrekte Umrechnung)
         if ($fmt === 'm') {
-            $sortCol = $unified ? "e.resultat_num" : "e.resultat";
+            $sortCol = "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))";
         } else {
-            // Zeitformat: resultat_num wenn vorhanden (Sekunden), sonst LPAD für konsistenten Stringvergleich
-            $sortCol = $unified ? "COALESCE(e.resultat_num, TIME_TO_SEC(e.resultat))"
-                                : "LPAD(e.resultat, 10, '0')";
+            // MM:SS.x → TIME_TO_SEC(CONCAT('00:',resultat)) für korrekte Sekunden
+            // CONCAT('00:') wandelt '16:07' → '00:16:07' = 967s statt 58020s (HH:MM)
+            $sortCol = $unified
+                ? "COALESCE(e.resultat_num,
+                    CASE WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}'
+                         THEN TIME_TO_SEC(e.resultat)
+                         WHEN e.resultat REGEXP '^[0-9]+:[0-9]'
+                         THEN TIME_TO_SEC(CONCAT('00:',REPLACE(REPLACE(e.resultat,',','.'),';','.')))
+                         ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END)"
+                : "LPAD(e.resultat, 10, '0')";
         }
         $paceField = ($fmt === 'min' && (strpos($tbl,'strasse') !== false || $unified)) ? ", e.pace" : "";
 

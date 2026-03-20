@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v622 – Fix Bestleistungen: korrekte Zeitumrechnung
+
+- MySQL TIME_TO_SEC("16:07") = 58020s (HH:MM-Interpretation!)
+  statt 967s (MM:SS) → alle alten Ergebnisse wurden falsch sortiert
+- Fix: TIME_TO_SEC(CONCAT("00:", resultat)) → "16:07" → "00:16:07" → 967s
+- $sortCol nutzt jetzt denselben CASE-Ausdruck wie die Timeline-Query
+- COALESCE(resultat_num, ...) behält korrekte Werte für neue Einträge
+
+---
+
+
 ## v621 – Fix Bestleistungen-Reihenfolge: einfache Lösung
 
 - SQL-Subquery-Ansatz (v617-v620) hatte Alias-Probleme und GROUP BY-Tücken

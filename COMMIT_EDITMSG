@@ -1,1 +1,1 @@
-v621: Fix Bestleistungen: PHP-seitige Deduplizierung statt SQL-Subquery
+v622: Fix Bestleistungen-Sortierung: TIME_TO_SEC mit CONCAT("00:")
