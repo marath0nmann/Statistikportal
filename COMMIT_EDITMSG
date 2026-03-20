@@ -1,1 +1,1 @@
-v632: Fix: Hallen-Ergebnisse mit falschen Bahn/Straße-Mappings korrigieren
+v633: Fix: ergebnisse/bulk Handler nutzt disziplin_mapping_id vom Client
