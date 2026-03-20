@@ -5,6 +5,19 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v636 – Bulk-Import: Neue-Athleten-Dialog
+
+- Nach URL-Import (LA, RaceResult, Mika, Uits): nicht erkannte Athleten
+  werden gesammelt und in einem Dialog angezeigt
+- Für jeden neuen Athleten: "Neu anlegen" (mit Vorname/Nachname/G./Jahrgang
+  vorausgefüllt), "Vorhandenen zuordnen" oder "Überspringen"
+- Beim Anlegen wird der Athlet sofort in state.athleten eingefügt
+- Nach dem Dialog: Tabelle wird mit den neuen IDs korrekt befüllt
+- Gilt für alle URL-Import-Quellen (bulkFillFromImport ist jetzt async)
+
+---
+
+
 ## v635 – Fix Altersklassen-Admin: Route-Reihenfolge
 
 - ak-standard und ak-mapping Endpunkte standen nach dem 404-Handler
