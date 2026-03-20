@@ -4588,7 +4588,7 @@ async function bulkImportFromMika(url, kat, statusEl) {
     }
     _bkDbgFlush();
   }
-  bulkFillFromImport(rows, statusEl);
+  await bulkFillFromImport(rows, statusEl);
 }
 
 // ── Uitslagen → Bulk ────────────────────────────────────────────────────────
@@ -4749,10 +4749,28 @@ function mikaExtractRowsForBulk(data, kat) {
   });
 }
 
-function bulkFillFromImport(rows, statusEl) {
+async function bulkFillFromImport(rows, statusEl) {
   if (!rows.length) {
     if (statusEl) statusEl.textContent = '⚠ Keine TuS-Einträge gefunden';
     return;
+  }
+  // ── Neue Athleten erkennen und Dialog zeigen ──────────────
+  var athleten = state.athleten || [];
+  var newCandidates = [];
+  rows.forEach(function(row) {
+    if (!row.name) return;
+    var matched = uitsAutoMatch(row.name, athleten);
+    if (!matched) {
+      // Prüfen ob dieser Name schon in newCandidates
+      var already = newCandidates.some(function(c) { return c.name === row.name; });
+      if (!already) newCandidates.push({ name: row.name, year: row.year || '', geschlecht: row.geschlecht || row.ak_geschlecht || '' });
+    }
+  });
+  var _bnadNameMap = {};
+  if (newCandidates.length > 0) {
+    var _bnadResult = await bulkNewAthleteDialog(newCandidates);
+    if (_bnadResult === null) { if (statusEl) statusEl.textContent = ''; return; } // Abgebrochen
+    _bnadNameMap = _bnadResult || {};
   }
   var tbody = document.getElementById('bulk-rows');
   if (!tbody) return;
@@ -4769,13 +4787,13 @@ function bulkFillFromImport(rows, statusEl) {
     var tr = tbody.lastElementChild;
     if (!tr) return;
 
-    // Athlet per Name matchen
+    // Athlet per Name matchen: 1. uitsAutoMatch, 2. nameMap aus Dialog
     var athSel = tr.querySelector('.bk-athlet');
     if (athSel && row.name) {
       var matched = uitsAutoMatch(row.name, state.athleten || []);
+      if (!matched && _bnadNameMap[row.name]) matched = String(_bnadNameMap[row.name]);
       if (matched) {
         athSel.value = matched;
-        // AK aktualisieren
         var idx = _bulkRowCount - 1;
         bkUpdateAK(athSel, idx);
       }
@@ -6717,6 +6735,143 @@ function rrukConfirm() {
   });
   closeModal();
   if (window._rrukResolve) { window._rrukResolve(resolved); window._rrukResolve = null; }
+}
+
+// ── Neue-Athleten-Dialog (für alle URL-Imports) ──────────────
+async function bulkNewAthleteDialog(candidates) {
+  return new Promise(function(resolve) {
+    var athOpts = '<option value="">– vorhandenen Athleten zuordnen –</option>';
+    (state.athleten || []).forEach(function(a) {
+      athOpts += '<option value="' + a.id + '">' + a.name_nv + '</option>';
+    });
+
+    var rows = '';
+    candidates.forEach(function(c, i) {
+      // Name aufteilen: "Nachname, Vorname" oder "Vorname Nachname"
+      var vn = '', nn = '';
+      var commaMatch = c.name.match(/^([^,]+),\s*(.+)$/);
+      if (commaMatch) { nn = commaMatch[1].trim(); vn = commaMatch[2].trim(); }
+      else { var parts = c.name.trim().split(/\s+/); vn = parts[0] || ''; nn = parts.slice(1).join(' ') || ''; }
+
+      // Geschlecht aus AK ableiten falls nicht gesetzt
+      var g = c.geschlecht || '';
+      if (!g && c.ak) g = /^W/i.test(c.ak) ? 'W' : /^M/i.test(c.ak) ? 'M' : '';
+      if (g === 'F') g = 'W';
+
+      rows +=
+        '<tr style="border-bottom:1px solid var(--border)" id="bnad-row-' + i + '">' +
+          '<td style="padding:10px;font-weight:600;font-size:13px;white-space:nowrap">' + (c.name || '–') + '</td>' +
+          '<td style="padding:10px;font-size:12px;color:var(--text2);white-space:nowrap">' +
+            (c.year || '–') + (g ? ' · ' + g : '') +
+          '</td>' +
+          '<td style="padding:8px 10px">' +
+            '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+              '<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">' +
+                '<input type="radio" name="bnad-' + i + '" value="neu" checked onchange="bnadToggle(' + i + ',\'neu\')"> Neu anlegen' +
+              '</label>' +
+              '<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">' +
+                '<input type="radio" name="bnad-' + i + '" value="zuordnen" onchange="bnadToggle(' + i + ',\'zuordnen\')"> Vorhandenen zuordnen' +
+              '</label>' +
+              '<label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer">' +
+                '<input type="radio" name="bnad-' + i + '" value="skip" onchange="bnadToggle(' + i + ',\'skip\')"> Überspringen' +
+              '</label>' +
+            '</div>' +
+            // Neu-anlegen Felder (default)
+            '<div id="bnad-neu-' + i + '" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">' +
+              '<input id="bnad-vn-' + i + '" type="text" placeholder="Vorname" value="' + vn.replace(/"/g,'&quot;') + '" ' +
+                'style="flex:1;min-width:90px;padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
+              '<input id="bnad-nn-' + i + '" type="text" placeholder="Nachname" value="' + nn.replace(/"/g,'&quot;') + '" ' +
+                'style="flex:1;min-width:90px;padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
+              '<select id="bnad-g-' + i + '" style="width:70px;padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
+                '<option value="">G.</option>' +
+                '<option value="M"' + (g==='M'?' selected':'') + '>M</option>' +
+                '<option value="W"' + (g==='W'?' selected':'') + '>W</option>' +
+              '</select>' +
+              '<input id="bnad-gj-' + i + '" type="number" placeholder="Jahrg." value="' + (c.year||'') + '" min="1920" max="2025" ' +
+                'style="width:85px;padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
+            '</div>' +
+            // Zuordnen-Dropdown (versteckt)
+            '<div id="bnad-zuordnen-' + i + '" style="margin-top:8px;display:none">' +
+              '<select id="bnad-sel-' + i + '" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' + athOpts + '</select>' +
+            '</div>' +
+          '</td>' +
+        '</tr>';
+    });
+
+    var html =
+      '<h3 style="margin:0 0 4px;font-size:17px">\u2795\ufe0e Neue Athleten gefunden</h3>' +
+      '<p style="color:var(--text2);font-size:13px;margin:0 0 18px">' +
+        candidates.length + ' Athlet' + (candidates.length>1 ? 'en' : '') +
+        ' aus dem Import konnten keinem vorhandenen Profil zugeordnet werden. ' +
+        'Bitte für jeden eine Aktion wählen.' +
+      '</p>' +
+      '<div style="overflow-x:auto;margin-bottom:20px">' +
+        '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+          '<thead><tr style="background:var(--surf2)">' +
+            '<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Name (Import)</th>' +
+            '<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Jahrg./G.</th>' +
+            '<th style="padding:8px 10px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Aktion</th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+        '<button class="btn btn-ghost" onclick="closeModal();window._bnadResolve(null)">Abbrechen</button>' +
+        '<button class="btn btn-primary" onclick="bnadConfirm(' + candidates.length + ')">Weiter \u2192</button>' +
+      '</div>';
+
+    window._bnadResolve = resolve;
+    window._bnadCandidates = candidates;
+    showModal(html, true);
+  });
+}
+
+function bnadToggle(i, action) {
+  document.getElementById('bnad-neu-' + i).style.display      = action === 'neu'      ? 'flex' : 'none';
+  document.getElementById('bnad-zuordnen-' + i).style.display = action === 'zuordnen' ? 'block' : 'none';
+}
+
+async function bnadConfirm(count) {
+  var candidates = window._bnadCandidates || [];
+  // name → athletId Mapping aufbauen
+  var nameMap = {}; // name → athletId (oder null = skip)
+
+  for (var i = 0; i < count; i++) {
+    var c = candidates[i];
+    if (!c) continue;
+    var radios = document.querySelectorAll('input[name="bnad-' + i + '"]');
+    var action = 'neu';
+    radios.forEach(function(r) { if (r.checked) action = r.value; });
+
+    if (action === 'skip') {
+      nameMap[c.name] = null;
+
+    } else if (action === 'zuordnen') {
+      var selVal = (document.getElementById('bnad-sel-' + i)||{}).value;
+      nameMap[c.name] = selVal ? parseInt(selVal) : null;
+
+    } else { // neu
+      var vn = ((document.getElementById('bnad-vn-' + i)||{}).value||'').trim();
+      var nn = ((document.getElementById('bnad-nn-' + i)||{}).value||'').trim();
+      var g  = ((document.getElementById('bnad-g-'  + i)||{}).value||'').trim();
+      var gj = ((document.getElementById('bnad-gj-' + i)||{}).value||'').trim();
+      if (!vn || !nn) { notify('Bitte Vor- und Nachname für "' + c.name + '" angeben.', 'err'); return; }
+      var r2 = await apiPost('athleten', { name_nv: nn+', '+vn, vorname: vn, nachname: nn, geschlecht: g, geburtsjahr: gj ? parseInt(gj) : null });
+      if (r2 && r2.ok && r2.data && r2.data.id) {
+        var newAth = { id: r2.data.id, name_nv: nn+', '+vn, vorname: vn, nachname: nn, geschlecht: g };
+        state.athleten.push(newAth);
+        if (state._athletenMap) state._athletenMap[newAth.id] = newAth;
+        notify('Athlet "' + newAth.name_nv + '" angelegt.', 'ok');
+        nameMap[c.name] = newAth.id;
+      } else {
+        notify('Fehler beim Anlegen von "' + c.name + '".', 'err');
+        return;
+      }
+    }
+  }
+
+  closeModal();
+  window._bnadResolve(nameMap);
 }
 // ── RACERESULT-IMPORT ──────────────────────────────────────
 function rrKatChanged() {
@@ -11678,7 +11833,7 @@ async function bulkImportFromLA(url, kat, statusEl) {
     _bkDbgFlush();
   }
 
-  bulkFillFromImport(allResults, statusEl);
+  await bulkFillFromImport(allResults, statusEl);
 }
 /* ── 10_veranstaltungen.js ── */
 async function renderVeranstaltungen() {
