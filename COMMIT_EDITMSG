@@ -1,1 +1,1 @@
-v638: Fix LA-Import: AK-Platz aus col-6 (nicht col-1/Gesamtplatz)
+v639: Fix la-fetch: doppelter Handler, robusteres Platz-Auslesen

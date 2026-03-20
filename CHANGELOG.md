@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v639 – Fix la-fetch + AK-Platz LA-Import
+
+- Doppelter la-fetch Handler: file_get_contents-Variante (Zeile 3200) entfernt
+  lieferte leeres HTML für viele URLs; curl-Handler (Zeile 3248) bleibt aktiv
+- AK-Platz: robustere Spalten-Erkennung für verschiedene LA-Layouts
+  Prüft col-6 (FLVW Masters: "1./III"), col-5, col-1 in Prioritätsreihenfolge
+  parseInt("1./III") = 1 ✓
+
+---
+
+
 ## v638 – Fix leichtathletik.de: AK-Platz korrekt auslesen
 
 - FLVW Hallenmeisterschaften Masters: col-1 = Gesamtplatz, col-6 = AK-Platz
