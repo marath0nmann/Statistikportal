@@ -3969,7 +3969,10 @@ function bkDiszOpts(kat) {
       var katObj = (state.disziplinen || []).find(function(x) { return x.tbl_key === k && x.kategorie; });
       if (katObj) label = d + ' (' + katObj.kategorie + ')';
     }
-    opts += '<option value="' + d + '">' + label + '</option>';
+    // mapping_id als Value wenn vorhanden (ermöglicht exakten Kategorie-Match via diszMid)
+    var mid = (typeof item === 'object') ? (item.id || item.mapping_id || '') : '';
+    var val = mid || d;
+    opts += '<option value="' + val + '">' + label + '</option>';
   }
   return opts;
 }
@@ -4133,7 +4136,11 @@ async function bulkSubmit() {
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
     var athlet_id = row.querySelector('.bk-athlet') ? row.querySelector('.bk-athlet').value : '';
-    var disziplin = row.querySelector('.bk-disz')   ? row.querySelector('.bk-disz').value.trim()  : '';
+    var _diszVal  = row.querySelector('.bk-disz') ? row.querySelector('.bk-disz').value.trim() : '';
+    // Value ist mapping_id (numerisch) oder Disziplin-Name
+    var _diszMid  = /^\d+$/.test(_diszVal) ? parseInt(_diszVal) : null;
+    var _diszObj  = _diszMid ? (state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==_diszMid;}) : null;
+    var disziplin = _diszObj ? _diszObj.disziplin : _diszVal;
     var resultat  = row.querySelector('.bk-res')    ? row.querySelector('.bk-res').value.trim()   : '';
     if (!athlet_id && !disziplin && !resultat) continue; // leere Zeile
     items.push({
@@ -4149,7 +4156,7 @@ async function bulkSubmit() {
       ort: ort, veranstaltung_name: evname,
       veranstaltung_id: veranstId ? parseInt(veranstId) : null,
       athlet_id: parseInt(athlet_id) || null,
-      disziplin: disziplin, resultat: dbRes(resultat),
+      disziplin: disziplin, disziplin_mapping_id: _diszMid || null, resultat: dbRes(resultat),
       altersklasse: row.querySelector('.bk-ak') ? row.querySelector('.bk-ak').value.trim() : '',
       _zeilendatum: row.querySelector('.bk-zeilendatum') ? row.querySelector('.bk-zeilendatum').value.trim() : '',
       ak_platzierung: row.querySelector('.bk-platz') && row.querySelector('.bk-platz').value ? parseInt(row.querySelector('.bk-platz').value) : null,
@@ -4181,8 +4188,12 @@ async function bulkSubmit() {
     var msg = r.data.imported + ' gespeichert';
     if (r.data.skipped) msg += ', ' + r.data.skipped + ' &uuml;bersprungen';
     notify(msg, 'ok');
-    document.getElementById('bulk-status').innerHTML = '&#x2705; ' + msg;
     if (r.data.errors && r.data.errors.length) console.warn('Bulk-Fehler:', r.data.errors);
+    // Alle Formulare zurücksetzen, nur Statusmeldung bleibt
+    var _savedMsg = '&#x2705; ' + msg;
+    renderEintragen();
+    var _st = document.getElementById('bulk-status');
+    if (_st) _st.innerHTML = _savedMsg;
   } else {
     notify((r && r.fehler) ? r.fehler : 'Fehler', 'err');
     document.getElementById('bulk-status').innerHTML = '';
@@ -4679,7 +4690,8 @@ function rrExtractRowsForBulk(data, vereinCfg, kat) {
       });
       if (!name || !zeit) return;
       var disz = rrBestDisz(contestName || '', diszList);
-      var diszObj = disziplinen.find(function(d){ return d.disziplin === disz && (!kat || (bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key) >= 0); });
+      var diszObj = (kat ? disziplinen.find(function(d){return d.disziplin===disz&&d.tbl_key===kat;}) : null)
+               || disziplinen.find(function(d){ return d.disziplin === disz && (!kat || (bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key) >= 0); });
       rows.push({ name: name, resultat: zeit, ak: ak, platz: platz,
                   disziplin: diszObj ? diszObj.disziplin : disz,
                   diszMid: diszObj ? (diszObj.id || diszObj.mapping_id) : null });
@@ -4717,7 +4729,8 @@ function mikaExtractRowsForBulk(data, kat) {
   return results.map(function(res) {
     var contestName = res.contest || res.disziplin || '';
     var disz = rrBestDisz(contestName, diszList);
-    var diszObj = disziplinen.find(function(d){ return d.disziplin === disz && (!kat || (bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key) >= 0); });
+    var diszObj = (kat ? disziplinen.find(function(d){return d.disziplin===disz&&d.tbl_key===kat;}) : null)
+               || disziplinen.find(function(d){ return d.disziplin === disz && (!kat || (bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key) >= 0); });
     return {
       name:      res.name || '',
       resultat:  res.netto || res.zeit || '',
@@ -4762,13 +4775,23 @@ function bulkFillFromImport(rows, statusEl) {
     }
     // Disziplin setzen
     var diszSel = tr.querySelector('.bk-disz');
-    if (diszSel && row.disziplin) {
-      // Suche nach matching option
-      for (var i = 0; i < diszSel.options.length; i++) {
-        if (diszSel.options[i].text.indexOf(row.disziplin) >= 0 ||
-            diszSel.options[i].value === row.disziplin) {
-          diszSel.value = diszSel.options[i].value;
-          break;
+    if (diszSel && (row.disziplin || row.diszMid)) {
+      var _matched = false;
+      // 1. Prio: diszMid (mapping_id) → exakter Kategorie-Treffer
+      if (row.diszMid) {
+        for (var i = 0; i < diszSel.options.length; i++) {
+          if (String(diszSel.options[i].value) === String(row.diszMid)) {
+            diszSel.value = diszSel.options[i].value; _matched = true; break;
+          }
+        }
+      }
+      // 2. Fallback: Namens-Match (nur wenn diszMid nicht gefunden)
+      if (!_matched && row.disziplin) {
+        for (var i = 0; i < diszSel.options.length; i++) {
+          if (diszSel.options[i].text.indexOf(row.disziplin) >= 0 ||
+              diszSel.options[i].value === row.disziplin) {
+            diszSel.value = diszSel.options[i].value; break;
+          }
         }
       }
     }
@@ -11483,7 +11506,9 @@ async function bulkImportFromLA(url, kat, statusEl) {
       if (!rName || !rZeit || !/\d/.test(rZeit)) return;
 
       var disz    = rrBestDisz(ll.text, diszList);
-      var diszObj = disziplinen.find(function(d){return d.disziplin===disz&&(!kat||(bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key)>=0);});
+      // Exakten kat-Treffer bevorzugen, dann Gruppen-Fallback
+      var diszObj = (kat ? disziplinen.find(function(d){return d.disziplin===disz&&d.tbl_key===kat;}) : null)
+                 || disziplinen.find(function(d){return d.disziplin===disz&&(!kat||(bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key)>=0);});
 
       if (!allResults.some(function(r){return r.name===rName&&r.resultat===rZeit;})) {
         allResults.push({name:rName, resultat:rZeit, ak:rAK, platz:rPlatz,

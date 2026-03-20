@@ -5,6 +5,37 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v625 – Fix: Disziplin landet in richtiger Kategorie
+
+- 800m Halle wurde als 800m Straße gespeichert weil bk-disz nur den Namen
+  als Value hatte und der Bulk-Endpoint per Name suchte (erste Kategorie gewinnt)
+- Fix 1: bkDiszOpts nutzt mapping_id als Option-Value (wenn vorhanden)
+- Fix 2: bulkFillFromImport matcht zuerst per diszMid, dann per Name
+- Fix 3: bulkSubmit trennt Value in mapping_id + Disziplin-Name auf
+- Fix 4: PHP Bulk-Endpoint nutzt disziplin_mapping_id direkt aus Item
+
+---
+
+
+## v625 – Fix Import-Kategorie: exakter kat-Treffer bevorzugen
+
+- Problem: bkKatMitGruppen("halle") enthält auch "strasse" bei Gruppen-Konfiguration
+  → disziplinen.find() nimmt ersten Treffer = 800m Straße statt 800m Halle
+- Fix: zuerst exakten kat-Match suchen, erst dann Gruppen-Fallback
+  Gilt für: 14_leichtathletik.js, 07_eintragen.js (Mika+Uits)
+
+---
+
+
+## v624 – Eintragen: Formular-Reset nach Speichern
+
+- Nach erfolgreichem Speichern: renderEintragen() setzt alle Felder zurück
+  (Tabelle, Datum, Ort, Veranstaltung, Kategorie, Paste-Feld)
+- Statusmeldung "✅ 8 gespeichert" bleibt erhalten
+
+---
+
+
 ## v623 – Fix leichtathletik.de: Details-URL akzeptiert
 
 - URL /Competitions/Details/18052 wurde nicht als gültige Event-ID erkannt
