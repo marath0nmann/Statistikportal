@@ -11814,10 +11814,13 @@ async function bulkImportFromLA(url, kat, statusEl) {
 
       // AK-Platz: verschiedene Layouts auf leichtathletik.de
       // Standard: col-1 = Platz. FLVW Masters: col-1 = Gesamtplatz, col-6 = AK-Platz ('1./III')
-      // Strategie: col-6 zuerst prüfen (Zahl + Punkt/Schrägstrich), dann col-1
       var rPlatz = 0;
-      // Alle cols nach AK-Platz-Kandidaten durchsuchen
-      // Priorität: col-6 (Masters), col-5, col-1
+      // Alle Spalten loggen für Debug
+      if (window._laDebugPlatz) {
+        var _dbg = {}; for(var _di=1;_di<=8;_di++){var _dc=line.querySelector('.col-'+_di);if(_dc)_dbg['col'+_di]={f:((_dc.querySelector('.firstline')||{}).textContent||'').trim(),s:((_dc.querySelector('.secondline')||{}).textContent||'').trim()};}
+        console.log('[LA-Platz Debug]', rName, JSON.stringify(_dbg));
+      }
+      // Priorität: col-6 (Masters '1./III'), col-5, col-1
       var _platzCols = [6, 5, 1];
       for (var _pci = 0; _pci < _platzCols.length; _pci++) {
         var _pc = line.querySelector('.col-' + _platzCols[_pci]);
