@@ -4476,8 +4476,9 @@ async function bulkImportFromRR(url, kat, statusEl) {
           var rAK='';
           if(iAK>=0){var ar=String(row[iAK]||'').trim(),as=ar.match(/^(\d+)\.?\s*(.+)$/);if(as)ar=as[2].trim();rAK=normalizeAK(ar);}
           if(!rAK)rAK=akFG;
-          if(!rAK&&iYear>=0){var yr=parseInt(String(row[iYear]||'').trim())||0,sx=iGeschlecht>=0?String(row[iGeschlecht]||'').trim():'';
-            if(yr>1900){var ey=parseInt(((document.getElementById('bk-datum')||{}).value||'').slice(0,4))||new Date().getFullYear();rAK=calcDlvAK(yr,/^[WwFf]/.test(sx)?'W':'M',ey)||'';}}
+          var rYear=iYear>=0?parseInt(String(row[iYear]||'').trim())||0:0;
+          var rGschl=iGeschlecht>=0?String(row[iGeschlecht]||'').trim():'';
+          if(!rAK&&rYear>1900){var ey=parseInt(((document.getElementById('bk-datum')||{}).value||'').slice(0,4))||new Date().getFullYear();rAK=calcDlvAK(rYear,/^[WwFf]/.test(rGschl)?'W':'M',ey)||'';}
           var rP=0,pi=iAKPlatz>=0?iAKPlatz:iPlatz;
           if(pi>=0){var pr=String(row[pi]||'').trim().replace(/\.$/,'');if(/^\d+$/.test(pr))rP=parseInt(pr)||0;}
           if(!rName)return;
@@ -4492,7 +4493,8 @@ async function bulkImportFromRR(url, kat, statusEl) {
             if(rAK && rAK !== '.' && rAK.length > 1 && !_dupAkOk) _dup.ak = rAK;
           } else {
             allResults.push({name:rName,resultat:rZeit,ak:rAK,platz:rP,
-              disziplin:dObj?dObj.disziplin:disz,diszMid:dObj?(dObj.id||dObj.mapping_id):null});
+              disziplin:dObj?dObj.disziplin:disz,diszMid:dObj?(dObj.id||dObj.mapping_id):null,
+              year:rYear||'',geschlecht:rGschl||''});
           }
         });
       });
@@ -4763,7 +4765,16 @@ async function bulkFillFromImport(rows, statusEl) {
     if (!matched) {
       // Prüfen ob dieser Name schon in newCandidates
       var already = newCandidates.some(function(c) { return c.name === row.name; });
-      if (!already) newCandidates.push({ name: row.name, year: row.year || '', geschlecht: row.geschlecht || row.ak_geschlecht || '' });
+      if (!already) {
+        // Geschlecht aus AK ableiten wenn nicht direkt vorhanden
+        var _g = row.geschlecht || '';
+        if (!_g && row.ak) {
+          if (/^[WwFf]/.test(row.ak)) _g = 'W';
+          else if (/^M/.test(row.ak)) _g = 'M';
+        }
+        if (_g === 'F') _g = 'W';
+        newCandidates.push({ name: row.name, year: row.year || '', geschlecht: _g });
+      }
     }
   });
   var _bnadNameMap = {};
@@ -11788,16 +11799,17 @@ async function bulkImportFromLA(url, kat, statusEl) {
         var lastFL = (col4s[col4s.length-1].querySelector('.firstline')||{}).textContent||'';
         rAK = normalizeAK(lastFL.trim());
       }
+      // Jahrgang und Geschlecht aus Ergebniszeile
+      var col3la = line.querySelector('.col-3');
+      var slJG = col3la ? col3la.querySelector('.secondline') : null;
+      var rYear = slJG ? parseInt(slJG.textContent.trim()) || 0 : 0;
+      var rGschl = /frauen|weiblich|WJU|weibl/i.test(ll.text) ? 'W' :
+                   /männl|male|herren|männer/i.test(ll.text) ? 'M' : '';
+      if (!rGschl && rAK) rGschl = /^[WwFf]/.test(rAK) ? 'W' : /^M/.test(rAK) ? 'M' : '';
       // Fallback: Jahrgang → AK berechnen
-      if (!rAK) {
-        var col3 = line.querySelector('.col-3');
-        var slJG = col3 ? col3.querySelector('.secondline') : null;
-        var yr   = slJG ? parseInt(slJG.textContent.trim()) : 0;
-        if (yr > 1900) {
-          var g    = /frauen|weiblich|WJU|weibl/i.test(ll.text) ? 'W' : 'M';
-          var evYr = parseInt((eventDate||'').slice(0,4)) || new Date().getFullYear();
-          rAK = calcDlvAK(yr, g, evYr) || '';
-        }
+      if (!rAK && rYear > 1900) {
+        var evYr = parseInt((eventDate||'').slice(0,4)) || new Date().getFullYear();
+        rAK = calcDlvAK(rYear, rGschl || 'M', evYr) || '';
       }
 
       // AK-Platz aus col-1 › firstline
@@ -11815,7 +11827,8 @@ async function bulkImportFromLA(url, kat, statusEl) {
       if (!allResults.some(function(r){return r.name===rName&&r.resultat===rZeit;})) {
         allResults.push({name:rName, resultat:rZeit, ak:rAK, platz:rPlatz,
           disziplin:diszObj?diszObj.disziplin:disz,
-          diszMid:diszObj?(diszObj.id||diszObj.mapping_id):null});
+          diszMid:diszObj?(diszObj.id||diszObj.mapping_id):null,
+          year:rYear||'', geschlecht:rGschl||''});
       }
     });
   }

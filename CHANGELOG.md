@@ -5,6 +5,16 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v637 – Fix: Jahrgang/Geschlecht im Neue-Athleten-Dialog
+
+- RR-Import (_proc): year und geschlecht werden jetzt in allResults gespeichert
+- LA-Import: Jahrgang aus col-3 und Geschlecht aus Listenname in allResults
+- bulkFillFromImport: Geschlecht aus AK ableiten wenn nicht direkt vorhanden
+  (W65 → W, M40 → M, F → W)
+
+---
+
+
 ## v636 – Bulk-Import: Neue-Athleten-Dialog
 
 - Nach URL-Import (LA, RaceResult, Mika, Uits): nicht erkannte Athleten
