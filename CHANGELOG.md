@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v632 – DB-Migration: Hallen-Ergebnisse korrigiert
+
+- Bestehende Einträge aus Hallen-Veranstaltungen hatten falsche mapping_ids
+  (800m→id=17 Straße statt id=70 Halle, 200m→id=35 Bahn statt id=33 Halle, etc.)
+- Auto-Migration beim App-Start korrigiert alle betroffenen Einträge:
+  JOIN veranstaltungen WHERE name LIKE "%Halle%" + falsche mapping_id → richtige
+- Betrifft: 800m, 200m, 400m, 1.500m, 3.000m, 50m mit Bahn/Straße-Mapping
+  in Veranstaltungen deren Name "Halle" enthält
+
+---
+
+
 ## v631 – Fix Kategorie-Bugs v631
 
 ── Bug 1: 800m landet in Straße statt Halle ──
