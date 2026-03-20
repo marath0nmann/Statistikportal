@@ -5,6 +5,14 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v623 – Fix leichtathletik.de: Details-URL akzeptiert
+
+- URL /Competitions/Details/18052 wurde nicht als gültige Event-ID erkannt
+- Fix: "Details" zur Regex-Gruppe hinzugefügt
+
+---
+
+
 ## v622 – Fix Bestleistungen: korrekte Zeitumrechnung
 
 - MySQL TIME_TO_SEC("16:07") = 58020s (HH:MM-Interpretation!)

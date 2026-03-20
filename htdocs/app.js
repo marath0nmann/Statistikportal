@@ -11351,7 +11351,7 @@ async function uitsImport() {
 
 async function bulkImportFromLA(url, kat, statusEl) {
   // Event-ID aus URL extrahieren
-  var eidM = url.match(/leichtathletik\.de\/Competitions\/(?:Resultoverview|Competitoroverview|CurrentList\/\d+)\/(\d+)/i);
+  var eidM = url.match(/leichtathletik\.de\/Competitions\/(?:Resultoverview|Competitoroverview|Details|CurrentList\/\d+)\/(\d+)/i);
   if (!eidM) { if (statusEl) statusEl.textContent = '\u274c Keine Event-ID in URL'; return; }
   var eventId = eidM[1];
   if (statusEl) statusEl.textContent = '\u23f3 Lade Ergebnis\u00fcbersicht\u2026';

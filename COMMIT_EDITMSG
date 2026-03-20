@@ -1,1 +1,1 @@
-v622: Fix Bestleistungen-Sortierung: TIME_TO_SEC mit CONCAT("00:")
+v623: Fix LA-Import: Details-URL als Event-ID-Quelle
