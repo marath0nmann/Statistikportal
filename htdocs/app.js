@@ -2567,7 +2567,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
       '<td class="ort-text">' + formatDate(rr.datum) + '</td>' +
       '<td><span class="athlet-link" onclick="openAthletById(' + rr.athlet_id + ')">' + rr.athlet + '</span></td>' +
       '<td>' + akBadge(rr.altersklasse) + '</td>' +
-      '<td class="disziplin-text">' + diszMitKat(rr.disziplin) + '</td>' +
+      '<td class="disziplin-text">' + (rr.disziplin_mapping_id ? ergDiszLabel(rr) : diszMitKat(rr.disziplin)) + '</td>' +
       '<td class="result">' + ergebnis + '</td>';
     var paceVal = diszKm(rr.disziplin) >= 1 ? calcPace(rr.disziplin, rr.resultat) : '';
     if (hasPace) cells += '<td class="ort-text">' + (paceVal ? fmtTime(paceVal, 'min/km') : '') + '</td>';
@@ -11597,9 +11597,11 @@ async function renderVeranstaltungen() {
     sortDisziplinen(diszOrder);
     for (var di = 0; di < diszOrder.length; di++) {
       var _dKey = diszOrder[di];
-      var disz = byDisz[_dKey][0] ? ergDiszLabel(byDisz[_dKey][0]) : _dKey;
+      var _diszFirstErg = byDisz[_dKey][0];
+      var disz = _diszFirstErg ? ergDiszLabel(_diszFirstErg) : _dKey;
       var ergs = byDisz[_dKey];
-      rows += '<tr class="disz-header-row"><td colspan="' + _colspan + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszMitKat(disz) + '</td></tr>';
+      // ergDiszLabel gibt bereits HTML mit Kategorie zurück — nicht nochmal durch diszMitKat
+      rows += '<tr class="disz-header-row"><td colspan="' + _colspan + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + disz + '</td></tr>';
       for (var ei2 = 0; ei2 < ergs.length; ei2++) {
         var e2 = ergs[ei2];
         var fmt = e2.fmt || '';

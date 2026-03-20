@@ -5,6 +5,21 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v631 – Fix Kategorie-Bugs v631
+
+── Bug 1: 800m landet in Straße statt Halle ──
+- PHP: wenn dmMid vom Client → disziplin-Name NICHT aus Mapping überschreiben
+  (DB hat id=70 mit disziplin="800m" wie id=17 Straße und id=64 Bahn)
+  Nur distanz aus Mapping holen; Kategorie läuft ausschließlich über disziplin_mapping_id
+── Bug 2: fehlende Kategorien in Klammern ──
+- Veranstaltungen-API: kategorie_name + tbl_key fehlten im ergebnisse-SELECT
+- Dashboard-API: gleiches Fix für recent-Ergebnisse
+- 11_veranstaltungen.js: diszMitKat(ergDiszLabel(...)) war Doppel-Lookup → ersetzt durch ergDiszLabel direkt
+- 04_ergebnisse.js: diszMitKat(rr.disziplin) → ergDiszLabel(rr) wenn mapping_id vorhanden
+
+---
+
+
 ## v630 – DB-Normalisierung v630
 
 ── disziplin_mapping.distanz (neu) ──

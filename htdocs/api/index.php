@@ -818,14 +818,16 @@ if ($res === 'benutzer') {
             // sonst per Name, zuletzt NULL
             $dmMid = intOrNull($item['disziplin_mapping_id'] ?? null);
             $dmDistanz = null;
-            if (!$dmMid) {
-                $dmRow2 = DB::fetchOne("SELECT id, disziplin, distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? ORDER BY id", [$disziplin]);
-                if ($dmRow2) { $dmMid = (int)$dmRow2['id']; $dmDistanz = $dmRow2['distanz']; }
-            }
-            // disziplin-Name und distanz aus mapping (normalisiert)
             if ($dmMid) {
-                $dmInfo = DB::fetchOne("SELECT disziplin, distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE id=?", [$dmMid]);
-                if ($dmInfo) { $disziplin = $dmInfo['disziplin']; $dmDistanz = $dmInfo['distanz']; }
+                // mapping_id vom Client → distanz holen, disziplin-Name NICHT überschreiben
+                // (mehrere Kategorien können denselben Namen haben, z.B. '800m' in Halle/Bahn/Straße)
+                $dmInfo = DB::fetchOne("SELECT distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE id=?", [$dmMid]);
+                if ($dmInfo) $dmDistanz = $dmInfo['distanz'];
+            } else {
+                // Fallback: per Name – nur wenn kein dmMid
+                $dmRow2 = DB::fetchOne("SELECT id, distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? AND kategorie_id=(SELECT id FROM " . DB::tbl('disziplin_kategorien') . " WHERE tbl_key=? LIMIT 1) ORDER BY id LIMIT 1", [$disziplin, $item['kategorie'] ?? '']);
+                if (!$dmRow2) $dmRow2 = DB::fetchOne("SELECT id, distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? ORDER BY id LIMIT 1", [$disziplin]);
+                if ($dmRow2) { $dmMid = (int)$dmRow2['id']; $dmDistanz = $dmRow2['distanz']; }
             }
             DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,distanz,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                 [$vid,$aid,$ak,$disziplin,$dmMid,$dmDistanz,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
@@ -1157,7 +1159,8 @@ if ($res === 'dashboard' && $method === 'GET') {
     // Aktuelle Ergebnisse (mit fmt-Info aus disziplin_mapping)
     $recent = DB::fetchAll(
         "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
-                e.resultat, e.pace, e.meisterschaft,
+                e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
+                e.resultat, e.meisterschaft,
                 v.kuerzel AS veranstaltung, v.datum,
                 COALESCE(m.fmt_override, k.fmt) AS fmt
          FROM $eTbl e
@@ -2693,7 +2696,8 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     foreach ($veranst as &$v) {
         $v['ergebnisse'] = DB::fetchAll(
             "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
-                    e.resultat, e.pace, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
+                    e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
+                    e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
                     COALESCE(m.fmt_override, k.fmt) AS fmt
              FROM $eTbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
