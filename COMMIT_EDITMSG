@@ -1,1 +1,1 @@
-v620: Fix Subquery: pbAkExpr mit pb_e-Alias
+v621: Fix Bestleistungen: PHP-seitige Deduplizierung statt SQL-Subquery

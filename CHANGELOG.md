@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v621 – Fix Bestleistungen-Reihenfolge: einfache Lösung
+
+- SQL-Subquery-Ansatz (v617-v620) hatte Alias-Probleme und GROUP BY-Tücken
+- Neue Strategie: SQL liefert ALLE Ergebnisse sortiert nach Ergebnis (ASC/DESC)
+  PHP nimmt pro athlet_id den ersten Eintrag = Bestleistung
+- $pbDedup(): iteriert einmal über sortierte Rows, behält ersten Treffer je Athlet
+- Kein GROUP BY, kein Subquery, keine Alias-Probleme
+- M/W/AK-Splits werden aus demselben $all_rows-Array gefiltert (ein DB-Call)
+
+---
+
+
 ## v620 – Fix Bestleistungen SQL: pbAkExpr
 
 - $akExpr enthält "e.altersklasse" → im AK-Subquery pb_e-Alias nötig
