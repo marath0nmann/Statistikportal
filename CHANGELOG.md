@@ -5,6 +5,21 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v633 – Fix ergebnisse/bulk: richtiger Handler gefixt
+
+- Root cause: der tatsächlich aktive res="ergebnisse" bulk-Handler (ab ~Zeile 2773)
+  ignorierte $item["disziplin_mapping_id"] komplett
+  und suchte immer per WHERE dm.disziplin=? → lieferte erste ID (oft Bahn/Straße)
+- Vorherige Fixes (v629-v632) hatten einen ANDEREN Code-Pfad (Zeile ~786) gefixt
+  der für legacy-Kategorien gedacht war, aber nicht für "ergebnisse"
+- Fix: $midFromClient = $item["disziplin_mapping_id"] wenn vorhanden
+  Lookup dann per dm.id=? statt dm.disziplin=?
+  200m+mid=33 → Halle ✓, 800m+mid=70 → Halle ✓
+- Auch: $pace aus INSERT entfernt (war undefinierte Variable)
+
+---
+
+
 ## v632 – DB-Migration: Hallen-Ergebnisse korrigiert
 
 - Bestehende Einträge aus Hallen-Veranstaltungen hatten falsche mapping_ids
