@@ -5,6 +5,23 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v634 – Admin Altersklassen komplett neu
+
+── Konzept ──
+- Abschnitt 1: Standard-AKs (DLV) definieren — vorbelegt mit MHK/WHK, M30-M85, W30-W85,
+  MU8-MU23, WU8-WU23; per + Hinzufügen / × Löschen pflegbar
+- Abschnitt 2: Nicht-Standard AKs zuordnen — alle AKs aus Ergebnissen die kein Standard sind
+  können einer Standard-AK zugeordnet werden (z.B. wjA→WHK, F→WHK, MJU20→MU20)
+- Vorschläge werden automatisch berechnet (akAutoSuggest)
+- "Alle Vorschläge übernehmen" füllt leere Zuordnungen aus
+── Backend ──
+- Neue Tabellen: ak_standard (DLV-Standard-AKs), ak_mapping (Nicht-Standard→Standard)
+- buildAkCaseExpr: berücksichtigt ak_mapping vor den alten jugend_aks
+- Neue Endpunkte: ak-standard (GET/POST/DELETE), ak-mapping (GET/POST)
+
+---
+
+
 ## v633 – Fix ergebnisse/bulk: richtiger Handler gefixt
 
 - Root cause: der tatsächlich aktive res="ergebnisse" bulk-Handler (ab ~Zeile 2773)

@@ -638,15 +638,23 @@ if ($res === 'einstellungen') {
 // Hilfsfunktion: AK-CASE-Expression aus Settings oder Fallback-Hardcode
 function buildAkCaseExpr(bool $merge, string $alias = 'e'): string {
     if (!$merge) return $alias . '.altersklasse';
-    // Jugend-AKs aus Settings laden
+    // Mappings aus ak_mapping Tabelle laden (hat Priorität)
+    $mappingCases = '';
+    try {
+        $maps = DB::fetchAll("SELECT ak_roh, ak_standard FROM " . DB::tbl('ak_mapping'));
+        foreach ($maps as $m) {
+            $roh = addslashes($m['ak_roh']);
+            $std = addslashes($m['ak_standard']);
+            $mappingCases .= "WHEN $alias.altersklasse='$roh' THEN '$std'\n        ";
+        }
+    } catch (Exception $e) {}
+    // Legacy: jugend_aks Einstellungen als Fallback
     $jugendAksJson = Settings::get('jugend_aks') ?: '';
     $jugendAks = $jugendAksJson ? (json_decode($jugendAksJson, true) ?: []) : [];
-    // Fallback: Standard-Jugend-AKs wenn noch keine Konfiguration vorhanden
     if (empty($jugendAks)) {
         $jugendAks = ['MHK','M','MU8','MU10-12','MU18','MU20','MU23','mJB','mjA','mjB','U18',
                       'WHK','W','F','WU8','WU10-U12','WU18','WU23','wjA','wjB'];
     }
-    // M* Jugend → MHK, W* Jugend → WHK
     $mAks = []; $wAks = [];
     foreach ($jugendAks as $ak) {
         if (strtoupper(substr($ak,0,1)) === 'W' || in_array($ak, ['F'])) $wAks[] = $ak;
@@ -654,10 +662,10 @@ function buildAkCaseExpr(bool $merge, string $alias = 'e'): string {
     }
     $mList = implode("','", array_map('addslashes', $mAks));
     $wList = implode("','", array_map('addslashes', $wAks));
-    return "CASE
-        WHEN $alias.altersklasse IN ('$mList') THEN 'MHK'
-        WHEN $alias.altersklasse IN ('$wList') THEN 'WHK'
-        ELSE $alias.altersklasse END";
+    return "CASE\n        {$mappingCases}"
+        . "WHEN $alias.altersklasse IN ('$mList') THEN 'MHK'\n"
+        . "        WHEN $alias.altersklasse IN ('$wList') THEN 'WHK'\n"
+        . "        ELSE $alias.altersklasse END";
 }
 
 
@@ -2071,6 +2079,45 @@ if ($res === 'disziplin-mapping') {
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS hof_exclude TINYINT(1) NOT NULL DEFAULT 0"); } catch (Exception $e) {}
         // v630: distanz in disziplin_mapping
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS distanz FLOAT DEFAULT NULL COMMENT 'Streckenlänge in Metern'"); } catch (Exception $e) {}
+        // v634: ak_standard und ak_mapping Tabellen
+        try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('ak_standard') . " (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ak VARCHAR(20) NOT NULL UNIQUE,
+            geschlecht ENUM('M','W','') NOT NULL DEFAULT '',
+            reihenfolge INT NOT NULL DEFAULT 99,
+            erstellt_am DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (Exception $e) {}
+        try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('ak_mapping') . " (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ak_roh VARCHAR(20) NOT NULL UNIQUE COMMENT 'Nicht-Standard AK aus Ergebnissen',
+            ak_standard VARCHAR(20) NOT NULL COMMENT 'Zugeordnete Standard-AK',
+            erstellt_am DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (Exception $e) {}
+        // v634: Standard-AKs vorbelegen falls leer
+        try {
+            $akStdCnt = DB::fetchOne("SELECT COUNT(*) AS c FROM " . DB::tbl('ak_standard'));
+            if (!$akStdCnt || (int)$akStdCnt['c'] === 0) {
+                $stdAks = [
+                    // Männer HK + Masters
+                    ['MHK','M',10],['M30','M',30],['M35','M',35],['M40','M',40],['M45','M',45],
+                    ['M50','M',50],['M55','M',55],['M60','M',60],['M65','M',65],['M70','M',70],
+                    ['M75','M',75],['M80','M',80],['M85','M',85],
+                    // Frauen HK + Masters
+                    ['WHK','W',110],['W30','W',130],['W35','W',135],['W40','W',140],['W45','W',145],
+                    ['W50','W',150],['W55','W',155],['W60','W',160],['W65','W',165],['W70','W',170],
+                    ['W75','W',175],['W80','W',180],['W85','W',185],
+                    // Männer Jugend
+                    ['MU8','M',201],['MU10','M',202],['MU12','M',203],['MU14','M',204],
+                    ['MU16','M',205],['MU18','M',206],['MU20','M',207],['MU23','M',208],
+                    // Frauen Jugend
+                    ['WU8','W',301],['WU10','W',302],['WU12','W',303],['WU14','W',304],
+                    ['WU16','W',305],['WU18','W',306],['WU20','W',307],['WU23','W',308],
+                ];
+                foreach ($stdAks as $a) {
+                    DB::query("INSERT IGNORE INTO " . DB::tbl('ak_standard') . " (ak,geschlecht,reihenfolge) VALUES (?,?,?)", $a);
+                }
+            }
+        } catch (Exception $e) {}
         // v630: pace aus ergebnisse nicht mehr befüllen (war on-the-fly berechnet)
         // v630: disziplin_mapping.distanz befüllen aus bekannten Werten
         try {
@@ -3232,4 +3279,75 @@ jsonErr('Unbekannte Route.', 404);
     http_response_code(500);
     echo json_encode(['ok' => false, 'fehler' => $e->getMessage(), 'trace' => $e->getFile().':'.$e->getLine()]);
     exit;
+}
+
+// ============================================================
+// ALTERSKLASSEN-VERWALTUNG (Admin)
+// ============================================================
+if ($res === 'ak-standard') {
+    Auth::requireAdmin();
+
+    if ($method === 'GET') {
+        $std = DB::fetchAll("SELECT ak, geschlecht, reihenfolge FROM " . DB::tbl('ak_standard') . " ORDER BY reihenfolge, ak");
+        jsonOk($std);
+    }
+
+    if ($method === 'POST') {
+        $ak  = trim($body['ak'] ?? '');
+        $g   = in_array($body['geschlecht'] ?? '', ['M','W','']) ? ($body['geschlecht'] ?? '') : '';
+        $rei = (int)($body['reihenfolge'] ?? 99);
+        if (!$ak) jsonErr('AK erforderlich.', 400);
+        DB::query("INSERT INTO " . DB::tbl('ak_standard') . " (ak,geschlecht,reihenfolge) VALUES (?,?,?)
+                   ON DUPLICATE KEY UPDATE geschlecht=VALUES(geschlecht), reihenfolge=VALUES(reihenfolge)",
+            [$ak, $g, $rei]);
+        jsonOk(null);
+    }
+
+    if ($method === 'DELETE' && $id) {
+        DB::query("DELETE FROM " . DB::tbl('ak_standard') . " WHERE ak=?", [urldecode($id)]);
+        // Zugehörige Mappings entfernen
+        DB::query("DELETE FROM " . DB::tbl('ak_mapping') . " WHERE ak_standard=?", [urldecode($id)]);
+        jsonOk(null);
+    }
+}
+
+if ($res === 'ak-mapping') {
+    Auth::requireAdmin();
+
+    if ($method === 'GET') {
+        // Alle verwendeten AKs + ihre Mappings + ob sie Standard sind
+        $used = DB::fetchAll(
+            "SELECT e.altersklasse AS ak, COUNT(*) AS anzahl
+             FROM " . DB::tbl('ergebnisse') . " e
+             WHERE e.altersklasse IS NOT NULL AND e.altersklasse != '' AND e.geloescht_am IS NULL
+             GROUP BY e.altersklasse ORDER BY e.altersklasse"
+        );
+        $std = array_column(DB::fetchAll("SELECT ak FROM " . DB::tbl('ak_standard')), 'ak');
+        $mappings = [];
+        foreach (DB::fetchAll("SELECT ak_roh, ak_standard FROM " . DB::tbl('ak_mapping')) as $m) {
+            $mappings[$m['ak_roh']] = $m['ak_standard'];
+        }
+        foreach ($used as &$row) {
+            $row['is_standard'] = in_array($row['ak'], $std);
+            $row['mapped_to']   = $mappings[$row['ak']] ?? null;
+        }
+        jsonOk(['used' => $used, 'standard' => $std]);
+    }
+
+    if ($method === 'POST') {
+        // Bulk-Save: [{ak_roh, ak_standard}]
+        $items = $body['mappings'] ?? [];
+        foreach ($items as $item) {
+            $roh = trim($item['ak_roh'] ?? '');
+            $std = trim($item['ak_standard'] ?? '');
+            if (!$roh) continue;
+            if ($std) {
+                DB::query("INSERT INTO " . DB::tbl('ak_mapping') . " (ak_roh, ak_standard) VALUES (?,?)
+                           ON DUPLICATE KEY UPDATE ak_standard=VALUES(ak_standard)", [$roh, $std]);
+            } else {
+                DB::query("DELETE FROM " . DB::tbl('ak_mapping') . " WHERE ak_roh=?", [$roh]);
+            }
+        }
+        jsonOk(null);
+    }
 }
