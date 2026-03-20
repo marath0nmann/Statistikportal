@@ -2101,6 +2101,38 @@ if ($res === 'disziplin-mapping') {
                        JOIN " . DB::tbl('disziplin_mapping') . " dm ON dm.id=e.disziplin_mapping_id
                        SET e.disziplin=dm.disziplin WHERE e.disziplin != dm.disziplin");
         } catch (Exception $e) {}
+        // v632: Hallen-Ergebnisse die fälschlich in Bahn/Straße-Mapping landen
+        // Für alle Veranstaltungen deren Name 'halle' enthält:
+        // Bekannte Bahn→Halle-Mappings (gleicher Disziplin-Name, andere Kategorie)
+        $halleFixMap = [
+            // [disziplin, falsches mapping_id (Bahn/Str.), korrektes mapping_id (Halle)]
+            ['800m',    17, 70],   // Straße → Halle
+            ['800m',    64, 70],   // Bahn   → Halle
+            ['200m',    35, 33],   // Bahn   → Halle
+            ['400m',    36, 37],   // Bahn   → Halle
+            ['1.500m',  63, 150],  // Bahn   → Halle
+            ['3.000m',  65, 71],   // Bahn   → Halle
+            ['1.000m',  66, null], // Bahn   → kein Halle-Äquivalent
+            ['50m',     38, 47],   // Bahn   → Halle
+        ];
+        try {
+            foreach ($halleFixMap as $fix) {
+                if (!$fix[2]) continue; // kein Halle-Äquivalent
+                // Nur updaten wenn das Ziel-Mapping wirklich existiert
+                $halleExists = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE id=?", [$fix[2]]);
+                if (!$halleExists) continue;
+                DB::query(
+                    "UPDATE " . DB::tbl('ergebnisse') . " e
+                     JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
+                     SET e.disziplin_mapping_id=?
+                     WHERE e.disziplin=? AND e.disziplin_mapping_id=?
+                       AND e.geloescht_am IS NULL
+                       AND (v.name LIKE '%Halle%' OR v.name LIKE '%halle%'
+                            OR v.kuerzel LIKE '%Halle%')",
+                    [$fix[2], $fix[0], $fix[1]]
+                );
+            }
+        } catch (Exception $e) {}
         // Basis: alle mapping-Einträge (mapping.id als Key → kein Überschreiben bei gleichem Namen)
         $all_disz = [];
         $mappings = DB::fetchAll(
