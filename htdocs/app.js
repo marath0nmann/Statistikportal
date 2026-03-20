@@ -4307,10 +4307,9 @@ async function bulkImportUrl() {
   var _bkQuelle = urlType === 'raceresult'     ? 'RaceResult' :
                   urlType === 'mikatiming'     ? 'MikaTiming' :
                   urlType === 'leichtathletik' ? 'leichtathletik.de' : 'uitslagen.nl';
-  // Importkategorie auch in das Kategorie-Feld der Tabelle übertragen
+  // Importkategorie in bk-kat setzen + Disziplin-Dropdowns aktualisieren
   var _bkKatEl = document.getElementById('bk-kat');
-  if (_bkKatEl && kat && !_bkKatEl.value) _bkKatEl.value = kat;
-  else if (_bkKatEl && kat) _bkKatEl.value = kat;
+  if (_bkKatEl && kat) { _bkKatEl.value = kat; bkKatChanged(); }
   _bkDebugInit(raw, _bkQuelle, kat);
 
   try {

@@ -1,1 +1,1 @@
-v625: Fix: Disziplin-Kategorie korrekt via mapping_id
+v626: Fix: bkKatChanged() nach bk-kat setzen → Dropdowns aktualisieren
