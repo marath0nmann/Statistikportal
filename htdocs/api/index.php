@@ -3273,14 +3273,6 @@ if ($res === 'la-fetch' && $method === 'GET') {
     jsonOk(['html' => $html]);
 }
 
-jsonErr('Unbekannte Route.', 404);
-
-} catch (Throwable $e) {
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'fehler' => $e->getMessage(), 'trace' => $e->getFile().':'.$e->getLine()]);
-    exit;
-}
-
 // ============================================================
 // ALTERSKLASSEN-VERWALTUNG (Admin)
 // ============================================================
@@ -3350,4 +3342,12 @@ if ($res === 'ak-mapping') {
         }
         jsonOk(null);
     }
+}
+
+jsonErr('Unbekannte Route.', 404);
+
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'fehler' => $e->getMessage(), 'trace' => $e->getFile().':'.$e->getLine()]);
+    exit;
 }

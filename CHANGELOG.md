@@ -5,6 +5,14 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v635 – Fix Altersklassen-Admin: Route-Reihenfolge
+
+- ak-standard und ak-mapping Endpunkte standen nach dem 404-Handler
+- Jetzt korrekt vor jsonErr("Unbekannte Route") platziert
+
+---
+
+
 ## v634 – Admin Altersklassen komplett neu
 
 ── Konzept ──
