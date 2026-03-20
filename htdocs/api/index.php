@@ -1821,61 +1821,36 @@ if ($res === 'rekorde') {
         }
         $paceField = ($fmt === 'min' && (strpos($tbl,'strasse') !== false || $unified)) ? ", e.pace" : "";
 
-        // Hilfsfunktion: Bestleistung pro Athlet (1 Ergebnis je Athlet, nach Ergebnis sortiert)
-        // Subquery: pro Athlet nur das beste resultat_num/resultat ermitteln,
-        // dann mit diesem die vollständige Zeile joinen.
-        $bestFn = $dir === 'ASC' ? 'MIN' : 'MAX';
-        // $sortCol/$diszCond enthalten 'e.XYZ' → im Subquery-Alias 'pb_e.XYZ'
-        $pbSortCol = str_replace('e.', 'pb_e.', $sortCol);
-        $pbDiszCond = str_replace('e.', 'pb_e.', $diszCond);
-        $pbAkExpr   = str_replace('e.', 'pb_e.', $akExpr);
-        $pbSubquery = "(SELECT athlet_id, $bestFn($pbSortCol) AS pb_val
-                         FROM $tbl pb_e
-                         JOIN " . DB::tbl('veranstaltungen') . " pb_v ON pb_v.id=pb_e.veranstaltung_id
-                         WHERE {$pbDiszCond}
-                           AND pb_e.geloescht_am IS NULL AND pb_v.geloescht_am IS NULL
-                         GROUP BY athlet_id) pb";
+        // Hilfsfunktion: Bestleistung pro Athlet
+        // Strategie: SQL liefert ALLE Ergebnisse sortiert nach Ergebnis,
+        // PHP dedupliziert (erster Treffer pro athlet_id = Bestleistung).
+        // Einfach, robust, ohne GROUP-BY/Subquery-Aliasing-Probleme.
+        $pbDedup = function(array $rows): array {
+            $seen = []; $out = [];
+            foreach ($rows as $r) {
+                $aid = $r['athlet_id'];
+                if (!isset($seen[$aid])) { $seen[$aid] = true; $out[] = $r; }
+            }
+            return $out;
+        };
 
-        // Params für Subquery-JOIN: $diszParam einmal für Subquery, einmal für äußere WHERE
-        $pbParams2 = [$diszParam, $diszParam];
-
-        $top_gesamt = DB::fetchAll(
+        $all_rows = DB::fetchAll(
             "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
-             FROM $tbl e
-             JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
-             $joinVer
-             JOIN $pbSubquery ON pb.athlet_id = e.athlet_id AND $sortCol = pb.pb_val
+             FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
              WHERE $diszCond AND e.geloescht_am IS NULL
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
-             GROUP BY a.id
-             ORDER BY pb.pb_val $dir LIMIT 50", $pbParams2);
+             ORDER BY $sortCol $dir", [$diszParam]);
 
-        $top_m = DB::fetchAll(
-            "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
-                    $nameExpr AS athlet, a.id AS athlet_id
-             FROM $tbl e
-             JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
-             $joinVer
-             JOIN $pbSubquery ON pb.athlet_id = e.athlet_id AND $sortCol = pb.pb_val
-             WHERE $diszCond AND e.geloescht_am IS NULL
-               AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
-               AND (a.geschlecht='M' OR (a.geschlecht IS NULL AND e.altersklasse LIKE 'M%'))
-             GROUP BY a.id
-             ORDER BY pb.pb_val $dir LIMIT 50", $pbParams2);
+        $top_gesamt = array_slice($pbDedup($all_rows), 0, 50);
 
-        $top_w = DB::fetchAll(
-            "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
-                    $nameExpr AS athlet, a.id AS athlet_id
-             FROM $tbl e
-             JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
-             $joinVer
-             JOIN $pbSubquery ON pb.athlet_id = e.athlet_id AND $sortCol = pb.pb_val
-             WHERE $diszCond AND e.geloescht_am IS NULL
-               AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
-               AND (a.geschlecht='W' OR (a.geschlecht IS NULL AND (e.altersklasse LIKE 'W%' OR e.altersklasse LIKE 'F%')))
-             GROUP BY a.id
-             ORDER BY pb.pb_val $dir LIMIT 50", $pbParams2);
+        $top_m = array_slice($pbDedup(array_values(array_filter($all_rows, function($r) {
+            return $r['geschlecht'] === 'M' || ($r['geschlecht'] === null && strpos((string)$r['altersklasse'], 'M') === 0);
+        }))), 0, 50);
+
+        $top_w = array_slice($pbDedup(array_values(array_filter($all_rows, function($r) {
+            return $r['geschlecht'] === 'W' || ($r['geschlecht'] === null && (strpos((string)$r['altersklasse'], 'W') === 0 || strpos((string)$r['altersklasse'], 'F') === 0));
+        }))), 0, 50);
 
         $aks_rows = DB::fetchAll(
             "SELECT DISTINCT $akExpr AS altersklasse FROM $tbl e
@@ -1887,24 +1862,10 @@ if ($res === 'rekorde') {
         $all_ak = [];
         foreach ($aks_rows as $ak_row) {
             $ak_val = $ak_row['altersklasse'];
-            $pbSubAK = "(SELECT athlet_id, $bestFn($pbSortCol) AS pb_val
-                          FROM $tbl pb_e
-                          JOIN " . DB::tbl('veranstaltungen') . " pb_v ON pb_v.id=pb_e.veranstaltung_id
-                          WHERE {$pbDiszCond} AND $pbAkExpr=?
-                            AND pb_e.geloescht_am IS NULL AND pb_v.geloescht_am IS NULL
-                          GROUP BY athlet_id) pb";
-            $ak_results = DB::fetchAll(
-                "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
-                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
-                 FROM $tbl e
-                 JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
-                 $joinVer
-                 JOIN $pbSubAK ON pb.athlet_id = e.athlet_id AND $sortCol = pb.pb_val
-                 WHERE $diszCond AND $akExpr=?
-                   AND e.geloescht_am IS NULL AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
-                 GROUP BY a.id
-                 ORDER BY pb.pb_val $dir LIMIT 50", [$diszParam, $ak_val, $diszParam, $ak_val]);
-            $all_ak[$ak_val] = $ak_results;
+            $ak_rows_raw = array_values(array_filter($all_rows, function($r) use ($ak_val) {
+                return (string)$r['altersklasse'] === (string)$ak_val;
+            }));
+            $all_ak[$ak_val] = array_slice($pbDedup($ak_rows_raw), 0, 50);
         }
 
         jsonOk([
