@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v626 – Fix Kategorie-Zuordnung: bkKatChanged() nach bk-kat
+
+- Root cause: bk-kat wurde auf "halle" gesetzt, aber bkKatChanged() nicht
+  aufgerufen → bulkAddRow() baute Dropdown mit altem Wert ("strasse")
+  → nur Straße-800m (id=17) sichtbar → diszMid=70 (halle) kein Match
+  → Name-Fallback "800m" trifft erste Option = Straße
+- Fix: bkKatChanged() direkt nach bk-kat = kat aufrufen
+  → Disziplin-Dropdown zeigt halle-Optionen → diszMid=70 matcht korrekt
+
+---
+
+
 ## v625 – Fix: Disziplin landet in richtiger Kategorie
 
 - 800m Halle wurde als 800m Straße gespeichert weil bk-disz nur den Namen
