@@ -3981,14 +3981,22 @@ function bkKatChanged() {
   var kat = (document.getElementById('bk-kat') || {}).value || '';
   document.querySelectorAll('#bulk-rows .bk-disz').forEach(function(sel) {
     var prev = sel.value;
+    var prevMid = sel.getAttribute('data-mid') || '';
     sel.innerHTML = bkDiszOpts(kat);
-    if (prev) { for (var i = 0; i < sel.options.length; i++) { if (sel.options[i].value === prev) { sel.value = prev; break; } } }
+    // Erst per data-mid (exakte mapping_id), dann per prev value
+    var _restored = false;
+    if (prevMid) { for (var i = 0; i < sel.options.length; i++) { if (String(sel.options[i].value) === String(prevMid)) { sel.value = sel.options[i].value; _restored = true; break; } } }
+    if (!_restored && prev) { for (var i = 0; i < sel.options.length; i++) { if (sel.options[i].value === prev) { sel.value = prev; break; } } }
   });
 }
 
 // Pace berechnen: Disziplin-Name → Distanz in km → min:sec/km
 function diszKm(disz) {
   if (!disz) return 0;
+  // 1. Prio: distanz aus state.disziplinen (in Metern gespeichert)
+  var dObj = (state.disziplinen || []).find(function(d){ return d.disziplin === disz; });
+  if (dObj && dObj.distanz) return dObj.distanz / 1000;
+  // 2. Fallback: aus Disziplin-Name parsen
   var dl = disz.toLowerCase();
   if (dl.indexOf('marathon') >= 0 && dl.indexOf('halb') >= 0) return 21.0975;
   if (dl.indexOf('marathon') >= 0) return 42.195;
@@ -4778,9 +4786,23 @@ function bulkFillFromImport(rows, statusEl) {
       var _matched = false;
       // 1. Prio: diszMid (mapping_id) → exakter Kategorie-Treffer
       if (row.diszMid) {
+        diszSel.setAttribute('data-mid', String(row.diszMid));
         for (var i = 0; i < diszSel.options.length; i++) {
           if (String(diszSel.options[i].value) === String(row.diszMid)) {
             diszSel.value = diszSel.options[i].value; _matched = true; break;
+          }
+        }
+        // Fallback: Option noch nicht im Dropdown → kat wechseln und nochmal
+        if (!_matched) {
+          var _dObj = (state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==row.diszMid;});
+          if (_dObj) {
+            var _bkk = document.getElementById('bk-kat');
+            if (_bkk && _dObj.tbl_key) { _bkk.value = _dObj.tbl_key; diszSel.innerHTML = bkDiszOpts(_dObj.tbl_key); }
+            for (var i = 0; i < diszSel.options.length; i++) {
+              if (String(diszSel.options[i].value) === String(row.diszMid)) {
+                diszSel.value = diszSel.options[i].value; _matched = true; break;
+              }
+            }
           }
         }
       }
@@ -9785,6 +9807,7 @@ async function renderAdminDisziplinen() {
       'data-mappingid="' + (d.id||'') + '" ' +
       'data-katsuffix="' + (d.kat_suffix_override||'') + '" ' +
       'data-hofexclude="' + (d.hof_exclude == 1 ? '1' : '0') + '" ' +
+      'data-distanz="' + (d.distanz != null ? d.distanz : '') + '" ' +
       'onclick="showDiszEditModal(this)">&#x270F;&#xFE0E;</button>';
     var anz = d.ergebnis_anzahl || 0;
     var anzBadge = '<span class="badge" style="background:' + (anz > 0 ? 'var(--surf2);color:var(--text2)' : 'var(--green);color:#fff') + ';font-size:11px">' + anz + '</span>';
@@ -9959,6 +9982,7 @@ function showDiszEditModal(btn) {
   var mappingId  = btn.dataset.mappingid || '';
   var katSuffix  = btn.dataset.katsuffix || '';
   var hofExclude = btn.dataset.hofexclude === '1';
+  var distanzVal = btn.dataset.distanz !== undefined && btn.dataset.distanz !== '' ? btn.dataset.distanz : '';
   var fmtOpts = [
     { v:'',    label:'Standard (Kategorie: ' + (katfmt||'–') + ')' },
     { v:'min', label:'Zeit (min) – z.B. 45:30 min' },
@@ -9988,10 +10012,15 @@ function showDiszEditModal(btn) {
 
       '<div class="form-group"><label>Ergebnisformat</label>' + fmtSel + '</div>' +
       '<div class="form-group"><label>Kategorie-Suffix</label>' + katSuffixSel + '</div>' +
-      '<div class="form-group full">' +
-        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">' +
+      '<div class="form-group">' +
+        '<label>Strecke (Meter, optional)</label>' +
+        '<input type="number" id="de-distanz" value="' + distanzVal + '" placeholder="z.B. 800"/>' +
+        '<div style="font-size:11px;color:var(--text2);margin-top:4px">Für Pace-Berechnung bei neuen Disziplinen</div>' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;padding-top:20px">' +
           '<input type="checkbox" id="de-hofexclude"' + (hofExclude ? ' checked' : '') + ' style="width:16px;height:16px;cursor:pointer">' +
-          '<span>Diese Disziplin aus der <strong>Hall of Fame</strong> ausschließen</span>' +
+          '<span>Aus <strong>Hall of Fame</strong> ausschließen</span>' +
         '</label>' +
       '</div>' +
     '</div>' +
@@ -10008,7 +10037,9 @@ async function updateDisz(btn) {
   var fmt       = document.getElementById('de-fmt').value;
   var katSuffix = document.getElementById('de-katsuffix') ? document.getElementById('de-katsuffix').value : '';
   var hofExclude = document.getElementById('de-hofexclude') ? (document.getElementById('de-hofexclude').checked ? 1 : 0) : 0;
-  var body = { fmt_override: fmt, kat_suffix_override: katSuffix, hof_exclude: hofExclude };
+  var distanzEl = document.getElementById('de-distanz');
+  var distanzBody = distanzEl && distanzEl.value.trim() !== '' ? parseFloat(distanzEl.value) : null;
+  var body = { fmt_override: fmt, kat_suffix_override: katSuffix, hof_exclude: hofExclude, distanz: distanzBody };
   if (neuerName && neuerName !== origDisz) body.neuer_name = neuerName;
   var mId = btn.dataset.mappingid;
   var putPath = mId ? 'disziplin-mapping/' + mId : 'disziplin-mapping/' + encodeURIComponent(origDisz);
@@ -10097,6 +10128,7 @@ async function saveNeueDisziplin() {
     fmt_override:       fmt,
     kat_suffix_override: katSuffix,
     hof_exclude:        hofExclude,
+    distanz:            (function(){ var el=document.getElementById('ad-distanz'); return el&&el.value.trim()!==''?parseFloat(el.value):null; })(),
   });
 
   if (r && r.ok) {

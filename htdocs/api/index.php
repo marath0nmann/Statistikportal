@@ -814,9 +814,21 @@ if ($res === 'benutzer') {
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
-            $dmIns633 = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$dmIns633 ? (int)$dmIns633['id'] : null,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
+            // mapping_id: vom Client wenn vorhanden (exakter Kategorie-Treffer),
+            // sonst per Name, zuletzt NULL
+            $dmMid = intOrNull($item['disziplin_mapping_id'] ?? null);
+            $dmDistanz = null;
+            if (!$dmMid) {
+                $dmRow2 = DB::fetchOne("SELECT id, disziplin, distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? ORDER BY id", [$disziplin]);
+                if ($dmRow2) { $dmMid = (int)$dmRow2['id']; $dmDistanz = $dmRow2['distanz']; }
+            }
+            // disziplin-Name und distanz aus mapping (normalisiert)
+            if ($dmMid) {
+                $dmInfo = DB::fetchOne("SELECT disziplin, distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE id=?", [$dmMid]);
+                if ($dmInfo) { $disziplin = $dmInfo['disziplin']; $dmDistanz = $dmInfo['distanz']; }
+            }
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,distanz,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$dmMid,$dmDistanz,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
             $imported++;
         }
         jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
@@ -1341,14 +1353,13 @@ if (in_array($res, $ergebnisTabellen)) {
         $mstr     = intOrNull($body['meisterschaft'] ?? null);
         if (!$disziplin || !$resultat) jsonErr('Disziplin und Ergebnis erforderlich.');
 
-        // pace wird nicht mehr gespeichert
-        $distanz = floatOrNull($body['distanz'] ?? null);
+        // distanz und pace aus disziplin_mapping (nicht mehr aus body)
         $akpm    = intOrNull($body['ak_platz_meisterschaft'] ?? null);
         $rnum    = ($res === 'sprungwurf') ? floatOrNull($body['resultat'] ?? null) : null;
         if ($unified) {
-            $dmId = null;
-            $dmRow = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
-            if ($dmRow) $dmId = (int)$dmRow['id'];
+            $dmRow = DB::fetchOne("SELECT id, distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
+            $dmId  = $dmRow ? (int)$dmRow['id'] : null;
+            $distanz = $dmRow ? $dmRow['distanz'] : null;
             DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,distanz,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 [$vid,$aid,$ak,$disziplin,$dmId,$distanz,$resultat,$rnum,$akp,$mstr,$akpm,$user['id']]);
         } elseif ($res === 'strasse') {
@@ -2055,12 +2066,45 @@ if ($res === 'disziplin-mapping') {
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS fmt_override  VARCHAR(20) NULL"); } catch (Exception $e) {}
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS kat_suffix_override VARCHAR(10) NULL"); } catch (Exception $e) {}
         try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS hof_exclude TINYINT(1) NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+        // v630: distanz in disziplin_mapping
+        try { DB::query("ALTER TABLE " . DB::tbl('disziplin_mapping') . " ADD COLUMN IF NOT EXISTS distanz FLOAT DEFAULT NULL COMMENT 'Streckenlänge in Metern'"); } catch (Exception $e) {}
+        // v630: pace aus ergebnisse nicht mehr befüllen (war on-the-fly berechnet)
+        // v630: disziplin_mapping.distanz befüllen aus bekannten Werten
+        try {
+            $hasDist = DB::fetchOne("SELECT COUNT(*) AS c FROM " . DB::tbl('disziplin_mapping') . " WHERE distanz IS NOT NULL");
+            if (!$hasDist || (int)$hasDist['c'] === 0) {
+                $distMap = [1=>10000,2=>15000,3=>21097.5,4=>5000,5=>42195,6=>100000,7=>1000,8=>1800,
+                            9=>600,10=>8000,11=>500,12=>7000,13=>63300,14=>30000,15=>50000,17=>800,
+                            32=>60,33=>200,34=>100,35=>200,36=>400,37=>400,38=>50,39=>300,
+                            40=>60,41=>80,42=>100,43=>110,44=>300,45=>400,46=>75,47=>50,
+                            63=>1500,64=>800,65=>3000,66=>1000,67=>5000,68=>2000,69=>10000,
+                            70=>800,71=>3000,135=>300,136=>16500,137=>3000,139=>5000,
+                            140=>4200,141=>2000,142=>3500,143=>6000,144=>7500,145=>11100,
+                            146=>5200,147=>16100,148=>4100,149=>8100,150=>1500];
+                foreach ($distMap as $mid => $dist) {
+                    DB::query("UPDATE " . DB::tbl('disziplin_mapping') . " SET distanz=? WHERE id=? AND distanz IS NULL", [$dist, $mid]);
+                }
+            }
+        } catch (Exception $e) {}
+        // v630: ergebnisse.distanz aus mapping synchronisieren
+        try {
+            DB::query("UPDATE " . DB::tbl('ergebnisse') . " e
+                       JOIN " . DB::tbl('disziplin_mapping') . " dm ON dm.id=e.disziplin_mapping_id
+                       SET e.distanz=dm.distanz WHERE e.distanz IS NULL AND dm.distanz IS NOT NULL");
+        } catch (Exception $e) {}
+        // v630: ergebnisse.disziplin aus mapping normalisieren
+        try {
+            DB::query("UPDATE " . DB::tbl('ergebnisse') . " e
+                       JOIN " . DB::tbl('disziplin_mapping') . " dm ON dm.id=e.disziplin_mapping_id
+                       SET e.disziplin=dm.disziplin WHERE e.disziplin != dm.disziplin");
+        } catch (Exception $e) {}
         // Basis: alle mapping-Einträge (mapping.id als Key → kein Überschreiben bei gleichem Namen)
         $all_disz = [];
         $mappings = DB::fetchAll(
             "SELECT m.id, m.disziplin, m.kategorie_id, m.fmt_override,
                     COALESCE(m.kat_suffix_override,'') AS kat_suffix_override,
                     COALESCE(m.hof_exclude,0) AS hof_exclude,
+                    m.distanz,
                     k.name AS kategorie_name, k.fmt AS kat_fmt
              FROM " . DB::tbl('disziplin_mapping') . " m
              JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
@@ -2075,6 +2119,7 @@ if ($res === 'disziplin-mapping') {
                 'fmt_override'   => $m['fmt_override'],
                 'kat_suffix_override' => $m['kat_suffix_override'],
                 'hof_exclude'    => (int)$m['hof_exclude'],
+                'distanz'        => isset($m['distanz']) ? $m['distanz'] : null,
                 'kat_fmt'        => $m['kat_fmt'],
                 'ergebnis_anzahl'=> 0,
                 'quelle_tbl'     => '',
@@ -2119,6 +2164,8 @@ if ($res === 'disziplin-mapping') {
         $fmt_override     = isset($body['fmt_override'])     ? trim($body['fmt_override'])     : null;
         $kat_suffix       = isset($body['kat_suffix_override']) ? trim($body['kat_suffix_override']) : null;
         $hof_exclude      = isset($body['hof_exclude'])      ? (int)$body['hof_exclude']       : 0;
+        $distanz_mapping  = isset($body['distanz']) && $body['distanz'] !== '' && $body['distanz'] !== null
+                            ? floatOrNull($body['distanz']) : null;
         // Prüfen ob (disziplin, kategorie_id) bereits existiert
         $existing = DB::fetchOne(
             "SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? AND kategorie_id=?",
@@ -2127,15 +2174,15 @@ if ($res === 'disziplin-mapping') {
         if ($existing) {
             // Nur Metadaten updaten, NICHT kategorie_id (das wäre eine Neuanlage)
             DB::query("UPDATE " . DB::tbl('disziplin_mapping') .
-                      " SET fmt_override=?, kat_suffix_override=?, hof_exclude=? WHERE id=?",
-                      [$fmt_override ?: null, $kat_suffix ?: null, $hof_exclude, $existing['id']]);
+                      " SET fmt_override=?, kat_suffix_override=?, hof_exclude=?, distanz=COALESCE(?,distanz) WHERE id=?",
+                      [$fmt_override ?: null, $kat_suffix ?: null, $hof_exclude, $distanz_mapping, $existing['id']]);
             jsonOk(['id' => (int)$existing['id']]);
         }
         // Prüfen ob der Name in einer ANDEREN Kategorie existiert → sauber als neuer Eintrag anlegen
         DB::query("INSERT INTO " . DB::tbl('disziplin_mapping') . "
-                   (disziplin, kategorie_id, fmt_override, kat_suffix_override, hof_exclude)
-                   VALUES (?,?,?,?,?)",
-                  [$disziplin, $kategorie_id, $fmt_override ?: null, $kat_suffix ?: null, $hof_exclude]);
+                   (disziplin, kategorie_id, fmt_override, kat_suffix_override, hof_exclude, distanz)
+                   VALUES (?,?,?,?,?,?)",
+                  [$disziplin, $kategorie_id, $fmt_override ?: null, $kat_suffix ?: null, $hof_exclude, $distanz_mapping]);
         $newId = DB::lastInsertId();
         // NICHT pauschal alle Ergebnisse umhängen — neue Disziplin hat noch keine
         jsonOk(['id' => (int)$newId]);
@@ -2218,6 +2265,7 @@ if ($res === 'disziplin-mapping') {
         $kat_sfx = isset($body['kat_suffix_override']) ? (trim($body['kat_suffix_override']) ?: null) : false;
         if ($kat_sfx !== false) { $sets[] = 'kat_suffix_override=?'; $params[] = $kat_sfx; }
         if (isset($body['hof_exclude'])) { $sets[] = 'hof_exclude=?'; $params[] = (int)$body['hof_exclude']; }
+        if (array_key_exists('distanz', $body)) { $sets[] = 'distanz=?'; $params[] = $body['distanz'] !== null && $body['distanz'] !== '' ? (float)$body['distanz'] : null; }
         if ($sets) {
             if ($mappingId) {
                 $params[] = $mappingId;
@@ -2700,7 +2748,7 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         $ak        = sanitize($item['altersklasse'] ?? '');
         $disziplin = sanitize($item['disziplin'] ?? '');
         $resultat  = sanitize($item['resultat'] ?? '');
-        $pace      = sanitize($item['pace'] ?? '');
+        // $pace wird nicht mehr gespeichert (on-the-fly berechnet)
         $akp       = intOrNull($item['ak_platzierung'] ?? null);
         $mstr      = intOrNull($item['meisterschaft'] ?? null);
         $akpm      = intOrNull($item['ak_platz_meisterschaft'] ?? null);
