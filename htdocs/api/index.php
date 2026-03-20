@@ -1399,7 +1399,9 @@ if (in_array($res, $ergebnisTabellen)) {
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
-            $dmBulk = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
+            // mapping_id: direkt aus Item (wenn vorhanden) oder per Name-Lookup
+            $midDirect = isset($item['disziplin_mapping_id']) && is_numeric($item['disziplin_mapping_id']) ? (int)$item['disziplin_mapping_id'] : null;
+            $dmBulk = $midDirect ? ['id' => $midDirect] : DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
             DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 [$vid,$aid,$ak,$disziplin,$dmBulk ? (int)$dmBulk['id'] : null,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
             $imported++;
@@ -1984,7 +1986,9 @@ if ($res === 'kategorien') {
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
-            $dmBulk = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
+            // mapping_id: direkt aus Item (wenn vorhanden) oder per Name-Lookup
+            $midDirect = isset($item['disziplin_mapping_id']) && is_numeric($item['disziplin_mapping_id']) ? (int)$item['disziplin_mapping_id'] : null;
+            $dmBulk = $midDirect ? ['id' => $midDirect] : DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
             DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 [$vid,$aid,$ak,$disziplin,$dmBulk ? (int)$dmBulk['id'] : null,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
             $imported++;
@@ -2260,7 +2264,9 @@ if ($res === 'disziplin-mapping') {
             $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
                 [$vid, $aid, $disziplin, $resultat]);
             if ($dup) { $skipped++; continue; }
-            $dmBulk = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
+            // mapping_id: direkt aus Item (wenn vorhanden) oder per Name-Lookup
+            $midDirect = isset($item['disziplin_mapping_id']) && is_numeric($item['disziplin_mapping_id']) ? (int)$item['disziplin_mapping_id'] : null;
+            $dmBulk = $midDirect ? ['id' => $midDirect] : DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
             DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 [$vid,$aid,$ak,$disziplin,$dmBulk ? (int)$dmBulk['id'] : null,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
             $imported++;
