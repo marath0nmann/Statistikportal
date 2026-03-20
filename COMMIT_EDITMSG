@@ -1,1 +1,1 @@
-v626: Fix: bkKatChanged() nach bk-kat setzen → Dropdowns aktualisieren
+v630: DB-Normalisierung: distanz in disziplin_mapping, pace deprecated

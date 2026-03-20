@@ -5,6 +5,53 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v630 – DB-Normalisierung v630
+
+── disziplin_mapping.distanz (neu) ──
+- Neue Spalte distanz FLOAT in disziplin_mapping (Meter)
+- Auto-Migration beim App-Start befüllt alle 67 bekannten Disziplinen
+- ergebnisse.distanz wird daraus synchronisiert (konsistente Quelle)
+- ergebnisse.disziplin wird aus mapping normalisiert
+── INSERT-Logik ──
+- bulk INSERT: distanz aus disziplin_mapping statt aus Client-Body
+- single INSERT: distanz aus disziplin_mapping statt aus Client-Body
+- disziplin_mapping_id vom Client hat Priorität (v629)
+── pace deprecated ──
+- ergebnisse.pace wird nicht mehr befüllt (on-the-fly berechnet)
+- Auto-Migration: bestehende pace-Werte bleiben (nicht gelöscht)
+── Admin-UI ──
+- Disziplin-Editier-Dialog: neues Feld "Strecke (Meter)"
+- POST/PATCH disziplin_mapping überträgt distanz
+- GET disziplin_mapping liefert distanz zurück
+── JS ──
+- diszKm(): nutzt distanz aus state.disziplinen, Namens-Parser als Fallback
+
+---
+
+
+## v629 – Fix Kategorie-Speicherung: disziplin_mapping_id vom Client
+
+- Root cause gefunden via DB-Dump: PHP ignorierte $item["disziplin_mapping_id"]
+  komplett und machte eigenen Lookup: SELECT id WHERE disziplin="800m"
+  → erster Treffer = id=64 (bahn), nicht id=70 (halle) → falsche Kategorie
+- Fix: $item["disziplin_mapping_id"] vom Client verwenden wenn vorhanden
+  → JS sendet diszMid=70 (halle) → wird korrekt gespeichert
+- Disziplin-Name wird aus mapping normalisiert (z.B. "800m" → "800m Halle")
+- Fallback nur wenn kein disziplin_mapping_id vorhanden: Name-Lookup
+
+---
+
+
+## v628 – Fix Kategorie-Zuweisung: robuste diszMid-Setzung
+
+- data-mid Attribut auf bk-disz speichert mapping_id → bleibt bei bkKatChanged erhalten
+- bkKatChanged: data-mid bevorzugt vor prev-Value beim Wiederherstellen
+- Fallback: wenn diszMid nicht im Dropdown → bk-kat temporär auf korrekte kat setzen
+  → Option erzwingen → kein stiller Fallback auf falschen Kategorie-Eintrag
+
+---
+
+
 ## v626 – Fix Kategorie-Zuordnung: bkKatChanged() nach bk-kat
 
 - Root cause: bk-kat wurde auf "halle" gesetzt, aber bkKatChanged() nicht
