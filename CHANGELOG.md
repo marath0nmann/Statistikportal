@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v638 – Fix leichtathletik.de: AK-Platz korrekt auslesen
+
+- FLVW Hallenmeisterschaften Masters: col-1 = Gesamtplatz, col-6 = AK-Platz
+  col-6 firstline hat Format "1./III" (AK-Platz/Laufnummer)
+- Fix: col-6 wird bevorzugt wenn erstes Zeichen eine Zahl ist
+  parseInt("1./III") = 1 ✓
+- Fallback auf col-1 wenn col-6 kein Platz enthält
+
+---
+
+
 ## v637 – Fix: Jahrgang/Geschlecht im Neue-Athleten-Dialog
 
 - RR-Import (_proc): year und geschlecht werden jetzt in allResults gespeichert
