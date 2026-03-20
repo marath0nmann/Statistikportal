@@ -11812,18 +11812,21 @@ async function bulkImportFromLA(url, kat, statusEl) {
         rAK = calcDlvAK(rYear, rGschl || 'M', evYr) || '';
       }
 
-      // AK-Platz: col-6 firstline hat Format '1./III' (AK-Platz/Lauf)
-      // col-1 firstline hat Gesamtplatz — col-6 bevorzugen wenn vorhanden
-      var col6 = line.querySelector('.col-6');
-      var col1 = line.querySelector('.col-1');
-      var flP6 = col6 ? col6.querySelector('.firstline') : null;
-      var flP1 = col1 ? col1.querySelector('.firstline') : null;
-      // col-6: '1./III' → parseInt('1.') = 1; col-1: Gesamtplatz
+      // AK-Platz: verschiedene Layouts auf leichtathletik.de
+      // Standard: col-1 = Platz. FLVW Masters: col-1 = Gesamtplatz, col-6 = AK-Platz ('1./III')
+      // Strategie: col-6 zuerst prüfen (Zahl + Punkt/Schrägstrich), dann col-1
       var rPlatz = 0;
-      if (flP6 && /^\d/.test((flP6.textContent||'').trim())) {
-        rPlatz = parseInt(flP6.textContent.trim()) || 0;
-      } else if (flP1 && /^\d/.test((flP1.textContent||'').trim())) {
-        rPlatz = parseInt(flP1.textContent.trim()) || 0;
+      // Alle cols nach AK-Platz-Kandidaten durchsuchen
+      // Priorität: col-6 (Masters), col-5, col-1
+      var _platzCols = [6, 5, 1];
+      for (var _pci = 0; _pci < _platzCols.length; _pci++) {
+        var _pc = line.querySelector('.col-' + _platzCols[_pci]);
+        var _pfl = _pc ? _pc.querySelector('.firstline') : null;
+        var _ptxt = _pfl ? (_pfl.textContent||'').trim() : '';
+        if (_ptxt && /^\d+\.?/.test(_ptxt)) {
+          var _pval = parseInt(_ptxt);
+          if (_pval > 0) { rPlatz = _pval; break; }
+        }
       }
 
       if (!rName || !rZeit || !/\d/.test(rZeit)) return;
