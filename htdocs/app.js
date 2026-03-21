@@ -4418,6 +4418,11 @@ async function bulkImportFromRR(url, kat, statusEl) {
     if(!ln||_blocked(ln))continue;
     // Laufserie: *_Serie_* Listen enthalten kumulierte Gesamtzeiten → überspringen
     if(/_serie_/i.test(ln))continue;
+    // Wenn AK-Listen vorhanden: Ges- und MW-Listen weglassen (enthalten Gesamtplatz, nicht AK-Platz)
+    if(/_ges_tag_|_mw_tag_|_ges_tag/i.test(ln)){
+      var _hasAkList=listArr.some(function(x){var xn=(x.Name||x.name||'');return /_ak_tag_/i.test(xn)&&!/_serie_/i.test(xn);});
+      if(_hasAkList)continue;
+    }
     var lkey=ln+'|'+lc;
     if(_seen[lkey])continue;
     _seen[lkey]=true;
@@ -4906,7 +4911,6 @@ async function bulkFillFromImport(rows, statusEl) {
     if (platzEl && row.platz) platzEl.value = row.platz;
     // Datum pro Zeile (_datumOverride aus Tag-Dialog, sonst row.datum)
     var _rowDatum = row._datumOverride || row.datum || '';
-    if(window._bkDebugDatum) console.log('[Datum]', row.name, 'tagNr='+row.tagNr, '_datumOverride='+row._datumOverride, '_rowDatum='+_rowDatum);
     if (_rowDatum) {
       var zdEl = tr.querySelector('.bk-zeilendatum');
       if (zdEl) {
