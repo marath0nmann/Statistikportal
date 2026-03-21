@@ -4361,6 +4361,23 @@ async function bulkImportFromRR(url, kat, statusEl) {
 
   var eventName  = cfg.EventName || cfg.Name || cfg.eventname || '';
   var contestObj = cfg.contests  || cfg.Contests || {};
+  // Datum pro Contest-ID aus Config extrahieren
+  var contestDateMap = {};
+  var contestRaw = cfg.ContestInfo || cfg.contestInfo || cfg.contest_info || {};
+  Object.keys(contestRaw).forEach(function(cid) {
+    var ci = contestRaw[cid];
+    var d = ci.Date || ci.date || ci.EventDate || '';
+    if (d) contestDateMap[cid] = d;
+  });
+  // Alternativ: Contests-Array mit Date-Feld
+  var contestsArr = cfg.Contests_arr || cfg.contests_arr || [];
+  if (Array.isArray(contestsArr)) {
+    contestsArr.forEach(function(c) {
+      var cid = String(c.ID || c.id || c.ContestID || '');
+      var d = c.Date || c.date || '';
+      if (cid && d) contestDateMap[cid] = d;
+    });
+  }
   var clubPhrase  = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
 
   _bkDbgHeader('RaceResult');
@@ -4399,10 +4416,15 @@ async function bulkImportFromRR(url, kat, statusEl) {
   for (var li=0;li<listArr.length;li++){
     var le=listArr[li], ln=le.Name||le.name||'', lc=String(le.Contest||le.contest||'0');
     if(!ln||_blocked(ln))continue;
+    // Laufserie: *_Serie_* Listen enthalten kumulierte Gesamtzeiten → überspringen
+    if(/_serie_/i.test(ln))continue;
     var lkey=ln+'|'+lc;
     if(_seen[lkey])continue;
     _seen[lkey]=true;
-    validLists.push({name:ln,contest:lc});
+    // Tag-Nummer aus Listenname extrahieren (_Tag_1, _Tag_2, _Tag_3)
+    var _tagMatch=ln.match(/_Tag_(\d+)/i);
+    var _tagNr=_tagMatch?parseInt(_tagMatch[1]):0;
+    validLists.push({name:ln,contest:lc,tagNr:_tagNr});
   }
 
   _bkDbgLine('Listen gesamt', listArr.length);
@@ -4437,7 +4459,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
     if(iNetto>=0&&iNetto===iClub)iNetto=(iZeit>=0&&iZeit!==iClub)?iZeit:-1;
   }
 
-  function _proc(payload, contestName) {
+  function _proc(payload, contestName, le) { le = le || {};
     var df=payload.DataFields||[];
     if(Array.isArray(df)&&df.length>0)_cal(df);
     var dRaw=payload.data||{};
@@ -4494,7 +4516,10 @@ async function bulkImportFromRR(url, kat, statusEl) {
           } else {
             allResults.push({name:rName,resultat:rZeit,ak:rAK,platz:rP,
               disziplin:dObj?dObj.disziplin:disz,diszMid:dObj?(dObj.id||dObj.mapping_id):null,
-              year:rYear||'',geschlecht:rGschl||''});
+              year:rYear||'',geschlecht:rGschl||'',
+              contestId:String(le ? le.contest : ''),
+              contestName:contestName||'',
+              tagNr:le ? (le.tagNr||0) : 0});
           }
         });
       });
@@ -4541,7 +4566,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
 
     if(!payload)continue;
     listsChecked++;
-    _proc(payload, cname);
+    _proc(payload, cname, le);
   }
 
   _bkDbgLine('Listen durchsucht', listsChecked);
@@ -4557,7 +4582,18 @@ async function bulkImportFromRR(url, kat, statusEl) {
     _bkDbgFlush();
   }
 
-  bulkFillFromImport(allResults, statusEl);
+  // Tag-Datum-Dialog: wenn mehrere Tag-Nummern vorhanden
+  var _tagNrs = {};
+  allResults.forEach(function(r){ if(r.tagNr>0) _tagNrs[r.tagNr]=true; });
+  var _tagNrList = Object.keys(_tagNrs).map(Number).sort();
+  if(_tagNrList.length > 1) {
+    var _tagDates = await rrTagDatumDialog(_tagNrList, (document.getElementById('bk-datum')||{}).value||'');
+    if(_tagDates === null) { if(statusEl) statusEl.textContent=''; return; }
+    allResults.forEach(function(r) {
+      if(r.tagNr > 0 && _tagDates[r.tagNr]) r._datumOverride = _tagDates[r.tagNr];
+    });
+  }
+  await bulkFillFromImport(allResults, statusEl);
 }
 
 // ── MikaTiming → Bulk ───────────────────────────────────────────────────────
@@ -5042,11 +5078,13 @@ function bulkParsePaste() {
     var idx = _bulkRowCount - 1;
 
     // Zeilen-Datum setzen (als TT.MM.JJJJ für Textfeld)
-    if (p.datum) {
+    // _datumOverride aus Tag-Datum-Dialog hat Priorität
+    var _pDatum = p._datumOverride || p.datum || '';
+    if (_pDatum) {
       var zdEl = tbody.querySelectorAll('.bk-zeilendatum')[idx];
       if (zdEl) {
-        var _dm = p.datum.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        zdEl.value = _dm ? _dm[3] + '.' + _dm[2] + '.' + _dm[1] : p.datum;
+        var _dm = _pDatum.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        zdEl.value = _dm ? _dm[3] + '.' + _dm[2] + '.' + _dm[1] : _pDatum;
       }
     }
 
@@ -6992,6 +7030,57 @@ function bsdConfirm() {
 
   closeModal();
   window._bsdResolve(filtered);
+}
+
+// ── Tag-Datum-Dialog für Laufserien ──────────────────────────
+async function rrTagDatumDialog(tagNrs, baseDate) {
+  return new Promise(function(resolve) {
+    // Datumsfelder pro Tag — vorausgefüllt mit baseDatum wenn vorhanden
+    var rows = '';
+    tagNrs.forEach(function(nr) {
+      rows +=
+        '<tr style="border-bottom:1px solid var(--border)">' +
+          '<td style="padding:10px;font-weight:600;font-size:14px;white-space:nowrap">Lauf ' + nr + '</td>' +
+          '<td style="padding:8px 10px">' +
+            '<input id="rrtd-datum-' + nr + '" type="date" value="' + (baseDate||'') + '" ' +
+            'style="padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:14px;' +
+            'background:var(--surface);color:var(--text);width:160px">' +
+          '</td>' +
+        '</tr>';
+    });
+
+    var html =
+      '<h3 style="margin:0 0 6px;font-size:17px">📅\ufe0e Datum pro Lauf</h3>' +
+      '<p style="color:var(--text2);font-size:13px;margin:0 0 18px">' +
+        'Die Laufserie hat ' + tagNrs.length + ' Läufe. Bitte das Datum für jeden Lauf angeben.' +
+      '</p>' +
+      '<table style="border-collapse:collapse;margin-bottom:20px">' +
+        '<thead><tr style="background:var(--surf2)">' +
+          '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Lauf</th>' +
+          '<th style="padding:6px 10px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Datum</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+        '<button class="btn btn-ghost" onclick="closeModal();window._rrtdResolve(null)">Abbrechen</button>' +
+        '<button class="btn btn-primary" onclick="rrtdConfirm()">Weiter →</button>' +
+      '</div>';
+
+    window._rrtdResolve = resolve;
+    window._rrtdTagNrs = tagNrs;
+    showModal(html, false);
+  });
+}
+
+function rrtdConfirm() {
+  var tagNrs = window._rrtdTagNrs || [];
+  var dates = {};
+  tagNrs.forEach(function(nr) {
+    var el = document.getElementById('rrtd-datum-' + nr);
+    dates[nr] = el ? el.value : '';
+  });
+  closeModal();
+  window._rrtdResolve(dates);
 }
 // ── RACERESULT-IMPORT ──────────────────────────────────────
 function rrKatChanged() {
