@@ -4418,18 +4418,15 @@ async function bulkImportFromRR(url, kat, statusEl) {
     if(!ln||_blocked(ln))continue;
     // Laufserie: *_Serie_* Listen enthalten kumulierte Gesamtzeiten → überspringen
     if(/_serie_/i.test(ln))continue;
-    // Wenn AK-Listen vorhanden: Ges- und MW-Listen weglassen (enthalten Gesamtplatz, nicht AK-Platz)
-    if(/_ges_tag_|_mw_tag_|_ges_tag/i.test(ln)){
-      var _hasAkList=listArr.some(function(x){var xn=(x.Name||x.name||'');return /_ak_tag_/i.test(xn)&&!/_serie_/i.test(xn);});
-      if(_hasAkList)continue;
-    }
+    // Ges/MW-Listen: importieren, aber Platz nur wenn kein AK-Platz gesetzt (isAkList-Prio)
+    var _isAkList = /_ak_/i.test(ln);
     var lkey=ln+'|'+lc;
     if(_seen[lkey])continue;
     _seen[lkey]=true;
     // Tag-Nummer aus Listenname extrahieren (_Tag_1, _Tag_2, _Tag_3)
     var _tagMatch=ln.match(/_Tag_(\d+)/i);
     var _tagNr=_tagMatch?parseInt(_tagMatch[1]):0;
-    validLists.push({name:ln,contest:lc,tagNr:_tagNr});
+    validLists.push({name:ln,contest:lc,tagNr:_tagNr,isAkList:_isAkList});
   }
 
   _bkDbgLine('Listen gesamt', listArr.length);
@@ -4513,8 +4510,9 @@ async function bulkImportFromRR(url, kat, statusEl) {
           var dObj=disziplinen.find(function(d){return d.disziplin===disz&&(!kat||(bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key)>=0);});
           var _dup=allResults.find(function(r){return r.name===rName&&r.resultat===rZeit;});
           if(_dup){
-            // AK-Platz bevorzugen: kleinerer Wert aus späterer Liste übernehmen
-            if(rP>0&&(_dup.platz===0||rP<_dup.platz))_dup.platz=rP;
+            // Platz: AK-Listen haben Priorität (isAkList). Aus Nicht-AK-Listen nur wenn noch kein Platz.
+            var _canUpdatePlatz = rP>0 && (_dup.platz===0 || (le && le.isAkList && !_dup.isAkList));
+            if(_canUpdatePlatz){_dup.platz=rP; if(le&&le.isAkList)_dup.isAkList=true;}
             // AK übernehmen wenn besser (echter Wert > Punkt/leer)
             var _dupAkOk = _dup.ak && _dup.ak !== '.' && _dup.ak.length > 1;
             if(rAK && rAK !== '.' && rAK.length > 1 && !_dupAkOk) _dup.ak = rAK;
@@ -4524,7 +4522,8 @@ async function bulkImportFromRR(url, kat, statusEl) {
               year:rYear||'',geschlecht:rGschl||'',
               contestId:String(le ? le.contest : ''),
               contestName:contestName||'',
-              tagNr:le ? (le.tagNr||0) : 0});
+              tagNr:le ? (le.tagNr||0) : 0,
+              isAkList:le ? !!le.isAkList : false});
           }
         });
       });

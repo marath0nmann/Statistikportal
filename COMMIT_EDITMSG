@@ -1,1 +1,1 @@
-v647: Fix: AK-Platz statt Gesamtplatz in Laufserie-Import
+v648: Fix: AK-Platz Priorität über Gesamtplatz (isAkList Flag)
