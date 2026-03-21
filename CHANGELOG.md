@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v652 – Fix leichtathletik.de: Platz aus AK-Block col-1
+
+- col-6 ("8./I") ist der Laufplatz, nicht der AK-Platz
+- Im AK-Block (Männer, Frauen, Weibliche Jugend U18, Senioren M60...)
+  wird col-1 direkt als AK-Platz genutzt
+- Außerhalb (Gesamtergebnis): col-6 für Masters-Layout ("1./III")
+- AK-Block-Regex erweitert: Weibliche Jugend, Männliche Jugend, Senioren
+
+---
+
+
 ## v650 – Fix leichtathletik.de: AK-Platz korrekt
 
 - Root cause: Zeitlauf-Listen haben mehrere runblock-Sektionen:
