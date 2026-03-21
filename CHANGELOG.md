@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v649 – Fix _proc: rekursive Gruppenverarbeitung
+
+- Root cause: AK_Tag_N-Listen haben 4 Ebenen (Realer Lauf > 5km > Männlich > M60)
+  _proc iterierte nur 2 Ebenen (k + k2) → AK-Listen wurden komplett ignoriert
+  Ergebnis: nur Ges/MW-Listen mit Gesamtplatz wurden verarbeitet
+- Fix: _proc nutzt jetzt rekursive _walkGroups() für beliebige Tiefe
+  _processRows() verarbeitet die gefundenen Row-Arrays
+- AK-Listen werden jetzt korrekt verarbeitet → AK-Platz statt Gesamtplatz
+
+---
+
+
 ## v648 – Fix Laufserie: AK-Platz korrekt
 
 - Statt aggressivem Ges/MW-Filter: isAkList-Flag pro Liste

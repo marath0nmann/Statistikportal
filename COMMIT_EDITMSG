@@ -1,1 +1,1 @@
-v648: Fix: AK-Platz Priorität über Gesamtplatz (isAkList Flag)
+v649: Fix: _proc rekursiv für tief verschachtelte RR-Datenstrukturen
