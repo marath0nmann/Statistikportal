@@ -4904,6 +4904,16 @@ async function bulkFillFromImport(rows, statusEl) {
     // Platz
     var platzEl = tr.querySelector('.bk-platz');
     if (platzEl && row.platz) platzEl.value = row.platz;
+    // Datum pro Zeile (_datumOverride aus Tag-Dialog, sonst row.datum)
+    var _rowDatum = row._datumOverride || row.datum || '';
+    if(window._bkDebugDatum) console.log('[Datum]', row.name, 'tagNr='+row.tagNr, '_datumOverride='+row._datumOverride, '_rowDatum='+_rowDatum);
+    if (_rowDatum) {
+      var zdEl = tr.querySelector('.bk-zeilendatum');
+      if (zdEl) {
+        var _dm = _rowDatum.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        zdEl.value = _dm ? _dm[3] + '.' + _dm[2] + '.' + _dm[1] : _rowDatum;
+      }
+    }
   });
 
   // Zeilennummern neu durchzählen

@@ -5,6 +5,14 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v645 – Fix Laufserie-Datum
+
+- _datumOverride wurde im falschen Loop (parsed.forEach statt rows.forEach) gesucht
+- Fix: Datum-Setzen jetzt im rows.forEach-Loop am Ende von bulkFillFromImport
+
+---
+
+
 ## v644 – Laufserie-Verbesserungen
 
 ── Gesamtzeiten rausfiltern ──
