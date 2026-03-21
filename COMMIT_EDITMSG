@@ -1,1 +1,1 @@
-v639: Fix la-fetch: doppelter Handler, robusteres Platz-Auslesen
+v642: Cleanup: Debug-Logging entfernt

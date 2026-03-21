@@ -3252,14 +3252,7 @@ if ($res === 'la-fetch' && $method === 'GET') {
     if (!$html || $httpCode >= 400)
         jsonErr('leichtathletik.de nicht erreichbar (HTTP ' . $httpCode . ').', 502);
 
-    // Debug: ersten entryline-HTML zurückgeben für Spalten-Analyse
-    $debug_entry = '';
-    if (!empty($_GET['_debug_cols'])) {
-        if (preg_match('/<[^>]+class=["\'][^"\'>]*entryline[^"\'>]*["\'][^>]*>(.*?)<\/(?:div|tr|li)>/si', $html, $em)) {
-            $debug_entry = $em[0];
-        }
-    }
-    jsonOk(['html' => $html, 'debug_entry' => $debug_entry]);
+    jsonOk(['html' => $html]);
 }
 
 // ============================================================
