@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v642 – Cleanup v642
+
+- Debug-Logging aus 14_leichtathletik.js entfernt (window._laDebugPlatz)
+- Debug-Parameter aus la-fetch PHP-Handler entfernt
+- Hinweis: FLVW Masters Zeitläufe haben keinen AK-Platz in den Listen
+  wenn der Athlet keinen Windwert hat (kein Eintrag in der Ergebnisspalte)
+  → rPlatz=0 ist korrekt, kein Code-Bug
+
+---
+
+
 ## v639 – Fix la-fetch + AK-Platz LA-Import
 
 - Doppelter la-fetch Handler: file_get_contents-Variante (Zeile 3200) entfernt
