@@ -4465,14 +4465,33 @@ async function bulkImportFromRR(url, kat, statusEl) {
     var df=payload.DataFields||[];
     if(Array.isArray(df)&&df.length>0)_cal(df);
     var dRaw=payload.data||{};
-    Object.keys(dRaw).forEach(function(k){
-      var v=dRaw[k],groups;
-      if(Array.isArray(v)){groups=(v.length>0&&Array.isArray(v[0]))?{'':v}:{'':v.length>0?[v]:v};}
-      else if(v&&typeof v==='object'){groups=v;}else{return;}
-      var kClean=k.replace(/^#\d+_/,''); // z.B. 'Jedermann-Lauf, 4.100m'
-      Object.keys(groups).forEach(function(k2){
-        var rows=groups[k2];if(!Array.isArray(rows))return;
-        var gk=(k2?(k+'/'+k2):k).replace(/^#\d+_/,'');
+    // Rekursiv beliebig tief verschachtelte Gruppen abarbeiten
+    function _walkGroups(obj, path) {
+      if (!obj || typeof obj !== 'object') return;
+      Object.keys(obj).forEach(function(k) {
+        var v = obj[k];
+        var gk = (path ? path + '/' + k : k).replace(/^#\d+_/g,'').replace(/\/#\d+_/g,'/');
+        if (Array.isArray(v)) {
+          // Prüfen ob es ein Array von Rows (flat) oder ein Array von Gruppen ist
+          if (v.length > 0 && Array.isArray(v[0])) {
+            // v ist ein Array von Row-Arrays → direkt verarbeiten
+            _processRows(v, gk);
+          } else if (v.length > 0 && typeof v[0] === 'object' && !Array.isArray(v[0])) {
+            // Array von Objekten → weiter rekursieren
+            v.forEach(function(sub) { _walkGroups(sub, gk); });
+          } else if (v.length > 0) {
+            // Einzelne Row? Nur wenn length >= 3
+            if (v.length >= 3) _processRows([v], gk);
+          }
+        } else if (v && typeof v === 'object') {
+          _walkGroups(v, gk);
+        }
+      });
+    }
+    function _processRows(rowsArr, gk) {
+      var kClean = gk; // gk enthält bereits den bereinigten Pfad
+      var k2 = gk.indexOf('/') >= 0 ? gk.split('/').pop() : gk;
+      var k = gk.indexOf('/') >= 0 ? gk.split('/')[0] : gk;
         var akFG='';
         if(iAK<0){
           // AK aus Sub-Gruppen-Key: '#5_Jedermann Frauen' → WHK, '#3_W30' → W30
@@ -4489,7 +4508,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
           }
           return contestName||kClean||gk;
         })();
-        rows.forEach(function(row){
+        rowsArr.forEach(function(row){
           if(!Array.isArray(row)||row.length<3)return;
           var club=iClub>=0?String(row[iClub]||'').trim():'';
           if(clubPhrase&&club.toLowerCase().indexOf(clubPhrase)<0)return;
@@ -4526,8 +4545,8 @@ async function bulkImportFromRR(url, kat, statusEl) {
               isAkList:le ? !!le.isAkList : false});
           }
         });
-      });
-    });
+    }
+    _walkGroups(dRaw, '');
   }
 
   var currentKey=cfg.key||'', keyAt=Date.now();
