@@ -4756,6 +4756,20 @@ async function bulkFillFromImport(rows, statusEl) {
     if (statusEl) statusEl.textContent = '⚠ Keine TuS-Einträge gefunden';
     return;
   }
+  // ── Laufserie erkennen: gleicher Name+Disziplin mehrfach ─────────
+  var _seriesKey = {};
+  rows.forEach(function(r) {
+    var k = (r.name||'') + '|' + (r.disziplin||'');
+    if (!_seriesKey[k]) _seriesKey[k] = [];
+    _seriesKey[k].push(r);
+  });
+  var _seriesGroups = Object.values(_seriesKey).filter(function(g) { return g.length > 1; });
+  if (_seriesGroups.length > 0) {
+    var _filtered = await bulkSeriesDialog(rows, _seriesGroups);
+    if (_filtered === null) { if (statusEl) statusEl.textContent = ''; return; }
+    rows = _filtered;
+    if (!rows.length) { if (statusEl) statusEl.textContent = '⚠ Keine Einträge ausgewählt'; return; }
+  }
   // ── Neue Athleten erkennen und Dialog zeigen ──────────────
   var athleten = state.athleten || [];
   var newCandidates = [];
@@ -6883,6 +6897,101 @@ async function bnadConfirm(count) {
 
   closeModal();
   window._bnadResolve(nameMap);
+}
+
+// ── Laufserie-Dialog ─────────────────────────────────────────
+async function bulkSeriesDialog(rows, seriesGroups) {
+  return new Promise(function(resolve) {
+    // Pro Gruppe: Athlet + Disziplin + alle Läufe
+    var sections = '';
+    seriesGroups.forEach(function(group, gi) {
+      var firstName = group[0].name;
+      var disz = group[0].disziplin || '?';
+      var opts = group.map(function(r, ri) {
+        var key = 'bsd-' + gi + '-' + ri;
+        return '<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;' +
+          'border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:13px;' +
+          'background:var(--surface)">' +
+          '<input type="checkbox" id="' + key + '" value="' + gi + '_' + ri + '" checked ' +
+          'style="width:15px;height:15px;accent-color:var(--btn-bg);cursor:pointer">' +
+          '<span style="font-family:\'Barlow Condensed\',monospace;font-weight:700;font-size:15px;min-width:80px">' +
+            fmtTime(r.resultat) +
+          '</span>' +
+          '<span style="color:var(--text2);font-size:12px">' +
+            (r.ak ? '<span style="background:var(--primary);color:var(--on-primary);border-radius:4px;padding:1px 6px;font-size:11px;margin-right:4px">' + r.ak + '</span>' : '') +
+            (r.platz ? 'Platz ' + r.platz : '') +
+          '</span>' +
+        '</label>';
+      }).join('');
+
+      sections +=
+        '<div style="margin-bottom:18px">' +
+          '<div style="font-weight:600;font-size:14px;margin-bottom:8px">' +
+            '<span style="font-family:\'Barlow Condensed\',monospace">' + firstName + '</span>' +
+            '<span style="color:var(--text2);font-size:12px;margin-left:8px">' + disz + ' · ' + group.length + ' Läufe</span>' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:6px">' + opts + '</div>' +
+        '</div>';
+    });
+
+    var html =
+      '<h3 style="margin:0 0 6px;font-size:17px">🏃\ufe0e Laufserie erkannt</h3>' +
+      '<p style="color:var(--text2);font-size:13px;margin:0 0 20px">' +
+        'Einige Athleten erscheinen mehrfach mit der gleichen Disziplin — typisch für eine Laufserie. ' +
+        'Bitte wähle welche Läufe eingetragen werden sollen.' +
+      '</p>' +
+      sections +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px">' +
+        '<button class="btn btn-ghost btn-sm" onclick="bsdSelectAll(true)">Alle</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="bsdSelectAll(false)">Keine</button>' +
+        '<button class="btn btn-ghost" onclick="closeModal();window._bsdResolve(null)">Abbrechen</button>' +
+        '<button class="btn btn-primary" onclick="bsdConfirm()">Weiter →</button>' +
+      '</div>';
+
+    window._bsdResolve = resolve;
+    window._bsdRows = rows;
+    window._bsdGroups = seriesGroups;
+    showModal(html, true);
+  });
+}
+
+function bsdSelectAll(checked) {
+  document.querySelectorAll('[id^="bsd-"]').forEach(function(cb) { cb.checked = checked; });
+}
+
+function bsdConfirm() {
+  var rows = window._bsdRows || [];
+  var groups = window._bsdGroups || [];
+
+  // Baue Set der ausgewählten Einträge (gi_ri Schlüssel)
+  var selectedKeys = new Set();
+  document.querySelectorAll('[id^="bsd-"]:checked').forEach(function(cb) {
+    selectedKeys.add(cb.value);
+  });
+
+  // Baue Set der Einträge die durch Laufserie betroffen sind
+  var seriesRowSets = {}; // gi → Set von row-Objekten
+  groups.forEach(function(group, gi) {
+    seriesRowSets[gi] = new Set(group);
+  });
+
+  // Filtere: behalte Row wenn entweder nicht in einer Serie, oder in selectedKeys
+  var filtered = rows.filter(function(row) {
+    // Prüfe ob diese Row in einer Seriengruppe ist
+    for (var gi = 0; gi < groups.length; gi++) {
+      var group = groups[gi];
+      var ri = group.indexOf(row);
+      if (ri >= 0) {
+        // In Serie → nur wenn ausgewählt
+        return selectedKeys.has(gi + '_' + ri);
+      }
+    }
+    // Nicht in Serie → immer behalten
+    return true;
+  });
+
+  closeModal();
+  window._bsdResolve(filtered);
 }
 // ── RACERESULT-IMPORT ──────────────────────────────────────
 function rrKatChanged() {

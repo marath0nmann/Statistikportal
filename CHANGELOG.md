@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v643 – Laufserie-Dialog beim Bulk-Import
+
+- Erkennung: gleicher Name + gleiche Disziplin mehrfach → Laufserie
+- Dialog zeigt alle Läufe pro Athlet mit Ergebnis, AK und Platz
+- Alle Läufe sind vorausgewählt; einzelne können abgewählt werden
+- "Alle" / "Keine" Buttons für Schnellauswahl
+- Nicht-Serien-Einträge werden immer übernommen
+- Dialog erscheint VOR dem Neue-Athleten-Dialog
+
+---
+
+
 ## v642 – Cleanup v642
 
 - Debug-Logging aus 14_leichtathletik.js entfernt (window._laDebugPlatz)
