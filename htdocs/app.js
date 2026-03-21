@@ -12059,16 +12059,29 @@ async function bulkImportFromLA(url, kat, statusEl) {
 
       if (!rName || !rZeit || !/\d/.test(rZeit)) return;
 
+      // Block-Name aus übergeordnetem runblock → AK-Block erkennen
+      var _block = line.closest('.runblock');
+      var _blockName = _block ? ((_block.querySelector('.blockname')||{}).textContent||'').trim() : '';
+      // AK-Block: Männer, Frauen, MHK, WHK, M30-M85, W30-W85, MU*/WU*
+      var _isAkBlock = /^(M\u00e4nner|Frauen|MHK|WHK|[MW]\d{2}|[MW]U\d{1,2}|m\u00e4nnl|weibl)/i.test(_blockName);
+
       var disz    = rrBestDisz(ll.text, diszList);
       // Exakten kat-Treffer bevorzugen, dann Gruppen-Fallback
       var diszObj = (kat ? disziplinen.find(function(d){return d.disziplin===disz&&d.tbl_key===kat;}) : null)
                  || disziplinen.find(function(d){return d.disziplin===disz&&(!kat||(bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key)>=0);});
 
-      if (!allResults.some(function(r){return r.name===rName&&r.resultat===rZeit;})) {
+      var _dup = allResults.find(function(r){return r.name===rName&&r.resultat===rZeit;});
+      if (_dup) {
+        // AK-Block-Platz hat Priorität über Gesamtergebnis-Platz
+        if (_isAkBlock && rPlatz > 0) { _dup.platz = rPlatz; _dup._isAkBlock = true; }
+        else if (!_dup._isAkBlock && rPlatz > 0 && _dup.platz === 0) _dup.platz = rPlatz;
+        if (rAK && !_dup.ak) _dup.ak = rAK;
+      } else {
         allResults.push({name:rName, resultat:rZeit, ak:rAK, platz:rPlatz,
           disziplin:diszObj?diszObj.disziplin:disz,
           diszMid:diszObj?(diszObj.id||diszObj.mapping_id):null,
-          year:rYear||'', geschlecht:rGschl||''});
+          year:rYear||'', geschlecht:rGschl||'',
+          _isAkBlock: _isAkBlock});
       }
     });
   }

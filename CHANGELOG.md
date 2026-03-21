@@ -5,6 +5,20 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v650 – Fix leichtathletik.de: AK-Platz korrekt
+
+- Root cause: Zeitlauf-Listen haben mehrere runblock-Sektionen:
+  1. Gesamtergebnis (col-1 = 27, alle Klassen gemischt)
+  2. Männer/MHK (col-1 = 14, AK-Platz) ← korrekt
+  3. Zeitlauf 1/2/3 (col-6 = 8./I, nur Laufplatz)
+- Importer las erste Fundstelle (Gesamtergebnis) und übersprang Rest
+- Fix: runblock-Name wird ausgelesen; Blöcke wie "Männer", "Frauen",
+  "MHK", "WHK", "M45" etc. gelten als AK-Blöcke und überschreiben
+  den Gesamtergebnis-Platz
+
+---
+
+
 ## v649 – Fix _proc: rekursive Gruppenverarbeitung
 
 - Root cause: AK_Tag_N-Listen haben 4 Ebenen (Realer Lauf > 5km > Männlich > M60)
