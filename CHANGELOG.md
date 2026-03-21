@@ -5,6 +5,15 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v647 – Fix: Laufserie AK-Platz
+
+- Wenn AK-Listen (_AK_Tag_N) vorhanden: Ges- und MW-Listen überspringen
+  (Ges/MW enthalten Gesamtplatz wie 81, AK-Liste hat AK-Platz wie 1)
+- Debug-Log entfernt
+
+---
+
+
 ## v645 – Fix Laufserie-Datum
 
 - _datumOverride wurde im falschen Loop (parsed.forEach statt rows.forEach) gesucht
