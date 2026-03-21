@@ -5,6 +5,16 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v648 – Fix Laufserie: AK-Platz korrekt
+
+- Statt aggressivem Ges/MW-Filter: isAkList-Flag pro Liste
+- Beim Duplikat-Check: Platz aus AK-Listen überschreibt Gesamtplatz
+  Nicht-AK-Listen setzen Platz nur wenn noch 0
+- Alle Listen werden weiterhin importiert (kein r=search-Problem)
+
+---
+
+
 ## v647 – Fix: Laufserie AK-Platz
 
 - Wenn AK-Listen (_AK_Tag_N) vorhanden: Ges- und MW-Listen überspringen
