@@ -5,6 +5,22 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v644 – Laufserie-Verbesserungen
+
+── Gesamtzeiten rausfiltern ──
+- Listen mit "_Serie_" im Namen werden übersprungen (Akkumulations-Zeiten)
+  z.B. "Ergebnisliste_Serie_AK" → wird nicht importiert
+── Tag-Datum-Dialog ──
+- Tag-Nummer wird aus Listennamen extrahiert (_Tag_1, _Tag_2, _Tag_3)
+- Nach dem Import: wenn mehrere Tags → Dialog für Datum pro Lauf
+  Vorausgefüllt mit dem Hauptveranstaltungsdatum
+- Datum wird als Zeilen-Datum (_datumOverride) in die Tabelle eingetragen
+── Zusammenspiel mit bestehenden Dialogen ──
+- Reihenfolge: Tag-Datum → Laufserie-Dialog → Neue-Athleten-Dialog
+
+---
+
+
 ## v643 – Laufserie-Dialog beim Bulk-Import
 
 - Erkennung: gleicher Name + gleiche Disziplin mehrfach → Laufserie
