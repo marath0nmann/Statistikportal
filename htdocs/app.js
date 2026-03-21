@@ -12064,6 +12064,7 @@ async function bulkImportFromLA(url, kat, statusEl) {
       var _blockName = _block ? ((_block.querySelector('.blockname')||{}).textContent||'').trim() : '';
       // AK-Block: Männer, Frauen, MHK, WHK, M30-M85, W30-W85, MU*/WU*
       var _isAkBlock = /^(M\u00e4nner|Frauen|MHK|WHK|[MW]\d{2}|[MW]U\d{1,2}|m\u00e4nnl|weibl)/i.test(_blockName);
+      if (window._laDbg && rName) console.log('[LA-Block]', rName, '| block:', _blockName||'–', '| isAk:', _isAkBlock, '| platz:', rPlatz);
 
       var disz    = rrBestDisz(ll.text, diszList);
       // Exakten kat-Treffer bevorzugen, dann Gruppen-Fallback
