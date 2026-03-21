@@ -12043,10 +12043,15 @@ async function bulkImportFromLA(url, kat, statusEl) {
       }
 
       // AK-Platz: verschiedene Layouts auf leichtathletik.de
-      // Standard: col-1 = Platz. FLVW Masters: col-1 = Gesamtplatz, col-6 = AK-Platz ('1./III')
+      // Im AK-Block (Männer/Frauen/MHK...): col-1 = AK-Platz → direkt nutzen
+      // Außerhalb (Gesamtergebnis): col-6 = '1./III' (Masters Laufnr) bevorzugen
       var rPlatz = 0;
-      // Priorität: col-6 (Masters '1./III'), col-5, col-1
-      var _platzCols = [6, 5, 1];
+      // _isAkBlock wird unten gesetzt — wir berechnen es hier voraus
+      var _blockForPlatz = line.closest('.runblock');
+      var _blockNameForPlatz = _blockForPlatz ? ((_blockForPlatz.querySelector('.blockname')||{}).textContent||'').trim() : '';
+      var _inAkBlock = /^(M\u00e4nner|Frauen|MHK|WHK|[MW]\d{2}|[MW]U\d{1,2}|Weiblich|M\u00e4nnlich|Senioren|Senior|Jugend)/i.test(_blockNameForPlatz);
+      // Priorität: im AK-Block col-1; sonst col-6 (Masters '1./III'), col-5, col-1
+      var _platzCols = _inAkBlock ? [1] : [6, 5, 1];
       for (var _pci = 0; _pci < _platzCols.length; _pci++) {
         var _pc = line.querySelector('.col-' + _platzCols[_pci]);
         var _pfl = _pc ? _pc.querySelector('.firstline') : null;
@@ -12063,8 +12068,8 @@ async function bulkImportFromLA(url, kat, statusEl) {
       var _block = line.closest('.runblock');
       var _blockName = _block ? ((_block.querySelector('.blockname')||{}).textContent||'').trim() : '';
       // AK-Block: Männer, Frauen, MHK, WHK, M30-M85, W30-W85, MU*/WU*
-      var _isAkBlock = /^(M\u00e4nner|Frauen|MHK|WHK|[MW]\d{2}|[MW]U\d{1,2}|m\u00e4nnl|weibl)/i.test(_blockName);
-      if (window._laDbg && rName) console.log('[LA-Block]', rName, '| block:', _blockName||'–', '| isAk:', _isAkBlock, '| platz:', rPlatz);
+      var _isAkBlock = /^(M\u00e4nner|Frauen|MHK|WHK|[MW]\d{2}|[MW]U\d{1,2}|Weiblich|M\u00e4nnlich|Senioren|Senior|Jugend)/i.test(_blockName);
+
 
       var disz    = rrBestDisz(ll.text, diszList);
       // Exakten kat-Treffer bevorzugen, dann Gruppen-Fallback
