@@ -5,6 +5,15 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v653 – Fix Hall of Fame: Jugend-AK-Badges
+
+- Regex /^Bestleistung W\d/ matchte nur W30, W45 etc.
+  WU14, WU16, WU18, MU12 etc. wurden nicht erkannt → Badge blieb leer
+- Fix: /^Bestleistung W(?:\d|U\d)/ matcht jetzt beide Formate
+
+---
+
+
 ## v652 – Fix leichtathletik.de: Platz aus AK-Block col-1
 
 - col-6 ("8./I") ist der Laufplatz, nicht der AK-Platz
