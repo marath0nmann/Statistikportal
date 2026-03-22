@@ -2258,8 +2258,8 @@ function timelineBadges(rek) {
           // Label aus tatsächlichem Titel übernehmen (WHK/MHK statt Frauen/Männer)
           var mhnText = _mhnLabel ? _mhnLabel.label.replace('Bestleistung ', '') : 'M\u00e4nner';
           var whnText = _whnLabel ? _whnLabel.label.replace('Bestleistung ', '') : 'Frauen';
-          var akM = htitels.filter(function(t){ return /^Bestleistung M\d/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
-          var akW = htitels.filter(function(t){ return /^Bestleistung W\d/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
+          var akM = htitels.filter(function(t){ return /^Bestleistung M(?:\d|U\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
+          var akW = htitels.filter(function(t){ return /^Bestleistung W(?:\d|U\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
 
           var parts = [];
           if (gesamtM) parts.push('Gesamtbestleistung M\u00e4nner');
