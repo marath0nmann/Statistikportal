@@ -5,6 +5,16 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v659 – Fix leichtathletik.de: Datum/Eventname bei DM-Events
+
+- "06. - 08. MRZ 2026" wurde nicht erkannt: MRZ statt MÄR für März
+- Regex erweitert: MRZ als gültige März-Abkürzung
+- Mehrtägiges Format "DD. - DD. MMM YYYY" wird jetzt korrekt geparst
+  (letztes Datum = Endtag wird verwendet)
+
+---
+
+
 ## v657 – Fix RR-Import Fallback + Debug
 
 - clubPhrase ist String (nicht Array) → clubPhrase.join() war Bug

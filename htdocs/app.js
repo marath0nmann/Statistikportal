@@ -11988,13 +11988,16 @@ async function bulkImportFromLA(url, kat, statusEl) {
   var ovDoc  = _parse(overviewHtml);
   var ovText = ovDoc.body ? ovDoc.body.textContent : '';
 
-  // Eventname + Datum aus Text: "13. DEZ 2025 NAME - ORT"
+  // Eventname + Datum aus Text
+  // Formate: '13. DEZ 2025 NAME - ORT' oder '06. - 08. MRZ 2026 NAME - ORT'
   var eventName = '', eventDate = '', eventOrt = '';
-  var metaM = ovText.match(/(\d{1,2}\.\s*(?:Jan|Feb|M\u00e4r|Apr|Mai|Jun|Jul|Aug|Sep|Okt|Nov|Dez)\w*\.?\s*\d{4})\s+(.+?)(?:\n|$)/i);
+  var _monPat = '(?:Jan|Feb|M\u00e4r|Mrz|Apr|Mai|Jun|Jul|Aug|Sep|Okt|Nov|Dez)';
+  var _datPat = new RegExp('(?:\\d{1,2}\\.\\s*-\\s*)?(' + '\\d{1,2}' + '\\.\\s*' + _monPat + '\\w*\\.?\\s*\\d{4})\\s+(.+?)(?:\\n|$)', 'i');
+  var metaM = ovText.match(_datPat);
   if (metaM) {
     var datM = metaM[1].match(/(\d{1,2})\.\s*(\w+)\.?\s*(\d{4})/);
     if (datM) {
-      var monMap = {jan:1,feb:2,'m\u00e4r':3,apr:4,mai:5,jun:6,jul:7,aug:8,sep:9,okt:10,nov:11,dez:12};
+      var monMap = {jan:1,feb:2,'m\u00e4r':3,mrz:3,apr:4,mai:5,jun:6,jul:7,aug:8,sep:9,okt:10,nov:11,dez:12};
       var mon = monMap[datM[2].toLowerCase().slice(0,3)] || 0;
       if (mon) eventDate = datM[3] + '-' + String(mon).padStart(2,'0') + '-' + datM[1].padStart(2,'0');
     }
