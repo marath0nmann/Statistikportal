@@ -4413,8 +4413,25 @@ async function bulkImportFromRR(url, kat, statusEl) {
   }
 
   var _seen={}, validLists=[];
-  for (var li=0;li<listArr.length;li++){
-    var le=listArr[li], ln=le.Name||le.name||'', lc=String(le.Contest||le.contest||'0');
+  // Wenn eine Liste Contest=0 hat und mehrere echte Contests existieren,
+  // Liste einmal pro Contest expandieren (z.B. 'Online|Final' mit Contest 0
+  // liefert nur Contest 1 — Mittelstrecke/Langstrecke fehlen dann)
+  var _specificContests = Object.keys(contestObj).filter(function(k){return k!=='0';});
+  var _expandedListArr = [];
+  for (var _eli=0; _eli<listArr.length; _eli++) {
+    var _el=listArr[_eli], _eln=_el.Name||_el.name||'', _elc=String(_el.Contest||_el.contest||'0');
+    if (_elc==='0' && _specificContests.length>0) {
+      // Contest=0 expandieren: einmal pro spezifischem Contest
+      _specificContests.forEach(function(cid){
+        _expandedListArr.push({Name:_eln,Contest:cid});
+      });
+    } else {
+      _expandedListArr.push({Name:_eln,Contest:_elc});
+    }
+  }
+  var _seen={}, validLists=[];
+  for (var li=0;li<_expandedListArr.length;li++){
+    var le=_expandedListArr[li], ln=le.Name||le.name||'', lc=String(le.Contest||le.contest||'0');
     if(!ln||_blocked(ln))continue;
     // Laufserie: *_Serie_* Listen enthalten kumulierte Gesamtzeiten → überspringen
     if(/_serie_/i.test(ln))continue;

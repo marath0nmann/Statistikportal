@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v654 – Fix RR-Import: Mehrere Contests pro Liste
+
+- Problem: "Online|Final" mit Contest=0 liefert nur Contest 1 (Lauf der Jüngsten)
+  Mittelstrecke (2) und Langstrecke (3) wurden nie abgerufen
+- Fix: Wenn Contest=0 und mehrere spezifische Contests (1,2,3...) existieren,
+  wird die Liste einmal pro Contest expandiert
+  "Online|Final" → Contest 1 + Contest 2 + Contest 3
+
+---
+
+
 ## v653 – Fix Hall of Fame: Jugend-AK-Badges
 
 - Regex /^Bestleistung W\d/ matchte nur W30, W45 etc.
