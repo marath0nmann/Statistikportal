@@ -5,6 +5,14 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v667 – Fix Registrierungen-Tab Reihenfolge
+
+- Subtab-Navigation war unterhalb des E-Mail-Panels
+- Fix: adminSubtabs() → E-Mail-Panel → Registrierungsliste
+
+---
+
+
 ## v666 – Fix Papierkorb + Registrierungen-Tab
 
 - renderPapierkorb-Body + pkLeeren/pkDelete/pkRestore/pkLeerenBestaetigt

@@ -9412,7 +9412,7 @@ async function renderAdminRegistrierungen() {
     '</div>' +
     '</div>';
 
-  var html = adminSubtabs();
+  var html = '';
 
   if (!regs.length) {
     html += '<div class="empty"><div class="empty-icon">📝</div><div class="empty-text">Keine offenen Registrierungen</div></div>';
@@ -9436,7 +9436,7 @@ async function renderAdminRegistrierungen() {
       html += '</div></div>';
     }
   }
-  el.innerHTML = emailSettingsHtml + html;
+  el.innerHTML = adminSubtabs() + emailSettingsHtml + html;
 }
 
 async function saveEmailSettings() {
