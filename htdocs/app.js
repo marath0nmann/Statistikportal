@@ -9294,7 +9294,17 @@ async function renderPapierkorb() {
     return html || '<tr><td colspan="3" style="color:var(--text2);padding:12px">Keine Eintr&auml;ge</td></tr>';
   }
 
-  // ── E-Mail-Einstellungen ──
+async function renderAdminRegistrierungen() {
+  var el = document.getElementById('main-content');
+  el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
+
+  var r = await apiGet('auth/registrierungen');
+  if (!r || !r.ok) { el.innerHTML += '<div style="color:var(--accent)">Fehler beim Laden.</div>'; return; }
+
+  var regs = r.data || [];
+  var pending = regs.filter(function(x) { return x.status === 'pending'; });
+  var other   = regs.filter(function(x) { return x.status !== 'pending'; });
+
   var _emailDomain  = (appConfig && appConfig.email_domain)  || '';
   var _noreplyEmail = (appConfig && appConfig.noreply_email) || '';
   var _domainEnabled = !!_emailDomain;
@@ -9302,7 +9312,6 @@ async function renderPapierkorb() {
     '<div class="panel" style="margin-bottom:20px">' +
     '<div class="panel-header"><div class="panel-title">📧 E-Mail-Einstellungen</div></div>' +
     '<div class="settings-panel-body">' +
-      // Zugelassene E-Mail-Domain mit Toggle
       '<div class="settings-row">' +
         '<div class="settings-row-label">' +
           '<div style="font-weight:600">Zugelassene E-Mail-Domain</div>' +
@@ -9318,11 +9327,10 @@ async function renderPapierkorb() {
             ' class="settings-input"' + (_domainEnabled ? '' : ' disabled') + '/>' +
         '</div>' +
       '</div>' +
-      // Absender-E-Mail
       '<div class="settings-row">' +
         '<div class="settings-row-label">' +
           '<div style="font-weight:600">Absender-E-Mail</div>' +
-          '<div style="font-size:12px;color:var(--text2)">Von-Adresse für System-Mails</div>' +
+          '<div style="font-size:12px;color:var(--text2)">Von-Adresse f\u00fcr System-Mails</div>' +
         '</div>' +
         '<div class="settings-row-input">' +
           '<input type="text" id="cfg-noreply_email" value="' + _noreplyEmail.replace(/"/g,'&quot;') + '" placeholder="noreply@..." class="settings-input"/>' +
@@ -9333,94 +9341,6 @@ async function renderPapierkorb() {
       '</div>' +
     '</div>' +
     '</div>';
-
-  var html = adminSubtabs();
-
-  if (total === 0) {
-    html += '<div class="empty"><div class="empty-icon">&#x1F5D1;&#xFE0F;</div><div class="empty-text">Papierkorb ist leer</div></div>';
-  } else {
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">' +
-      '<div style="color:var(--text2);font-size:13px">&#x26A0;&#xFE0F; Endg&uuml;ltig gel&ouml;schte Eintr&auml;ge k&ouml;nnen nicht wiederhergestellt werden.</div>' +
-      '<button class="btn btn-danger" onclick="pkLeeren(' + total + ')" style="white-space:nowrap">&#x1F5D1;&#xFE0F; Papierkorb leeren (' + total + ')</button>' +
-    '</div>';
-
-    if (erg.length) {
-      html += '<div class="panel" style="margin-bottom:16px"><div class="panel-header"><div class="panel-title">Ergebnisse (' + erg.length + ')</div></div>' +
-        '<div class="table-scroll"><table><thead><tr><th>Athlet &middot; Disziplin &middot; Ergebnis</th><th>Gel&ouml;scht am</th><th></th></tr></thead><tbody>' +
-        pkRows(erg, 'ergebnis') + '</tbody></table></div></div>';
-    }
-    if (ath.length) {
-      html += '<div class="panel" style="margin-bottom:16px"><div class="panel-header"><div class="panel-title">Athleten (' + ath.length + ')</div></div>' +
-        '<div class="table-scroll"><table><thead><tr><th>Name</th><th>Gel&ouml;scht am</th><th></th></tr></thead><tbody>' +
-        pkRows(ath, 'athlet') + '</tbody></table></div></div>';
-    }
-    if (ver.length) {
-      html += '<div class="panel" style="margin-bottom:16px"><div class="panel-header"><div class="panel-title">Veranstaltungen (' + ver.length + ')</div></div>' +
-        '<div class="table-scroll"><table><thead><tr><th>Name</th><th>Gel&ouml;scht am</th><th></th></tr></thead><tbody>' +
-        pkRows(ver, 'veranstaltung') + '</tbody></table></div></div>';
-    }
-  }
-  el.innerHTML = html;
-}
-
-async function pkRestore(typ, id) {
-  var r = await apiPost('papierkorb/' + typ + '/' + id, {});
-  if (r && r.ok) { notify('Wiederhergestellt.', 'ok'); await renderPapierkorb(); }
-  else notify((r && r.fehler) || 'Fehler', 'err');
-}
-
-async function pkDelete(typ, id) {
-  if (!confirm('Endg\u00fcltig l\u00f6schen? Dieser Vorgang kann nicht r\u00fcckg\u00e4ngig gemacht werden.')) return;
-  var r = await api('DELETE', 'papierkorb/' + typ + '/' + id);
-  if (r && r.ok) { notify('Endg\u00fcltig gel\u00f6scht.', 'ok'); await renderPapierkorb(); }
-  else notify((r && r.fehler) || 'Fehler', 'err');
-}
-
-function pkLeeren(total) {
-  showModal(
-    '<h2>Papierkorb leeren <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
-    '<div style="background:#fde8e8;border:1px solid #f5b0b0;border-radius:8px;padding:14px 16px;margin-bottom:20px;font-size:13px">' +
-      '<strong>&#x26A0;&#xFE0F; Achtung:</strong> Alle <strong>' + total + ' Eintr\u00e4ge</strong> im Papierkorb werden unwiderruflich gel\u00f6scht.' +
-    '</div>' +
-    '<p style="font-size:13px;color:var(--text2);margin:0 0 20px">Dieser Vorgang kann nicht r\u00fcckg\u00e4ngig gemacht werden.</p>' +
-    '<div class="modal-actions">' +
-      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-      '<button class="btn btn-danger" onclick="pkLeerenBestaetigt()">Ja, alles endg\u00fcltig l\u00f6schen</button>' +
-    '</div>'
-  );
-}
-
-async function pkLeerenBestaetigt() {
-  closeModal();
-  var r = await api('DELETE', 'papierkorb/alle');
-  if (r && r.ok) { notify('Papierkorb geleert.', 'ok'); await renderPapierkorb(); }
-  else notify((r && r.fehler) || 'Fehler', 'err');
-}
-
-function getDarstellungSettings() {
-  // Primär aus DB-Config (appConfig), localStorage als Legacy-Fallback
-  if (appConfig.dashboard_timeline_limit) {
-    return { timelineLimit: parseInt(appConfig.dashboard_timeline_limit) || 20 };
-  }
-  try {
-    var s = localStorage.getItem('tus_darstellung');
-    return s ? JSON.parse(s) : {};
-  } catch(e) { return {}; }
-}
-function saveDarstellungSettings(obj) {
-  try { localStorage.setItem('tus_darstellung', JSON.stringify(obj)); } catch(e) {}
-}
-
-async function renderAdminRegistrierungen() {
-  var el = document.getElementById('main-content');
-  el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
-
-  var r = await apiGet('auth/registrierungen');
-  if (!r || !r.ok) { el.innerHTML += '<div style="color:var(--accent)">Fehler beim Laden.</div>'; return; }
-
-  var regs = r.data || [];
-  var pending = regs.filter(function(x) { return x.status === 'pending'; });
-  var other   = regs.filter(function(x) { return x.status !== 'pending'; });
 
   var html = adminSubtabs();
 
@@ -9532,8 +9452,7 @@ async function _doRegAblehnen(regId) {
   if (r && r.ok) { notify('Abgelehnt.', 'ok'); await renderAdminRegistrierungen(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
 }
-
-
+}
 // ── ADMIN: DASHBOARD-LAYOUT ─────────────────────────────────────────────────
 var WIDGET_DEFS = [
   { id: 'stats',           label: '📊︎ Statistik-Karten' },

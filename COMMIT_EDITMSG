@@ -1,1 +1,1 @@
-v664: UX: E-Mail-Einstellungen nach Registrierungen verschoben + Domain-Toggle
+v665: Fix: emailSettingsHtml Scope-Bug in renderAdminRegistrierungen
