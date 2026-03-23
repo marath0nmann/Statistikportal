@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v666 – Fix Papierkorb + Registrierungen-Tab
+
+- renderPapierkorb-Body + pkLeeren/pkDelete/pkRestore/pkLeerenBestaetigt
+  wurden beim v664/v665-Refactoring versehentlich gelöscht
+- Alle Funktionen wiederhergestellt
+- getDarstellungSettings/saveDarstellungSettings ebenfalls wiederhergestellt
+- renderAdminRegistrierungen ist jetzt korrekt Top-Level-Funktion
+
+---
+
+
 ## v665 – Fix E-Mail-Einstellungen im Registrierungen-Tab
 
 - emailSettingsHtml war in falscher Funktion definiert → ReferenceError
