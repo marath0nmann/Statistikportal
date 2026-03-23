@@ -1,1 +1,1 @@
-v669: Feature: Bestleistungen-Filter pro Benutzer speichern
+v670: Fix: rekState-Filter beim Logout zurücksetzen + Prefs immer anwenden

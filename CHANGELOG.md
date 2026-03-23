@@ -5,6 +5,16 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v670 – Fix Bestleistungen-Filter Persistenz
+
+- Beim Logout: mergeAK/unique/highlightCurYear/highlightPrevYear auf undefined
+  → nächster Login lädt Prefs aus DB ohne alten State im Weg
+- Beim Login: Prefs werden immer in rekState geschrieben (nicht nur wenn undefined)
+- state.userPrefs beim Logout geleert
+
+---
+
+
 ## v669 – Bestleistungen-Filter persistieren
 
 - Neue DB-Spalte: benutzer.prefs (JSON) via Auto-Migration

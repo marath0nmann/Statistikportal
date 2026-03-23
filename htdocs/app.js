@@ -1381,6 +1381,14 @@ async function doLogout() {
   closeModal();
   await apiPost('auth/logout');
   currentUser = null;
+  // rekState-Filter zurücksetzen damit beim nächsten Login Prefs neu geladen werden
+  if (state.rekState) {
+    delete state.rekState.mergeAK;
+    delete state.rekState.unique;
+    delete state.rekState.highlightCurYear;
+    delete state.rekState.highlightPrevYear;
+  }
+  state.userPrefs = {};
   showApp();
 }
 
@@ -1428,12 +1436,13 @@ async function showApp() {
       if (r && r.ok) {
         state.userPrefs = r.data || {};
         // rekState-Defaults zurücksetzen damit Prefs beim nächsten renderRekorde() greifen
+        // rekState immer mit Prefs überschreiben (nicht nur wenn undefined)
         if (state.rekState) {
           var up = state.userPrefs;
-          if (up.rek_merge_ak   !== undefined) state.rekState.mergeAK          = !!up.rek_merge_ak;
-          if (up.rek_unique     !== undefined) state.rekState.unique           = !!up.rek_unique;
-          if (up.rek_hl_cur     !== undefined) state.rekState.highlightCurYear = !!up.rek_hl_cur;
-          if (up.rek_hl_prev    !== undefined) state.rekState.highlightPrevYear= !!up.rek_hl_prev;
+          state.rekState.mergeAK           = up.rek_merge_ak   !== undefined ? !!up.rek_merge_ak   : true;
+          state.rekState.unique            = up.rek_unique     !== undefined ? !!up.rek_unique     : true;
+          state.rekState.highlightCurYear  = up.rek_hl_cur     !== undefined ? !!up.rek_hl_cur     : true;
+          state.rekState.highlightPrevYear = up.rek_hl_prev    !== undefined ? !!up.rek_hl_prev    : false;
         }
       }
     }).catch(function(){});
