@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v669 – Bestleistungen-Filter persistieren
+
+- Neue DB-Spalte: benutzer.prefs (JSON) via Auto-Migration
+- Neuer API-Endpoint: GET/PUT auth/prefs (nur eingeloggte User)
+- Beim Login: Prefs laden → sofort in rekState anwenden
+- Bei Toggle-Änderung: _saveRekPrefs() speichert async in DB
+- Nicht eingeloggte Benutzer: Hard-coded Defaults unverändert
+  (mergeAK=true, unique=true, hlCur=true, hlPrev=false)
+
+---
+
+
 ## v668 – Fix E-Mail-Einstellungen speichern
 
 - apiPost("einstellungen", {key:..., value:...}) war falsch
