@@ -4412,24 +4412,10 @@ async function bulkImportFromRR(url, kat, statusEl) {
     return false;
   }
 
-  // Wenn Contest=0 mit mehreren Contests: Liste pro Contest-Namen expandieren
-  // Neues API-Format: f=ContestName%0C%0C<Ignore> als Filter
   var _specificContestIds = Object.keys(contestObj).filter(function(k){return k!=='0';});
-  var _expandedListArr = [];
-  for (var _eli=0; _eli<listArr.length; _eli++) {
-    var _el=listArr[_eli], _eln=_el.Name||_el.name||'', _elc=String(_el.Contest||_el.contest||'0');
-    if (_elc==='0' && _specificContestIds.length>0) {
-      // Einmal pro Contest-Name mit f-Filter expandieren
-      _specificContestIds.forEach(function(cid){
-        _expandedListArr.push({Name:_eln, Contest:'0', contestFilter:contestObj[cid]});
-      });
-    } else {
-      _expandedListArr.push({Name:_eln, Contest:_elc, contestFilter:null});
-    }
-  }
   var _seen={}, validLists=[];
-  for (var li=0;li<_expandedListArr.length;li++){
-    var le=_expandedListArr[li], ln=le.Name||le.name||'', lc=String(le.Contest||le.contest||'0');
+  for (var li=0;li<listArr.length;li++){
+    var le=listArr[li], ln=le.Name||le.name||'', lc=String(le.Contest||le.contest||'0');
     if(!ln||_blocked(ln))continue;
     // Laufserie: *_Serie_* Listen enthalten kumulierte Gesamtzeiten → überspringen
     if(/_serie_/i.test(ln))continue;
@@ -4580,22 +4566,21 @@ async function bulkImportFromRR(url, kat, statusEl) {
 
     // r=search zuerst
     try{
-      var _fParam = le.contestFilter ? '&f='+encodeURIComponent(le.contestFilter+'\x0C\x0C<Ignore>') : '';
-      var rs=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=search&l=9999&term='+_fParam,{headers:hdrs});
+      var rs=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=search&l=9999&term=',{headers:hdrs});
       if(rs.ok){var ps=await rs.json();if(!ps.error&&(ps.DataFields||[]).length>0)payload=ps;}
     }catch(e){}
 
     // r=all als Fallback
     if(!payload){
       try{
-        var ra=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1'+_fParam,{headers:hdrs});
+        var ra=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1',{headers:hdrs});
         if(ra.ok){
           var pa=await ra.json();
           if(!pa.error)payload=pa;
           else if(pa.error==='key invalid'){
             // Key erneuern + sofort nochmal
             try{var fc2=await _freshCfg();currentKey=fc2.key||currentKey;keyAt=Date.now();
-              var rr=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1'+_fParam,{headers:hdrs});
+              var rr=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1',{headers:hdrs});
               if(rr.ok){var pr=await rr.json();if(!pr.error)payload=pr;}
             }catch(e2){}
           }
@@ -4608,6 +4593,36 @@ async function bulkImportFromRR(url, kat, statusEl) {
     _proc(payload, cname, le);
   }
 
+  // Fallback: wenn 0 Ergebnisse + Contest=0-Listen + mehrere Contests →
+  // erneut mit f=ContestName-Filter (neues RR-API-Format)
+  if (allResults.length === 0 && _specificContestIds.length > 0) {
+    var _hasContest0List = validLists.some(function(vl){ return vl.contest === '0'; });
+    if (_hasContest0List) {
+      for (var _fi = 0; _fi < _specificContestIds.length; _fi++) {
+        var _fcid = _specificContestIds[_fi];
+        var _fname = contestObj[_fcid] || '';
+        if (!_fname) continue;
+        var _fParam = '&f=' + encodeURIComponent(_fname + '\x0C\x0C<Ignore>');
+        for (var _fli = 0; _fli < validLists.length; _fli++) {
+          var _fle = validLists[_fli];
+          if (_fle.contest !== '0') continue;
+          if (statusEl) statusEl.textContent = '\u23f3 Fallback ' + _fname + '\u2026';
+          var _fpayload = null;
+          try {
+            var _frs = await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(_fle.name)+'&page=results&contest=0&r=search&l=9999&term='+_fParam, {headers:hdrs});
+            if (_frs.ok) { var _fps = await _frs.json(); if (!_fps.error && (_fps.DataFields||[]).length > 0) _fpayload = _fps; }
+          } catch(e) {}
+          if (!_fpayload) {
+            try {
+              var _fra = await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(_fle.name)+'&page=results&contest=0&r=all&l=de'+_fParam, {headers:hdrs});
+              if (_fra.ok) { var _fpa = await _fra.json(); if (!_fpa.error) _fpayload = _fpa; }
+            } catch(e) {}
+          }
+          if (_fpayload) { listsChecked++; _proc(_fpayload, _fname, _fle); }
+        }
+      }
+    }
+  }
   _bkDbgLine('Listen durchsucht', listsChecked);
   _bkDbgLine('Gefunden', allResults.length+' TuS-Eintr\u00e4ge');
 

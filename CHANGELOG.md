@@ -5,6 +5,18 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v656 – Fix RR-Import: f-Filter nur als Fallback
+
+- v655 war zu aggressiv: expandierte immer bei Contest=0 → brach Winterlaufserie
+- Neues Konzept: normaler Durchlauf zuerst (unverändert)
+  Nur wenn 0 Ergebnisse + Contest=0-Listen + mehrere Contests →
+  Fallback mit f=ContestName\x0C\x0C<Ignore> Parameter (neues RR-API-Format)
+- Bestehende Strukturen (Winterlaufserie, normale Events) unverändert
+- Crosslauf mit Mittelstrecke/Langstrecke findet jetzt alle 4 Athleten
+
+---
+
+
 ## v655 – Fix RR-Import: Contest-Filter via f-Parameter
 
 - Problem: "Online|Final" mit Contest=0 lieferte nur Contest 1
