@@ -1,1 +1,1 @@
-v660: Fix isAkList: erkennt jetzt auch Ergebnisse_AK (ohne trailing _)
+v661: Feature: Dreistufiger Login (Ident → Passwort/Passkey → TOTP/E-Mail)
