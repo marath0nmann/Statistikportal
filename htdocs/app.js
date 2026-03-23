@@ -9294,6 +9294,46 @@ async function renderPapierkorb() {
     return html || '<tr><td colspan="3" style="color:var(--text2);padding:12px">Keine Eintr&auml;ge</td></tr>';
   }
 
+  // ── E-Mail-Einstellungen ──
+  var _emailDomain  = (appConfig && appConfig.email_domain)  || '';
+  var _noreplyEmail = (appConfig && appConfig.noreply_email) || '';
+  var _domainEnabled = !!_emailDomain;
+  var emailSettingsHtml =
+    '<div class="panel" style="margin-bottom:20px">' +
+    '<div class="panel-header"><div class="panel-title">📧 E-Mail-Einstellungen</div></div>' +
+    '<div class="settings-panel-body">' +
+      // Zugelassene E-Mail-Domain mit Toggle
+      '<div class="settings-row">' +
+        '<div class="settings-row-label">' +
+          '<div style="font-weight:600">Zugelassene E-Mail-Domain</div>' +
+          '<div style="font-size:12px;color:var(--text2)">Nur Adressen mit dieser Domain dürfen sich registrieren</div>' +
+        '</div>' +
+        '<div class="settings-row-input" style="display:flex;align-items:center;gap:10px">' +
+          '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex-shrink:0">' +
+            '<input type="checkbox" id="cfg-email_domain_aktiv" ' + (_domainEnabled ? 'checked' : '') + ' style="width:16px;height:16px;cursor:pointer"' +
+              ' onchange="document.getElementById(\'cfg-email_domain\').disabled=!this.checked">' +
+            '<span style="font-size:12px;color:var(--text2)">Aktiv</span>' +
+          '</label>' +
+          '<input type="text" id="cfg-email_domain" value="' + _emailDomain.replace(/"/g,'&quot;') + '" placeholder="meinverein.de"' +
+            ' class="settings-input"' + (_domainEnabled ? '' : ' disabled') + '/>' +
+        '</div>' +
+      '</div>' +
+      // Absender-E-Mail
+      '<div class="settings-row">' +
+        '<div class="settings-row-label">' +
+          '<div style="font-weight:600">Absender-E-Mail</div>' +
+          '<div style="font-size:12px;color:var(--text2)">Von-Adresse für System-Mails</div>' +
+        '</div>' +
+        '<div class="settings-row-input">' +
+          '<input type="text" id="cfg-noreply_email" value="' + _noreplyEmail.replace(/"/g,'&quot;') + '" placeholder="noreply@..." class="settings-input"/>' +
+        '</div>' +
+      '</div>' +
+      '<div style="padding:0 16px 16px;display:flex;justify-content:flex-end">' +
+        '<button class="btn btn-primary btn-sm" onclick="saveEmailSettings()">Speichern</button>' +
+      '</div>' +
+    '</div>' +
+    '</div>';
+
   var html = adminSubtabs();
 
   if (total === 0) {
@@ -9406,7 +9446,19 @@ async function renderAdminRegistrierungen() {
       html += '</div></div>';
     }
   }
-  el.innerHTML = html;
+  el.innerHTML = emailSettingsHtml + html;
+}
+
+async function saveEmailSettings() {
+  var aktiv  = document.getElementById('cfg-email_domain_aktiv').checked;
+  var domain = aktiv ? document.getElementById('cfg-email_domain').value.trim() : '';
+  var noreply = document.getElementById('cfg-noreply_email').value.trim();
+  var r1 = await apiPost('einstellungen', { key: 'email_domain',  value: domain });
+  var r2 = await apiPost('einstellungen', { key: 'noreply_email', value: noreply });
+  if ((r1&&r1.ok) && (r2&&r2.ok)) {
+    if (appConfig) { appConfig.email_domain = domain; appConfig.noreply_email = noreply; }
+    notify('E-Mail-Einstellungen gespeichert.', 'ok');
+  } else { notify('Fehler beim Speichern.', 'err'); }
 }
 
 function _regCard(reg, showActions) {
@@ -10050,14 +10102,6 @@ async function renderAdminDarstellung() {
       '</div>' +
     '</div>' +
 
-    // ── Registrierung ──
-    '<div class="panel">' +
-      '<div class="panel-header"><div class="panel-title">📧 Registrierung &amp; E-Mail</div></div>' +
-      '<div class="settings-panel-body">' +
-        row('Zugelassene E-Mail-Domain', 'Nur Adressen mit dieser Domain dürfen sich registrieren', textIn('cfg-email_domain', cfgVal('email_domain',''), 'meinverein.de')) +
-        row('Absender-E-Mail', 'Von-Adresse für System-Mails', textIn('cfg-noreply_email', cfgVal('noreply_email',''), 'noreply@...')) +
-      '</div>' +
-    '</div>' +
 
     // ── Darstellung ──
     '<div class="panel">' +
