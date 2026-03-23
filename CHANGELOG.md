@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v661 – Neuer Login-Flow: 3 Schritte
+
+Schritt 1: Nur Benutzername oder E-Mail-Adresse
+Schritt 2: Passwort ODER Passkey-Button (wenn vorhanden)
+Schritt 3: TOTP-Code, Passkey oder NEU: Verifizierung per E-Mail-Code (6-stellig, 5 Min.)
+Backend: auth/identify, auth/email-code-send, auth/email-code-verify
+Passkey-Auth jetzt auch in Schritt 2 möglich (identify_user_id Session)
+
+---
+
+
 ## v660 – Fix RR-Import: isAkList Regex
 
 - /_ak_/i matchte nur wenn Unterstrich auf BEIDEN Seiten

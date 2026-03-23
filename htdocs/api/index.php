@@ -136,6 +136,25 @@ function ergebnisTbl(string $key, bool $unified, array $sys): string {
 // AUTH
 // ============================================================
 if ($res === 'auth') {
+    // --- Login Vorstufe: Benutzer identifizieren (kein Passwort) ---
+    if ($method === 'POST' && $id === 'identify') {
+        $ident = trim($body['benutzername'] ?? '');
+        if (!$ident) jsonErr('Bitte Benutzername oder E-Mail eingeben.', 400);
+        $user = DB::fetchOne(
+            'SELECT id, benutzername, email FROM ' . DB::tbl('benutzer') . ' WHERE (benutzername = ? OR email = ?) AND aktiv = 1',
+            [$ident, $ident]
+        );
+        if (!$user) {
+            // Absichtlich vage, kein User-Enum
+            jsonOk(['found' => false, 'has_passkey' => false]);
+        }
+        try { Passkey::migrate(); } catch (\Exception $e) {}
+        $hasPasskey = Passkey::userHasPasskey($user['id']);
+        // User-ID in Session für nachfolgende Passkey-Auth
+        $_SESSION['identify_user_id'] = $user['id'];
+        jsonOk(['found' => true, 'has_passkey' => $hasPasskey]);
+    }
+
     // --- Login Schritt 1: Passwort ---
     if ($method === 'POST' && $id === 'login') {
         $result = Auth::loginStep1($body['benutzername'] ?? '', $body['passwort'] ?? '');
@@ -186,23 +205,59 @@ if ($res === 'auth') {
         jsonOk('TOTP deaktiviert.');
     }
 
-    // ── Passkey: Login Challenge (Schritt 2 – Alternative zu TOTP) ──
+    // ── Passkey: Login Challenge (Schritt 2 oder 3 – aus identify oder totp_pending) ──
     if ($method === 'POST' && $id === 'passkey-auth-challenge') {
-        if (empty($_SESSION['totp_pending_user'])) jsonErr('Keine ausstehende Anmeldung.', 401);
+        // uid aus identify (Schritt 2) oder aus totp_pending (Schritt 3)
+        $uid = (int)($_SESSION['totp_pending_user'] ?? $_SESSION['identify_user_id'] ?? 0);
+        if (!$uid) jsonErr('Keine ausstehende Anmeldung.', 401);
         Passkey::migrate();
-        $uid = (int)$_SESSION['totp_pending_user'];
         $options = Passkey::authChallenge($uid);
         jsonOk($options);
     }
     // ── Passkey: Login Response verifizieren ──
+    // --- Login Schritt 3 Alternative: E-Mail-Code senden ---
+    if ($method === 'POST' && $id === 'email-code-send') {
+        if (empty($_SESSION['totp_pending_user'])) jsonErr('Keine ausstehende Anmeldung.', 401);
+        $uid  = (int)$_SESSION['totp_pending_user'];
+        $user = DB::fetchOne('SELECT benutzername, email FROM ' . DB::tbl('benutzer') . ' WHERE id = ? AND aktiv = 1', [$uid]);
+        if (!$user || !$user['email']) jsonErr('Keine E-Mail-Adresse hinterlegt.', 400);
+        $code     = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $codeHash = password_hash($code, PASSWORD_BCRYPT, ['cost' => 10]);
+        // Code in Session speichern (5 Minuten)
+        $_SESSION['email_login_code_hash'] = $codeHash;
+        $_SESSION['email_login_code_exp']  = time() + 300;
+        $subject = Settings::get('verein_name','Mein Verein e.V.') . ' – Login-Code: ' . $code;
+        $msg     = "Hallo " . $user['benutzername'] . ",\n\n" .
+                   "dein Login-Bestätigungscode lautet:\n\n" .
+                   "    " . $code . "\n\n" .
+                   "Dieser Code ist 5 Minuten gültig.\n\n" .
+                   "Wenn du das nicht warst, ignoriere diese E-Mail.\n\n" .
+                   Settings::get('verein_name','Mein Verein e.V.') . ' ' . Settings::get('app_untertitel','Leichtathletik-Statistik');
+        @mail($user['email'], $subject, $msg, "From: " . Settings::get('noreply_email','noreply@vy99.de') . "\r\nContent-Type: text/plain; charset=utf-8");
+        jsonOk('Code gesendet.');
+    }
+
+    // --- Login Schritt 3 Alternative: E-Mail-Code verifizieren ---
+    if ($method === 'POST' && $id === 'email-code-verify') {
+        if (empty($_SESSION['totp_pending_user'])) jsonErr('Keine ausstehende Anmeldung.', 401);
+        if (empty($_SESSION['email_login_code_hash']) || ($_SESSION['email_login_code_exp'] ?? 0) < time())
+            jsonErr('Code abgelaufen. Bitte neuen Code anfordern.', 400);
+        $code = trim($body['code'] ?? '');
+        if (!password_verify($code, $_SESSION['email_login_code_hash']))
+            jsonErr('Ungültiger Code.', 401);
+        $uid  = (int)$_SESSION['totp_pending_user'];
+        $user = DB::fetchOne('SELECT * FROM ' . DB::tbl('benutzer') . ' WHERE id = ? AND aktiv = 1', [$uid]);
+        if (!$user) jsonErr('Benutzer nicht gefunden.', 401);
+        unset($_SESSION['totp_pending_user'], $_SESSION['email_login_code_hash'], $_SESSION['email_login_code_exp']);
+        jsonOk(Auth::finalizeLoginPublic($user));
+    }
+
     if ($method === 'POST' && $id === 'passkey-auth-verify') {
         $result = Passkey::authVerify($body['credential'] ?? []);
         if (!$result['ok']) jsonErr($result['fehler'], 401);
-        // Passkey OK → einloggen
-        $uid  = (int)$_SESSION['passkey_auth_user_id_done'] ?? (int)$_SESSION['totp_pending_user'];
-        // totp_pending_user wurde in authVerify noch nicht gelöscht (uid bereits gecheckt)
-        $uid  = (int)($_SESSION['totp_pending_user'] ?? 0);
-        unset($_SESSION['totp_pending_user']);
+        // uid aus identify (Schritt 2) oder totp_pending (Schritt 3)
+        $uid = (int)($_SESSION['totp_pending_user'] ?? $_SESSION['identify_user_id'] ?? 0);
+        unset($_SESSION['totp_pending_user'], $_SESSION['identify_user_id']);
         $user = DB::fetchOne('SELECT * FROM ' . DB::tbl('benutzer') . ' WHERE id = ? AND aktiv = 1', [$uid]);
         if (!$user) jsonErr('Benutzer nicht gefunden.', 401);
         $loginResult = Auth::finalizeLoginPublic($user);
