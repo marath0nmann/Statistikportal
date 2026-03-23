@@ -5,6 +5,15 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v663 – Fix TOTP-Bestätigung
+
+- doTotpVerify suchte #totp-err — im neuen Step-3-Layout heißt es #login-err
+  → errEl war null → TypeError → Button reagierte nicht
+- Fix: getElementById("login-err") || getElementById("totp-err") + null-safe
+
+---
+
+
 ## v662 – Login Schritt 2: Passkey automatisch + parallel
 
 - Passkey-Dialog wird sofort beim Laden von Schritt 2 ausgelöst
