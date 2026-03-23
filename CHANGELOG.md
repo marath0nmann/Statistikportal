@@ -5,6 +5,25 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v657 – Fix RR-Import Fallback + Debug
+
+- clubPhrase ist String (nicht Array) → clubPhrase.join() war Bug
+- Debug-Output im Fallback zeigt ak= und year= für gefundene Athleten
+
+---
+
+
+## v657 – Fix RR-Import: AK aus Jahrgang berechnen
+
+- Problem: DataFields ohne AK-Feld → akFG="MHK"/"WHK" aus Gruppenname (Männlich/Weiblich)
+  calcDlvAK lief nicht weil rAK bereits gesetzt war
+- Fix: wenn rAK nur generisches MHK/WHK (kein Jahrgangsspezifisch) und Jahrgang bekannt
+  → calcDlvAK aufrufen → Kebeck 1971, Event 2026 → M55 ✓
+- Geschlecht wird auch aus akFG abgeleitet wenn rGschl leer
+
+---
+
+
 ## v656 – Fix RR-Import: f-Filter nur als Fallback
 
 - v655 war zu aggressiv: expandierte immer bei Contest=0 → brach Winterlaufserie

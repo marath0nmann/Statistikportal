@@ -4522,7 +4522,11 @@ async function bulkImportFromRR(url, kat, statusEl) {
           if(!rAK)rAK=akFG;
           var rYear=iYear>=0?parseInt(String(row[iYear]||'').trim())||0:0;
           var rGschl=iGeschlecht>=0?String(row[iGeschlecht]||'').trim():'';
-          if(!rAK&&rYear>1900){var ey=parseInt(((document.getElementById('bk-datum')||{}).value||'').slice(0,4))||new Date().getFullYear();rAK=calcDlvAK(rYear,/^[WwFf]/.test(rGschl)?'W':'M',ey)||'';}
+          // Geschlecht aus akFG ableiten wenn rGschl leer
+          if(!rGschl&&rAK){rGschl=/^W/i.test(rAK)?'W':/^[MFm]/.test(rAK)?'M':'';}
+          // calcDlvAK wenn kein AK oder nur generisches MHK/WHK (kein Jahrgangs-AK)
+          var _needCalcAK = !rAK || rAK==='MHK' || rAK==='WHK';
+          if(_needCalcAK&&rYear>1900){var ey=parseInt(((document.getElementById('bk-datum')||{}).value||'').slice(0,4))||new Date().getFullYear();var _calc=calcDlvAK(rYear,/^[WwFf]/.test(rGschl)?'W':'M',ey)||'';if(_calc)rAK=_calc;}
           var rP=0,pi=iAKPlatz>=0?iAKPlatz:iPlatz;
           if(pi>=0){var pr=String(row[pi]||'').trim().replace(/\.$/,'');if(/^\d+$/.test(pr))rP=parseInt(pr)||0;}
           if(!rName)return;
@@ -4618,7 +4622,14 @@ async function bulkImportFromRR(url, kat, statusEl) {
               if (_fra.ok) { var _fpa = await _fra.json(); if (!_fpa.error) _fpayload = _fpa; }
             } catch(e) {}
           }
-          if (_fpayload) { listsChecked++; _proc(_fpayload, _fname, _fle); }
+          if (_fpayload) {
+            listsChecked++;
+            var _prevLen = allResults.length;
+            _proc(_fpayload, _fname, _fle);
+            // Debug: zeige was der Fallback gefunden hat
+            var _newRows = allResults.slice(_prevLen);
+            _newRows.forEach(function(r){ _bkDbgLines.push('  [Fallback '+_fname+'] '+r.name+' ak='+r.ak+' year='+r.year); });
+          }
         }
       }
     }
