@@ -5,6 +5,15 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v668 – Fix E-Mail-Einstellungen speichern
+
+- apiPost("einstellungen", {key:..., value:...}) war falsch
+  API erwartet {email_domain:..., noreply_email:...} direkt
+- Ein einziger POST statt zwei separate Requests
+
+---
+
+
 ## v667 – Fix Registrierungen-Tab Reihenfolge
 
 - Subtab-Navigation war unterhalb des E-Mail-Panels
