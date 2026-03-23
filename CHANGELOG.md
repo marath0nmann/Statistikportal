@@ -5,6 +5,19 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v655 – Fix RR-Import: Contest-Filter via f-Parameter
+
+- Problem: "Online|Final" mit Contest=0 lieferte nur Contest 1
+  Contest 2/3 über contest=2 gab "list not found"
+- Root cause: neues RR-API-Format nutzt f=ContestName\x0C\x0C<Ignore>
+  als Filter-Parameter statt contest=ID
+- Fix: bei Contest=0 + mehrere Contests → Liste pro Contest-Namen expandiert
+  mit f=Mittelstrecke\x0C\x0C<Ignore> etc.
+- Alle 4 TuS-Oedt-Athleten (Kebeck, Walter, Chmielewski, Bauer) werden gefunden
+
+---
+
+
 ## v654 – Fix RR-Import: Mehrere Contests pro Liste
 
 - Problem: "Online|Final" mit Contest=0 liefert nur Contest 1 (Lauf der Jüngsten)

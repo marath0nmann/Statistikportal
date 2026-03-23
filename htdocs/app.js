@@ -4412,21 +4412,19 @@ async function bulkImportFromRR(url, kat, statusEl) {
     return false;
   }
 
-  var _seen={}, validLists=[];
-  // Wenn eine Liste Contest=0 hat und mehrere echte Contests existieren,
-  // Liste einmal pro Contest expandieren (z.B. 'Online|Final' mit Contest 0
-  // liefert nur Contest 1 — Mittelstrecke/Langstrecke fehlen dann)
-  var _specificContests = Object.keys(contestObj).filter(function(k){return k!=='0';});
+  // Wenn Contest=0 mit mehreren Contests: Liste pro Contest-Namen expandieren
+  // Neues API-Format: f=ContestName%0C%0C<Ignore> als Filter
+  var _specificContestIds = Object.keys(contestObj).filter(function(k){return k!=='0';});
   var _expandedListArr = [];
   for (var _eli=0; _eli<listArr.length; _eli++) {
     var _el=listArr[_eli], _eln=_el.Name||_el.name||'', _elc=String(_el.Contest||_el.contest||'0');
-    if (_elc==='0' && _specificContests.length>0) {
-      // Contest=0 expandieren: einmal pro spezifischem Contest
-      _specificContests.forEach(function(cid){
-        _expandedListArr.push({Name:_eln,Contest:cid});
+    if (_elc==='0' && _specificContestIds.length>0) {
+      // Einmal pro Contest-Name mit f-Filter expandieren
+      _specificContestIds.forEach(function(cid){
+        _expandedListArr.push({Name:_eln, Contest:'0', contestFilter:contestObj[cid]});
       });
     } else {
-      _expandedListArr.push({Name:_eln,Contest:_elc});
+      _expandedListArr.push({Name:_eln, Contest:_elc, contestFilter:null});
     }
   }
   var _seen={}, validLists=[];
@@ -4582,21 +4580,22 @@ async function bulkImportFromRR(url, kat, statusEl) {
 
     // r=search zuerst
     try{
-      var rs=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=search&l=9999&term=',{headers:hdrs});
+      var _fParam = le.contestFilter ? '&f='+encodeURIComponent(le.contestFilter+'\x0C\x0C<Ignore>') : '';
+      var rs=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=search&l=9999&term='+_fParam,{headers:hdrs});
       if(rs.ok){var ps=await rs.json();if(!ps.error&&(ps.DataFields||[]).length>0)payload=ps;}
     }catch(e){}
 
     // r=all als Fallback
     if(!payload){
       try{
-        var ra=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1',{headers:hdrs});
+        var ra=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1'+_fParam,{headers:hdrs});
         if(ra.ok){
           var pa=await ra.json();
           if(!pa.error)payload=pa;
           else if(pa.error==='key invalid'){
             // Key erneuern + sofort nochmal
             try{var fc2=await _freshCfg();currentKey=fc2.key||currentKey;keyAt=Date.now();
-              var rr=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1',{headers:hdrs});
+              var rr=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1'+_fParam,{headers:hdrs});
               if(rr.ok){var pr=await rr.json();if(!pr.error)payload=pr;}
             }catch(e2){}
           }
