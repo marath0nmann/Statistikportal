@@ -4420,7 +4420,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
     // Laufserie: *_Serie_* Listen enthalten kumulierte Gesamtzeiten → überspringen
     if(/_serie_/i.test(ln))continue;
     // Ges/MW-Listen: importieren, aber Platz nur wenn kein AK-Platz gesetzt (isAkList-Prio)
-    var _isAkList = /_ak_/i.test(ln);
+    var _isAkList = /_ak(?:_|$)/i.test(ln); // z.B. Ergebnisse_AK oder Ergebnisliste_AK_Tag_1
     var lkey=ln+'|'+lc;
     if(_seen[lkey])continue;
     _seen[lkey]=true;

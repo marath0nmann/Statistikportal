@@ -5,6 +5,15 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v660 – Fix RR-Import: isAkList Regex
+
+- /_ak_/i matchte nur wenn Unterstrich auf BEIDEN Seiten
+  "Ergebnisse_AK" endete mit _AK ohne trailing _ → kein Match → Gesamtplatz 195
+- Fix: /_ak(?:_|$)/i matcht auch am Ende des Listennamens
+
+---
+
+
 ## v659 – Fix leichtathletik.de: Datum/Eventname bei DM-Events
 
 - "06. - 08. MRZ 2026" wurde nicht erkannt: MRZ statt MÄR für März

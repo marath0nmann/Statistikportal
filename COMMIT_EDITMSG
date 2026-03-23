@@ -1,1 +1,1 @@
-v659: Fix LA-Import: MRZ-Abkürzung + mehrtägiges Datumsformat
+v660: Fix isAkList: erkennt jetzt auch Ergebnisse_AK (ohne trailing _)
