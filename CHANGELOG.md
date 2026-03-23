@@ -5,6 +5,15 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v665 – Fix E-Mail-Einstellungen im Registrierungen-Tab
+
+- emailSettingsHtml war in falscher Funktion definiert → ReferenceError
+- Variable jetzt korrekt innerhalb renderAdminRegistrierungen
+- Fehlende schließende } ergänzt
+
+---
+
+
 ## v664 – Admin: E-Mail-Einstellungen in Registrierungen-Tab
 
 - Panel "Registrierung & E-Mail" aus Darstellung entfernt
