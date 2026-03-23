@@ -1,1 +1,1 @@
-v661: Feature: Dreistufiger Login (Ident → Passwort/Passkey → TOTP/E-Mail)
+v662: UX: Passkey-Dialog in Schritt 2 automatisch + parallel zum Passwort
