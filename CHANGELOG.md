@@ -5,6 +5,16 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v671 – Fix Bestleistungen-Prefs Race Condition
+
+- apiGet("auth/prefs") wurde async gestartet, renderPage() lief aber sofort durch
+- Prefs kamen erst nach dem ersten Render an → F5 nötig
+- Fix: await apiGet("auth/prefs") vor renderPage()
+  Prefs-Fehler blockieren Login nicht (try/catch)
+
+---
+
+
 ## v670 – Fix Bestleistungen-Filter Persistenz
 
 - Beim Logout: mergeAK/unique/highlightCurYear/highlightPrevYear auf undefined

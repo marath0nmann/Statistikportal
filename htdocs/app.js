@@ -1431,23 +1431,20 @@ async function showApp() {
   await loadDisziplinen();
   if (currentUser) {
     loadAthleten();  // parallel, nicht abwarten nötig
-    // User-Präferenzen laden und in state cachen
-    apiGet('auth/prefs').then(function(r) {
-      if (r && r.ok) {
-        state.userPrefs = r.data || {};
-        // rekState-Defaults zurücksetzen damit Prefs beim nächsten renderRekorde() greifen
-        // rekState immer mit Prefs überschreiben (nicht nur wenn undefined)
-        if (state.rekState) {
-          var up = state.userPrefs;
-          state.rekState.mergeAK           = up.rek_merge_ak   !== undefined ? !!up.rek_merge_ak   : true;
-          state.rekState.unique            = up.rek_unique     !== undefined ? !!up.rek_unique     : true;
-          state.rekState.highlightCurYear  = up.rek_hl_cur     !== undefined ? !!up.rek_hl_cur     : true;
-          state.rekState.highlightPrevYear = up.rek_hl_prev    !== undefined ? !!up.rek_hl_prev    : false;
-        }
+    // User-Präferenzen ABWARTEN bevor renderPage() — sonst werden Defaults gerendert
+    try {
+      var _prefsR = await apiGet('auth/prefs');
+      if (_prefsR && _prefsR.ok) {
+        state.userPrefs = _prefsR.data || {};
+        var up = state.userPrefs;
+        state.rekState.mergeAK           = up.rek_merge_ak   !== undefined ? !!up.rek_merge_ak   : true;
+        state.rekState.unique            = up.rek_unique     !== undefined ? !!up.rek_unique     : true;
+        state.rekState.highlightCurYear  = up.rek_hl_cur     !== undefined ? !!up.rek_hl_cur     : true;
+        state.rekState.highlightPrevYear = up.rek_hl_prev    !== undefined ? !!up.rek_hl_prev    : false;
       }
-    }).catch(function(){});
+    } catch(e) {} // Prefs-Fehler darf Login nicht blockieren
   } else {
-    state.userPrefs = {}; // Nicht eingeloggt → keine gespeicherten Prefs
+    state.userPrefs = {};
   }
   renderPage();
 }
