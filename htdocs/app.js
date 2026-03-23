@@ -9440,15 +9440,15 @@ async function renderAdminRegistrierungen() {
 }
 
 async function saveEmailSettings() {
-  var aktiv  = document.getElementById('cfg-email_domain_aktiv').checked;
-  var domain = aktiv ? document.getElementById('cfg-email_domain').value.trim() : '';
-  var noreply = document.getElementById('cfg-noreply_email').value.trim();
-  var r1 = await apiPost('einstellungen', { key: 'email_domain',  value: domain });
-  var r2 = await apiPost('einstellungen', { key: 'noreply_email', value: noreply });
-  if ((r1&&r1.ok) && (r2&&r2.ok)) {
+  var aktiv   = document.getElementById('cfg-email_domain_aktiv').checked;
+  var domain  = aktiv ? (document.getElementById('cfg-email_domain').value || '').trim() : '';
+  var noreply = (document.getElementById('cfg-noreply_email').value || '').trim();
+  // POST einstellungen erwartet Keys direkt als Body: { email_domain: '...', noreply_email: '...' }
+  var r = await apiPost('einstellungen', { email_domain: domain, noreply_email: noreply });
+  if (r && r.ok) {
     if (appConfig) { appConfig.email_domain = domain; appConfig.noreply_email = noreply; }
     notify('E-Mail-Einstellungen gespeichert.', 'ok');
-  } else { notify('Fehler beim Speichern.', 'err'); }
+  } else { notify('\u274C ' + ((r&&r.fehler)||'Fehler beim Speichern.'), 'err'); }
 }
 
 function _regCard(reg, showActions) {

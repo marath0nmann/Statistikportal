@@ -1,1 +1,1 @@
-v667: Fix: Registrierungen-Tab — Subtabs oben, E-Mail-Panel darunter
+v668: Fix saveEmailSettings: falsches POST-Format (key/value → direkte Keys)
