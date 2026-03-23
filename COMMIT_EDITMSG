@@ -1,1 +1,1 @@
-v670: Fix: rekState-Filter beim Logout zurücksetzen + Prefs immer anwenden
+v671: Fix: Prefs vor renderPage() abwarten (Race Condition)
