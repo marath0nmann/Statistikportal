@@ -308,6 +308,32 @@ if ($res === 'auth') {
         }
         else jsonErr('Nicht eingeloggt.', 401);
     }
+    // --- User-Präferenzen lesen ---
+    if ($method === 'GET' && $id === 'prefs') {
+        $user = Auth::requireLogin();
+        $row  = DB::fetchOne('SELECT prefs FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$user['id']]);
+        $prefs = ($row && $row['prefs']) ? json_decode($row['prefs'], true) : [];
+        jsonOk($prefs ?: (object)[]);
+    }
+    // --- User-Präferenzen speichern ---
+    if ($method === 'PUT' && $id === 'prefs') {
+        $user  = Auth::requireLogin();
+        $prefs = $body ?? [];
+        // Nur erlaubte Keys
+        $allowed = ['rek_merge_ak','rek_unique','rek_hl_cur','rek_hl_prev'];
+        $save = [];
+        foreach ($allowed as $k) {
+            if (array_key_exists($k, $prefs)) $save[$k] = (bool)$prefs[$k];
+        }
+        // Migration: prefs-Spalte anlegen falls nicht vorhanden
+        try { DB::query('ALTER TABLE ' . DB::tbl('benutzer') . ' ADD COLUMN IF NOT EXISTS prefs JSON NULL'); } catch (\Exception $e) {}
+        // Bestehende Prefs laden und mergen
+        $row  = DB::fetchOne('SELECT prefs FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$user['id']]);
+        $existing = ($row && $row['prefs']) ? json_decode($row['prefs'], true) : [];
+        $merged = array_merge($existing ?: [], $save);
+        DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET prefs = ? WHERE id = ?', [json_encode($merged), $user['id']]);
+        jsonOk($merged);
+    }
     // --- Passwort ändern ---
     if ($method === 'POST' && $id === 'passwort') {
         $user    = Auth::requireLogin();

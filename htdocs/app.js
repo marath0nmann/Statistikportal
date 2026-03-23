@@ -1421,7 +1421,25 @@ async function showApp() {
   buildNav();
   buildFooter();
   await loadDisziplinen();
-  if (currentUser) loadAthleten();  // parallel, nicht abwarten nötig
+  if (currentUser) {
+    loadAthleten();  // parallel, nicht abwarten nötig
+    // User-Präferenzen laden und in state cachen
+    apiGet('auth/prefs').then(function(r) {
+      if (r && r.ok) {
+        state.userPrefs = r.data || {};
+        // rekState-Defaults zurücksetzen damit Prefs beim nächsten renderRekorde() greifen
+        if (state.rekState) {
+          var up = state.userPrefs;
+          if (up.rek_merge_ak   !== undefined) state.rekState.mergeAK          = !!up.rek_merge_ak;
+          if (up.rek_unique     !== undefined) state.rekState.unique           = !!up.rek_unique;
+          if (up.rek_hl_cur     !== undefined) state.rekState.highlightCurYear = !!up.rek_hl_cur;
+          if (up.rek_hl_prev    !== undefined) state.rekState.highlightPrevYear= !!up.rek_hl_prev;
+        }
+      }
+    }).catch(function(){});
+  } else {
+    state.userPrefs = {}; // Nicht eingeloggt → keine gespeicherten Prefs
+  }
   renderPage();
 }
 
@@ -3651,10 +3669,12 @@ var REK_CATS = []; // wird dynamisch geladen
 /* ── 06_rekorde.js ── */
 async function renderRekorde() {
   var rs = state.rekState;
-  if (rs.unique === undefined) rs.unique = true;
-  if (rs.highlightCurYear  === undefined) rs.highlightCurYear  = true;
-  if (rs.highlightPrevYear === undefined) rs.highlightPrevYear = false;
-  if (rs.mergeAK           === undefined) rs.mergeAK           = true;
+  // Defaults: erst aus gespeicherten User-Prefs, dann hard-coded Defaults
+  var _up = state.userPrefs || {};
+  if (rs.unique           === undefined) rs.unique           = _up.rek_unique   !== undefined ? !!_up.rek_unique   : true;
+  if (rs.highlightCurYear === undefined) rs.highlightCurYear = _up.rek_hl_cur   !== undefined ? !!_up.rek_hl_cur   : true;
+  if (rs.highlightPrevYear=== undefined) rs.highlightPrevYear= _up.rek_hl_prev  !== undefined ? !!_up.rek_hl_prev  : false;
+  if (rs.mergeAK          === undefined) rs.mergeAK          = _up.rek_merge_ak !== undefined ? !!_up.rek_merge_ak : true;
   var el = document.getElementById('main-content');
 
   // Kategorien dynamisch laden (nur mit Einträgen)
@@ -3905,17 +3925,31 @@ function rekSectionHead(label) {
          label + '</div>';
 }
 
+function _saveRekPrefs() {
+  if (!currentUser) return; // Nicht eingeloggt → nicht speichern
+  var rs = state.rekState;
+  var prefs = { rek_merge_ak: !!rs.mergeAK, rek_unique: !!rs.unique,
+                rek_hl_cur: !!rs.highlightCurYear, rek_hl_prev: !!rs.highlightPrevYear };
+  // Prefs im lokalen State cachen
+  if (!state.userPrefs) state.userPrefs = {};
+  Object.assign(state.userPrefs, prefs);
+  // Asynchron in DB speichern (Fehler ignorieren)
+  apiPut('auth/prefs', prefs).catch(function(){});
+}
 function toggleRekMergeAK(val) {
   state.rekState.mergeAK = val;
+  _saveRekPrefs();
   renderRekorde();
 }
 function toggleRekUnique(val) {
   state.rekState.unique = val;
+  _saveRekPrefs();
   renderRekorde();
 }
 function toggleRekHl(which, val) {
   if (which === 'cur')  state.rekState.highlightCurYear  = val;
   if (which === 'prev') state.rekState.highlightPrevYear = val;
+  _saveRekPrefs();
   renderRekorde();
 }
 
