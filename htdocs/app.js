@@ -1271,20 +1271,19 @@ function showTotpVerify() {
 
 async function doTotpVerify() {
   var code  = (document.getElementById('totp-code').value || '').replace(/\s+/g, '');
-  var errEl = document.getElementById('totp-err');
-  errEl.style.display = 'none';
-  if (!code) { errEl.textContent = 'Bitte Code eingeben.'; errEl.style.display = 'block'; return; }
+  var errEl = document.getElementById('login-err') || document.getElementById('totp-err');
+  if (errEl) errEl.style.display = 'none';
+  if (!code) { if(errEl){errEl.textContent='Bitte Code eingeben.';errEl.style.display='block';} return; }
   var btn = document.querySelector('#login-screen .btn-primary');
-  btn.textContent = '...'; btn.disabled = true;
+  if (btn) { btn.textContent = '...'; btn.disabled = true; }
   var r = await apiPost('auth/totp-verify', { code: code });
-  btn.textContent = 'Best\u00e4tigen'; btn.disabled = false;
+  if (btn) { btn.textContent = 'Best\u00e4tigen'; btn.disabled = false; }
   if (r && r.ok) {
     currentUser = { name: r.data.name || _loginState.ident || _loginPendingName, rolle: r.data.rolle };
     _loginPendingName = '';
     showApp();
   } else {
-    errEl.textContent = '\u274C ' + ((r && r.fehler) || 'Ung\u00fcltiger Code.');
-    errEl.style.display = 'block';
+    if(errEl){errEl.textContent='\u274C '+((r&&r.fehler)||'Ung\u00fcltiger Code.');errEl.style.display='block';}
     var tcEl = document.getElementById('totp-code'); if(tcEl){tcEl.value='';tcEl.focus();}
   }
 }
