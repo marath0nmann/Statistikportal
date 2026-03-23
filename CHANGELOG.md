@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v662 – Login Schritt 2: Passkey automatisch + parallel
+
+- Passkey-Dialog wird sofort beim Laden von Schritt 2 ausgelöst
+- Passwortfeld bleibt gleichzeitig aktiv (parallele Eingabe möglich)
+- Passkey-Abbruch durch Nutzer: stille Ausblendung des Hinweises
+- Passkey-Fehler: Hinweistext, Passwort weiterhin nutzbar
+- Passkey-Erfolg: direkte Anmeldung, Passwortfeld wird ignoriert
+
+---
+
+
 ## v661 – Neuer Login-Flow: 3 Schritte
 
 Schritt 1: Nur Benutzername oder E-Mail-Adresse
