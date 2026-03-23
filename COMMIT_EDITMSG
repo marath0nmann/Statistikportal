@@ -1,1 +1,1 @@
-v663: Fix: doTotpVerify errEl war null (totp-err → login-err)
+v664: UX: E-Mail-Einstellungen nach Registrierungen verschoben + Domain-Toggle

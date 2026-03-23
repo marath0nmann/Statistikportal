@@ -5,6 +5,17 @@ Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderung
 
 ---
 
+## v664 – Admin: E-Mail-Einstellungen in Registrierungen-Tab
+
+- Panel "Registrierung & E-Mail" aus Darstellung entfernt
+- Neu oben im Registrierungen-Tab als "E-Mail-Einstellungen"
+- "Zugelassene E-Mail-Domain": Checkbox-Toggle — deaktiviert wenn leer/aus
+  → Domain-Feld disabled, Wert wird beim Speichern als leer gesetzt
+- Eigener Speichern-Button für E-Mail-Einstellungen
+
+---
+
+
 ## v663 – Fix TOTP-Bestätigung
 
 - doTotpVerify suchte #totp-err — im neuen Step-3-Layout heißt es #login-err
