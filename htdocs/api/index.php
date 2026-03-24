@@ -250,7 +250,7 @@ if ($res === 'auth') {
                    "Dieser Code ist 5 Minuten gültig.\n\n" .
                    "Wenn du das nicht warst, ignoriere diese E-Mail.\n\n" .
                    Settings::get('verein_name','Mein Verein e.V.') . ' ' . Settings::get('app_untertitel','Leichtathletik-Statistik');
-        @mail($user['email'], $subject, $msg, "From: " . Settings::get('noreply_email','noreply@vy99.de') . "\r\nContent-Type: text/plain; charset=utf-8");
+        @mail($user['email'], $subject, $msg, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
         jsonOk('Code gesendet.');
     }
 
@@ -372,8 +372,9 @@ if ($res === 'auth') {
         $nickname = trim($body['name'] ?? '');
         $pw       = $body['passwort'] ?? '';
 
-        if (!preg_match('/@' . preg_quote(Settings::get('email_domain','vy99.de'), '/') . '$/', $email))
-            jsonErr('Nur @' . Settings::get('email_domain','vy99.de') . ' E-Mail-Adressen sind zugelassen.');
+        $emailDomainSetting = Settings::get('email_domain','');
+        if ($emailDomainSetting && !preg_match('/@' . preg_quote($emailDomainSetting, '/') . '$/', $email))
+            jsonErr('Nur @' . $emailDomainSetting . ' E-Mail-Adressen sind zugelassen.');
         if (strlen($nickname) < 2)  jsonErr('Nickname muss mindestens 2 Zeichen haben.');
         if (!preg_match('/^[\w\-. äöüÄÖÜß]{2,40}$/u', $nickname))
             jsonErr('Nickname enthält ungültige Zeichen (max. 40 Zeichen).');
@@ -414,7 +415,7 @@ if ($res === 'auth') {
                    "Dieser Code ist 30 Minuten gültig.\n\n" .
                    "Wenn du keine Registrierung beantragt hast, ignoriere diese E-Mail.\n\n" .
                    Settings::get('verein_name','Mein Verein e.V.') . ' ' . Settings::get('app_untertitel','Leichtathletik-Statistik');
-        @mail($email, $subject, $msg, "From: " . Settings::get('noreply_email','noreply@vy99.de') . "\r\nContent-Type: text/plain; charset=utf-8");
+        @mail($email, $subject, $msg, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
 
         jsonOk('Code gesendet.');
     }
@@ -432,7 +433,7 @@ if ($res === 'auth') {
 
         $subject = Settings::get('verein_name','Mein Verein e.V.') . ' – Neuer Bestätigungscode: ' . $code;
         $msg     = "Dein neuer Bestätigungscode lautet:\n\n    " . $code . "\n\n(gültig 30 Minuten)\n\n" . Settings::get('verein_name','Mein Verein e.V.');
-        @mail($email, $subject, $msg, "From: " . Settings::get('noreply_email','noreply@vy99.de') . "\r\nContent-Type: text/plain; charset=utf-8");
+        @mail($email, $subject, $msg, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
 
         jsonOk('Code erneut gesendet.');
     }
@@ -489,7 +490,7 @@ if ($res === 'auth') {
             $msg = "Neue Registrierungsanfrage:\n\nName: " . $reg['name'] .
                    "\nE-Mail: " . $reg['email'] . "\n\nBitte in der Admin-Oberfläche freigeben.";
             @mail($admin['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Neue Registrierung: ' . $reg['name'], $msg,
-                  "From: " . Settings::get('noreply_email','noreply@vy99.de') . "\r\nContent-Type: text/plain; charset=utf-8");
+                  "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
         }
         jsonOk('Registrierung abgeschlossen. Warte auf Admin-Freigabe.');
     }
@@ -532,7 +533,7 @@ if ($res === 'auth') {
         $msg = "Hallo " . $reg['name'] . ",\n\ndeine Registrierung wurde genehmigt!\n\n" .
                "Benutzername: " . $bname . "\n\nDu kannst dich jetzt einloggen.\n\n" . Settings::get('verein_name','Mein Verein e.V.');
         @mail($reg['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Registrierung genehmigt', $msg,
-              "From: " . Settings::get('noreply_email','noreply@vy99.de') . "\r\nContent-Type: text/plain; charset=utf-8");
+              "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
 
         jsonOk(['benutzername' => $bname]);
     }
@@ -548,7 +549,7 @@ if ($res === 'auth') {
             $msg = "Hallo " . $reg['name'] . ",\n\nleider wurde deine Registrierungsanfrage abgelehnt.\n\n" .
                    "Bei Fragen wende dich an den Verein.\n\n" . Settings::get('verein_name','Mein Verein e.V.');
             @mail($reg['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Registrierung abgelehnt', $msg,
-                  "From: " . Settings::get('noreply_email','noreply@vy99.de') . "\r\nContent-Type: text/plain; charset=utf-8");
+                  "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
         }
         jsonOk('Abgelehnt.');
     }

@@ -407,7 +407,7 @@ var _setup = { step: 1, reason: '', hasConfig: false,
                adminPw:'', adminPw2:'',
                vereinName:'Mein Verein e.V.', vereinKuerzel:'Mein Verein', appUntertitel:'Leichtathletik-Statistik',
                farbePrimary:'#cc0000', farbenAccent:'#003087',
-               emailDomain:'vy99.de', noreplEmail:'noreply@vy99.de' };
+               emailDomain:'', noreplEmail:'' };
 
 function showSetup(info) {
   _setup.reason    = info.reason    || '';
@@ -621,8 +621,8 @@ async function setupInstall() {
       app_untertitel:  _setup.appUntertitel,
       farbe_primary:   _setup.farbePrimary,
       farbe_accent:    _setup.farbenAccent,
-      email_domain:    _setup.emailDomain   || 'vy99.de',
-      noreply_email:   _setup.noreplEmail   || 'noreply@vy99.de',
+      email_domain:    _setup.emailDomain   || '',
+      noreply_email:   _setup.noreplEmail   || '',
     })
   }).then(r=>r.json()).catch(()=>null);
 
@@ -685,11 +685,11 @@ function regEmailCheck() {
   var hint  = document.getElementById('reg-email-hint');
   if (!hint) return;
   // Erst auswerten wenn es wie eine echte E-Mail aussieht: *@*.*
-  var emailDomain = appConfig.email_domain || 'vy99.de';
+  var emailDomain = appConfig.email_domain || '';
   var looksLikeEmail = /^[^@]+@[^@]+\.[^@]+$/.test(email);
   if (!email || !looksLikeEmail) {
     hint.className = 'reg-email-hint';
-    hint.innerHTML = '🔒 Nur <strong>@' + emailDomain + '</strong>-E-Mail-Adressen sind zugelassen.';
+    hint.innerHTML = emailDomain ? '🔒 Nur <strong>@' + emailDomain + '</strong>-E-Mail-Adressen sind zugelassen.' : '📧 Bitte eine gültige E-Mail-Adresse eingeben.';
     return;
   }
   if (email.endsWith('@' + emailDomain)) {
@@ -757,7 +757,7 @@ function _renderRegModal() {
         '<input type="email" id="reg-email" placeholder="" autocomplete="email" ' +
                'style="font-size:16px" oninput="regEmailCheck()" onkeydown="if(event.key===\'Enter\')regStep1()"/>' +
         '<div class="reg-email-hint" id="reg-email-hint">' +
-          '🔒 Nur <strong>@' + (appConfig.email_domain || 'vy99.de') + '</strong>-E-Mail-Adressen sind zugelassen.' +
+          (appConfig.email_domain ? '🔒 Nur <strong>@' + appConfig.email_domain + '</strong>-E-Mail-Adressen sind zugelassen.' : '📧 Bitte eine gültige E-Mail-Adresse eingeben.') +
         '</div>' +
       '</div>' +
       '<div class="form-group">' +
@@ -865,8 +865,8 @@ async function regStep1() {
   var pw    = document.getElementById('reg-pw').value;
   var pw2   = document.getElementById('reg-pw2').value;
 
-  var _dom = appConfig.email_domain || 'vy99.de';
-  if (!email.endsWith('@' + _dom)) return _regErr('Nur @' + _dom + ' E-Mail-Adressen sind zugelassen.');
+  var _dom = appConfig.email_domain || '';
+  if (_dom && !email.endsWith('@' + _dom)) return _regErr('Nur @' + _dom + ' E-Mail-Adressen sind zugelassen.');
   if (!name || name.length < 2)        return _regErr('Bitte gib einen Nickname ein (min. 2 Zeichen).');
   var pwScore = _pwScore(pw);
   if (pw.length < 12)   return _regErr('Passwort muss mindestens 12 Zeichen haben.');
