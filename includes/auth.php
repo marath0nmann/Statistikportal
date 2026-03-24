@@ -76,17 +76,30 @@ class Auth {
         $hasTotp    = !empty($user['totp_aktiv']);
         try { Passkey::migrate(); } catch (\Exception $e) {}
         $hasPasskey = Passkey::userHasPasskey($user['id']);
+        $emailLoginBevorzugt = !empty($user['email_login_bevorzugt']);
 
         if ($hasTotp || $hasPasskey) {
-            // Mindestens eine 2FA-Methode vorhanden → pending setzen
             $_SESSION['totp_pending_user'] = $user['id'];
             session_regenerate_id(true);
             return [
-                'ok'           => true,
-                'totp_required'=> true,
-                'totp_setup'   => false,
-                'has_totp'     => $hasTotp,
-                'has_passkey'  => $hasPasskey,
+                'ok'                   => true,
+                'totp_required'        => true,
+                'totp_setup'           => false,
+                'has_totp'             => $hasTotp,
+                'has_passkey'          => $hasPasskey,
+                'email_login_bevorzugt'=> $emailLoginBevorzugt,
+            ];
+        } elseif ($emailLoginBevorzugt) {
+            // User bevorzugt E-Mail-Code statt TOTP
+            $_SESSION['totp_pending_user'] = $user['id'];
+            session_regenerate_id(true);
+            return [
+                'ok'                   => true,
+                'totp_required'        => true,
+                'totp_setup'           => false,
+                'has_totp'             => false,
+                'has_passkey'          => false,
+                'email_login_bevorzugt'=> true,
             ];
         } else {
             // Kein 2FA eingerichtet → Setup erzwingen

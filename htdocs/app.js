@@ -811,7 +811,12 @@ function _renderRegModal() {
                'style="font-size:20px;letter-spacing:6px;text-align:center" onkeydown="if(event.key===\'Enter\')regStep3()"/>' +
       '</div>' +
       '<div id="reg-err" style="color:var(--accent);font-size:13px;margin-bottom:12px;display:none"></div>' +
-      '<button class="btn-login" style="width:100%" onclick="regStep3()">2FA bestätigen →</button>';
+      '<button class="btn-login" style="width:100%" onclick="regStep3()">2FA bestätigen →</button>' +
+      '<div style="text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.15)">' +
+        '<button class="btn-login-cancel" style="font-size:12px;opacity:.8" onclick="regSkipTotp()">' +
+          '📧 Stattdessen immer einen Code per E-Mail erhalten' +
+        '</button>' +
+      '</div>';
   } else if (s === 4) {
     body =
       '<div style="text-align:center;padding:10px 0 20px">' +
@@ -917,6 +922,14 @@ async function regStep3() {
   var r = await apiPost('auth/register-totp-confirm', { email: _regState.email, code, secret: _regState.totpSecret });
   if (!r || !r.ok) return _regErr((r && r.fehler) || 'Ungültiger Code. Bitte erneut versuchen.');
 
+  _regState.step = 4;
+  _renderRegModal();
+}
+
+async function regSkipTotp() {
+  _regErr('');
+  var r = await apiPost('auth/register-email-2fa', { email: _regState.email });
+  if (!r || !r.ok) return _regErr((r && r.fehler) || 'Fehler.');
   _regState.step = 4;
   _renderRegModal();
 }
@@ -1066,7 +1079,11 @@ async function doLoginStep2() {
   if (r && r.ok) {
     if (r.data && r.data.totp_required) {
       if (r.data.totp_setup) await showTotpSetup();
-      else renderLoginStep3(r.data.has_totp !== false, r.data.has_passkey !== false);
+      else if (r.data.email_login_bevorzugt && !r.data.has_totp && !r.data.has_passkey) {
+        // User bevorzugt E-Mail-Code → Schritt 3 mit E-Mail-Tab + sofort Code senden
+        renderLoginStep3(false, false);
+        setTimeout(doEmailCodeSend, 200);
+      } else renderLoginStep3(r.data.has_totp !== false, r.data.has_passkey !== false);
     } else {
       currentUser = { name: r.data.name || _loginState.ident, rolle: r.data.rolle };
       showApp();
