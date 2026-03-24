@@ -117,6 +117,26 @@ try {
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS avatar_pfad VARCHAR(120) NULL COMMENT 'Relativer Pfad zum Avatar-Bild'"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('registrierungen') . " ADD COLUMN IF NOT EXISTS email_login_bevorzugt TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS email_login_bevorzugt TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
+// Migration: Rollen-System (rollen-Tabelle)
+try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rollen') . " (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(60) NOT NULL UNIQUE,
+    rechte JSON NOT NULL DEFAULT '[]'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (\Exception $e) {}
+// Standard-Rollen anlegen falls leer
+try {
+    if (!DB::fetchOne('SELECT id FROM ' . DB::tbl('rollen') . ' LIMIT 1')) {
+        $defaultRollen = [
+            ['admin',  '["vollzugriff","benutzer_verwalten","rekorde_bearbeiten","einstellungen_aendern","alle_ergebnisse","eigene_ergebnisse","lesen"]'],
+            ['editor', '["alle_ergebnisse","lesen"]'],
+            ['athlet', '["eigene_ergebnisse","lesen"]'],
+            ['leser',  '["lesen"]'],
+        ];
+        foreach ($defaultRollen as $r) {
+            DB::query('INSERT IGNORE INTO ' . DB::tbl('rollen') . ' (name, rechte) VALUES (?,?)', $r);
+        }
+    }
+} catch (\Exception $e) {}
 // Migration: athlet-Rolle + Genehmigungssystem
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " MODIFY COLUMN rolle ENUM('admin','editor','athlet','leser') NOT NULL DEFAULT 'leser'"); } catch (\Exception $e) {}
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('ergebnis_aenderungen') . " (
@@ -327,6 +347,17 @@ if ($res === 'auth') {
         }
         else jsonErr('Nicht eingeloggt.', 401);
     }
+    // --- Aktuellen User abrufen (für Avatar/Vorname nach Login) ---
+    if ($method === 'GET' && $id === 'me') {
+        $user = Auth::requireLogin();
+        $row  = DB::fetchOne('SELECT avatar_pfad, email, athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$user['id']]);
+        $vorname = '';
+        if (!empty($row['athlet_id'])) {
+            $ath = DB::fetchOne('SELECT vorname FROM ' . DB::tbl('athleten') . ' WHERE id = ?', [$row['athlet_id']]);
+            if ($ath) $vorname = $ath['vorname'] ?? '';
+        }
+        jsonOk(['avatar' => $row['avatar_pfad'] ?? null, 'email' => $row['email'] ?? '', 'vorname' => $vorname]);
+    }
     // --- User-Präferenzen lesen ---
     if ($method === 'GET' && $id === 'prefs') {
         $user = Auth::requireLogin();
@@ -519,13 +550,16 @@ if ($res === 'auth') {
             'SELECT id, email, name, status, email_verifiziert, totp_aktiv, email_login_bevorzugt, erstellt_am
              FROM ' . DB::tbl('registrierungen') . ' ORDER BY erstellt_am DESC'
         );
-        jsonOk($rows);
+        // Bereits zugeordnete Athleten-IDs ermitteln
+        $zugeordnet = DB::fetchAll('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE athlet_id IS NOT NULL');
+        $zugeordneteIds = array_column($zugeordnet, 'athlet_id');
+        jsonOk(['registrierungen' => $rows, 'zugeordnete_athleten' => $zugeordneteIds]);
     }
 
     // Admin: Registrierung genehmigen
-    if ($method === 'POST' && $parts[2] === 'genehmigen') {
+    if ($method === 'POST' && ($parts[3] ?? '') === 'genehmigen') {
         Auth::requireAdmin();
-        $regId    = (int)$id;
+        $regId    = (int)($parts[2] ?? 0);
         $athletId = !empty($body['athlet_id']) ? (int)$body['athlet_id'] : null;
         $reg = DB::fetchOne('SELECT * FROM ' . DB::tbl('registrierungen') . ' WHERE id = ?', [$regId]);
         if (!$reg) jsonErr('Registrierung nicht gefunden.');
@@ -557,9 +591,9 @@ if ($res === 'auth') {
     }
 
     // Admin: Registrierung ablehnen
-    if ($method === 'POST' && $parts[2] === 'ablehnen') {
+    if ($method === 'POST' && ($parts[3] ?? '') === 'ablehnen') {
         Auth::requireAdmin();
-        $regId = (int)$id;
+        $regId = (int)($parts[2] ?? 0);
         DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE id = ?', ['rejected', $regId]);
 
         $reg = DB::fetchOne('SELECT email, name FROM ' . DB::tbl('registrierungen') . ' WHERE id = ?', [$regId]);
@@ -789,6 +823,8 @@ if ($res === 'einstellungen') {
                 'footer_datenschutz_text','footer_nutzung_text','footer_impressum_text',
                 'jugend_aks',
                 'kategoriegruppen',
+                'meisterschaften_liste',
+                'top_disziplinen',
             ];
             $save = [];
             foreach ($erlaubt as $k) {
@@ -1751,8 +1787,10 @@ if ($res === 'athleten') {
                +(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse_mittelstrecke') . " WHERE athlet_id=a.id)
                +(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse_sprungwurf') . " WHERE athlet_id=a.id)";
         $rows = DB::fetchAll(
-            "SELECT a.*, $anzSql AS anz_ergebnisse
-             FROM " . DB::tbl('athleten') . " a WHERE $baseWhere ORDER BY a.name_nv", $params);
+            "SELECT a.*, $anzSql AS anz_ergebnisse, b.avatar_pfad
+             FROM " . DB::tbl('athleten') . " a
+             LEFT JOIN " . DB::tbl('benutzer') . " b ON b.athlet_id = a.id
+             WHERE $baseWhere ORDER BY a.name_nv", $params);
         // Gruppen je Athlet hinzufügen (defensiv: Tabelle könnte noch fehlen)
         try {
             foreach ($rows as &$row) {
@@ -1771,12 +1809,15 @@ if ($res === 'athleten') {
     if ($method === 'GET' && $id) {
         $hasDelColA = DB::fetchOne("SHOW COLUMNS FROM " . DB::tbl('athleten') . " LIKE 'geloescht_am'");
         $athlet = $hasDelColA
-            ? DB::fetchOne('SELECT * FROM ' . DB::tbl('athleten') . ' WHERE id=? AND geloescht_am IS NULL', [$id])
-            : DB::fetchOne('SELECT * FROM ' . DB::tbl('athleten') . ' WHERE id=?', [$id]);
+            ? DB::fetchOne('SELECT a.*, b.avatar_pfad FROM ' . DB::tbl('athleten') . ' a LEFT JOIN ' . DB::tbl('benutzer') . ' b ON b.athlet_id=a.id WHERE a.id=? AND a.geloescht_am IS NULL', [$id])
+            : DB::fetchOne('SELECT a.*, b.avatar_pfad FROM ' . DB::tbl('athleten') . ' a LEFT JOIN ' . DB::tbl('benutzer') . ' b ON b.athlet_id=a.id WHERE a.id=?', [$id]);
         if (!$athlet) jsonErr('Nicht gefunden.', 404);
         try {
             $athlet['gruppen'] = DB::fetchAll('SELECT g.id, g.name FROM ' . DB::tbl('gruppen') . ' g JOIN ' . DB::tbl('athlet_gruppen') . ' ag ON ag.gruppe_id=g.id WHERE ag.athlet_id=? ORDER BY g.name', [$id]);
         } catch (\Exception $e) { $athlet['gruppen'] = []; }
+        // Avatar aus verknüpftem Benutzer laden
+        $bUser = DB::fetchOne('SELECT avatar_pfad FROM ' . DB::tbl('benutzer') . ' WHERE athlet_id = ? AND aktiv = 1 LIMIT 1', [$id]);
+        $athlet['avatar_pfad'] = $bUser ? $bUser['avatar_pfad'] : null;
         if ($unified) {
             $alle = DB::fetchAll(
                 'SELECT e.id, e.disziplin, e.resultat, e.pace, e.altersklasse, e.meisterschaft,
@@ -1962,8 +2003,24 @@ if ($res === 'rekorde') {
             }
             $counts[] = ['disziplin' => $d['disziplin'], 'mapping_id' => $d['mapping_id'], 'cnt' => $cnt ? (int)$cnt['c'] : 0];
         }
-        usort($counts, function($a,$b){ return $b['cnt'] - $a['cnt']; });
-        jsonOk(array_slice($counts, 0, 5));
+        // Favorisierte Disziplinen aus Einstellungen
+        $favJson = Settings::get('top_disziplinen','');
+        $favList = $favJson ? (json_decode($favJson, true) ?: []) : [];
+        // Zuerst: favorisierte (in konfigurierter Reihenfolge), dann: Rest nach Häufigkeit
+        $favResult = [];
+        $restResult = [];
+        foreach ($counts as $c) {
+            if (in_array($c['disziplin'], $favList)) $favResult[$c['disziplin']] = $c;
+            else $restResult[] = $c;
+        }
+        // Favorisierte in konfigurierter Reihenfolge
+        $orderedFav = [];
+        foreach ($favList as $fn) {
+            if (isset($favResult[$fn])) $orderedFav[] = $favResult[$fn];
+        }
+        usort($restResult, function($a,$b){ return $b['cnt'] - $a['cnt']; });
+        $combined = array_merge($orderedFav, $restResult);
+        jsonOk(array_slice($combined, 0, max(5, count($orderedFav))));
     }
 
     // GET rekorde/disziplinen?kat=
@@ -3548,6 +3605,47 @@ if ($res === 'ergebnis-aenderungen') {
         DB::query('UPDATE ' . DB::tbl('ergebnis_aenderungen') . ' SET status=?,bearbeitet_von=?,bearbeitet_am=NOW(),kommentar=? WHERE id=?',
             [$action === 'approve' ? 'approved' : 'rejected', $user['id'], $body['kommentar'] ?? null, $id]);
         jsonOk($action === 'approve' ? 'Genehmigt.' : 'Abgelehnt.');
+    }
+}
+
+
+// ============================================================
+// ROLLEN-VERWALTUNG
+// ============================================================
+if ($res === 'rollen') {
+    Auth::requireAdmin();
+    if ($method === 'GET') {
+        $rows = DB::fetchAll('SELECT * FROM ' . DB::tbl('rollen') . ' ORDER BY id');
+        foreach ($rows as &$r) {
+            $r['rechte'] = json_decode($r['rechte'] ?? '[]', true) ?: [];
+        }
+        jsonOk($rows);
+    }
+    if ($method === 'POST') {
+        // Neue Rolle anlegen oder vorhandene aktualisieren
+        $name   = trim($body['name'] ?? '');
+        $rechte = $body['rechte'] ?? [];
+        $validRechte = ['vollzugriff','benutzer_verwalten','rekorde_bearbeiten','einstellungen_aendern','alle_ergebnisse','eigene_ergebnisse','lesen'];
+        $rechte = array_values(array_intersect((array)$rechte, $validRechte));
+        if (!$name || strlen($name) < 2) jsonErr('Name erforderlich (min. 2 Zeichen).');
+        if ($id) {
+            // Update
+            DB::query('UPDATE ' . DB::tbl('rollen') . ' SET name=?, rechte=? WHERE id=?', [$name, json_encode($rechte), (int)$id]);
+            jsonOk('Aktualisiert.');
+        } else {
+            // Insert
+            try {
+                DB::query('INSERT INTO ' . DB::tbl('rollen') . ' (name, rechte) VALUES (?,?)', [$name, json_encode($rechte)]);
+                jsonOk(['id' => DB::lastInsertId()]);
+            } catch (\Exception $e) { jsonErr('Rollenname bereits vergeben.'); }
+        }
+    }
+    if ($method === 'DELETE' && $id) {
+        // Geschützte Rollen nicht löschbar
+        $row = DB::fetchOne('SELECT name FROM ' . DB::tbl('rollen') . ' WHERE id=?', [$id]);
+        if ($row && in_array($row['name'], ['admin','leser'])) jsonErr('Diese Rolle kann nicht gelöscht werden.');
+        DB::query('DELETE FROM ' . DB::tbl('rollen') . ' WHERE id=?', [(int)$id]);
+        jsonOk('Gelöscht.');
     }
 }
 

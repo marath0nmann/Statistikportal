@@ -1,3 +1,52 @@
+## v687 – Mehrere Features & Fixes
+
+**Avatar:**
+- Athletenprofil zeigt jetzt Avatar des verknüpften Benutzerkontos
+- Hall of Fame: Avatar war bereits vorhanden (JOIN mit benutzer-Tabelle)
+- GET /athleten und GET /athleten/{id}: avatar_pfad via LEFT JOIN
+
+**Footer & Rechtliches:**
+- Externe URL-Felder entfernt – nur noch eigene Markdown-Texte bearbeitbar
+
+**Admin → Benutzer:**
+- Datenbankinfo-Panel entfernt
+- Statische Rechte-Übersicht durch dynamischen Rollen-Manager ersetzt
+
+**Rollen-Manager (Admin → Benutzer):**
+- Neue DB-Tabelle `rollen` mit JSON-Rechte-Spalte (Auto-Migration, Standard-Rollen angelegt)
+- Rechte: vollzugriff, benutzer_verwalten, rekorde_bearbeiten, einstellungen_aendern, alle_ergebnisse, eigene_ergebnisse, lesen
+- Rollen umbenennen, neu anlegen, löschen (admin/leser geschützt)
+- GET/POST/DELETE /rollen Endpoints
+
+**Favorisierte Disziplinen (Admin → Disziplinen):**
+- Neues Panel „⭐ Favorisierte Disziplinen"
+- Checkboxen für alle vorhandenen Disziplinen
+- Favoriten erscheinen in Bestleistungen als erste Reiter
+- Gespeichert in `top_disziplinen` (Einstellungen)
+
+**Admin → Registrierungen (Meisterschaften-Fix):**
+- `meisterschaften_liste` und `top_disziplinen` in erlaubt-Liste eingetragen
+
+---
+
+## v686 – Mehrere Fixes
+
+**Admin → Registrierungen:**
+- Genehmigen/Ablehnen: Route-Bug behoben (war: "Unbekannte Route")
+- Bereits zugeordnete Athleten werden im Dropdown ausgeblendet
+- Badge-Höhe einheitlich (inline-flex, align-items:center)
+- Badges + Athlet-Auswahl + Genehmigen/Ablehnen in einer Zeile
+- Neues API-Format: gibt zugeordnete Athleten-IDs mit zurück
+
+**Anmeldung:**
+- Schritt 1: Text lautet jetzt „E-Mail-Adresse eingeben" (kein Benutzername mehr)
+- Avatar + Vorname werden sofort nach Login über `auth/me` nachgeladen (kein F5 nötig)
+
+**Neuer Athlet:**
+- Jahrgang-Feld im Formular ergänzt
+
+---
+
 ## v685 – Fix Admin Registrierungen-Karte
 
 - **2FA-Badge**: `email_login_bevorzugt` fehlte im API-SELECT → jetzt korrekt „📧 E-Mail-Code"
