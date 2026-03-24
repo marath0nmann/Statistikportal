@@ -115,6 +115,23 @@ try {
 
 // Auto-Migration: avatar_pfad Spalte
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS avatar_pfad VARCHAR(120) NULL COMMENT 'Relativer Pfad zum Avatar-Bild'"); } catch (\Exception $e) {}
+// Migration: athlet-Rolle + Genehmigungssystem
+try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " MODIFY COLUMN rolle ENUM('admin','editor','athlet','leser') NOT NULL DEFAULT 'leser'"); } catch (\Exception $e) {}
+try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('ergebnis_aenderungen') . " (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ergebnis_id INT NULL COMMENT 'NULL fuer neue Eintragung (insert)',
+    ergebnis_tbl VARCHAR(60) NOT NULL DEFAULT 'ergebnisse',
+    typ ENUM('insert','update','delete') NOT NULL,
+    neue_werte JSON NULL,
+    beantragt_von INT NOT NULL,
+    beantragt_am DATETIME NOT NULL DEFAULT NOW(),
+    status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    bearbeitet_von INT NULL,
+    bearbeitet_am DATETIME NULL,
+    kommentar VARCHAR(500) NULL,
+    INDEX idx_status (status),
+    INDEX idx_von (beantragt_von)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (\Exception $e) {}
 // ak_platz_meisterschaft in allen Ergebnis-Tabellen
 foreach (['ergebnisse','ergebnisse_strasse','ergebnisse_sprint','ergebnisse_mittelstrecke','ergebnisse_sprungwurf'] as $_emt) {
     try { DB::query("ALTER TABLE " . DB::tbl($_emt) . " ADD COLUMN IF NOT EXISTS ak_platz_meisterschaft SMALLINT NULL"); } catch (\Exception $e) {}
@@ -927,7 +944,7 @@ if ($res === 'benutzer') {
     }
     // Bulk-Import: POST ergebnisse/bulk
     if ($method === 'POST' && $id === 'bulk') {
-        $user = Auth::requireEditor();
+        $user = Auth::requireAthlet(); // leser darf Ergebnisse eintragen
         $items = $body['items'] ?? [];
         if (!is_array($items) || !count($items)) jsonErr('Keine Einträge.');
         $imported = 0; $skipped = 0; $errors = [];
@@ -1474,7 +1491,7 @@ if (in_array($res, $ergebnisTabellen)) {
     }
 
     if ($method === 'POST') {
-        $user = Auth::requireEditor();
+        $user = Auth::requireAthlet(); // leser darf Ergebnisse eintragen
         // Veranstaltung anlegen/finden
         $datum  = sanitize($body['datum'] ?? '');
         $ort    = sanitize($body['ort'] ?? '');
@@ -1526,7 +1543,7 @@ if (in_array($res, $ergebnisTabellen)) {
 
     // Bulk-Import: POST ergebnisse/bulk
     if ($method === 'POST' && $id === 'bulk') {
-        $user = Auth::requireEditor();
+        $user = Auth::requireAthlet(); // leser darf Ergebnisse eintragen
         $items = $body['items'] ?? [];
         if (!is_array($items) || !count($items)) jsonErr('Keine Einträge.');
         $imported = 0; $skipped = 0; $errors = [];
@@ -1567,15 +1584,25 @@ if (in_array($res, $ergebnisTabellen)) {
     }
 
     if ($method === 'PUT' && $id) {
-        $user = Auth::requireEditor();
+        $user = Auth::requireAthlet();
         $row = DB::fetchOne("SELECT erstellt_von FROM $tbl WHERE id=?", [$id]);
         if (!$row) jsonErr('Nicht gefunden.', 404);
-        if (!Auth::isAdmin() && $row['erstellt_von'] != $user['id'])
+        if (!Auth::canEditAll() && $row['erstellt_von'] != $user['id'])
             jsonErr('Keine Berechtigung.', 403);
+        // Athlet: Änderungsantrag statt direkter Speicherung
+        if (Auth::isAthlet()) {
+            DB::query('INSERT INTO ' . DB::tbl('ergebnis_aenderungen') . ' (ergebnis_id,ergebnis_tbl,typ,neue_werte,beantragt_von) VALUES (?,?,?,?,?)',
+                [$id, $tbl, 'update', json_encode($body), $user['id']]);
+            jsonOk(['pending' => true, 'msg' => '\u00c4nderungsantrag gestellt. Ein Editor wird ihn pr\u00fcfen.']);
+        }
         $felder = []; $params = [];
         if (isset($body['athlet_id']) && Auth::isAdmin()) {
             $aid = (int)$body['athlet_id'];
             if ($aid > 0) { $felder[] = 'athlet_id=?'; $params[] = $aid; }
+            // Auto: leser->athlet wenn Profil gesetzt; athlet->leser wenn entfernt
+            $curRolle = DB::fetchOne('SELECT rolle FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [(int)$bid])['rolle'] ?? '';
+            if ($aid && $curRolle === 'leser') { $felder[] = 'rolle=?'; $params[] = 'athlet'; }
+            elseif (!$aid && $curRolle === 'athlet') { $felder[] = 'rolle=?'; $params[] = 'leser'; }
         }
         if (isset($body['altersklasse']))  { $felder[] = 'altersklasse=?';  $params[] = sanitize($body['altersklasse']); }
         if (isset($body['disziplin'])) {
@@ -1611,12 +1638,17 @@ if (in_array($res, $ergebnisTabellen)) {
     }
 
     if ($method === 'DELETE' && $id) {
-        $user = Auth::requireEditor();
-        // Editoren dürfen nur eigene, Admins alle
+        $user = Auth::requireAthlet();
+        // editor/admin: sofort; athlet: nur eigene mit Genehmigung
         $row = DB::fetchOne("SELECT erstellt_von FROM $tbl WHERE id=?", [$id]);
         if (!$row) jsonErr('Nicht gefunden.', 404);
-        if (!Auth::isAdmin() && $row['erstellt_von'] != $user['id'])
+        if (!Auth::canEditAll() && $row['erstellt_von'] != $user['id'])
             jsonErr('Keine Berechtigung.', 403);
+        if (Auth::isAthlet()) {
+            DB::query('INSERT INTO ' . DB::tbl('ergebnis_aenderungen') . ' (ergebnis_id,ergebnis_tbl,typ,neue_werte,beantragt_von) VALUES (?,?,?,?,?)',
+                [$id, $tbl, 'delete', null, $user['id']]);
+            jsonOk(['pending' => true, 'msg' => 'L\u00f6schantrag gestellt.']);
+        }
         DB::query("UPDATE $tbl SET geloescht_am=NOW() WHERE id=?", [$id]);
         jsonOk('In Papierkorb verschoben.');
     }
@@ -2113,7 +2145,7 @@ if ($res === 'kategorien') {
     // DELETE Kategorie (nur wenn keine Disziplinen zugeordnet)
     // Bulk-Import: POST ergebnisse/bulk
     if ($method === 'POST' && $id === 'bulk') {
-        $user = Auth::requireEditor();
+        $user = Auth::requireAthlet(); // leser darf Ergebnisse eintragen
         $items = $body['items'] ?? [];
         if (!is_array($items) || !count($items)) jsonErr('Keine Einträge.');
         $imported = 0; $skipped = 0; $errors = [];
@@ -2499,7 +2531,7 @@ if ($res === 'disziplin-mapping') {
     // DELETE Mapping entfernen
     // Bulk-Import: POST ergebnisse/bulk
     if ($method === 'POST' && $id === 'bulk') {
-        $user = Auth::requireEditor();
+        $user = Auth::requireAthlet(); // leser darf Ergebnisse eintragen
         $items = $body['items'] ?? [];
         if (!is_array($items) || !count($items)) jsonErr('Keine Einträge.');
         $imported = 0; $skipped = 0; $errors = [];
@@ -2953,7 +2985,7 @@ if ($res === 'veranstaltungen' && $method === 'DELETE' && $id) {
 // ERGEBNISSE/BULK
 // ============================================================
 if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
-    $user = Auth::requireEditor();
+    $user = Auth::requireAthlet(); // leser darf Ergebnisse eintragen
     $items = $body['items'] ?? [];
     if (!is_array($items) || !count($items)) jsonErr('Keine Einträge.');
     $imported = 0; $skipped = 0; $errors = [];
@@ -3458,6 +3490,45 @@ if ($res === 'ak-mapping') {
             }
         }
         jsonOk(null);
+    }
+}
+
+
+// ============================================================
+// ERGEBNIS-AENDERUNGSANTRAEGE
+// ============================================================
+if ($res === 'ergebnis-aenderungen') {
+    if ($method === 'GET') {
+        $user = Auth::requireAthlet();
+        if (Auth::canEditAll()) {
+            $rows = DB::fetchAll('SELECT ea.*, b.benutzername AS beantragt_von_name FROM ' . DB::tbl('ergebnis_aenderungen') . ' ea LEFT JOIN ' . DB::tbl('benutzer') . ' b ON b.id = ea.beantragt_von WHERE ea.status = ? ORDER BY ea.beantragt_am DESC', [$_GET['status'] ?? 'pending']);
+        } else {
+            $rows = DB::fetchAll('SELECT * FROM ' . DB::tbl('ergebnis_aenderungen') . ' WHERE beantragt_von = ? ORDER BY beantragt_am DESC', [$user['id']]);
+        }
+        jsonOk($rows);
+    }
+    if ($method === 'POST' && $id) {
+        $user   = Auth::requireEditor();
+        $action = $body['action'] ?? '';
+        if (!in_array($action, ['approve','reject'])) jsonErr('Ungueltige Aktion.', 400);
+        $antrag = DB::fetchOne('SELECT * FROM ' . DB::tbl('ergebnis_aenderungen') . ' WHERE id = ?', [$id]);
+        if (!$antrag || $antrag['status'] !== 'pending') jsonErr('Antrag nicht gefunden oder bereits bearbeitet.', 404);
+        if ($action === 'approve') {
+            $tbl2 = DB::tbl($antrag['ergebnis_tbl']);
+            if ($antrag['typ'] === 'delete') {
+                DB::query("UPDATE $tbl2 SET geloescht_am=NOW() WHERE id=?", [$antrag['ergebnis_id']]);
+            } elseif ($antrag['typ'] === 'update') {
+                $vals = json_decode($antrag['neue_werte'] ?? '{}', true) ?: [];
+                $f2 = []; $p2 = [];
+                foreach (['altersklasse','disziplin','resultat','ak_platzierung','meisterschaft'] as $k2) {
+                    if (array_key_exists($k2, $vals)) { $f2[] = "$k2=?"; $p2[] = $vals[$k2]; }
+                }
+                if ($f2) { $p2[] = $antrag['ergebnis_id']; DB::query("UPDATE $tbl2 SET ".implode(',',$f2)." WHERE id=?", $p2); }
+            }
+        }
+        DB::query('UPDATE ' . DB::tbl('ergebnis_aenderungen') . ' SET status=?,bearbeitet_von=?,bearbeitet_am=NOW(),kommentar=? WHERE id=?',
+            [$action === 'approve' ? 'approved' : 'rejected', $user['id'], $body['kommentar'] ?? null, $id]);
+        jsonOk($action === 'approve' ? 'Genehmigt.' : 'Abgelehnt.');
     }
 }
 

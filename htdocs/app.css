@@ -1225,3 +1225,5 @@ tr:hover td { background: var(--surf2); }
   .veranst-dash-table .vcol-platz  { width: 22%; }
   .veranst-dash-table td, .veranst-dash-table th { padding: 5px 6px; font-size: 11px; }
 }
+
+.badge-athlet  { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
