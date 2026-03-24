@@ -396,7 +396,7 @@ if ($res === 'auth') {
             jsonErr('Diese E-Mail-Adresse wartet bereits auf Admin-Freigabe.');
         // pending und rejected: werden unten gelöscht und neu angelegt
         if (DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE benutzername = ?', [$nickname]) ||
-            DB::fetchOne('SELECT id FROM ' . DB::tbl('registrierungen') . ' WHERE name = ? AND status = ?', [$nickname, 'pending']))
+            DB::fetchOne('SELECT id FROM ' . DB::tbl('registrierungen') . ' WHERE name = ? AND status = ?', [$nickname, 'approved']))
             jsonErr('Dieser Nickname ist bereits vergeben. Bitte wähle einen anderen.');
 
         $code      = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);

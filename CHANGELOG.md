@@ -1,3 +1,10 @@
+## v683 – Fix: Nickname-Check ignoriert pending-Einträge
+
+- Gleiche Ursache wie v682: alter pending-Eintrag blockierte Nickname
+- Nur noch aktive Benutzer und approved-Einträge blockieren den Nickname
+
+---
+
 ## v682 – Fix: pending-Eintrag blockiert Registrierung nicht mehr
 
 - pending-Einträge (abgebrochene Versuche) blockieren jetzt keine Neu-Registrierung mehr
