@@ -1,1 +1,1 @@
-v680: Feature: Registrierung ohne TOTP – E-Mail-Code als 2FA-Alternative
+v681: Fix: Registrierung nicht mehr durch alten pending-Eintrag blockiert (>48h)

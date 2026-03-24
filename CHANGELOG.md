@@ -1,3 +1,12 @@
+## v681 – Fix: Registrierung durch alten pending-Eintrag blockiert
+
+- Problem: abgebrochene Registrierung hinterließ pending-Eintrag → neue Registrierung dauerhaft blockiert
+- Fix: pending-Einträge älter als 48h blockieren nicht mehr
+- Beim erneuten Versuch: abgelaufener pending-Eintrag wird gelöscht und neu angelegt
+- Fehlermeldung unterscheidet jetzt: "bereits registriert" vs. "in Bearbeitung"
+
+---
+
 ## v680 – Feature: E-Mail-Code als 2FA-Alternative bei Registrierung
 
 - Schritt 3 (TOTP-Setup): neuer Button "📧 Stattdessen immer einen Code per E-Mail erhalten"
