@@ -764,11 +764,7 @@ function _renderRegModal() {
           (appConfig.email_domain ? '🔒 Nur <strong>@' + appConfig.email_domain + '</strong>-E-Mail-Adressen sind zugelassen.' : '📧 Bitte eine gültige E-Mail-Adresse eingeben.') +
         '</div>' +
       '</div>' +
-      '<div class="form-group">' +
-        '<label style="color:var(--text2)">Nickname</label>' +
-        '<input type="text" id="reg-name" placeholder="" autocomplete="nickname" ' +
-               'style="font-size:16px" onkeydown="if(event.key===\'Enter\')regStep1()"/>' +
-      '</div>' +
+      // Kein Nickname-Feld – E-Mail wird als Anzeigename verwendet
       '<div class="form-group">' +
         '<label style="color:var(--text2)">Passwort <span style="font-weight:400;font-size:11px">(min. 12 Zeichen, 3 von 4 Gruppen)</span></label>' +
         '<input type="password" id="reg-pw" placeholder="" autocomplete="new-password" style="font-size:16px" oninput="regPwCheck()"/>' +
@@ -870,23 +866,20 @@ function _regErr(msg) {
 async function regStep1() {
   _regErr('');
   var email = (document.getElementById('reg-email').value || '').trim().toLowerCase();
-  var name  = (document.getElementById('reg-name').value  || '').trim();
   var pw    = document.getElementById('reg-pw').value;
   var pw2   = document.getElementById('reg-pw2').value;
 
   var _dom = appConfig.email_domain || '';
   if (_dom && !email.endsWith('@' + _dom)) return _regErr('Nur @' + _dom + ' E-Mail-Adressen sind zugelassen.');
-  if (!name || name.length < 2)        return _regErr('Bitte gib einen Nickname ein (min. 2 Zeichen).');
   var pwScore = _pwScore(pw);
   if (pw.length < 12)   return _regErr('Passwort muss mindestens 12 Zeichen haben.');
   if (pwScore.groups < 3) return _regErr('Passwort muss mindestens 3 von 4 Zeichengruppen enthalten (Großbuchstaben, Kleinbuchstaben, Zahlen, Sonderzeichen).');
   if (pw !== pw2)        return _regErr('Passwörter stimmen nicht überein.');
 
   _regState.email = email;
-  _regState.name  = name;
   _regState.pw    = pw;
 
-  var r = await apiPost('auth/register-start', { email, name, passwort: pw });
+  var r = await apiPost('auth/register-start', { email: email, passwort: pw });
   if (!r || !r.ok) return _regErr((r && r.fehler) || 'Fehler bei der Registrierung.');
 
   _regState.step = 2;
@@ -1054,7 +1047,7 @@ async function _triggerPasskeyStep2() {
       return;
     }
     // Passkey OK → einloggen (Passwortfeld wird ignoriert)
-    currentUser = { name: verR.data.name || _loginState.ident, rolle: verR.data.rolle };
+    currentUser = { name: verR.data.name || _loginState.ident, email: verR.data.email || _loginState.ident, vorname: verR.data.vorname || '', rolle: verR.data.rolle };
     showApp();
   } catch(e) {
     // Nutzer hat Passkey-Dialog abgebrochen oder Fehler → Passwort weiterhin verfügbar
@@ -1085,7 +1078,7 @@ async function doLoginStep2() {
         setTimeout(doEmailCodeSend, 200);
       } else renderLoginStep3(r.data.has_totp !== false, r.data.has_passkey !== false);
     } else {
-      currentUser = { name: r.data.name || _loginState.ident, rolle: r.data.rolle };
+      currentUser = { name: r.data.name || _loginState.ident, email: r.data.email || _loginState.ident, vorname: r.data.vorname || '', rolle: r.data.rolle };
       showApp();
     }
   } else {
@@ -1185,7 +1178,7 @@ async function doEmailCodeVerify() {
   var r = await apiPost('auth/email-code-verify', { code: code });
   btn.textContent = 'Best\u00e4tigen'; btn.disabled = false;
   if (r && r.ok) {
-    currentUser = { name: r.data.name || _loginState.ident, rolle: r.data.rolle };
+    currentUser = { name: r.data.name || _loginState.ident, email: r.data.email || _loginState.ident, vorname: r.data.vorname || '', rolle: r.data.rolle };
     showApp();
   } else {
     errEl.textContent = '\u274C ' + ((r&&r.fehler)||'Ung\u00fcltiger Code.');
@@ -1262,7 +1255,7 @@ async function doPasskeyAuth() {
     };
     var verR = await apiPost('auth/passkey-auth-verify', { credential: cred });
     if (!verR || !verR.ok) throw new Error((verR && verR.fehler) || 'Verifikation fehlgeschlagen');
-    currentUser = { name: verR.data.name || _loginState.ident || _loginPendingName, rolle: verR.data.rolle };
+    currentUser = { name: verR.data.name || _loginState.ident || _loginPendingName, email: verR.data.email || _loginState.ident, vorname: verR.data.vorname || '', rolle: verR.data.rolle };
     showApp();
   } catch(e) {
     var errEl = document.getElementById('passkey-err');
@@ -1300,7 +1293,7 @@ async function doTotpVerify() {
   var r = await apiPost('auth/totp-verify', { code: code });
   if (btn) { btn.textContent = 'Best\u00e4tigen'; btn.disabled = false; }
   if (r && r.ok) {
-    currentUser = { name: r.data.name || _loginState.ident || _loginPendingName, rolle: r.data.rolle };
+    currentUser = { name: r.data.name || _loginState.ident || _loginPendingName, email: r.data.email || _loginState.ident, vorname: r.data.vorname || '', rolle: r.data.rolle };
     _loginPendingName = '';
     showApp();
   } else {
@@ -1421,14 +1414,16 @@ async function showApp() {
   if (anonBtn) anonBtn.parentNode.removeChild(anonBtn);
 
   if (currentUser) {
-    var name = currentUser.name || '?';
+    var name = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
     var avatarEl = document.getElementById('user-avatar');
     if (currentUser.avatar) {
       avatarEl.innerHTML = '<img src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
     } else {
       avatarEl.textContent = nameInitials(name);
     }
-    document.getElementById('user-name-disp').textContent  = name;
+    // Anzeige: Vorname aus Athletenprofil wenn vorhanden, sonst E-Mail
+    var _dispName = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || name);
+    document.getElementById('user-name-disp').textContent  = _dispName;
     document.getElementById('user-rolle-disp').textContent = rolleLabel(currentUser.rolle);
     document.getElementById('user-btn').style.display = '';
   } else {
@@ -1472,7 +1467,7 @@ async function showApp() {
 
 function showUserMenu() {
   if (!currentUser) { showLogin(); return; }
-  var name = currentUser.name || '?';
+  var name = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
   showModal(
     '<h2>Konto <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div style="text-align:center;padding:10px 0 20px">' +
@@ -9264,7 +9259,7 @@ function showNeuerBenutzerModal() {
   showModal(
     '<h2>&#x1F464; Neuer Benutzer <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div class="form-grid">' +
-      '<div class="form-group"><label>Benutzername *</label><input type="text" id="nb-user" placeholder="max.mustermann"/></div>' +
+      '<div style="display:none"><input type="text" id="nb-user" value=""/></div>' +
       '<div class="form-group"><label>E-Mail *</label><input type="email" id="nb-email" placeholder="max@example.com"/></div>' +
       '<div class="form-group"><label>Passwort * (min. 8 Zeichen)</label><input type="password" id="nb-pw"/></div>' +
       '<div class="form-group"><label>Rolle</label><select id="nb-rolle"><option value="leser">Leser</option><option value="athlet">Athlet</option><option value="editor">Editor</option><option value="admin">Admin</option></select></div>' +
@@ -9581,6 +9576,12 @@ async function renderAdminRegistrierungen() {
   var el = document.getElementById('main-content');
   el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
 
+  // Athleten laden falls noch nicht vorhanden
+  if (!state._adminAthleten || !state._adminAthleten.length) {
+    var ra = await apiGet('athleten?limit=9999');
+    if (ra && ra.ok) state._adminAthleten = ra.data.athleten || ra.data || [];
+  }
+
   var r = await apiGet('auth/registrierungen');
   if (!r || !r.ok) { el.innerHTML += '<div style="color:var(--accent)">Fehler beim Laden.</div>'; return; }
 
@@ -9669,8 +9670,10 @@ function _regCard(reg, showActions) {
     ? '<span class="badge badge-email-ok">✓ E-Mail bestätigt</span>'
     : '<span class="badge badge-email-no">✗ E-Mail ausstehend</span>';
   var totpBadge = reg.totp_aktiv
-    ? '<span class="badge badge-email-ok">✓ 2FA aktiv</span>'
-    : '<span class="badge" style="background:var(--surf2);color:var(--text2)">2FA ausstehend</span>';
+    ? '<span class="badge badge-email-ok">✓ Authenticator-App</span>'
+    : reg.email_login_bevorzugt
+      ? '<span class="badge" style="background:#e8f0fe;color:#1a56db;border:1px solid #b3c5f5">📧 E-Mail-Code</span>'
+      : '<span class="badge" style="background:var(--surf2);color:var(--text2)">2FA ausstehend</span>';
   var statusBadge = reg.status === 'approved'
     ? '<span class="badge badge-aktiv">Freigegeben</span>'
     : reg.status === 'rejected'
@@ -9681,9 +9684,9 @@ function _regCard(reg, showActions) {
   if (showActions) {
     // Athleten-Dropdown für Zuweisung
     var athOpts = '<option value="">– kein Athlet –</option>';
-    var athlList = state._adminAthleten || [];
+    var athlList = (state._adminAthleten || []).slice().sort(function(a,b){return (a.name_nv||'').localeCompare(b.name_nv||'');});
     for (var i = 0; i < athlList.length; i++) {
-      athOpts += '<option value="' + athlList[i].id + '">' + athlList[i].name + '</option>';
+      athOpts += '<option value="' + athlList[i].id + '">' + (athlList[i].name_nv || athlList[i].name || '?') + '</option>';
     }
     actions =
       '<div class="reg-pending-actions" style="margin-top:12px;width:100%;flex-direction:column;align-items:stretch">' +
