@@ -692,7 +692,11 @@ function regEmailCheck() {
     hint.innerHTML = emailDomain ? '🔒 Nur <strong>@' + emailDomain + '</strong>-E-Mail-Adressen sind zugelassen.' : '📧 Bitte eine gültige E-Mail-Adresse eingeben.';
     return;
   }
-  if (email.endsWith('@' + emailDomain)) {
+  if (!emailDomain) {
+    // Kein Domain-Filter → jede gültige E-Mail akzeptieren
+    hint.className = 'reg-email-hint reg-email-ok';
+    hint.innerHTML = '✓ Gültige E-Mail-Adresse';
+  } else if (email.endsWith('@' + emailDomain)) {
     hint.className = 'reg-email-hint reg-email-ok';
     hint.innerHTML = '✓ Gültige ' + (appConfig.verein_name || 'Mein Verein e.V.') + ' E-Mail-Adresse';
   } else {

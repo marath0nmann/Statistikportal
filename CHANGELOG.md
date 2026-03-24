@@ -1,3 +1,10 @@
+## v679 – Fix: Registrierung ohne Domain-Filter
+
+- regEmailCheck zeigte "✗ Nur @-Adressen sind zugelassen" wenn kein Domain-Filter aktiv
+- Fix: wenn email_domain leer → jede gültige E-Mail akzeptieren
+
+---
+
 ## v678 – Fix: vy99.de-Hardcoding entfernt + Domain-Check konditionalisiert
 
 - `vy99.de` war als Fallback-Default in settings.php, app.js, api/index.php und setup.php hinterlegt
