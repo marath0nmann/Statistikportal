@@ -959,9 +959,9 @@ function _loginCard(inner) {
 function renderLoginStep1() {
   document.getElementById('login-screen').innerHTML = _loginCard(
     '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">&#x1F512; Anmelden</h2>' +
-    '<p style="color:var(--text2);font-size:13px;margin:0 0 20px">Benutzername oder E-Mail-Adresse eingeben.</p>' +
+    '<p style="color:var(--text2);font-size:13px;margin:0 0 20px">E-Mail-Adresse eingeben.</p>' +
     '<div class="form-group" style="margin-bottom:16px">' +
-      '<label>Benutzername oder E-Mail</label>' +
+      '<label>E-Mail-Adresse</label>' +
       '<input type="text" id="login-ident" autocomplete="username" style="font-size:16px"' +
         ' onkeydown="if(event.key===\'Enter\')doLoginStep1()"/>' +
     '</div>' +
@@ -1447,6 +1447,22 @@ async function showApp() {
   await loadDisziplinen();
   if (currentUser) {
     loadAthleten();  // parallel, nicht abwarten nötig
+    // Avatar + Vorname aus Session nachladen (z.B. direkt nach Login)
+    apiGet('auth/me').then(function(r) {
+      if (r && r.ok && r.data) {
+        if (r.data.avatar)   currentUser.avatar   = r.data.avatar;
+        if (r.data.vorname)  currentUser.vorname  = r.data.vorname;
+        if (r.data.email)    currentUser.email    = r.data.email;
+        // Avatar-Element aktualisieren
+        var avEl = document.getElementById('user-avatar');
+        if (avEl) {
+          if (currentUser.avatar) avEl.innerHTML = '<img src="'+currentUser.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+          else avEl.textContent = nameInitials(currentUser.vorname || currentUser.email || '?');
+        }
+        var nmEl = document.getElementById('user-name-disp');
+        if (nmEl) nmEl.textContent = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
+      }
+    }).catch(function(){});
     // User-Präferenzen ABWARTEN bevor renderPage() — sonst werden Defaults gerendert
     try {
       var _prefsR = await apiGet('auth/prefs');
@@ -3502,7 +3518,11 @@ async function openAthletById(id) {
   showModal(
     '<h2 style="margin-bottom:12px">Athleten-Profil <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div class="profile-header" style="margin-bottom:12px">' +
-      '<div class="profile-avatar">' + initials.toUpperCase() + '</div>' +
+      '<div class="profile-avatar" style="overflow:hidden;padding:0;' + (athlet.avatar_pfad ? 'background:none;' : '') + '">' +
+        (athlet.avatar_pfad
+          ? '<img src="' + athlet.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+          : initials.toUpperCase()) +
+      '</div>' +
       '<div>' +
         '<div style="font-size:20px;font-weight:700">' + (athlet.vorname || '') + ' ' + (athlet.nachname || '') + '</div>' +
         (gruppenTags ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">' + gruppenTags + '</div>' : '') +
@@ -9241,18 +9261,100 @@ async function renderAdmin() {
         userRows +
       '</div>' +
       '<div class="panel" style="padding:20px">' +
-        '<div class="panel-title" style="margin-bottom:16px">&#x2139;&#xFE0F; Rollen-&Uuml;bersicht</div>' +
-        '<table style="width:100%"><thead><tr><th>Rolle</th><th>Rechte</th></tr></thead><tbody>' +
-          '<tr><td><span class="badge badge-admin">admin</span></td><td>Vollzugriff, Benutzer verwalten, Rekorde bearbeiten, Einstellungen ändern</td></tr>' +
-          '<tr><td><span class="badge badge-editor">editor</span></td><td>Ergebnisse eintragen und l&ouml;schen (alle)</td></tr>' +
-          '<tr><td><span class="badge badge-athlet">athlet</span></td><td>Eigene Ergebnisse eintragen; Änderungen/Löschungen mit Genehmigung</td></tr>' +
-          '<tr><td><span class="badge badge-leser">leser</span></td><td>Nur Ansicht, keine Bearbeitung</td></tr>' +
-        '</tbody></table>' +
-        '<div style="margin-top:24px"><div class="panel-title" style="margin-bottom:12px">&#x1F4CA; Datenbankinfo</div>' +
-          '<div style="font-size:13px;color:var(--text2);line-height:2">Athleten: <strong>' + state.athleten.length + '</strong><br>System: MariaDB via PHP PDO<br>Hosting: all-inkl.com</div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
+          '<div class="panel-title">&#x2139;&#xFE0F; Rollen &amp; Rechte</div>' +
+          '<button class="btn btn-primary btn-sm" onclick="showNeueRolleModal()">+ Neue Rolle</button>' +
         '</div>' +
+        '<div id="rollen-manager-wrap"><div class="loading"><div class="spinner"></div></div></div>' +
       '</div>' +
     '</div>';
+  // Rollen laden
+  _ladeRollenManager();
+}
+
+var _RECHTE_LISTE = [
+  { key: 'vollzugriff',          label: 'Vollzugriff' },
+  { key: 'benutzer_verwalten',   label: 'Benutzer verwalten' },
+  { key: 'rekorde_bearbeiten',   label: 'Rekorde bearbeiten' },
+  { key: 'einstellungen_aendern',label: 'Einstellungen ändern' },
+  { key: 'alle_ergebnisse',      label: 'Alle Ergebnisse eintragen/ändern/löschen' },
+  { key: 'eigene_ergebnisse',    label: 'Eigene Ergebnisse eintragen/ändern/löschen (nach Genehmigung)' },
+  { key: 'lesen',                label: 'Lesen' },
+];
+
+async function _ladeRollenManager() {
+  var r = await apiGet('rollen');
+  var wrap = document.getElementById('rollen-manager-wrap');
+  if (!wrap) return;
+  if (!r || !r.ok) { wrap.innerHTML = '<div style="color:var(--accent);padding:12px">Fehler beim Laden.</div>'; return; }
+  var rollen = r.data || [];
+  var html = '<table style="width:100%;font-size:13px;border-collapse:collapse">' +
+    '<thead><tr style="border-bottom:2px solid var(--border)">' +
+    '<th style="text-align:left;padding:6px 10px">Rolle</th>' +
+    '<th style="text-align:left;padding:6px 10px">Rechte</th>' +
+    '<th style="width:80px"></th>' +
+    '</tr></thead><tbody>';
+  rollen.forEach(function(rolle) {
+    var rechteLabels = (rolle.rechte || []).map(function(k) {
+      var r2 = _RECHTE_LISTE.find(function(x){ return x.key===k; });
+      return r2 ? r2.label : k;
+    }).join(', ');
+    var locked = (rolle.name === 'admin' || rolle.name === 'leser');
+    html += '<tr style="border-bottom:1px solid var(--border)">' +
+      '<td style="padding:8px 10px;font-weight:600">' + rolle.name + '</td>' +
+      '<td style="padding:8px 10px;color:var(--text2);font-size:12px">' + (rechteLabels || '–') + '</td>' +
+      '<td style="padding:8px 6px;display:flex;gap:4px;justify-content:flex-end">' +
+        '<button class="btn btn-ghost btn-sm" onclick="showRolleEditModal(' + rolle.id + ')" title="Bearbeiten">✏️</button>' +
+        (!locked ? '<button class="btn btn-danger btn-sm" onclick="deleteRolle(' + rolle.id + ',\'' + rolle.name + '\')" title="Löschen">✕</button>' : '') +
+      '</td>' +
+    '</tr>';
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function _rolleModal(titel, rolle) {
+  var r = rolle || { id: null, name: '', rechte: [] };
+  var checkboxes = _RECHTE_LISTE.map(function(re) {
+    var checked = (r.rechte || []).indexOf(re.key) >= 0;
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px">' +
+      '<input type="checkbox" data-recht="' + re.key + '" ' + (checked ? 'checked' : '') + ' style="width:15px;height:15px"> ' +
+      re.label + '</label>';
+  }).join('');
+  showModal(
+    '<h2>' + titel + ' <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<div class="form-group"><label>Rollenname *</label><input type="text" id="rm-name" value="' + (r.name||'') + '"/></div>' +
+    '<div style="margin:12px 0 4px;font-weight:600;font-size:13px">Rechte</div>' +
+    '<div style="display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto;padding:8px;background:var(--surf2);border-radius:8px">' +
+    checkboxes + '</div>' +
+    '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+    '<button class="btn btn-primary" onclick="saveRolle(' + (r.id||'null') + ')">Speichern</button></div>'
+  );
+}
+
+function showNeueRolleModal() { _rolleModal('Neue Rolle'); }
+
+async function showRolleEditModal(id) {
+  var r = await apiGet('rollen');
+  var rolle = (r && r.ok) ? (r.data||[]).find(function(x){return x.id===id;}) : null;
+  if (!rolle) return;
+  _rolleModal('Rolle bearbeiten', rolle);
+}
+
+async function saveRolle(id) {
+  var name   = (document.getElementById('rm-name').value || '').trim();
+  var rechte = Array.from(document.querySelectorAll('[data-recht]:checked')).map(function(cb){ return cb.dataset.recht; });
+  var url    = id ? 'rollen/' + id : 'rollen';
+  var r = id ? await apiPost(url, { name: name, rechte: rechte }) : await apiPost(url, { name: name, rechte: rechte });
+  if (r && r.ok) { closeModal(); notify('Gespeichert.', 'ok'); _ladeRollenManager(); }
+  else notify((r && r.fehler) || 'Fehler', 'err');
+}
+
+async function deleteRolle(id, name) {
+  if (!confirm('Rolle "' + name + '" wirklich löschen?')) return;
+  var r = await apiDel('rollen/' + id);
+  if (r && r.ok) { notify('Gelöscht.', 'ok'); _ladeRollenManager(); }
+  else notify((r && r.fehler) || 'Fehler', 'err');
 }
 
 function showNeuerBenutzerModal() {
@@ -9333,6 +9435,7 @@ function showNeuerAthletModal() {
       '<div class="form-group"><label>Nachname *</label><input type="text" id="na-nn"/></div>' +
       '<div class="form-group"><label>Vorname *</label><input type="text" id="na-vn"/></div>' +
       '<div class="form-group"><label>Geschlecht</label><select id="na-g"><option value="">&#x2013;</option><option value="M">M&auml;nnlich</option><option value="W">Weiblich</option></select></div>' +
+      '<div class="form-group"><label>Geburtsjahr</label><input type="number" id="na-gebj" min="1930" max="2020" placeholder="z.B. 1988" style="width:130px"/></div>' +
       '<div class="form-group full"><label>Gruppen <span style="font-size:11px;color:var(--text2)">(kommagetrennt)</span></label><input type="text" id="na-gr" placeholder="z.B. Senioren, Masters"/></div>' +
     '</div>' +
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button><button class="btn btn-primary" onclick="createAthlet()">Erstellen</button></div>'
@@ -9347,6 +9450,7 @@ async function createAthlet() {
   var r = await apiPost('athleten', {
     name_nv: name_nv, nachname: nn, vorname: vn,
     geschlecht: document.getElementById('na-g').value,
+    geburtsjahr: parseInt(document.getElementById('na-gebj').value) || null,
     gruppen:    document.getElementById('na-gr').value.split(',').map(function(s){return s.trim();}).filter(function(s){return s.length>0;}),
   });
   if (r && r.ok) { closeModal(); notify('Athlet erstellt.', 'ok'); await loadAthleten(); await renderAthleten(); }
@@ -9585,7 +9689,11 @@ async function renderAdminRegistrierungen() {
   var r = await apiGet('auth/registrierungen');
   if (!r || !r.ok) { el.innerHTML += '<div style="color:var(--accent)">Fehler beim Laden.</div>'; return; }
 
-  var regs = r.data || [];
+  // API gibt {registrierungen: [], zugeordnete_athleten: []} zurück
+  var _regData = Array.isArray(r.data) ? { registrierungen: r.data, zugeordnete_athleten: [] } : r.data;
+  var regs = _regData.registrierungen || r.data || [];
+  var _zugeordnet = _regData.zugeordnete_athleten || [];
+  window._zugeordneteAthleten = _zugeordnet; // für _regCard zugänglich
   var pending = regs.filter(function(x) { return x.status === 'pending'; });
   var other   = regs.filter(function(x) { return x.status !== 'pending'; });
 
@@ -9666,45 +9774,48 @@ async function saveEmailSettings() {
 }
 
 function _regCard(reg, showActions) {
+  var _bs = 'display:inline-flex;align-items:center;line-height:1;';
   var emailBadge = reg.email_verifiziert
-    ? '<span class="badge badge-email-ok">✓ E-Mail bestätigt</span>'
-    : '<span class="badge badge-email-no">✗ E-Mail ausstehend</span>';
+    ? '<span class="badge badge-email-ok" style="'+_bs+'">✓ E-Mail bestätigt</span>'
+    : '<span class="badge badge-email-no" style="'+_bs+'">✗ E-Mail ausstehend</span>';
   var fa2Badge = reg.totp_aktiv
-    ? '<span class="badge badge-email-ok">✓ Authenticator-App</span>'
+    ? '<span class="badge badge-email-ok" style="'+_bs+'">✓ Authenticator-App</span>'
     : (reg.email_login_bevorzugt == 1 || reg.email_login_bevorzugt === true || reg.email_login_bevorzugt === '1')
-      ? '<span class="badge" style="background:#e8f0fe;color:#1a56db;border:1px solid #b3c5f5">📧 E-Mail-Code</span>'
-      : '<span class="badge" style="background:var(--surf2);color:var(--text2)">2FA ausstehend</span>';
+      ? '<span class="badge" style="'+_bs+';background:#e8f0fe;color:#1a56db;border:1px solid #b3c5f5">📧 E-Mail-Code</span>'
+      : '<span class="badge" style="'+_bs+';background:var(--surf2);color:var(--text2)">2FA ausstehend</span>';
   var statusBadge = reg.status === 'approved'
-    ? '<span class="badge badge-aktiv">Freigegeben</span>'
+    ? '<span class="badge badge-aktiv" style="'+_bs+'">Freigegeben</span>'
     : reg.status === 'rejected'
-    ? '<span class="badge badge-inaktiv">Abgelehnt</span>'
-    : '<span class="badge badge-pending">Ausstehend</span>';
+    ? '<span class="badge badge-inaktiv" style="'+_bs+'">Abgelehnt</span>'
+    : '<span class="badge badge-pending" style="'+_bs+'">Ausstehend</span>';
 
   var actions = '';
   if (showActions) {
     var athOpts = '<option value="">– kein Athlet –</option>';
-    var athlList = (state._adminAthleten || []).slice().sort(function(a,b){return (a.name_nv||'').localeCompare(b.name_nv||'');});
+    var _assigned = (window._zugeordneteAthleten || []);
+    var athlList = (state._adminAthleten || []).slice()
+      .filter(function(a){ return _assigned.indexOf(a.id) < 0; })
+      .sort(function(a,b){return (a.name_nv||'').localeCompare(b.name_nv||'');});
     for (var i = 0; i < athlList.length; i++) {
       athOpts += '<option value="' + athlList[i].id + '">' + (athlList[i].name_nv || athlList[i].name || '?') + '</option>';
     }
-    // Alles in einer Zeile: Dropdown + Genehmigen + Ablehnen
-    actions =
-      '<div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">' +
-        '<select id="reg-athlet-' + reg.id + '" style="flex:1;min-width:160px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text)">' + athOpts + '</select>' +
-        '<button class="btn btn-primary btn-sm" onclick="regGenehmigen(' + reg.id + ')">✓ Genehmigen</button>' +
-        '<button class="btn btn-danger btn-sm" onclick="regAblehnen(' + reg.id + ')">✗ Ablehnen</button>' +
-      '</div>';
+    // athOpts wird inline in der Badge-Zeile verwendet
   }
 
   // Anzeigename: nur E-Mail (kein separater Benutzername mehr)
   return '<div class="reg-pending-card">' +
     '<div class="reg-pending-info">' +
       '<div class="reg-pending-name">' + reg.email + '</div>' +
-      '<div class="reg-pending-meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' +
+      '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px">' +
         emailBadge + fa2Badge + statusBadge +
-        '<span style="font-size:11px;color:var(--text2);align-self:center">Registriert: ' + (reg.erstellt_am ? reg.erstellt_am.slice(0,10) : '–') + '</span>' +
+        '<span style="font-size:11px;color:var(--text2);align-self:center;white-space:nowrap">Registriert: ' + (reg.erstellt_am ? reg.erstellt_am.slice(0,10) : '–') + '</span>' +
+        (showActions ?
+          '<div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">' +
+            '<select id="reg-athlet-' + reg.id + '" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:var(--surface);color:var(--text)">' + athOpts + '</select>' +
+            '<button class="btn btn-primary btn-sm" onclick="regGenehmigen(' + reg.id + ')">✓ Genehmigen</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="regAblehnen(' + reg.id + ')">✗ Ablehnen</button>' +
+          '</div>' : '') +
       '</div>' +
-      actions +
     '</div>' +
   '</div>';
 }
@@ -10336,13 +10447,9 @@ async function renderAdminDarstellung() {
       '<div class="panel-header"><div class="panel-title">&#x1F4CB; Footer &amp; Rechtliches</div></div>' +
       '<div class="settings-panel-body">' +
         '<div style="padding:12px 20px;background:var(--surf2);border-radius:8px;margin:8px 20px 16px;font-size:13px;color:var(--text2)">' +
-          'Die Texte für Datenschutz, Nutzungsbedingungen und Impressum sind bereits mit Standardtexten vorbelegt. ' +
-          'Klicke im Footer auf einen Link um ihn direkt zu bearbeiten (als Admin). ' +
-          'Alternativ kannst du externe URLs hinterlegen – diese haben Vorrang vor den eingebetteten Seiten.' +
+          'Die Texte f\u00fcr Datenschutz, Nutzungsbedingungen und Impressum k\u00f6nnen direkt im Footer bearbeitet werden (als Admin: auf den Link klicken). ' +
+          'Die Texte werden im Markdown-Format gespeichert.' +
         '</div>' +
-        row('Datenschutz: externe URL', 'Wenn gesetzt, öffnet sich diese URL statt der eingebetteten Seite', textIn('cfg-footer_datenschutz_url', cfgVal('footer_datenschutz_url',''), 'https://...')) +
-        row('Nutzungsbedingungen: externe URL', 'Wenn gesetzt, öffnet sich diese URL statt der eingebetteten Seite', textIn('cfg-footer_nutzung_url', cfgVal('footer_nutzung_url',''), 'https://...')) +
-        row('Impressum: externe URL', 'Wenn gesetzt, öffnet sich diese URL statt der eingebetteten Seite', textIn('cfg-footer_impressum_url', cfgVal('footer_impressum_url',''), 'https://...')) +
       '</div>' +
     '</div>' +
 
@@ -10779,6 +10886,40 @@ async function renderAdminDisziplinen() {
       '</div>' +
       katGruppenPanel +
     '</div>';
+
+  // Favorisierte Disziplinen nachladen + Panel rendern
+  var _allDisz = [];
+  if (rMap && rMap.ok) {
+    rMap.data.forEach(function(m) { if (m.disziplin && _allDisz.indexOf(m.disziplin) < 0) _allDisz.push(m.disziplin); });
+    _allDisz.sort();
+  }
+  var _favRaw  = (appConfig && appConfig.top_disziplinen) || '';
+  var _favList = _favRaw ? (JSON.parse(_favRaw) || []) : [];
+  var _favPanel = '<div class="panel" style="margin-top:16px">' +
+    '<div class="panel-header"><div class="panel-title">⭐ Favorisierte Disziplinen (Bestleistungen)</div></div>' +
+    '<div class="settings-panel-body">' +
+      '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">Diese Disziplinen erscheinen in "Bestleistungen" immer als erste Reiter – unabhängig von der Ergebnisanzahl. Mehrfachauswahl möglich.</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">' +
+      _allDisz.map(function(d) {
+        var sel = _favList.indexOf(d) >= 0;
+        return '<label style="display:inline-flex;align-items:center;gap:5px;background:var(--surf2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:13px;' + (sel ? 'outline:2px solid var(--accent);' : '') + '">' +
+          '<input type="checkbox" data-fav-disz="' + d + '" ' + (sel ? 'checked' : '') + ' style="width:14px;height:14px"> ' + d + '</label>';
+      }).join('') +
+      '</div>' +
+      '<button class="btn btn-primary btn-sm" onclick="saveFavDisziplinen()">&#x1F4BE; Favoriten speichern</button>' +
+    '</div>' +
+  '</div>';
+  el.innerHTML += _favPanel;
+}
+
+async function saveFavDisziplinen() {
+  var checked = Array.from(document.querySelectorAll('[data-fav-disz]:checked')).map(function(cb){ return cb.dataset.favDisz; });
+  var r = await apiPost('einstellungen', { top_disziplinen: JSON.stringify(checked) });
+  if (r && r.ok) {
+    if (appConfig) appConfig.top_disziplinen = JSON.stringify(checked);
+    state.topDisziplinen = {}; // Cache leeren
+    notify('Favoriten gespeichert.', 'ok');
+  } else notify('Fehler beim Speichern.', 'err');
 }
 
 async function setDiszMapping(sel) {
