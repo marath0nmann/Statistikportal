@@ -388,10 +388,21 @@ if ($res === 'auth') {
         if (preg_match('/[^A-Za-z0-9]/', $pw)) $groups++;
         if ($groups < 3) jsonErr('Passwort muss mindestens 3 von 4 Zeichengruppen enthalten (Groß-, Kleinbuchstaben, Zahlen, Sonderzeichen).');
 
-        // Prüfen ob E-Mail oder Nickname schon vergeben
-        if (DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE email = ?', [$email]) ||
-            DB::fetchOne('SELECT id FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status != ?', [$email, 'rejected']))
-            jsonErr('Diese E-Mail-Adresse ist bereits registriert oder in Bearbeitung.');
+        // Prüfen ob E-Mail schon als aktiver Benutzer vergeben
+        if (DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE email = ?', [$email]))
+            jsonErr('Diese E-Mail-Adresse ist bereits registriert.');
+        // Pending-Registrierung: nur blockieren wenn jünger als 48h UND noch nicht approved
+        $existingReg = DB::fetchOne(
+            'SELECT id, status, erstellt_am FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?',
+            [$email, 'pending']
+        );
+        if ($existingReg) {
+            $age = time() - strtotime($existingReg['erstellt_am']);
+            if ($age < 48 * 3600) {
+                jsonErr('Diese E-Mail-Adresse ist bereits in Bearbeitung. Bitte warte oder wende dich an einen Administrator.');
+            }
+            // Abgelaufener pending-Eintrag → wird unten gelöscht und neu angelegt
+        }
         if (DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE benutzername = ?', [$nickname]) ||
             DB::fetchOne('SELECT id FROM ' . DB::tbl('registrierungen') . ' WHERE name = ? AND status = ?', [$nickname, 'pending']))
             jsonErr('Dieser Nickname ist bereits vergeben. Bitte wähle einen anderen.');
@@ -400,8 +411,8 @@ if ($res === 'auth') {
         $codeHash  = password_hash($code, PASSWORD_BCRYPT, ['cost' => 10]);
         $pwHash    = password_hash($pw, PASSWORD_BCRYPT, ['cost' => 12]);
 
-        // Alte abgelehnte Einträge löschen
-        DB::query('DELETE FROM ' . DB::tbl('registrierungen') . ' WHERE email = ?', [$email]);
+        // Alte Einträge löschen (abgelehnte + abgelaufene pending)
+        DB::query('DELETE FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status != ?', [$email, 'approved']);
 
         DB::query(
             'INSERT INTO ' . DB::tbl('registrierungen') . ' (email, name, passwort_hash, email_code_hash, code_expires_at)
