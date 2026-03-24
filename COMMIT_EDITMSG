@@ -1,1 +1,1 @@
-v681: Fix: Registrierung nicht mehr durch alten pending-Eintrag blockiert (>48h)
+v682: Fix: pending-Einträge blockieren Neu-Registrierung nicht mehr
