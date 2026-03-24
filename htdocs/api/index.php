@@ -371,15 +371,11 @@ if ($res === 'auth') {
     // Schritt 1: Registrierung starten, E-Mail-Bestätigungscode senden
     if ($method === 'POST' && $id === 'register-start') {
         $email    = strtolower(trim($body['email']    ?? ''));
-        $nickname = trim($body['name'] ?? '');
         $pw       = $body['passwort'] ?? '';
 
         $emailDomainSetting = Settings::get('email_domain','');
         if ($emailDomainSetting && !preg_match('/@' . preg_quote($emailDomainSetting, '/') . '$/', $email))
             jsonErr('Nur @' . $emailDomainSetting . ' E-Mail-Adressen sind zugelassen.');
-        if (strlen($nickname) < 2)  jsonErr('Nickname muss mindestens 2 Zeichen haben.');
-        if (!preg_match('/^[\w\-. äöüÄÖÜß]{2,40}$/u', $nickname))
-            jsonErr('Nickname enthält ungültige Zeichen (max. 40 Zeichen).');
         if (strlen($pw) < 12) jsonErr('Passwort muss mindestens 12 Zeichen haben.');
         $groups = 0;
         if (preg_match('/[A-Z]/', $pw)) $groups++;
@@ -395,9 +391,6 @@ if ($res === 'auth') {
         if (DB::fetchOne('SELECT id FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?', [$email, 'approved']))
             jsonErr('Diese E-Mail-Adresse wartet bereits auf Admin-Freigabe.');
         // pending und rejected: werden unten gelöscht und neu angelegt
-        if (DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE benutzername = ?', [$nickname]) ||
-            DB::fetchOne('SELECT id FROM ' . DB::tbl('registrierungen') . ' WHERE name = ? AND status = ?', [$nickname, 'approved']))
-            jsonErr('Dieser Nickname ist bereits vergeben. Bitte wähle einen anderen.');
 
         $code      = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $codeHash  = password_hash($code, PASSWORD_BCRYPT, ['cost' => 10]);
@@ -406,10 +399,12 @@ if ($res === 'auth') {
         // Alte Einträge löschen (abgelehnte + abgelaufene pending)
         DB::query('DELETE FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status != ?', [$email, 'approved']);
 
+        // name = Lokalpart der E-Mail als Anzeigename-Vorschlag
+        $nameVorschlag = explode('@', $email)[0];
         DB::query(
             'INSERT INTO ' . DB::tbl('registrierungen') . ' (email, name, passwort_hash, email_code_hash, code_expires_at)
              VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 30 MINUTE))',
-            [$email, $nickname, $pwHash, $codeHash]
+            [$email, $nameVorschlag, $pwHash, $codeHash]
         );
 
         // E-Mail senden
@@ -537,12 +532,8 @@ if ($res === 'auth') {
         if ($reg['status'] !== 'pending') jsonErr('Bereits bearbeitet.');
 
         // Benutzerkonto anlegen
-        $bname = explode('@', $reg['email'])[0]; // Vorschlag: lokaler Teil der E-Mail
-        // Eindeutigen Benutzernamen sicherstellen
-        $base = $bname; $suffix = 0;
-        while (DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE benutzername = ?', [$bname])) {
-            $bname = $base . (++$suffix);
-        }
+        // benutzername = E-Mail (primäre Kennung, kein separater Nickname mehr)
+        $bname = $reg['email'];
         // email_login_bevorzugt: kein TOTP wenn User E-Mail-Code gewählt hat
         $useEmailLogin = !empty($reg['email_login_bevorzugt']);
         DB::query(
@@ -935,11 +926,11 @@ if ($res === 'benutzer') {
         jsonOk(['benutzer' => $rows, 'athleten' => $athleten]);
     }
     if ($method === 'POST') {
-        $bname = sanitize($body['benutzername'] ?? '');
-        $email = sanitize($body['email'] ?? '');
+        $email = strtolower(trim($body['email'] ?? ''));
+        $bname = sanitize($body['benutzername'] ?? '') ?: $email;
         $pw    = $body['passwort'] ?? '';
-        $rolle = in_array($body['rolle'] ?? '', ['admin','editor','leser']) ? $body['rolle'] : 'leser';
-        if (!$bname || !$email || strlen($pw) < 8)
+        $rolle = in_array($body['rolle'] ?? '', ['admin','editor','athlet','leser']) ? $body['rolle'] : 'leser';
+        if (!$email || strlen($pw) < 8)
             jsonErr('Benutzername, E-Mail und Passwort (min. 8 Zeichen) erforderlich.');
         try {
             DB::query('INSERT INTO ' . DB::tbl('benutzer') . ' (benutzername,email,passwort,rolle) VALUES (?,?,?,?)',

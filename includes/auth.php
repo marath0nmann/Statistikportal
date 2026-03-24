@@ -243,11 +243,18 @@ class Auth {
     public static function finalizeLoginPublic(array $user): array { return self::finalizeLogin($user); }
     public static function finalizeLogin(array $user): array {
         DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_login = NOW() WHERE id = ?', [$user['id']]);
+        // Vorname aus verknüpftem Athletenprofil laden
+        $vorname = '';
+        if (!empty($user['athlet_id'])) {
+            $ath = \DB::fetchOne('SELECT vorname FROM ' . \DB::tbl('athleten') . ' WHERE id = ?', [$user['athlet_id']]);
+            if ($ath) $vorname = $ath['vorname'] ?? '';
+        }
         $_SESSION['user_id']    = $user['id'];
         $_SESSION['user_name']  = $user['benutzername'];
         $_SESSION['user_rolle'] = $user['rolle'];
         session_regenerate_id(true);
-        return ['ok' => true, 'totp_required' => false, 'rolle' => $user['rolle'], 'name' => $user['benutzername']];
+        return ['ok' => true, 'totp_required' => false, 'rolle' => $user['rolle'],
+                'name' => $user['benutzername'], 'email' => $user['email'], 'vorname' => $vorname];
     }
 
     // ============================================================

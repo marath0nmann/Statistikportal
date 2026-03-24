@@ -1,3 +1,20 @@
+## v684 – Benutzername abgeschafft + Registrierung Fixes
+
+**Benutzername abgeschafft:**
+- Registrierungsformular: Nickname-Feld entfernt
+- Login: nur noch E-Mail-Adresse als Kennung
+- Anzeige: Vorname aus Athletenprofil wenn vorhanden, sonst E-Mail
+- `finalizeLogin` gibt jetzt `email` und `vorname` zurück
+- Admin: Benutzer anlegen ohne Pflicht-Benutzername (Fallback: E-Mail)
+- Bei Admin-Genehmigung: `benutzername = email` (statt Lokalpart)
+
+**Registrierungs-Fixes:**
+- Athlet-Dropdown: `name_nv` statt `name` (war `undefined`)
+- `_adminAthleten` wird in `renderAdminRegistrierungen` geladen falls noch nicht vorhanden
+- 2FA-Badge: erkennt jetzt `email_login_bevorzugt` → zeigt „📧 E-Mail-Code" statt „2FA ausstehend"
+
+---
+
 ## v683 – Fix: Nickname-Check ignoriert pending-Einträge
 
 - Gleiche Ursache wie v682: alter pending-Eintrag blockierte Nickname
