@@ -78,8 +78,8 @@ if ($action === 'install') {
         'app_untertitel' => trim($body['app_untertitel'] ?? 'Leichtathletik-Statistik'),
         'farbe_primary'  => trim($body['farbe_primary']  ?? '#cc0000'),
         'farbe_accent'   => trim($body['farbe_accent']   ?? '#003087'),
-        'email_domain'   => trim($body['email_domain']   ?? 'vy99.de'),
-        'noreply_email'  => trim($body['noreply_email']  ?? 'noreply@vy99.de'),
+        'email_domain'   => trim($body['email_domain']   ?? ''),
+        'noreply_email'  => trim($body['noreply_email']  ?? ''),
     ];
 
     if (!$name || !$user)   err('Datenbankname und Benutzer sind erforderlich.');

@@ -1,7 +1,126 @@
+## v678 – Fix: vy99.de-Hardcoding entfernt + Domain-Check konditionalisiert
+
+- `vy99.de` war als Fallback-Default in settings.php, app.js, api/index.php und setup.php hinterlegt
+- Alle Fallbacks auf leeren String geändert
+- Domain-Prüfung beim Registrieren (PHP + JS) läuft jetzt **nur noch wenn email_domain gesetzt ist**
+- Registrierungsformular zeigt ohne Domain-Einschränkung „📧 Bitte eine gültige E-Mail-Adresse eingeben"
+
+---
+
 # Changelog – TuS Oedt Leichtathletik Statistik
 
 Alle wesentlichen Änderungen werden hier dokumentiert.  
 Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderungen.
+
+---
+
+## v677 – Admin-Badges: Registrierungen + einheitlich Rot
+
+- Badge-Zähler für Tab „📝 Registrierungen" (ausstehende Anträge)
+- Alle drei Admin-Badges (Registrierungen, Anträge, Papierkorb) einheitlich in Rot (`var(--accent)`)
+- Hilfsfunktion `_adminBadge(n)` für einheitliches Badge-Rendering
+
+---
+
+## v676 – Admin-Badge: Papierkorb-Zähler
+
+- Papierkorb-Tab zeigt Anzahl der Einträge als Badge
+- Zählt Ergebnisse + Athleten + Veranstaltungen zusammen
+
+---
+
+## v675 – Rollensystem: Athlet + Genehmigungsqueue
+
+- Neue Rolle `athlet`: eigene Ergebnisse eintragen; Änderungen/Löschungen als Antrag
+- Auto-Upgrade: `leser` → `athlet` wenn Athletenprofil zugewiesen wird (und zurück)
+- Neue DB-Tabelle `ergebnis_aenderungen` (Genehmigungssystem)
+- Admin-Tab „✋ Anträge" mit Badge-Zähler: offene Anträge genehmigen/ablehnen
+- `leser` zurück auf Nur-Ansicht-Rolle
+- ENUM `rolle` um `athlet` erweitert (Migration automatisch)
+
+---
+
+## v674 – Rollensystem: leser/editor/athlet (v673-Korrekturen)
+
+- `leser`: Nur Ansicht (wie ursprünglich)
+- `editor`: alle Ergebnisse sofort bearbeiten/löschen
+- Rollenbeschreibungen und Dropdowns aktualisiert
+- `badge-athlet` CSS (grün)
+
+---
+
+## v673 – Rollensystem-Anpassung (teilweise, revidiert in v674)
+
+- Rollenbeschreibungen im Admin-UI aktualisiert
+
+---
+
+## v672 – Favicon aus Vereinslogo generieren
+
+- Logo-Upload erzeugt automatisch `favicon.ico` (16×16 + 32×32 + 48×48, PNG-in-ICO)
+- `generateIco()` PHP-Funktion (pure GD, kein Imagick)
+- Beim Logo-Löschen wird `favicon.ico` ebenfalls entfernt
+- `<link rel="icon">` und `<link rel="apple-touch-icon">` in `index.html`
+
+---
+
+## v671 – Fix: Prefs vor renderPage() abwarten (Race Condition)
+
+- `apiGet('auth/prefs')` wurde async gestartet, `renderPage()` lief sofort durch
+- Fix: `await apiGet('auth/prefs')` vor `renderPage()`
+
+---
+
+## v670 – Fix: rekState beim Logout zurücksetzen
+
+- rekState-Filter beim Logout auf `undefined` → nächster Login lädt Prefs neu
+- Login: Prefs immer in rekState schreiben (nicht nur wenn `undefined`)
+
+---
+
+## v669 – Bestleistungen-Filter pro Benutzer speichern
+
+- Neue DB-Spalte `benutzer.prefs` (JSON, Auto-Migration)
+- `GET/PUT auth/prefs` Endpoints
+- Filter (mergeAK, unique, hlCur, hlPrev) werden beim Login geladen und bei Änderung gespeichert
+- Nicht eingeloggte User: Hard-coded Defaults
+
+---
+
+## v668 – Fix: E-Mail-Einstellungen speichern
+
+- POST-Format war falsch (`key/value` statt direkte Keys)
+- Ein einziger POST mit `{email_domain, noreply_email}`
+
+---
+
+## v667 – Fix: Registrierungen-Tab Reihenfolge
+
+- Subtab-Navigation war unterhalb des E-Mail-Panels
+- Fix: adminSubtabs() → E-Mail-Panel → Registrierungsliste
+
+---
+
+## v666 – Fix: Papierkorb-Funktionen wiederhergestellt
+
+- `renderPapierkorb` + `pkLeeren/pkDelete/pkRestore/pkLeerenBestaetigt` nach Refactoring-Fehler wiederhergestellt
+- `renderAdminRegistrierungen` als korrekte Top-Level-Funktion
+
+---
+
+## v665 – Fix: emailSettingsHtml Scope-Bug
+
+- Variable war in falscher Funktion definiert → ReferenceError
+- Korrekt in `renderAdminRegistrierungen` verschoben
+
+---
+
+## v664 – Admin: E-Mail-Einstellungen in Registrierungen-Tab
+
+- Panel aus „Darstellung" entfernt, jetzt oben im „Registrierungen"-Tab
+- Zugelassene E-Mail-Domain: Checkbox-Toggle (deaktiviert = kein Domain-Filter)
+
+---
 
 ---
 

@@ -1,1 +1,1 @@
-v671: Fix: Prefs vor renderPage() abwarten (Race Condition)
+v678: Fix: vy99.de-Fallbacks entfernt + Domain-Check konditionalisiert
