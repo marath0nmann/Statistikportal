@@ -1,1 +1,1 @@
-v679: Fix: regEmailCheck ohne Domain-Filter zeigt kein Fehler mehr
+v680: Feature: Registrierung ohne TOTP – E-Mail-Code als 2FA-Alternative

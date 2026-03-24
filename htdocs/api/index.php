@@ -115,6 +115,8 @@ try {
 
 // Auto-Migration: avatar_pfad Spalte
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS avatar_pfad VARCHAR(120) NULL COMMENT 'Relativer Pfad zum Avatar-Bild'"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('registrierungen') . " ADD COLUMN IF NOT EXISTS email_login_bevorzugt TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS email_login_bevorzugt TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
 // Migration: athlet-Rolle + Genehmigungssystem
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " MODIFY COLUMN rolle ENUM('admin','editor','athlet','leser') NOT NULL DEFAULT 'leser'"); } catch (\Exception $e) {}
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('ergebnis_aenderungen') . " (
@@ -495,6 +497,23 @@ if ($res === 'auth') {
         jsonOk('Registrierung abgeschlossen. Warte auf Admin-Freigabe.');
     }
 
+    // Schritt 3 Alternative: E-Mail-Code statt TOTP wählen
+    if ($method === 'POST' && $id === 'register-email-2fa') {
+        $email = strtolower(trim($body['email'] ?? ''));
+        $reg   = DB::fetchOne('SELECT * FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND email_verifiziert = 1 AND status = ?', [$email, 'pending']);
+        if (!$reg) jsonErr('E-Mail nicht bestätigt oder Registrierung nicht gefunden.');
+        // Kein TOTP — E-Mail-Login bevorzugt
+        DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET totp_aktiv = 0, email_login_bevorzugt = 1 WHERE email = ?', [$email]);
+        // Admin-Benachrichtigung
+        $admins = DB::fetchAll("SELECT email FROM " . DB::tbl('benutzer') . " WHERE rolle = 'admin' AND aktiv = 1");
+        foreach ($admins as $admin) {
+            $msg = "Neue Registrierungsanfrage (E-Mail-Login):\n\nName: " . $reg['name'] . "\nE-Mail: " . $reg['email'] . "\n\nBitte in der Admin-Oberfläche freigeben.";
+            @mail($admin['email'], Settings::get('verein_name','') . ' – Neue Registrierung: ' . $reg['name'], $msg,
+                  "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+        }
+        jsonOk('Registrierung abgeschlossen. Warte auf Admin-Freigabe.');
+    }
+
     // Admin: alle Registrierungen abrufen
     if ($method === 'GET' && $id === 'registrierungen') {
         Auth::requireAdmin();
@@ -521,11 +540,16 @@ if ($res === 'auth') {
         while (DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE benutzername = ?', [$bname])) {
             $bname = $base . (++$suffix);
         }
+        // email_login_bevorzugt: kein TOTP wenn User E-Mail-Code gewählt hat
+        $useEmailLogin = !empty($reg['email_login_bevorzugt']);
         DB::query(
-            'INSERT INTO ' . DB::tbl('benutzer') . ' (benutzername, email, passwort, rolle, aktiv, totp_secret, totp_aktiv, totp_backup, athlet_id)
-             VALUES (?, ?, ?, ?, 1, ?, 1, ?, ?)',
+            'INSERT INTO ' . DB::tbl('benutzer') . ' (benutzername, email, passwort, rolle, aktiv, totp_secret, totp_aktiv, totp_backup, athlet_id, email_login_bevorzugt)
+             VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?)',
             [$bname, $reg['email'], $reg['passwort_hash'], 'leser',
-             $reg['totp_secret'], '[]', $athletId]
+             $useEmailLogin ? null : $reg['totp_secret'],
+             $useEmailLogin ? 0 : 1,
+             $useEmailLogin ? '[]' : '[]',
+             $athletId, $useEmailLogin ? 1 : 0]
         );
         DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE id = ?', ['approved', $regId]);
 

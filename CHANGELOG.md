@@ -1,3 +1,13 @@
+## v680 – Feature: E-Mail-Code als 2FA-Alternative bei Registrierung
+
+- Schritt 3 (TOTP-Setup): neuer Button "📧 Stattdessen immer einen Code per E-Mail erhalten"
+- Wahl gespeichert in `registrierungen.email_login_bevorzugt` + `benutzer.email_login_bevorzugt`
+- Kein TOTP-Geheimnis wird gespeichert; totp_aktiv = 0
+- Beim Login: wenn email_login_bevorzugt → Schritt 3 mit E-Mail-Tab, Code wird sofort gesendet
+- Migration: neue Spalte in registrierungen + benutzer (automatisch)
+
+---
+
 ## v679 – Fix: Registrierung ohne Domain-Filter
 
 - regEmailCheck zeigte "✗ Nur @-Adressen sind zugelassen" wenn kein Domain-Filter aktiv
