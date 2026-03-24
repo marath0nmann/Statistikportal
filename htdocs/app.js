@@ -1739,8 +1739,17 @@ async function disableTotp() {
   }
 }
 
+
+function _handleSaveResult(r, successMsg) {
+  if (r && r.ok && r.data && r.data.pending) {
+    notify('⏳ ' + (r.data.msg || 'Antrag gestellt – wartet auf Genehmigung.'), 'ok');
+    return true;
+  }
+  if (r && r.ok) { notify(successMsg || 'Gespeichert.', 'ok'); return true; }
+  return false;
+}
 function rolleLabel(r) {
-  var m = { admin: 'Administrator', editor: 'Editor', leser: 'Leser' };
+  var m = { admin: 'Administrator', editor: 'Editor', athlet: 'Athlet*in', leser: 'Leser*in' };
   return m[r] || r;
 }
 
@@ -1785,7 +1794,7 @@ function buildNav() {
     _renderNavTabs(visibleTabs);
     return;
   }
-  if (currentUser.rolle === 'editor' || currentUser.rolle === 'admin')
+  if (currentUser.rolle === 'editor' || currentUser.rolle === 'admin' || currentUser.rolle === 'athlet')
     tabs.push({ id: 'eintragen', icon: '➕︎', label: 'Eintragen' });
   if (currentUser.rolle === 'admin')
     tabs.push({ id: 'admin', icon: '⚙️︎', label: 'Admin' });
@@ -2037,7 +2046,7 @@ function restoreFromHash() {
 
   if (tab === 'admin' && sub) {
     var validAdmin = ['benutzer','registrierungen','disziplinen','altersklassen',
-                      'meisterschaften','darstellung','dashboard_cfg','papierkorb'];
+                      'meisterschaften','darstellung','dashboard_cfg','antraege','papierkorb'];
     if (validAdmin.indexOf(sub) >= 0) state.adminTab = sub;
   } else if (tab === 'ergebnisse' && sub) {
     state.subTab = sub;
@@ -2716,7 +2725,7 @@ async function loadErgebnisseData() {
     katOptHtml += '<option value="' + kategorien[ki].tbl_key + '"' + (state.filters.kategorie === kategorien[ki].tbl_key ? ' selected' : '') + '>' + kategorien[ki].name + '</option>';
   }
 
-  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
+  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor' || currentUser.rolle === 'athlet');
   var totalPages = Math.ceil(total / state.limit);
   var tableHtml = buildErgebnisseTable(state.subTab, rows, canEdit);
 
@@ -3211,7 +3220,7 @@ function _athSortRows(athleten, jetzt) {
 function _renderAthletenTable() {
   var aktGruppe = state.filters.gruppe || '';
   var alleAthleten = _athLetenCache.alleAthleten || [];
-  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
+  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor' || currentUser.rolle === 'athlet');
   var isAdmin = currentUser && currentUser.rolle === 'admin';
   var jetzt = new Date().getFullYear();
 
@@ -3466,7 +3475,7 @@ async function openAthletById(id) {
   _apState.tab = 'ergebnisse';
   _apState.athletId = id;
 
-  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
+  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor' || currentUser.rolle === 'athlet');
 
   var gruppen = athlet.gruppen || [];
   var gruppenTags = '';
@@ -3546,7 +3555,7 @@ async function _apRenderPb() {
   var r = await apiGet('athleten/' + _apState.athletId + '/pb');
   if (!r || !r.ok) { panel.innerHTML = '<div style="color:var(--accent)">Fehler beim Laden.</div>'; return; }
   var pbs = r.data || [];
-  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
+  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor' || currentUser.rolle === 'athlet');
 
   var rows = '';
   for (var i = 0; i < pbs.length; i++) {
@@ -9011,6 +9020,127 @@ function rrukConfirm() {
   if (window._rrukResolve) { window._rrukResolve(resolved); window._rrukResolve = null; }
 }
 /* ── 08_admin.js ── */
+
+async function renderAdminAntraege() {
+  var el = document.getElementById('main-content');
+  el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
+
+  var r = await apiGet('ergebnis-aenderungen?status=pending');
+  if (!r || !r.ok) { el.innerHTML = adminSubtabs() + '<div style="color:var(--accent);padding:20px">Fehler beim Laden.</div>'; return; }
+
+  var pending = r.data || [];
+
+  // Auch bereits bearbeitete laden
+  var rDone = await apiGet('ergebnis-aenderungen?status=approved');
+  var rRej  = await apiGet('ergebnis-aenderungen?status=rejected');
+  var done  = ((rDone&&rDone.ok?rDone.data:[])||[]).concat((rRej&&rRej.ok?rRej.data:[])||[])
+                .sort(function(a,b){ return b.id - a.id; }).slice(0, 20);
+
+  var html = adminSubtabs();
+
+  // Pending
+  html += '<div class="panel" style="margin-bottom:20px">' +
+    '<div class="panel-header">' +
+      '<div class="panel-title">✋ Offene Antr&auml;ge (' + pending.length + ')</div>' +
+    '</div>';
+
+  if (!pending.length) {
+    html += '<div style="padding:32px;text-align:center;color:var(--text2)"><div style="font-size:32px;margin-bottom:8px">✅</div>Keine offenen Antr&auml;ge</div>';
+  } else {
+    html += '<div style="padding:16px;display:flex;flex-direction:column;gap:12px">';
+    for (var i = 0; i < pending.length; i++) {
+      var a = pending[i];
+      var typBadge = a.typ === 'delete'
+        ? '<span class="badge badge-inaktiv">🗑️ L&ouml;schen</span>'
+        : a.typ === 'update'
+          ? '<span class="badge badge-editor">✏️ &Auml;ndern</span>'
+          : '<span class="badge badge-aktiv">➕ Eintragen</span>';
+
+      var werte = '';
+      if (a.neue_werte) {
+        try {
+          var v = typeof a.neue_werte === 'string' ? JSON.parse(a.neue_werte) : a.neue_werte;
+          var vArr = [];
+          if (v.resultat)     vArr.push('<strong>Ergebnis:</strong> ' + v.resultat);
+          if (v.altersklasse) vArr.push('<strong>AK:</strong> ' + v.altersklasse);
+          if (v.disziplin)    vArr.push('<strong>Disziplin:</strong> ' + v.disziplin);
+          if (vArr.length) werte = '<div style="font-size:12px;color:var(--text2);margin-top:4px">' + vArr.join(' &middot; ') + '</div>';
+        } catch(e) {}
+      }
+
+      html +=
+        '<div style="border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--surface)">' +
+          '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+            typBadge +
+            '<span style="font-weight:600">' + (a.beantragt_von_name || 'Unbekannt') + '</span>' +
+            '<span style="font-size:12px;color:var(--text2)">' + (a.beantragt_am ? a.beantragt_am.slice(0,16).replace('T',' ') : '') + '</span>' +
+            '<span style="font-size:12px;color:var(--text2)">Ergebnis-ID: ' + (a.ergebnis_id || '–') + '</span>' +
+          '</div>' +
+          werte +
+          '<div style="display:flex;gap:8px;margin-top:12px">' +
+            '<input type="text" id="antrag-kommentar-' + a.id + '" placeholder="Kommentar (optional)" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px">' +
+            '<button class="btn btn-primary btn-sm" onclick="bearbeiteAntrag(' + a.id + ',\'approve\')">✓ Genehmigen</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="bearbeiteAntrag(' + a.id + ',\'reject\')">✗ Ablehnen</button>' +
+          '</div>' +
+        '</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Zuletzt bearbeitete
+  if (done.length) {
+    html += '<div class="panel">' +
+      '<div class="panel-header"><div class="panel-title">📋 Zuletzt bearbeitet</div></div>' +
+      '<div style="overflow-x:auto"><table class="data-table" style="width:100%">' +
+        '<thead><tr><th>Typ</th><th>Antragsteller</th><th>Datum</th><th>Status</th><th>Kommentar</th></tr></thead>' +
+        '<tbody>';
+    for (var j = 0; j < done.length; j++) {
+      var d = done[j];
+      var statusBadge = d.status === 'approved'
+        ? '<span class="badge badge-aktiv">Genehmigt</span>'
+        : '<span class="badge badge-inaktiv">Abgelehnt</span>';
+      var typLabel = d.typ === 'delete' ? '🗑️ Löschen' : d.typ === 'update' ? '✏️ Ändern' : '➕ Eintragen';
+      html += '<tr>' +
+        '<td>' + typLabel + '</td>' +
+        '<td>' + (d.beantragt_von_name || '–') + '</td>' +
+        '<td style="color:var(--text2);font-size:12px">' + (d.beantragt_am ? d.beantragt_am.slice(0,16).replace('T',' ') : '–') + '</td>' +
+        '<td>' + statusBadge + '</td>' +
+        '<td style="color:var(--text2);font-size:12px">' + (d.kommentar || '–') + '</td>' +
+      '</tr>';
+    }
+    html += '</tbody></table></div></div>';
+  }
+
+  el.innerHTML = html;
+}
+
+async function bearbeiteAntrag(id, action) {
+  var kommentar = (document.getElementById('antrag-kommentar-' + id)||{}).value || '';
+  var r = await apiPost('ergebnis-aenderungen/' + id, { action: action, kommentar: kommentar });
+  if (r && r.ok) {
+    notify(action === 'approve' ? '✅ Genehmigt.' : '❌ Abgelehnt.', action === 'approve' ? 'ok' : 'err');
+    await renderAdminAntraege();
+  } else {
+    notify('Fehler: ' + ((r&&r.fehler)||'Unbekannt'), 'err');
+  }
+}
+
+
+// Anträge-Zähler für Subtab-Badge aktualisieren
+async function _ladeAntraegeBadge() {
+  if (!currentUser || currentUser.rolle === 'leser' || currentUser.rolle === 'athlet') return;
+  try {
+    var r = await apiGet('ergebnis-aenderungen?status=pending');
+    var n = r && r.ok ? (r.data||[]).length : 0;
+    var btn = document.querySelector('.subtab[onclick*=\'antraege\']');
+    if (btn) {
+      btn.innerHTML = n > 0
+        ? '✋ Anträge <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px">' + n + '</span>'
+        : '✋ Anträge';
+    }
+  } catch(e) {}
+}
 function adminSubtabs() {
   var t = state.adminTab || 'benutzer';
   return '<div class="subtabs" style="margin-bottom:20px">' +
@@ -9021,15 +9151,18 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='meisterschaften' ? ' active' : '') + '" onclick="navAdmin(\'meisterschaften\')">🏅 Meisterschaften</button>' +
     '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">🎨 Darstellung</button>' +
     '<button class="subtab' + (t==='dashboard_cfg'   ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">📊︎ Dashboard</button>' +
+    '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">✋ Antr\u00e4ge</button>' +
     '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb</button>' +
   '</div>';
 }
 
 async function renderAdmin() {
   if (!state.adminTab) state.adminTab = 'benutzer';
+  _ladeAntraegeBadge();
   if (state.adminTab === 'disziplinen')    { await renderAdminDisziplinen(); return; }
   if (state.adminTab === 'altersklassen')  { await renderAdminAltersklassen(); return; }
   if (state.adminTab === 'meisterschaften'){ await renderAdminMeisterschaften(); return; }
+  if (state.adminTab === 'antraege')        { await renderAdminAntraege(); return; }
   if (state.adminTab === 'papierkorb')     { await renderPapierkorb(); return; }
   if (state.adminTab === 'darstellung')    { renderAdminDarstellung(); return; }
   if (state.adminTab === 'dashboard_cfg')  { await renderAdminDashboard(); return; }
@@ -9076,8 +9209,9 @@ async function renderAdmin() {
       '<div class="panel" style="padding:20px">' +
         '<div class="panel-title" style="margin-bottom:16px">&#x2139;&#xFE0F; Rollen-&Uuml;bersicht</div>' +
         '<table style="width:100%"><thead><tr><th>Rolle</th><th>Rechte</th></tr></thead><tbody>' +
-          '<tr><td><span class="badge badge-admin">admin</span></td><td>Vollzugriff, Benutzer verwalten, Rekorde bearbeiten</td></tr>' +
-          '<tr><td><span class="badge badge-editor">editor</span></td><td>Ergebnisse eintragen und l&ouml;schen (nur eigene)</td></tr>' +
+          '<tr><td><span class="badge badge-admin">admin</span></td><td>Vollzugriff, Benutzer verwalten, Rekorde bearbeiten, Einstellungen ändern</td></tr>' +
+          '<tr><td><span class="badge badge-editor">editor</span></td><td>Ergebnisse eintragen und l&ouml;schen (alle)</td></tr>' +
+          '<tr><td><span class="badge badge-athlet">athlet</span></td><td>Eigene Ergebnisse eintragen; Änderungen/Löschungen mit Genehmigung</td></tr>' +
           '<tr><td><span class="badge badge-leser">leser</span></td><td>Nur Ansicht, keine Bearbeitung</td></tr>' +
         '</tbody></table>' +
         '<div style="margin-top:24px"><div class="panel-title" style="margin-bottom:12px">&#x1F4CA; Datenbankinfo</div>' +
@@ -9094,7 +9228,7 @@ function showNeuerBenutzerModal() {
       '<div class="form-group"><label>Benutzername *</label><input type="text" id="nb-user" placeholder="max.mustermann"/></div>' +
       '<div class="form-group"><label>E-Mail *</label><input type="email" id="nb-email" placeholder="max@example.com"/></div>' +
       '<div class="form-group"><label>Passwort * (min. 8 Zeichen)</label><input type="password" id="nb-pw"/></div>' +
-      '<div class="form-group"><label>Rolle</label><select id="nb-rolle"><option value="leser">Leser</option><option value="editor">Editor</option><option value="admin">Admin</option></select></div>' +
+      '<div class="form-group"><label>Rolle</label><select id="nb-rolle"><option value="leser">Leser</option><option value="athlet">Athlet</option><option value="editor">Editor</option><option value="admin">Admin</option></select></div>' +
     '</div>' +
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button><button class="btn btn-primary" onclick="createBenutzer()">Erstellen</button></div>'
   );
@@ -9125,7 +9259,7 @@ function showBenutzerEditModal(id) {
     '<div style="color:var(--text2);margin-bottom:16px">' + b.benutzername + ' &middot; ' + b.email + '</div>' +
     '<div class="form-grid">' +
       '<div class="form-group"><label>E-Mail</label><input type="email" id="eb-email" value="' + b.email + '"/></div>' +
-      '<div class="form-group"><label>Rolle</label><select id="eb-rolle"><option value="leser"' + (b.rolle==='leser'?' selected':'') + '>Leser</option><option value="editor"' + (b.rolle==='editor'?' selected':'') + '>Editor</option><option value="admin"' + (b.rolle==='admin'?' selected':'') + '>Admin</option></select></div>' +
+      '<div class="form-group"><label>Rolle</label><select id="eb-rolle"><option value="leser"' + (b.rolle==='leser'?' selected':'') + '>Leser</option><option value="athlet"' + (b.rolle==='athlet'?' selected':'') + '>Athlet</option><option value="editor"' + (b.rolle==='editor'?' selected':'') + '>Editor</option><option value="admin"' + (b.rolle==='admin'?' selected':'') + '>Admin</option></select></div>' +
       '<div class="form-group"><label>Status</label><select id="eb-aktiv"><option value="1"' + (b.aktiv?' selected':'') + '>Aktiv</option><option value="0"' + (!b.aktiv?' selected':'') + '>Inaktiv</option></select></div>' +
       '<div class="form-group"><label>Neues Passwort (leer = unver&auml;ndert)</label><input type="password" id="eb-pw"/></div>' +
       '<div class="form-group full"><label>&#x1F3C3; Verkn&uuml;pftes Athletenprofil</label>' +
