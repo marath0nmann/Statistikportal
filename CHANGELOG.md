@@ -1,3 +1,11 @@
+## v685 – Fix Admin Registrierungen-Karte
+
+- **2FA-Badge**: `email_login_bevorzugt` fehlte im API-SELECT → jetzt korrekt „📧 E-Mail-Code"
+- **Benutzername entfernt**: Karte zeigt nur noch E-Mail-Adresse (kein separater Name)
+- **Layout**: Athlet-Dropdown + Genehmigen + Ablehnen in einer Zeile
+
+---
+
 ## v684 – Benutzername abgeschafft + Registrierung Fixes
 
 **Benutzername abgeschafft:**

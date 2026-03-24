@@ -516,7 +516,7 @@ if ($res === 'auth') {
     if ($method === 'GET' && $id === 'registrierungen') {
         Auth::requireAdmin();
         $rows = DB::fetchAll(
-            'SELECT id, email, name, status, email_verifiziert, totp_aktiv, erstellt_am
+            'SELECT id, email, name, status, email_verifiziert, totp_aktiv, email_login_bevorzugt, erstellt_am
              FROM ' . DB::tbl('registrierungen') . ' ORDER BY erstellt_am DESC'
         );
         jsonOk($rows);
