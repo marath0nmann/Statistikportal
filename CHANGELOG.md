@@ -1,3 +1,11 @@
+## v682 – Fix: pending-Eintrag blockiert Registrierung nicht mehr
+
+- pending-Einträge (abgebrochene Versuche) blockieren jetzt keine Neu-Registrierung mehr
+- Nur aktive Benutzer (benutzer-Tabelle) und approved-Einträge blockieren
+- pending + rejected werden beim nächsten Versuch gelöscht und neu angelegt
+
+---
+
 ## v681 – Fix: Registrierung durch alten pending-Eintrag blockiert
 
 - Problem: abgebrochene Registrierung hinterließ pending-Eintrag → neue Registrierung dauerhaft blockiert

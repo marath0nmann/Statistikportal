@@ -391,18 +391,10 @@ if ($res === 'auth') {
         // Prüfen ob E-Mail schon als aktiver Benutzer vergeben
         if (DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE email = ?', [$email]))
             jsonErr('Diese E-Mail-Adresse ist bereits registriert.');
-        // Pending-Registrierung: nur blockieren wenn jünger als 48h UND noch nicht approved
-        $existingReg = DB::fetchOne(
-            'SELECT id, status, erstellt_am FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?',
-            [$email, 'pending']
-        );
-        if ($existingReg) {
-            $age = time() - strtotime($existingReg['erstellt_am']);
-            if ($age < 48 * 3600) {
-                jsonErr('Diese E-Mail-Adresse ist bereits in Bearbeitung. Bitte warte oder wende dich an einen Administrator.');
-            }
-            // Abgelaufener pending-Eintrag → wird unten gelöscht und neu angelegt
-        }
+        // approved-Registrierungen blockieren (Benutzer wartet auf Freigabe)
+        if (DB::fetchOne('SELECT id FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?', [$email, 'approved']))
+            jsonErr('Diese E-Mail-Adresse wartet bereits auf Admin-Freigabe.');
+        // pending und rejected: werden unten gelöscht und neu angelegt
         if (DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE benutzername = ?', [$nickname]) ||
             DB::fetchOne('SELECT id FROM ' . DB::tbl('registrierungen') . ' WHERE name = ? AND status = ?', [$nickname, 'pending']))
             jsonErr('Dieser Nickname ist bereits vergeben. Bitte wähle einen anderen.');
