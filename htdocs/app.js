@@ -9128,17 +9128,35 @@ async function bearbeiteAntrag(id, action) {
 
 
 // Anträge-Zähler für Subtab-Badge aktualisieren
+function _adminBadge(n) {
+  return n > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px">' + n + '</span>' : '';
+}
 async function _ladeAntraegeBadge() {
   if (!currentUser || currentUser.rolle === 'leser' || currentUser.rolle === 'athlet') return;
   try {
+    // Anträge-Badge
     var r = await apiGet('ergebnis-aenderungen?status=pending');
     var n = r && r.ok ? (r.data||[]).length : 0;
     var btn = document.querySelector('.subtab[onclick*=\'antraege\']');
-    if (btn) {
-      btn.innerHTML = n > 0
-        ? '✋ Anträge <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px">' + n + '</span>'
-        : '✋ Anträge';
+    if (btn) btn.innerHTML = '\u270B Antr\u00e4ge' + _adminBadge(n);
+  } catch(e) {}
+  try {
+    // Registrierungen-Badge (ausstehende)
+    var rr = await apiGet('auth/registrierungen');
+    var nr = rr && rr.ok ? (rr.data||[]).filter(function(x){ return x.status==='pending'; }).length : 0;
+    var regBtn = document.querySelector('.subtab[onclick*=\'registrierungen\']');
+    if (regBtn) regBtn.innerHTML = '\uD83D\uDCDD Registrierungen' + _adminBadge(nr);
+  } catch(e) {}
+  try {
+    // Papierkorb-Badge
+    var rp = await apiGet('papierkorb');
+    var np = 0;
+    if (rp && rp.ok) {
+      var pd = rp.data || {};
+      np = (pd.ergebnisse||[]).length + (pd.athleten||[]).length + (pd.veranstaltungen||[]).length;
     }
+    var pkBtn = document.querySelector('.subtab[onclick*=\'papierkorb\']');
+    if (pkBtn) pkBtn.innerHTML = '\uD83D\uDDD1\uFE0F Papierkorb' + _adminBadge(np);
   } catch(e) {}
 }
 function adminSubtabs() {
