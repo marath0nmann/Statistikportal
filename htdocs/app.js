@@ -9669,9 +9669,9 @@ function _regCard(reg, showActions) {
   var emailBadge = reg.email_verifiziert
     ? '<span class="badge badge-email-ok">✓ E-Mail bestätigt</span>'
     : '<span class="badge badge-email-no">✗ E-Mail ausstehend</span>';
-  var totpBadge = reg.totp_aktiv
+  var fa2Badge = reg.totp_aktiv
     ? '<span class="badge badge-email-ok">✓ Authenticator-App</span>'
-    : reg.email_login_bevorzugt
+    : (reg.email_login_bevorzugt == 1 || reg.email_login_bevorzugt === true || reg.email_login_bevorzugt === '1')
       ? '<span class="badge" style="background:#e8f0fe;color:#1a56db;border:1px solid #b3c5f5">📧 E-Mail-Code</span>'
       : '<span class="badge" style="background:var(--surf2);color:var(--text2)">2FA ausstehend</span>';
   var statusBadge = reg.status === 'approved'
@@ -9682,31 +9682,26 @@ function _regCard(reg, showActions) {
 
   var actions = '';
   if (showActions) {
-    // Athleten-Dropdown für Zuweisung
     var athOpts = '<option value="">– kein Athlet –</option>';
     var athlList = (state._adminAthleten || []).slice().sort(function(a,b){return (a.name_nv||'').localeCompare(b.name_nv||'');});
     for (var i = 0; i < athlList.length; i++) {
       athOpts += '<option value="' + athlList[i].id + '">' + (athlList[i].name_nv || athlList[i].name || '?') + '</option>';
     }
+    // Alles in einer Zeile: Dropdown + Genehmigen + Ablehnen
     actions =
-      '<div class="reg-pending-actions" style="margin-top:12px;width:100%;flex-direction:column;align-items:stretch">' +
-        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
-          '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Athlet zuweisen:</label>' +
-          '<select id="reg-athlet-' + reg.id + '" style="flex:1;min-width:160px;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text)">' + athOpts + '</select>' +
-        '</div>' +
-        '<div style="display:flex;gap:8px">' +
-          '<button class="btn btn-primary btn-sm" style="flex:1" onclick="regGenehmigen(' + reg.id + ')">✓ Genehmigen</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="regAblehnen(' + reg.id + ')">✗ Ablehnen</button>' +
-        '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">' +
+        '<select id="reg-athlet-' + reg.id + '" style="flex:1;min-width:160px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text)">' + athOpts + '</select>' +
+        '<button class="btn btn-primary btn-sm" onclick="regGenehmigen(' + reg.id + ')">✓ Genehmigen</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="regAblehnen(' + reg.id + ')">✗ Ablehnen</button>' +
       '</div>';
   }
 
+  // Anzeigename: nur E-Mail (kein separater Benutzername mehr)
   return '<div class="reg-pending-card">' +
     '<div class="reg-pending-info">' +
-      '<div class="reg-pending-name">' + (reg.name || reg.benutzername || '–') + '</div>' +
-      '<div class="reg-pending-email">' + reg.email + '</div>' +
+      '<div class="reg-pending-name">' + reg.email + '</div>' +
       '<div class="reg-pending-meta" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' +
-        emailBadge + totpBadge + statusBadge +
+        emailBadge + fa2Badge + statusBadge +
         '<span style="font-size:11px;color:var(--text2);align-self:center">Registriert: ' + (reg.erstellt_am ? reg.erstellt_am.slice(0,10) : '–') + '</span>' +
       '</div>' +
       actions +
