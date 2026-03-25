@@ -1,3 +1,26 @@
+## v707 – Benutzerverwaltung + Rollen
+
+**Benutzerverwaltung:**
+- Avatar (Foto oder Initialen) wird jetzt in der Benutzerliste angezeigt
+- Anzeigename: Vorname aus verknüpftem Athletenprofil, sonst E-Mail
+- API-Query ergänzt um `athlet_vorname` und `avatar_pfad`
+
+**Systemrollen (admin/athlet/leser) – vereinheitlicht:**
+- Alle drei erhalten identische Lock-Ebene 🔐: Name editierbar, Rechte gesperrt, nicht löschbar
+- Im Edit-Modal sind Checkboxen für alle Systemrollen deaktiviert
+- Backend und Frontend konsistent
+
+---
+
+## v706 – Rollen-Schutz
+
+- **athlet**: Komplett unveränderbar und nicht löschbar (🔒) – Berechtigungen und Name sind fest
+- **leser**: Ebenfalls komplett unveränderbar und nicht löschbar (🔒)
+- **admin**: Nur der Name ist editierbar, Berechtigungen sind gesperrt (🔐) – Checkboxen im Modal deaktiviert mit Hinweis
+- **Backend**: Dieselben Regeln serverseitig durchgesetzt (kein Bypass via API möglich)
+
+---
+
 ## v705 – Fix Passkey Conditional UI Verifizierung
 
 - **Ursache**: `authVerifyStateless` rief `self::coseKeyToPem()` auf – eine Methode die nicht existiert

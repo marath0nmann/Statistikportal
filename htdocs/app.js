@@ -9337,12 +9337,16 @@ async function renderAdmin() {
     var athletBadge = b.athlet_id
       ? '<span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="' + (b.athlet_name||'') + '">&#x1F3C3; ' + (b.athlet_name||'') + '</span>'
       : '<span class="badge badge-ak">Kein Athlet</span>';
+    // Anzeigename: Vorname aus Athletenprofil bevorzugt, sonst E-Mail
+    var dispName   = (b.athlet_vorname && b.athlet_vorname.trim()) ? b.athlet_vorname : b.email;
+    var initials   = nameInitials(dispName);
+    var avatarHtml = b.avatar_pfad
+      ? '<div class="user-row-avatar" style="padding:0;overflow:hidden"><img src="' + b.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\';"></div>'
+      : '<div class="user-row-avatar">' + initials + '</div>';
     userRows +=
       '<div class="user-row">' +
-        (b.avatar_pfad
-          ? '<div class="user-row-avatar" style="padding:0;overflow:hidden"><img src="' + b.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;"></div>'
-          : '<div class="user-row-avatar">' + nameInitials(b.benutzername) + '</div>') +
-        '<div class="user-row-info"><div class="user-row-name">' + b.benutzername + '</div>' +
+        avatarHtml +
+        '<div class="user-row-info"><div class="user-row-name">' + dispName + '</div>' +
           '<div class="user-row-email">' + b.email + '</div>' +
           '<div style="margin-top:3px;font-size:11px;color:var(--text2)">Letzter Login: ' + (b.letzter_login ? formatDate(b.letzter_login.slice(0,10)) : 'Noch nie') + '</div>' +
         '</div>' +
@@ -9403,14 +9407,16 @@ async function _ladeRollenManager() {
       var r2 = _RECHTE_LISTE.find(function(x){ return x.key===k; });
       return r2 ? r2.label : k;
     }).join(', ');
-    var locked = (rolle.name === 'admin' || rolle.name === 'leser');
+    // Systemrollen (admin/athlet/leser): Name editierbar, Rechte gesperrt, nicht löschbar
+    var sysRolle = (rolle.name === 'admin' || rolle.name === 'athlet' || rolle.name === 'leser');
+    var lockIcon = sysRolle ? ' <span title="Systemrolle: Name änderbar, Rechte gesperrt" style="font-size:11px;opacity:.5">🔐</span>' : '';
     html += '<tr style="border-bottom:1px solid var(--border)">' +
-      '<td style="padding:8px 10px;font-weight:600">' + rolle.name + '</td>' +
+      '<td style="padding:8px 10px;font-weight:600">' + rolle.name + lockIcon + '</td>' +
       '<td style="padding:8px 10px;color:var(--text2);font-size:12px;word-break:break-word;white-space:normal">' + (rechteLabels || '–') + '</td>' +
       '<td style="padding:8px 6px;white-space:nowrap;text-align:right">' +
         '<div style="display:flex;gap:4px;justify-content:flex-end">' +
           '<button class="btn btn-ghost btn-sm" onclick="showRolleEditModal(' + rolle.id + ')" title="Bearbeiten">✏️</button>' +
-          (!locked ? '<button class="btn btn-danger btn-sm" onclick="deleteRolle(' + rolle.id + ',\'' + rolle.name + '\')" title="Löschen">✕</button>' : '') +
+          (!sysRolle ? '<button class="btn btn-danger btn-sm" onclick="deleteRolle(' + rolle.id + ',\'' + rolle.name + '\')" title="Löschen">✕</button>' : '') +
         '</div>' +
       '</td>' +
     '</tr>';
@@ -9421,18 +9427,25 @@ async function _ladeRollenManager() {
 
 function _rolleModal(titel, rolle) {
   var r = rolle || { id: null, name: '', rechte: [] };
+  var isAdmin = (r.name === 'admin' || r.name === 'athlet' || r.name === 'leser'); // Systemrollen: Rechte gesperrt
   var checkboxes = _RECHTE_LISTE.map(function(re) {
     var checked = (r.rechte || []).indexOf(re.key) >= 0;
-    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px">' +
-      '<input type="checkbox" data-recht="' + re.key + '" ' + (checked ? 'checked' : '') + ' style="width:15px;height:15px"> ' +
+    var disabledAttr = isAdmin ? ' disabled' : '';
+    var opacity = isAdmin ? 'opacity:.45;' : '';
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;' + (isAdmin ? 'cursor:default;' : 'cursor:pointer;') + 'font-size:13px">' +
+      '<input type="checkbox" data-recht="' + re.key + '" ' + (checked ? 'checked' : '') + disabledAttr + ' style="width:15px;height:15px;' + opacity + '"> ' +
       re.label + '</label>';
   }).join('');
+  var rechteSection = isAdmin
+    ? '<div style="margin:12px 0 4px;font-weight:600;font-size:13px">Rechte</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">🔐 Rechte der Admin-Rolle sind unveränderbar.</div>' +
+      '<div style="display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto;padding:8px;background:var(--surf2);border-radius:8px;opacity:.7">' + checkboxes + '</div>'
+    : '<div style="margin:12px 0 4px;font-weight:600;font-size:13px">Rechte</div>' +
+      '<div style="display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto;padding:8px;background:var(--surf2);border-radius:8px">' + checkboxes + '</div>';
   showModal(
     '<h2>' + titel + ' <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div class="form-group"><label>Rollenname *</label><input type="text" id="rm-name" value="' + (r.name||'') + '"/></div>' +
-    '<div style="margin:12px 0 4px;font-weight:600;font-size:13px">Rechte</div>' +
-    '<div style="display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto;padding:8px;background:var(--surf2);border-radius:8px">' +
-    checkboxes + '</div>' +
+    rechteSection +
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
     '<button class="btn btn-primary" onclick="saveRolle(' + (r.id||'null') + ')">Speichern</button></div>'
   );
