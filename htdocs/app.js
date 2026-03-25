@@ -11013,7 +11013,9 @@ async function renderAdminDisziplinen() {
     _allDisz.sort();
   }
   var _favRaw  = (appConfig && appConfig.top_disziplinen) || '';
-  var _favList = _favRaw ? (JSON.parse(_favRaw) || []) : [];
+  var _favListRaw = _favRaw ? (JSON.parse(_favRaw) || []) : [];
+  // mapping_id-Array: Zahlen oder Strings normalisieren (Migration: alte Name-Arrays ignorieren)
+  var _favList = _favListRaw.filter(function(x){ return typeof x === 'number' || (typeof x === 'string' && /^\d+$/.test(x)); }).map(Number);
   // Disziplinen nach Kategorie gruppieren (mit Ergebnis-Anzahl)
   var _katMap = {};   // kat -> [{disziplin, count}]
   var _katOrder = [];
@@ -11022,10 +11024,9 @@ async function renderAdminDisziplinen() {
     rMap.data.forEach(function(m) {
       var kat = m.kategorie || m.kategorie_name || m.kat_name || 'Sonstige';
       if (!_katMap[kat]) { _katMap[kat] = []; _katOrder.push(kat); }
-      if (m.disziplin) {
-        _diszCount[m.disziplin] = (_diszCount[m.disziplin] || 0) + (m.ergebnis_anzahl || 0);
-        if (!_katMap[kat].find(function(x){ return x.d === m.disziplin; })) {
-          _katMap[kat].push({ d: m.disziplin, n: m.ergebnis_anzahl || 0 });
+      if (m.disziplin && m.id) { // nur gemappte Disziplinen (id = mapping_id)
+        if (!_katMap[kat].find(function(x){ return x.mid === m.id; })) {
+          _katMap[kat].push({ d: m.disziplin, mid: m.id, n: m.ergebnis_anzahl || 0 });
         }
       }
     });
@@ -11040,11 +11041,11 @@ async function renderAdminDisziplinen() {
       '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">' + kat + '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
       disz.map(function(item) {
-        var d = item.d, n = item.n;
-        var sel = _favList.indexOf(d) >= 0;
+        var d = item.d, mid = item.mid, n = item.n;
+        var sel = _favList.indexOf(mid) >= 0 || _favList.indexOf(String(mid)) >= 0;
         var countBadge = '<span style="font-size:10px;background:var(--surf3,var(--surf2));color:var(--text2);border-radius:10px;padding:1px 5px;margin-left:2px;line-height:1.6">' + n + '</span>';
         return '<label style="display:inline-flex;align-items:center;gap:5px;background:var(--surf2);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:13px;' + (sel ? 'outline:2px solid var(--accent);background:var(--primary-faint,var(--surf2));' : '') + '">' +
-          '<input type="checkbox" data-fav-disz="' + d + '" ' + (sel ? 'checked' : '') + ' style="width:13px;height:13px"> ' + d + countBadge + '</label>';
+          '<input type="checkbox" data-fav-disz="' + mid + '" ' + (sel ? 'checked' : '') + ' style="width:13px;height:13px"> ' + d + countBadge + '</label>';
       }).join('') +
       '</div></div>';
   }).join('');
@@ -11060,7 +11061,7 @@ async function renderAdminDisziplinen() {
 }
 
 async function saveFavDisziplinen() {
-  var checked = Array.from(document.querySelectorAll('[data-fav-disz]:checked')).map(function(cb){ return cb.dataset.favDisz; });
+  var checked = Array.from(document.querySelectorAll('[data-fav-disz]:checked')).map(function(cb){ return parseInt(cb.dataset.favDisz, 10); }).filter(function(x){ return !isNaN(x); });
   var r = await apiPost('einstellungen', { top_disziplinen: JSON.stringify(checked) });
   if (r && r.ok) {
     if (appConfig) appConfig.top_disziplinen = JSON.stringify(checked);
