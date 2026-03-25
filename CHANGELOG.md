@@ -1,3 +1,11 @@
+## v710 – Fix Avatar-Initialen in Benutzerverwaltung
+
+- **Schema**: Wenn ein Athlet zugewiesen ist, werden die Initialen als **VN** (Vorname[0] + Nachname[0]) berechnet
+- Beispiel: Athlet "Mustermann, Max" → Initialen "MM" statt bisher "M"
+- Ohne Athlet-Zuweisung: weiterhin `nameInitials(email)`
+
+---
+
 ## v709 – Fix Favorisierte Disziplinen: Doppel-Matching
 
 - **Ursache**: Favoriten wurden als Disziplin-Namen gespeichert → "800m" (Bahn) und "800m" (Halle) wurden beide als Favorit markiert wenn einer davon ausgewählt war

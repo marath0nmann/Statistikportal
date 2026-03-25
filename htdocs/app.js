@@ -9339,7 +9339,15 @@ async function renderAdmin() {
       : '<span class="badge badge-ak">Kein Athlet</span>';
     // Anzeigename: Vorname aus Athletenprofil bevorzugt, sonst E-Mail
     var dispName   = (b.athlet_vorname && b.athlet_vorname.trim()) ? b.athlet_vorname : b.email;
-    var initials   = nameInitials(dispName);
+    // Schema VN: Vorname[0] + Nachname[0] wenn Athlet zugewiesen, sonst nameInitials
+    var initials;
+    if (b.athlet_vorname && b.athlet_name) {
+      var _vn = (b.athlet_vorname.trim()[0] || '').toUpperCase();
+      var _nn = (b.athlet_name.trim()[0] || '').toUpperCase(); // athlet_name = 'Nachname, Vorname'
+      initials = _vn + _nn;
+    } else {
+      initials = nameInitials(dispName);
+    }
     var avatarHtml = b.avatar_pfad
       ? '<div class="user-row-avatar" style="padding:0;overflow:hidden"><img src="' + b.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\';"></div>'
       : '<div class="user-row-avatar" style="background:linear-gradient(135deg,var(--primary),var(--accent));font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700;letter-spacing:.5px">' + initials + '</div>';
