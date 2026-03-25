@@ -403,12 +403,14 @@ if ($res === 'auth') {
         if (!Auth::check()) jsonErr('Nicht eingeloggt.', 401);
         try {
             $rows = DB::fetchAll(
-                'SELECT athlet_id FROM ' . DB::tbl('benutzer') .
-                ' WHERE athlet_id IS NOT NULL AND aktiv = 1 AND letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)'
+                'SELECT id, athlet_id FROM ' . DB::tbl('benutzer') .
+                ' WHERE aktiv = 1 AND letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)'
             );
-            $ids = array_column($rows, 'athlet_id');
-            jsonOk($ids);
-        } catch (\Exception $e) { jsonOk([]); }
+            jsonOk([
+                'user_ids'   => array_values(array_column($rows, 'id')),
+                'athlet_ids' => array_values(array_filter(array_column($rows, 'athlet_id'))),
+            ]);
+        } catch (\Exception $e) { jsonOk(['user_ids'=>[],'athlet_ids']=[]); }
     }
     // --- User-Präferenzen lesen ---
     if ($method === 'GET' && $id === 'prefs') {
