@@ -1,3 +1,12 @@
+## v696 – Login: 2-Schritt-Flow + Passkey Conditional UI
+
+- **2-Schritt wiederhergestellt**: Schritt 1 fragt nur E-Mail ab → Weiter → Schritt 2 zeigt Passwort + 2FA-Optionen
+- **Conditional UI**: `autocomplete="username webauthn"` am E-Mail-Feld + stiller Hintergrund-`credentials.get({ mediation: 'conditional' })` → Passwort-Manager/Browser zeigt Passkey-Vorschläge direkt im Eingabefeld an
+- **Kein extra Button nötig**: Passkey wird automatisch angeboten, wenn der Cursor ins Feld kommt
+- **AbortController**: Conditional-UI-Request wird sauber abgebrochen wenn der Nutzer auf "Weiter" klickt
+
+---
+
 ## v695 – Passkey-First Login
 
 - **Discoverable Credentials**: Passkey-Button oben im Login-Dialog — kein Benutzername nötig, Browser zeigt direkt alle gespeicherten Passkeys für die Domain
