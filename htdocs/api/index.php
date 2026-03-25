@@ -374,26 +374,22 @@ if ($res === 'auth') {
     // --- Session prüfen ---
     if ($method === 'GET' && $id === 'me') {
         $user = Auth::check();
-        if ($user) {
-            // totp_aktiv + Passkey-Status ergänzen
-            $row = DB::fetchOne('SELECT totp_aktiv FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$user['id']]);
-            $user['totp_aktiv']  = !empty($row['totp_aktiv']);
-            try { Passkey::migrate(); } catch (\Exception $e) {}
-            $user['has_passkey'] = Passkey::userHasPasskey($user['id']);
-            jsonOk($user);
-        }
-        else jsonErr('Nicht eingeloggt.', 401);
-    }
-    // --- Aktuellen User abrufen (für Avatar/Vorname nach Login) ---
-    if ($method === 'GET' && $id === 'me') {
-        $user = Auth::requireLogin();
-        $row  = DB::fetchOne('SELECT avatar_pfad, email, athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$user['id']]);
+        if (!$user) jsonErr('Nicht eingeloggt.', 401);
+        // totp_aktiv + Passkey-Status
+        $row = DB::fetchOne('SELECT totp_aktiv, avatar_pfad, email, athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$user['id']]);
+        $user['totp_aktiv']  = !empty($row['totp_aktiv']);
+        $user['avatar']      = $row['avatar_pfad'] ?? null;
+        $user['email']       = $row['email'] ?? '';
+        // Vorname aus verknüpftem Athletenprofil
         $vorname = '';
         if (!empty($row['athlet_id'])) {
             $ath = DB::fetchOne('SELECT vorname FROM ' . DB::tbl('athleten') . ' WHERE id = ?', [$row['athlet_id']]);
             if ($ath) $vorname = $ath['vorname'] ?? '';
         }
-        jsonOk(['avatar' => $row['avatar_pfad'] ?? null, 'email' => $row['email'] ?? '', 'vorname' => $vorname]);
+        $user['vorname'] = $vorname;
+        try { Passkey::migrate(); } catch (\Exception $e) {}
+        $user['has_passkey'] = Passkey::userHasPasskey($user['id']);
+        jsonOk($user);
     }
     // --- User-Präferenzen lesen ---
     if ($method === 'GET' && $id === 'prefs') {

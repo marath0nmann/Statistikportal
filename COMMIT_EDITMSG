@@ -1,1 +1,1 @@
-v703: Fix renderLoginStep2 fehlte (Login-Hänger)
+v704: Fix Vorname nach Login (doppelter auth/me Handler)
