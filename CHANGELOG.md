@@ -1,3 +1,11 @@
+## v704 – Fix Vorname nach Login
+
+- **Ursache (im Browser debuggt)**: Zwei `GET auth/me`-Handler hintereinander – der erste antwortete immer zuerst und gab kein `vorname`-Feld zurück; der zweite Handler war dead code
+- **Fix**: Beide Handler zu einem zusammengeführt – gibt jetzt `name`, `vorname`, `email`, `avatar`, `totp_aktiv`, `has_passkey` in einer Response zurück
+- **JS**: `currentUser.name` wird nach `auth/me` ebenfalls aktualisiert
+
+---
+
 ## v703 – Fix: renderLoginStep2 fehlte
 
 - **Ursache (live im Browser debuggt)**: `renderLoginStep2` wurde bei den Refactorings v694–v702 entfernt aber weiter aufgerufen → `ReferenceError` im async-Kontext wurde lautlos geschluckt → "Weiter"-Button tat nichts
