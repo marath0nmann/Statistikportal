@@ -1095,6 +1095,61 @@ async function doLoginPasskeyDiscover() {
 }
 
 
+// Schritt 2: Passwort (+ optionaler Passkey-Button wenn Passkey vorhanden)
+function renderLoginStep2() {
+  var passkeyHint = _loginState.has_passkey
+    ? '<button class="btn btn-ghost" style="width:100%;margin-bottom:10px;font-size:13px" onclick="doLoginPasskeyStep2()">&#x1F511; Mit Passkey anmelden</button>'
+    : '';
+  document.getElementById('login-screen').innerHTML = _loginCard(
+    '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">&#x1F512; Anmelden</h2>' +
+    '<p style="color:var(--text2);font-size:13px;margin:0 0 16px">Als <strong>' + _loginState.ident + '</strong></p>' +
+    passkeyHint +
+    '<div class="form-group" style="margin-bottom:16px">' +
+      '<label>Passwort</label>' +
+      '<input type="password" id="login-pw" autocomplete="current-password" style="font-size:16px"' +
+        ' onkeydown="if(event.key===\'Enter\')doLoginStep2()"/>' +
+    '</div>' +
+    '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
+    '<button class="btn btn-primary" style="width:100%" onclick="doLoginStep2()">Anmelden</button>' +
+    '<button class="btn btn-ghost" style="width:100%;margin-top:4px;opacity:.7;font-size:12px" onclick="renderLoginStep1()">&#x2190; Zurück</button>'
+  );
+  setTimeout(function(){ var el=document.getElementById('login-pw'); if(el) el.focus(); }, 100);
+}
+
+// Passkey-Button in Step 2 (User bekannt, challenge mit allowCredentials)
+async function doLoginPasskeyStep2() {
+  var errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
+  try {
+    var optR = await apiPost('auth/passkey-auth-challenge', {});
+    if (!optR || !optR.ok) { errEl.textContent = '❌ Passkey-Challenge fehlgeschlagen.'; errEl.style.display='block'; return; }
+    var opts = optR.data;
+    var allowCreds = (opts.allowCredentials || []).map(function(c) {
+      return { type: 'public-key', id: _b64urlToBuffer(c.id) };
+    });
+    var assertion = await navigator.credentials.get({ publicKey: {
+      challenge: _b64urlToBuffer(opts.challenge), timeout: opts.timeout || 60000,
+      rpId: opts.rpId, userVerification: opts.userVerification || 'preferred',
+      allowCredentials: allowCreds,
+    }});
+    var cred = {
+      id: assertion.id, type: assertion.type,
+      response: {
+        authenticatorData: _bufferToB64url(assertion.response.authenticatorData),
+        clientDataJSON:    _bufferToB64url(assertion.response.clientDataJSON),
+        signature:         _bufferToB64url(assertion.response.signature),
+        userHandle:        assertion.response.userHandle ? _bufferToB64url(assertion.response.userHandle) : null,
+      }
+    };
+    var verR = await apiPost('auth/passkey-auth-verify', { credential: cred });
+    if (!verR || !verR.ok) { errEl.textContent = '❌ ' + ((verR&&verR.fehler)||'Passkey fehlgeschlagen.'); errEl.style.display='block'; return; }
+    currentUser = { name: verR.data.name||'', email: verR.data.email||'', vorname: verR.data.vorname||'', rolle: verR.data.rolle };
+    showApp();
+  } catch(e) {
+    if (e && e.name !== 'NotAllowedError') { errEl.textContent = '⚠️ Passkey-Dialog fehlgeschlagen.'; errEl.style.display='block'; }
+  }
+}
+
 async function doLoginStep2() {
   var passwort = (document.getElementById('login-pw').value || '');
   var errEl = document.getElementById('login-err');
