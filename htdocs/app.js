@@ -116,9 +116,9 @@ function _luminance(hex) {
 // Avatar-Rendering: gibt <img> oder Initialen-Div zurück
 // Erzeugt Avatar-HTML mit optionalem Online-Indikator-Punkt
 // onlineStatus: null/undefined = kein Punkt, 'online' = grün, 'aktiv' = akzent, 'inaktiv' = gedämpft
-function avatarHtml(avatarPfad, name, size, fontSize, onlineStatus) {
+function avatarHtml(avatarPfad, name, size, fontSize, onlineStatus, initialsOverride) {
   size = size || 28; fontSize = fontSize || Math.round(size * 0.45);
-  var initials = nameInitials(name || '?');
+  var initials = initialsOverride || nameInitials(name || '?');
   var dot = onlineStatus ? _avatarDot(onlineStatus, size) : '';
   var wrap = '<span style="position:relative;display:inline-flex;flex-shrink:0;width:' + size + 'px;height:' + size + 'px;overflow:visible">';
   if (avatarPfad) {
@@ -9420,7 +9420,7 @@ async function renderAdmin() {
       : nameInitials(b.email);
     // Avatar mit überlappenden Dot
     var dotStatus = isOnline ? 'online' : null; // Punkt nur für eingeloggte User
-    var avatarCell = avatarHtml(b.avatar_pfad, dispName, 36, 14, dotStatus);
+    var avatarCell = avatarHtml(b.avatar_pfad, dispName, 36, 14, dotStatus, initials);
     var rolleText = '<span style="font-size:13px;color:var(--text)">' + rolleLabel(b.rolle) + '</span>';
     // 3-stufiger Status: Eingeloggt (grün) > Aktiv (akzent) > Inaktiv (gedämpft)
     var statusBadge = isOnline
@@ -9468,7 +9468,7 @@ async function renderAdmin() {
     '<div class="panel" style="margin-bottom:20px">' +
       '<div class="panel-header"><div class="panel-title">&#x1F465; Benutzerverwaltung</div><button class="btn btn-primary btn-sm" onclick="showNeuerBenutzerModal()">+ Neuer Benutzer</button></div>' +
       '<div class="table-scroll"><table style="width:100%;border-collapse:collapse;table-layout:fixed">' +
-        '<colgroup><col style="width:44px"><col><col style="width:150px"><col style="width:100px"><col style="width:80px"><col style="width:120px"><col style="width:105px"><col style="width:78px"></colgroup>' +
+        '<colgroup><col style="width:44px"><col><col style="width:150px"><col style="width:100px"><col style="width:80px"><col style="width:160px"><col style="width:105px"><col style="width:78px"></colgroup>' +
         '<thead><tr style="border-bottom:2px solid var(--border)">' +
           '<th style="padding:8px 10px"></th>' +
           _bSortTh('Benutzer','name') +
