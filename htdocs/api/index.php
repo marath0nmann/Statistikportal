@@ -391,7 +391,8 @@ if ($res === 'auth') {
             $ath = DB::fetchOne('SELECT vorname FROM ' . DB::tbl('athleten') . ' WHERE id = ?', [$row['athlet_id']]);
             if ($ath) $vorname = $ath['vorname'] ?? '';
         }
-        $user['vorname'] = $vorname;
+        $user['vorname']   = $vorname;
+        $user['athlet_id']  = !empty($row['athlet_id']) ? (int)$row['athlet_id'] : null;
         try { Passkey::migrate(); } catch (\Exception $e) {}
         $user['has_passkey'] = Passkey::userHasPasskey($user['id']);
         jsonOk($user);

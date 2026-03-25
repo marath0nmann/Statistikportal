@@ -1578,7 +1578,7 @@ async function showApp() {
         if (_meR.data.vorname)   currentUser.vorname   = _meR.data.vorname;
         if (_meR.data.email)     currentUser.email     = _meR.data.email;
         if (_meR.data.name)      currentUser.name      = _meR.data.name;
-        if (_meR.data.athlet_id) currentUser.athlet_id = _meR.data.athlet_id;
+        if (_meR.data.athlet_id != null) currentUser.athlet_id = _meR.data.athlet_id;
         // Header-Avatar sofort aktualisieren
         var _avatarEl = document.getElementById('user-avatar');
         if (_avatarEl) {
