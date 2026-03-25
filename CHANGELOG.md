@@ -1,3 +1,11 @@
+## v697 – Fix Passkey Conditional UI
+
+- **authVerify**: `empty(passkey_auth_user_id)` schlug bei Discoverable-Flow fehl weil userId=0 als empty gilt → separate Prüfung für Discoverable-Flag
+- **DB-Suche**: Bei Discoverable-Flow wird Passkey nur per `credential_id` gesucht (ohne `AND user_id=0`)
+- **Session**: Nach erfolgreichem Verify wird `user_id` aus dem gefundenen Passkey-Eintrag in die Session geschrieben → api/index.php findet den User korrekt
+
+---
+
 ## v696 – Login: 2-Schritt-Flow + Passkey Conditional UI
 
 - **2-Schritt wiederhergestellt**: Schritt 1 fragt nur E-Mail ab → Weiter → Schritt 2 zeigt Passwort + 2FA-Optionen

@@ -218,22 +218,34 @@ class Passkey {
 
     // ── Authentifizierung: Response verifizieren ──────────────
     public static function authVerify(array $credential): array {
-        if (empty($_SESSION['passkey_auth_challenge']) || empty($_SESSION['passkey_auth_user_id'])) {
+        if (empty($_SESSION['passkey_auth_challenge'])) {
+            return ['ok' => false, 'fehler' => 'Keine ausstehende Authentifizierung.'];
+        }
+        // Bei Discoverable-Flow ist passkey_auth_user_id === 0 → das ist OK
+        $isDiscoverable = !empty($_SESSION['passkey_auth_discoverable']);
+        if (!$isDiscoverable && empty($_SESSION['passkey_auth_user_id'])) {
             return ['ok' => false, 'fehler' => 'Keine ausstehende Authentifizierung.'];
         }
 
         $expectedChallenge = base64_decode($_SESSION['passkey_auth_challenge']);
-        $userId = (int)$_SESSION['passkey_auth_user_id'];
+        $userId = (int)($_SESSION['passkey_auth_user_id'] ?? 0);
 
         try {
             $credId = $credential['id'] ?? '';
             if (!$credId) throw new Exception('Keine Credential-ID.');
 
-            // Passkey in DB suchen
-            $pk = DB::fetchOne(
-                'SELECT * FROM ' . DB::tbl('passkeys') . ' WHERE credential_id = ? AND user_id = ?',
-                [$credId, $userId]
-            );
+            // Passkey in DB suchen – bei Discoverable nur per credential_id
+            if ($isDiscoverable || !$userId) {
+                $pk = DB::fetchOne(
+                    'SELECT * FROM ' . DB::tbl('passkeys') . ' WHERE credential_id = ?',
+                    [$credId]
+                );
+            } else {
+                $pk = DB::fetchOne(
+                    'SELECT * FROM ' . DB::tbl('passkeys') . ' WHERE credential_id = ? AND user_id = ?',
+                    [$credId, $userId]
+                );
+            }
             if (!$pk) throw new Exception('Passkey nicht gefunden.');
 
             // clientDataJSON
@@ -291,7 +303,12 @@ class Passkey {
                 [$signCount, $pk['id']]
             );
 
-            unset($_SESSION['passkey_auth_challenge'], $_SESSION['passkey_auth_user_id']);
+            // Bei Discoverable-Flow: user_id aus dem gefundenen Passkey in Session schreiben
+            // damit api/index.php den User nachschlagen kann
+            if ($isDiscoverable || !$userId) {
+                $_SESSION['passkey_auth_user_id'] = (int)$pk['user_id'];
+            }
+            unset($_SESSION['passkey_auth_challenge'], $_SESSION['passkey_auth_discoverable']);
             return ['ok' => true];
 
         } catch (Exception $e) {
