@@ -1,3 +1,10 @@
+## v724 – Fix Avatar-Dot Überlappung
+
+- **Ursache**: `bottom:-7px; right:-7px` funktioniert mit `position:absolute` in `inline-flex`-Containern nicht zuverlässig – der Dot landete unten-links statt unten-rechts
+- **Fix**: `bottom:0; right:0; transform:translate(35%,35%)` → Dot sitzt exakt in der unteren-rechten Ecke und ragt 35% nach außen über den Kreisrand
+
+---
+
 ## v723 – Fixes Benutzertabelle
 
 - **Initialen**: `avatarHtml()` nimmt jetzt optionalen `initialsOverride`-Parameter → VN-Schema (Vorname[0]+Nachname[0]) wird korrekt angezeigt (DW, MM, …)
