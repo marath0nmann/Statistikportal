@@ -1,3 +1,11 @@
+## v723 – Fixes Benutzertabelle
+
+- **Initialen**: `avatarHtml()` nimmt jetzt optionalen `initialsOverride`-Parameter → VN-Schema (Vorname[0]+Nachname[0]) wird korrekt angezeigt (DW, MM, …)
+- **Dot**: `overflow:visible` war schon seit v720 gesetzt – bitte v722+ deployen
+- **2FA-Spalte**: Breite von 120px auf 160px erhöht → alle drei Badges (TOTP + Passkey + E-Mail) passen nebeneinander
+
+---
+
 ## v722 – Adressleiste zurück auf --primary3
 
 - Adressleisten-Farbe verwendet wieder `--primary3` (aufgehellte Primärfarbe) statt `--primary`
