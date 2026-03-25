@@ -1,3 +1,16 @@
+## v712 – Rollen-Bezeichnungen konfigurierbar
+
+**Rollen & Rechte:**
+- Neue Spalte "Bezeichnung" in Tabelle mit 👁️/🙈-Icon für öffentliche Sichtbarkeit
+- Edit-Modal: Felder "Bezeichnung" (öffentlich sichtbar, z.B. "Administrator") und Checkbox "öffentlich anzeigen"
+- Bezeichnung wird im Menü (oben rechts) und Athletenprofil nur angezeigt wenn öffentlich = ja
+- DB: neue Spalten `label` und `oeffentlich` in `rollen`-Tabelle (Auto-Migration)
+
+**Fix E-Mail-Verifizierung:**
+- `autoSend`-Parameter wurde in `renderLoginStep3` nicht an `_loginStep3ShowMethod` weitergegeben → alter Dialog erschien
+
+---
+
 ## v711 – E-Mail-Verifizierung: Auto-Versand
 
 - Wenn nur E-Mail-Code als 2FA verfügbar ist: Code wird sofort gesendet, Text lautet "Wir haben dir... gesendet" (Vergangenheit), kein "Code senden"-Button
