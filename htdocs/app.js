@@ -956,62 +956,92 @@ function _loginCard(inner) {
 }
 
 // Schritt 1: Benutzername / E-Mail
+// ── Passkey Conditional UI ────────────────────────────────
+// Läuft still im Hintergrund auf Step-1; der Browser zeigt Passkey-Vorschläge
+// direkt im E-Mail-Feld an (autocomplete="username webauthn").
+var _conditionalPasskeyAbort = null;
+
+async function _startConditionalPasskey() {
+  _abortConditionalPasskey();
+  if (!window.PublicKeyCredential ||
+      !PublicKeyCredential.isConditionalMediationAvailable ||
+      !(await PublicKeyCredential.isConditionalMediationAvailable())) return;
+  try {
+    var optR = await apiPost('auth/passkey-auth-challenge-discover', {});
+    if (!optR || !optR.ok) return;
+    var opts = optR.data;
+    _conditionalPasskeyAbort = new AbortController();
+    var assertion = await navigator.credentials.get({
+      signal: _conditionalPasskeyAbort.signal,
+      mediation: 'conditional',
+      publicKey: {
+        challenge:        _b64urlToBuffer(opts.challenge),
+        timeout:          opts.timeout || 60000,
+        rpId:             opts.rpId,
+        userVerification: opts.userVerification || 'preferred',
+        allowCredentials: [],
+      }
+    });
+    // Nutzer hat Passkey über Autofill ausgewählt
+    var cred = {
+      id: assertion.id, type: assertion.type,
+      response: {
+        authenticatorData: _bufferToB64url(assertion.response.authenticatorData),
+        clientDataJSON:    _bufferToB64url(assertion.response.clientDataJSON),
+        signature:         _bufferToB64url(assertion.response.signature),
+        userHandle:        assertion.response.userHandle ? _bufferToB64url(assertion.response.userHandle) : null,
+      }
+    };
+    var verR = await apiPost('auth/passkey-auth-verify', { credential: cred });
+    if (!verR || !verR.ok) {
+      var errEl = document.getElementById('login-err');
+      if (errEl) { errEl.textContent = '❌ Passkey-Verifizierung fehlgeschlagen.'; errEl.style.display='block'; }
+      return;
+    }
+    currentUser = { name: verR.data.name || '', email: verR.data.email || '', vorname: verR.data.vorname || '', rolle: verR.data.rolle };
+    showApp();
+  } catch(e) {
+    // AbortError = wir haben selbst abgebrochen → still
+    // NotAllowedError = Nutzer hat abgebrochen → still
+  }
+}
+
+function _abortConditionalPasskey() {
+  if (_conditionalPasskeyAbort) { try { _conditionalPasskeyAbort.abort(); } catch(e){} _conditionalPasskeyAbort = null; }
+}
+
 function renderLoginStep1() {
   document.getElementById('login-screen').innerHTML = _loginCard(
-    '<h2 style="font-size:20px;font-weight:700;margin:0 0 16px">&#x1F512; Anmelden</h2>' +
-    '<button class="btn btn-primary" style="width:100%;font-size:15px;padding:12px;display:flex;align-items:center;justify-content:center;gap:8px" onclick="doLoginPasskeyDiscover()">' +
-      '&#x1F511; Mit Passkey anmelden</button>' +
-    '<div style="display:flex;align-items:center;gap:10px;margin:16px 0">' +
-      '<div style="flex:1;height:1px;background:var(--border)"></div>' +
-      '<span style="font-size:12px;color:var(--text2);white-space:nowrap">oder mit Passwort</span>' +
-      '<div style="flex:1;height:1px;background:var(--border)"></div>' +
-    '</div>' +
-    '<div class="form-group" style="margin-bottom:12px">' +
-      '<label>E-Mail-Adresse</label>' +
-      '<input type="text" id="login-ident" autocomplete="username" style="font-size:16px"' +
-        ' onkeydown="if(event.key===\'Enter\')document.getElementById(\'login-pw\').focus()"/>' +
-    '</div>' +
+    '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">&#x1F512; Anmelden</h2>' +
+    '<p style="color:var(--text2);font-size:13px;margin:0 0 20px">E-Mail-Adresse eingeben.</p>' +
     '<div class="form-group" style="margin-bottom:16px">' +
-      '<label>Passwort</label>' +
-      '<input type="password" id="login-pw" autocomplete="current-password" style="font-size:16px"' +
+      '<label>E-Mail-Adresse</label>' +
+      '<input type="email" id="login-ident" autocomplete="username webauthn" style="font-size:16px"' +
         ' onkeydown="if(event.key===\'Enter\')doLoginStep1()"/>' +
     '</div>' +
     '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
-    '<button class="btn btn-primary" style="width:100%" onclick="doLoginStep1()">Anmelden</button>' +
+    '<button class="btn btn-primary" style="width:100%" onclick="doLoginStep1()">Weiter &#x2192;</button>' +
     '<button class="btn btn-ghost btn-login-cancel" style="width:100%;margin-top:8px" onclick="hideLogin()">Abbrechen</button>'
   );
   setTimeout(function(){ var el=document.getElementById('login-ident'); if(el) el.focus(); }, 100);
+  _startConditionalPasskey();
 }
 
 async function doLoginStep1() {
-  var ident    = (document.getElementById('login-ident').value || '').trim();
-  var passwort = (document.getElementById('login-pw').value || '');
-  var errEl    = document.getElementById('login-err');
+  var ident = (document.getElementById('login-ident').value || '').trim();
+  var errEl = document.getElementById('login-err');
   errEl.style.display = 'none';
-  if (!ident)    { errEl.textContent = 'Bitte E-Mail-Adresse eingeben.'; errEl.style.display='block'; document.getElementById('login-ident').focus(); return; }
-  if (!passwort) { errEl.textContent = 'Bitte Passwort eingeben.';        errEl.style.display='block'; document.getElementById('login-pw').focus();    return; }
+  if (!ident) { errEl.textContent = 'Bitte E-Mail-Adresse eingeben.'; errEl.style.display='block'; return; }
   var btn = document.querySelector('#login-screen .btn-primary');
   btn.textContent = '...'; btn.disabled = true;
-  var r = await apiPost('auth/login', { benutzername: ident, passwort: passwort });
-  btn.textContent = 'Anmelden'; btn.disabled = false;
-  if (r && r.ok) {
-    _loginState.ident = ident;
-    if (r.data && r.data.totp_required) {
-      if (r.data.totp_setup) await showTotpSetup();
-      else if (r.data.email_login_bevorzugt && !r.data.has_totp && !r.data.has_passkey) {
-        renderLoginStep3(false, false);
-        setTimeout(doEmailCodeSend, 200);
-      } else renderLoginStep3(r.data.has_totp !== false, r.data.has_passkey !== false);
-    } else {
-      currentUser = { name: r.data.name || ident, email: r.data.email || ident, vorname: r.data.vorname || '', rolle: r.data.rolle };
-      showApp();
-    }
-  } else {
-    errEl.textContent = '\u274C ' + ((r&&r.fehler)||'Unbekannter Fehler');
-    errEl.style.display = 'block';
-    document.getElementById('login-pw').value = '';
-    document.getElementById('login-pw').focus();
-  }
+  var r = await apiPost('auth/identify', { benutzername: ident });
+  btn.textContent = 'Weiter →'; btn.disabled = false;
+  if (!r || !r.ok) { errEl.textContent = '❌ ' + ((r&&r.fehler)||'Fehler'); errEl.style.display='block'; return; }
+  _abortConditionalPasskey(); // Conditional UI beenden bevor Step 2 erscheint
+  _loginState.ident = ident;
+  _loginState.name  = ident;
+  _loginState.has_passkey = !!(r.data && r.data.has_passkey);
+  renderLoginStep2();
 }
 
 // Passkey: Discoverable (ohne E-Mail) – Browser zeigt alle Passkeys für diese Domain
