@@ -1543,11 +1543,7 @@ async function showApp() {
   if (currentUser) {
     var name = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
     var avatarEl = document.getElementById('user-avatar');
-    if (currentUser.avatar) {
-      avatarEl.innerHTML = '<img src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
-    } else {
-      avatarEl.textContent = nameInitials(name);
-    }
+    _renderHeaderAvatar(avatarEl, currentUser.avatar, name, true);
     // Anzeige: Vorname aus Athletenprofil wenn vorhanden, sonst E-Mail
     var _dispName = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || name);
     document.getElementById('user-name-disp').textContent  = _dispName;
@@ -1578,19 +1574,16 @@ async function showApp() {
     try {
       var _meR = await apiGet('auth/me');
       if (_meR && _meR.ok && _meR.data) {
-        if (_meR.data.avatar)  currentUser.avatar  = _meR.data.avatar;
-        if (_meR.data.vorname) currentUser.vorname = _meR.data.vorname;
-        if (_meR.data.email)   currentUser.email   = _meR.data.email;
-        if (_meR.data.name)    currentUser.name    = _meR.data.name;
+        if (_meR.data.avatar)    currentUser.avatar    = _meR.data.avatar;
+        if (_meR.data.vorname)   currentUser.vorname   = _meR.data.vorname;
+        if (_meR.data.email)     currentUser.email     = _meR.data.email;
+        if (_meR.data.name)      currentUser.name      = _meR.data.name;
+        if (_meR.data.athlet_id) currentUser.athlet_id = _meR.data.athlet_id;
         // Header-Avatar sofort aktualisieren
         var _avatarEl = document.getElementById('user-avatar');
         if (_avatarEl) {
-          if (currentUser.avatar) {
-            _avatarEl.innerHTML = '<img src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display=\'none\'">';
-          } else {
-            var _n = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
-            _avatarEl.textContent = nameInitials(_n);
-          }
+          var _n = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
+          _renderHeaderAvatar(_avatarEl, currentUser.avatar, _n, true);
         }
         var _nameEl = document.getElementById('user-name-disp');
         if (_nameEl) {
@@ -1836,7 +1829,7 @@ async function _cropSave() {
     if (data.ok) {
       currentUser.avatar = data.data.pfad;
       var avatarEl = document.getElementById('user-avatar');
-      if (avatarEl) avatarEl.innerHTML = '<img src="' + currentUser.avatar + '?v=' + Date.now() + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+      if (avatarEl) _renderHeaderAvatar(avatarEl, currentUser.avatar + '?v=' + Date.now(), currentUser.name||'?', true);
       closeModal(); showUserMenu();
       notify('Avatar gespeichert.', 'ok');
     } else {
@@ -1857,7 +1850,7 @@ async function deleteAvatar() {
       currentUser.avatar = null;
       notify('Avatar entfernt.', 'ok');
       var avatarEl = document.getElementById('user-avatar');
-      if (avatarEl) { avatarEl.innerHTML = ''; avatarEl.textContent = nameInitials(currentUser.name||'?'); }
+      if (avatarEl) _renderHeaderAvatar(avatarEl, null, currentUser.name||'?', false);
       closeModal(); showUserMenu();
     } else { notify(data.fehler || 'Fehler.', 'err'); }
   } catch(e) { notify('Fehler.', 'err'); }
@@ -1927,6 +1920,20 @@ function rolleLabel(r, oeffentlichOnly) {
   }
   var m = { admin: 'Administrator', editor: 'Editor', athlet: 'Athlet*in', leser: 'Leser*in' };
   return m[r] || r;
+}
+
+// Rendert den Header-Avatar mit optionalem Online-Dot
+function _renderHeaderAvatar(el, avatarPfad, name, isOnline) {
+  if (!el) return;
+  // Wrapper braucht overflow:visible damit Dot herausragt
+  el.style.overflow = 'visible';
+  el.style.position = 'relative';
+  var dotHtml = isOnline ? _avatarDot('online', 28) : '';
+  if (avatarPfad) {
+    el.innerHTML = '<img src="' + avatarPfad + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display=\'none\'">' + dotHtml;
+  } else {
+    el.innerHTML = '<span style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:13px">' + nameInitials(name||'?') + '</span>' + dotHtml;
+  }
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────
@@ -3663,11 +3670,15 @@ async function openAthletById(id) {
   showModal(
     '<h2 style="margin-bottom:12px">Athleten-Profil <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div class="profile-header" style="margin-bottom:12px">' +
-      '<div class="profile-avatar" style="overflow:hidden;padding:0;' + (athlet.avatar_pfad ? 'background:none;' : '') + '">' +
-        (athlet.avatar_pfad
-          ? '<img src="' + athlet.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
-          : initials.toUpperCase()) +
-      '</div>' +
+      (function(){
+        var isMyProfile = !!(currentUser && currentUser.athlet_id && currentUser.athlet_id === athlet.id);
+        var dot = isMyProfile ? _avatarDot('online', 64) : '';
+        return '<div class="profile-avatar" style="overflow:visible;position:relative;padding:0;' + (athlet.avatar_pfad ? 'background:none;' : '') + '">' +
+          (athlet.avatar_pfad
+            ? '<img src="' + athlet.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
+            : initials.toUpperCase()) +
+          dot + '</div>';
+      })() +
       '<div>' +
         '<div style="font-size:20px;font-weight:700">' + (athlet.vorname || '') + ' ' + (athlet.nachname || '') + '</div>' +
         (gruppenTags ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">' + gruppenTags + '</div>' : '') +

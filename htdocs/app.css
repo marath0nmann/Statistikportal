@@ -129,10 +129,10 @@ nav button.active {
 .user-badge:hover { background: rgba(255,255,255,.2); }
 .user-avatar {
   width: 28px; height: 28px; border-radius: 50%;
-  background: var(--accent); color: var(--on-accent);
+  background: linear-gradient(135deg, var(--primary), var(--accent)); color: var(--on-primary);
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 600;
-  overflow: hidden; flex-shrink: 0;
+  font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700;
+  overflow: visible; flex-shrink: 0; position: relative;
 }
 .user-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 .user-name { font-size: 13px; font-weight: 600; color: var(--on-primary); }

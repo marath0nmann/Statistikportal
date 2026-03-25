@@ -1,3 +1,12 @@
+## v725 – Online-Dot systemweit
+
+- **Header (oben rechts)**: Avatar zeigt grünen Dot wenn eingeloggt; `_renderHeaderAvatar()` für alle Avatar-Updates
+- **Athletenprofil**: Dot wenn der angezeigte Athlet dem eigenen Account zugeordnet ist
+- **CSS**: `.user-avatar` → `overflow:visible; position:relative` + Gradient
+- **auth/me**: gibt `athlet_id` mit → wird auf `currentUser` gespeichert
+
+---
+
 ## v724 – Fix Avatar-Dot Überlappung
 
 - **Ursache**: `bottom:-7px; right:-7px` funktioniert mit `position:absolute` in `inline-flex`-Containern nicht zuverlässig – der Dot landete unten-links statt unten-rechts
