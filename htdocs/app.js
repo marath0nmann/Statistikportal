@@ -1164,8 +1164,7 @@ async function doLoginStep2() {
       if (r.data.totp_setup) await showTotpSetup();
       else if (r.data.email_login_bevorzugt && !r.data.has_totp && !r.data.has_passkey) {
         // User bevorzugt E-Mail-Code → Schritt 3 mit E-Mail-Tab + sofort Code senden
-        renderLoginStep3(false, false);
-        setTimeout(doEmailCodeSend, 200);
+        renderLoginStep3(false, false, true); // autoSend=true
       } else renderLoginStep3(r.data.has_totp !== false, r.data.has_passkey !== false);
     } else {
       currentUser = { name: r.data.name || _loginState.ident, email: r.data.email || _loginState.ident, vorname: r.data.vorname || '', rolle: r.data.rolle };
@@ -1180,7 +1179,7 @@ async function doLoginStep2() {
 }
 
 // Schritt 3: TOTP oder E-Mail-Code
-function renderLoginStep3(hasTotp, hasPasskey) {
+function renderLoginStep3(hasTotp, hasPasskey, autoSend) {
   var methods = [];
   if (hasTotp)    methods.push('totp');
   if (hasPasskey) methods.push('passkey');
@@ -1188,7 +1187,7 @@ function renderLoginStep3(hasTotp, hasPasskey) {
   _loginStep3ShowMethod(methods[0], methods);
 }
 
-function _loginStep3ShowMethod(active, methods) {
+function _loginStep3ShowMethod(active, methods, autoSend) {
   var tabs = '';
   if (methods.indexOf('totp') >= 0)
     tabs += '<button class="btn btn-' + (active==='totp'?'primary':'ghost') + ' btn-sm" onclick="_loginStep3ShowMethod(\'totp\',[' + methods.map(function(m){return '\''+m+'\''}).join(',') + '])">&#x1F4F1; App</button> ';
@@ -1214,18 +1213,35 @@ function _loginStep3ShowMethod(active, methods) {
       '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
       '<button class="btn btn-primary" style="width:100%" onclick="doPasskeyAuth()">&#x1F511; Passkey verwenden</button>';
   } else { // email
-    body =
-      '<p style="color:var(--text2);font-size:13px;margin:12px 0 16px">Wir senden dir einen 6-stelligen Code an deine hinterlegte E-Mail-Adresse.</p>' +
-      '<div id="email-code-sent" style="display:none;color:var(--green);font-size:13px;margin-bottom:12px">&#x2705; Code gesendet! Bitte prüfe dein Postfach.</div>' +
-      '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
-      '<button class="btn btn-ghost" style="width:100%;margin-bottom:12px" id="email-send-btn" onclick="doEmailCodeSend()">&#x1F4E7; Code senden</button>' +
-      '<div class="form-group" style="margin-bottom:16px">' +
-        '<label>Code aus E-Mail</label>' +
-        '<input type="text" id="email-code" inputmode="numeric" maxlength="6" placeholder="000000"' +
-          ' style="letter-spacing:6px;font-size:24px;text-align:center;font-weight:700"' +
-          ' onkeydown="if(event.key===\'Enter\')doEmailCodeVerify()"/>' +
-      '</div>' +
-      '<button class="btn btn-primary" style="width:100%" onclick="doEmailCodeVerify()">Best\u00e4tigen</button>';
+    if (autoSend) {
+      // Nur E-Mail möglich: Code wird automatisch gesendet
+      body =
+        '<p style="color:var(--text2);font-size:13px;margin:12px 0 8px">Wir haben dir einen 6-stelligen Code an deine hinterlegte E-Mail-Adresse gesendet.</p>' +
+        '<div id="email-code-sent" style="color:var(--green,#2e7d32);font-size:12px;margin-bottom:14px">&#x2705; Bitte prüfe dein Postfach.</div>' +
+        '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
+        '<div class="form-group" style="margin-bottom:16px">' +
+          '<label>Code aus E-Mail</label>' +
+          '<input type="text" id="email-code" inputmode="numeric" maxlength="6" placeholder="000000"' +
+            ' style="letter-spacing:6px;font-size:24px;text-align:center;font-weight:700"' +
+            ' onkeydown="if(event.key===\'Enter\')doEmailCodeVerify()"/>' +
+        '</div>' +
+        '<button class="btn btn-primary" style="width:100%" onclick="doEmailCodeVerify()">Best\u00e4tigen</button>' +
+        '<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;opacity:.6" id="email-send-btn" onclick="doEmailCodeSend()">&#x1F4E7; Code erneut senden</button>';
+    } else {
+      // Einer von mehreren 2FA-Tabs: manueller Send-Button
+      body =
+        '<p style="color:var(--text2);font-size:13px;margin:12px 0 16px">Wir senden dir einen 6-stelligen Code an deine hinterlegte E-Mail-Adresse.</p>' +
+        '<div id="email-code-sent" style="display:none;color:var(--green,#2e7d32);font-size:13px;margin-bottom:12px">&#x2705; Code gesendet! Bitte prüfe dein Postfach.</div>' +
+        '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
+        '<button class="btn btn-ghost" style="width:100%;margin-bottom:12px" id="email-send-btn" onclick="doEmailCodeSend()">&#x1F4E7; Code senden</button>' +
+        '<div class="form-group" style="margin-bottom:16px">' +
+          '<label>Code aus E-Mail</label>' +
+          '<input type="text" id="email-code" inputmode="numeric" maxlength="6" placeholder="000000"' +
+            ' style="letter-spacing:6px;font-size:24px;text-align:center;font-weight:700"' +
+            ' onkeydown="if(event.key===\'Enter\')doEmailCodeVerify()"/>' +
+        '</div>' +
+        '<button class="btn btn-primary" style="width:100%" onclick="doEmailCodeVerify()">Best\u00e4tigen</button>';
+    }
   }
 
   document.getElementById('login-screen').innerHTML = _loginCard(
