@@ -3671,19 +3671,22 @@ async function openAthletById(id) {
     '<h2 style="margin-bottom:12px">Athleten-Profil <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div class="profile-header" style="margin-bottom:12px">' +
       (function(){
-        // Prüfe ob dieser Athlet dem eingeloggten User gehört
-        // Variante 1: currentUser.athlet_id (aus auth/me)
-        // Variante 2: Benutzertabelle falls Admin bereits geladen
-        var isMyProfile = !!(currentUser && (
-          (currentUser.athlet_id && currentUser.athlet_id === athlet.id) ||
-          (state._adminBenutzerMap && Object.values(state._adminBenutzerMap).some(function(u){ return u.athlet_id === athlet.id && u.email === currentUser.email; }))
-        ));
-        var dot = isMyProfile ? _avatarDot('online', 64) : '';
-        return '<div class="profile-avatar" style="overflow:visible;position:relative;padding:0;' + (athlet.avatar_pfad ? 'background:none;' : '') + '">' +
+        // Online-Status: dot wird asynchron gesetzt nach API-Abfrage
+        var _profAvId = 'prof-av-' + athlet.id;
+        var _profAvatarHtml = '<div class="profile-avatar" style="overflow:visible;position:relative;padding:0;' + (athlet.avatar_pfad ? 'background:none;' : '') + '" id="' + _profAvId + '">' +
           (athlet.avatar_pfad
             ? '<img src="' + athlet.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
             : initials.toUpperCase()) +
-          dot + '</div>';
+          '</div>';
+        // Async: Online-Status vom Server laden
+        apiGet('auth/online-status').then(function(r) {
+          var onlineIds = (r && r.ok && r.data) ? r.data : [];
+          if (onlineIds.indexOf(athlet.id) >= 0 || onlineIds.indexOf(String(athlet.id)) >= 0) {
+            var el = document.getElementById(_profAvId);
+            if (el) { el.style.overflow = 'visible'; el.style.position = 'relative'; el.innerHTML += _avatarDot('online', 64); }
+          }
+        });
+        return _profAvatarHtml;
       })() +
       '<div>' +
         '<div style="font-size:20px;font-weight:700">' + (athlet.vorname || '') + ' ' + (athlet.nachname || '') + '</div>' +

@@ -277,6 +277,15 @@ class Auth {
     // ============================================================
     public static function check(): ?array {
         if (empty($_SESSION['user_id'])) return null;
+        $uid = (int)$_SESSION['user_id'];
+        // Aktivität aktualisieren (max. alle 60s um DB-Last zu reduzieren)
+        $lastPing = $_SESSION['_last_ping'] ?? 0;
+        if (time() - $lastPing > 60) {
+            try {
+                DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_aktivitaet = NOW() WHERE id = ?', [$uid]);
+                $_SESSION['_last_ping'] = time();
+            } catch (\Exception $e) {}
+        }
         // avatar_pfad frisch aus DB (Spalte existiert ggf. erst nach Migration)
         $avatar = null;
         try {
