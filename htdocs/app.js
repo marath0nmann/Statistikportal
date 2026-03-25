@@ -3580,15 +3580,17 @@ function _apRender() {
     diszMap[_ek].push(ergs[i]);
   }
   // Externe PBs: gleicher Key wie internal (m+mapping_id), sonst Name
+  var _extKeyMap = {}; // key -> repr. pb (for label when no internal ergs)
   (kat.pbs || []).forEach(function(p) {
     var key = p.disziplin_mapping_id ? 'm' + p.disziplin_mapping_id : 'd_' + (p.disziplin_mapped || p.disziplin);
     if (!diszMap[key]) diszMap[key] = [];
+    if (!_extKeyMap[key]) _extKeyMap[key] = p;
   });
   var diszList = Object.keys(diszMap).sort(function(a, b) {
-    var ea = diszMap[a][0], eb = diszMap[b][0];
-    var ka = _apDiszSortKey(ea ? ea.disziplin : a);
-    var kb = _apDiszSortKey(eb ? eb.disziplin : b);
-    return ka !== kb ? ka - kb : (ea ? ea.disziplin : a).localeCompare(eb ? eb.disziplin : b);
+    var ea = diszMap[a][0] || _extKeyMap[a], eb = diszMap[b][0] || _extKeyMap[b];
+    var ka = _apDiszSortKey(ea ? (ea.disziplin_mapped || ea.disziplin) : a);
+    var kb = _apDiszSortKey(eb ? (eb.disziplin_mapped || eb.disziplin) : b);
+    return ka !== kb ? ka - kb : (ea ? (ea.disziplin_mapped||ea.disziplin) : a).localeCompare(eb ? (eb.disziplin_mapped||eb.disziplin) : b);
   });
   if (!_apState.selDisz || diszMap[_apState.selDisz] === undefined) {
     _apState.selDisz = diszList[0] || null;
@@ -3608,7 +3610,8 @@ function _apRender() {
   for (var di = 0; di < diszList.length; di++) {
     var disz = diszList[di];
     var dErgs = diszMap[disz];
-    var diszLabel = dErgs[0] ? ergDiszLabel(dErgs[0]) : disz;
+    var _repr = dErgs[0] || _extKeyMap[disz];
+    var diszLabel = _repr ? (dErgs[0] ? ergDiszLabel(dErgs[0]) : (_repr.disziplin_mapped || _repr.disziplin)) : disz;
     var pb = _apBestOf(dErgs, fmt);
     var pbStr = pb ? _apFmtRes(pb, fmt) : '';
     var active2 = disz === _apState.selDisz ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : 'background:var(--surface);color:var(--text);border-color:var(--border);';
@@ -3661,7 +3664,7 @@ function _apRender() {
       : '';
     rows += '<tr style="color:var(--text)">' +
       '<td style="padding:4px 6px;color:var(--text2)">' + (p.datum ? formatDate(p.datum) : '&ndash;') + '</td>' +
-      '<td style="padding:4px 6px;color:var(--text2)">&ndash;</td>' +
+      '<td style="padding:4px 6px;color:var(--text2)">' + (p.altersklasse || '&ndash;') + '</td>' +
       '<td style="padding:4px 6px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700;color:var(--text)">' + (p.resultat || '') + '</td>' +
       (showPace ? (function(){
         var _dm = p.disziplin_mapped || p.disziplin || '';

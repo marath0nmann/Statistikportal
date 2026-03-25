@@ -1,3 +1,11 @@
+## v739 – Externe Ergebnisse: 3 Fixes
+
+- **Eigene Tabs**: Internes Ergebnisse-Query liefert jetzt `disziplin_mapping_id` → `ergDiszKey` erzeugt `m5` statt `d_Marathon` → ext + intern landen im selben Button
+- **AK**: AK-Zelle war hartkodiert auf `&ndash;`, zeigt jetzt `p.altersklasse`
+- **Button-Label**: Ext-only Disziplinen (kein internes Ergebnis) nutzen `disziplin_mapped` aus dem PB statt des rohen Keys (`m5` → `Marathon`)
+
+---
+
 ## v738 – Externe Ergebnisse: 3 Fixes
 
 **Eigene Tabs**: Externe PBs nutzen jetzt denselben Disziplin-Key wie interne Ergebnisse (`m{mapping_id}`) → landen im selben Button, kein doppelter Tab
