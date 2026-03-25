@@ -1,4 +1,19 @@
-## v688 – Mehrere Fixes
+## v691 – GitHub-Metadaten & Build-Skript
+
+- **CHANGELOG.md**: Einheitliches Format (`## vXXX – Titel` + `---`-Trennlinie), doppelter v689-Eintrag bereinigt
+- **README.md**: Auf v690-Featurestand aktualisiert; Setup-Anleitung, API-Tabelle und Auto-Migrationen überarbeitet
+- **build.py**: Neues Build-Skript pflegt COMMIT_EDITMSG, CHANGELOG und README automatisch bei jedem Build
+
+---
+
+## v690 – Favorisierte Disziplinen: Ergebnisanzahl + Sortierung
+
+- **Ergebnisanzahl-Badge**: Jede Disziplin zeigt einen Badge mit der Anzahl vorliegender Ergebnisse
+- **Sortierung**: Disziplinen innerhalb jeder Kategorie nach Ergebnisanzahl absteigend sortiert (bei Gleichstand alphabetisch)
+
+---
+
+## v689 – Mehrere Fixes
 
 - **Registrierungen-Badge**: `.filter()` schlug fehl weil API-Response jetzt Objekt (nicht Array) → korrigiert
 - **Vorname nach Login**: `auth/me` wird jetzt vor `renderPage()` abgewartet → Vorname sofort im Header
@@ -6,6 +21,8 @@
 - **Favorisierte Disziplinen**: Checkboxen nach Kategorie gruppiert (mit Kategorie-Überschrift)
 - **Favorisierte Disziplinen**: Feldname `kategorie` statt `kategorie_name` korrigiert
 - **Bestleistungen Top-Reiter**: wenn Favoriten konfiguriert → NUR diese anzeigen (nach Ergebnisanzahl sortiert), keine weiteren Disziplinen
+- **Rollen-Buttons**: `display:flex` von `<td>` in umschließendes `<div>` verschoben → Edit/Löschen-Buttons erscheinen korrekt
+- **Rollen-Tabelle**: `table-layout:fixed` + `<colgroup>` → kein Überlauf mehr; Rechte-Spalte mit `word-break:break-word`
 
 ---
 
