@@ -9285,11 +9285,12 @@ async function _ladeRollenManager() {
   if (!wrap) return;
   if (!r || !r.ok) { wrap.innerHTML = '<div style="color:var(--accent);padding:12px">Fehler beim Laden.</div>'; return; }
   var rollen = r.data || [];
-  var html = '<table style="width:100%;font-size:13px;border-collapse:collapse">' +
+  var html = '<table style="width:100%;font-size:13px;border-collapse:collapse;table-layout:fixed">' +
+    '<colgroup><col style="width:110px"><col><col style="width:80px"></colgroup>' +
     '<thead><tr style="border-bottom:2px solid var(--border)">' +
     '<th style="text-align:left;padding:6px 10px">Rolle</th>' +
     '<th style="text-align:left;padding:6px 10px">Rechte</th>' +
-    '<th style="width:80px"></th>' +
+    '<th></th>' +
     '</tr></thead><tbody>';
   rollen.forEach(function(rolle) {
     var rechteLabels = (rolle.rechte || []).map(function(k) {
@@ -9299,10 +9300,12 @@ async function _ladeRollenManager() {
     var locked = (rolle.name === 'admin' || rolle.name === 'leser');
     html += '<tr style="border-bottom:1px solid var(--border)">' +
       '<td style="padding:8px 10px;font-weight:600">' + rolle.name + '</td>' +
-      '<td style="padding:8px 10px;color:var(--text2);font-size:12px">' + (rechteLabels || '–') + '</td>' +
-      '<td style="padding:8px 6px;display:flex;gap:4px;justify-content:flex-end">' +
-        '<button class="btn btn-ghost btn-sm" onclick="showRolleEditModal(' + rolle.id + ')" title="Bearbeiten">✏️</button>' +
-        (!locked ? '<button class="btn btn-danger btn-sm" onclick="deleteRolle(' + rolle.id + ',\'' + rolle.name + '\')" title="Löschen">✕</button>' : '') +
+      '<td style="padding:8px 10px;color:var(--text2);font-size:12px;word-break:break-word;white-space:normal">' + (rechteLabels || '–') + '</td>' +
+      '<td style="padding:8px 6px;white-space:nowrap;text-align:right">' +
+        '<div style="display:flex;gap:4px;justify-content:flex-end">' +
+          '<button class="btn btn-ghost btn-sm" onclick="showRolleEditModal(' + rolle.id + ')" title="Bearbeiten">✏️</button>' +
+          (!locked ? '<button class="btn btn-danger btn-sm" onclick="deleteRolle(' + rolle.id + ',\'' + rolle.name + '\')" title="Löschen">✕</button>' : '') +
+        '</div>' +
       '</td>' +
     '</tr>';
   });
@@ -10892,25 +10895,37 @@ async function renderAdminDisziplinen() {
   }
   var _favRaw  = (appConfig && appConfig.top_disziplinen) || '';
   var _favList = _favRaw ? (JSON.parse(_favRaw) || []) : [];
-  // Disziplinen nach Kategorie gruppieren
-  var _katMap = {};
+  // Disziplinen nach Kategorie gruppieren (mit Ergebnis-Anzahl)
+  var _katMap = {};   // kat -> [{disziplin, count}]
   var _katOrder = [];
+  var _diszCount = {}; // disziplin -> count
   if (rMap && rMap.ok) {
     rMap.data.forEach(function(m) {
       var kat = m.kategorie || m.kategorie_name || m.kat_name || 'Sonstige';
       if (!_katMap[kat]) { _katMap[kat] = []; _katOrder.push(kat); }
-      if (m.disziplin && _katMap[kat].indexOf(m.disziplin) < 0) _katMap[kat].push(m.disziplin);
+      if (m.disziplin) {
+        _diszCount[m.disziplin] = (_diszCount[m.disziplin] || 0) + (m.ergebnis_anzahl || 0);
+        if (!_katMap[kat].find(function(x){ return x.d === m.disziplin; })) {
+          _katMap[kat].push({ d: m.disziplin, n: m.ergebnis_anzahl || 0 });
+        }
+      }
+    });
+    // Innerhalb jeder Kategorie nach Ergebnisanzahl absteigend sortieren
+    _katOrder.forEach(function(kat) {
+      _katMap[kat].sort(function(a, b) { return b.n - a.n || a.d.localeCompare(b.d); });
     });
   }
   var _favKatHtml = _katOrder.map(function(kat) {
-    var disz = _katMap[kat].sort();
+    var disz = _katMap[kat];
     return '<div style="margin-bottom:14px">' +
       '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">' + kat + '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
-      disz.map(function(d) {
+      disz.map(function(item) {
+        var d = item.d, n = item.n;
         var sel = _favList.indexOf(d) >= 0;
+        var countBadge = '<span style="font-size:10px;background:var(--surf3,var(--surf2));color:var(--text2);border-radius:10px;padding:1px 5px;margin-left:2px;line-height:1.6">' + n + '</span>';
         return '<label style="display:inline-flex;align-items:center;gap:5px;background:var(--surf2);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:13px;' + (sel ? 'outline:2px solid var(--accent);background:var(--primary-faint,var(--surf2));' : '') + '">' +
-          '<input type="checkbox" data-fav-disz="' + d + '" ' + (sel ? 'checked' : '') + ' style="width:13px;height:13px"> ' + d + '</label>';
+          '<input type="checkbox" data-fav-disz="' + d + '" ' + (sel ? 'checked' : '') + ' style="width:13px;height:13px"> ' + d + countBadge + '</label>';
       }).join('') +
       '</div></div>';
   }).join('');
