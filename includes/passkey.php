@@ -179,7 +179,11 @@ class Passkey {
         }
     }
 
+    // Öffentlicher Accessor für rpId (für stateless Discover in api/index.php)
+    public static function getRpIdPublic(): string { return self::getRpId(); }
+
     // ── Authentifizierung: Discoverable Challenge (ohne User-ID) ──
+    // (Wird nicht mehr genutzt – stateless via HMAC-Token in api/index.php)
     public static function authChallengeDiscover(): array {
         $challenge = self::randomBytes(32);
         $_SESSION['passkey_auth_challenge']  = base64_encode($challenge);
@@ -214,6 +218,49 @@ class Passkey {
                 return ['type' => 'public-key', 'id' => $r['credential_id']];
             }, $credentials),
         ];
+    }
+
+    // ── Authentifizierung: Stateless Verify (Discover-Flow, kein Session) ──
+    public static function authVerifyStateless(array $credential, string $expectedChallenge): array {
+        try {
+            $credId = $credential['id'] ?? '';
+            if (!$credId) throw new Exception('Keine Credential-ID.');
+
+            $clientData = json_decode(self::base64urlDecode($credential['response']['clientDataJSON'] ?? ''), true);
+            if (!$clientData) throw new Exception('clientDataJSON ungültig.');
+            if (($clientData['type'] ?? '') !== 'webauthn.get') throw new Exception('Falscher type.');
+
+            $gotChallenge = self::base64urlDecode($clientData['challenge'] ?? '');
+            if (!hash_equals($expectedChallenge, $gotChallenge)) throw new Exception('Challenge stimmt nicht.');
+            if (($clientData['origin'] ?? '') !== self::getOrigin()) throw new Exception('Origin stimmt nicht.');
+
+            $authData = self::base64urlDecode($credential['response']['authenticatorData'] ?? '');
+            if (strlen($authData) < 37) throw new Exception('authenticatorData zu kurz.');
+            if (!hash_equals(hash('sha256', self::getRpId(), true), substr($authData, 0, 32))) throw new Exception('rpId-Hash stimmt nicht.');
+            if (!(ord($authData[32]) & 0x01)) throw new Exception('User Present nicht gesetzt.');
+
+            // Signatur gegen gespeicherten Public Key prüfen
+            $pk = DB::fetchOne('SELECT * FROM ' . DB::tbl('passkeys') . ' WHERE credential_id = ?', [$credId]);
+            if (!$pk) throw new Exception('Passkey nicht gefunden.');
+
+            $signature      = self::base64urlDecode($credential['response']['signature'] ?? '');
+            $clientDataHash = hash('sha256', self::base64urlDecode($credential['response']['clientDataJSON'] ?? ''), true);
+            $verifyData     = $authData . $clientDataHash;
+            $pubKeyData     = json_decode($pk['public_key'], true);
+            if (!is_array($pubKeyData)) throw new Exception('Public Key ungültig.');
+            $pem = self::coseKeyToPem($pubKeyData);
+            if (!openssl_verify($verifyData, $signature, $pem, OPENSSL_ALGO_SHA256))
+                throw new Exception('Signatur ungültig.');
+
+            $signCount = unpack('N', substr($authData, 33, 4))[1];
+            if ($pk['sign_count'] > 0 && $signCount <= $pk['sign_count'])
+                throw new Exception('Sign Count zu niedrig.');
+
+            DB::query('UPDATE ' . DB::tbl('passkeys') . ' SET sign_count=?, letzter_login=NOW() WHERE id=?', [$signCount, $pk['id']]);
+            return ['ok' => true];
+        } catch (Exception $e) {
+            return ['ok' => false, 'fehler' => 'Authentifizierung fehlgeschlagen: ' . $e->getMessage()];
+        }
     }
 
     // ── Authentifizierung: Response verifizieren ──────────────

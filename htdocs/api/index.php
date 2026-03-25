@@ -11,7 +11,6 @@ ini_set('display_errors', '0');
 // Session ZUERST starten, bevor jegliche Ausgabe
 require_once __DIR__ . '/../../includes/auth.php';
 Auth::startSession();
-session_write_close(); // Lock sofort freigeben; schreibende Routes rufen session_start() selbst
 
 // Danach Content-Type Header setzen
 header('Content-Type: application/json; charset=utf-8');
@@ -191,7 +190,6 @@ if ($res === 'auth') {
         try { Passkey::migrate(); } catch (\Exception $e) {}
         $hasPasskey = Passkey::userHasPasskey($user['id']);
         // User-ID in Session für nachfolgende Passkey-Auth
-        Auth::sessionWriteStart();
         $_SESSION['identify_user_id'] = $user['id'];
         session_write_close();
         jsonOk(['found' => true, 'has_passkey' => $hasPasskey]);
@@ -199,7 +197,6 @@ if ($res === 'auth') {
 
     // --- Login Schritt 1: Passwort ---
     if ($method === 'POST' && $id === 'login') {
-        Auth::sessionWriteStart();
         $result = Auth::loginStep1($body['benutzername'] ?? '', $body['passwort'] ?? '');
         if (!$result['ok']) jsonErr($result['fehler'], 401);
         if (!empty($result['totp_required'])) {
@@ -215,7 +212,6 @@ if ($res === 'auth') {
     }
     // --- Login Schritt 2: TOTP-Code ---
     if ($method === 'POST' && $id === 'totp-verify') {
-        Auth::sessionWriteStart();
         $result = Auth::loginStep2($body['code'] ?? '');
         if (!$result['ok']) jsonErr($result['fehler'], 401);
         jsonOk(['rolle' => $result['rolle'], 'name' => $result['name']]);
@@ -251,7 +247,6 @@ if ($res === 'auth') {
 
     // ── Passkey: Login Challenge (Schritt 2 oder 3 – aus identify oder totp_pending) ──
     if ($method === 'POST' && $id === 'passkey-auth-challenge') {
-        Auth::sessionWriteStart();
         $uid = (int)($_SESSION['totp_pending_user'] ?? $_SESSION['identify_user_id'] ?? 0);
         if (!$uid) jsonErr('Keine ausstehende Anmeldung.', 401);
         Passkey::migrate();
@@ -260,16 +255,25 @@ if ($res === 'auth') {
     }
     // ── Passkey: Discoverable-Challenge (ohne Benutzername) ──
     if ($method === 'POST' && $id === 'passkey-auth-challenge-discover') {
+        // Stateless: Challenge wird HMAC-signiert zurückgegeben, kein Session-Lock
         Passkey::migrate();
-        Auth::sessionWriteStart();
-        $options = Passkey::authChallengeDiscover();
-        session_write_close();
-        jsonOk($options);
+        $challenge = random_bytes(32);
+        $ts        = time();
+        $secret    = defined('SESSION_NAME') ? SESSION_NAME : 'stat';
+        $token     = hash_hmac('sha256', base64_encode($challenge) . '|' . $ts, $secret);
+        jsonOk([
+            'challenge'        => base64_encode($challenge),
+            'token'            => $token,
+            'ts'               => $ts,
+            'timeout'          => 60000,
+            'rpId'             => Passkey::getRpIdPublic(),
+            'userVerification' => 'preferred',
+            'allowCredentials' => [],
+        ]);
     }
     // ── Passkey: Login Response verifizieren ──
     // --- Login Schritt 3 Alternative: E-Mail-Code senden ---
     if ($method === 'POST' && $id === 'email-code-send') {
-        Auth::sessionWriteStart();
         if (empty($_SESSION['totp_pending_user'])) jsonErr('Keine ausstehende Anmeldung.', 401);
         $uid  = (int)$_SESSION['totp_pending_user'];
         $user = DB::fetchOne('SELECT benutzername, email FROM ' . DB::tbl('benutzer') . ' WHERE id = ? AND aktiv = 1', [$uid]);
@@ -292,7 +296,6 @@ if ($res === 'auth') {
 
     // --- Login Schritt 3 Alternative: E-Mail-Code verifizieren ---
     if ($method === 'POST' && $id === 'email-code-verify') {
-        Auth::sessionWriteStart();
         if (empty($_SESSION['totp_pending_user'])) jsonErr('Keine ausstehende Anmeldung.', 401);
         if (empty($_SESSION['email_login_code_hash']) || ($_SESSION['email_login_code_exp'] ?? 0) < time())
             jsonErr('Code abgelaufen. Bitte neuen Code anfordern.', 400);
@@ -307,18 +310,30 @@ if ($res === 'auth') {
     }
 
     if ($method === 'POST' && $id === 'passkey-auth-verify') {
-        Auth::sessionWriteStart();
-        $result = Passkey::authVerify($body['credential'] ?? []);
-        if (!$result['ok']) jsonErr($result['fehler'], 401);
-        // uid aus Session (normaler Flow) oder per credential_id (Discoverable-Flow)
-        $uid = (int)($_SESSION['totp_pending_user'] ?? $_SESSION['identify_user_id'] ?? 0);
-        if (!$uid) {
+        $isDiscover = !empty($body['discover_token']);
+        if ($isDiscover) {
+            // Stateless Discover-Flow: HMAC-Token prüfen
+            $token  = $body['discover_token'];
+            $ts     = (int)($body['discover_ts'] ?? 0);
+            $chal   = $body['discover_challenge'] ?? '';
+            $secret = defined('SESSION_NAME') ? SESSION_NAME : 'stat';
+            $expect = hash_hmac('sha256', $chal . '|' . $ts, $secret);
+            if (!hash_equals($expect, $token))    jsonErr('Ungültiges Challenge-Token.', 401);
+            if (time() - $ts > 120)               jsonErr('Challenge abgelaufen.', 401);
+            // Passkey-Assertion direkt prüfen (challenge aus body, kein Session-Lookup)
+            $result = Passkey::authVerifyStateless($body['credential'] ?? [], base64_decode($chal));
+            if (!$result['ok']) jsonErr($result['fehler'], 401);
             $credId = $body['credential']['id'] ?? '';
             $pk = $credId ? DB::fetchOne('SELECT user_id FROM ' . DB::tbl('passkeys') . ' WHERE credential_id = ?', [$credId]) : null;
             if (!$pk) jsonErr('Passkey keinem Benutzer zugeordnet.', 401);
             $uid = (int)$pk['user_id'];
+        } else {
+            $result = Passkey::authVerify($body['credential'] ?? []);
+            if (!$result['ok']) jsonErr($result['fehler'], 401);
+            $uid = (int)($_SESSION['totp_pending_user'] ?? $_SESSION['identify_user_id'] ?? 0);
+            unset($_SESSION['totp_pending_user'], $_SESSION['identify_user_id']);
+            if (!$uid) jsonErr('Keine ausstehende Anmeldung.', 401);
         }
-        unset($_SESSION['totp_pending_user'], $_SESSION['identify_user_id']);
         $user = DB::fetchOne('SELECT * FROM ' . DB::tbl('benutzer') . ' WHERE id = ? AND aktiv = 1', [$uid]);
         if (!$user) jsonErr('Benutzer nicht gefunden.', 401);
         $loginResult = Auth::finalizeLoginPublic($user);
@@ -353,7 +368,6 @@ if ($res === 'auth') {
     }
     // --- Logout ---
     if ($method === 'POST' && $id === 'logout') {
-        Auth::sessionWriteStart();
         Auth::logout();
         jsonOk('Abgemeldet.');
     }
