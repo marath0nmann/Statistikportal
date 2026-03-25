@@ -1,3 +1,14 @@
+## v688 – Mehrere Fixes
+
+- **Registrierungen-Badge**: `.filter()` schlug fehl weil API-Response jetzt Objekt (nicht Array) → korrigiert
+- **Vorname nach Login**: `auth/me` wird jetzt vor `renderPage()` abgewartet → Vorname sofort im Header
+- **Footer-Links**: `footerLink()` nutzt `onclick=navigate()` statt `href` → internes Routing greift korrekt
+- **Favorisierte Disziplinen**: Checkboxen nach Kategorie gruppiert (mit Kategorie-Überschrift)
+- **Favorisierte Disziplinen**: Feldname `kategorie` statt `kategorie_name` korrigiert
+- **Bestleistungen Top-Reiter**: wenn Favoriten konfiguriert → NUR diese anzeigen (nach Ergebnisanzahl sortiert), keine weiteren Disziplinen
+
+---
+
 ## v687 – Mehrere Features & Fixes
 
 **Avatar:**

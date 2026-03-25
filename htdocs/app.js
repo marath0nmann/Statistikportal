@@ -1447,22 +1447,15 @@ async function showApp() {
   await loadDisziplinen();
   if (currentUser) {
     loadAthleten();  // parallel, nicht abwarten nötig
-    // Avatar + Vorname aus Session nachladen (z.B. direkt nach Login)
-    apiGet('auth/me').then(function(r) {
-      if (r && r.ok && r.data) {
-        if (r.data.avatar)   currentUser.avatar   = r.data.avatar;
-        if (r.data.vorname)  currentUser.vorname  = r.data.vorname;
-        if (r.data.email)    currentUser.email    = r.data.email;
-        // Avatar-Element aktualisieren
-        var avEl = document.getElementById('user-avatar');
-        if (avEl) {
-          if (currentUser.avatar) avEl.innerHTML = '<img src="'+currentUser.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
-          else avEl.textContent = nameInitials(currentUser.vorname || currentUser.email || '?');
-        }
-        var nmEl = document.getElementById('user-name-disp');
-        if (nmEl) nmEl.textContent = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
+    // Avatar + Vorname ABWARTEN (muss vor renderPage sein damit Header korrekt)
+    try {
+      var _meR = await apiGet('auth/me');
+      if (_meR && _meR.ok && _meR.data) {
+        if (_meR.data.avatar)  currentUser.avatar  = _meR.data.avatar;
+        if (_meR.data.vorname) currentUser.vorname = _meR.data.vorname;
+        if (_meR.data.email)   currentUser.email   = _meR.data.email;
       }
-    }).catch(function(){});
+    } catch(e) {}
     // User-Präferenzen ABWARTEN bevor renderPage() — sonst werden Defaults gerendert
     try {
       var _prefsR = await apiGet('auth/prefs');
@@ -1799,9 +1792,12 @@ function buildFooter() {
   var dimStyle  = 'color:inherit;opacity:.35;cursor:default;';
   // Interne Routen als Fallback wenn keine externe URL konfiguriert
   function footerLink(url, internalRoute, label) {
-    var href = url || internalRoute;
-    var target = url ? ' target="_blank"' : '';
-    return '<a href="' + href + '"' + target + ' style="' + linkStyle + '">' + label + '</a>';
+    if (url) {
+      return '<a href="' + url + '" target="_blank" style="' + linkStyle + '">' + label + '</a>';
+    }
+    // Interne Route: navigate() aufrufen statt href (damit Hash-Routing greift)
+    var route = internalRoute.replace(/^#\//, '');
+    return '<a href="javascript:void(0)" onclick="navigate(\''+route+'\')"; style="' + linkStyle + '">' + label + '</a>';
   }
   var legalLine = footerLink(dsUrl,  '#/datenschutz', 'Datenschutz') + ' &nbsp;&middot;&nbsp; ' +
                   footerLink(nuUrl,  '#/nutzung',     'Nutzungsbedingungen') + ' &nbsp;&middot;&nbsp; ' +
@@ -9179,7 +9175,8 @@ async function _ladeAntraegeBadge() {
   try {
     // Registrierungen-Badge (ausstehende)
     var rr = await apiGet('auth/registrierungen');
-    var nr = rr && rr.ok ? (rr.data||[]).filter(function(x){ return x.status==='pending'; }).length : 0;
+    var _rrData = rr && rr.ok ? (Array.isArray(rr.data) ? rr.data : (rr.data.registrierungen||[])) : [];
+    var nr = _rrData.filter(function(x){ return x.status==='pending'; }).length;
     var regBtn = document.querySelector('.subtab[onclick*=\'registrierungen\']');
     if (regBtn) regBtn.innerHTML = '\uD83D\uDCDD Registrierungen' + _adminBadge(nr);
   } catch(e) {}
@@ -10895,18 +10892,34 @@ async function renderAdminDisziplinen() {
   }
   var _favRaw  = (appConfig && appConfig.top_disziplinen) || '';
   var _favList = _favRaw ? (JSON.parse(_favRaw) || []) : [];
+  // Disziplinen nach Kategorie gruppieren
+  var _katMap = {};
+  var _katOrder = [];
+  if (rMap && rMap.ok) {
+    rMap.data.forEach(function(m) {
+      var kat = m.kategorie || m.kategorie_name || m.kat_name || 'Sonstige';
+      if (!_katMap[kat]) { _katMap[kat] = []; _katOrder.push(kat); }
+      if (m.disziplin && _katMap[kat].indexOf(m.disziplin) < 0) _katMap[kat].push(m.disziplin);
+    });
+  }
+  var _favKatHtml = _katOrder.map(function(kat) {
+    var disz = _katMap[kat].sort();
+    return '<div style="margin-bottom:14px">' +
+      '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">' + kat + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
+      disz.map(function(d) {
+        var sel = _favList.indexOf(d) >= 0;
+        return '<label style="display:inline-flex;align-items:center;gap:5px;background:var(--surf2);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:13px;' + (sel ? 'outline:2px solid var(--accent);background:var(--primary-faint,var(--surf2));' : '') + '">' +
+          '<input type="checkbox" data-fav-disz="' + d + '" ' + (sel ? 'checked' : '') + ' style="width:13px;height:13px"> ' + d + '</label>';
+      }).join('') +
+      '</div></div>';
+  }).join('');
   var _favPanel = '<div class="panel" style="margin-top:16px">' +
     '<div class="panel-header"><div class="panel-title">⭐ Favorisierte Disziplinen (Bestleistungen)</div></div>' +
     '<div class="settings-panel-body">' +
-      '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">Diese Disziplinen erscheinen in "Bestleistungen" immer als erste Reiter – unabhängig von der Ergebnisanzahl. Mehrfachauswahl möglich.</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">' +
-      _allDisz.map(function(d) {
-        var sel = _favList.indexOf(d) >= 0;
-        return '<label style="display:inline-flex;align-items:center;gap:5px;background:var(--surf2);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:13px;' + (sel ? 'outline:2px solid var(--accent);' : '') + '">' +
-          '<input type="checkbox" data-fav-disz="' + d + '" ' + (sel ? 'checked' : '') + ' style="width:14px;height:14px"> ' + d + '</label>';
-      }).join('') +
-      '</div>' +
-      '<button class="btn btn-primary btn-sm" onclick="saveFavDisziplinen()">&#x1F4BE; Favoriten speichern</button>' +
+      '<div style="font-size:13px;color:var(--text2);margin-bottom:16px">Diese Disziplinen erscheinen in Bestleistungen immer zuerst. Alle anderen werden dahinter sortiert.</div>' +
+      _favKatHtml +
+      '<button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="saveFavDisziplinen()">&#x1F4BE; Favoriten speichern</button>' +
     '</div>' +
   '</div>';
   el.innerHTML += _favPanel;

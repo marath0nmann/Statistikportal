@@ -2019,8 +2019,14 @@ if ($res === 'rekorde') {
             if (isset($favResult[$fn])) $orderedFav[] = $favResult[$fn];
         }
         usort($restResult, function($a,$b){ return $b['cnt'] - $a['cnt']; });
-        $combined = array_merge($orderedFav, $restResult);
-        jsonOk(array_slice($combined, 0, max(5, count($orderedFav))));
+        if ($orderedFav) {
+            // Favoriten konfiguriert: NUR Favoriten (sortiert nach Anzahl), keine weiteren
+            usort($orderedFav, function($a,$b){ return $b['cnt'] - $a['cnt']; });
+            jsonOk($orderedFav);
+        } else {
+            // Keine Favoriten: Top 5 nach Häufigkeit
+            jsonOk(array_slice($restResult, 0, 5));
+        }
     }
 
     // GET rekorde/disziplinen?kat=
