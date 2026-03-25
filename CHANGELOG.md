@@ -1,3 +1,22 @@
+## v738 – Externe Ergebnisse: 3 Fixes
+
+**Eigene Tabs**: Externe PBs nutzen jetzt denselben Disziplin-Key wie interne Ergebnisse (`m{mapping_id}`) → landen im selben Button, kein doppelter Tab
+
+**AK-Anzeige**: Externe Ergebnisse zeigen `altersklasse` in der AK-Spalte
+
+**Pace-Anzeige**: Pace wird für externe Ergebnisse berechnet (via `diszKm()` + `calcPace()`) wenn die Disziplin ≥1km ist
+
+**Auto-AK im Modal**: Nach Auswahl des Datums wird die Altersklasse automatisch vorgeschlagen (Geburtsjahr des Athleten + Wettkampfjahr → `calcDlvAK()`), nur wenn das Feld noch leer ist
+
+---
+
+## v737
+
+- **"+ Externes Ergebnis"** links, **"Schließen"** rechts im Modal-Footer (`justify-content:space-between`)
+- **"← Zurück"** öffnet das Athleten-Profil wieder (`openAthletById(_apState.athletId)`) statt das Modal zu schließen
+
+---
+
 ## v736 – Externes Ergebnis Modal
 
 - "Abbrechen" → "← Zurück" im Modal zum Eintragen/Bearbeiten externer Ergebnisse
