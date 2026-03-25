@@ -1,1 +1,1 @@
-v698: Fix Login-Hänger ohne Passkey (Session-Lock)
+v700: Fix Login-Hänger – Session-Lock-Architektur überarbeitet

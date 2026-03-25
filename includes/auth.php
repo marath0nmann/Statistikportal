@@ -37,6 +37,13 @@ class Auth {
         }
     }
 
+    // Session für Schreibzugriff öffnen (nach globalem session_write_close())
+    public static function sessionWriteStart(): void {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session_start();
+        }
+    }
+
     // ============================================================
     // Login Schritt 1: Passwort prüfen
     // Gibt zurück:
