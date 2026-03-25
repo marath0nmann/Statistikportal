@@ -1,3 +1,23 @@
+## v700 – Fix Login hängt (Session-Lock, Take 2)
+
+**Eigentliche Ursache**: `AbortController` wurde erst nach dem `apiPost`-Aufruf erstellt → ein Klick auf "Weiter" während des laufenden Requests konnte den Fetch nicht abbrechen → Session blieb gesperrt → `auth/identify` wartete.
+
+**Fixes:**
+- **`api()`**: Nimmt jetzt optionalen `signal`-Parameter entgegen und gibt ihn an `fetch()` weiter
+- **`_startConditionalPasskey`**: `AbortController` wird VOR dem ersten `apiPost` erstellt → Abort greift sofort auch auf den laufenden Fetch
+- **`api/index.php`**: `session_write_close()` direkt nach `Auth::startSession()` → Session ist global read-only; nur schreibende Routes rufen `Auth::sessionWriteStart()` explizit auf
+- **`Auth::sessionWriteStart()`**: Neue Hilfsmethode öffnet Session bei Bedarf neu
+- Alle schreibenden Auth-Routen (`identify`, `login`, `logout`, `passkey-*`, `email-code-*`, `totp-verify`) rufen `sessionWriteStart()` vor dem ersten Session-Zugriff auf
+
+---
+
+## v699 – Fix Avatar direkt nach Login
+
+- **Ursache**: `auth/me` wurde zwar abgewartet und `currentUser.avatar` gesetzt, aber der Header-DOM wurde danach nicht aktualisiert (nur `renderPage()` folgte, das den Header nicht neu aufbaut)
+- **Fix**: Nach `auth/me`-Response wird `#user-avatar` und `#user-name-disp` direkt im DOM aktualisiert → Avatar erscheint ohne F5
+
+---
+
 ## v698 – Fix Login hängt ohne Passkey
 
 - **Ursache**: PHP-Session-Lock-Konflikt – `auth/passkey-auth-challenge-discover` (Conditional UI) und `auth/identify` (Weiter-Klick) liefen gleichzeitig, zweiter Request wartete auf Session-Freigabe

@@ -18,13 +18,14 @@ let state = {
 // ── API ────────────────────────────────────────────────────
 
 /* ── 01_api.js ── */
-async function api(method, path, body) {
+async function api(method, path, body, signal) {
   const opts = {
     method: method,
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
   };
-  if (body) opts.body = JSON.stringify(body);
+  if (body)   opts.body   = JSON.stringify(body);
+  if (signal) opts.signal = signal;
   const parts = path.split('?');
   const route = parts[0];
   const qs    = parts[1] ? '&' + parts[1] : '';
@@ -966,11 +967,13 @@ async function _startConditionalPasskey() {
   if (!window.PublicKeyCredential ||
       !PublicKeyCredential.isConditionalMediationAvailable ||
       !(await PublicKeyCredential.isConditionalMediationAvailable())) return;
+  // AbortController VOR dem Fetch anlegen, damit _abortConditionalPasskey()
+  // auch einen in-flight Request abbrechen kann
+  _conditionalPasskeyAbort = new AbortController();
   try {
-    var optR = await apiPost('auth/passkey-auth-challenge-discover', {});
-    if (!optR || !optR.ok) return;
+    var optR = await api('POST', 'auth/passkey-auth-challenge-discover', {}, _conditionalPasskeyAbort.signal);
+    if (!optR || !optR.ok) { _conditionalPasskeyAbort = null; return; }
     var opts = optR.data;
-    _conditionalPasskeyAbort = new AbortController();
     var assertion = await navigator.credentials.get({
       signal: _conditionalPasskeyAbort.signal,
       mediation: 'conditional',
@@ -1477,6 +1480,21 @@ async function showApp() {
         if (_meR.data.avatar)  currentUser.avatar  = _meR.data.avatar;
         if (_meR.data.vorname) currentUser.vorname = _meR.data.vorname;
         if (_meR.data.email)   currentUser.email   = _meR.data.email;
+        // Header-Avatar sofort aktualisieren
+        var _avatarEl = document.getElementById('user-avatar');
+        if (_avatarEl) {
+          if (currentUser.avatar) {
+            _avatarEl.innerHTML = '<img src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none'">';
+          } else {
+            var _n = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
+            _avatarEl.textContent = nameInitials(_n);
+          }
+        }
+        var _nameEl = document.getElementById('user-name-disp');
+        if (_nameEl) {
+          var _dn = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
+          _nameEl.textContent = _dn;
+        }
       }
     } catch(e) {}
     // User-Präferenzen ABWARTEN bevor renderPage() — sonst werden Defaults gerendert
