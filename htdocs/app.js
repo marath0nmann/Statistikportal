@@ -3685,7 +3685,7 @@ async function openAthletById(id) {
         // Async: Online-Status nur für eingeloggte User laden
         if (!currentUser) { return _profAvatarHtml; }
         apiGet('auth/online-status').then(function(r) {
-          var onlineIds = (r && r.ok && r.data) ? r.data : [];
+          var onlineIds = (r && r.ok && r.data) ? (r.data.athlet_ids || r.data) : [];
           if (onlineIds.indexOf(athlet.id) >= 0 || onlineIds.indexOf(String(athlet.id)) >= 0) {
             var el = document.getElementById(_profAvId);
             if (el) { el.style.overflow = 'visible'; el.style.position = 'relative'; el.innerHTML += _avatarDot('online', 64); }
@@ -9432,11 +9432,17 @@ async function renderAdmin() {
   state._adminAthleten = r.data.athleten || [];
 
   state._adminBenutzerMap = {};
+  // Server-seitiger Online-Status für alle User laden
+  var _onlineUserIds = [];
+  try {
+    var _onR = await apiGet('auth/online-status');
+    if (_onR && _onR.ok && _onR.data) _onlineUserIds = _onR.data.user_ids || [];
+  } catch(e) {}
   var tbody = '';
   for (var i = 0; i < benutzer.length; i++) {
     var b = benutzer[i];
     state._adminBenutzerMap[b.id] = b;
-    var isOnline = !!(currentUser && (currentUser.id === b.id || currentUser.email === b.email));
+    var isOnline = _onlineUserIds.indexOf(b.id) >= 0 || _onlineUserIds.indexOf(String(b.id)) >= 0;
     var dispName = (b.athlet_vorname && b.athlet_vorname.trim()) ? b.athlet_vorname : b.email;
     // VN-Schema: Vorname[0] + Nachname[0] wenn Athlet zugewiesen
     // athlet_name = 'Nachname, Vorname' → erster Buchstabe ist Nachname

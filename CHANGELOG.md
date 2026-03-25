@@ -1,3 +1,11 @@
+## v731 – Online-Status in Benutzerverwaltung für alle User
+
+- **Ursache**: Benutzerverwaltung prüfte `currentUser.id === b.id` → nur der eigene User wurde als online markiert
+- **Fix**: Vor dem Rendern der Tabelle wird `GET auth/online-status` aufgerufen; alle User mit `user_id` in der Antwort werden als online markiert
+- **Backend**: `auth/online-status` gibt jetzt `{ user_ids: [...], athlet_ids: [...] }` zurück – `user_ids` für Benutzerverwaltung, `athlet_ids` für Athletenprofil
+
+---
+
 ## v730 – Fix Header-Avatar Initialen
 
 - **Ursache**: `_renderHeaderAvatar` rief `nameInitials(vorname)` auf → nur ein Buchstabe
