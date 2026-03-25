@@ -136,7 +136,7 @@ function _avatarDot(status, size) {
   var dotSize = Math.max(10, Math.round(size * 0.38)); // 38% des Avatars
   var border = Math.max(2, Math.round(dotSize * 0.2));
   // bottom:0;right:0 → genau in der Ecke, transform verschiebt 40% nach außen
-  return '<span style="position:absolute;bottom:0;right:0;' +
+  return '<span title="Online" style="position:absolute;bottom:0;right:0;' +
     'width:' + dotSize + 'px;height:' + dotSize + 'px;border-radius:50%;' +
     'background:#22c55e;border:' + border + 'px solid var(--surface);' +
     'transform:translate(35%,35%);z-index:2"></span>';
@@ -1579,6 +1579,7 @@ async function showApp() {
         if (_meR.data.email)     currentUser.email     = _meR.data.email;
         if (_meR.data.name)      currentUser.name      = _meR.data.name;
         if (_meR.data.athlet_id != null) currentUser.athlet_id = _meR.data.athlet_id;
+        if (_meR.data.nachname)  currentUser.nachname  = _meR.data.nachname;
         // Header-Avatar sofort aktualisieren
         var _avatarEl = document.getElementById('user-avatar');
         if (_avatarEl) {
@@ -1925,14 +1926,17 @@ function rolleLabel(r, oeffentlichOnly) {
 // Rendert den Header-Avatar mit optionalem Online-Dot
 function _renderHeaderAvatar(el, avatarPfad, name, isOnline) {
   if (!el) return;
-  // Wrapper braucht overflow:visible damit Dot herausragt
   el.style.overflow = 'visible';
   el.style.position = 'relative';
   var dotHtml = isOnline ? _avatarDot('online', 28) : '';
   if (avatarPfad) {
     el.innerHTML = '<img src="' + avatarPfad + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display=\'none\'">' + dotHtml;
   } else {
-    el.innerHTML = '<span style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:13px">' + nameInitials(name||'?') + '</span>' + dotHtml;
+    // VN-Schema: Vorname[0] + Nachname[0] wenn beide auf currentUser vorhanden
+    var initials = (currentUser && currentUser.vorname && currentUser.nachname)
+      ? (currentUser.vorname.trim()[0] + currentUser.nachname.trim()[0]).toUpperCase()
+      : nameInitials(name || '?');
+    el.innerHTML = '<span style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:13px">' + initials + '</span>' + dotHtml;
   }
 }
 
@@ -3678,7 +3682,8 @@ async function openAthletById(id) {
             ? '<img src="' + athlet.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">'
             : initials.toUpperCase()) +
           '</div>';
-        // Async: Online-Status vom Server laden
+        // Async: Online-Status nur für eingeloggte User laden
+        if (!currentUser) { return _profAvatarHtml; }
         apiGet('auth/online-status').then(function(r) {
           var onlineIds = (r && r.ok && r.data) ? r.data : [];
           if (onlineIds.indexOf(athlet.id) >= 0 || onlineIds.indexOf(String(athlet.id)) >= 0) {

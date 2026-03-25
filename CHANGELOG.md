@@ -1,3 +1,17 @@
+## v730 – Fix Header-Avatar Initialen
+
+- **Ursache**: `_renderHeaderAvatar` rief `nameInitials(vorname)` auf → nur ein Buchstabe
+- **Fix**: `auth/me` gibt jetzt auch `nachname` zurück; `_renderHeaderAvatar` nutzt Vorname[0]+Nachname[0] wenn beide vorhanden (DW für Daniel Weyers)
+
+---
+
+## v729 – Online-Dot: Sichtbarkeit + Tooltip
+
+- **Nur für eingeloggte User**: `GET auth/online-status` gibt 401 zurück wenn nicht eingeloggt; JS-Aufruf wird zusätzlich durch `if (!currentUser)` geblockt
+- **Tooltip**: Dot zeigt `title="Online"` → Browser-Tooltip bei Hover
+
+---
+
 ## v728 – Online-Dot für alle sichtbar
 
 **Konzept**: Echter Server-seitiger Online-Status statt Client-Vergleich
