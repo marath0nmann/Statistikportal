@@ -9413,12 +9413,11 @@ async function renderAdmin() {
     state._adminBenutzerMap[b.id] = b;
     var isOnline = !!(currentUser && (currentUser.id === b.id || currentUser.email === b.email));
     var dispName = (b.athlet_vorname && b.athlet_vorname.trim()) ? b.athlet_vorname : b.email;
-    var initials;
-    if (b.athlet_vorname && b.athlet_name) {
-      initials = (b.athlet_vorname.trim()[0]||'').toUpperCase() + (b.athlet_name.trim()[0]||'').toUpperCase();
-    } else {
-      initials = nameInitials(dispName);
-    }
+    // VN-Schema: Vorname[0] + Nachname[0] wenn Athlet zugewiesen
+    // athlet_name = 'Nachname, Vorname' → erster Buchstabe ist Nachname
+    var initials = (b.athlet_vorname && b.athlet_name)
+      ? (b.athlet_vorname.trim()[0]||'').toUpperCase() + (b.athlet_name.trim()[0]||'').toUpperCase()
+      : nameInitials(b.email);
     // Avatar mit überlappenden Dot
     var dotStatus = isOnline ? 'online' : null; // Punkt nur für eingeloggte User
     var avatarCell = avatarHtml(b.avatar_pfad, dispName, 36, 14, dotStatus);
@@ -9441,7 +9440,7 @@ async function renderAdmin() {
       ' data-sort-status="' + (isOnline ? '0' : (b.aktiv ? '1' : '2')) + '"' +
       ' data-sort-login="' + (b.letzter_login || '0000') + '"' +
       '>' +
-      '<td style="padding:8px 10px">' + avatarCell + '</td>' +
+      '<td style="padding:8px 10px;overflow:visible">' + avatarCell + '</td>' +
       '<td style="padding:8px 10px">' +
         '<div style="font-weight:600;font-size:14px">' + dispName + '</div>' +
         '<div style="font-size:11px;color:var(--text2)">' + b.email + '</div>' +

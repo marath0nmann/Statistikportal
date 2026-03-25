@@ -1,3 +1,17 @@
+## v722 – Adressleiste zurück auf --primary3
+
+- Adressleisten-Farbe verwendet wieder `--primary3` (aufgehellte Primärfarbe) statt `--primary`
+
+---
+
+## v721 – Drei Fixes
+
+- **Avatar-Dot Überlappung**: `overflow:visible` auf der Avatar-`<td>` → Dot wird nicht mehr durch table-cell-clipping abgeschnitten
+- **Initialen VN-Schema**: Benutzer mit Athlet-Zuweisung zeigen korrekt Vorname[0]+Nachname[0] (z.B. DW für Daniel Weyers, MM für Max Mustermann)
+- **Adressleisten-Farbe**: Verwendet jetzt `--primary` (#cc0000) statt `--primary3` (#da4747 – aufgehellter Gradient-Wert)
+
+---
+
 ## v720 – Fix Avatar-Dot Überlappung
 
 - **Problem**: Der Dot-Container hatte kein `overflow:visible` – der Browser hat den außerhalb ragenden Dot abgeschnitten
