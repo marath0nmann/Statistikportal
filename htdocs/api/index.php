@@ -191,6 +191,7 @@ if ($res === 'auth') {
         $hasPasskey = Passkey::userHasPasskey($user['id']);
         // User-ID in Session für nachfolgende Passkey-Auth
         $_SESSION['identify_user_id'] = $user['id'];
+        session_write_close(); // Session-Lock freigeben
         jsonOk(['found' => true, 'has_passkey' => $hasPasskey]);
     }
 
@@ -257,6 +258,7 @@ if ($res === 'auth') {
     if ($method === 'POST' && $id === 'passkey-auth-challenge-discover') {
         Passkey::migrate();
         $options = Passkey::authChallengeDiscover();
+        session_write_close(); // Session-Lock freigeben
         jsonOk($options);
     }
     // ── Passkey: Login Response verifizieren ──

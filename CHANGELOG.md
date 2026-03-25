@@ -1,3 +1,12 @@
+## v698 – Fix Login hängt ohne Passkey
+
+- **Ursache**: PHP-Session-Lock-Konflikt – `auth/passkey-auth-challenge-discover` (Conditional UI) und `auth/identify` (Weiter-Klick) liefen gleichzeitig, zweiter Request wartete auf Session-Freigabe
+- **Fix 1**: `session_write_close()` nach Session-Schreibvorgängen in `passkey-auth-challenge-discover` und `identify` → Session-Lock wird sofort freigegeben
+- **Fix 2**: `_abortConditionalPasskey()` wird jetzt VOR dem `identify`-Request aufgerufen statt danach
+- **Fix 3**: `_startConditionalPasskey()` startet mit 500ms Verzögerung → kein sofortiger Konflikt bei schnellem Weiter-Klick
+
+---
+
 ## v697 – Fix Passkey Conditional UI
 
 - **authVerify**: `empty(passkey_auth_user_id)` schlug bei Discoverable-Flow fehl weil userId=0 als empty gilt → separate Prüfung für Discoverable-Flag
