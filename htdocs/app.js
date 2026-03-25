@@ -3671,7 +3671,13 @@ async function openAthletById(id) {
     '<h2 style="margin-bottom:12px">Athleten-Profil <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div class="profile-header" style="margin-bottom:12px">' +
       (function(){
-        var isMyProfile = !!(currentUser && currentUser.athlet_id && currentUser.athlet_id === athlet.id);
+        // Prüfe ob dieser Athlet dem eingeloggten User gehört
+        // Variante 1: currentUser.athlet_id (aus auth/me)
+        // Variante 2: Benutzertabelle falls Admin bereits geladen
+        var isMyProfile = !!(currentUser && (
+          (currentUser.athlet_id && currentUser.athlet_id === athlet.id) ||
+          (state._adminBenutzerMap && Object.values(state._adminBenutzerMap).some(function(u){ return u.athlet_id === athlet.id && u.email === currentUser.email; }))
+        ));
         var dot = isMyProfile ? _avatarDot('online', 64) : '';
         return '<div class="profile-avatar" style="overflow:visible;position:relative;padding:0;' + (athlet.avatar_pfad ? 'background:none;' : '') + '">' +
           (athlet.avatar_pfad
@@ -3686,7 +3692,7 @@ async function openAthletById(id) {
           '<span class="badge badge-ak">' + totalErg + ' Wettkämpfe</span>' +
           (athlet.geschlecht ? '<span class="badge" style="background:var(--surf2);color:var(--text)">' + (athlet.geschlecht === 'M' ? '♂ Männlich' : '♀ Weiblich') + '</span>' : '') +
           (athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jg. ' + athlet.geburtsjahr + '</span>' : '') +
-          (function(){ var _ak = (athlet.geschlecht && athlet.geburtsjahr) ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : ''; return _ak ? '<span class="badge" style="background:var(--primary);color:var(--on-primary);font-weight:700">' + _ak + ' ' + new Date().getFullYear() + '</span>' : ''; })() +
+          (function(){ var _ak = (athlet.geschlecht && athlet.geburtsjahr) ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : ''; return _ak ? akBadge(_ak) : ''; })() +
         '</div>' +
       '</div>' +
     '</div>' +
