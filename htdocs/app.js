@@ -1254,6 +1254,10 @@ function _loginStep3ShowMethod(active, methods, autoSend) {
     var el = document.getElementById('totp-code') || document.getElementById('email-code');
     if (el) el.focus();
   }, 100);
+  // autoSend: Code sofort absenden (nur wenn einzige 2FA-Methode)
+  if (autoSend && active === 'email') {
+    setTimeout(doEmailCodeSend, 300);
+  }
 }
 
 async function doEmailCodeSend() {

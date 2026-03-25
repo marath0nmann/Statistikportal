@@ -1,1 +1,1 @@
-v712: Rollen-Bezeichnungen konfigurierbar + autoSend-Fix für E-Mail-2FA
+v713: Fix E-Mail-Code Auto-Versand (doEmailCodeSend fehlte nach Render)

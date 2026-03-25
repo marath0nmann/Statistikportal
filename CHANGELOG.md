@@ -1,3 +1,10 @@
+## v713 – Fix E-Mail-Code Auto-Versand
+
+- **Ursache**: Bei `autoSend=true` wurde das neue Dialog korrekt gerendert (Text im Präteritum, kein Send-Button), aber `doEmailCodeSend()` wurde nie aufgerufen → kein Code versendet
+- **Fix**: Nach dem Rendern des Dialogs wird `doEmailCodeSend()` mit 300ms Verzögerung aufgerufen wenn `autoSend=true` und aktiver Tab = 'email'
+
+---
+
 ## v712 – Rollen-Bezeichnungen konfigurierbar
 
 **Rollen & Rechte:**
