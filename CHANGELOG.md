@@ -1,3 +1,12 @@
+## v716 – Benutzerverwaltung Redesign
+
+- **Tabellenstruktur**: Benutzerverwaltung jetzt als Tabelle mit Spalten: Avatar | Benutzer | Athlet | Rolle | Status | 2FA | Letzter Login | Aktionen
+- **Rollen & Rechte** unterhalb der Benutzerverwaltung (volle Breite, kein Grid mehr)
+- **Eingeloggt-Anzeige**: Aktuell eingeloggter User bekommt grünen Punkt am Avatar und "● Eingeloggt"-Label, Zeile leicht eingefärbt
+- **Rollenbeschriftung**: Zeigt jetzt die konfigurierte Bezeichnung (z. B. "Administrator") statt internen Rollennamen
+
+---
+
 ## v715 – 2FA-Status in Benutzerverwaltung
 
 - **📱 TOTP**-Badge: wenn TOTP aktiviert

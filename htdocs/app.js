@@ -9358,63 +9358,83 @@ async function renderAdmin() {
   state._adminAthleten = r.data.athleten || [];
 
   state._adminBenutzerMap = {};
-  var userRows = '';
+  var tbody = '';
   for (var i = 0; i < benutzer.length; i++) {
     var b = benutzer[i];
     state._adminBenutzerMap[b.id] = b;
-    var athletBadge = b.athlet_id
-      ? '<span class="badge" style="background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;max-width:160px;overflow:hidden;text-overflow:ellipsis" title="' + (b.athlet_name||'') + '">&#x1F3C3; ' + (b.athlet_name||'') + '</span>'
-      : '<span class="badge badge-ak">Kein Athlet</span>';
-    // Anzeigename: Vorname aus Athletenprofil bevorzugt, sonst E-Mail
-    var dispName   = (b.athlet_vorname && b.athlet_vorname.trim()) ? b.athlet_vorname : b.email;
-    // Schema VN: Vorname[0] + Nachname[0] wenn Athlet zugewiesen, sonst nameInitials
+    var isOnline = !!(currentUser && (currentUser.id === b.id || currentUser.email === b.email));
+    var dispName = (b.athlet_vorname && b.athlet_vorname.trim()) ? b.athlet_vorname : b.email;
     var initials;
     if (b.athlet_vorname && b.athlet_name) {
-      var _vn = (b.athlet_vorname.trim()[0] || '').toUpperCase();
-      var _nn = (b.athlet_name.trim()[0] || '').toUpperCase(); // athlet_name = 'Nachname, Vorname'
-      initials = _vn + _nn;
+      initials = (b.athlet_vorname.trim()[0]||'').toUpperCase() + (b.athlet_name.trim()[0]||'').toUpperCase();
     } else {
       initials = nameInitials(dispName);
     }
-    var avatarHtml = b.avatar_pfad
-      ? '<div class="user-row-avatar" style="padding:0;overflow:hidden"><img src="' + b.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\';"></div>'
-      : '<div class="user-row-avatar" style="background:linear-gradient(135deg,var(--primary),var(--accent));font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700;letter-spacing:.5px">' + initials + '</div>';
-    userRows +=
-      '<div class="user-row">' +
-        avatarHtml +
-        '<div class="user-row-info"><div class="user-row-name">' + dispName + '</div>' +
-          '<div class="user-row-email">' + b.email + '</div>' +
-          '<div style="margin-top:3px;font-size:11px;color:var(--text2)">Letzter Login: ' + (b.letzter_login ? formatDate(b.letzter_login.slice(0,10)) : 'Noch nie') + '</div>' +
+    var onlineDot = isOnline ? '<span style="position:absolute;bottom:1px;right:1px;width:9px;height:9px;background:#22c55e;border-radius:50%;border:2px solid var(--surface)" title="Eingeloggt"></span>' : '';
+    var avatarCell = b.avatar_pfad
+      ? '<div class="user-row-avatar" style="padding:0;overflow:hidden;position:relative"><img src="' + b.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\';">' + onlineDot + '</div>'
+      : '<div class="user-row-avatar" style="background:linear-gradient(135deg,var(--primary),var(--accent));font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700;letter-spacing:.5px;position:relative">' + initials + onlineDot + '</div>';
+    var rolleBadge = '<span class="badge badge-' + b.rolle + '">' + rolleLabel(b.rolle) + '</span>';
+    var statusBadge = b.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>';
+    var tfaBadges =
+      (b.totp_aktiv ? '<span class="badge" style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;font-size:11px" title="TOTP aktiv">&#x1F4F1; TOTP</span>' : '') +
+      (b.passkey_count > 0 ? '<span class="badge" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;font-size:11px" title="' + b.passkey_count + ' Passkey(s)">&#x1F511; ' + b.passkey_count + '</span>' : '') +
+      (b.email_login_bevorzugt && !b.totp_aktiv && !(b.passkey_count > 0) ? '<span class="badge" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;font-size:11px" title="Anmeldung per E-Mail-Code">&#x1F4E7; E-Mail</span>' : '');
+    var athletCell = b.athlet_id
+      ? '<span style="font-size:12px">&#x1F3C3; ' + (b.athlet_name||'') + '</span>'
+      : '<span style="color:var(--text2);font-size:12px">\u2013</span>';
+    tbody += '<tr' + (isOnline ? ' style="background:color-mix(in srgb,var(--primary) 5%,transparent)"' : '') + '>' +
+      '<td style="padding:8px 10px">' + avatarCell + '</td>' +
+      '<td style="padding:8px 10px">' +
+        '<div style="font-weight:600;font-size:14px">' + dispName +
+          (isOnline ? ' <span style="font-size:11px;color:#22c55e;font-weight:400">\u25cf Eingeloggt</span>' : '') +
         '</div>' +
-        athletBadge +
-        '<span class="badge badge-' + b.rolle + '">' + b.rolle + '</span>' +
-        (b.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>') +
-        (b.totp_aktiv ? '<span class="badge" style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9" title="TOTP aktiv">&#x1F4F1; TOTP</span>' : '') +
-        (b.passkey_count > 0 ? '<span class="badge" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7" title="' + b.passkey_count + ' Passkey(s) registriert">&#x1F511; ' + b.passkey_count + '</span>' : '') +
-        (b.email_login_bevorzugt && !b.totp_aktiv && !(b.passkey_count > 0) ? '<span class="badge" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80" title="Anmeldung per E-Mail-Code">&#x1F4E7; E-Mail-Code</span>' : '') +
-        '<div style="display:flex;gap:6px;margin-left:8px">' +
-          '<button class="btn btn-ghost btn-sm" onclick="showBenutzerEditModal(' + b.id + ')">&#x270F;&#xFE0F;</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="deleteBenutzer(' + b.id + ',\'' + b.benutzername + '\')">&#x2715;</button>' +
+        '<div style="font-size:11px;color:var(--text2)">' + b.email + '</div>' +
+      '</td>' +
+      '<td style="padding:8px 10px">' + athletCell + '</td>' +
+      '<td style="padding:8px 10px">' + rolleBadge + '</td>' +
+      '<td style="padding:8px 10px">' + statusBadge + '</td>' +
+      '<td style="padding:8px 10px"><div style="display:flex;gap:3px;flex-wrap:wrap">' +
+        (tfaBadges || '<span style="color:var(--text2);font-size:12px">\u2013</span>') +
+      '</div></td>' +
+      '<td style="padding:8px 10px;font-size:11px;color:var(--text2);white-space:nowrap">' +
+        (b.letzter_login ? formatDate(b.letzter_login.slice(0,10)) : 'Noch nie') +
+      '</td>' +
+      '<td style="padding:8px 8px;text-align:right">' +
+        '<div style="display:flex;gap:4px;justify-content:flex-end">' +
+          '<button class="btn btn-ghost btn-sm" onclick="showBenutzerEditModal(' + b.id + ')" title="Bearbeiten">\u270f\ufe0f</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="deleteBenutzer(' + b.id + ',\'' + b.benutzername + '\')" title="L\xf6schen">\u2715</button>' +
         '</div>' +
-      '</div>';
+      '</td>' +
+    '</tr>';
   }
 
   document.getElementById('main-content').innerHTML =
     adminSubtabs() +
-    '<div class="admin-grid">' +
-      '<div class="panel">' +
-        '<div class="panel-header"><div class="panel-title">&#x1F465; Benutzerverwaltung</div><button class="btn btn-primary btn-sm" onclick="showNeuerBenutzerModal()">+ Neuer Benutzer</button></div>' +
-        userRows +
+    '<div class="panel" style="margin-bottom:20px">' +
+      '<div class="panel-header"><div class="panel-title">&#x1F465; Benutzerverwaltung</div><button class="btn btn-primary btn-sm" onclick="showNeuerBenutzerModal()">+ Neuer Benutzer</button></div>' +
+      '<div class="table-scroll"><table style="width:100%;border-collapse:collapse;table-layout:fixed">' +
+        '<colgroup><col style="width:44px"><col><col style="width:150px"><col style="width:100px"><col style="width:80px"><col style="width:120px"><col style="width:105px"><col style="width:78px"></colgroup>' +
+        '<thead><tr style="border-bottom:2px solid var(--border)">' +
+          '<th style="padding:8px 10px"></th>' +
+          '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Benutzer</th>' +
+          '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Athlet</th>' +
+          '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Rolle</th>' +
+          '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Status</th>' +
+          '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">2FA</th>' +
+          '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Letzter Login</th>' +
+          '<th></th>' +
+        '</tr></thead>' +
+        '<tbody>' + tbody + '</tbody>' +
+      '</table></div>' +
+    '</div>' +
+    '<div class="panel" style="padding:20px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
+        '<div class="panel-title">&#x2139;&#xFE0F; Rollen &amp; Rechte</div>' +
+        '<button class="btn btn-primary btn-sm" onclick="showNeueRolleModal()">+ Neue Rolle</button>' +
       '</div>' +
-      '<div class="panel" style="padding:20px">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
-          '<div class="panel-title">&#x2139;&#xFE0F; Rollen &amp; Rechte</div>' +
-          '<button class="btn btn-primary btn-sm" onclick="showNeueRolleModal()">+ Neue Rolle</button>' +
-        '</div>' +
-        '<div id="rollen-manager-wrap"><div class="loading"><div class="spinner"></div></div></div>' +
-      '</div>' +
+      '<div id="rollen-manager-wrap"><div class="loading"><div class="spinner"></div></div></div>' +
     '</div>';
-  // Rollen laden
   _ladeRollenManager();
 }
 
