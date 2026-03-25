@@ -1024,7 +1024,9 @@ function renderLoginStep1() {
     '<button class="btn btn-ghost btn-login-cancel" style="width:100%;margin-top:8px" onclick="hideLogin()">Abbrechen</button>'
   );
   setTimeout(function(){ var el=document.getElementById('login-ident'); if(el) el.focus(); }, 100);
-  _startConditionalPasskey();
+  // Kurze Verzögerung: erst starten wenn der Nutzer vermutlich noch tippt,
+  // nicht sofort beim Rendern (vermeidet Session-Lock-Konflikt mit schnellem Weiter-Klick)
+  setTimeout(_startConditionalPasskey, 500);
 }
 
 async function doLoginStep1() {
@@ -1034,10 +1036,10 @@ async function doLoginStep1() {
   if (!ident) { errEl.textContent = 'Bitte E-Mail-Adresse eingeben.'; errEl.style.display='block'; return; }
   var btn = document.querySelector('#login-screen .btn-primary');
   btn.textContent = '...'; btn.disabled = true;
+  _abortConditionalPasskey(); // Conditional UI sofort abbrechen (Session-Lock freigeben)
   var r = await apiPost('auth/identify', { benutzername: ident });
   btn.textContent = 'Weiter →'; btn.disabled = false;
   if (!r || !r.ok) { errEl.textContent = '❌ ' + ((r&&r.fehler)||'Fehler'); errEl.style.display='block'; return; }
-  _abortConditionalPasskey(); // Conditional UI beenden bevor Step 2 erscheint
   _loginState.ident = ident;
   _loginState.name  = ident;
   _loginState.has_passkey = !!(r.data && r.data.has_passkey);
