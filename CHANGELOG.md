@@ -1,3 +1,11 @@
+## v720 – Fix Avatar-Dot Überlappung
+
+- **Problem**: Der Dot-Container hatte kein `overflow:visible` – der Browser hat den außerhalb ragenden Dot abgeschnitten
+- **Fix**: `overflow:visible` am Wrapper-`<span>`
+- Dot-Mittelpunkt liegt jetzt exakt auf dem Kreisrand → echter Überlappungseffekt (50% innerhalb, 50% außerhalb)
+
+---
+
 ## v719 – Benutzerverwaltung Polishing
 
 - **Avatar-Dot**: Nur für eingeloggte User (grün, größer: 38% des Avatar-Durchmessers, stärkere Überlappung mit 45% negativem Offset)
