@@ -1,3 +1,24 @@
+## v715 – 2FA-Status in Benutzerverwaltung
+
+- **📱 TOTP**-Badge: wenn TOTP aktiviert
+- **🔑 N**-Badge: Anzahl registrierter Passkeys (z.B. 🔑 2)
+- **📧 E-Mail-Code**-Badge: wenn E-Mail-Login bevorzugt und kein anderes 2FA aktiv
+- API: `totp_aktiv` und `passkey_count` werden jetzt im GET /benutzer mitgeliefert
+
+---
+
+## v714 – Fix E-Mail-Verifizierungsdialog
+
+**Problem**: Der neue Dialog (ohne Code-senden-Button, Präteritum) erschien nicht, weil `email_login_bevorzugt` für bestehende Benutzer in der DB auf 0 stand.
+
+**Fix:**
+- Admin → Benutzer bearbeiten: neue Checkbox "📧 Anmeldung per E-Mail-Code (statt TOTP / Passkey)"
+- API GET /benutzer liefert `email_login_bevorzugt` mit
+- API PUT /benutzer speichert `email_login_bevorzugt`
+- Damit kann der Admin für jeden User den E-Mail-Code-Flow aktivieren
+
+---
+
 ## v713 – Fix E-Mail-Code Auto-Versand
 
 - **Ursache**: Bei `autoSend=true` wurde das neue Dialog korrekt gerendert (Text im Präteritum, kein Send-Button), aber `doEmailCodeSend()` wurde nie aufgerufen → kein Code versendet

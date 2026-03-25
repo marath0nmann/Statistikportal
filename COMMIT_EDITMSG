@@ -1,1 +1,1 @@
-v713: Fix E-Mail-Code Auto-Versand (doEmailCodeSend fehlte nach Render)
+v715: Benutzerverwaltung zeigt 2FA-Status (TOTP, Passkey, E-Mail-Code)

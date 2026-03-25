@@ -9389,6 +9389,9 @@ async function renderAdmin() {
         athletBadge +
         '<span class="badge badge-' + b.rolle + '">' + b.rolle + '</span>' +
         (b.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>') +
+        (b.totp_aktiv ? '<span class="badge" style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9" title="TOTP aktiv">&#x1F4F1; TOTP</span>' : '') +
+        (b.passkey_count > 0 ? '<span class="badge" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7" title="' + b.passkey_count + ' Passkey(s) registriert">&#x1F511; ' + b.passkey_count + '</span>' : '') +
+        (b.email_login_bevorzugt && !b.totp_aktiv && !(b.passkey_count > 0) ? '<span class="badge" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80" title="Anmeldung per E-Mail-Code">&#x1F4E7; E-Mail-Code</span>' : '') +
         '<div style="display:flex;gap:6px;margin-left:8px">' +
           '<button class="btn btn-ghost btn-sm" onclick="showBenutzerEditModal(' + b.id + ')">&#x270F;&#xFE0F;</button>' +
           '<button class="btn btn-danger btn-sm" onclick="deleteBenutzer(' + b.id + ',\'' + b.benutzername + '\')">&#x2715;</button>' +
@@ -9572,6 +9575,9 @@ function showBenutzerEditModal(id) {
         '<div style="font-size:11px;color:var(--text2);margin-top:4px">Wenn zugeordnet, kann sich der Athlet sp&auml;ter mit eigenen Daten anmelden.</div>' +
       '</div>' +
     '</div>' +
+    '<label style="display:flex;align-items:center;gap:8px;margin:4px 0 16px;cursor:pointer;font-size:13px">' +
+      '<input type="checkbox" id="eb-email-login" ' + (b.email_login_bevorzugt ? 'checked' : '') + ' style="width:15px;height:15px"> ' +
+      '&#x1F4E7; Anmeldung per E-Mail-Code (statt TOTP / Passkey)</label>' +
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button><button class="btn btn-primary" onclick="updateBenutzer(' + b.id + ')">Speichern</button></div>'
   );
 }
@@ -9582,6 +9588,7 @@ async function updateBenutzer(id) {
     rolle:     document.getElementById('eb-rolle').value,
     aktiv:     parseInt(document.getElementById('eb-aktiv').value),
     athlet_id: document.getElementById('eb-athlet').value ? parseInt(document.getElementById('eb-athlet').value) : null,
+    email_login_bevorzugt: document.getElementById('eb-email-login').checked ? 1 : 0,
   };
   var pw = document.getElementById('eb-pw').value;
   if (pw) body.passwort = pw;
