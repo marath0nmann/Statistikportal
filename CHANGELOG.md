@@ -1,3 +1,11 @@
+## v711 – E-Mail-Verifizierung: Auto-Versand
+
+- Wenn nur E-Mail-Code als 2FA verfügbar ist: Code wird sofort gesendet, Text lautet "Wir haben dir... gesendet" (Vergangenheit), kein "Code senden"-Button
+- Stattdessen unauffälliger "Code erneut senden"-Link am unteren Rand
+- Wenn E-Mail einer von mehreren 2FA-Tabs ist: bisheriges Verhalten mit manuellem Button bleibt erhalten
+
+---
+
 ## v710 – Fix Avatar-Initialen in Benutzerverwaltung
 
 - **Schema**: Wenn ein Athlet zugewiesen ist, werden die Initialen als **VN** (Vorname[0] + Nachname[0]) berechnet
