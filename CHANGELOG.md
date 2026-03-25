@@ -1,3 +1,11 @@
+## v703 – Fix: renderLoginStep2 fehlte
+
+- **Ursache (live im Browser debuggt)**: `renderLoginStep2` wurde bei den Refactorings v694–v702 entfernt aber weiter aufgerufen → `ReferenceError` im async-Kontext wurde lautlos geschluckt → "Weiter"-Button tat nichts
+- **Fix**: `renderLoginStep2` wiederhergestellt (zeigt Passwort-Feld + optionalen Passkey-Button wenn Passkey vorhanden)
+- **Fix**: `doLoginPasskeyStep2` neu hinzugefügt (Passkey-Flow aus Step 2 mit `allowCredentials` für bekannten User)
+
+---
+
 ## v702 – Fix Login ohne Passkey (Session-Lock endgültig gelöst)
 
 **Eigentliche Ursache**: Solange `passkey-auth-challenge-discover` die PHP-Session schreibt, belegt der Server-seitige PHP-Prozess die Session-Datei – auch wenn der Client den Fetch abbricht. Der nächste Request (`auth/identify`) wartet auf den Lock.

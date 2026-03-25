@@ -1,1 +1,1 @@
-v702: Fix Login ohne Passkey – Discover-Challenge komplett sitzungslos
+v703: Fix renderLoginStep2 fehlte (Login-Hänger)
