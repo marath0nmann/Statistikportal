@@ -1,3 +1,14 @@
+## v728 – Online-Dot für alle sichtbar
+
+**Konzept**: Echter Server-seitiger Online-Status statt Client-Vergleich
+
+- **`letzter_aktivitaet`-Spalte**: Neue DB-Spalte (Auto-Migration) – wird bei jedem API-Request aktualisiert (max. 1x/60s per Session)
+- **`GET auth/online-status`**: Neuer Endpunkt – gibt Liste aller Athleten-IDs zurück deren verknüpfter User in den letzten 5 Minuten aktiv war
+- **Athletenprofil**: Ruft `auth/online-status` asynchron ab → Dot erscheint wenn die `athlet_id` in der Liste ist – **für alle eingeloggten User sichtbar**
+- **Auth::check()**: Schreibt `letzter_aktivitaet = NOW()` throttled (max 1x/min) in die DB
+
+---
+
 ## v727 – Fix Online-Dot im Athletenprofil
 
 - **Ursache**: `auth/me` gab `athlet_id` nicht zurück → `currentUser.athlet_id` blieb immer `undefined` → `isMyProfile` immer `false`

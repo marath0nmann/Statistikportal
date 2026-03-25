@@ -117,6 +117,7 @@ try {
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS avatar_pfad VARCHAR(120) NULL COMMENT 'Relativer Pfad zum Avatar-Bild'"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('registrierungen') . " ADD COLUMN IF NOT EXISTS email_login_bevorzugt TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS email_login_bevorzugt TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS letzter_aktivitaet DATETIME NULL"); } catch (\Exception $e) {}
 // Migration: Rollen-System (rollen-Tabelle)
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rollen') . " (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -396,6 +397,17 @@ if ($res === 'auth') {
         try { Passkey::migrate(); } catch (\Exception $e) {}
         $user['has_passkey'] = Passkey::userHasPasskey($user['id']);
         jsonOk($user);
+    }
+    // --- Online-Status: welche Athleten sind gerade eingeloggt (aktiv < 5 Min) ---
+    if ($method === 'GET' && $id === 'online-status') {
+        try {
+            $rows = DB::fetchAll(
+                'SELECT athlet_id FROM ' . DB::tbl('benutzer') .
+                ' WHERE athlet_id IS NOT NULL AND aktiv = 1 AND letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)'
+            );
+            $ids = array_column($rows, 'athlet_id');
+            jsonOk($ids);
+        } catch (\Exception $e) { jsonOk([]); }
     }
     // --- User-Präferenzen lesen ---
     if ($method === 'GET' && $id === 'prefs') {
