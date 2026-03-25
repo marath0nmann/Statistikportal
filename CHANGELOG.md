@@ -1,3 +1,10 @@
+## v705 – Fix Passkey Conditional UI Verifizierung
+
+- **Ursache**: `authVerifyStateless` rief `self::coseKeyToPem()` auf – eine Methode die nicht existiert
+- **Fix**: Ersetzt durch die vorhandenen Methoden `self::decodeKeyBytesFromStorage()` + `self::verifySignature()` (identisch zu `authVerify`)
+
+---
+
 ## v704 – Fix Vorname nach Login
 
 - **Ursache (im Browser debuggt)**: Zwei `GET auth/me`-Handler hintereinander – der erste antwortete immer zuerst und gab kein `vorname`-Feld zurück; der zweite Handler war dead code

@@ -1,1 +1,1 @@
-v704: Fix Vorname nach Login (doppelter auth/me Handler)
+v705: Fix Passkey-Verify – coseKeyToPem fehlte in authVerifyStateless

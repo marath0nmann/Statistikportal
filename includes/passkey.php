@@ -239,17 +239,17 @@ class Passkey {
             if (!hash_equals(hash('sha256', self::getRpId(), true), substr($authData, 0, 32))) throw new Exception('rpId-Hash stimmt nicht.');
             if (!(ord($authData[32]) & 0x01)) throw new Exception('User Present nicht gesetzt.');
 
-            // Signatur gegen gespeicherten Public Key prüfen
             $pk = DB::fetchOne('SELECT * FROM ' . DB::tbl('passkeys') . ' WHERE credential_id = ?', [$credId]);
             if (!$pk) throw new Exception('Passkey nicht gefunden.');
 
             $signature      = self::base64urlDecode($credential['response']['signature'] ?? '');
             $clientDataHash = hash('sha256', self::base64urlDecode($credential['response']['clientDataJSON'] ?? ''), true);
             $verifyData     = $authData . $clientDataHash;
-            $pubKeyData     = json_decode($pk['public_key'], true);
+
+            $pubKeyData = json_decode($pk['public_key'], true);
             if (!is_array($pubKeyData)) throw new Exception('Public Key ungültig.');
-            $pem = self::coseKeyToPem($pubKeyData);
-            if (!openssl_verify($verifyData, $signature, $pem, OPENSSL_ALGO_SHA256))
+            $pubKeyData = self::decodeKeyBytesFromStorage($pubKeyData);
+            if (!self::verifySignature($verifyData, $signature, $pubKeyData))
                 throw new Exception('Signatur ungültig.');
 
             $signCount = unpack('N', substr($authData, 33, 4))[1];
