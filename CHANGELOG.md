@@ -1,3 +1,26 @@
+## v694 – Login: E-Mail und Passwort kombiniert
+
+- **Schritt 1 + 2 zusammengeführt**: E-Mail und Passwort werden jetzt auf einem Bildschirm eingegeben (wie bei den meisten Websites)
+- **Enter-Taste**: Im E-Mail-Feld springt Enter zum Passwort-Feld, im Passwort-Feld löst Enter den Login aus
+- **Passkey-Button**: Expliziter Button "🔑 Mit Passkey anmelden" statt automatischem Dialog — fragt zuerst nach E-Mail, startet dann den Passkey-Flow
+- **Zurück in 2FA (Schritt 3)**: Führt wieder zum kombinierten Formular zurück
+
+---
+
+## v693 – Veranstaltungen-Tabelle: iPad-Layout
+
+- **Tablet-Breakpoint (601–1100px)**: Pace- und Meisterschaft-Spalten werden ausgeblendet – wie bereits auf dem Smartphone
+- **Spaltenbreiten Tablet**: Athlet 42 %, AK 11 %, Ergebnis 27 %, Platz AK 20 % → kein Ellipsis mehr zwischen AK und Ergebnis
+- **white-space: nowrap** auf allen Zellen → kein ungewollter Zeilenumbruch innerhalb einer Zelle
+
+---
+
+## v692 – Fix Cache-Buster
+
+- **build.py**: `?v=XXX` Query-Strings in `index.html` werden jetzt bei jedem Build mitgebumt → Browser lädt `app.js` und `app.css` nach jedem Deploy frisch
+
+---
+
 ## v691 – GitHub-Metadaten & Build-Skript
 
 - **CHANGELOG.md**: Einheitliches Format (`## vXXX – Titel` + `---`-Trennlinie), doppelter v689-Eintrag bereinigt

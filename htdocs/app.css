@@ -300,8 +300,7 @@ main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
 .veranst-dash-table .vcol-platz    { width: 12%; }
 .veranst-dash-table .vcol-ms       { width: 15%; }
 .veranst-dash-table .vcol-ms-platz { width: 11%; }
-.veranst-dash-table td, .veranst-dash-table th { overflow: hidden; text-overflow: ellipsis; }
-.veranst-dash-table th { white-space: nowrap; }
+.veranst-dash-table td, .veranst-dash-table th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 table { width: 100%; border-collapse: collapse; }
 th {
   background: var(--surf2); padding: 10px 14px;
@@ -647,6 +646,29 @@ tr:hover td { background: var(--surf2); }
 /* ══════════════════════════════════════════════
    RESPONSIVE – Smartphone (max 600px)
    ══════════════════════════════════════════════ */
+
+/* ── Tablet (iPad): Pace + Meisterschaft ausblenden, Breiten anpassen ── */
+@media (min-width: 601px) and (max-width: 1100px) {
+  .veranst-dash-table .vcol-pace,
+  .veranst-dash-table th:nth-child(4),
+  .veranst-dash-table td:nth-child(4),
+  .veranst-dash-table .vcol-ms,
+  .veranst-dash-table th:nth-child(6),
+  .veranst-dash-table td:nth-child(6),
+  .veranst-dash-table .vcol-ms-platz,
+  .veranst-dash-table th:nth-child(7),
+  .veranst-dash-table td:nth-child(7) { display: none; }
+
+  /* 4 verbleibende Spalten: Athlet | AK | Ergebnis | Platz AK */
+  .veranst-dash-table .vcol-athlet { width: 42%; }
+  .veranst-dash-table .vcol-ak     { width: 11%; }
+  .veranst-dash-table .vcol-result { width: 27%; }
+  .veranst-dash-table .vcol-platz  { width: 20%; }
+
+  .veranst-dash-table td, .veranst-dash-table th { font-size: 12px; padding: 5px 7px; }
+  .veranst-dash-table .result { font-size: 13px; }
+}
+
 @media (max-width: 600px) {
   /* Layout */
   main { padding: 8px; }
