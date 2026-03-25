@@ -120,7 +120,7 @@ function avatarHtml(avatarPfad, name, size, fontSize, onlineStatus) {
   size = size || 28; fontSize = fontSize || Math.round(size * 0.45);
   var initials = nameInitials(name || '?');
   var dot = onlineStatus ? _avatarDot(onlineStatus, size) : '';
-  var wrap = '<span style="position:relative;display:inline-flex;flex-shrink:0;width:' + size + 'px;height:' + size + 'px;">';
+  var wrap = '<span style="position:relative;display:inline-flex;flex-shrink:0;width:' + size + 'px;height:' + size + 'px;overflow:visible">';
   if (avatarPfad) {
     return wrap +
       '<img src="' + avatarPfad + '" style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;object-fit:cover;" onerror="this.style.display=&quot;none&quot;;this.parentNode.style.background=&quot;var(--accent)&quot;">' +
@@ -133,12 +133,13 @@ function avatarHtml(avatarPfad, name, size, fontSize, onlineStatus) {
 function _avatarDot(status, size) {
   if (status !== 'online') return ''; // nur eingeloggt zeigt Punkt
   size = size || 28;
-  var dotSize = Math.max(10, Math.round(size * 0.38)); // größer: 38% des Avatars
+  var dotSize = Math.max(10, Math.round(size * 0.38)); // 38% des Avatars
   var border = Math.max(2, Math.round(dotSize * 0.2));
-  var offset = -Math.round(dotSize * 0.45); // weiter außerhalb → Überlappung
+  // Hälfte des Dots ragt außerhalb des Kreises → echter Überlappungseffekt
+  var offset = -Math.round(dotSize * 0.5);
   return '<span style="position:absolute;bottom:' + offset + 'px;right:' + offset + 'px;' +
     'width:' + dotSize + 'px;height:' + dotSize + 'px;border-radius:50%;' +
-    'background:#22c55e;border:' + border + 'px solid var(--surface);z-index:1"></span>';
+    'background:#22c55e;border:' + border + 'px solid var(--surface);z-index:2"></span>';
 }
 function nameInitials(name) {
   if (!name) return '?';
