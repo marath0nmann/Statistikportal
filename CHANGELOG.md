@@ -1,3 +1,10 @@
+## v726 – Athletenprofil
+
+- **Online-Dot**: Prüfung ob der Athlet dem eingeloggten User gehört jetzt robuster – nutzt `currentUser.athlet_id` UND als Fallback `_adminBenutzerMap` (falls Benutzerverwaltung schon geladen war)
+- **AK-Badge**: Zeigt nur noch "M40" statt "M40 2026", verwendet `akBadge()` → korrekte Farbe (blau für M-AK, etc.) statt manuellem primary-Background
+
+---
+
 ## v725 – Online-Dot systemweit
 
 - **Header (oben rechts)**: Avatar zeigt grünen Dot wenn eingeloggt; `_renderHeaderAvatar()` für alle Avatar-Updates
