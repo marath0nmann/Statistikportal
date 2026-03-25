@@ -1,1 +1,1 @@
-v705: Fix Passkey-Verify – coseKeyToPem fehlte in authVerifyStateless
+v707: Benutzerverwaltung Vorname+Avatar; Systemrollen vereinheitlicht

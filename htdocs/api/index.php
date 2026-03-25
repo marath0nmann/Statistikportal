@@ -978,7 +978,9 @@ if ($res === 'benutzer') {
             $rows = DB::fetchAll(
                 'SELECT b.id, b.benutzername, b.email, b.rolle, b.aktiv,
                         b.erstellt_am, b.letzter_login, b.athlet_id,
-                        a.name_nv AS athlet_name
+                        b.avatar_pfad,
+                        a.name_nv AS athlet_name,
+                        a.vorname  AS athlet_vorname
                  FROM ' . DB::tbl('benutzer') . ' b
                  LEFT JOIN ' . DB::tbl('athleten') . ' a ON a.id = b.athlet_id
                  ORDER BY b.benutzername'
@@ -3661,18 +3663,22 @@ if ($res === 'rollen') {
         jsonOk($rows);
     }
     if ($method === 'POST') {
-        // Neue Rolle anlegen oder vorhandene aktualisieren
         $name   = trim($body['name'] ?? '');
         $rechte = $body['rechte'] ?? [];
         $validRechte = ['vollzugriff','benutzer_verwalten','rekorde_bearbeiten','einstellungen_aendern','alle_ergebnisse','eigene_ergebnisse','lesen'];
         $rechte = array_values(array_intersect((array)$rechte, $validRechte));
         if (!$name || strlen($name) < 2) jsonErr('Name erforderlich (min. 2 Zeichen).');
         if ($id) {
-            // Update
+            $existing = DB::fetchOne('SELECT name FROM ' . DB::tbl('rollen') . ' WHERE id=?', [(int)$id]);
+            $existingName = $existing['name'] ?? '';
+            // Systemrollen (admin/athlet/leser): nur Name änderbar, Rechte unveränderbar
+            if (in_array($existingName, ['admin','athlet','leser'])) {
+                DB::query('UPDATE ' . DB::tbl('rollen') . ' SET name=? WHERE id=?', [$name, (int)$id]);
+                jsonOk('Aktualisiert.');
+            }
             DB::query('UPDATE ' . DB::tbl('rollen') . ' SET name=?, rechte=? WHERE id=?', [$name, json_encode($rechte), (int)$id]);
             jsonOk('Aktualisiert.');
         } else {
-            // Insert
             try {
                 DB::query('INSERT INTO ' . DB::tbl('rollen') . ' (name, rechte) VALUES (?,?)', [$name, json_encode($rechte)]);
                 jsonOk(['id' => DB::lastInsertId()]);
@@ -3680,9 +3686,8 @@ if ($res === 'rollen') {
         }
     }
     if ($method === 'DELETE' && $id) {
-        // Geschützte Rollen nicht löschbar
         $row = DB::fetchOne('SELECT name FROM ' . DB::tbl('rollen') . ' WHERE id=?', [$id]);
-        if ($row && in_array($row['name'], ['admin','leser'])) jsonErr('Diese Rolle kann nicht gelöscht werden.');
+        if ($row && in_array($row['name'], ['admin','athlet','leser'])) jsonErr('Diese Rolle kann nicht gelöscht werden.');
         DB::query('DELETE FROM ' . DB::tbl('rollen') . ' WHERE id=?', [(int)$id]);
         jsonOk('Gelöscht.');
     }
