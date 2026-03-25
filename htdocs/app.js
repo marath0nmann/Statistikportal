@@ -135,11 +135,11 @@ function _avatarDot(status, size) {
   size = size || 28;
   var dotSize = Math.max(10, Math.round(size * 0.38)); // 38% des Avatars
   var border = Math.max(2, Math.round(dotSize * 0.2));
-  // Hälfte des Dots ragt außerhalb des Kreises → echter Überlappungseffekt
-  var offset = -Math.round(dotSize * 0.5);
-  return '<span style="position:absolute;bottom:' + offset + 'px;right:' + offset + 'px;' +
+  // bottom:0;right:0 → genau in der Ecke, transform verschiebt 40% nach außen
+  return '<span style="position:absolute;bottom:0;right:0;' +
     'width:' + dotSize + 'px;height:' + dotSize + 'px;border-radius:50%;' +
-    'background:#22c55e;border:' + border + 'px solid var(--surface);z-index:2"></span>';
+    'background:#22c55e;border:' + border + 'px solid var(--surface);' +
+    'transform:translate(35%,35%);z-index:2"></span>';
 }
 function nameInitials(name) {
   if (!name) return '?';
