@@ -1,3 +1,9 @@
+## v732 – Fix HTTP 500
+
+- **Ursache**: Tippfehler im catch-Block von `auth/online-status`: `'athlet_ids']=[])` statt `'athlet_ids'=>[])` → PHP-Parse-Error → 500 auf allen Endpoints
+
+---
+
 ## v731 – Online-Status in Benutzerverwaltung für alle User
 
 - **Ursache**: Benutzerverwaltung prüfte `currentUser.id === b.id` → nur der eigene User wurde als online markiert
