@@ -1,3 +1,12 @@
+## v719 – Benutzerverwaltung Polishing
+
+- **Avatar-Dot**: Nur für eingeloggte User (grün, größer: 38% des Avatar-Durchmessers, stärkere Überlappung mit 45% negativem Offset)
+- **Kein Dot** für aktive/inaktive User ohne Session
+- **Rolle als plain text** statt Badge – sauberer, weniger visuelles Rauschen
+- **Sortierbare Spalten**: Benutzer, Athlet, Rolle, Status, Letzter Login – Klick auf Spaltenheader sortiert auf-/absteigend, aktive Spalte in Primärfarbe mit Pfeil ↑↓
+
+---
+
 ## v718 – Fix tfaBadges
 
 - `var tfaBadges =`-Deklaration wurde beim Zeilenersatz in v717 abgeschnitten → ReferenceError beim Laden der Benutzerverwaltung

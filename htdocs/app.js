@@ -129,16 +129,16 @@ function avatarHtml(avatarPfad, name, size, fontSize, onlineStatus) {
   return wrap + avatarFallback(initials, size, fontSize) + dot + '</span>';
 }
 
-// Überlappender Status-Punkt am Avatar (rechts unten, außerhalb des Kreises)
+// Überlappender Online-Punkt am Avatar (nur für eingeloggte User)
 function _avatarDot(status, size) {
+  if (status !== 'online') return ''; // nur eingeloggt zeigt Punkt
   size = size || 28;
-  var dotSize = Math.max(8, Math.round(size * 0.28));
-  var color = status === 'online' ? '#22c55e' : status === 'aktiv' ? 'var(--accent)' : '#9ca3af';
-  var border = Math.max(1, Math.round(dotSize * 0.25));
-  var offset = -Math.round(dotSize * 0.3);
+  var dotSize = Math.max(10, Math.round(size * 0.38)); // größer: 38% des Avatars
+  var border = Math.max(2, Math.round(dotSize * 0.2));
+  var offset = -Math.round(dotSize * 0.45); // weiter außerhalb → Überlappung
   return '<span style="position:absolute;bottom:' + offset + 'px;right:' + offset + 'px;' +
     'width:' + dotSize + 'px;height:' + dotSize + 'px;border-radius:50%;' +
-    'background:' + color + ';border:' + border + 'px solid var(--surface);z-index:1"></span>';
+    'background:#22c55e;border:' + border + 'px solid var(--surface);z-index:1"></span>';
 }
 function nameInitials(name) {
   if (!name) return '?';
@@ -9355,6 +9355,40 @@ function adminSubtabs() {
   '</div>';
 }
 
+// ── Benutzertabelle Sort ─────────────────────────────────────
+var _bSort = { col: 'name', dir: 1 };
+function _bSortTh(label, col) {
+  var active = _bSort.col === col;
+  var arrow = active ? (_bSort.dir === 1 ? ' ↑' : ' ↓') : '';
+  return '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;cursor:pointer;user-select:none;' +
+    (active ? 'color:var(--primary)' : 'color:var(--text2)') + '"' +
+    ' onclick="sortBenutzerTabelle(\'' + col + '\')">' + label + arrow + '</th>';
+}
+function sortBenutzerTabelle(col) {
+  if (_bSort.col === col) _bSort.dir *= -1; else { _bSort.col = col; _bSort.dir = 1; }
+  var tbody = document.querySelector('#benutzer-tbody');
+  if (!tbody) return;
+  var rows = Array.from(tbody.querySelectorAll('tr'));
+  rows.sort(function(a, b) {
+    var av = a.dataset['sort' + col.charAt(0).toUpperCase() + col.slice(1)] || '';
+    var bv = b.dataset['sort' + col.charAt(0).toUpperCase() + col.slice(1)] || '';
+    return av < bv ? -_bSort.dir : av > bv ? _bSort.dir : 0;
+  });
+  rows.forEach(function(r) { tbody.appendChild(r); });
+  // Spaltenheader neu rendern
+  var thead = tbody.parentNode.querySelector('thead tr');
+  if (!thead) return;
+  var ths = thead.querySelectorAll('th[onclick]');
+  var cols = ['name','athlet','rolle','status','login'];
+  ths.forEach(function(th, i) {
+    var c = cols[i];
+    var active = _bSort.col === c;
+    var arrow = active ? (_bSort.dir === 1 ? ' ↑' : ' ↓') : '';
+    th.style.color = active ? 'var(--primary)' : 'var(--text2)';
+    th.textContent = th.textContent.replace(/ [↑↓]$/, '') + arrow;
+  });
+}
+
 async function renderAdmin() {
   if (!state.adminTab) state.adminTab = 'benutzer';
   _ladeAntraegeBadge();
@@ -9385,9 +9419,9 @@ async function renderAdmin() {
       initials = nameInitials(dispName);
     }
     // Avatar mit überlappenden Dot
-    var dotStatus = isOnline ? 'online' : (b.aktiv ? 'aktiv' : 'inaktiv');
+    var dotStatus = isOnline ? 'online' : null; // Punkt nur für eingeloggte User
     var avatarCell = avatarHtml(b.avatar_pfad, dispName, 36, 14, dotStatus);
-    var rolleBadge = '<span class="badge badge-' + b.rolle + '">' + rolleLabel(b.rolle) + '</span>';
+    var rolleText = '<span style="font-size:13px;color:var(--text)">' + rolleLabel(b.rolle) + '</span>';
     // 3-stufiger Status: Eingeloggt (grün) > Aktiv (akzent) > Inaktiv (gedämpft)
     var statusBadge = isOnline
       ? '<span class="badge badge-eingeloggt">Eingeloggt</span>'
@@ -9399,14 +9433,20 @@ async function renderAdmin() {
     var athletCell = b.athlet_id
       ? '<span style="font-size:12px">&#x1F3C3; ' + (b.athlet_name||'') + '</span>'
       : '<span style="color:var(--text2);font-size:12px">\u2013</span>';
-    tbody += '<tr>' +
+    tbody += '<tr' +
+      ' data-sort-name="' + dispName.toLowerCase() + '"' +
+      ' data-sort-athlet="' + (b.athlet_name||'').toLowerCase() + '"' +
+      ' data-sort-rolle="' + b.rolle + '"' +
+      ' data-sort-status="' + (isOnline ? '0' : (b.aktiv ? '1' : '2')) + '"' +
+      ' data-sort-login="' + (b.letzter_login || '0000') + '"' +
+      '>' +
       '<td style="padding:8px 10px">' + avatarCell + '</td>' +
       '<td style="padding:8px 10px">' +
         '<div style="font-weight:600;font-size:14px">' + dispName + '</div>' +
         '<div style="font-size:11px;color:var(--text2)">' + b.email + '</div>' +
       '</td>' +
       '<td style="padding:8px 10px">' + athletCell + '</td>' +
-      '<td style="padding:8px 10px">' + rolleBadge + '</td>' +
+      '<td style="padding:8px 10px">' + rolleText + '</td>' +
       '<td style="padding:8px 10px">' + statusBadge + '</td>' +
       '<td style="padding:8px 10px"><div style="display:flex;gap:3px;flex-wrap:wrap">' +
         (tfaBadges || '<span style="color:var(--text2);font-size:12px">\u2013</span>') +
@@ -9431,15 +9471,15 @@ async function renderAdmin() {
         '<colgroup><col style="width:44px"><col><col style="width:150px"><col style="width:100px"><col style="width:80px"><col style="width:120px"><col style="width:105px"><col style="width:78px"></colgroup>' +
         '<thead><tr style="border-bottom:2px solid var(--border)">' +
           '<th style="padding:8px 10px"></th>' +
-          '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Benutzer</th>' +
-          '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Athlet</th>' +
-          '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Rolle</th>' +
-          '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Status</th>' +
+          _bSortTh('Benutzer','name') +
+          _bSortTh('Athlet','athlet') +
+          _bSortTh('Rolle','rolle') +
+          _bSortTh('Status','status') +
           '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">2FA</th>' +
-          '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Letzter Login</th>' +
+          _bSortTh('Letzter Login','login') +
           '<th></th>' +
         '</tr></thead>' +
-        '<tbody>' + tbody + '</tbody>' +
+        '<tbody id="benutzer-tbody">' + tbody + '</tbody>' +
       '</table></div>' +
     '</div>' +
     '<div class="panel" style="padding:20px">' +
