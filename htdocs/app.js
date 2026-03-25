@@ -1484,7 +1484,7 @@ async function showApp() {
         var _avatarEl = document.getElementById('user-avatar');
         if (_avatarEl) {
           if (currentUser.avatar) {
-            _avatarEl.innerHTML = '<img src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none'">';
+            _avatarEl.innerHTML = '<img src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display=\'none\'">';
           } else {
             var _n = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
             _avatarEl.textContent = nameInitials(_n);

@@ -1,3 +1,10 @@
+## v701 – Fix weißer Bildschirm
+
+- **Syntaxfehler**: In v700 eingeführtes Avatar-HTML hatte unescapte einfache Anführungszeichen im `onerror`-Attribut → JS-Parse-Fehler → kompletter Ladeausfall
+- Fix: `onerror="this.style.display=\\'none\\'"` korrekt escaped
+
+---
+
 ## v700 – Fix Login hängt (Session-Lock, Take 2)
 
 **Eigentliche Ursache**: `AbortController` wurde erst nach dem `apiPost`-Aufruf erstellt → ein Klick auf "Weiter" während des laufenden Requests konnte den Fetch nicht abbrechen → Session blieb gesperrt → `auth/identify` wartete.
