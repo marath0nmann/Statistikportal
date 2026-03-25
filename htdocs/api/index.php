@@ -121,19 +121,24 @@ try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXIST
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rollen') . " (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(60) NOT NULL UNIQUE,
-    rechte JSON NOT NULL DEFAULT '[]'
+    rechte JSON NOT NULL DEFAULT '[]',
+    label VARCHAR(80) NULL,
+    oeffentlich TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (\Exception $e) {}
+// Spalten nachträglich ergänzen (bestehende Installationen)
+try { DB::query("ALTER TABLE " . DB::tbl('rollen') . " ADD COLUMN IF NOT EXISTS label VARCHAR(80) NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('rollen') . " ADD COLUMN IF NOT EXISTS oeffentlich TINYINT(1) NOT NULL DEFAULT 1"); } catch (\Exception $e) {}
 // Standard-Rollen anlegen falls leer
 try {
     if (!DB::fetchOne('SELECT id FROM ' . DB::tbl('rollen') . ' LIMIT 1')) {
         $defaultRollen = [
-            ['admin',  '["vollzugriff","benutzer_verwalten","rekorde_bearbeiten","einstellungen_aendern","alle_ergebnisse","eigene_ergebnisse","lesen"]'],
-            ['editor', '["alle_ergebnisse","lesen"]'],
-            ['athlet', '["eigene_ergebnisse","lesen"]'],
-            ['leser',  '["lesen"]'],
+            ['admin',  '["vollzugriff","benutzer_verwalten","rekorde_bearbeiten","einstellungen_aendern","alle_ergebnisse","eigene_ergebnisse","lesen"]', 'Administrator', 1],
+            ['editor', '["alle_ergebnisse","lesen"]', 'Editor', 1],
+            ['athlet', '["eigene_ergebnisse","lesen"]', 'Athlet*in', 1],
+            ['leser',  '["lesen"]', 'Leser*in', 1],
         ];
         foreach ($defaultRollen as $r) {
-            DB::query('INSERT IGNORE INTO ' . DB::tbl('rollen') . ' (name, rechte) VALUES (?,?)', $r);
+            DB::query('INSERT IGNORE INTO ' . DB::tbl('rollen') . ' (name, rechte, label, oeffentlich) VALUES (?,?,?,?)', $r);
         }
     }
 } catch (\Exception $e) {}
@@ -3659,8 +3664,11 @@ if ($res === 'rollen') {
     Auth::requireAdmin();
     if ($method === 'GET') {
         $rows = DB::fetchAll('SELECT * FROM ' . DB::tbl('rollen') . ' ORDER BY id');
+        $defaultLabels = ['admin'=>'Administrator','editor'=>'Editor','athlet'=>'Athlet*in','leser'=>'Leser*in'];
         foreach ($rows as &$r) {
-            $r['rechte'] = json_decode($r['rechte'] ?? '[]', true) ?: [];
+            $r['rechte']     = json_decode($r['rechte'] ?? '[]', true) ?: [];
+            $r['label']      = $r['label'] ?: ($defaultLabels[$r['name']] ?? $r['name']);
+            $r['oeffentlich'] = (int)($r['oeffentlich'] ?? 1);
         }
         jsonOk($rows);
     }
@@ -3673,16 +3681,20 @@ if ($res === 'rollen') {
         if ($id) {
             $existing = DB::fetchOne('SELECT name FROM ' . DB::tbl('rollen') . ' WHERE id=?', [(int)$id]);
             $existingName = $existing['name'] ?? '';
-            // Systemrollen (admin/athlet/leser): nur Name änderbar, Rechte unveränderbar
+            $label      = trim($body['label'] ?? '');
+            $oeffentlich = isset($body['oeffentlich']) ? (int)(bool)$body['oeffentlich'] : 1;
+            // Systemrollen (admin/athlet/leser): nur Name + Label + oeffentlich änderbar, Rechte unveränderbar
             if (in_array($existingName, ['admin','athlet','leser'])) {
-                DB::query('UPDATE ' . DB::tbl('rollen') . ' SET name=? WHERE id=?', [$name, (int)$id]);
+                DB::query('UPDATE ' . DB::tbl('rollen') . ' SET name=?, label=?, oeffentlich=? WHERE id=?', [$name, $label ?: null, $oeffentlich, (int)$id]);
                 jsonOk('Aktualisiert.');
             }
-            DB::query('UPDATE ' . DB::tbl('rollen') . ' SET name=?, rechte=? WHERE id=?', [$name, json_encode($rechte), (int)$id]);
+            DB::query('UPDATE ' . DB::tbl('rollen') . ' SET name=?, rechte=?, label=?, oeffentlich=? WHERE id=?', [$name, json_encode($rechte), $label ?: null, $oeffentlich, (int)$id]);
             jsonOk('Aktualisiert.');
         } else {
             try {
-                DB::query('INSERT INTO ' . DB::tbl('rollen') . ' (name, rechte) VALUES (?,?)', [$name, json_encode($rechte)]);
+                $label      = trim($body['label'] ?? '');
+                $oeffentlich = isset($body['oeffentlich']) ? (int)(bool)$body['oeffentlich'] : 1;
+                DB::query('INSERT INTO ' . DB::tbl('rollen') . ' (name, rechte, label, oeffentlich) VALUES (?,?,?,?)', [$name, json_encode($rechte), $label ?: null, $oeffentlich]);
                 jsonOk(['id' => DB::lastInsertId()]);
             } catch (\Exception $e) { jsonErr('Rollenname bereits vergeben.'); }
         }

@@ -1184,7 +1184,7 @@ function renderLoginStep3(hasTotp, hasPasskey, autoSend) {
   if (hasTotp)    methods.push('totp');
   if (hasPasskey) methods.push('passkey');
   methods.push('email'); // immer verfügbar
-  _loginStep3ShowMethod(methods[0], methods);
+  _loginStep3ShowMethod(methods[0], methods, autoSend);
 }
 
 function _loginStep3ShowMethod(active, methods, autoSend) {
@@ -1530,7 +1530,7 @@ async function showApp() {
     // Anzeige: Vorname aus Athletenprofil wenn vorhanden, sonst E-Mail
     var _dispName = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || name);
     document.getElementById('user-name-disp').textContent  = _dispName;
-    document.getElementById('user-rolle-disp').textContent = rolleLabel(currentUser.rolle);
+    document.getElementById('user-rolle-disp').textContent = rolleLabel(currentUser.rolle, true);
     document.getElementById('user-btn').style.display = '';
   } else {
     document.getElementById('user-btn').style.display = 'none';
@@ -1895,7 +1895,15 @@ function _handleSaveResult(r, successMsg) {
   if (r && r.ok) { notify(successMsg || 'Gespeichert.', 'ok'); return true; }
   return false;
 }
-function rolleLabel(r) {
+function rolleLabel(r, oeffentlichOnly) {
+  // Labels aus geladenen Rollen-Daten (mit oeffentlich-Flag)
+  if (window._rollenMap) {
+    var rd = window._rollenMap[r];
+    if (rd) {
+      if (oeffentlichOnly && !rd.oeffentlich) return r; // interner Name wenn nicht öffentlich
+      return rd.label || r;
+    }
+  }
   var m = { admin: 'Administrator', editor: 'Editor', athlet: 'Athlet*in', leser: 'Leser*in' };
   return m[r] || r;
 }
@@ -9419,10 +9427,14 @@ async function _ladeRollenManager() {
   if (!wrap) return;
   if (!r || !r.ok) { wrap.innerHTML = '<div style="color:var(--accent);padding:12px">Fehler beim Laden.</div>'; return; }
   var rollen = r.data || [];
+  // Globale Map für rolleLabel()
+  window._rollenMap = {};
+  rollen.forEach(function(ro) { window._rollenMap[ro.name] = ro; });
   var html = '<table style="width:100%;font-size:13px;border-collapse:collapse;table-layout:fixed">' +
-    '<colgroup><col style="width:110px"><col><col style="width:80px"></colgroup>' +
+    '<colgroup><col style="width:110px"><col style="width:130px"><col><col style="width:80px"></colgroup>' +
     '<thead><tr style="border-bottom:2px solid var(--border)">' +
     '<th style="text-align:left;padding:6px 10px">Rolle</th>' +
+    '<th style="text-align:left;padding:6px 10px">Bezeichnung</th>' +
     '<th style="text-align:left;padding:6px 10px">Rechte</th>' +
     '<th></th>' +
     '</tr></thead><tbody>';
@@ -9434,8 +9446,11 @@ async function _ladeRollenManager() {
     // Systemrollen (admin/athlet/leser): Name editierbar, Rechte gesperrt, nicht löschbar
     var sysRolle = (rolle.name === 'admin' || rolle.name === 'athlet' || rolle.name === 'leser');
     var lockIcon = sysRolle ? ' <span title="Systemrolle: Name änderbar, Rechte gesperrt" style="font-size:11px;opacity:.5">🔐</span>' : '';
+    var labelDisp = (rolle.label && rolle.label !== rolle.name) ? rolle.label : '<span style="opacity:.4;font-style:italic">—</span>';
+    var pubIcon = rolle.oeffentlich ? '<span title="Öffentlich sichtbar" style="font-size:11px;margin-left:4px">👁️</span>' : '<span title="Nicht öffentlich" style="font-size:11px;margin-left:4px;opacity:.4">🙈</span>';
     html += '<tr style="border-bottom:1px solid var(--border)">' +
       '<td style="padding:8px 10px;font-weight:600">' + rolle.name + lockIcon + '</td>' +
+      '<td style="padding:8px 10px;font-size:13px">' + labelDisp + pubIcon + '</td>' +
       '<td style="padding:8px 10px;color:var(--text2);font-size:12px;word-break:break-word;white-space:normal">' + (rechteLabels || '–') + '</td>' +
       '<td style="padding:8px 6px;white-space:nowrap;text-align:right">' +
         '<div style="display:flex;gap:4px;justify-content:flex-end">' +
@@ -9450,7 +9465,7 @@ async function _ladeRollenManager() {
 }
 
 function _rolleModal(titel, rolle) {
-  var r = rolle || { id: null, name: '', rechte: [] };
+  var r = rolle || { id: null, name: '', rechte: [], label: '', oeffentlich: 1 };
   var isAdmin = (r.name === 'admin' || r.name === 'athlet' || r.name === 'leser'); // Systemrollen: Rechte gesperrt
   var checkboxes = _RECHTE_LISTE.map(function(re) {
     var checked = (r.rechte || []).indexOf(re.key) >= 0;
@@ -9462,13 +9477,18 @@ function _rolleModal(titel, rolle) {
   }).join('');
   var rechteSection = isAdmin
     ? '<div style="margin:12px 0 4px;font-weight:600;font-size:13px">Rechte</div>' +
-      '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">🔐 Rechte der Admin-Rolle sind unveränderbar.</div>' +
-      '<div style="display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto;padding:8px;background:var(--surf2);border-radius:8px;opacity:.7">' + checkboxes + '</div>'
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">🔐 Rechte der Systemrolle sind unveränderbar.</div>' +
+      '<div style="display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto;padding:8px;background:var(--surf2);border-radius:8px;opacity:.7">' + checkboxes + '</div>'
     : '<div style="margin:12px 0 4px;font-weight:600;font-size:13px">Rechte</div>' +
-      '<div style="display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto;padding:8px;background:var(--surf2);border-radius:8px">' + checkboxes + '</div>';
+      '<div style="display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto;padding:8px;background:var(--surf2);border-radius:8px">' + checkboxes + '</div>';
+  var oeffentlichChecked = (r.oeffentlich === 1 || r.oeffentlich === true) ? 'checked' : '';
   showModal(
     '<h2>' + titel + ' <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
-    '<div class="form-group"><label>Rollenname *</label><input type="text" id="rm-name" value="' + (r.name||'') + '"/></div>' +
+    '<div class="form-group"><label>Rollenname * <span style="font-size:11px;color:var(--text2)">(intern)</span></label><input type="text" id="rm-name" value="' + (r.name||'') + '"/></div>' +
+    '<div class="form-group"><label>Bezeichnung <span style="font-size:11px;color:var(--text2)">(öffentlich sichtbar, z. B. "Administrator")</span></label><input type="text" id="rm-label" placeholder="' + (r.name||'') + '" value="' + (r.label||'') + '"/></div>' +
+    '<label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer;font-size:13px">' +
+      '<input type="checkbox" id="rm-oeffentlich" ' + oeffentlichChecked + ' style="width:15px;height:15px"> ' +
+      'Bezeichnung öffentlich anzeigen (Menü, Athletenprofil)</label>' +
     rechteSection +
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
     '<button class="btn btn-primary" onclick="saveRolle(' + (r.id||'null') + ')">Speichern</button></div>'
@@ -9485,10 +9505,12 @@ async function showRolleEditModal(id) {
 }
 
 async function saveRolle(id) {
-  var name   = (document.getElementById('rm-name').value || '').trim();
-  var rechte = Array.from(document.querySelectorAll('[data-recht]:checked')).map(function(cb){ return cb.dataset.recht; });
-  var url    = id ? 'rollen/' + id : 'rollen';
-  var r = id ? await apiPost(url, { name: name, rechte: rechte }) : await apiPost(url, { name: name, rechte: rechte });
+  var name       = (document.getElementById('rm-name').value || '').trim();
+  var label      = (document.getElementById('rm-label').value || '').trim();
+  var oeffentlich = document.getElementById('rm-oeffentlich').checked ? 1 : 0;
+  var rechte     = Array.from(document.querySelectorAll('[data-recht]:checked')).map(function(cb){ return cb.dataset.recht; });
+  var url        = id ? 'rollen/' + id : 'rollen';
+  var r = await apiPost(url, { name: name, rechte: rechte, label: label, oeffentlich: oeffentlich });
   if (r && r.ok) { closeModal(); notify('Gespeichert.', 'ok'); _ladeRollenManager(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
 }
