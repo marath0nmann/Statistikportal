@@ -253,6 +253,12 @@ if ($res === 'auth') {
         $options = Passkey::authChallenge($uid);
         jsonOk($options);
     }
+    // ── Passkey: Discoverable-Challenge (ohne Benutzername) ──
+    if ($method === 'POST' && $id === 'passkey-auth-challenge-discover') {
+        Passkey::migrate();
+        $options = Passkey::authChallengeDiscover();
+        jsonOk($options);
+    }
     // ── Passkey: Login Response verifizieren ──
     // --- Login Schritt 3 Alternative: E-Mail-Code senden ---
     if ($method === 'POST' && $id === 'email-code-send') {
@@ -294,13 +300,19 @@ if ($res === 'auth') {
     if ($method === 'POST' && $id === 'passkey-auth-verify') {
         $result = Passkey::authVerify($body['credential'] ?? []);
         if (!$result['ok']) jsonErr($result['fehler'], 401);
-        // uid aus identify (Schritt 2) oder totp_pending (Schritt 3)
+        // uid aus Session (normaler Flow) oder per credential_id (Discoverable-Flow)
         $uid = (int)($_SESSION['totp_pending_user'] ?? $_SESSION['identify_user_id'] ?? 0);
+        if (!$uid) {
+            $credId = $body['credential']['id'] ?? '';
+            $pk = $credId ? DB::fetchOne('SELECT user_id FROM ' . DB::tbl('passkeys') . ' WHERE credential_id = ?', [$credId]) : null;
+            if (!$pk) jsonErr('Passkey keinem Benutzer zugeordnet.', 401);
+            $uid = (int)$pk['user_id'];
+        }
         unset($_SESSION['totp_pending_user'], $_SESSION['identify_user_id']);
         $user = DB::fetchOne('SELECT * FROM ' . DB::tbl('benutzer') . ' WHERE id = ? AND aktiv = 1', [$uid]);
         if (!$user) jsonErr('Benutzer nicht gefunden.', 401);
         $loginResult = Auth::finalizeLoginPublic($user);
-        jsonOk(['rolle' => $loginResult['rolle'], 'name' => $loginResult['name']]);
+        jsonOk(['rolle' => $loginResult['rolle'], 'name' => $loginResult['name'], 'vorname' => $loginResult['vorname'] ?? '', 'email' => $loginResult['email'] ?? '']);
     }
     // ── Passkey: Registrierung Challenge (eingeloggt, für Profil) ──
     if ($method === 'GET' && $id === 'passkey-reg-challenge') {

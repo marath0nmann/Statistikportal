@@ -179,6 +179,21 @@ class Passkey {
         }
     }
 
+    // ── Authentifizierung: Discoverable Challenge (ohne User-ID) ──
+    public static function authChallengeDiscover(): array {
+        $challenge = self::randomBytes(32);
+        $_SESSION['passkey_auth_challenge']  = base64_encode($challenge);
+        $_SESSION['passkey_auth_user_id']    = 0; // wird in verify per credential_id aufgelöst
+        $_SESSION['passkey_auth_discoverable'] = true;
+        return [
+            'challenge'        => base64_encode($challenge),
+            'timeout'          => 60000,
+            'rpId'             => self::getRpId(),
+            'userVerification' => 'preferred',
+            'allowCredentials' => [], // leer = Browser zeigt alle verfügbaren Passkeys
+        ];
+    }
+
     // ── Authentifizierung: Challenge erzeugen ─────────────────
     public static function authChallenge(int $userId): array {
         $challenge = self::randomBytes(32);
