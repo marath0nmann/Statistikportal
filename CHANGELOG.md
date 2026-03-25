@@ -1,3 +1,11 @@
+## v727 – Fix Online-Dot im Athletenprofil
+
+- **Ursache**: `auth/me` gab `athlet_id` nicht zurück → `currentUser.athlet_id` blieb immer `undefined` → `isMyProfile` immer `false`
+- **Fix Backend**: `athlet_id` wird jetzt in der `auth/me`-Response mitgeliefert
+- **Fix Frontend**: `!= null`-Check statt Truthy-Check (damit `athlet_id: 0` nicht ignoriert wird)
+
+---
+
 ## v726 – Athletenprofil
 
 - **Online-Dot**: Prüfung ob der Athlet dem eingeloggten User gehört jetzt robuster – nutzt `currentUser.athlet_id` UND als Fallback `_adminBenutzerMap` (falls Benutzerverwaltung schon geladen war)
