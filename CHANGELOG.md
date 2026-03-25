@@ -1,3 +1,32 @@
+## v734 – Externe Ergebnisse: Vollständige Disziplin-Integration
+
+**DB-Änderungen (Auto-Migration):**
+- `athlet_pb`: neue Spalten `disziplin_mapping_id`, `altersklasse`
+
+**Backend:**
+- Externe PBs werden über `disziplin_mapping` + `disziplin_kategorien` gejoint → liefern `kat_name`, `kat_sort`, `fmt`, `disziplin_mapped`
+- Beim Speichern wird `disziplin_mapping_id` gesetzt
+
+**Frontend:**
+- Externe PBs werden in die Kategorien-Struktur eingebettet (gleiche Sortierung wie interne Ergebnisse)
+- Matching per `disziplin_mapping_id` statt Fuzzy-String-Vergleich
+- Modal: Kategorie-Dropdown + Disziplin-Dropdown (aus `state.disziplinen`) statt Freitext
+- Neues Feld: Altersklasse
+- Externe Disziplinen ohne interne Ergebnisse erscheinen als eigene Disziplin-Buttons
+
+---
+
+## v733 – Athletenprofil: Ergebnisse + Externe PBs zusammengeführt
+
+- **Tab entfernt**: Kein separater "Externe PBs"-Tab mehr
+- **Gemischte Tabelle**: Interne Ergebnisse (farbig) und externe PBs (normales Schwarz) erscheinen in derselben Tabelle; externe erkennbar an farbloser Ergebnisdarstellung
+- **Verein-Spalte**: Erscheint automatisch wenn externe Einträge in der gewählten Disziplin vorhanden sind; interne Ergebnisse zeigen den eigenen Vereinsnamen, externe den eingetragenen Verein
+- **Neues Feld "Verein"** im PB-Modal (DB-Migration auto)
+- **"+ Externes Ergebnis"**-Button neben "Schließen" im Modal-Footer
+- Edit/Delete für externe PBs direkt aus der Ergebnistabelle
+
+---
+
 ## v732 – Fix HTTP 500
 
 - **Ursache**: Tippfehler im catch-Block von `auth/online-status`: `'athlet_ids']=[])` statt `'athlet_ids'=>[])` → PHP-Parse-Error → 500 auf allen Endpoints

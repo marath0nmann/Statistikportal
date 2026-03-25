@@ -118,6 +118,9 @@ try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXIST
 try { DB::query("ALTER TABLE " . DB::tbl('registrierungen') . " ADD COLUMN IF NOT EXISTS email_login_bevorzugt TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS email_login_bevorzugt TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS letzter_aktivitaet DATETIME NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS verein VARCHAR(120) NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS disziplin_mapping_id INT NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS altersklasse VARCHAR(20) NULL"); } catch (\Exception $e) {}
 // Migration: Rollen-System (rollen-Tabelle)
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rollen') . " (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1800,8 +1803,16 @@ if ($res === 'athleten') {
 
         if ($method === 'GET') {
             $rows = DB::fetchAll(
-                'SELECT id, disziplin, resultat, wettkampf, datum FROM ' . DB::tbl('athlet_pb') . '
-                 WHERE athlet_id=? ORDER BY disziplin',
+                'SELECT pb.id, pb.disziplin, pb.resultat, pb.wettkampf, pb.datum, pb.verein, pb.altersklasse,
+                        pb.disziplin_mapping_id,
+                        COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
+                        COALESCE(dk.name, \'Sonstige\') AS kat_name,
+                        COALESCE(dk.reihenfolge, 99) AS kat_sort,
+                        COALESCE(dm.disziplin, pb.disziplin) AS disziplin_mapped
+                 FROM ' . DB::tbl('athlet_pb') . ' pb
+                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=pb.disziplin_mapping_id
+                 LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
+                 WHERE pb.athlet_id=? ORDER BY dk.reihenfolge, pb.disziplin',
                 [$athletId]);
             jsonOk($rows);
         }
@@ -1811,9 +1822,12 @@ if ($res === 'athleten') {
             if (!$disz || !$res2) jsonErr('Disziplin und Ergebnis erforderlich.');
             $dat = ($body['datum'] ?? '') ?: null;
             $wk  = sanitize($body['wettkampf'] ?? '');
+            $vr   = sanitize($body['verein']    ?? '');
+            $ak   = sanitize($body['altersklasse'] ?? '');
+            $dmId = intOrNull($body['disziplin_mapping_id'] ?? null);
             DB::query(
-                'INSERT INTO ' . DB::tbl('athlet_pb') . ' (athlet_id, disziplin, resultat, wettkampf, datum) VALUES (?,?,?,?,?)',
-                [$athletId, $disz, $res2, $wk ?: null, $dat]);
+                'INSERT INTO ' . DB::tbl('athlet_pb') . ' (athlet_id, disziplin, resultat, wettkampf, datum, verein, altersklasse, disziplin_mapping_id) VALUES (?,?,?,?,?,?,?,?)',
+                [$athletId, $disz, $res2, $wk ?: null, $dat, $vr ?: null, $ak ?: null, $dmId]);
             jsonOk(['id' => DB::lastInsertId()]);
         }
         if ($method === 'PUT' && $pbId) {
@@ -1822,9 +1836,12 @@ if ($res === 'athleten') {
             if (!$disz || !$res2) jsonErr('Disziplin und Ergebnis erforderlich.');
             $dat = ($body['datum'] ?? '') ?: null;
             $wk  = sanitize($body['wettkampf'] ?? '');
+            $vr   = sanitize($body['verein']    ?? '');
+            $ak   = sanitize($body['altersklasse'] ?? '');
+            $dmId = intOrNull($body['disziplin_mapping_id'] ?? null);
             DB::query(
-                'UPDATE ' . DB::tbl('athlet_pb') . ' SET disziplin=?, resultat=?, wettkampf=?, datum=? WHERE id=? AND athlet_id=?',
-                [$disz, $res2, $wk ?: null, $dat, $pbId, $athletId]);
+                'UPDATE ' . DB::tbl('athlet_pb') . ' SET disziplin=?, resultat=?, wettkampf=?, datum=?, verein=?, altersklasse=?, disziplin_mapping_id=? WHERE id=? AND athlet_id=?',
+                [$disz, $res2, $wk ?: null, $dat, $vr ?: null, $ak ?: null, $dmId, $pbId, $athletId]);
             jsonOk('OK');
         }
         if ($method === 'DELETE' && $pbId) {
@@ -1905,7 +1922,18 @@ if ($res === 'athleten') {
                 $kategorien[$kn]['ergebnisse'][] = $row;
             }
             $kategorien = array_values($kategorien);
-            jsonOk(compact('athlet','kategorien'));
+            // Externe PBs mitsenden
+            $pbs = DB::fetchAll('SELECT pb.id, pb.disziplin, pb.resultat, pb.wettkampf, pb.datum, pb.verein, pb.altersklasse,
+                        pb.disziplin_mapping_id,
+                        COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
+                        COALESCE(dk.name, \'Sonstige\') AS kat_name,
+                        COALESCE(dk.reihenfolge, 99) AS kat_sort,
+                        COALESCE(dm.disziplin, pb.disziplin) AS disziplin_mapped
+                 FROM ' . DB::tbl('athlet_pb') . ' pb
+                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=pb.disziplin_mapping_id
+                 LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
+                 WHERE pb.athlet_id=? ORDER BY dk.reihenfolge, pb.disziplin', [(int)$id]);
+            jsonOk(compact('athlet','kategorien','pbs'));
         } else {
             $strasse = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_strasse') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
             $sprint  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprint') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
