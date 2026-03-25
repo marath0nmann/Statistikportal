@@ -983,9 +983,10 @@ if ($res === 'benutzer') {
             $rows = DB::fetchAll(
                 'SELECT b.id, b.benutzername, b.email, b.rolle, b.aktiv,
                         b.erstellt_am, b.letzter_login, b.athlet_id,
-                        b.avatar_pfad,
+                        b.avatar_pfad, b.email_login_bevorzugt, b.totp_aktiv,
                         a.name_nv AS athlet_name,
-                        a.vorname  AS athlet_vorname
+                        a.vorname  AS athlet_vorname,
+                        (SELECT COUNT(*) FROM ' . DB::tbl('passkeys') . ' p WHERE p.user_id = b.id) AS passkey_count
                  FROM ' . DB::tbl('benutzer') . ' b
                  LEFT JOIN ' . DB::tbl('athleten') . ' a ON a.id = b.athlet_id
                  ORDER BY b.benutzername'
@@ -1031,6 +1032,10 @@ if ($res === 'benutzer') {
                 $felder[] = 'athlet_id=?';
                 $params[] = $body['athlet_id'] ? (int)$body['athlet_id'] : null;
             }
+        }
+        if (array_key_exists('email_login_bevorzugt', $body)) {
+            $felder[] = 'email_login_bevorzugt=?';
+            $params[] = $body['email_login_bevorzugt'] ? 1 : 0;
         }
         if (!$felder) jsonErr('Keine Änderungen.');
         $params[] = $id;
