@@ -1,3 +1,9 @@
+## v718 – Fix tfaBadges
+
+- `var tfaBadges =`-Deklaration wurde beim Zeilenersatz in v717 abgeschnitten → ReferenceError beim Laden der Benutzerverwaltung
+
+---
+
 ## v717 – Avatar-Dot + Status-Badges
 
 **Avatar-Dot:**

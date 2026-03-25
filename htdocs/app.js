@@ -9392,6 +9392,7 @@ async function renderAdmin() {
     var statusBadge = isOnline
       ? '<span class="badge badge-eingeloggt">Eingeloggt</span>'
       : (b.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>');
+    var tfaBadges =
       (b.totp_aktiv ? '<span class="badge" style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;font-size:11px" title="TOTP aktiv">&#x1F4F1; TOTP</span>' : '') +
       (b.passkey_count > 0 ? '<span class="badge" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;font-size:11px" title="' + b.passkey_count + ' Passkey(s)">&#x1F511; ' + b.passkey_count + '</span>' : '') +
       (b.email_login_bevorzugt && !b.totp_aktiv && !(b.passkey_count > 0) ? '<span class="badge" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;font-size:11px" title="Anmeldung per E-Mail-Code">&#x1F4E7; E-Mail</span>' : '');
