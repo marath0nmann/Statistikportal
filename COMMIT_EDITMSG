@@ -1,1 +1,1 @@
-v718: Fix tfaBadges undefined (Deklaration fehlte nach Refactoring)
+v719: Benutzertabelle – Dot nur eingeloggt, Rolle plain text, sortierbare Spalten
