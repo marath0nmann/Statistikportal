@@ -1,3 +1,13 @@
+## v709 – Fix Favorisierte Disziplinen: Doppel-Matching
+
+- **Ursache**: Favoriten wurden als Disziplin-Namen gespeichert → "800m" (Bahn) und "800m" (Halle) wurden beide als Favorit markiert wenn einer davon ausgewählt war
+- **Fix**: Favoriten werden jetzt als **mapping_id-Array** (Integer) gespeichert → jede Disziplin-Kategorie-Kombination ist eindeutig identifiziert
+- **Admin-Panel**: Checkboxen verwenden `mapping_id` als Wert; nicht gemappte Disziplinen (ohne mapping_id) erscheinen nicht in der Favoriten-Auswahl
+- **Backend**: Matching per `mapping_id` statt per Name
+- **Migration**: Alte Name-basierte Favoriten-Listen werden beim nächsten Speichern überschrieben (einmalig neu auswählen)
+
+---
+
 ## v708 – Benutzerverwaltung Avatar-Stil
 
 - Initialen-Avatare in der Benutzerliste nutzen jetzt denselben Stil wie die Hall of Fame: Farbverlauf (primary → accent), Barlow Condensed Bold, 2 Buchstaben

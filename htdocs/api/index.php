@@ -2040,18 +2040,20 @@ if ($res === 'rekorde') {
         }
         // Favorisierte Disziplinen aus Einstellungen
         $favJson = Settings::get('top_disziplinen','');
-        $favList = $favJson ? (json_decode($favJson, true) ?: []) : [];
+        $favListRaw = $favJson ? (json_decode($favJson, true) ?: []) : [];
+        // Favoriten als mapping_id-Array (Integer); alte Name-Arrays ignorieren
+        $favList = array_values(array_filter(array_map('intval', $favListRaw), function($v){ return $v > 0; }));
         // Zuerst: favorisierte (in konfigurierter Reihenfolge), dann: Rest nach Häufigkeit
-        $favResult = [];
+        $favResult = [];  // mapping_id -> $c
         $restResult = [];
         foreach ($counts as $c) {
-            if (in_array($c['disziplin'], $favList)) $favResult[$c['disziplin']] = $c;
+            if ($c['mapping_id'] && in_array((int)$c['mapping_id'], $favList)) $favResult[(int)$c['mapping_id']] = $c;
             else $restResult[] = $c;
         }
         // Favorisierte in konfigurierter Reihenfolge
         $orderedFav = [];
-        foreach ($favList as $fn) {
-            if (isset($favResult[$fn])) $orderedFav[] = $favResult[$fn];
+        foreach ($favList as $fid) {
+            if (isset($favResult[$fid])) $orderedFav[] = $favResult[$fid];
         }
         usort($restResult, function($a,$b){ return $b['cnt'] - $a['cnt']; });
         if ($orderedFav) {
