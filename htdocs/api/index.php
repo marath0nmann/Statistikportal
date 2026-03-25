@@ -389,8 +389,8 @@ if ($res === 'auth') {
         // Vorname aus verknüpftem Athletenprofil
         $vorname = '';
         if (!empty($row['athlet_id'])) {
-            $ath = DB::fetchOne('SELECT vorname FROM ' . DB::tbl('athleten') . ' WHERE id = ?', [$row['athlet_id']]);
-            if ($ath) $vorname = $ath['vorname'] ?? '';
+            $ath = DB::fetchOne('SELECT vorname, nachname FROM ' . DB::tbl('athleten') . ' WHERE id = ?', [$row['athlet_id']]);
+            if ($ath) { $vorname = $ath['vorname'] ?? ''; $user['nachname'] = $ath['nachname'] ?? ''; }
         }
         $user['vorname']   = $vorname;
         $user['athlet_id']  = !empty($row['athlet_id']) ? (int)$row['athlet_id'] : null;
@@ -400,6 +400,7 @@ if ($res === 'auth') {
     }
     // --- Online-Status: welche Athleten sind gerade eingeloggt (aktiv < 5 Min) ---
     if ($method === 'GET' && $id === 'online-status') {
+        if (!Auth::check()) jsonErr('Nicht eingeloggt.', 401);
         try {
             $rows = DB::fetchAll(
                 'SELECT athlet_id FROM ' . DB::tbl('benutzer') .
