@@ -114,15 +114,31 @@ function _luminance(hex) {
 // Gibt '#111111' oder '#ffffff' zurück je nach Kontrast zur Hintergrundfarbe
 // Meisterschafts-Lookup: wird aus Einstellungen befüllt
 // Avatar-Rendering: gibt <img> oder Initialen-Div zurück
-function avatarHtml(avatarPfad, name, size, fontSize) {
+// Erzeugt Avatar-HTML mit optionalem Online-Indikator-Punkt
+// onlineStatus: null/undefined = kein Punkt, 'online' = grün, 'aktiv' = akzent, 'inaktiv' = gedämpft
+function avatarHtml(avatarPfad, name, size, fontSize, onlineStatus) {
   size = size || 28; fontSize = fontSize || Math.round(size * 0.45);
-  var initial = (name || '?')[0].toUpperCase();
+  var initials = nameInitials(name || '?');
+  var dot = onlineStatus ? _avatarDot(onlineStatus, size) : '';
+  var wrap = '<span style="position:relative;display:inline-flex;flex-shrink:0;width:' + size + 'px;height:' + size + 'px;">';
   if (avatarPfad) {
-    return '<span style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;flex-shrink:0;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;">' +
-      '<img src="' + avatarPfad + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display=&quot;none&quot;;this.parentNode.style.background=&quot;var(--accent)&quot;">' +
-      '</span>';
+    return wrap +
+      '<img src="' + avatarPfad + '" style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;object-fit:cover;" onerror="this.style.display=&quot;none&quot;;this.parentNode.style.background=&quot;var(--accent)&quot;">' +
+      dot + '</span>';
   }
-  return avatarFallback(initial, size, fontSize);
+  return wrap + avatarFallback(initials, size, fontSize) + dot + '</span>';
+}
+
+// Überlappender Status-Punkt am Avatar (rechts unten, außerhalb des Kreises)
+function _avatarDot(status, size) {
+  size = size || 28;
+  var dotSize = Math.max(8, Math.round(size * 0.28));
+  var color = status === 'online' ? '#22c55e' : status === 'aktiv' ? 'var(--accent)' : '#9ca3af';
+  var border = Math.max(1, Math.round(dotSize * 0.25));
+  var offset = -Math.round(dotSize * 0.3);
+  return '<span style="position:absolute;bottom:' + offset + 'px;right:' + offset + 'px;' +
+    'width:' + dotSize + 'px;height:' + dotSize + 'px;border-radius:50%;' +
+    'background:' + color + ';border:' + border + 'px solid var(--surface);z-index:1"></span>';
 }
 function nameInitials(name) {
   if (!name) return '?';
@@ -131,9 +147,9 @@ function nameInitials(name) {
   return parts[0][0].toUpperCase();
 }
 
-function avatarFallback(initial, size, fontSize) {
+function avatarFallback(initials, size, fontSize) {
   var fs = fontSize || Math.round((size || 28) * 0.38);
-  return '<span style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;flex-shrink:0;background:var(--accent);color:var(--on-accent);display:inline-flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:' + fs + 'px;font-weight:600;">' + initial + '</span>';
+  return '<span style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));color:var(--on-primary);display:inline-flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:' + fs + 'px;font-weight:700;letter-spacing:.5px">' + initials + '</span>';
 }
 
 var FOOTER_DEFAULT_DS  = "# Datenschutzerkl\u00e4rung\n\n**Stand: 2026**\n\n## 1. Verantwortlicher\nVerantwortlich f\u00fcr diese Anwendung ist der Verein [Vereinsname]\n\n## 2. Erhobene Daten\nDiese Anwendung verarbeitet ausschlie\u00dflich Daten, die zur Darstellung von Leichtathletik-Ergebnissen und Vereinsstatistiken erforderlich sind:\n- Athleten-Namen und Wettkampfergebnisse (\u00f6ffentlich zug\u00e4nglich)\n- Benutzerdaten registrierter Nutzer (Name, E-Mail-Adresse) zur Authentifizierung\n\n## 3. Keine Weitergabe an Dritte\nPersonenbezogene Daten werden nicht an Dritte weitergegeben.\n\n## 4. Hosting\nDie Anwendung wird auf Servern von all-inkl.com (ALL-INKL.COM \u2013 Neue Medien M\u00fcnnich) in Deutschland betrieben.\n\n## 5. Kontakt\nBei Fragen zur Datenverarbeitung wenden Sie sich bitte an die Vereinsverantwortlichen.";
@@ -2602,9 +2618,7 @@ function timelineBadges(rek) {
       var hofHtml = '';
       for (var hi = 0; hi < displayData.length; hi++) {
         var ha = displayData[hi];
-        var hAvatar = ha.avatar
-          ? '<img src="' + ha.avatar + '" style="width:64px;height:64px;border-radius:50%;object-fit:cover;">'
-          : '<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));color:var(--on-primary);display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:24px;font-weight:700;">' + nameInitials(ha.name||'?') + '</div>';
+        var hAvatar = avatarHtml(ha.avatar, ha.name||'?', 64, 24);
 
         // Gruppierung: gleiche AK-Kombination → eine Box, Disziplinen zusammenfassen.
         // Zusätzlich: konsekutive AK-Ranges komprimieren (W45,W50,W55,W60,W65 → W45–W65)
@@ -9370,25 +9384,24 @@ async function renderAdmin() {
     } else {
       initials = nameInitials(dispName);
     }
-    var onlineDot = isOnline ? '<span style="position:absolute;bottom:1px;right:1px;width:9px;height:9px;background:#22c55e;border-radius:50%;border:2px solid var(--surface)" title="Eingeloggt"></span>' : '';
-    var avatarCell = b.avatar_pfad
-      ? '<div class="user-row-avatar" style="padding:0;overflow:hidden;position:relative"><img src="' + b.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\';">' + onlineDot + '</div>'
-      : '<div class="user-row-avatar" style="background:linear-gradient(135deg,var(--primary),var(--accent));font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700;letter-spacing:.5px;position:relative">' + initials + onlineDot + '</div>';
+    // Avatar mit überlappenden Dot
+    var dotStatus = isOnline ? 'online' : (b.aktiv ? 'aktiv' : 'inaktiv');
+    var avatarCell = avatarHtml(b.avatar_pfad, dispName, 36, 14, dotStatus);
     var rolleBadge = '<span class="badge badge-' + b.rolle + '">' + rolleLabel(b.rolle) + '</span>';
-    var statusBadge = b.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>';
-    var tfaBadges =
+    // 3-stufiger Status: Eingeloggt (grün) > Aktiv (akzent) > Inaktiv (gedämpft)
+    var statusBadge = isOnline
+      ? '<span class="badge badge-eingeloggt">Eingeloggt</span>'
+      : (b.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>');
       (b.totp_aktiv ? '<span class="badge" style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;font-size:11px" title="TOTP aktiv">&#x1F4F1; TOTP</span>' : '') +
       (b.passkey_count > 0 ? '<span class="badge" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;font-size:11px" title="' + b.passkey_count + ' Passkey(s)">&#x1F511; ' + b.passkey_count + '</span>' : '') +
       (b.email_login_bevorzugt && !b.totp_aktiv && !(b.passkey_count > 0) ? '<span class="badge" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;font-size:11px" title="Anmeldung per E-Mail-Code">&#x1F4E7; E-Mail</span>' : '');
     var athletCell = b.athlet_id
       ? '<span style="font-size:12px">&#x1F3C3; ' + (b.athlet_name||'') + '</span>'
       : '<span style="color:var(--text2);font-size:12px">\u2013</span>';
-    tbody += '<tr' + (isOnline ? ' style="background:color-mix(in srgb,var(--primary) 5%,transparent)"' : '') + '>' +
+    tbody += '<tr>' +
       '<td style="padding:8px 10px">' + avatarCell + '</td>' +
       '<td style="padding:8px 10px">' +
-        '<div style="font-weight:600;font-size:14px">' + dispName +
-          (isOnline ? ' <span style="font-size:11px;color:#22c55e;font-weight:400">\u25cf Eingeloggt</span>' : '') +
-        '</div>' +
+        '<div style="font-weight:600;font-size:14px">' + dispName + '</div>' +
         '<div style="font-size:11px;color:var(--text2)">' + b.email + '</div>' +
       '</td>' +
       '<td style="padding:8px 10px">' + athletCell + '</td>' +

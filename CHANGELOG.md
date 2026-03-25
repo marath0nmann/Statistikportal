@@ -1,3 +1,23 @@
+## v717 – Avatar-Dot + Status-Badges
+
+**Avatar-Dot:**
+- Grüner Punkt überlappt jetzt den Avatar-Kreis (position:absolute, nach außen versetzt)
+- Gilt systemweit: Benutzerverwaltung, Header, Hall of Fame
+- Dot-Farbe: grün (eingeloggt), akzent-blau (aktiv), grau (inaktiv)
+
+**Status-Badges (3 Stufen):**
+- 🔵 **Eingeloggt** (grün) – neuer Badge für aktuell eingeloggten User
+- 🔷 **Aktiv** (Akzentfarbe/Sekundärfarbe) – statt bisherigem Grün
+- 🔴 **Inaktiv** (Primärfarbe) – statt bisherigem Rot
+
+**Zeilen-Highlight + Text-Label entfernt** – Info nur noch über Dot + Badge
+
+**avatarHtml()** zentralisiert: HoF + alle Avatare nutzen dieselbe Funktion mit optionalem Dot-Parameter
+
+**avatarFallback()** vereinheitlicht: Gradient + Barlow Condensed + 2 Initialen überall
+
+---
+
 ## v716 – Benutzerverwaltung Redesign
 
 - **Tabellenstruktur**: Benutzerverwaltung jetzt als Tabelle mit Spalten: Avatar | Benutzer | Athlet | Rolle | Status | 2FA | Letzter Login | Aktionen
