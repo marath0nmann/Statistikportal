@@ -1,3 +1,12 @@
+## v695 – Passkey-First Login
+
+- **Discoverable Credentials**: Passkey-Button oben im Login-Dialog — kein Benutzername nötig, Browser zeigt direkt alle gespeicherten Passkeys für die Domain
+- **Layout**: Passkey-Button prominent oben, Trennlinie "oder mit Passwort", darunter E-Mail + Passwort-Felder
+- **Backend**: Neuer Endpunkt `auth/passkey-auth-challenge-discover` mit leerem `allowCredentials`-Array; `authVerify` sucht User jetzt per `credential_id` wenn kein Session-User vorhanden
+- **Passkey.php**: Neue Methode `authChallengeDiscover()`
+
+---
+
 ## v694 – Login: E-Mail und Passwort kombiniert
 
 - **Schritt 1 + 2 zusammengeführt**: E-Mail und Passwort werden jetzt auf einem Bildschirm eingegeben (wie bei den meisten Websites)

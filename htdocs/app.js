@@ -958,7 +958,14 @@ function _loginCard(inner) {
 // Schritt 1: Benutzername / E-Mail
 function renderLoginStep1() {
   document.getElementById('login-screen').innerHTML = _loginCard(
-    '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">&#x1F512; Anmelden</h2>' +
+    '<h2 style="font-size:20px;font-weight:700;margin:0 0 16px">&#x1F512; Anmelden</h2>' +
+    '<button class="btn btn-primary" style="width:100%;font-size:15px;padding:12px;display:flex;align-items:center;justify-content:center;gap:8px" onclick="doLoginPasskeyDiscover()">' +
+      '&#x1F511; Mit Passkey anmelden</button>' +
+    '<div style="display:flex;align-items:center;gap:10px;margin:16px 0">' +
+      '<div style="flex:1;height:1px;background:var(--border)"></div>' +
+      '<span style="font-size:12px;color:var(--text2);white-space:nowrap">oder mit Passwort</span>' +
+      '<div style="flex:1;height:1px;background:var(--border)"></div>' +
+    '</div>' +
     '<div class="form-group" style="margin-bottom:12px">' +
       '<label>E-Mail-Adresse</label>' +
       '<input type="text" id="login-ident" autocomplete="username" style="font-size:16px"' +
@@ -971,9 +978,7 @@ function renderLoginStep1() {
     '</div>' +
     '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
     '<button class="btn btn-primary" style="width:100%" onclick="doLoginStep1()">Anmelden</button>' +
-    '<button class="btn btn-ghost" style="width:100%;margin-top:6px;font-size:13px" onclick="doLoginPasskey()">' +
-      '&#x1F511; Mit Passkey anmelden</button>' +
-    '<button class="btn btn-ghost btn-login-cancel" style="width:100%;margin-top:4px" onclick="hideLogin()">Abbrechen</button>'
+    '<button class="btn btn-ghost btn-login-cancel" style="width:100%;margin-top:8px" onclick="hideLogin()">Abbrechen</button>'
   );
   setTimeout(function(){ var el=document.getElementById('login-ident'); if(el) el.focus(); }, 100);
 }
@@ -1009,30 +1014,20 @@ async function doLoginStep1() {
   }
 }
 
-// Passkey-Login als expliziter Button: identify → challenge → verify
-async function doLoginPasskey() {
-  var ident = (document.getElementById('login-ident').value || '').trim();
+// Passkey: Discoverable (ohne E-Mail) – Browser zeigt alle Passkeys für diese Domain
+async function doLoginPasskeyDiscover() {
   var errEl = document.getElementById('login-err');
   errEl.style.display = 'none';
-  if (!ident) { errEl.textContent = 'Bitte zuerst E-Mail-Adresse eingeben.'; errEl.style.display='block'; document.getElementById('login-ident').focus(); return; }
-  // identify um session_id zu setzen und has_passkey zu prüfen
-  var idR = await apiPost('auth/identify', { benutzername: ident });
-  if (!idR || !idR.ok) { errEl.textContent = '\u274C ' + ((idR&&idR.fehler)||'Fehler'); errEl.style.display='block'; return; }
-  if (!idR.data || !idR.data.has_passkey) { errEl.textContent = '\u274C Kein Passkey für dieses Konto registriert.'; errEl.style.display='block'; return; }
-  _loginState.ident = ident;
-  _loginState.has_passkey = true;
-  // Passkey-Dialog auslösen
   try {
-    var optR = await apiPost('auth/passkey-auth-challenge', {});
-    if (!optR || !optR.ok) { errEl.textContent = '\u274C Passkey-Challenge fehlgeschlagen.'; errEl.style.display='block'; return; }
+    var optR = await apiPost('auth/passkey-auth-challenge-discover', {});
+    if (!optR || !optR.ok) { errEl.textContent = '\u274C Passkey nicht verfügbar.'; errEl.style.display='block'; return; }
     var opts = optR.data;
-    var allowCreds = (opts.allowCredentials || []).map(function(c) {
-      return { type: 'public-key', id: _b64urlToBuffer(c.id) };
-    });
     var assertion = await navigator.credentials.get({ publicKey: {
-      challenge: _b64urlToBuffer(opts.challenge), timeout: opts.timeout || 60000,
-      rpId: opts.rpId, userVerification: opts.userVerification || 'preferred',
-      allowCredentials: allowCreds,
+      challenge:        _b64urlToBuffer(opts.challenge),
+      timeout:          opts.timeout || 60000,
+      rpId:             opts.rpId,
+      userVerification: opts.userVerification || 'preferred',
+      allowCredentials: [], // leer = Discoverable
     }});
     var cred = {
       id: assertion.id, type: assertion.type,
@@ -1044,8 +1039,8 @@ async function doLoginPasskey() {
       }
     };
     var verR = await apiPost('auth/passkey-auth-verify', { credential: cred });
-    if (!verR || !verR.ok) { errEl.textContent = '\u274C Passkey-Verifizierung fehlgeschlagen.'; errEl.style.display='block'; return; }
-    currentUser = { name: verR.data.name || ident, email: verR.data.email || ident, vorname: verR.data.vorname || '', rolle: verR.data.rolle };
+    if (!verR || !verR.ok) { errEl.textContent = '\u274C ' + ((verR&&verR.fehler)||'Passkey fehlgeschlagen.'); errEl.style.display='block'; return; }
+    currentUser = { name: verR.data.name || '', email: verR.data.email || '', vorname: verR.data.vorname || '', rolle: verR.data.rolle };
     showApp();
   } catch(e) {
     if (e && e.name !== 'NotAllowedError') {
@@ -1055,77 +1050,6 @@ async function doLoginPasskey() {
   }
 }
 
-// Schritt 2: Passwort + automatischer Passkey-Dialog (parallel)
-function renderLoginStep2() {
-  var passkeyHint = _loginState.has_passkey
-    ? '<div id="passkey-status" style="font-size:12px;color:var(--text2);margin-bottom:10px;text-align:center">' +
-        '&#x1F511; Passkey-Dialog wurde geöffnet &hellip; oder Passwort eingeben.' +
-      '</div>'
-    : '';
-  document.getElementById('login-screen').innerHTML = _loginCard(
-    '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">&#x1F512; Anmelden</h2>' +
-    '<p style="color:var(--text2);font-size:13px;margin:0 0 16px">Als <strong>' + _loginState.ident + '</strong></p>' +
-    passkeyHint +
-    '<div class="form-group" style="margin-bottom:16px">' +
-      '<label>Passwort</label>' +
-      '<input type="password" id="login-pw" autocomplete="current-password" style="font-size:16px"' +
-        ' onkeydown="if(event.key===\'Enter\')doLoginStep2()"/>' +
-    '</div>' +
-    '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
-    '<button class="btn btn-primary" style="width:100%" onclick="doLoginStep2()">Anmelden</button>' +
-    '<button class="btn btn-ghost" style="width:100%;margin-top:4px;opacity:.7;font-size:12px" onclick="renderLoginStep1()">&#x2190; Zur\u00fcck</button>'
-  );
-  setTimeout(function(){ var el=document.getElementById('login-pw'); if(el) el.focus(); }, 100);
-  // Passkey automatisch auslösen wenn verfügbar
-  if (_loginState.has_passkey) _triggerPasskeyStep2();
-}
-
-async function _triggerPasskeyStep2() {
-  // Passkey-Challenge im Hintergrund — schlägt fehl ohne UI-Unterbrechung
-  try {
-    var optR = await apiPost('auth/passkey-auth-challenge', {});
-    if (!optR || !optR.ok) return; // still kann Passwort eingegeben werden
-    var opts = optR.data;
-    var allowCreds = (opts.allowCredentials || []).map(function(c) {
-      return { type: 'public-key', id: _b64urlToBuffer(c.id) };
-    });
-    var assertion = await navigator.credentials.get({ publicKey: {
-      challenge:        _b64urlToBuffer(opts.challenge),
-      timeout:          opts.timeout || 60000,
-      rpId:             opts.rpId,
-      userVerification: opts.userVerification || 'preferred',
-      allowCredentials: allowCreds,
-    }});
-    // Passkey erfolgreich → verifizieren
-    var cred = {
-      id: assertion.id, type: assertion.type,
-      response: {
-        authenticatorData: _bufferToB64url(assertion.response.authenticatorData),
-        clientDataJSON:    _bufferToB64url(assertion.response.clientDataJSON),
-        signature:         _bufferToB64url(assertion.response.signature),
-        userHandle:        assertion.response.userHandle ? _bufferToB64url(assertion.response.userHandle) : null,
-      }
-    };
-    var verR = await apiPost('auth/passkey-auth-verify', { credential: cred });
-    if (!verR || !verR.ok) {
-      // Passkey fehlgeschlagen → Fehlermeldung zeigen, Passwort bleibt aktiv
-      var statusEl = document.getElementById('passkey-status');
-      if (statusEl) statusEl.innerHTML = '&#x26A0;&#xFE0F; Passkey fehlgeschlagen &mdash; bitte Passwort eingeben.';
-      return;
-    }
-    // Passkey OK → einloggen (Passwortfeld wird ignoriert)
-    currentUser = { name: verR.data.name || _loginState.ident, email: verR.data.email || _loginState.ident, vorname: verR.data.vorname || '', rolle: verR.data.rolle };
-    showApp();
-  } catch(e) {
-    // Nutzer hat Passkey-Dialog abgebrochen oder Fehler → Passwort weiterhin verfügbar
-    var statusEl = document.getElementById('passkey-status');
-    if (statusEl && e && e.name !== 'NotAllowedError') {
-      statusEl.innerHTML = '&#x1F511; Passkey nicht verwendet &mdash; Passwort eingeben.';
-    } else if (statusEl) {
-      statusEl.style.display = 'none'; // abgebrochen → still
-    }
-  }
-}
 
 async function doLoginStep2() {
   var passwort = (document.getElementById('login-pw').value || '');
