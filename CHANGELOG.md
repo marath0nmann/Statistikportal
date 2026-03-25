@@ -1,3 +1,19 @@
+## v736 – Externes Ergebnis Modal
+
+- "Abbrechen" → "← Zurück" im Modal zum Eintragen/Bearbeiten externer Ergebnisse
+
+---
+
+## v735 – Externes Ergebnis Modal
+
+- **Titel**: "Externes Ergebnis eintragen" statt "Externer PB eintragen"
+- **Optik**: Modal nutzt jetzt `form-group`/`form-grid`-Klassen – konsistent mit dem Rest der Seite
+- **Kategorie-Dropdown**: befüllt aus `state.disziplinen` nach `tbl_key` (war fehlerhaft: nutzte `kategorie_id` das in `state.disziplinen` nicht existiert)
+- **Disziplin-Dropdown**: wird nach Kategorie-Auswahl korrekt befüllt
+- **Validierung**: Fehlermeldung wenn Disziplin nicht ausgewählt
+
+---
+
 ## v734 – Externe Ergebnisse: Vollständige Disziplin-Integration
 
 **DB-Änderungen (Auto-Migration):**

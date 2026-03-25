@@ -3876,13 +3876,13 @@ async function _apRenderPb() {
   });
 }
 
-// Füllt Disziplin-Dropdown basierend auf gewählter Kategorie
+// Füllt Disziplin-Dropdown basierend auf gewählter Kategorie (tbl_key)
 function _pbUpdateDiszDropdown() {
-  var katId = document.getElementById('_pb-kat') ? parseInt(document.getElementById('_pb-kat').value) : 0;
+  var katKey = document.getElementById('_pb-kat') ? document.getElementById('_pb-kat').value : '';
   var sel = document.getElementById('_pb-disz');
   if (!sel) return;
-  var disz = (state.disziplinen || []).filter(function(d) { return d.kategorie_id == katId; });
-  sel.innerHTML = '<option value="">-- wählen --</option>' +
+  var disz = (state.disziplinen || []).filter(function(d) { return d.tbl_key === katKey; });
+  sel.innerHTML = '<option value="">-- Disziplin wählen --</option>' +
     disz.map(function(d) {
       return '<option value="' + d.id + '">' + d.disziplin + '</option>';
     }).join('');
@@ -3890,49 +3890,66 @@ function _pbUpdateDiszDropdown() {
 
 function showPbModal(athletId, pbId) {
   var isEdit = !!pbId;
-  var pb = null;
-  if (isEdit) {
-    // pb-Daten aus dem Panel lesen (Button liegt in der Zeile)
-    pb = null; // wird per API geladen wenn nötig – für Edit fülllen wir Felder manuell
-  }
+
+  // Kategorie-Optionen aus state.disziplinen
+  var katsSeen = {};
+  var katOpts = '<option value="">-- Kategorie wählen --</option>';
+  (state.disziplinen || []).forEach(function(d) {
+    if (d.tbl_key && !katsSeen[d.tbl_key]) {
+      katsSeen[d.tbl_key] = true;
+      katOpts += '<option value="' + d.tbl_key + '">' + d.kategorie + '</option>';
+    }
+  });
+
   var html =
-    '<h2 style="margin-bottom:16px">' + (isEdit ? 'Externer PB bearbeiten' : 'Externer PB eintragen') +
+    '<h2 style="margin:0 0 20px">' + (isEdit ? 'Externes Ergebnis bearbeiten' : 'Externes Ergebnis eintragen') +
       ' <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">' +
-      '<div style="grid-column:1/-1"><label style="font-size:12px;font-weight:600;color:var(--text2)">Kategorie *</label>' +
-        '<select id="_pb-kat" class="form-control" style="margin-top:4px" onchange="_pbUpdateDiszDropdown()"><option value="">-- wählen --</option>' +
-        (state.disziplinen||[]).reduce(function(acc,d){ if(d.kategorie_name && acc.indexOf(d.kategorie_id+'|'+d.kategorie_name)<0){ acc.push(d.kategorie_id+'|'+d.kategorie_name); } return acc; },[]).map(function(s){ var p=s.split('|'); return '<option value="'+p[0]+'">'+p[1]+'</option>'; }).join('') +
-        '</select></div>' +
-      '<div style="grid-column:1/-1"><label style="font-size:12px;font-weight:600;color:var(--text2)">Disziplin *</label>' +
-        '<select id="_pb-disz" class="form-control" style="margin-top:4px"><option value="">-- erst Kategorie wählen --</option></select>' +
-        '<input id="_pb-disz-id" type="hidden">' +
+
+    '<div class="form-grid">' +
+      '<div class="form-group">' +
+        '<label>Kategorie <span style="color:var(--accent)">*</span></label>' +
+        '<select id="_pb-kat" onchange="_pbUpdateDiszDropdown()">' + katOpts + '</select>' +
       '</div>' +
-      '<div><label style="font-size:12px;font-weight:600;color:var(--text2)">Ergebnis *</label>' +
-        '<input id="_pb-res" class="form-control" type="text" placeholder="z.B. 38:12" style="margin-top:4px"></div>' +
-      '<div><label style="font-size:12px;font-weight:600;color:var(--text2)">Altersklasse</label>' +
-        '<input id="_pb-ak" class="form-control" type="text" placeholder="z.B. M40" style="margin-top:4px"></div>' +
-      '<div><label style="font-size:12px;font-weight:600;color:var(--text2)">Datum</label>' +
-        '<input id="_pb-datum" class="form-control" type="date" style="margin-top:4px"></div>' +
-      '<div><label style="font-size:12px;font-weight:600;color:var(--text2)">Wettkampf</label>' +
-        '<input id="_pb-wk" class="form-control" type="text" placeholder="z.B. Berlin-Marathon" style="margin-top:4px"></div>' +
-      '<div style="grid-column:1/-1"><label style="font-size:12px;font-weight:600;color:var(--text2)">Verein</label>' +
-        '<input id="_pb-verein" class="form-control" type="text" placeholder="Vereinsname (optional)" style="margin-top:4px"></div>' +
+      '<div class="form-group">' +
+        '<label>Disziplin <span style="color:var(--accent)">*</span></label>' +
+        '<select id="_pb-disz"><option value="">-- erst Kategorie wählen --</option></select>' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Ergebnis <span style="color:var(--accent)">*</span></label>' +
+        '<input id="_pb-res" type="text" placeholder="z.B. 38:12 oder 7,42">' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Altersklasse</label>' +
+        '<input id="_pb-ak" type="text" placeholder="z.B. M40">' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Datum</label>' +
+        '<input id="_pb-datum" type="date">' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Wettkampf</label>' +
+        '<input id="_pb-wk" type="text" placeholder="z.B. Berlin-Marathon">' +
+      '</div>' +
+      '<div class="form-group full">' +
+        '<label>Verein <span style="font-size:11px;color:var(--text2)">(leer = kein Verein angegeben)</span></label>' +
+        '<input id="_pb-verein" type="text" placeholder="Vereinsname (optional)">' +
+      '</div>' +
     '</div>' +
+
     '<div id="_pb-err" style="color:var(--accent);font-size:13px;min-height:18px;margin-bottom:8px"></div>' +
     '<div class="modal-actions">' +
-      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-ghost" onclick="closeModal()">&#x2190; Zurück</button>' +
       '<button class="btn btn-primary" onclick="savePb(' + athletId + ',' + (pbId || 'null') + ')">Speichern</button>' +
     '</div>';
+
   showModal(html);
 
   if (isEdit) {
-    // Werte aus Tabellen-Zeile via API nachladen
     apiGet('athleten/' + athletId + '/pb').then(function(r2) {
       if (!r2 || !r2.ok) return;
       var list = r2.data || [];
       for (var i = 0; i < list.length; i++) {
         if (String(list[i].id) === String(pbId)) {
-          document.getElementById('_pb-disz').value  = list[i].disziplin  || '';
           document.getElementById('_pb-res').value   = list[i].resultat   || '';
           document.getElementById('_pb-datum').value = list[i].datum      || '';
           document.getElementById('_pb-wk').value    = list[i].wettkampf  || '';
@@ -3943,9 +3960,9 @@ function showPbModal(athletId, pbId) {
             var dm2 = (state.disziplinen||[]).find(function(d){ return d.id == list[i].disziplin_mapping_id; });
             if (dm2) {
               var katEl = document.getElementById('_pb-kat');
-              if (katEl) { katEl.value = dm2.kategorie_id; _pbUpdateDiszDropdown(); }
+              if (katEl) { katEl.value = dm2.tbl_key; _pbUpdateDiszDropdown(); }
               var diszEl2 = document.getElementById('_pb-disz');
-              if (diszEl2) diszEl2.value = dm2.id;
+              if (diszEl2) setTimeout(function(){ diszEl2.value = dm2.id; }, 50);
             }
           }
           break;
@@ -3962,7 +3979,7 @@ async function savePb(athletId, pbId) {
   var wk   = (document.getElementById('_pb-wk').value   || '').trim();
   var err  = document.getElementById('_pb-err');
   if (!disz || !res) { err.textContent = 'Disziplin und Ergebnis sind Pflichtfelder.'; return; }
-  var vr   = (document.getElementById('_pb-verein') ? document.getElementById('_pb-verein').value : '') || '';
+  var vr   = (document.getElementById('_pb-verein') ? document.getElementById('_pb-verein').value.trim() : '') || '';
   var ak   = (document.getElementById('_pb-ak') ? document.getElementById('_pb-ak').value.trim() : '') || '';
   var dmId = null;
   var diszEl = document.getElementById('_pb-disz');
@@ -3970,8 +3987,9 @@ async function savePb(athletId, pbId) {
   if (diszOpt && diszOpt.value) {
     dmId = parseInt(diszOpt.value);
     var dm = (state.disziplinen||[]).find(function(d){ return d.id == dmId; });
-    if (dm) disz = dm.disziplin; // use canonical name from mapping
+    if (dm) disz = dm.disziplin;
   }
+  if (!dmId) { err.textContent = 'Bitte Kategorie und Disziplin wählen.'; return; }
   var body = { disziplin: disz, resultat: res, datum: dat || null, wettkampf: wk || null, verein: vr || null, altersklasse: ak || null, disziplin_mapping_id: dmId };
   var r = pbId ? await apiPut('athleten/' + athletId + '/pb/' + pbId, body)
                : await apiPost('athleten/' + athletId + '/pb', body);
