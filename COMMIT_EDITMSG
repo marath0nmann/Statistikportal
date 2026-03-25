@@ -1,1 +1,1 @@
-v717: Avatar-Dot überlappend + 3-stufiger Status + systemweite Vereinheitlichung
+v718: Fix tfaBadges undefined (Deklaration fehlte nach Refactoring)
