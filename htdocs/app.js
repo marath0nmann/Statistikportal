@@ -974,6 +974,10 @@ async function _startConditionalPasskey() {
     var optR = await api('POST', 'auth/passkey-auth-challenge-discover', {}, _conditionalPasskeyAbort.signal);
     if (!optR || !optR.ok) { _conditionalPasskeyAbort = null; return; }
     var opts = optR.data;
+    // Token für stateless Verify merken
+    var _discoverToken     = opts.token;
+    var _discoverTs        = opts.ts;
+    var _discoverChallenge = opts.challenge;
     var assertion = await navigator.credentials.get({
       signal: _conditionalPasskeyAbort.signal,
       mediation: 'conditional',
@@ -995,7 +999,12 @@ async function _startConditionalPasskey() {
         userHandle:        assertion.response.userHandle ? _bufferToB64url(assertion.response.userHandle) : null,
       }
     };
-    var verR = await apiPost('auth/passkey-auth-verify', { credential: cred });
+    var verR = await apiPost('auth/passkey-auth-verify', {
+      credential: cred,
+      discover_token: _discoverToken,
+      discover_ts:    _discoverTs,
+      discover_challenge: _discoverChallenge,
+    });
     if (!verR || !verR.ok) {
       var errEl = document.getElementById('login-err');
       if (errEl) { errEl.textContent = '❌ Passkey-Verifizierung fehlgeschlagen.'; errEl.style.display='block'; }

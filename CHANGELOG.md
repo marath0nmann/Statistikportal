@@ -1,3 +1,16 @@
+## v702 – Fix Login ohne Passkey (Session-Lock endgültig gelöst)
+
+**Eigentliche Ursache**: Solange `passkey-auth-challenge-discover` die PHP-Session schreibt, belegt der Server-seitige PHP-Prozess die Session-Datei – auch wenn der Client den Fetch abbricht. Der nächste Request (`auth/identify`) wartet auf den Lock.
+
+**Lösung: Stateless Discover-Challenge**
+- `passkey-auth-challenge-discover` schreibt **nichts** mehr in die Session, gibt stattdessen ein HMAC-signiertes Token zurück: `HMAC-SHA256(SESSION_NAME, challenge|timestamp)`
+- Client speichert `{token, ts, challenge}` im Speicher und schickt sie beim Verify mit
+- `passkey-auth-verify` prüft HMAC + Timestamp (max. 2 Min.) und verifiziert die Assertion direkt – ohne Session-Lookup
+- Neue Methode `Passkey::authVerifyStateless()` für diesen Pfad
+- Globales `session_write_close()` aus v700 wieder entfernt (war Workaround, nicht Fix)
+
+---
+
 ## v701 – Fix weißer Bildschirm
 
 - **Syntaxfehler**: In v700 eingeführtes Avatar-HTML hatte unescapte einfache Anführungszeichen im `onerror`-Attribut → JS-Parse-Fehler → kompletter Ladeausfall
