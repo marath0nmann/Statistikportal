@@ -9342,7 +9342,7 @@ async function renderAdmin() {
     var initials   = nameInitials(dispName);
     var avatarHtml = b.avatar_pfad
       ? '<div class="user-row-avatar" style="padding:0;overflow:hidden"><img src="' + b.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\';"></div>'
-      : '<div class="user-row-avatar">' + initials + '</div>';
+      : '<div class="user-row-avatar" style="background:linear-gradient(135deg,var(--primary),var(--accent));font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700;letter-spacing:.5px">' + initials + '</div>';
     userRows +=
       '<div class="user-row">' +
         avatarHtml +

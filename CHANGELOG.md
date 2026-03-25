@@ -1,3 +1,10 @@
+## v708 – Benutzerverwaltung Avatar-Stil
+
+- Initialen-Avatare in der Benutzerliste nutzen jetzt denselben Stil wie die Hall of Fame: Farbverlauf (primary → accent), Barlow Condensed Bold, 2 Buchstaben
+- CSS-Klasse `.user-row-avatar` entsprechend aktualisiert
+
+---
+
 ## v707 – Benutzerverwaltung + Rollen
 
 **Benutzerverwaltung:**
