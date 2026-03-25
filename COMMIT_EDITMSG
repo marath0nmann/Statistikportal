@@ -1,1 +1,1 @@
-v731: Benutzerverwaltung nutzt Server-seitigen Online-Status
+v732: Fix PHP-Syntaxfehler in auth/online-status (HTTP 500)

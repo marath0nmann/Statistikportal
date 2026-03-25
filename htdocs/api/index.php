@@ -410,7 +410,7 @@ if ($res === 'auth') {
                 'user_ids'   => array_values(array_column($rows, 'id')),
                 'athlet_ids' => array_values(array_filter(array_column($rows, 'athlet_id'))),
             ]);
-        } catch (\Exception $e) { jsonOk(['user_ids'=>[],'athlet_ids']=[]); }
+        } catch (\Exception $e) { jsonOk(['user_ids'=>[],'athlet_ids'=>[]]); }
     }
     // --- User-Präferenzen lesen ---
     if ($method === 'GET' && $id === 'prefs') {
