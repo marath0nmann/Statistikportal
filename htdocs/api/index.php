@@ -1898,7 +1898,7 @@ if ($res === 'athleten') {
         $athlet['avatar_pfad'] = $bUser ? $bUser['avatar_pfad'] : null;
         if ($unified) {
             $alle = DB::fetchAll(
-                'SELECT e.id, e.disziplin, e.resultat, e.pace, e.altersklasse, e.meisterschaft,
+                'SELECT e.id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.pace, e.altersklasse, e.meisterschaft,
                         v.kuerzel AS veranstaltung, v.ort AS veranstaltung_ort, v.name AS veranstaltung_name, v.datum,
                         COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
                         COALESCE(dk.name, \'Sonstige\') AS kat_name,
