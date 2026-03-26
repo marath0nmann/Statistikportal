@@ -402,12 +402,6 @@ async function init() {
   if (cfgR && cfgR.ok) applyConfig(cfgR.data);
 
   var r = await apiGet('auth/me');
-  // Rollen-Map vorab laden (für Rechte-Prüfungen wie personenbezogene_daten)
-  var rR = await apiGet('rollen');
-  if (rR && rR.ok) {
-    window._rollenMap = {};
-    (rR.data || []).forEach(function(ro) { window._rollenMap[ro.name] = ro; });
-  }
   if (r && r.ok) {
     currentUser = r.data;
     showApp();
@@ -1585,6 +1579,7 @@ async function showApp() {
         if (_meR.data.email)     currentUser.email     = _meR.data.email;
         if (_meR.data.name)      currentUser.name      = _meR.data.name;
         if (_meR.data.athlet_id != null) currentUser.athlet_id = _meR.data.athlet_id;
+        if (_meR.data.rechte)    currentUser.rechte    = _meR.data.rechte;
         if (_meR.data.nachname)  currentUser.nachname  = _meR.data.nachname;
         // Header-Avatar sofort aktualisieren
         var _avatarEl = document.getElementById('user-avatar');
@@ -1977,26 +1972,11 @@ function buildFooter() {
 
 // Ist der aktuelle User berechtigt, personenbezogene Daten zu sehen?
 function _canSeePersoenlicheDaten() {
-  if (!currentUser) return false; // Gäste nie
-  if (currentUser.rolle === 'admin') return true; // admin immer
-  // Recht aus _rollenMap prüfen (wird beim ersten Aufruf nachgeladen)
-  if (window._rollenMap && window._rollenMap[currentUser.rolle]) {
-    var rechte = window._rollenMap[currentUser.rolle].rechte || [];
-    return rechte.indexOf('vollzugriff') >= 0 || rechte.indexOf('personenbezogene_daten') >= 0;
-  }
-  // _rollenMap noch nicht geladen → async laden + UI aktualisieren
-  if (!window._rollenMapLoading) {
-    window._rollenMapLoading = true;
-    apiGet('rollen').then(function(r) {
-      window._rollenMapLoading = false;
-      if (r && r.ok) {
-        window._rollenMap = {};
-        (r.data || []).forEach(function(ro) { window._rollenMap[ro.name] = ro; });
-        buildNav(); // Nav neu bauen mit korrekten Rechten
-      }
-    });
-  }
-  return false; // bis Map geladen, sicherheitshalber false
+  if (!currentUser) return false;
+  if (currentUser.rolle === 'admin') return true;
+  // Rechte direkt aus currentUser.rechte (kommt von auth/me)
+  var rechte = currentUser.rechte || [];
+  return rechte.indexOf('vollzugriff') >= 0 || rechte.indexOf('personenbezogene_daten') >= 0;
 }
 
 function buildNav() {

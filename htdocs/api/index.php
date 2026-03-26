@@ -411,6 +411,9 @@ if ($res === 'auth') {
         }
         $user['vorname']   = $vorname;
         $user['athlet_id']  = !empty($row['athlet_id']) ? (int)$row['athlet_id'] : null;
+        // Rechte der eigenen Rolle mitsenden
+        $rolleRow = DB::fetchOne('SELECT rechte FROM ' . DB::tbl('rollen') . ' WHERE name = ?', [$user['rolle']]);
+        $user['rechte'] = $rolleRow ? (json_decode($rolleRow['rechte'] ?? '[]', true) ?: []) : [];
         try { Passkey::migrate(); } catch (\Exception $e) {}
         $user['has_passkey'] = Passkey::userHasPasskey($user['id']);
         jsonOk($user);

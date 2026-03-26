@@ -1,1 +1,1 @@
-v752: Fix _rollenMap beim App-Start laden
+v753: Fix personenbezogene Daten – Rechte via auth/me statt rollen-API
