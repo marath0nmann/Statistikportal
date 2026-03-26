@@ -3604,9 +3604,11 @@ function _apRender() {
   var katTabs = '';
   for (var ki = 0; ki < _apState.kategorien.length; ki++) {
     var k = _apState.kategorien[ki];
-    var active = ki === _apState.selKat ? 'background:var(--btn-bg);color:#fff;' : 'background:var(--surf2);color:var(--text);';
-    katTabs += '<button style="' + active + 'border:none;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;margin:0 4px 6px 0" ' +
-      'data-ap-kat="' + ki + '">' + k.name + ' <span style="opacity:.7">(' + (k.ergebnisse||[]).length + ')</span></button>';
+    var isActive = ki === _apState.selKat;
+    var ergCount = (k.ergebnisse||[]).length + (k.pbs||[]).length;
+    katTabs += '<button class="rek-cat-btn' + (isActive ? ' active' : '') + '" ' +
+      'style="font-size:13px;padding:7px 16px;margin:0 6px 6px 0" ' +
+      'data-ap-kat="' + ki + '">' + k.name + ' <span style="opacity:.7">(' + ergCount + ')</span></button>';
   }
 
   // Disziplin-Buttons mit PB
@@ -3623,11 +3625,12 @@ function _apRender() {
     }));
     var pb = _apBestOf(_allForPb, fmt);
     var pbStr = pb ? _apFmtRes(pb, fmt) : '';
-    var active2 = disz === _apState.selDisz ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : 'background:var(--surface);color:var(--text);border-color:var(--border);';
-    diszBtns += '<button style="' + active2 + 'border:1px solid;border-radius:10px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;margin:0 6px 6px 0;text-align:left;line-height:1.4" ' +
+    var isActive2 = disz === _apState.selDisz;
+    diszBtns += '<button class="rek-top-btn' + (isActive2 ? ' active' : '') + '" ' +
+      'style="min-width:80px;padding:8px 14px;margin:0 6px 6px 0" ' +
       'data-ap-disz="' + disz.replace(/"/g,'&quot;') + '">' +
-      '<div>' + diszLabel + '</div>' +
-      '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:14px;font-weight:700;opacity:.9">' + pbStr + '</div>' +
+      '<span class="rek-top-name">' + diszLabel + '</span>' +
+      (pbStr ? '<span class="rek-top-cnt" style="font-family:Barlow Condensed,sans-serif;font-size:13px;font-weight:700;margin-top:2px">' + pbStr + '</span>' : '') +
     '</button>';
   }
 
