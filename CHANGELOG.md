@@ -1,3 +1,12 @@
+## v757 – Eintragen Fixes
+
+- **Sicherheit**: Navigation zu 'Eintragen' setzte `subTab='bulk'` hart – jetzt `null`, wird in `renderEintragen()` permissions-basiert gesetzt
+- **Fallback**: Wer nur `eigene_ergebnisse` hat und `subTab='bulk'` ist (z.B. nach Speichern), wird automatisch auf `eigenes` umgeleitet
+- **Kein Zugriff**: Wer weder `bulk_eintragen` noch `eigene_ergebnisse` hat, sieht Hinweis statt Formular
+- **Aktiver Button**: Korrekter Tab ist beim ersten Laden farbig hinterlegt
+
+---
+
 ## v756 – Eintragen
 
 **Bulk-Eintragen:** Wird zum Button; neues Recht `bulk_eintragen` (Admin+Editor)
