@@ -1,3 +1,11 @@
+## v745 – Dashboard-Widgets getrennt
+
+- **"🏃 Eigenes Athletenprofil"**: Zeigt nur Avatar, Name, AK-Badge – keine Ergebnisse
+- **"⏱️ Eigene persönliche Bestzeiten"** (neu): Zeigt PB-Buttons je Disziplin, nach Kategorien gruppiert
+- Option "Ergebnisse anzeigen" entfernt (nicht mehr nötig)
+
+---
+
 ## v744 – Eigenes Athletenprofil Widget
 
 - PBs werden als `.rek-top-btn`-Buttons dargestellt (wie Bestleistungen), nicht als Tabelle

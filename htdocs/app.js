@@ -2873,10 +2873,17 @@ function timelineBadges(rek) {
     }
     if (w === 'eigenes-profil') {
       var epId = 'ep-widget-' + Math.random().toString(36).slice(2,8);
-      var epShowErg = wcfg.ep_show_ergebnisse !== false;
-      setTimeout(function(_id, _show) { return function() { _loadEigenesProfilWidget(_id, _show); }; }(epId, epShowErg), 0);
+      setTimeout(function(_id) { return function() { _loadEigenesProfilWidget(_id, false); }; }(epId), 0);
       return '<div class="panel" id="' + epId + '">' +
         '<div class="panel-header"><div class="panel-title">&#x1F3C3;&#xFE0E; ' + widgetTitle(wcfg, 'Mein Athletenprofil') + '</div></div>' +
+        '<div class="loading" style="padding:24px"><div class="spinner"></div></div>' +
+      '</div>';
+    }
+    if (w === 'eigene-bestzeiten') {
+      var ebId = 'eb-widget-' + Math.random().toString(36).slice(2,8);
+      setTimeout(function(_id) { return function() { _loadEigenesProfilWidget(_id, true); }; }(ebId), 0);
+      return '<div class="panel" id="' + ebId + '">' +
+        '<div class="panel-header"><div class="panel-title">&#x23F1;&#xFE0E; ' + widgetTitle(wcfg, 'Persönliche Bestzeiten') + '</div></div>' +
         '<div class="loading" style="padding:24px"><div class="spinner"></div></div>' +
       '</div>';
     }
@@ -10431,6 +10438,7 @@ var WIDGET_DEFS = [
   { id: 'veranstaltungen', label: '📍 Letzte Veranstaltungen' },
   { id: 'hall-of-fame',    label: '🏆 Hall of Fame' },
   { id: 'eigenes-profil',  label: '🏃 Eigenes Athletenprofil' },
+  { id: 'eigene-bestzeiten', label: '⏱️ Eigene persönliche Bestzeiten' },
 ];
 
 // Verfügbare Stat-Karten (Reihenfolge und Auswahl konfigurierbar)
@@ -10665,11 +10673,7 @@ function dashStatsMoveCard(ri, ci, cardId, dir) {
 }
 
 function dashEigenesProfilConfigHtml(ri, ci, col) {
-  var showErg = col.ep_show_ergebnisse !== false;
-  return '<label style="display:flex;align-items:center;gap:8px;font-size:12px">' +
-    '<input type="checkbox" id="ep-ergebnisse-' + ri + '-' + ci + '"' + (showErg ? ' checked' : '') + ' onchange="dashUpdateLayout()">' +
-    '<span>Ergebnisse anzeigen</span>' +
-  '</label>';
+  return ''; // keine extra Konfiguration
 }
 
 function renderAdminDashboardUI(layout) {
@@ -10705,6 +10709,7 @@ function renderAdminDashboardUI(layout) {
       if (col.widget === 'veranstaltungen') widgetConfig = dashVeranstConfigHtml(ri, ci, col.col_order, col.hidden_cols, col);
       if (col.widget === 'hall-of-fame')      widgetConfig = dashHofConfigHtml(ri, ci, col);
       if (col.widget === 'eigenes-profil')   widgetConfig = dashEigenesProfilConfigHtml(ri, ci, col);
+      // eigene-bestzeiten hat keine extra Konfiguration
       colsHtml +=
         '<div style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;background:var(--surf2);border-radius:10px;padding:14px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
@@ -10792,10 +10797,6 @@ function dashUpdateLayout() {
           if (boxes[bi2].checked && newCards.indexOf(boxes[bi2].dataset.statsId) < 0) newCards.push(boxes[bi2].dataset.statsId);
         }
         cols[ci].cards = newCards;
-      }
-      if (cols[ci].widget === 'eigenes-profil') {
-        var epEl = document.getElementById('ep-ergebnisse-' + ri + '-' + ci);
-        if (epEl) cols[ci].ep_show_ergebnisse = epEl.checked;
       }
       if (cols[ci].widget === 'hall-of-fame') {
         var hofLimitEl = document.getElementById('hof-limit-' + ri + '-' + ci);
