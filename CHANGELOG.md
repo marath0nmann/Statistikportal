@@ -1,3 +1,10 @@
+## v752 – Fix Personenbezogene Daten für Athlet-Rolle
+
+- **Ursache**: `_rollenMap` wurde nur in der Admin-Benutzerverwaltung befüllt – bei normalen Usern war sie leer → `_canSeePersoenlicheDaten()` immer `false`
+- **Fix**: `_rollenMap` wird jetzt beim App-Start parallel zu `auth/me` geladen → Rechte stehen sofort zur Verfügung
+
+---
+
 ## v751 – Fix Gruppen-Anzeige
 
 - **Ursache**: Beim Refactoring v748 blieb die alte, bedingungslose Gruppen-Zeile zusätzlich zur neuen konditionalen stehen – daher waren Gruppen immer sichtbar
