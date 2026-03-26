@@ -1,1 +1,1 @@
-v751: Fix Gruppen-Anzeige – war doppelt, zeigt nur noch mit Recht personenbezogene_daten
+v752: Fix _rollenMap beim App-Start laden

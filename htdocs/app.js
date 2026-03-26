@@ -402,6 +402,12 @@ async function init() {
   if (cfgR && cfgR.ok) applyConfig(cfgR.data);
 
   var r = await apiGet('auth/me');
+  // Rollen-Map vorab laden (für Rechte-Prüfungen wie personenbezogene_daten)
+  var rR = await apiGet('rollen');
+  if (rR && rR.ok) {
+    window._rollenMap = {};
+    (rR.data || []).forEach(function(ro) { window._rollenMap[ro.name] = ro; });
+  }
   if (r && r.ok) {
     currentUser = r.data;
     showApp();
@@ -1973,12 +1979,24 @@ function buildFooter() {
 function _canSeePersoenlicheDaten() {
   if (!currentUser) return false; // Gäste nie
   if (currentUser.rolle === 'admin') return true; // admin immer
-  // Recht aus _rollenMap prüfen
+  // Recht aus _rollenMap prüfen (wird beim ersten Aufruf nachgeladen)
   if (window._rollenMap && window._rollenMap[currentUser.rolle]) {
     var rechte = window._rollenMap[currentUser.rolle].rechte || [];
     return rechte.indexOf('vollzugriff') >= 0 || rechte.indexOf('personenbezogene_daten') >= 0;
   }
-  return false;
+  // _rollenMap noch nicht geladen → async laden + UI aktualisieren
+  if (!window._rollenMapLoading) {
+    window._rollenMapLoading = true;
+    apiGet('rollen').then(function(r) {
+      window._rollenMapLoading = false;
+      if (r && r.ok) {
+        window._rollenMap = {};
+        (r.data || []).forEach(function(ro) { window._rollenMap[ro.name] = ro; });
+        buildNav(); // Nav neu bauen mit korrekten Rechten
+      }
+    });
+  }
+  return false; // bis Map geladen, sicherheitshalber false
 }
 
 function buildNav() {
