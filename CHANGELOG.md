@@ -1,3 +1,11 @@
+## v750 – Systemrollen: personenbezogene_daten aktiv
+
+- **Migration**: Fügt `personenbezogene_daten`-Recht automatisch zu admin, athlet und leser hinzu (auch bei bestehenden Installationen)
+- **Default-Rechte** beim Erstsetup ebenfalls ergänzt
+- Recht ist in der Rollen-UI sichtbar aber ausgegraut (Systemrollen = unveränderbar)
+
+---
+
 ## v749 – Personenbezogene Daten als Recht
 
 - **Neues Recht**: `personenbezogene_daten` in _RECHTE_LISTE: "Personenbezogene Daten sehen (Athleten-Seite, Gruppen, Jahrgang)"

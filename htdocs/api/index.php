@@ -132,14 +132,27 @@ try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rollen') . " (
 // Spalten nachträglich ergänzen (bestehende Installationen)
 try { DB::query("ALTER TABLE " . DB::tbl('rollen') . " ADD COLUMN IF NOT EXISTS label VARCHAR(80) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('rollen') . " ADD COLUMN IF NOT EXISTS oeffentlich TINYINT(1) NOT NULL DEFAULT 1"); } catch (\Exception $e) {}
+// Migration: personenbezogene_daten zu Systemrollen admin/athlet/leser hinzufügen
+try {
+    foreach (['admin','athlet','leser'] as $_sysrolle) {
+        $row = DB::fetchOne('SELECT id, rechte FROM ' . DB::tbl('rollen') . ' WHERE name = ?', [$_sysrolle]);
+        if ($row) {
+            $r = json_decode($row['rechte'] ?? '[]', true) ?: [];
+            if (!in_array('personenbezogene_daten', $r)) {
+                $r[] = 'personenbezogene_daten';
+                DB::query('UPDATE ' . DB::tbl('rollen') . ' SET rechte = ? WHERE id = ?', [json_encode($r), $row['id']]);
+            }
+        }
+    }
+} catch (\Exception $e) {}
 // Standard-Rollen anlegen falls leer
 try {
     if (!DB::fetchOne('SELECT id FROM ' . DB::tbl('rollen') . ' LIMIT 1')) {
         $defaultRollen = [
-            ['admin',  '["vollzugriff","benutzer_verwalten","rekorde_bearbeiten","einstellungen_aendern","alle_ergebnisse","eigene_ergebnisse","lesen"]', 'Administrator', 1],
-            ['editor', '["alle_ergebnisse","lesen"]', 'Editor', 1],
-            ['athlet', '["eigene_ergebnisse","lesen"]', 'Athlet*in', 1],
-            ['leser',  '["lesen"]', 'Leser*in', 1],
+            ['admin',  '["vollzugriff","benutzer_verwalten","rekorde_bearbeiten","einstellungen_aendern","alle_ergebnisse","eigene_ergebnisse","lesen","personenbezogene_daten"]', 'Administrator', 1],
+            ['editor', '["alle_ergebnisse","lesen","personenbezogene_daten"]', 'Editor', 1],
+            ['athlet', '["eigene_ergebnisse","lesen","personenbezogene_daten"]', 'Athlet*in', 1],
+            ['leser',  '["lesen","personenbezogene_daten"]', 'Leser*in', 1],
         ];
         foreach ($defaultRollen as $r) {
             DB::query('INSERT IGNORE INTO ' . DB::tbl('rollen') . ' (name, rechte, label, oeffentlich) VALUES (?,?,?,?)', $r);
