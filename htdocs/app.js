@@ -1969,6 +1969,18 @@ function buildFooter() {
     '<div>' + legalLine + '</div>';
 }
 
+// Ist der aktuelle User berechtigt, personenbezogene Daten zu sehen?
+function _canSeePersoenlicheDaten() {
+  if (!currentUser) return false; // Gäste nie
+  if (currentUser.rolle === 'admin') return true; // admin immer
+  // Recht aus _rollenMap prüfen
+  if (window._rollenMap && window._rollenMap[currentUser.rolle]) {
+    var rechte = window._rollenMap[currentUser.rolle].rechte || [];
+    return rechte.indexOf('vollzugriff') >= 0 || rechte.indexOf('personenbezogene_daten') >= 0;
+  }
+  return false;
+}
+
 function buildNav() {
   var tabs = [
     { id: 'dashboard',       icon: '📊︎', label: 'Dashboard' },
@@ -1978,11 +1990,17 @@ function buildNav() {
     { id: 'athleten',        icon: '👤︎', label: 'Athleten' },
   ];
   if (!currentUser) {
+    var allowPD = _canSeePersoenlicheDaten();
     var visibleTabs = tabs.filter(function(t) {
-      return t.id === 'dashboard' || t.id === 'rekorde';
+      if (t.id === 'athleten' && !allowPD) return false;
+      return t.id === 'dashboard' || t.id === 'rekorde' || (t.id === 'athleten' && allowPD);
     });
     _renderNavTabs(visibleTabs);
     return;
+  }
+  // Eingeloggte User: Athleten-Tab sichtbar wenn persoenliche_daten_ab passt
+  if (!_canSeePersoenlicheDaten()) {
+    tabs = tabs.filter(function(t) { return t.id !== 'athleten'; });
   }
   if (currentUser.rolle === 'editor' || currentUser.rolle === 'admin' || currentUser.rolle === 'athlet')
     tabs.push({ id: 'eintragen', icon: '➕︎', label: 'Eintragen' });
@@ -2583,6 +2601,12 @@ function timelineBadges(rek) {
 
   function renderWidget(wcfg) {
     var w = wcfg.widget;
+    // Sichtbarkeit: welche Rollen dürfen dieses Widget sehen?
+    var sf = wcfg.sichtbar_fuer;
+    if (sf && sf.length) {
+      var myRolle = currentUser ? (currentUser.rolle || 'leser') : 'nicht-eingeloggt';
+      if (sf.indexOf(myRolle) < 0) return '';
+    }
     if (w === 'stats') {
       // cfg.cards: Array von IDs in gewünschter Reihenfolge, z.B. ['ergebnisse','athleten','rekorde']
       var cardIds = (wcfg.cards && wcfg.cards.length) ? wcfg.cards
@@ -3919,10 +3943,11 @@ async function openAthletById(id) {
       '<div>' +
         '<div style="font-size:20px;font-weight:700">' + (athlet.vorname || '') + ' ' + (athlet.nachname || '') + '</div>' +
         (gruppenTags ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">' + gruppenTags + '</div>' : '') +
+        (gruppenTags && _canSeePersoenlicheDaten() ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">' + gruppenTags + '</div>' : '') +
         '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">' +
           '<span class="badge badge-ak">' + totalErg + ' Wettkämpfe</span>' +
           (athlet.geschlecht ? '<span class="badge" style="background:var(--surf2);color:var(--text)">' + (athlet.geschlecht === 'M' ? '♂ Männlich' : '♀ Weiblich') + '</span>' : '') +
-          (athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jg. ' + athlet.geburtsjahr + '</span>' : '') +
+          (_canSeePersoenlicheDaten() && athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jg. ' + athlet.geburtsjahr + '</span>' : '') +
           (function(){ var _ak = (athlet.geschlecht && athlet.geburtsjahr) ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : ''; return _ak ? akBadge(_ak) : ''; })() +
         '</div>' +
       '</div>' +
@@ -9838,6 +9863,7 @@ var _RECHTE_LISTE = [
   { key: 'alle_ergebnisse',      label: 'Alle Ergebnisse eintragen/ändern/löschen' },
   { key: 'eigene_ergebnisse',    label: 'Eigene Ergebnisse eintragen/ändern/löschen (nach Genehmigung)' },
   { key: 'lesen',                label: 'Lesen' },
+  { key: 'personenbezogene_daten', label: 'Personenbezogene Daten sehen (Athleten-Seite, Gruppen, Jahrgang)' },
 ];
 
 async function _ladeRollenManager() {
@@ -9863,7 +9889,7 @@ async function _ladeRollenManager() {
       return r2 ? r2.label : k;
     }).join(', ');
     // Systemrollen (admin/athlet/leser): Name editierbar, Rechte gesperrt, nicht löschbar
-    var sysRolle = (rolle.name === 'admin' || rolle.name === 'athlet' || rolle.name === 'leser');
+    var sysRolle = (rolle.name === 'admin' || rolle.name === 'athlet' || rolle.name === 'leser' || rolle.name === 'nicht-eingeloggt');
     var lockIcon = sysRolle ? ' <span title="Systemrolle: Name änderbar, Rechte gesperrt" style="font-size:11px;opacity:.5">🔐</span>' : '';
     var labelDisp = (rolle.label && rolle.label !== rolle.name) ? rolle.label : '<span style="opacity:.4;font-style:italic">—</span>';
     var pubIcon = rolle.oeffentlich ? '<span title="Öffentlich sichtbar" style="font-size:11px;margin-left:4px">👁️</span>' : '<span title="Nicht öffentlich" style="font-size:11px;margin-left:4px;opacity:.4">🙈</span>';
@@ -9879,6 +9905,14 @@ async function _ladeRollenManager() {
       '</td>' +
     '</tr>';
   });
+  // Pseudo-Rolle "Nicht eingeloggt" (nicht in DB, nicht editierbar)
+  html += '<tr style="border-bottom:1px solid var(--border);opacity:.7">' +
+    '<td style="padding:8px 10px;font-weight:600">nicht-eingeloggt' +
+    ' <span title="Systemrolle: nicht editierbar" style="font-size:11px;opacity:.5">🔐</span></td>' +
+    '<td style="padding:8px 10px;font-size:13px">Nicht eingeloggt <span style="font-size:10px;color:var(--text2)">(Gäste)</span></td>' +
+    '<td style="padding:8px 10px;color:var(--text2);font-size:12px">–</td>' +
+    '<td></td>' +
+  '</tr>';
   html += '</tbody></table>';
   wrap.innerHTML = html;
 }
@@ -10677,6 +10711,36 @@ function dashEigenesProfilConfigHtml(ri, ci, col) {
   return ''; // keine extra Konfiguration
 }
 
+function dashSichtbarkeitHtml(ri, ci, selected) {
+  // Alle Rollen (inkl. nicht-eingeloggt) für Checkbox-Liste
+  var allRollen = [
+    { name: 'nicht-eingeloggt', label: 'Nicht eingeloggt' },
+    { name: 'leser',   label: 'Leser' },
+    { name: 'athlet',  label: 'Athlet' },
+    { name: 'editor',  label: 'Editor' },
+    { name: 'admin',   label: 'Admin' },
+  ];
+  // Dynamische Rollen aus _rollenMap
+  if (window._rollenMap) {
+    Object.keys(_rollenMap).forEach(function(k) {
+      if (!allRollen.find(function(r){ return r.name===k; })) {
+        allRollen.push({ name: k, label: _rollenMap[k].label || k });
+      }
+    });
+  }
+  var noFilter = !selected || selected.length === 0;
+  var checkboxes = allRollen.map(function(r) {
+    var checked = noFilter || selected.indexOf(r.name) >= 0;
+    return '<label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;white-space:nowrap">' +
+      '<input type="checkbox" data-sf-rolle="' + r.name + '" data-sf-ri="' + ri + '" data-sf-ci="' + ci + '" ' +
+      (checked ? 'checked' : '') + ' onchange="dashUpdateLayout()"> ' + r.label + '</label>';
+  }).join('');
+  return '<div style="margin-top:4px">' +
+    '<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Sichtbar für:</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px 10px">' + checkboxes + '</div>' +
+  '</div>';
+}
+
 function renderAdminDashboardUI(layout) {
   var el = document.getElementById('main-content');
 
@@ -10725,6 +10789,7 @@ function renderAdminDashboardUI(layout) {
             'class="settings-input" style="flex:1" oninput="dashUpdateLayout()">' +
           '</label>' +
           widgetConfig +
+          dashSichtbarkeitHtml(ri, ci, col.sichtbar_fuer || []) +
           widthInput(ri, ci, col.w) +
         '</div>';
     }
@@ -10798,6 +10863,13 @@ function dashUpdateLayout() {
           if (boxes[bi2].checked && newCards.indexOf(boxes[bi2].dataset.statsId) < 0) newCards.push(boxes[bi2].dataset.statsId);
         }
         cols[ci].cards = newCards;
+      }
+      // sichtbar_fuer: Multi-Select Checkboxen
+      var sfBoxes = document.querySelectorAll('input[data-sf-rolle][data-sf-ri="' + ri + '"][data-sf-ci="' + ci + '"]');
+      if (sfBoxes.length) {
+        var sfVals = [];
+        sfBoxes.forEach(function(cb) { if (cb.checked) sfVals.push(cb.dataset.sfRolle); });
+        cols[ci].sichtbar_fuer = sfVals;
       }
       if (cols[ci].widget === 'hall-of-fame') {
         var hofLimitEl = document.getElementById('hof-limit-' + ri + '-' + ci);
@@ -11149,6 +11221,7 @@ async function saveAllSettings() {
   }
   // Checkboxen separat (checked → '1', unchecked → '0')
   var cbKeys = ['version_nur_admins'];
+
   for (var j = 0; j < cbKeys.length; j++) {
     var cb = document.getElementById('cfg-' + cbKeys[j]);
     if (cb) payload[cbKeys[j]] = cb.checked ? '1' : '0';
