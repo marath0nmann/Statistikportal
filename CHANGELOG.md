@@ -1,3 +1,16 @@
+## v756 – Eintragen
+
+**Bulk-Eintragen:** Wird zum Button; neues Recht `bulk_eintragen` (Admin+Editor)
+
+**Eigenes Ergebnis eintragen:**
+- Kategorie/Disziplin-Dropdown, Ergebnis, AK (auto), Verein (vorausgefüllt)
+- Anderer Verein → externes Ergebnis; eigener Verein → Antrag (pending Review)
+- Neue Veranstaltung mit Hinweis auf Genehmigungspflicht
+- Backend: `POST ergebnisse/eigenes` → `ergebnis_aenderungen` Tabelle
+- Migration: `veranstaltungen.genehmigt`-Spalte
+
+---
+
 ## v755
 
 - **"+ Externes Ergebnis"** im Athletenprofil nur sichtbar wenn `alle_ergebnisse`-Recht aktiv (oder Admin)
