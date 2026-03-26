@@ -1,3 +1,10 @@
+## v751 – Fix Gruppen-Anzeige
+
+- **Ursache**: Beim Refactoring v748 blieb die alte, bedingungslose Gruppen-Zeile zusätzlich zur neuen konditionalen stehen – daher waren Gruppen immer sichtbar
+- **Fix**: Doppelte Zeile entfernt → Gruppen nur noch sichtbar wenn `personenbezogene_daten`-Recht aktiv
+
+---
+
 ## v750 – Systemrollen: personenbezogene_daten aktiv
 
 - **Migration**: Fügt `personenbezogene_daten`-Recht automatisch zu admin, athlet und leser hinzu (auch bei bestehenden Installationen)
