@@ -1,1 +1,1 @@
-v753: Fix personenbezogene Daten – Rechte via auth/me statt rollen-API
+v754: Athleten-Liste – AK als Badge, Rechte athleten_details + athleten_editieren, Geschlecht als Symbol

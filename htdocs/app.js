@@ -1971,6 +1971,19 @@ function buildFooter() {
 }
 
 // Ist der aktuelle User berechtigt, personenbezogene Daten zu sehen?
+function _canSeeAthletenDetails() {
+  if (!currentUser) return false;
+  if (currentUser.rolle === 'admin') return true;
+  var rechte = currentUser.rechte || [];
+  return rechte.indexOf('vollzugriff') >= 0 || rechte.indexOf('athleten_details') >= 0;
+}
+function _canEditAthleten() {
+  if (!currentUser) return false;
+  if (currentUser.rolle === 'admin') return true;
+  var rechte = currentUser.rechte || [];
+  return rechte.indexOf('vollzugriff') >= 0 || rechte.indexOf('athleten_editieren') >= 0;
+}
+
 function _canSeePersoenlicheDaten() {
   if (!currentUser) return false;
   if (currentUser.rolle === 'admin') return true;
@@ -3523,23 +3536,21 @@ var _athLetenCache = { alleAthleten: [], alleGruppen: [] };
 var _athSort = { col: 'name', dir: 1 }; // col: 'name'|'vorname'|'geschlecht'|'jahrgang'|'ak'|'ergebnisse'|'aktiv'|'letzte', dir: 1|-1
 
 function _athSortHeader() {
+  var showD = _canSeeAthletenDetails();
+  var showE = _canEditAthleten() || (currentUser && currentUser.rolle === 'admin');
   var cols = [
-    { key: 'name',       label: 'Name' },
-    { key: 'vorname',    label: 'Vorname' },
-    { key: 'geschlecht', label: 'Gesch.' },
-    { key: 'jahrgang',   label: 'Jahrgang' },
-    { key: 'ak',         label: 'AK' },
-    { key: 'gruppen',    label: 'Gruppen' },
-    { key: 'ergebnisse', label: 'Erg.' },
-    { key: 'letzte',     label: 'Letzte Akt.' },
-    { key: 'aktiv',      label: 'Status' },
-    { key: '',           label: '' },
+    { key: 'name', label: 'Name' },
+    { key: 'vorname', label: 'Vorname' },
   ];
+  if (showD) cols.push({ key: 'geschlecht', label: '♂♀' });
+  cols.push({ key: 'jahrgang', label: 'Jahrgang' }, { key: 'ak', label: 'AK' }, { key: 'gruppen', label: 'Gruppen' });
+  if (showD) { cols.push({ key: 'ergebnisse', label: 'Erg.' }, { key: 'letzte', label: 'Letzte Akt.' }, { key: 'aktiv', label: 'Status' }); }
+  if (showE) cols.push({ key: '', label: '' });
   return cols.map(function(c) {
     if (!c.key) return '<th></th>';
     var arrow = _athSort.col === c.key ? (_athSort.dir === 1 ? ' ▲' : ' ▼') : '';
     var style = 'cursor:pointer;user-select:none;white-space:nowrap' + (_athSort.col === c.key ? ';color:var(--primary)' : '');
-    return '<th style="' + style + '" onclick="_athSetSort(\'' + c.key + '\')">'+c.label+arrow+'</th>';
+    return '<th style="' + style + '" onclick="_athSetSort(\'' + c.key + '\'">' + c.label + arrow + '</th>';
   }).join('');
 }
 
@@ -3575,54 +3586,57 @@ function _athSortRows(athleten, jetzt) {
 function _renderAthletenTable() {
   var aktGruppe = state.filters.gruppe || '';
   var alleAthleten = _athLetenCache.alleAthleten || [];
-  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor' || currentUser.rolle === 'athlet');
-  var isAdmin = currentUser && currentUser.rolle === 'admin';
+  var showDetails = _canSeeAthletenDetails();
+  var canEdit    = _canEditAthleten();
+  var isAdmin    = currentUser && currentUser.rolle === 'admin';
   var jetzt = new Date().getFullYear();
 
-  var athleten = alleAthleten;
+  // Inaktive Athleten nur für Details-Berechtigte sichtbar
+  var athleten = alleAthleten.filter(function(a) {
+    if (!showDetails && !a.aktiv) return false;
+    return true;
+  });
   if (aktGruppe) {
-    athleten = alleAthleten.filter(function(a) {
+    athleten = athleten.filter(function(a) {
       var gs = a.gruppen || [];
       for (var gi = 0; gi < gs.length; gi++) { if (gs[gi].name === aktGruppe) return true; }
       return false;
     });
   }
   state._athletenMap = {};
-  // Erst _athletenMap befüllen (für AK-Berechnung bei Sortierung)
   for (var i = 0; i < athleten.length; i++) state._athletenMap[athleten[i].id] = athleten[i];
   var sorted = _athSortRows(athleten, jetzt);
   _athLetenCache._lastSorted = sorted;
   var rows = '';
   for (var i = 0; i < sorted.length; i++) {
     var a = sorted[i];
-    var canDel = currentUser && currentUser.rolle === 'admin' && parseInt(a.anz_ergebnisse) === 0;
+    var canDel = isAdmin && parseInt(a.anz_ergebnisse) === 0;
     var aktuellAK = (a.geschlecht && a.geburtsjahr) ? calcDlvAK(a.geburtsjahr, a.geschlecht, jetzt) : '';
+    var gSymbol = a.geschlecht === 'M' ? '<span title="Männlich" style="font-size:15px">♂</span>'
+                : a.geschlecht === 'W' ? '<span title="Weiblich" style="font-size:15px">♀</span>' : '';
     rows +=
       '<tr>' +
         '<td><span class="athlet-link" onclick="openAthletById(' + a.id + ')">' + a.nachname + '</span></td>' +
         '<td>' + (a.vorname || '') + '</td>' +
-        '<td>' + akBadge(a.geschlecht) + '</td>' +
+        (showDetails ? '<td style="text-align:center">' + gSymbol + '</td>' : '') +
         '<td style="color:var(--text2);font-size:13px">' + (a.geburtsjahr || '') + '</td>' +
-        '<td><span style="font-size:12px;font-weight:600;color:var(--primary)">' + aktuellAK + '</span></td>' +
+        '<td>' + (aktuellAK ? akBadge(aktuellAK) : '') + '</td>' +
         '<td>' + renderGruppenInline(a.gruppen) + '</td>' +
-        '<td><span class="badge badge-platz">' + a.anz_ergebnisse + '</span></td>' +
-        '<td style="color:var(--text2);font-size:13px;text-align:center">' + (a.letzte_aktivitaet || '–') + '</td>' +
-        '<td>' + (a.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>') + '</td>' +
-        '<td style="white-space:nowrap">' +
+        (showDetails ? '<td><span class="badge badge-platz">' + a.anz_ergebnisse + '</span></td>' : '') +
+        (showDetails ? '<td style="color:var(--text2);font-size:13px;text-align:center">' + (a.letzte_aktivitaet || '–') + '</td>' : '') +
+        (showDetails ? '<td>' + (a.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>') + '</td>' : '') +
+        (canEdit || isAdmin ? '<td style="white-space:nowrap">' +
           (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showAthletEditModal(' + a.id + ')">&#x270F;&#xFE0E;</button>' : '') +
           (isAdmin && a.aktiv ? '<button class="btn btn-ghost btn-sm" title="Deaktivieren" style="color:var(--text2)" onclick="toggleAthletAktiv(' + a.id + ',0)">&#x23FC;&#xFE0E;</button>' : '') +
           (isAdmin && !a.aktiv ? '<button class="btn btn-ghost btn-sm" title="Aktivieren" style="color:var(--green)" onclick="toggleAthletAktiv(' + a.id + ',1)">&#x23FB;&#xFE0E;</button>' : '') +
           (canDel ? _mkDelBtn(a.id) : '') +
-        '</td>' +
+        '</td>' : '') +
       '</tr>';
   }
   var tbody = document.querySelector('#athlet-tabelle tbody');
   var count = document.getElementById('athlet-count');
   if (tbody) tbody.innerHTML = rows;
   if (count) count.textContent = athleten.length + ' Athleten';
-  // Fokus auf Suchfeld wiederherstellen
-  var sf = document.getElementById('athlet-suche');
-  if (sf && document.activeElement !== sf) { /* nicht stören */ }
 }
 
 async function renderAthleten() {
@@ -3633,7 +3647,7 @@ async function renderAthleten() {
   if (!rA || !rA.ok) return;
   var alleAthleten = rA.data;
   var alleGruppen = (rG && rG.ok) ? rG.data : [];
-  var canEdit = currentUser.rolle === 'admin' || currentUser.rolle === 'editor';
+  var canEdit = _canEditAthleten();
   // Cache befüllen für _renderAthletenTable
   _athLetenCache.alleAthleten = alleAthleten;
   _athLetenCache.alleGruppen = alleGruppen;
@@ -9861,6 +9875,8 @@ var _RECHTE_LISTE = [
   { key: 'eigene_ergebnisse',    label: 'Eigene Ergebnisse eintragen/ändern/löschen (nach Genehmigung)' },
   { key: 'lesen',                label: 'Lesen' },
   { key: 'personenbezogene_daten', label: 'Personenbezogene Daten sehen (Athleten-Seite, Gruppen, Jahrgang)' },
+  { key: 'athleten_details',       label: 'Athleten-Details sehen (Geschlecht, Anzahl Ergebnisse, inaktive Athleten)' },
+  { key: 'athleten_editieren',     label: 'Athleten editieren' },
 ];
 
 async function _ladeRollenManager() {

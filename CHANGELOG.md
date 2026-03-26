@@ -1,3 +1,13 @@
+## v754 – Athleten-Liste
+
+- **AK als Badge** (Pillow-Darstellung via `akBadge()`)
+- **Geschlecht als Symbol** (♂/♀ statt M/W-Badge)
+- **Neues Recht `athleten_details`**: Geschlecht, Anzahl Ergebnisse, Letzte Aktivität, Status (inkl. inaktive Athleten) nur sichtbar wenn Recht aktiv
+- **Neues Recht `athleten_editieren`**: Bearbeiten-Buttons nur wenn Recht aktiv
+- **Migration**: Rechte werden automatisch zu admin, editor, athlet und leser hinzugefügt
+
+---
+
 ## v753 – Fix Personenbezogene Daten
 
 - **Ursache**: `GET rollen` ist admin-only → Athlet-User bekamen 403, `_rollenMap` blieb leer
