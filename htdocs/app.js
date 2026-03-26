@@ -2305,12 +2305,14 @@ async function _loadEigenesProfilWidget(elId, showErg) {
     '</div>';
 
   if (!showErg) {
+    // Eigenes Athletenprofil-Widget: nur Header
     el.innerHTML = el.innerHTML.replace(
       '<div class="loading" style="padding:24px"><div class="spinner"></div></div>',
       headerHtml
     );
     return;
   }
+  // Eigene Bestleistungen-Widget: NUR PB-Buttons, kein Header
 
   // PBs je Kategorie berechnen
   // Externe PBs in kategorien einbetten
@@ -2377,8 +2379,7 @@ async function _loadEigenesProfilWidget(elId, showErg) {
 
   el.innerHTML = el.innerHTML.replace(
     '<div class="loading" style="padding:24px"><div class="spinner"></div></div>',
-    headerHtml +
-    '<div style="margin-top:4px;border-top:1px solid var(--border);padding-bottom:6px">' + pbSections + '</div>'
+    '<div style="padding-bottom:6px">' + pbSections + '</div>'
   );
 }
 
@@ -2883,7 +2884,7 @@ function timelineBadges(rek) {
       var ebId = 'eb-widget-' + Math.random().toString(36).slice(2,8);
       setTimeout(function(_id) { return function() { _loadEigenesProfilWidget(_id, true); }; }(ebId), 0);
       return '<div class="panel" id="' + ebId + '">' +
-        '<div class="panel-header"><div class="panel-title">&#x23F1;&#xFE0E; ' + widgetTitle(wcfg, 'Persönliche Bestzeiten') + '</div></div>' +
+        '<div class="panel-header"><div class="panel-title">&#x23F1;&#xFE0E; ' + widgetTitle(wcfg, 'Persönliche Bestleistungen') + '</div></div>' +
         '<div class="loading" style="padding:24px"><div class="spinner"></div></div>' +
       '</div>';
     }
@@ -10438,7 +10439,7 @@ var WIDGET_DEFS = [
   { id: 'veranstaltungen', label: '📍 Letzte Veranstaltungen' },
   { id: 'hall-of-fame',    label: '🏆 Hall of Fame' },
   { id: 'eigenes-profil',  label: '🏃 Eigenes Athletenprofil' },
-  { id: 'eigene-bestzeiten', label: '⏱️ Eigene persönliche Bestzeiten' },
+  { id: 'eigene-bestzeiten', label: '⏱️ Eigene persönliche Bestleistungen' },
 ];
 
 // Verfügbare Stat-Karten (Reihenfolge und Auswahl konfigurierbar)

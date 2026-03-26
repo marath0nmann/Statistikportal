@@ -1,3 +1,10 @@
+## v746
+
+- **Widget "Eigene persönliche Bestleistungen"**: zeigt nur PB-Buttons, kein Athletenprofil-Header
+- **Umbenennung**: "persönliche Bestzeiten" → "persönliche Bestleistungen" (Label + Standardtitel)
+
+---
+
 ## v745 – Dashboard-Widgets getrennt
 
 - **"🏃 Eigenes Athletenprofil"**: Zeigt nur Avatar, Name, AK-Badge – keine Ergebnisse
