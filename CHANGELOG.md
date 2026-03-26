@@ -1,3 +1,10 @@
+## v740 – Externe Ergebnisse
+
+- **Zeitformat**: Externe Ergebnisse rufen jetzt `_apFmtRes(p, fmt)` auf statt `p.resultat` roh auszugeben → 'h'-Suffix, Minuten-Suffix etc. korrekt
+- **PB im Button**: `_apBestOf` berücksichtigt jetzt interne UND externe Ergebnisse → zeigt das tatsächliche PB
+
+---
+
 ## v739 – Externe Ergebnisse: 3 Fixes
 
 - **Eigene Tabs**: Internes Ergebnisse-Query liefert jetzt `disziplin_mapping_id` → `ergDiszKey` erzeugt `m5` statt `d_Marathon` → ext + intern landen im selben Button
