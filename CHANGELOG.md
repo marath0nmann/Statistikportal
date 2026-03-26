@@ -1,3 +1,15 @@
+## v743 – Dashboard-Widget: Eigenes Athletenprofil
+
+**Neues Widget** `eigenes-profil` im Dashboard-Layout-Editor:
+
+- Zeigt Avatar (mit Online-Dot), Name, AK-Badge, Jahrgang
+- Klick auf Avatar/Name öffnet das Athletenprofil-Modal
+- **Option "Ergebnisse anzeigen"**: Zeigt PBs je Disziplin (intern rot, extern schwarz) gruppiert nach Kategorie
+- Nur sichtbar wenn eingeloggter User ein verknüpftes Athletenprofil hat
+- Konfigurierbar: Titel + Checkbox 'Ergebnisse anzeigen'
+
+---
+
 ## v742 – Athletenprofil Button-Optik
 
 - **Kategorie-Tabs**: Nutzen jetzt `.rek-cat-btn` / `.rek-cat-btn.active` → gleiche rote Pille wie Bestleistungen
