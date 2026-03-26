@@ -1,3 +1,11 @@
+## v747 – Login E-Mail-Code Fix
+
+- **Ursache**: `auth/login`-API übergab `email_login_bevorzugt` nicht an den Client → Frontend konnte Auto-Send nie auslösen
+- **Fix**: `email_login_bevorzugt` wird jetzt im `totp_required`-Response mitgesendet → Auto-Send greift korrekt
+- **Bonus**: Kaputten Emoji-Codepoint (`\u1F4E7`) im Send-Button-Reset korrigiert
+
+---
+
 ## v746
 
 - **Widget "Eigene persönliche Bestleistungen"**: zeigt nur PB-Buttons, kein Athletenprofil-Header
