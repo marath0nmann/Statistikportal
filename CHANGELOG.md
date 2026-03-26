@@ -1,3 +1,32 @@
+## v749 – Personenbezogene Daten als Recht
+
+- **Neues Recht**: `personenbezogene_daten` in _RECHTE_LISTE: "Personenbezogene Daten sehen (Athleten-Seite, Gruppen, Jahrgang)"
+- Pro Rolle konfigurierbar wie alle anderen Rechte (Rollen & Rechte → Rolle bearbeiten)
+- Admin hat immer Zugriff, alle anderen nur wenn Recht aktiv
+- Darstellungs-Einstellung entfernt (war Missverständnis)
+
+---
+
+## v748 – Rollen & Sichtbarkeit
+
+**Pseudo-Rolle "nicht-eingeloggt":**
+- Erscheint am Ende der Rollen-Liste als Systemrolle (🔐, nicht editierbar, nicht löschbar)
+- Beschreibt Besucher ohne Login
+
+**Personenbezogene Daten (Darstellung-Einstellungen):**
+- Neuer Schalter: Athleten-Seite, Gruppen und Jahrgang im Athletenprofil ab welcher Rolle sichtbar
+- Optionen: Nicht eingeloggt (alle) | Leser (eingeloggt) | Athlet+
+- Athleten-Tab verschwindet aus der Navigation für nicht-berechtigte Rollen
+- Gruppen und Jahrgang im Athletenprofil-Modal werden entsprechend ausgeblendet
+
+**Widget-Rollen-Sichtbarkeit (Dashboard-Layout-Editor):**
+- Jedes Widget hat eine Checkbox-Liste "Sichtbar für:"
+- Alle Rollen inkl. nicht-eingeloggt wählbar
+- Leeres Auswahl = Widget für alle sichtbar
+- Widget wird in renderWidget() geprüft und ausgeblendet wenn Rolle nicht in der Liste
+
+---
+
 ## v747 – Login E-Mail-Code Fix
 
 - **Ursache**: `auth/login`-API übergab `email_login_bevorzugt` nicht an den Client → Frontend konnte Auto-Send nie auslösen
