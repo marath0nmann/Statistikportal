@@ -1,3 +1,12 @@
+## v744 – Eigenes Athletenprofil Widget
+
+- PBs werden als `.rek-top-btn`-Buttons dargestellt (wie Bestleistungen), nicht als Tabelle
+- Gruppiert nach Kategorie mit kleinem Kategorie-Label darüber
+- Intern = primärfarben, extern = schwarz
+- Klick auf Button öffnet Athletenprofil-Modal
+
+---
+
 ## v743 – Dashboard-Widget: Eigenes Athletenprofil
 
 **Neues Widget** `eigenes-profil` im Dashboard-Layout-Editor:
