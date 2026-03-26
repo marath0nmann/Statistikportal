@@ -1984,6 +1984,19 @@ function _canEditAthleten() {
   return rechte.indexOf('vollzugriff') >= 0 || rechte.indexOf('athleten_editieren') >= 0;
 }
 
+function _canBulkEintragen() {
+  if (!currentUser) return false;
+  if (currentUser.rolle === 'admin') return true;
+  var r = currentUser.rechte || [];
+  return r.indexOf('vollzugriff') >= 0 || r.indexOf('bulk_eintragen') >= 0;
+}
+function _canEigenesEintragen() {
+  if (!currentUser) return false;
+  if (currentUser.rolle === 'admin') return true;
+  var r = currentUser.rechte || [];
+  return r.indexOf('vollzugriff') >= 0 || r.indexOf('alle_ergebnisse') >= 0 || r.indexOf('eigene_ergebnisse') >= 0;
+}
+
 function _canSeePersoenlicheDaten() {
   if (!currentUser) return false;
   if (currentUser.rolle === 'admin') return true;
@@ -4592,10 +4605,208 @@ function setRekView(v) {
 // ── EINTRAGEN ──────────────────────────────────────────────
 
 /* ── 07_eintragen.js ── */
+// ── Eigenes Ergebnis eintragen ────────────────────────────
+function renderEigenesEintragen() {
+  var el = document.getElementById('main-content');
+  var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : 'TuS Oedt';
+  var katOpts = '<option value="">-- Kategorie wählen --</option>';
+  var seen = {};
+  (state.disziplinen || []).forEach(function(d) {
+    if (d.tbl_key && !seen[d.tbl_key]) { seen[d.tbl_key] = true; katOpts += '<option value="' + d.tbl_key + '">' + d.kategorie + '</option>'; }
+  });
+
+  el.innerHTML += (
+    '<div class="panel" style="max-width:560px;padding:24px">' +
+      '<div class="panel-title" style="margin-bottom:4px">&#x1F3C3;&#xFE0E; Eigenes Ergebnis eintragen</div>' +
+      '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Ergebnis für dein eigenes Athletenprofil eintragen.</div>' +
+
+      '<div style="display:flex;gap:8px;margin-bottom:16px">' +
+        '<button id="ee-toggle-neu" class="btn btn-primary btn-sm" onclick="eeBkToggle(\'neu\')">+ Neue Veranstaltung</button>' +
+        '<button id="ee-toggle-best" class="btn btn-ghost btn-sm" onclick="eeBkToggle(\'best\')">&#x1F4C5; Bestehende wählen</button>' +
+      '</div>' +
+
+      '<div id="ee-neu-form" class="form-grid" style="margin-bottom:16px">' +
+        '<div class="form-group">' +
+          '<label>Datum *</label>' +
+          '<input type="date" id="ee-datum" value="' + new Date().toISOString().slice(0,10) + '" onchange="_eeAutoAk()"/>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Ort *</label>' +
+          '<input type="text" id="ee-ort" placeholder="z.B. Düsseldorf"/>' +
+        '</div>' +
+        '<div class="form-group full">' +
+          '<label>Veranstaltungsname</label>' +
+          '<input type="text" id="ee-evname" placeholder="z.B. Düsseldorf Marathon"/>' +
+        '</div>' +
+        '<div class="form-group full" style="background:color-mix(in srgb,var(--accent) 6%,transparent);border-radius:8px;padding:10px 12px">' +
+          '<div style="font-size:12px;color:var(--accent);font-weight:600">&#x2139;&#xFE0E; Neue Veranstaltungen werden von einem Editor oder Admin geprüft.</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div id="ee-best-form" style="display:none;margin-bottom:16px">' +
+        '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Veranstaltung *</label>' +
+        '<select id="ee-veranst-sel" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text)">' +
+          '<option value="">– laden…</option>' +
+        '</select>' +
+      '</div>' +
+
+      '<div class="form-grid" style="margin-bottom:16px">' +
+        '<div class="form-group">' +
+          '<label>Kategorie *</label>' +
+          '<select id="ee-kat" onchange="_eeUpdateDisz()">' + katOpts + '</select>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Disziplin *</label>' +
+          '<select id="ee-disz"><option value="">-- erst Kategorie wählen --</option></select>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Ergebnis *</label>' +
+          '<input type="text" id="ee-res" placeholder="z.B. 38:12 oder 7,42"/>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Altersklasse</label>' +
+          '<input type="text" id="ee-ak" placeholder="z.B. M40"/>' +
+        '</div>' +
+        '<div class="form-group full">' +
+          '<label>Verein <span style="font-size:11px;font-weight:400;color:var(--text2)">(anderer Verein = externes Ergebnis)</span></label>' +
+          '<input type="text" id="ee-verein" value="' + clubName.replace(/"/g,'&quot;') + '"/>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="panel" style="background:color-mix(in srgb,var(--primary) 5%,transparent);border:none;padding:10px 14px;margin-bottom:16px;font-size:13px">' +
+        '&#x23F3;&#xFE0E; Dein Ergebnis wird vor der Veröffentlichung von einem Editor oder Admin geprüft.' +
+      '</div>' +
+
+      '<div id="ee-err" style="color:var(--accent);font-size:13px;min-height:18px;margin-bottom:8px"></div>' +
+      '<div class="modal-actions" style="justify-content:flex-end">' +
+        '<button class="btn btn-primary" onclick="saveEigenesErgebnis()">&#x1F4BE; Speichern</button>' +
+      '</div>' +
+    '</div>'
+  );
+  _eeLoadVeranstOptions();
+}
+
+var _eeVeranstModus = 'neu';
+function eeBkToggle(modus) {
+  _eeVeranstModus = modus;
+  var nF = document.getElementById('ee-neu-form'), bF = document.getElementById('ee-best-form');
+  var bN = document.getElementById('ee-toggle-neu'), bB = document.getElementById('ee-toggle-best');
+  if (modus === 'best') {
+    if (nF) nF.style.display = 'none'; if (bF) bF.style.display = '';
+    if (bN) bN.className = 'btn btn-ghost btn-sm'; if (bB) bB.className = 'btn btn-primary btn-sm';
+  } else {
+    if (nF) nF.style.display = ''; if (bF) bF.style.display = 'none';
+    if (bN) bN.className = 'btn btn-primary btn-sm'; if (bB) bB.className = 'btn btn-ghost btn-sm';
+  }
+}
+async function _eeLoadVeranstOptions() {
+  var sel = document.getElementById('ee-veranst-sel');
+  if (!sel) return;
+  var r = await apiGet('veranstaltungen?limit=200');
+  if (!r || !r.ok) return;
+  var veranst = (r.data.veranstaltungen || r.data || []);
+  sel.innerHTML = '<option value="">– bitte wählen –</option>' +
+    veranst.map(function(v) { return '<option value="' + v.id + '">' + v.kuerzel + '</option>'; }).join('');
+}
+function _eeUpdateDisz() {
+  var katKey = document.getElementById('ee-kat') ? document.getElementById('ee-kat').value : '';
+  var sel = document.getElementById('ee-disz');
+  if (!sel) return;
+  var disz = (state.disziplinen || []).filter(function(d) { return d.tbl_key === katKey; });
+  sel.innerHTML = '<option value="">-- Disziplin wählen --</option>' +
+    disz.map(function(d) { return '<option value="' + d.id + '" data-name="' + d.disziplin.replace(/"/g,'&quot;') + '">' + d.disziplin + '</option>'; }).join('');
+}
+async function _eeAutoAk() {
+  var datVal = document.getElementById('ee-datum') ? document.getElementById('ee-datum').value : '';
+  var akEl = document.getElementById('ee-ak');
+  if (!datVal || !akEl || akEl.value) return;
+  if (!currentUser || !currentUser.athlet_id) return;
+  var r = await apiGet('athleten/' + currentUser.athlet_id);
+  if (!r || !r.ok) return;
+  var a = r.data.athlet;
+  if (!a || !a.geburtsjahr || !a.geschlecht) return;
+  var ak = calcDlvAK(a.geburtsjahr, a.geschlecht, parseInt(datVal.slice(0,4)));
+  if (ak && !akEl.value) akEl.value = ak;
+}
+async function saveEigenesErgebnis() {
+  var errEl = document.getElementById('ee-err');
+  if (errEl) errEl.textContent = '';
+  var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : '';
+  var verein = (document.getElementById('ee-verein') ? document.getElementById('ee-verein').value.trim() : '');
+  var diszEl = document.getElementById('ee-disz');
+  var diszOpt = diszEl ? diszEl.options[diszEl.selectedIndex] : null;
+  var diszName = diszOpt && diszOpt.value ? diszOpt.getAttribute('data-name') : '';
+  var diszMappingId = diszOpt && diszOpt.value ? parseInt(diszOpt.value) : null;
+  var res = document.getElementById('ee-res') ? document.getElementById('ee-res').value.trim() : '';
+  var ak = document.getElementById('ee-ak') ? document.getElementById('ee-ak').value.trim() : '';
+
+  if (!diszMappingId || !res) {
+    if (errEl) errEl.textContent = 'Bitte Disziplin und Ergebnis ausfüllen.';
+    return;
+  }
+
+  // Anderer Verein → externes Ergebnis (athlet_pb)
+  var isExternal = verein && verein.toLowerCase() !== clubName.toLowerCase();
+  if (isExternal) {
+    var r = await apiPost('athleten/' + currentUser.athlet_id + '/pb', {
+      disziplin: diszName, resultat: res, altersklasse: ak || null,
+      disziplin_mapping_id: diszMappingId, verein: verein, datum: document.getElementById('ee-datum') ? document.getElementById('ee-datum').value : null,
+      wettkampf: document.getElementById('ee-evname') ? document.getElementById('ee-evname').value.trim() : ''
+    });
+    if (r && r.ok) { notify('Externes Ergebnis gespeichert.', 'ok'); state.subTab = 'bulk'; renderEintragen(); }
+    else if (errEl) errEl.textContent = (r && r.fehler) ? r.fehler : 'Fehler beim Speichern.';
+    return;
+  }
+
+  // Eigener Verein → als Antrag eintragen (pending)
+  var datum = '', ort = '', evname = '', veranstId = null;
+  if (_eeVeranstModus === 'best') {
+    veranstId = document.getElementById('ee-veranst-sel') ? parseInt(document.getElementById('ee-veranst-sel').value) : null;
+    if (!veranstId) { if (errEl) errEl.textContent = 'Bitte Veranstaltung wählen.'; return; }
+  } else {
+    datum = document.getElementById('ee-datum') ? document.getElementById('ee-datum').value : '';
+    ort = document.getElementById('ee-ort') ? document.getElementById('ee-ort').value.trim() : '';
+    evname = document.getElementById('ee-evname') ? document.getElementById('ee-evname').value.trim() : '';
+    if (!datum || !ort) { if (errEl) errEl.textContent = 'Datum und Ort sind Pflichtfelder.'; return; }
+  }
+
+  var body = {
+    athlet_id: currentUser.athlet_id,
+    disziplin: diszName, disziplin_mapping_id: diszMappingId,
+    resultat: res, altersklasse: ak || null,
+  };
+  if (veranstId) body.veranstaltung_id = veranstId;
+  else { body.datum = datum; body.ort = ort; body.veranstaltung_name = evname; }
+
+  var r2 = await apiPost('ergebnisse/eigenes', body);
+  if (r2 && r2.ok) {
+    notify(r2.data && r2.data.pending ? 'Ergebnis eingereicht – wird geprüft.' : 'Gespeichert.', 'ok');
+    state.subTab = 'bulk'; renderEintragen();
+  } else if (errEl) {
+    errEl.textContent = (r2 && r2.fehler) ? r2.fehler : 'Fehler beim Speichern.';
+  }
+}
+
 function renderEintragen() {
-  var sub = state.subTab || 'bulk';
-  var isBulk = true; // Eintragen ist jetzt immer Bulk
-  var tabHtml = ''; // kein SubTab-Menü mehr
+  // Standardtab: bulk wenn berechtigt, sonst eigenes
+  if (!state.subTab) state.subTab = _canBulkEintragen() ? 'bulk' : 'eigenes';
+  var sub = state.subTab;
+
+  // Subtab-Buttons
+  var tabHtml = '<div style="display:flex;gap:8px;margin-bottom:20px">';
+  if (_canBulkEintragen())
+    tabHtml += '<button class="btn ' + (sub==='bulk' ? 'btn-primary' : 'btn-ghost') + '" onclick="state.subTab=\'bulk\';renderEintragen()">&#x1F4CB; Bulk-Eintragen</button>';
+  if (_canEigenesEintragen())
+    tabHtml += '<button class="btn ' + (sub==='eigenes' ? 'btn-primary' : 'btn-ghost') + '" onclick="state.subTab=\'eigenes\';renderEintragen()">&#x1F3C3;&#xFE0E; Eigenes Ergebnis eintragen</button>';
+  tabHtml += '</div>';
+
+  if (sub === 'eigenes') {
+    document.getElementById('main-content').innerHTML = tabHtml;
+    renderEigenesEintragen();
+    return;
+  }
+
+  var isBulk = true;
 
   var today = new Date().toISOString().slice(0, 10);
 
@@ -9877,6 +10088,7 @@ var _RECHTE_LISTE = [
   { key: 'einstellungen_aendern',label: 'Einstellungen ändern' },
   { key: 'alle_ergebnisse',      label: 'Alle Ergebnisse eintragen/ändern/löschen' },
   { key: 'eigene_ergebnisse',    label: 'Eigene Ergebnisse eintragen/ändern/löschen (nach Genehmigung)' },
+  { key: 'bulk_eintragen',        label: 'Bulk-Eintragen (mehrere Ergebnisse auf einmal)' },
   { key: 'lesen',                label: 'Lesen' },
   { key: 'personenbezogene_daten', label: 'Personenbezogene Daten sehen (Athleten-Seite, Gruppen, Jahrgang)' },
   { key: 'athleten_details',       label: 'Athleten-Details sehen (Geschlecht, Anzahl Ergebnisse, inaktive Athleten)' },

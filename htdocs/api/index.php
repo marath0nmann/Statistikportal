@@ -121,6 +121,7 @@ try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXIST
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS verein VARCHAR(120) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS disziplin_mapping_id INT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS altersklasse VARCHAR(20) NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS genehmigt TINYINT(1) NOT NULL DEFAULT 1"); } catch (\Exception $e) {}
 // Migration: Rollen-System (rollen-Tabelle)
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rollen') . " (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -135,8 +136,8 @@ try { DB::query("ALTER TABLE " . DB::tbl('rollen') . " ADD COLUMN IF NOT EXISTS 
 // Migration: Rechte zu Systemrollen hinzufügen
 try {
     $sysRollenRechte = [
-        'admin'  => ['personenbezogene_daten','athleten_details','athleten_editieren'],
-        'editor' => ['personenbezogene_daten','athleten_details','athleten_editieren'],
+        'admin'  => ['personenbezogene_daten','athleten_details','athleten_editieren','bulk_eintragen'],
+        'editor' => ['personenbezogene_daten','athleten_details','athleten_editieren','bulk_eintragen'],
         'athlet' => ['personenbezogene_daten','athleten_details'],
         'leser'  => ['personenbezogene_daten','athleten_details'],
     ];
@@ -1085,6 +1086,48 @@ if ($res === 'benutzer') {
         DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET ' . implode(',', $felder) . ' WHERE id=?', $params);
         jsonOk('Gespeichert.');
     }
+    // Eigenes Ergebnis (Athlet trägt für sich selbst ein → Genehmigung)
+    if ($method === 'POST' && $id === 'eigenes') {
+        $user = Auth::requireLogin();
+        if (!$user['id']) jsonErr('Nicht eingeloggt.', 401);
+        // Athlet-ID aus Benutzerprofil
+        $buRow = DB::fetchOne('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$user['id']]);
+        $athId = $buRow ? intOrNull($buRow['athlet_id']) : null;
+        if (!$athId) jsonErr('Kein Athletenprofil verknüpft.');
+
+        $disziplin = sanitize($body['disziplin'] ?? '');
+        $dmId      = intOrNull($body['disziplin_mapping_id'] ?? null);
+        $resultat  = sanitize($body['resultat'] ?? '');
+        $ak        = sanitize($body['altersklasse'] ?? '');
+        if (!$disziplin || !$resultat) jsonErr('Disziplin und Ergebnis erforderlich.');
+
+        // Veranstaltung: bestehende oder neue
+        $vid = intOrNull($body['veranstaltung_id'] ?? null);
+        if (!$vid) {
+            $datum  = sanitize($body['datum'] ?? '');
+            $ort    = sanitize($body['ort'] ?? '');
+            $evname = sanitize($body['veranstaltung_name'] ?? '');
+            if (!$datum || !$ort) jsonErr('Datum und Ort erforderlich.');
+            $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
+            // Neue Veranstaltung anlegen (vorab – Ergebnis bleibt pending)
+            $v = DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=?', [$kuerzel]);
+            if (!$v) {
+                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum,genehmigt) VALUES (?,?,?,?,0)',
+                    [$kuerzel, $evname ?: $kuerzel, $ort, $datum]);
+                $vid = DB::lastInsertId();
+            } else $vid = $v['id'];
+        }
+
+        // Ergebnis als Antrag speichern
+        $neueWerte = json_encode(['veranstaltung_id'=>$vid,'athlet_id'=>$athId,'disziplin'=>$disziplin,
+            'disziplin_mapping_id'=>$dmId,'resultat'=>$resultat,'altersklasse'=>$ak,
+            'erstellt_von'=>$user['id']]);
+        DB::query('INSERT INTO ' . DB::tbl('ergebnis_aenderungen') .
+            ' (ergebnis_id,ergebnis_tbl,typ,neue_werte,beantragt_von) VALUES (?,?,?,?,?)',
+            [null, 'ergebnisse', 'insert', $neueWerte, $user['id']]);
+        jsonOk(['pending' => true, 'msg' => 'Ergebnis eingereicht. Wird von einem Editor geprüft.']);
+    }
+
     // Bulk-Import: POST ergebnisse/bulk
     if ($method === 'POST' && $id === 'bulk') {
         $user = Auth::requireAthlet(); // leser darf Ergebnisse eintragen
