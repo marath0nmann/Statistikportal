@@ -2184,7 +2184,7 @@ function navigate(tab) {
   syncHash();
   // subTab nur für Tabs mit eigenen Sub-Tabs zurücksetzen
   if (tab === 'ergebnisse') state.subTab = 'strasse';
-  else if (tab === 'eintragen') state.subTab = 'bulk';
+  else if (tab === 'eintragen') state.subTab = null; // wird in renderEintragen() permissionsbasiert gesetzt
   else if (tab === 'admin') { /* subTab bleibt */ }
   else state.subTab = '';
   state.filters = {};
@@ -4753,7 +4753,7 @@ async function saveEigenesErgebnis() {
       disziplin_mapping_id: diszMappingId, verein: verein, datum: document.getElementById('ee-datum') ? document.getElementById('ee-datum').value : null,
       wettkampf: document.getElementById('ee-evname') ? document.getElementById('ee-evname').value.trim() : ''
     });
-    if (r && r.ok) { notify('Externes Ergebnis gespeichert.', 'ok'); state.subTab = 'bulk'; renderEintragen(); }
+    if (r && r.ok) { notify('Externes Ergebnis gespeichert.', 'ok'); state.subTab = null; renderEintragen(); }
     else if (errEl) errEl.textContent = (r && r.fehler) ? r.fehler : 'Fehler beim Speichern.';
     return;
   }
@@ -4781,7 +4781,7 @@ async function saveEigenesErgebnis() {
   var r2 = await apiPost('ergebnisse/eigenes', body);
   if (r2 && r2.ok) {
     notify(r2.data && r2.data.pending ? 'Ergebnis eingereicht – wird geprüft.' : 'Gespeichert.', 'ok');
-    state.subTab = 'bulk'; renderEintragen();
+    state.subTab = null; renderEintragen();
   } else if (errEl) {
     errEl.textContent = (r2 && r2.fehler) ? r2.fehler : 'Fehler beim Speichern.';
   }
@@ -4789,7 +4789,14 @@ async function saveEigenesErgebnis() {
 
 function renderEintragen() {
   // Standardtab: bulk wenn berechtigt, sonst eigenes
-  if (!state.subTab) state.subTab = _canBulkEintragen() ? 'bulk' : 'eigenes';
+  // Sicherheitscheck: kein Zugriff auf bulk ohne Berechtigung
+  if (!state.subTab || (state.subTab === 'bulk' && !_canBulkEintragen())) {
+    state.subTab = _canBulkEintragen() ? 'bulk' : (_canEigenesEintragen() ? 'eigenes' : '');
+  }
+  if (!state.subTab) {
+    document.getElementById('main-content').innerHTML = '<div class="panel" style="padding:32px;text-align:center;color:var(--text2)">Keine Berechtigung zum Eintragen.</div>';
+    return;
+  }
   var sub = state.subTab;
 
   // Subtab-Buttons
