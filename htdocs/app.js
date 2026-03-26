@@ -2330,13 +2330,12 @@ async function _loadEigenesProfilWidget(elId, showErg) {
   });
   kategorien.sort(function(a,b){ return (a.kat_sort||99)-(b.kat_sort||99); });
 
-  // PB-Karten je Disziplin (kombiniert intern+extern)
-  var pbRows = '';
+  // PB-Buttons je Disziplin (kombiniert intern+extern), als rek-top-btn
+  var pbSections = '';
   for (var ki3 = 0; ki3 < kategorien.length; ki3++) {
     var kat = kategorien[ki3];
     var ergs = kat.ergebnisse || [];
     var fmt = kat.fmt || 'min';
-    // Disziplinen sammeln
     var diszMap2 = {};
     ergs.forEach(function(e) {
       var key = e.disziplin_mapping_id ? 'm'+e.disziplin_mapping_id : 'd_'+e.disziplin;
@@ -2350,31 +2349,36 @@ async function _loadEigenesProfilWidget(elId, showErg) {
     });
     var keys = Object.keys(diszMap2);
     if (!keys.length) continue;
-    // Sortieren
     keys.sort(function(a,b) {
       var la = diszMap2[a].label, lb = diszMap2[b].label;
       return _apDiszSortKey(la) - _apDiszSortKey(lb) || la.localeCompare(lb);
     });
-    pbRows += '<div style="padding:2px 18px 6px;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">' + kat.name + '</div>';
+    var btns = '';
     for (var di2 = 0; di2 < keys.length; di2++) {
       var dk = diszMap2[keys[di2]];
       var allForPb = dk.ergs.concat(dk.pbs);
       var pb2 = _apBestOf(allForPb, dk.fmt);
       if (!pb2) continue;
       var pbFmt = _apFmtRes(pb2, dk.fmt);
-      var isExt = !pb2.veranstaltung; // keine Veranstaltung = extern
-      pbRows += '<div style="display:flex;align-items:baseline;justify-content:space-between;padding:4px 18px;border-bottom:1px solid var(--border)">' +
-        '<span style="font-size:13px;color:var(--text2)">' + dk.label + '</span>' +
-        '<span style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:700;' + (isExt ? 'color:var(--text)' : 'color:var(--primary)') + '">' + pbFmt + '</span>' +
-      '</div>';
+      var isExt = !pb2.veranstaltung;
+      var pbColor = isExt ? 'color:var(--text)' : 'color:var(--primary)';
+      btns += '<button class="rek-top-btn" style="min-width:70px;padding:7px 12px;cursor:pointer" ' +
+        'onclick="openAthletById(' + athlet.id + ')" title="Profil öffnen">' +
+        '<span class="rek-top-name" style="font-size:12px">' + dk.label + '</span>' +
+        '<span class="rek-top-cnt" style="font-family:Barlow Condensed,sans-serif;font-size:14px;font-weight:700;margin-top:1px;' + pbColor + '">' + pbFmt + '</span>' +
+      '</button>';
     }
+    if (!btns) continue;
+    pbSections +=
+      '<div style="padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px">' + kat.name + '</div>' +
+      '<div style="padding:0 14px 10px;display:flex;flex-wrap:wrap;gap:6px">' + btns + '</div>';
   }
-  if (!pbRows) pbRows = '<div style="padding:16px 18px;color:var(--text2);font-size:13px">Noch keine Ergebnisse.</div>';
+  if (!pbSections) pbSections = '<div style="padding:16px 18px;color:var(--text2);font-size:13px">Noch keine Ergebnisse.</div>';
 
   el.innerHTML = el.innerHTML.replace(
     '<div class="loading" style="padding:24px"><div class="spinner"></div></div>',
     headerHtml +
-    '<div style="margin-top:4px;border-top:1px solid var(--border)">' + pbRows + '</div>'
+    '<div style="margin-top:4px;border-top:1px solid var(--border);padding-bottom:6px">' + pbSections + '</div>'
   );
 }
 
