@@ -3552,16 +3552,20 @@ function _apDiszSortKey(name) {
 
 function _apBestOf(ergs, fmt) {
   var dir = (fmt === 'm') ? 'DESC' : 'ASC';
+  // Zeitstring HH:MM:SS oder M:SS in Sekunden umrechnen für zuverlässigen Vergleich
+  function toSec(s) {
+    if (!s) return Infinity;
+    var p = String(s).split(':');
+    if (p.length === 3) return parseInt(p[0])*3600 + parseInt(p[1])*60 + parseFloat(p[2]);
+    if (p.length === 2) return parseInt(p[0])*60 + parseFloat(p[1]);
+    return parseFloat(s);
+  }
   var best = null;
   for (var i = 0; i < ergs.length; i++) {
     var e = ergs[i];
-    var isTStr = e.resultat && e.resultat.indexOf(':') >= 0;
-    var v = (fmt === 'm') ? parseFloat(e.resultat) :
-            isTStr ? e.resultat : parseFloat(e.resultat);
+    var v = (fmt === 'm') ? parseFloat(e.resultat) : toSec(e.resultat);
     if (best === null) { best = e; continue; }
-    var bTStr = best.resultat && best.resultat.indexOf(':') >= 0;
-    var bv = (fmt === 'm') ? parseFloat(best.resultat) :
-             bTStr ? best.resultat : parseFloat(best.resultat);
+    var bv = (fmt === 'm') ? parseFloat(best.resultat) : toSec(best.resultat);
     if (dir === 'ASC' ? v < bv : v > bv) best = e;
   }
   return best;

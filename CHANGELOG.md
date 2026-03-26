@@ -1,3 +1,10 @@
+## v741 – PB im Button: korrekter Vergleich
+
+- **Ursache**: `_apBestOf` verglich Zeitstrings lexikographisch – `"2:57:53"` (ohne führende Null) ist lexikographisch größer als `"03:14:13"` weil `'2' > '0'` → externes Ergebnis wurde fälschlich als schlechter eingestuft
+- **Fix**: Zeitstrings werden in Sekunden umgerechnet (`H:MM:SS → Sekunden`) bevor verglichen wird → `2:57:53` (10673s) < `03:14:13` (11653s) → korrekt
+
+---
+
 ## v740 – Externe Ergebnisse
 
 - **Zeitformat**: Externe Ergebnisse rufen jetzt `_apFmtRes(p, fmt)` auf statt `p.resultat` roh auszugeben → 'h'-Suffix, Minuten-Suffix etc. korrekt

@@ -1,1 +1,1 @@
-v740: Externe Ergebnisse – korrektes Zeitformat + PB berücksichtigt extern
+v741: Fix PB-Vergleich – Sekunden statt String-Vergleich
