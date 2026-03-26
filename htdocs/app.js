@@ -1283,7 +1283,7 @@ async function doEmailCodeSend() {
   if (btn) { btn.textContent = '...'; btn.disabled = true; }
   errEl.style.display = 'none';
   var r = await apiPost('auth/email-code-send', {});
-  if (btn) { btn.textContent = '\u1F4E7 Code erneut senden'; btn.disabled = false; }
+  if (btn) { btn.textContent = '\uD83D\uDCE7 Code erneut senden'; btn.disabled = false; }
   if (r && r.ok) {
     var sentEl = document.getElementById('email-code-sent');
     if (sentEl) sentEl.style.display = 'block';
