@@ -1,3 +1,11 @@
+## v742 – Athletenprofil Button-Optik
+
+- **Kategorie-Tabs**: Nutzen jetzt `.rek-cat-btn` / `.rek-cat-btn.active` → gleiche rote Pille wie Bestleistungen
+- **Disziplin-Buttons**: Nutzen jetzt `.rek-top-btn` / `.rek-top-btn.active` → gleiche Karte mit accent-Füllung, shadow und outline wie Bestleistungen
+- Alle inline-Styles entfernt
+
+---
+
 ## v741 – PB im Button: korrekter Vergleich
 
 - **Ursache**: `_apBestOf` verglich Zeitstrings lexikographisch – `"2:57:53"` (ohne führende Null) ist lexikographisch größer als `"03:14:13"` weil `'2' > '0'` → externes Ergebnis wurde fälschlich als schlechter eingestuft
