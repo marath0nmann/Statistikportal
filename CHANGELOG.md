@@ -1,3 +1,9 @@
+## v755
+
+- **"+ Externes Ergebnis"** im Athletenprofil nur sichtbar wenn `alle_ergebnisse`-Recht aktiv (oder Admin)
+
+---
+
 ## v754 – Athleten-Liste
 
 - **AK als Badge** (Pillow-Darstellung via `akBadge()`)
