@@ -3612,7 +3612,12 @@ function _apRender() {
     var dErgs = diszMap[disz];
     var _repr = dErgs[0] || _extKeyMap[disz];
     var diszLabel = _repr ? (dErgs[0] ? ergDiszLabel(dErgs[0]) : (_repr.disziplin_mapped || _repr.disziplin)) : disz;
-    var pb = _apBestOf(dErgs, fmt);
+    // PB aus internen UND externen Ergebnissen
+    var _allForPb = dErgs.concat((kat.pbs || []).filter(function(p) {
+      var pKey = p.disziplin_mapping_id ? 'm' + p.disziplin_mapping_id : 'd_' + (p.disziplin_mapped || p.disziplin);
+      return pKey === disz;
+    }));
+    var pb = _apBestOf(_allForPb, fmt);
     var pbStr = pb ? _apFmtRes(pb, fmt) : '';
     var active2 = disz === _apState.selDisz ? 'background:var(--accent);color:#fff;border-color:var(--accent);' : 'background:var(--surface);color:var(--text);border-color:var(--border);';
     diszBtns += '<button style="' + active2 + 'border:1px solid;border-radius:10px;padding:6px 12px;font-size:11px;font-weight:600;cursor:pointer;margin:0 6px 6px 0;text-align:left;line-height:1.4" ' +
@@ -3665,7 +3670,7 @@ function _apRender() {
     rows += '<tr style="color:var(--text)">' +
       '<td style="padding:4px 6px;color:var(--text2)">' + (p.datum ? formatDate(p.datum) : '&ndash;') + '</td>' +
       '<td style="padding:4px 6px;color:var(--text2)">' + (p.altersklasse || '&ndash;') + '</td>' +
-      '<td style="padding:4px 6px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700;color:var(--text)">' + (p.resultat || '') + '</td>' +
+      '<td style="padding:4px 6px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700;color:var(--text)">' + _apFmtRes(p, fmt) + '</td>' +
       (showPace ? (function(){
         var _dm = p.disziplin_mapped || p.disziplin || '';
         var _km = diszKm(_dm);
