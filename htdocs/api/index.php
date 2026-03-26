@@ -132,16 +132,23 @@ try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rollen') . " (
 // Spalten nachträglich ergänzen (bestehende Installationen)
 try { DB::query("ALTER TABLE " . DB::tbl('rollen') . " ADD COLUMN IF NOT EXISTS label VARCHAR(80) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('rollen') . " ADD COLUMN IF NOT EXISTS oeffentlich TINYINT(1) NOT NULL DEFAULT 1"); } catch (\Exception $e) {}
-// Migration: personenbezogene_daten zu Systemrollen admin/athlet/leser hinzufügen
+// Migration: Rechte zu Systemrollen hinzufügen
 try {
-    foreach (['admin','athlet','leser'] as $_sysrolle) {
+    $sysRollenRechte = [
+        'admin'  => ['personenbezogene_daten','athleten_details','athleten_editieren'],
+        'editor' => ['personenbezogene_daten','athleten_details','athleten_editieren'],
+        'athlet' => ['personenbezogene_daten','athleten_details'],
+        'leser'  => ['personenbezogene_daten','athleten_details'],
+    ];
+    foreach ($sysRollenRechte as $_sysrolle => $_newRights) {
         $row = DB::fetchOne('SELECT id, rechte FROM ' . DB::tbl('rollen') . ' WHERE name = ?', [$_sysrolle]);
         if ($row) {
             $r = json_decode($row['rechte'] ?? '[]', true) ?: [];
-            if (!in_array('personenbezogene_daten', $r)) {
-                $r[] = 'personenbezogene_daten';
-                DB::query('UPDATE ' . DB::tbl('rollen') . ' SET rechte = ? WHERE id = ?', [json_encode($r), $row['id']]);
+            $changed = false;
+            foreach ($_newRights as $_nr) {
+                if (!in_array($_nr, $r)) { $r[] = $_nr; $changed = true; }
             }
+            if ($changed) DB::query('UPDATE ' . DB::tbl('rollen') . ' SET rechte = ? WHERE id = ?', [json_encode($r), $row['id']]);
         }
     }
 } catch (\Exception $e) {}
