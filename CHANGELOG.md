@@ -1,3 +1,11 @@
+## v753 – Fix Personenbezogene Daten
+
+- **Ursache**: `GET rollen` ist admin-only → Athlet-User bekamen 403, `_rollenMap` blieb leer
+- **Fix**: `auth/me` gibt jetzt `rechte` der eigenen Rolle mit zurück
+- `_canSeePersoenlicheDaten()` liest direkt aus `currentUser.rechte` – kein extra API-Call nötig
+
+---
+
 ## v752 – Fix Personenbezogene Daten für Athlet-Rolle
 
 - **Ursache**: `_rollenMap` wurde nur in der Admin-Benutzerverwaltung befüllt – bei normalen Usern war sie leer → `_canSeePersoenlicheDaten()` immer `false`
