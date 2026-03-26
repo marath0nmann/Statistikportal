@@ -3922,7 +3922,11 @@ async function openAthletById(id) {
   _apState.tab = 'ergebnisse';
   _apState.athletId = id;
 
-  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor' || currentUser.rolle === 'athlet');
+  var canEdit = !!(currentUser && (function() {
+    if (currentUser.rolle === 'admin') return true;
+    var r = currentUser.rechte || [];
+    return r.indexOf('vollzugriff') >= 0 || r.indexOf('alle_ergebnisse') >= 0;
+  }()));
 
   var gruppen = athlet.gruppen || [];
   var gruppenTags = '';
