@@ -2254,6 +2254,130 @@ window.addEventListener('popstate', function() {
   renderPage();
 });
 /* ── 03_dashboard.js ── */
+async function _loadEigenesProfilWidget(elId, showErg) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  // Nur für eingeloggte User mit verknüpftem Athlet
+  if (!currentUser || !currentUser.athlet_id) {
+    el.innerHTML = el.innerHTML.replace(
+      '<div class="loading" style="padding:24px"><div class="spinner"></div></div>',
+      '<div style="padding:20px;text-align:center;color:var(--text2);font-size:13px">Kein Athletenprofil verknüpft.</div>'
+    );
+    return;
+  }
+  var r = await apiGet('athleten/' + currentUser.athlet_id);
+  if (!r || !r.ok) {
+    el.innerHTML = el.innerHTML.replace(
+      '<div class="loading" style="padding:24px"><div class="spinner"></div></div>',
+      '<div style="padding:20px;text-align:center;color:var(--accent);font-size:13px">Fehler beim Laden.</div>'
+    );
+    return;
+  }
+  var athlet = r.data.athlet;
+  var kategorien = r.data.kategorien || [];
+  var rawPbs = r.data.pbs || [];
+  var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : 'TuS Oedt';
+
+  // Initialen
+  var initials = ((athlet.vorname||'')[0]||'').toUpperCase() + ((athlet.nachname||'')[0]||'').toUpperCase();
+  var avatarHtml2 = avatarHtml(athlet.avatar_pfad, initials, 48, 18, currentUser ? 'online' : null, initials);
+
+  // AK
+  var akBadgeHtml = '';
+  if (athlet.geschlecht && athlet.geburtsjahr) {
+    var _ak = calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear());
+    if (_ak) akBadgeHtml = akBadge(_ak);
+  }
+
+  // Header
+  var headerHtml =
+    '<div style="display:flex;align-items:center;gap:14px;padding:14px 18px 10px">' +
+      '<div style="cursor:pointer" onclick="openAthletById(' + athlet.id + ')" title="Profil öffnen">' + avatarHtml2 + '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-weight:700;font-size:16px;cursor:pointer" onclick="openAthletById(' + athlet.id + ')">' +
+          (athlet.vorname||'') + ' ' + (athlet.nachname||'') +
+        '</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center">' +
+          akBadgeHtml +
+          (athlet.geburtsjahr ? '<span style="font-size:11px;color:var(--text2)">Jg. ' + athlet.geburtsjahr + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  if (!showErg) {
+    el.innerHTML = el.innerHTML.replace(
+      '<div class="loading" style="padding:24px"><div class="spinner"></div></div>',
+      headerHtml
+    );
+    return;
+  }
+
+  // PBs je Kategorie berechnen
+  // Externe PBs in kategorien einbetten
+  rawPbs.forEach(function(pb) {
+    var kn = pb.kat_name || 'Sonstige';
+    var found = false;
+    for (var ki2 = 0; ki2 < kategorien.length; ki2++) {
+      if (kategorien[ki2].name === kn) {
+        if (!kategorien[ki2].pbs) kategorien[ki2].pbs = [];
+        kategorien[ki2].pbs.push(pb);
+        found = true; break;
+      }
+    }
+    if (!found) {
+      kategorien.push({ name: kn, fmt: pb.fmt||'min', ergebnisse: [], pbs: [pb], kat_sort: pb.kat_sort||99 });
+    }
+  });
+  kategorien.sort(function(a,b){ return (a.kat_sort||99)-(b.kat_sort||99); });
+
+  // PB-Karten je Disziplin (kombiniert intern+extern)
+  var pbRows = '';
+  for (var ki3 = 0; ki3 < kategorien.length; ki3++) {
+    var kat = kategorien[ki3];
+    var ergs = kat.ergebnisse || [];
+    var fmt = kat.fmt || 'min';
+    // Disziplinen sammeln
+    var diszMap2 = {};
+    ergs.forEach(function(e) {
+      var key = e.disziplin_mapping_id ? 'm'+e.disziplin_mapping_id : 'd_'+e.disziplin;
+      if (!diszMap2[key]) diszMap2[key] = { ergs: [], pbs: [], fmt: fmt, label: e.disziplin };
+      diszMap2[key].ergs.push(e);
+    });
+    (kat.pbs||[]).forEach(function(p) {
+      var key = p.disziplin_mapping_id ? 'm'+p.disziplin_mapping_id : 'd_'+(p.disziplin_mapped||p.disziplin);
+      if (!diszMap2[key]) diszMap2[key] = { ergs: [], pbs: [], fmt: p.fmt||fmt, label: p.disziplin_mapped||p.disziplin };
+      diszMap2[key].pbs.push(p);
+    });
+    var keys = Object.keys(diszMap2);
+    if (!keys.length) continue;
+    // Sortieren
+    keys.sort(function(a,b) {
+      var la = diszMap2[a].label, lb = diszMap2[b].label;
+      return _apDiszSortKey(la) - _apDiszSortKey(lb) || la.localeCompare(lb);
+    });
+    pbRows += '<div style="padding:2px 18px 6px;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">' + kat.name + '</div>';
+    for (var di2 = 0; di2 < keys.length; di2++) {
+      var dk = diszMap2[keys[di2]];
+      var allForPb = dk.ergs.concat(dk.pbs);
+      var pb2 = _apBestOf(allForPb, dk.fmt);
+      if (!pb2) continue;
+      var pbFmt = _apFmtRes(pb2, dk.fmt);
+      var isExt = !pb2.veranstaltung; // keine Veranstaltung = extern
+      pbRows += '<div style="display:flex;align-items:baseline;justify-content:space-between;padding:4px 18px;border-bottom:1px solid var(--border)">' +
+        '<span style="font-size:13px;color:var(--text2)">' + dk.label + '</span>' +
+        '<span style="font-family:Barlow Condensed,sans-serif;font-size:17px;font-weight:700;' + (isExt ? 'color:var(--text)' : 'color:var(--primary)') + '">' + pbFmt + '</span>' +
+      '</div>';
+    }
+  }
+  if (!pbRows) pbRows = '<div style="padding:16px 18px;color:var(--text2);font-size:13px">Noch keine Ergebnisse.</div>';
+
+  el.innerHTML = el.innerHTML.replace(
+    '<div class="loading" style="padding:24px"><div class="spinner"></div></div>',
+    headerHtml +
+    '<div style="margin-top:4px;border-top:1px solid var(--border)">' + pbRows + '</div>'
+  );
+}
+
 async function renderDashboard() {
   var ds = getDarstellungSettings();
   // timeline_limit: erst aus Widget-Config, dann appConfig, dann Default
@@ -2741,6 +2865,15 @@ function timelineBadges(rek) {
       return '<div class="panel" style="height:100%">' +
         '<div class="panel-header"><div class="panel-title">&#x1F3C6; ' + hofPanelTitle + '</div></div>' +
         hofHtml +
+      '</div>';
+    }
+    if (w === 'eigenes-profil') {
+      var epId = 'ep-widget-' + Math.random().toString(36).slice(2,8);
+      var epShowErg = wcfg.ep_show_ergebnisse !== false;
+      setTimeout(function(_id, _show) { return function() { _loadEigenesProfilWidget(_id, _show); }; }(epId, epShowErg), 0);
+      return '<div class="panel" id="' + epId + '">' +
+        '<div class="panel-header"><div class="panel-title">&#x1F3C3;&#xFE0E; ' + widgetTitle(wcfg, 'Mein Athletenprofil') + '</div></div>' +
+        '<div class="loading" style="padding:24px"><div class="spinner"></div></div>' +
       '</div>';
     }
     return '';
@@ -10293,6 +10426,7 @@ var WIDGET_DEFS = [
   { id: 'timeline',        label: '🏅 Neueste Bestleistungen' },
   { id: 'veranstaltungen', label: '📍 Letzte Veranstaltungen' },
   { id: 'hall-of-fame',    label: '🏆 Hall of Fame' },
+  { id: 'eigenes-profil',  label: '🏃 Eigenes Athletenprofil' },
 ];
 
 // Verfügbare Stat-Karten (Reihenfolge und Auswahl konfigurierbar)
@@ -10526,6 +10660,14 @@ function dashStatsMoveCard(ri, ci, cardId, dir) {
   renderAdminDashboardUI(layout);
 }
 
+function dashEigenesProfilConfigHtml(ri, ci, col) {
+  var showErg = col.ep_show_ergebnisse !== false;
+  return '<label style="display:flex;align-items:center;gap:8px;font-size:12px">' +
+    '<input type="checkbox" id="ep-ergebnisse-' + ri + '-' + ci + '"' + (showErg ? ' checked' : '') + ' onchange="dashUpdateLayout()">' +
+    '<span>Ergebnisse anzeigen</span>' +
+  '</label>';
+}
+
 function renderAdminDashboardUI(layout) {
   var el = document.getElementById('main-content');
 
@@ -10558,6 +10700,7 @@ function renderAdminDashboardUI(layout) {
       if (col.widget === 'timeline')       widgetConfig = dashTimelineConfigHtml(ri, ci, col.hidden_types, col.prio_order, col);
       if (col.widget === 'veranstaltungen') widgetConfig = dashVeranstConfigHtml(ri, ci, col.col_order, col.hidden_cols, col);
       if (col.widget === 'hall-of-fame')      widgetConfig = dashHofConfigHtml(ri, ci, col);
+      if (col.widget === 'eigenes-profil')   widgetConfig = dashEigenesProfilConfigHtml(ri, ci, col);
       colsHtml +=
         '<div style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;background:var(--surf2);border-radius:10px;padding:14px">' +
           '<div style="display:flex;align-items:center;gap:8px">' +
@@ -10645,6 +10788,10 @@ function dashUpdateLayout() {
           if (boxes[bi2].checked && newCards.indexOf(boxes[bi2].dataset.statsId) < 0) newCards.push(boxes[bi2].dataset.statsId);
         }
         cols[ci].cards = newCards;
+      }
+      if (cols[ci].widget === 'eigenes-profil') {
+        var epEl = document.getElementById('ep-ergebnisse-' + ri + '-' + ci);
+        if (epEl) cols[ci].ep_show_ergebnisse = epEl.checked;
       }
       if (cols[ci].widget === 'hall-of-fame') {
         var hofLimitEl = document.getElementById('hof-limit-' + ri + '-' + ci);
