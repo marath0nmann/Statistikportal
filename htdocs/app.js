@@ -3155,7 +3155,8 @@ function timelineBadges(rek) {
     var cols = row.cols || [];
     if (!cols.length) continue;
     if (cols.length === 1) {
-      layoutHtml += '<div style="margin-bottom:20px">' + renderWidget(cols[0]) + '</div>';
+      var _w1 = renderWidget(cols[0]);
+      if (_w1) layoutHtml += '<div style="margin-bottom:20px">' + _w1 + '</div>';
     } else {
       // Mehrspaltig: explizite Breiten + CSS-Custom-Properties für responsives Umbrechen
       var colsHtml = '';
@@ -3163,15 +3164,18 @@ function timelineBadges(rek) {
       var totalMin = 0;
       for (var ci = 0; ci < cols.length; ci++) {
         var col = cols[ci];
+        var _wHtml = renderWidget(col);
+        if (!_wHtml) continue; // Widget nicht sichtbar – Spalte komplett weglassen
         var colMin = col.w ? col.w : 280;
         totalMin += colMin;
-        // Jede Spalte bekommt ihre eigene --col-w Variable für Responsivness
-        colsHtml += '<div style="min-width:' + colMin + 'px;flex:' + (col.w ? '0 0 ' + col.w + 'px' : '1') + ';height:100%">' + renderWidget(col) + '</div>';
+        colsHtml += '<div style="min-width:' + colMin + 'px;flex:' + (col.w ? '0 0 ' + col.w + 'px' : '1') + ';height:100%">' + _wHtml + '</div>';
         gtcParts.push(col.w ? col.w + 'px' : '1fr');
       }
-      var gtc = gtcParts.join(' ');
-      // dash-row-wrap: umbrechen wenn Viewport < Summe der Mindestbreiten + gaps
-      layoutHtml += '<div class="dash-row-wrap" style="--dash-gtc:' + gtc + ';--dash-min-total:' + (totalMin + (cols.length-1)*20) + 'px;margin-bottom:20px">' + colsHtml + '</div>';
+      if (colsHtml) {
+        var gtc = gtcParts.join(' ');
+        // dash-row-wrap: umbrechen wenn Viewport < Summe der Mindestbreiten + gaps
+        layoutHtml += '<div class="dash-row-wrap" style="--dash-gtc:' + gtc + ';--dash-min-total:' + (totalMin + (gtcParts.length-1)*20) + 'px;margin-bottom:20px">' + colsHtml + '</div>';
+      }
     }
   }
 
