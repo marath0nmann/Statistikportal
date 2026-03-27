@@ -1,3 +1,11 @@
+## v774
+
+- Widget gibt `''` zurück (keine Rollenberechtigung) → Spalten-Wrapper wird komplett übersprungen
+- Zeile mit nur noch 1 sichtbarem Widget → kein `dash-row-wrap` mehr, nur noch einzelner Div
+- Komplett leere Zeilen werden ebenfalls nicht gerendert
+
+---
+
 ## v773
 
 - Stat-Karten wechseln automatisch auf vertikale Anordnung wenn Höhe > Breite
