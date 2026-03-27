@@ -1,1 +1,1 @@
-v783: Neue Rechte veranstaltung_eintragen + veranstaltung_loeschen
+v784: Fix Veranstaltung löschen – Button nutzt _canVeranstaltungLoeschen()
