@@ -1,3 +1,12 @@
+## v785 – Hall of Fame: Meisterschafts-Titel
+
+- **Neue Datenquelle**: Erste Plätze in Meisterschaften (`ak_platz_meisterschaft = 1`) werden als Titel gewertet
+- **Anzeige**: 🥇-Badges in Gold vor den Bestleistungs-Badges; mehrfache Titel mit ×N
+- **Gesamtanzahl**: "3 Titel · 12 Bestleistungen" statt nur "15 Bestleistungen"
+- **Ranking**: Meisterschafts-Titel zählen 3× (Faktor gegenüber Bestleistungen), Reihenfolge nach Score
+
+---
+
 ## v784
 
 - **Ursache**: Delete-Button war hartkodiert auf `currentUser.rolle === 'admin'` statt auf das Recht zu prüfen
