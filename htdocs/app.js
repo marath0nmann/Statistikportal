@@ -1652,8 +1652,8 @@ async function _ladeKontoAthletPanel() {
     '</div>' +
     '<div id="ka-err" style="color:var(--accent);font-size:13px;min-height:18px;margin-bottom:8px"></div>' +
     '<div style="display:flex;align-items:center;gap:10px">' +
-      '<button class="btn btn-primary btn-sm" onclick="saveKontoAthletDaten(' + currentUser.athlet_id + ')">Antrag stellen</button>' +
-      '<span style="font-size:12px;color:var(--text2)">&#x23F3;&#xFE0E; Wird vor Veröffentlichung geprüft</span>' +
+      '<button class="btn btn-primary btn-sm" onclick="saveKontoAthletDaten(' + currentUser.athlet_id + ')">' + ((currentUser.rolle === 'admin' || currentUser.rolle === 'editor') ? 'Speichern' : 'Antrag stellen') + '</button>' +
+      ((currentUser.rolle === 'admin' || currentUser.rolle === 'editor') ? '' : '<span style="font-size:12px;color:var(--text2)">&#x23F3;&#xFE0E; Wird vor Veröffentlichung geprüft</span>') +
     '</div>';
 
   panel.innerHTML = panel.innerHTML.replace(
@@ -1677,12 +1677,29 @@ async function saveKontoAthletDaten(athletId) {
   if (gs !== null) changes.geschlecht = gs;
   if (gj !== null) changes.geburtsjahr = gj ? parseInt(gj) : null;
 
-  var r = await apiPost('athleten/' + athletId + '/profil-antrag', changes);
-  if (r && r.ok) {
+  // Admin/Editor: direkt speichern (kein Antrag)
+  var directSave = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
+  if (directSave) {
+    var r = await apiPut('athleten/' + athletId, changes);
+    if (r && r.ok) {
+      notify('✅ Athletenprofil gespeichert.', 'ok');
+      if (currentUser) {
+        if (changes.vorname) currentUser.vorname = changes.vorname;
+        if (changes.nachname) currentUser.nachname = changes.nachname;
+      }
+    } else {
+      if (errEl) errEl.textContent = '❌ ' + ((r && r.fehler) || 'Fehler beim Speichern.');
+    }
+    return;
+  }
+
+  // Alle anderen: Antrag stellen
+  var r2 = await apiPost('athleten/' + athletId + '/profil-antrag', changes);
+  if (r2 && r2.ok) {
     notify('✅ Änderungsantrag gestellt – wird geprüft.', 'ok');
     if (errEl) errEl.textContent = '';
   } else {
-    if (errEl) errEl.textContent = '❌ ' + ((r && r.fehler) || 'Fehler beim Senden.');
+    if (errEl) errEl.textContent = '❌ ' + ((r2 && r2.fehler) || 'Fehler beim Senden.');
   }
 }
 
@@ -1727,11 +1744,16 @@ function _renderKontoPage() {
       '</div>' +
 
       // Konto löschen card
+      (currentUser.rolle !== 'admin' ?
       '<div class="panel" style="padding:16px;border:1px solid #ffcdd2">' +
         '<div style="font-size:12px;font-weight:700;color:#cc0000;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">&#x26A0;&#xFE0E; Konto löschen</div>' +
         '<div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.5">Konto wird vom Athletenprofil getrennt und 30 Tage lang in den Papierkorb verschoben.</div>' +
         '<button class="btn btn-ghost btn-sm" style="color:#cc0000;border-color:#cc0000;width:100%" onclick="showKontoLoeschenDialog()">Konto löschen…</button>' +
-      '</div>' +
+      '</div>'
+      : '<div class="panel" style="padding:16px;border:1px solid var(--border)">' +
+          '<div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">&#x26A0;&#xFE0E; Konto löschen</div>' +
+          '<div style="font-size:12px;color:var(--text2);font-style:italic">Administratoren-Konten können nicht gelöscht werden.</div>' +
+        '</div>') +
 
     '</div>' +
 
@@ -1777,7 +1799,7 @@ function _renderKontoPage() {
     (currentUser.athlet_id ?
       '<div><div class="panel" style="padding:20px" id="konto-athlet-panel">' +
         '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">&#x1F3C3;&#xFE0E; Athletenprofil</div>' +
-        '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Änderungen werden von einem Editor oder Admin geprüft.</div>' +
+        (((currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor')) ? '' : '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Änderungen werden von einem Editor oder Admin geprüft.</div>')) +
         '<div class="loading"><div class="spinner"></div></div>' +
       '</div></div>'
     : '') +
