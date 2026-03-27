@@ -1,3 +1,26 @@
+## v765
+
+- 2FA-Hinweistext: "Mindestens eine Methode muss aktiv sein, ansonsten erhältst du bei jedem Login eine E-Mail zur Bestätigung deiner Identität."
+
+---
+
+## v764 – Konto: Athletenprofil bearbeiten
+
+- Neue Karte in der rechten Spalte (nur wenn Athletenprofil verknüpft)
+- Felder: Vorname, Nachname, Geschlecht, Geburtsjahr
+- Änderungen landen als Antrag in `ergebnis_aenderungen` (Typ: update, Tabelle: athleten)
+- Admin/Editor sieht Antrag in Admin → Anträge und kann genehmigen oder ablehnen
+- Genehmigung schreibt direkt in `athleten`-Tabelle (inkl. `name_nv`-Update)
+
+---
+
+## v763 – Fix Hash-Routing für Konto
+
+- `konto` war nicht in `validTabs` in `restoreFromHash()` → F5 auf `#konto` landete auf Startseite
+- Fix: `konto` zu `validTabs` hinzugefügt
+
+---
+
 ## v762 – Konto-Seite Redesign
 
 **Zwei-Spalten-Layout (220px + 1fr):**

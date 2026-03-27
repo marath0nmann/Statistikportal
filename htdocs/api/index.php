@@ -2049,6 +2049,26 @@ if ($res === 'athleten') {
         }
     }
 
+    // Eigener Profil-Änderungsantrag (Athlet ändert sein eigenes Profil → Genehmigung)
+    if ($method === 'POST' && $id && ($parts[2] ?? '') === 'profil-antrag') {
+        $user = Auth::requireLogin();
+        $athletId = (int)$id;
+        // Prüfe ob dieser Athlet dem eingeloggten User gehört
+        $buRow = DB::fetchOne('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$user['id']]);
+        if (!$buRow || (int)$buRow['athlet_id'] !== $athletId) jsonErr('Keine Berechtigung.', 403);
+        // Erlaubte Felder
+        $allowed = ['vorname','nachname','geschlecht','geburtsjahr'];
+        $changes = [];
+        foreach ($allowed as $f) {
+            if (array_key_exists($f, $body)) $changes[$f] = $body[$f];
+        }
+        if (!$changes) jsonErr('Keine Änderungen angegeben.');
+        DB::query('INSERT INTO ' . DB::tbl('ergebnis_aenderungen') .
+            ' (ergebnis_id, ergebnis_tbl, typ, neue_werte, beantragt_von) VALUES (?,?,?,?,?)',
+            [$athletId, 'athleten', 'update', json_encode($changes), $user['id']]);
+        jsonOk(['pending' => true, 'msg' => 'Änderungsantrag gestellt. Wird von einem Editor oder Admin geprüft.']);
+    }
+
     if ($method === 'PUT' && $id) {
         Auth::requireEditor();
         $felder = []; $params = [];
@@ -3771,8 +3791,22 @@ if ($res === 'ergebnis-aenderungen') {
             } elseif ($antrag['typ'] === 'update') {
                 $vals = json_decode($antrag['neue_werte'] ?? '{}', true) ?: [];
                 $f2 = []; $p2 = [];
-                foreach (['altersklasse','disziplin','resultat','ak_platzierung','meisterschaft'] as $k2) {
-                    if (array_key_exists($k2, $vals)) { $f2[] = "$k2=?"; $p2[] = $vals[$k2]; }
+                // Athletenprofil-Änderung
+                if ($tbl2 === DB::tbl('athleten')) {
+                    foreach (['vorname','nachname','geschlecht','geburtsjahr'] as $k2) {
+                        if (array_key_exists($k2, $vals)) { $f2[] = "$k2=?"; $p2[] = $vals[$k2]; }
+                    }
+                    // name_nv neu berechnen wenn vor-/nachname geändert
+                    if (isset($vals['vorname']) || isset($vals['nachname'])) {
+                        $cur = DB::fetchOne('SELECT vorname, nachname FROM ' . DB::tbl('athleten') . ' WHERE id=?', [$antrag['ergebnis_id']]);
+                        $vn = $vals['vorname'] ?? ($cur['vorname'] ?? '');
+                        $nn = $vals['nachname'] ?? ($cur['nachname'] ?? '');
+                        $f2[] = 'name_nv=?'; $p2[] = $nn . ', ' . $vn;
+                    }
+                } else {
+                    foreach (['altersklasse','disziplin','resultat','ak_platzierung','meisterschaft'] as $k2) {
+                        if (array_key_exists($k2, $vals)) { $f2[] = "$k2=?"; $p2[] = $vals[$k2]; }
+                    }
                 }
                 if ($f2) { $p2[] = $antrag['ergebnis_id']; DB::query("UPDATE $tbl2 SET ".implode(',',$f2)." WHERE id=?", $p2); }
             }
