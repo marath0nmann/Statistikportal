@@ -1,3 +1,12 @@
+## v759 – Konto Passwort-Bereich
+
+- **Placeholder**: "min. 8 Zeichen" → "min. 12 Zeichen"
+- **Passwortstärke-Anzeige**: Identisch zur Registrierung – Balken + Gruppen-Checkboxen (Großbuchstaben, Kleinbuchstaben, Zahlen, Sonderzeichen, 12+ Zeichen)
+- **Passwort ändern**-Button direkt unter den Passwort-Feldern statt in der Footer-Leiste
+- **Trennlinie** (HR) oberhalb von "Zwei-Faktor-Authentifizierung" mit mehr Abstand → klare Trennung
+
+---
+
 ## v758 – Konto
 
 - **Konto als Seite**: Kein Modal mehr – kein Scrollbalken-Problem
