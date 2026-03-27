@@ -3166,7 +3166,7 @@ function timelineBadges(rek) {
         var colMin = col.w ? col.w : 280;
         totalMin += colMin;
         // Jede Spalte bekommt ihre eigene --col-w Variable für Responsivness
-        colsHtml += '<div style="min-width:' + colMin + 'px;flex:' + (col.w ? '0 0 ' + col.w + 'px' : '1') + '">' + renderWidget(col) + '</div>';
+        colsHtml += '<div style="min-width:' + colMin + 'px;flex:' + (col.w ? '0 0 ' + col.w + 'px' : '1') + ';height:100%">' + renderWidget(col) + '</div>';
         gtcParts.push(col.w ? col.w + 'px' : '1fr');
       }
       var gtc = gtcParts.join(' ');
@@ -3176,6 +3176,18 @@ function timelineBadges(rek) {
   }
 
   document.getElementById('main-content').innerHTML = layoutHtml;
+  // Stat-Karten: layout-vertical wenn Höhe > Breite
+  requestAnimationFrame(function() {
+    document.querySelectorAll('.stats-bar').forEach(function(el) {
+      var ro = new ResizeObserver(function(entries) {
+        for (var e of entries) {
+          var r = e.contentRect;
+          el.classList.toggle('layout-vertical', r.height > r.width);
+        }
+      });
+      ro.observe(el);
+    });
+  });
   // Responsive: .stacked wenn Container schmaler als Summe der Mindestbreiten
   requestAnimationFrame(function() {
     var rows = document.querySelectorAll('.dash-row-wrap');

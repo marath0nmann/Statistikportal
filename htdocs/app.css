@@ -96,6 +96,7 @@ nav button .nav-icon {
 nav button.active .nav-icon,
 nav button:hover .nav-icon {
   opacity: 1;
+  filter: grayscale(0);
 }
 nav button .nav-label { font-size: 11px; line-height: 1; }
 nav button.active {
@@ -211,13 +212,30 @@ nav button.active {
 main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
 
 /* ── STATS BAR ── */
-.stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 0; }
+/* In multi-col dashboard rows: stretch to full height */
+.dash-row-wrap .stats-bar {
+  height: 100%;
+}
+.stats-bar.layout-vertical {
+  grid-template-columns: 1fr;
+  align-content: stretch;
+}
+.stats-bar.layout-vertical .stat-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 
 /* Dashboard-Zeile: konfigurierte Spaltenbreiten, responsive umbrechen */
 .dash-row-wrap {
   display: grid;
   grid-template-columns: var(--dash-gtc, 1fr);
   gap: 20px;
+  align-items: stretch;
+}
+.dash-row-wrap > div {
+  height: 100%;
 }
 .dash-row-wrap.stacked {
   grid-template-columns: 1fr !important;
@@ -232,6 +250,7 @@ main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
   border-radius: var(--radius); padding: 18px 16px; text-align: center;
   box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s;
   border-top: 4px solid var(--primary);
+  display: flex; flex-direction: column; justify-content: center;
 }
 .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 .stat-num { font-family: 'Barlow Condensed', sans-serif; font-size: 34px; font-weight: 600; color: var(--primary); line-height: 1; }

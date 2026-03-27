@@ -1,3 +1,25 @@
+## v773
+
+- Stat-Karten wechseln automatisch auf vertikale Anordnung wenn Höhe > Breite
+- Implementierung via `ResizeObserver` → reagiert auf tatsächliche Größe, nicht auf Viewport
+- Kein hartkodiertes vertikales Layout mehr
+
+---
+
+## v772 – Dashboard Statistik-Karten
+
+- `.dash-row-wrap`: `align-items:stretch` + `.dash-row-wrap > div { height:100% }` → alle Spalten wachsen auf Zeilenhöhe
+- `.stats-bar` in Mehrspalt-Zeilen: `grid-template-columns:1fr` (vertikal statt horizontal), `height:100%`, Karten verteilen sich gleichmäßig
+- `.stat-card`: `display:flex; justify-content:center` → Inhalt vertikal zentriert
+
+---
+
+## v771
+
+- Nav-Icons: `filter: grayscale(0)` bei Hover und aktivem Tab → farbig; inaktiv bleiben sie graustufen
+
+---
+
 ## v770
 
 - Nav-Icons: `filter: grayscale(1)` in CSS statt Unicode-Variation-Selektor (zuverlässig in allen Browsern)
