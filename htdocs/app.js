@@ -833,7 +833,8 @@ function _renderRegModal() {
       '</div>';
   } else if (s === 4) {
     body =
-      '<div style="text-align:center;padding:10px 0 20px">' +
+      '<div style="max-width:560px">' +
+    '<div style="text-align:center;padding:10px 0 20px">' +
         '<div style="font-size:48px;margin-bottom:12px">✅</div>' +
         '<div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px">Registrierung abgeschlossen!</div>' +
         '<div style="font-size:13px;color:var(--text2);line-height:1.6">' +
@@ -1613,10 +1614,15 @@ async function showApp() {
 }
 
 function showUserMenu() {
+  navigate('konto');
+}
+
+function _renderKontoPage() {
   if (!currentUser) { showLogin(); return; }
   var name = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
-  showModal(
-    '<h2>Konto <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+  var el = document.getElementById('main-content');
+  el.innerHTML =
+    '<h1 style="font-size:24px;font-weight:700;color:var(--primary);margin-bottom:20px">&#x1F512; Konto</h1>' +
     '<div style="text-align:center;padding:10px 0 20px">' +
       '<div style="position:relative;width:64px;margin:0 auto 12px;cursor:pointer" onclick="document.getElementById(\'avatar-file-input\').click()" title="Avatar ändern">' +
         '<div class="profile-avatar" style="width:64px;height:64px;font-size:24px;overflow:hidden;padding:0;' + (currentUser.avatar ? 'background:none;' : '') + '">' +
@@ -1662,12 +1668,11 @@ function showUserMenu() {
       '<div style="margin-bottom:8px;font-size:13px">&#x1F511; Passkeys</div>' +
       '<div id="passkey-section-profil"></div>' +
     '</div>' +
-    '<div class="modal-actions">' +
-      '<button class="btn btn-ghost" style="color:var(--accent)" onclick="closeModal();logout()">Abmelden</button>' +
-      '<button class="btn btn-ghost" onclick="closeModal()">Schlie&#xDF;en</button>' +
-      '<button class="btn btn-primary" onclick="changePasswort()">Passwort &#xe4;ndern</button>' +
-    '</div>'
-  );
+    '<div style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap">' +
+      '<button class="btn btn-primary" onclick="changePasswort()">Passwort ändern</button>' +
+      '<button class="btn btn-ghost" style="color:var(--accent)" onclick="logout()">Abmelden</button>' +
+    '</div>' +
+  '</div>';
   // Passkey-Section nach DOM-Aufbau laden
   setTimeout(function() { renderPasskeySection('passkey-section-profil'); }, 50);
 }
@@ -1832,7 +1837,8 @@ async function _cropSave() {
       currentUser.avatar = data.data.pfad;
       var avatarEl = document.getElementById('user-avatar');
       if (avatarEl) _renderHeaderAvatar(avatarEl, currentUser.avatar + '?v=' + Date.now(), currentUser.name||'?', true);
-      closeModal(); showUserMenu();
+      // reload konto page
+if(state.tab==='konto')_renderKontoPage();
       notify('Avatar gespeichert.', 'ok');
     } else {
       notify(data.fehler || 'Fehler beim Hochladen.', 'err');
@@ -1853,7 +1859,8 @@ async function deleteAvatar() {
       notify('Avatar entfernt.', 'ok');
       var avatarEl = document.getElementById('user-avatar');
       if (avatarEl) _renderHeaderAvatar(avatarEl, null, currentUser.name||'?', false);
-      closeModal(); showUserMenu();
+      // reload konto page
+if(state.tab==='konto')_renderKontoPage();
     } else { notify(data.fehler || 'Fehler.', 'err'); }
   } catch(e) { notify('Fehler.', 'err'); }
 }
@@ -1869,9 +1876,11 @@ async function changePasswort() {
     msg.style.background = ok ? 'rgba(26,138,58,.12)' : '#fde8e8';
     msg.style.color = ok ? '#1a8a3a' : '#cc0000';
   }
-  if (!alt || !neu || !neu2) { showMsg('Bitte alle Felder ausf\u00fcllen.', false); return; }
-  if (neu.length < 8)        { showMsg('Neues Passwort muss mindestens 8 Zeichen haben.', false); return; }
-  if (neu !== neu2)          { showMsg('Neue Passw\u00f6rter stimmen nicht \u00fcberein.', false); return; }
+  if (!alt || !neu || !neu2) { showMsg('Bitte alle Felder ausfüllen.', false); return; }
+  if (neu.length < 12) { showMsg('Neues Passwort muss mindestens 12 Zeichen haben.', false); return; }
+  var _score = _pwScore(neu);
+  if (_score.groups < 3) { showMsg('Passwort muss mindestens 3 von 4 Zeichengruppen enthalten (Großbuchstaben, Kleinbuchstaben, Zahlen, Sonderzeichen).', false); return; }
+  if (neu !== neu2) { showMsg('Neue Passwörter stimmen nicht überein.', false); return; }
   var r = await apiPost('auth/passwort', { aktuell: alt, neu: neu });
   if (r && r.ok) {
     showMsg('\u2705 Passwort erfolgreich ge\u00e4ndert!', true);
@@ -2056,7 +2065,7 @@ function _renderNavTabs(tabs) {
   // Divider + Konto-Aktionen im Drawer
   mhtml += '<div class="mobile-nav-divider"></div>';
   if (currentUser) {
-    mhtml += '<button onclick="mobileNavClose();showUserMenu()">🔑 Konto / Passwort</button>';
+    mhtml += '<button onclick="mobileNavClose();navigate(\'konto\')">🔑 Konto / Passwort</button>';
     mhtml += '<button onclick="mobileNavClose();logout()" style="color:rgba(255,150,150,.9)">⏻ Abmelden</button>';
   } else {
     mhtml += '<button onclick="mobileNavClose();showLogin()">🔐 Anmelden</button>';
@@ -2237,6 +2246,7 @@ async function renderPage() {
     else if (state.tab === 'athleten')   { await renderAthleten(); }
     else if (state.tab === 'rekorde')    { await renderRekorde(); }
     else if (state.tab === 'eintragen')  { renderEintragen(); }
+    else if (state.tab === 'konto')       { _renderKontoPage(); }
     else if (state.tab === 'admin')      { await renderAdmin(); }
   } catch(e) {
     console.error('renderPage Fehler:', e);

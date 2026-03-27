@@ -1,3 +1,10 @@
+## v758 – Konto
+
+- **Konto als Seite**: Kein Modal mehr – kein Scrollbalken-Problem
+- **Passwort-Regeln**: Min. 12 Zeichen + 3/4 Zeichengruppen – identisch zur Registrierung
+
+---
+
 ## v757 – Eintragen Fixes
 
 - **Sicherheit**: Navigation zu 'Eintragen' setzte `subTab='bulk'` hart – jetzt `null`, wird in `renderEintragen()` permissions-basiert gesetzt
