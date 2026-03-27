@@ -1,3 +1,11 @@
+## v782
+
+- **Neuer Schalter** im Timeline-Widget-Config: "Nur favorisierte Disziplinen anzeigen"
+- Filtert die Timeline auf Disziplinen, die unter Admin → Darstellung → Favorisierte Disziplinen gesetzt wurden
+- Gespeichert als `tl_nur_favoriten` im Dashboard-Layout
+
+---
+
 ## v781 – Fix Disziplin-Verlinkung aus Timeline
 
 - **Ursache**: `state.disziplinen`-Einträge haben das Feld `id` (= mapping_id), nicht `mapping_id` – der Lookup fand nie eine Kategorie

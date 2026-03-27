@@ -2880,13 +2880,23 @@ function timelineBadges(rek) {
       // Filtern nach hidden_types und Sortieren nach prio_order
       var hiddenTypes = wcfg.hidden_types || [];
       var prioOrder   = wcfg.prio_order  || ['gesamt','gender','ak','pb'];
+      var nurFavoriten = !!wcfg.tl_nur_favoriten;
+      var _favMids = [];
+      if (nurFavoriten) {
+        try { _favMids = JSON.parse(appConfig.top_disziplinen || '[]').map(Number); } catch(e) { _favMids = []; }
+      }
       var filteredTimeline = timelineHtml;
-      if (hiddenTypes.length || prioOrder.join(',') !== 'gesamt,gender,ak,pb') {
+      if (hiddenTypes.length || prioOrder.join(',') !== 'gesamt,gender,ak,pb' || (nurFavoriten && _favMids.length)) {
         // Timeline-Items neu rendern mit Filterung + Priorisierung
         var filtItems = [];
         for (var ti = 0; ti < rekordeTimeline.length; ti++) {
           var rek2 = rekordeTimeline[ti];
           if (!rek2.athlet) continue;
+          // Favoriten-Filter: Disziplin muss in Favoritenliste sein
+          if (nurFavoriten && _favMids.length) {
+            var _m2 = rek2.disziplin_mapping_id ? parseInt(rek2.disziplin_mapping_id) : null;
+            if (!_m2 || _favMids.indexOf(_m2) < 0) continue;
+          }
           // Beide Labels auf Sichtbarkeit prüfen
           var lc2 = rek2.label_club || null;
           var lp2 = rek2.label_pers || null;
@@ -11131,6 +11141,10 @@ function dashTimelineConfigHtml(ri, ci, hidden_types, prio_order, col) {
       '<input type="checkbox" data-tl="merge_ak" data-ri="' + ri + '" data-ci="' + ci + '"' + (mergeAK ? ' checked' : '') + ' onchange="dashUpdateLayout()">' +
       '<span style="color:var(--text2)">Jugend-AK zu MHK\uFE0E/WHK\uFE0E zusammenfassen</span>' +
     '</label>' +
+    '<label style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:16px">' +
+      '<input type="checkbox" data-tl="nur_favoriten" data-ri="' + ri + '" data-ci="' + ci + '"' + ((col && col.tl_nur_favoriten) ? ' checked' : '') + ' onchange="dashUpdateLayout()">' +
+      '<span style="color:var(--text2)">Nur favorisierte Disziplinen anzeigen</span>' +
+    '</label>' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Angezeigte Typen</div>' +
     rows +
   '</div>';
@@ -11386,6 +11400,9 @@ function dashUpdateLayout() {
         // merge_ak Checkbox
         var tlMergeEl = document.querySelector('input[data-tl="merge_ak"][data-ri="' + ri + '"][data-ci="' + ci + '"]');
         if (tlMergeEl) cols[ci].tl_merge_ak = tlMergeEl.checked;
+        // Nur Favoriten Checkbox
+        var tlFavEl = document.querySelector('input[data-tl="nur_favoriten"][data-ri="' + ri + '"][data-ci="' + ci + '"]');
+        if (tlFavEl) cols[ci].tl_nur_favoriten = tlFavEl.checked;
         // Anzahl Einträge
         var tlLimitEl = document.getElementById('tl-limit-' + ri + '-' + ci);
         if (tlLimitEl) {
