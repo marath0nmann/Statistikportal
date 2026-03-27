@@ -1660,7 +1660,7 @@ function _renderKontoPage() {
       '<div class="form-group full"><label>Neues Passwort wiederholen</label><input type="password" id="pw-neu2" placeholder="Wiederholen" autocomplete="new-password"/></div>' +
     '</div>' +
     '<div id="pw-msg" style="display:none;margin:10px 0;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600"></div>' +
-    '<button class="btn btn-primary btn-sm" style="margin-bottom:24px" onclick="changePasswort()">Passwort ändern</button>' +
+    '<button class="btn btn-primary btn-sm" style="margin-top:16px;margin-bottom:32px" onclick="changePasswort()">Passwort ändern</button>' +
     '<hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px"/>' +
     '<div style="margin-bottom:6px"><strong>&#x1F512; Zwei-Faktor-Authentifizierung</strong></div>' +
     '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">Mindestens eine Methode muss aktiv sein.</div>' +
@@ -1675,11 +1675,11 @@ function _renderKontoPage() {
       '<div id="passkey-section-profil"></div>' +
     '</div>' +
     '<div style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap">' +
-      
-      '<button class="btn btn-ghost" style="color:var(--accent)" onclick="logout()">Abmelden</button>' +
-    '</div>' +
+    '<hr style="border:none;border-top:1px solid var(--border);margin:32px 0 16px"/>' +
+    '<div style="margin-bottom:6px"><strong style="color:var(--accent)">&#x26A0;&#xFE0E; Konto löschen</strong></div>' +
+    '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">Das Benutzerkonto wird vom Athletenprofil getrennt und in den Papierkorb verschoben. Das Athletenprofil bleibt erhalten. Innerhalb von 30 Tagen kann das Konto wiederhergestellt werden.</div>' +
+    '<button class="btn btn-ghost btn-sm" style="color:var(--accent);border-color:var(--accent)" onclick="showKontoLoeschenDialog()">Konto löschen…</button>' +
   '</div>';
-  // Passkey-Section nach DOM-Aufbau laden
   setTimeout(function() { renderPasskeySection('passkey-section-profil'); }, 50);
 }
 
@@ -1899,6 +1899,40 @@ function kontoNewPwCheck() {
   var lenOk = pw.length >= 12;
   html += '<span class="pw-group ' + (lenOk ? 'ok' : 'missing') + '">' + (lenOk ? '✓' : '○') + ' 12+ Zeichen (' + pw.length + ')</span>';
   grps.innerHTML = html;
+}
+
+function showKontoLoeschenDialog() {
+  showModal(
+    '<h2 style="color:var(--accent)">&#x26A0;&#xFE0E; Konto löschen <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<p style="font-size:13px;color:var(--text2);margin:0 0 16px">Das Benutzerkonto wird vom Athletenprofil getrennt und gelöscht.<br>' +
+    'Das Athletenprofil bleibt erhalten. Innerhalb von <strong>30 Tagen</strong> kann das Konto wiederhergestellt werden.</p>' +
+    '<div class="form-group" style="margin-bottom:16px">' +
+      '<label style="font-weight:600">Bitte tippe <strong style="font-family:monospace;background:var(--surf2);padding:1px 6px;border-radius:4px">KONTO LÖSCHEN</strong> ein um fortzufahren:</label>' +
+      '<input type="text" id="kl-bestaetigung" placeholder="KONTO LÖSCHEN" style="margin-top:6px;font-family:monospace"/>' +
+    '</div>' +
+    '<div id="kl-err" style="color:var(--accent);font-size:13px;min-height:18px;margin-bottom:8px"></div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-danger" onclick="doKontoLoeschen()">Unwiderruflich löschen</button>' +
+    '</div>'
+  );
+}
+
+async function doKontoLoeschen() {
+  var input = (document.getElementById('kl-bestaetigung') ? document.getElementById('kl-bestaetigung').value.trim() : '');
+  var errEl = document.getElementById('kl-err');
+  if (input !== 'KONTO LÖSCHEN') {
+    if (errEl) errEl.textContent = 'Bitte genau "KONTO LÖSCHEN" eingeben.';
+    return;
+  }
+  var r = await apiDel('auth/konto');
+  if (r && r.ok) {
+    closeModal();
+    notify('Konto gelöscht. Du wirst abgemeldet.', 'ok');
+    setTimeout(function() { currentUser = null; showApp(); }, 1500);
+  } else {
+    if (errEl) errEl.textContent = '❌ ' + ((r && r.fehler) || 'Fehler beim Löschen.');
+  }
 }
 
 async function changePasswort() {
