@@ -2190,6 +2190,19 @@ function _canEditAthleten() {
   return rechte.indexOf('vollzugriff') >= 0 || rechte.indexOf('athleten_editieren') >= 0;
 }
 
+function _canVeranstaltungEintragen() {
+  if (!currentUser) return false;
+  if (currentUser.rolle === 'admin') return true;
+  var r = currentUser.rechte || [];
+  return r.indexOf('vollzugriff') >= 0 || r.indexOf('veranstaltung_eintragen') >= 0;
+}
+function _canVeranstaltungLoeschen() {
+  if (!currentUser) return false;
+  if (currentUser.rolle === 'admin') return true;
+  var r = currentUser.rechte || [];
+  return r.indexOf('vollzugriff') >= 0 || r.indexOf('veranstaltung_loeschen') >= 0;
+}
+
 function _canBulkEintragen() {
   if (!currentUser) return false;
   if (currentUser.rolle === 'admin') return true;
@@ -10337,7 +10350,9 @@ var _RECHTE_LISTE = [
   { key: 'einstellungen_aendern',label: 'Einstellungen ändern' },
   { key: 'alle_ergebnisse',      label: 'Alle Ergebnisse eintragen/ändern/löschen' },
   { key: 'eigene_ergebnisse',    label: 'Eigene Ergebnisse eintragen/ändern/löschen (nach Genehmigung)' },
-  { key: 'bulk_eintragen',        label: 'Bulk-Eintragen (mehrere Ergebnisse auf einmal)' },
+  { key: 'bulk_eintragen',              label: 'Bulk-Eintragen (mehrere Ergebnisse auf einmal)' },
+  { key: 'veranstaltung_eintragen',     label: 'Veranstaltung eintragen / ändern' },
+  { key: 'veranstaltung_loeschen',      label: 'Veranstaltung löschen' },
   { key: 'lesen',                label: 'Lesen' },
   { key: 'personenbezogene_daten', label: 'Personenbezogene Daten sehen (Athleten-Seite, Gruppen, Jahrgang)' },
   { key: 'athleten_details',       label: 'Athleten-Details sehen (Geschlecht, Anzahl Ergebnisse, inaktive Athleten)' },

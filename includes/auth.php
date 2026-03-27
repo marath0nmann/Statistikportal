@@ -367,6 +367,28 @@ class Auth {
         return ($_SESSION['user_rolle'] ?? '') === 'athlet';
     }
 
+    // Prüft ein einzelnes Recht (aus rollen-Tabelle) – benötigt aktive Session
+    public static function hasRecht(string $recht): bool {
+        $rolle = $_SESSION['user_rolle'] ?? '';
+        if (!$rolle) return false;
+        if ($rolle === 'admin') return true; // admin hat immer alle Rechte
+        try {
+            global $db;
+            $row = \DB::fetchOne('SELECT rechte FROM ' . \DB::tbl('rollen') . ' WHERE name = ?', [$rolle]);
+            $rechte = json_decode($row['rechte'] ?? '[]', true) ?: [];
+            return in_array('vollzugriff', $rechte) || in_array($recht, $rechte);
+        } catch (\Exception $e) { return false; }
+    }
+    public static function requireRecht(string $recht): array {
+        $user = self::requireLogin();
+        if (!self::hasRecht($recht)) {
+            http_response_code(403);
+            echo json_encode(['fehler' => 'Keine Berechtigung.']);
+            exit;
+        }
+        return $user;
+    }
+
     public static function hashPasswort(string $pw): string {
         return password_hash($pw, PASSWORD_BCRYPT, ['cost' => 12]);
     }

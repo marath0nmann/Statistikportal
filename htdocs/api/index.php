@@ -138,8 +138,8 @@ try { DB::query("ALTER TABLE " . DB::tbl('rollen') . " ADD COLUMN IF NOT EXISTS 
 // Migration: Rechte zu Systemrollen hinzufügen
 try {
     $sysRollenRechte = [
-        'admin'  => ['personenbezogene_daten','athleten_details','athleten_editieren','bulk_eintragen'],
-        'editor' => ['personenbezogene_daten','athleten_details','athleten_editieren','bulk_eintragen'],
+        'admin'  => ['personenbezogene_daten','athleten_details','athleten_editieren','bulk_eintragen','veranstaltung_eintragen','veranstaltung_loeschen'],
+        'editor' => ['personenbezogene_daten','athleten_details','athleten_editieren','bulk_eintragen','veranstaltung_eintragen','veranstaltung_loeschen'],
         'athlet' => ['personenbezogene_daten','athleten_details'],
         'leser'  => ['personenbezogene_daten','athleten_details'],
     ];
@@ -159,8 +159,8 @@ try {
 try {
     if (!DB::fetchOne('SELECT id FROM ' . DB::tbl('rollen') . ' LIMIT 1')) {
         $defaultRollen = [
-            ['admin',  '["vollzugriff","benutzer_verwalten","rekorde_bearbeiten","einstellungen_aendern","alle_ergebnisse","eigene_ergebnisse","lesen","personenbezogene_daten"]', 'Administrator', 1],
-            ['editor', '["alle_ergebnisse","lesen","personenbezogene_daten"]', 'Editor', 1],
+            ['admin',  '["vollzugriff","benutzer_verwalten","rekorde_bearbeiten","einstellungen_aendern","alle_ergebnisse","eigene_ergebnisse","lesen","personenbezogene_daten","veranstaltung_eintragen","veranstaltung_loeschen"]', 'Administrator', 1],
+            ['editor', '["alle_ergebnisse","lesen","personenbezogene_daten","veranstaltung_eintragen","veranstaltung_loeschen"]', 'Editor', 1],
             ['athlet', '["eigene_ergebnisse","lesen","personenbezogene_daten"]', 'Athlet*in', 1],
             ['leser',  '["lesen","personenbezogene_daten"]', 'Leser*in', 1],
         ];
@@ -3239,7 +3239,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
 }
 
 if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
-    Auth::requireEditor();
+    Auth::requireRecht('veranstaltung_eintragen');
     $felder = []; $params = [];
     if (isset($body['name']))  { $felder[] = 'name=?';  $params[] = sanitize($body['name'] ?? '') ?: null; }
     if (!empty($body['datum'])){ $felder[] = 'datum=?'; $params[] = $body['datum']; }
@@ -3251,7 +3251,7 @@ if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
 }
 
 if ($res === 'veranstaltungen' && $method === 'DELETE' && $id) {
-    Auth::requireAdmin();
+    Auth::requireRecht('veranstaltung_loeschen');
     $eTbl = ergebnisTbl('strasse', $unified, $_sys);
     $anz = DB::fetchOne("SELECT COUNT(*) c FROM $eTbl WHERE veranstaltung_id=? AND geloescht_am IS NULL", [$id])['c'];
     // Ergebnisse der Veranstaltung ebenfalls in Papierkorb
