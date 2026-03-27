@@ -1,3 +1,10 @@
+## v766
+
+- **3-spaltig**: Links Avatar/Erscheinungsbild/Konto-löschen | Mitte Passwort+2FA | Rechts Athletenprofil
+- **Divers** überall: Konto-Athletenprofil-Form, Athlet-Edit-Modal, Neuer-Athlet-Modal, Athletenliste-Symbol (⚧), akBadge für D-AK
+
+---
+
 ## v765
 
 - 2FA-Hinweistext: "Mindestens eine Methode muss aktiv sein, ansonsten erhältst du bei jedem Login eine E-Mail zur Bestätigung deiner Identität."
