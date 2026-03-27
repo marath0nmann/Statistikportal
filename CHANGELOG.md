@@ -1,3 +1,23 @@
+## v769
+
+- Nav-Emojis zurück auf `\uFE0E` (Text-Variation = mono/gedämpft) – passt besser zur Menüleiste
+- Widget-Titel-Emojis bleiben farbig (`\uFE0F`)
+
+---
+
+## v768
+
+- Navigation: Emojis hatten `\uFE0E` (Text-Variation = mono/gedämpft), jetzt `\uFE0F` (Emoji-Variation = farbig) für alle 7 Nav-Icons
+
+---
+
+## v767
+
+- **Eigenes Athletenprofil** + **Persönliche Bestleistungen**: `height:100%` → Höhe passt sich der Zeile an wie die anderen Widgets
+- **Stoppuhr-Emoji**: `&#x23F1;&#xFE0E;` (Text-Variation) → `⏱️` (Emoji-Variation) → farbig wie bei anderen Widget-Titeln
+
+---
+
 ## v766
 
 - **3-spaltig**: Links Avatar/Erscheinungsbild/Konto-löschen | Mitte Passwort+2FA | Rechts Athletenprofil

@@ -3108,7 +3108,7 @@ function timelineBadges(rek) {
     if (w === 'eigenes-profil') {
       var epId = 'ep-widget-' + Math.random().toString(36).slice(2,8);
       setTimeout(function(_id) { return function() { _loadEigenesProfilWidget(_id, false); }; }(epId), 0);
-      return '<div class="panel" id="' + epId + '">' +
+      return '<div class="panel" id="' + epId + '" style="height:100%">' +
         '<div class="panel-header"><div class="panel-title">&#x1F3C3;&#xFE0E; ' + widgetTitle(wcfg, 'Mein Athletenprofil') + '</div></div>' +
         '<div class="loading" style="padding:24px"><div class="spinner"></div></div>' +
       '</div>';
@@ -3116,8 +3116,8 @@ function timelineBadges(rek) {
     if (w === 'eigene-bestzeiten') {
       var ebId = 'eb-widget-' + Math.random().toString(36).slice(2,8);
       setTimeout(function(_id) { return function() { _loadEigenesProfilWidget(_id, true); }; }(ebId), 0);
-      return '<div class="panel" id="' + ebId + '">' +
-        '<div class="panel-header"><div class="panel-title">&#x23F1;&#xFE0E; ' + widgetTitle(wcfg, 'Persönliche Bestleistungen') + '</div></div>' +
+      return '<div class="panel" id="' + ebId + '" style="height:100%">' +
+        '<div class="panel-header"><div class="panel-title">⏱️ ' + widgetTitle(wcfg, 'Persönliche Bestleistungen') + '</div></div>' +
         '<div class="loading" style="padding:24px"><div class="spinner"></div></div>' +
       '</div>';
     }
