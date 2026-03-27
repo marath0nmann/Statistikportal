@@ -1,3 +1,9 @@
+## v770
+
+- Nav-Icons: `filter: grayscale(1)` in CSS statt Unicode-Variation-Selektor (zuverlässig in allen Browsern)
+
+---
+
 ## v769
 
 - Nav-Emojis zurück auf `\uFE0E` (Text-Variation = mono/gedämpft) – passt besser zur Menüleiste
