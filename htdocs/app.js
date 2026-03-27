@@ -1617,6 +1617,74 @@ function showUserMenu() {
   navigate('konto');
 }
 
+async function _ladeKontoAthletPanel() {
+  var panel = document.getElementById('konto-athlet-panel');
+  if (!panel || !currentUser.athlet_id) return;
+  var r = await apiGet('athleten/' + currentUser.athlet_id);
+  if (!r || !r.ok) { panel.innerHTML = panel.innerHTML.replace('<div class="loading"><div class="spinner"></div></div>', '<div style="color:var(--accent);font-size:13px">Fehler beim Laden.</div>'); return; }
+  var a = r.data.athlet;
+
+  var geschlechtOpts = [
+    '<option value="">-- wählen --</option>',
+    '<option value="M"' + (a.geschlecht === 'M' ? ' selected' : '') + '>♂ Männlich</option>',
+    '<option value="W"' + (a.geschlecht === 'W' ? ' selected' : '') + '>♀ Weiblich</option>',
+  ].join('');
+
+  var formHtml =
+    '<div class="form-grid">' +
+      '<div class="form-group">' +
+        '<label>Vorname</label>' +
+        '<input type="text" id="ka-vorname" value="' + (a.vorname||'').replace(/"/g,'&quot;') + '"/>' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Nachname</label>' +
+        '<input type="text" id="ka-nachname" value="' + (a.nachname||'').replace(/"/g,'&quot;') + '"/>' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Geschlecht</label>' +
+        '<select id="ka-geschlecht">' + geschlechtOpts + '</select>' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label>Geburtsjahr</label>' +
+        '<input type="number" id="ka-geburtsjahr" value="' + (a.geburtsjahr||'') + '" min="1900" max="' + new Date().getFullYear() + '" placeholder="z.B. 1990"/>' +
+      '</div>' +
+    '</div>' +
+    '<div id="ka-err" style="color:var(--accent);font-size:13px;min-height:18px;margin-bottom:8px"></div>' +
+    '<div style="display:flex;align-items:center;gap:10px">' +
+      '<button class="btn btn-primary btn-sm" onclick="saveKontoAthletDaten(' + currentUser.athlet_id + ')">Antrag stellen</button>' +
+      '<span style="font-size:12px;color:var(--text2)">&#x23F3;&#xFE0E; Wird vor Veröffentlichung geprüft</span>' +
+    '</div>';
+
+  panel.innerHTML = panel.innerHTML.replace(
+    '<div class="loading"><div class="spinner"></div></div>',
+    formHtml
+  );
+}
+
+async function saveKontoAthletDaten(athletId) {
+  var errEl = document.getElementById('ka-err');
+  if (errEl) errEl.textContent = '';
+
+  var changes = {};
+  var vn = document.getElementById('ka-vorname') ? document.getElementById('ka-vorname').value.trim() : null;
+  var nn = document.getElementById('ka-nachname') ? document.getElementById('ka-nachname').value.trim() : null;
+  var gs = document.getElementById('ka-geschlecht') ? document.getElementById('ka-geschlecht').value : null;
+  var gj = document.getElementById('ka-geburtsjahr') ? document.getElementById('ka-geburtsjahr').value.trim() : null;
+
+  if (vn !== null) changes.vorname = vn;
+  if (nn !== null) changes.nachname = nn;
+  if (gs !== null) changes.geschlecht = gs;
+  if (gj !== null) changes.geburtsjahr = gj ? parseInt(gj) : null;
+
+  var r = await apiPost('athleten/' + athletId + '/profil-antrag', changes);
+  if (r && r.ok) {
+    notify('✅ Änderungsantrag gestellt – wird geprüft.', 'ok');
+    if (errEl) errEl.textContent = '';
+  } else {
+    if (errEl) errEl.textContent = '❌ ' + ((r && r.fehler) || 'Fehler beim Senden.');
+  }
+}
+
 function _renderKontoPage() {
   if (!currentUser) { showLogin(); return; }
   var name = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
@@ -1686,10 +1754,19 @@ function _renderKontoPage() {
         '<button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="changePasswort()">Passwort ändern</button>' +
       '</div>' +
 
+      // Athletenprofil-Karte (nur wenn verknüpft)
+      (currentUser.athlet_id ? (
+        '<div class="panel" style="padding:20px;margin-bottom:16px" id="konto-athlet-panel">' +
+          '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">&#x1F3C3;&#xFE0E; Athletenprofil</div>' +
+          '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Änderungen werden von einem Editor oder Admin geprüft.</div>' +
+          '<div class="loading"><div class="spinner"></div></div>' +
+        '</div>'
+      ) : '') +
+
       // 2FA card
       '<div class="panel" style="padding:20px">' +
         '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">&#x1F512; Zwei-Faktor-Authentifizierung</div>' +
-        '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Mindestens eine Methode muss aktiv sein.</div>' +
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Mindestens eine Methode muss aktiv sein, ansonsten erhältst du bei jedem Login eine E-Mail zur Bestätigung deiner Identität.</div>' +
         '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">' +
           '<span style="font-size:13px">&#x1F4F1; Authenticator-App (TOTP)</span>' +
           (currentUser.totp_aktiv
@@ -1706,6 +1783,7 @@ function _renderKontoPage() {
     '</div>'; // end grid
 
   setTimeout(function() { renderPasskeySection('passkey-section-profil'); }, 50);
+  if (currentUser.athlet_id) { _ladeKontoAthletPanel(); }
 }
 
 async function showTotpSetupInProfile() {
@@ -2376,7 +2454,7 @@ function restoreFromHash() {
   var parts  = hash.split('/');
   var tab    = parts[0].toLowerCase();
   var sub    = parts[1] ? parts[1].toLowerCase() : '';
-  var validTabs = ['dashboard','veranstaltungen','ergebnisse','athleten','rekorde','eintragen','admin'];
+  var validTabs = ['dashboard','veranstaltungen','ergebnisse','athleten','rekorde','eintragen','admin','konto'];
   if (validTabs.indexOf(tab) < 0) return;
 
   state.tab = tab;
