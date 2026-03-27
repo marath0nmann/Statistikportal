@@ -1,3 +1,12 @@
+## v781 – Fix Disziplin-Verlinkung aus Timeline
+
+- **Ursache**: `state.disziplinen`-Einträge haben das Feld `id` (= mapping_id), nicht `mapping_id` – der Lookup fand nie eine Kategorie
+- **Folge 1**: Falscher Kategorie-Tab aktiv
+- **Folge 2**: Falsches Format (`0:00 min` statt `0,00 s`) weil `catMeta.fmt` vom alten Kategorie-State genommen wurde
+- **Fix**: `d.mapping_id` → `d.id` im Lookup
+
+---
+
 ## v780
 
 - **Vorige Werte im Badge**: `Bestleistung Frauen (73,81s)` statt separatem "vorher: ..."-Text

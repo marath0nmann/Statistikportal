@@ -4815,17 +4815,17 @@ function setRekDisz(disz, mid) {
 }
 function navigateToDisz(disz, mappingId) {
   // Kategorie + mapping_id der Disziplin ermitteln
+  // state.disziplinen hat Feld "id" (= mapping_id), nicht "mapping_id"
   var kat = null; var mid = mappingId ? parseInt(mappingId) : null;
   var diszArr = state.disziplinen || [];
   for (var i = 0; i < diszArr.length; i++) {
     var d = diszArr[i];
-    // Bei mapping_id: exakter Match; sonst: erster Treffer per Name
-    if (mid && d.mapping_id == mid) { kat = d.tbl_key; break; }
-    if (!mid && d.disziplin === disz && d.tbl_key) { kat = d.tbl_key; mid = d.mapping_id || null; break; }
+    if (mid && d.id == mid) { kat = d.tbl_key; break; }
+    if (!mid && d.disziplin === disz && d.tbl_key) { kat = d.tbl_key; mid = d.id || null; break; }
   }
   if (kat) state.rekState.kat = kat;
   state.rekState.disz = disz;
-  state.rekState.mapping_id = mid;
+  state.rekState.mapping_id = mid || null;
   state.rekState.view = 'gesamt';
   navigate('rekorde');
 }
