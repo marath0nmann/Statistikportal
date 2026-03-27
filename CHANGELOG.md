@@ -1,3 +1,10 @@
+## v784
+
+- **Ursache**: Delete-Button war hartkodiert auf `currentUser.rolle === 'admin'` statt auf das Recht zu prüfen
+- **Fix**: Button-Sichtbarkeit jetzt über `_canVeranstaltungLoeschen()`
+
+---
+
 ## v783 – Neue Berechtigungen
 
 - **`veranstaltung_eintragen`**: Steuert PUT /veranstaltungen/{id} (Bearbeiten) – vorher fest auf Editor/Admin
