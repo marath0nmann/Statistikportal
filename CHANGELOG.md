@@ -1,3 +1,11 @@
+## v776
+
+- **Datenbank**: `geschlecht ENUM('M','W','D','')` – 'D' war nicht im ENUM, daher wurde es silently verworfen
+- **Migration**: `MODIFY COLUMN` passt bestehende Installationen automatisch an
+- **Validierung**: `in_array` prüft jetzt auch 'D'
+
+---
+
 ## v775 – Konto
 
 - **Konto löschen**: Für Administratoren deaktiviert – Hinweis statt Button

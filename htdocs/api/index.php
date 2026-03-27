@@ -123,6 +123,7 @@ try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXIS
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS altersklasse VARCHAR(20) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS genehmigt TINYINT(1) NOT NULL DEFAULT 1"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS geloescht_am DATETIME NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('athleten') . " MODIFY COLUMN geschlecht ENUM('M','W','D','') NOT NULL DEFAULT ''"); } catch (\Exception $e) {}
 // Migration: Rollen-System (rollen-Tabelle)
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rollen') . " (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -2521,7 +2522,7 @@ if ($res === 'disziplin-mapping') {
         try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('ak_standard') . " (
             id INT AUTO_INCREMENT PRIMARY KEY,
             ak VARCHAR(20) NOT NULL UNIQUE,
-            geschlecht ENUM('M','W','') NOT NULL DEFAULT '',
+            geschlecht ENUM('M','W','D','') NOT NULL DEFAULT '',
             reihenfolge INT NOT NULL DEFAULT 99,
             erstellt_am DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (Exception $e) {}
@@ -3706,7 +3707,7 @@ if ($res === 'ak-standard') {
 
     if ($method === 'POST') {
         $ak  = trim($body['ak'] ?? '');
-        $g   = in_array($body['geschlecht'] ?? '', ['M','W','']) ? ($body['geschlecht'] ?? '') : '';
+        $g   = in_array($body['geschlecht'] ?? '', ['M','W','D','']) ? ($body['geschlecht'] ?? '') : '';
         $rei = (int)($body['reihenfolge'] ?? 99);
         if (!$ak) jsonErr('AK erforderlich.', 400);
         DB::query("INSERT INTO " . DB::tbl('ak_standard') . " (ak,geschlecht,reihenfolge) VALUES (?,?,?)
