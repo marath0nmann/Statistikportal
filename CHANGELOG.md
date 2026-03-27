@@ -1,3 +1,10 @@
+## v775 – Konto
+
+- **Konto löschen**: Für Administratoren deaktiviert – Hinweis statt Button
+- **Athletenprofil**: Editor und Admin speichern direkt ohne Genehmigung; Antrag-Hinweis nur für andere Rollen
+
+---
+
 ## v774
 
 - Widget gibt `''` zurück (keine Rollenberechtigung) → Spalten-Wrapper wird komplett übersprungen
