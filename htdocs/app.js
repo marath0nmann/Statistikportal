@@ -2191,11 +2191,11 @@ function _canSeePersoenlicheDaten() {
 
 function buildNav() {
   var tabs = [
-    { id: 'dashboard',       icon: '📊︎', label: 'Dashboard' },
-    { id: 'rekorde',         icon: '🏆︎', label: 'Bestleistungen' },
-    { id: 'veranstaltungen', icon: '📍︎', label: 'Veranstaltungen' },
-    { id: 'ergebnisse',      icon: '📋︎', label: 'Ergebnisse' },
-    { id: 'athleten',        icon: '👤︎', label: 'Athleten' },
+    { id: 'dashboard',       icon: '📊️', label: 'Dashboard' },
+    { id: 'rekorde',         icon: '🏆️', label: 'Bestleistungen' },
+    { id: 'veranstaltungen', icon: '📍️', label: 'Veranstaltungen' },
+    { id: 'ergebnisse',      icon: '📋️', label: 'Ergebnisse' },
+    { id: 'athleten',        icon: '👤️', label: 'Athleten' },
   ];
   if (!currentUser) {
     var allowPD = _canSeePersoenlicheDaten();
@@ -2211,9 +2211,9 @@ function buildNav() {
     tabs = tabs.filter(function(t) { return t.id !== 'athleten'; });
   }
   if (currentUser.rolle === 'editor' || currentUser.rolle === 'admin' || currentUser.rolle === 'athlet')
-    tabs.push({ id: 'eintragen', icon: '➕︎', label: 'Eintragen' });
+    tabs.push({ id: 'eintragen', icon: '➕️', label: 'Eintragen' });
   if (currentUser.rolle === 'admin')
-    tabs.push({ id: 'admin', icon: '⚙️︎', label: 'Admin' });
+    tabs.push({ id: 'admin', icon: '⚙️️', label: 'Admin' });
   _renderNavTabs(tabs);
 }
 

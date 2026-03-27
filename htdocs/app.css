@@ -91,7 +91,7 @@ nav button .nav-icon {
   color: var(--primary-light);
   opacity: 0.72;
   transition: opacity .15s;
-  /* Emoji als Text: Variation Selector-15 (︎) wird im JS angehängt */
+  filter: grayscale(1);
 }
 nav button.active .nav-icon,
 nav button:hover .nav-icon {
