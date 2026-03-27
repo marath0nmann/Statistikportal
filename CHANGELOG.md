@@ -1,3 +1,11 @@
+## v778
+
+- Kategorien: `flex:0 0 auto` → nehmen nur so viel Platz wie nötig
+- Buttons innerhalb einer Kategorie: `flex-wrap:nowrap` → bleiben immer in einer Zeile
+- Gesamter Umbruch passiert nur auf Kategorie-Ebene
+
+---
+
 ## v777
 
 - **Kategorien nebeneinander**: Jede Kategorie bekommt `flex:1; min-width:160px` → bei genug Breite stehen sie nebeneinander, bei wenig Platz stapeln sie sich vertikal
