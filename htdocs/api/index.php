@@ -1352,6 +1352,8 @@ if ($res === 'dashboard' && $method === 'GET') {
             $labelClub = null;  // null = kein vereinsbezogenes Ereignis
             $labelPers = null;  // null = kein persönliches Ereignis
             $vorher    = null;
+            $vorherClub = null;
+            $vorherPers = null;
 
             // ── CLUB-LABELS ────────────────────────────────────────────────
             // Sonderfall: Alle Ergebnisse am allerersten Tag dieser Disziplin
@@ -1381,6 +1383,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                 // Co-Debüt: vorheriger Bestwert am selben Tag → kein echter Vorgänger
                 $sameDayGesamt = ($prevGesamt !== null && $prevGesamtDatum === $datum);
                 $labelClub = ($prevGesamt === null || $sameDayGesamt) ? 'Erste Gesamtleistung' : 'Gesamtbestleistung';
+                $vorherClub = (!$sameDayGesamt) ? ($prevGesamt ?? null) : null;
                 if ($vorher === null && !$sameDayGesamt) $vorher = $prevGesamt;
                 // Geschlechts-Bestleistung mitaktualisieren
                 if ($g === 'M' || $g === 'W') {
@@ -1406,6 +1409,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                     $labelClub = $isFirst
                         ? "Erstes Ergebnis $gLabel"
                         : "Bestleistung $gLabel";
+                    $vorherClub = (!$sameDayG) ? ($prevByG[$g] ?? null) : null; // Vereins-Vorgänger
                     if ($vorher === null && !$sameDayG) $vorher = $prevByG[$g];
                 }
             }
@@ -1424,6 +1428,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                         $sameDayAK = ($prevByAK[$ak] !== null && $prevByAKDatum === $datum);
                         $isFirst   = ($prevByAK[$ak] === null || $sameDayAK);
                         $labelClub = $isFirst ? 'Erste Leistung ' . $ak : 'Bestleistung ' . $ak;
+                        $vorherClub = (!$sameDayAK) ? ($prevByAK[$ak] ?? null) : null;
                         if ($vorher === null && !$sameDayAK) $vorher = $prevByAK[$ak];
                     }
                 }
@@ -1441,6 +1446,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                 $isFirst = $prevByAthlet[$aid] === null;
                 $labelPers = $isFirst ? 'Debüt' : 'PB';
                 if ($vorher === null) $vorher = $prevByAthlet[$aid];
+                $vorherPers = $prevByAthlet[$aid]; // immer separat merken
             }
 
             // ── Nur eintragen wenn mindestens ein Label gesetzt ────────────
@@ -1463,6 +1469,8 @@ if ($res === 'dashboard' && $method === 'GET') {
                     'athlet_id'           => $e['athlet_id'],
                     'resultat'            => $e['resultat'],
                     'vorher_val'          => $vorher,
+                    'vorher_club'         => $vorherClub ?? null,
+                    'vorher_pers'         => $vorherPers ?? null,
                     'label_club'          => $labelClub,
                     'label_pers'          => $labelPers,
                     // label für Rückwärtskompatibilität (höherwertiges Label)
