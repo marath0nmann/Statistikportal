@@ -1,3 +1,12 @@
+## v783 – Neue Berechtigungen
+
+- **`veranstaltung_eintragen`**: Steuert PUT /veranstaltungen/{id} (Bearbeiten) – vorher fest auf Editor/Admin
+- **`veranstaltung_loeschen`**: Steuert DELETE /veranstaltungen/{id} – vorher fest auf Admin
+- PHP: `Auth::requireRecht()` + `Auth::hasRecht()` – prüft Recht direkt aus rollen-Tabelle
+- Migration: beide Rechte automatisch zu admin und editor hinzugefügt
+
+---
+
 ## v782
 
 - **Neuer Schalter** im Timeline-Widget-Config: "Nur favorisierte Disziplinen anzeigen"
