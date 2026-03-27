@@ -2621,14 +2621,16 @@ async function _loadEigenesProfilWidget(elId, showErg) {
     }
     if (!btns) continue;
     pbSections +=
-      '<div style="padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px">' + kat.name + '</div>' +
-      '<div style="padding:0 14px 10px;display:flex;flex-wrap:wrap;gap:6px">' + btns + '</div>';
+      '<div class="pb-kat-section" style="flex:1;min-width:160px">' +
+        '<div style="padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px">' + kat.name + '</div>' +
+        '<div style="padding:0 14px 10px;display:flex;flex-wrap:wrap;gap:6px">' + btns + '</div>' +
+      '</div>';
   }
   if (!pbSections) pbSections = '<div style="padding:16px 18px;color:var(--text2);font-size:13px">Noch keine Ergebnisse.</div>';
 
   el.innerHTML = el.innerHTML.replace(
     '<div class="loading" style="padding:24px"><div class="spinner"></div></div>',
-    '<div style="padding-bottom:6px">' + pbSections + '</div>'
+    '<div style="display:flex;flex-wrap:wrap;align-items:flex-start;padding-bottom:6px">' + pbSections + '</div>'
   );
 }
 
