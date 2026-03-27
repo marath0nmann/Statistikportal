@@ -2621,9 +2621,9 @@ async function _loadEigenesProfilWidget(elId, showErg) {
     }
     if (!btns) continue;
     pbSections +=
-      '<div class="pb-kat-section" style="flex:1;min-width:160px">' +
+      '<div class="pb-kat-section" style="flex:0 0 auto">' +
         '<div style="padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px">' + kat.name + '</div>' +
-        '<div style="padding:0 14px 10px;display:flex;flex-wrap:wrap;gap:6px">' + btns + '</div>' +
+        '<div style="padding:0 14px 10px;display:flex;flex-wrap:nowrap;gap:6px">' + btns + '</div>' +
       '</div>';
   }
   if (!pbSections) pbSections = '<div style="padding:16px 18px;color:var(--text2);font-size:13px">Noch keine Ergebnisse.</div>';
