@@ -3616,6 +3616,41 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                 $addTitel($aid, 'Bestleistung ' . $ak, $bestAKDatum[$ak]);
             }
         }
+
+        // ── Meisterschafts-Titel: 1. Platz in einer Meisterschaft ──
+        // meisterschaft-ID steht in ergebnisse.meisterschaft, Name in einstellungen.meisterschaften_liste
+        $mstrListRaw = '';
+        try { $mstrListRaw = DB::fetchOne('SELECT wert FROM ' . DB::tbl('einstellungen') . ' WHERE schluessel = ?', ['meisterschaften_liste'])['wert'] ?? ''; } catch(\Exception $e) {}
+        $mstrMap = [];
+        foreach (json_decode($mstrListRaw ?: '[]', true) ?: [] as $m) {
+            if (!empty($m['id']) && !empty($m['label'])) $mstrMap[(int)$m['id']] = $m['label'];
+        }
+
+        if (!empty($mstrMap)) {
+            // 1. Plätze aus allen Ergebnis-Tabellen laden
+            foreach ([$tbl, DB::tbl('ergebnisse_strasse'), DB::tbl('ergebnisse_sprint'), DB::tbl('ergebnisse_mittelstrecke'), DB::tbl('ergebnisse_sprungwurf')] as $_mTbl) {
+                try {
+                    $colCheck = DB::fetchOne("SHOW COLUMNS FROM $_mTbl LIKE 'ak_platz_meisterschaft'");
+                    if (!$colCheck) continue;
+                    $firstPlaces = DB::fetchAll(
+                        'SELECT e.athlet_id, e.meisterschaft, e.altersklasse, v.datum'
+                        . ' FROM ' . $_mTbl . ' e'
+                        . ' JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id = e.veranstaltung_id'
+                        . ' WHERE e.ak_platz_meisterschaft = 1 AND e.geloescht_am IS NULL AND e.meisterschaft IS NOT NULL',
+                        []
+                    );
+                    foreach ($firstPlaces as $fp) {
+                        $aid   = (int)$fp['athlet_id'];
+                        $mId   = (int)$fp['meisterschaft'];
+                        $mName = $mstrMap[$mId] ?? null;
+                        if (!$mName || !isset($athletMap[$aid])) continue;
+                        $ak = $fp['altersklasse'] ?? '';
+                        $titelLabel = '🥇 ' . $mName . ($ak ? ' ' . $ak : '');
+                        $athletMap[$aid]['titel'][] = ['disziplin' => '__meisterschaft__', 'label' => $titelLabel, 'datum' => $fp['datum'], 'is_meisterschaft' => true];
+                    }
+                } catch(\Exception $e) {}
+            }
+        }
     }
 
     // Nur Athleten mit mindestens einem Titel
@@ -3626,18 +3661,39 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
     // Titel je Athlet nach Disziplin gruppieren
     foreach ($hof as &$ath) {
         $byDisz = [];
+        $mTitel = [];
         foreach ($ath['titel'] as $t) {
-            $byDisz[$t['disziplin']][] = ['label' => $t['label'], 'datum' => $t['datum']];
+            if (!empty($t['is_meisterschaft'])) {
+                $mTitel[] = ['label' => $t['label'], 'datum' => $t['datum']];
+            } else {
+                $byDisz[$t['disziplin']][] = ['label' => $t['label'], 'datum' => $t['datum']];
+            }
         }
-        $ath['disziplinen'] = $byDisz;
-        $ath['titelCount']  = array_sum(array_map('count', $byDisz));
+        $ath['disziplinen']         = $byDisz;
+        $ath['meisterschaftsTitel'] = $mTitel;
+        $ath['titelCount']          = array_sum(array_map('count', $byDisz)) + count($mTitel);
         unset($ath['titel']);
     }
     unset($ath);
 
-    // Absteigende Sortierung nach Titelanzahl
+    // Score: Meisterschafts-Titel zählen 3x, Bestleistungen 1x
+    foreach ($hof as &$ath) {
+        $score = 0;
+        foreach ($ath['disziplinen'] as $disz => $titels) {
+            foreach ($titels as $t) {
+                $score += !empty($t['is_meisterschaft']) ? 3 : 1;
+            }
+        }
+        if (!empty($ath['meisterschaftsTitel'])) {
+            foreach ($ath['meisterschaftsTitel'] as $t) { $score += 3; }
+        }
+        $ath['score'] = $score;
+    }
+    unset($ath);
+
+    // Absteigende Sortierung nach Score (Meisterschaften gewichtet 3x)
     usort($hof, function ($a, $b) {
-        return $b['titelCount'] - $a['titelCount'];
+        return $b['score'] - $a['score'] ?: $b['titelCount'] - $a['titelCount'];
     });
 
     jsonOk($hof);

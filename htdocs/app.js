@@ -3128,6 +3128,21 @@ function timelineBadges(rek) {
 
         // Badges rendern
         var hBadgesHtml = '';
+        // Meisterschafts-Titel zuerst (gold, prominent)
+        var mTitel = ha.meisterschaftsTitel || [];
+        if (mTitel.length) {
+          var mGroups = {};
+          for (var mi = 0; mi < mTitel.length; mi++) {
+            var mLbl = mTitel[mi].label;
+            if (!mGroups[mLbl]) mGroups[mLbl] = 0;
+            mGroups[mLbl]++;
+          }
+          Object.keys(mGroups).forEach(function(lbl) {
+            var cnt = mGroups[lbl];
+            hBadgesHtml += '<span class="badge badge-gold" style="display:inline-block;margin:3px 4px 3px 0;line-height:1.4">' +
+              lbl + (cnt > 1 ? ' ×' + cnt : '') + '</span>';
+          });
+        }
         for (var gi = 0; gi < groupOrder.length; gi++) {
           var gKey = groupOrder[gi], gData = groupMap[gKey], dl = gData.disz;
           var diszStr = dl.length===1 ? diszMitKat(dl[0]) : dl.slice(0,-1).map(function(d){ return diszMitKat(d); }).join(', ')+' und '+diszMitKat(dl[dl.length-1]);
@@ -3148,7 +3163,14 @@ function timelineBadges(rek) {
             '<div style="font-weight:700;font-size:15px;margin-bottom:2px">' +
               '<span class="athlet-link" onclick="openAthletById(' + ha.id + ')">' + ha.name + '</span>' +
             '</div>' +
-            '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">' + ha.titelCount + ' ' + (ha.titelCount === 1 ? 'Bestleistung' : 'Bestleistungen') + '</div>' +
+            (function(){
+            var _mCnt = (ha.meisterschaftsTitel || []).length;
+            var _bCnt = ha.titelCount - _mCnt;
+            var _parts = [];
+            if (_mCnt) _parts.push(_mCnt + ' ' + (_mCnt === 1 ? 'Titel' : 'Titel'));
+            if (_bCnt) _parts.push(_bCnt + ' ' + (_bCnt === 1 ? 'Bestleistung' : 'Bestleistungen'));
+            return '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">' + _parts.join(' · ') + '</div>';
+          }()) +
             '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">' + hBadgesHtml + '</div>' +
           '</div>';
       }
