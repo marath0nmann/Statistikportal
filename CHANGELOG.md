@@ -1,3 +1,20 @@
+## v762 – Konto-Seite Redesign
+
+**Zwei-Spalten-Layout (220px + 1fr):**
+- Links: Avatar-Karte, Erscheinungsbild-Karte, Konto-löschen-Karte
+- Rechts: Passwort-Karte, 2FA-Karte
+
+Alles in Panel-Karten strukturiert – kein auseinandergezogenes Single-Column-Layout mehr
+
+---
+
+## v761 – Konto-Seite
+
+- **Trennstrich**: HR oberhalb von "Konto löschen" trennt den Bereich klar von der 2FA
+- **Farbe**: Alle roten Elemente in "Konto löschen" jetzt hartkodiert `#cc0000` statt `var(--accent)`
+
+---
+
 ## v760 – Konto-Seite
 
 - **Abstand**: Mehr Platz zwischen "Passwort wiederholen" und "Passwort ändern"-Button (margin-top:16px)

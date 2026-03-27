@@ -1621,65 +1621,90 @@ function _renderKontoPage() {
   if (!currentUser) { showLogin(); return; }
   var name = (currentUser.vorname && currentUser.vorname.trim()) ? currentUser.vorname : (currentUser.email || currentUser.name || '?');
   var el = document.getElementById('main-content');
+
+  var avatarInner = currentUser.avatar
+    ? '<img id="konto-avatar-img" src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:50%;">'
+    : nameInitials(name);
+
   el.innerHTML =
-    '<h1 style="font-size:24px;font-weight:700;color:var(--primary);margin-bottom:20px">&#x1F512; Konto</h1>' +
-    '<div style="text-align:center;padding:10px 0 20px">' +
-      '<div style="position:relative;width:64px;margin:0 auto 12px;cursor:pointer" onclick="document.getElementById(\'avatar-file-input\').click()" title="Avatar ändern">' +
-        '<div class="profile-avatar" style="width:64px;height:64px;font-size:24px;overflow:hidden;padding:0;' + (currentUser.avatar ? 'background:none;' : '') + '">' +
-          (currentUser.avatar
-            ? '<img id="konto-avatar-img" src="' + currentUser.avatar + '" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:50%;">'
-            : nameInitials(name)) +
+    '<h1 style="font-size:22px;font-weight:700;color:var(--primary);margin-bottom:20px">&#x1F512; Konto</h1>' +
+
+    // Two-column grid
+    '<div style="display:grid;grid-template-columns:220px 1fr;gap:24px;align-items:start;max-width:860px">' +
+
+    // ── Left column ──
+    '<div>' +
+
+      // Avatar card
+      '<div class="panel" style="padding:20px;text-align:center;margin-bottom:16px">' +
+        '<div style="position:relative;width:72px;margin:0 auto 10px;cursor:pointer" onclick="document.getElementById(\'avatar-file-input\').click()" title="Avatar ändern">' +
+          '<div class="profile-avatar" style="width:72px;height:72px;font-size:26px;overflow:hidden;padding:0;' + (currentUser.avatar ? 'background:none;' : '') + '">' + avatarInner + '</div>' +
+          '<div style="position:absolute;bottom:0;right:0;background:var(--primary);color:var(--on-primary);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;">&#x1F4F7;</div>' +
         '</div>' +
-        '<div style="position:absolute;bottom:0;right:0;background:var(--primary);color:var(--on-primary);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;">&#x1F4F7;</div>' +
+        '<input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadAvatar(this)">' +
+        '<div style="font-weight:700;font-size:15px">' + name + '</div>' +
+        '<div style="color:var(--text2);font-size:12px;margin-top:3px">' + rolleLabel(currentUser.rolle) + '</div>' +
+        (currentUser.avatar ? '<button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:11px;color:var(--text2)" onclick="deleteAvatar()">&#x2715; Avatar entfernen</button>' : '') +
       '</div>' +
-      '<input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadAvatar(this)">' +
-      '<div style="font-size:18px;font-weight:600">' + name + '</div>' +
-      '<div style="color:var(--text2);font-size:13px;margin-top:4px">' + rolleLabel(currentUser.rolle) + '</div>' +
-      (currentUser.avatar ? '<button class="btn btn-ghost btn-sm" style="margin-top:6px;font-size:11px;color:var(--text2)" onclick="deleteAvatar()">&#x2715; Avatar entfernen</button>' : '') +
-    '</div>' +
-    '<hr style="border:none;border-top:1px solid var(--border);margin:0 0 16px"/>' +
-    '<div class="form-grid" style="margin-bottom:8px">' +
-      '<div class="form-group full">' +
-        '<label>&#x1F319; Erscheinungsbild</label>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px" id="theme-btns">' +
-          '<button class="btn btn-sm ' + (getThemePref()==='auto'  ? 'btn-primary' : 'btn-ghost') + '" onclick="setTheme(\'auto\')" >&#x1F4BB; Automatisch</button>' +
-          '<button class="btn btn-sm ' + (getThemePref()==='light' ? 'btn-primary' : 'btn-ghost') + '" onclick="setTheme(\'light\')">&#x2600;&#xFE0F; Hell</button>' +
-          '<button class="btn btn-sm ' + (getThemePref()==='dark'  ? 'btn-primary' : 'btn-ghost') + '" onclick="setTheme(\'dark\')" >&#x1F319; Dunkel</button>' +
-        '</div>' +
-      '</div>' +
-    '</div>' +
-    '<hr style="border:none;border-top:1px solid var(--border);margin:0 0 16px"/>' +
-    '<div class="form-grid">' +
-      '<div class="form-group full"><label>Aktuelles Passwort</label><input type="password" id="pw-alt" placeholder="" autocomplete="current-password"/></div>' +
-      '<div class="form-group full"><label>Neues Passwort</label><input type="password" id="pw-neu" placeholder="min. 12 Zeichen" autocomplete="new-password" oninput="kontoNewPwCheck()"/>' +
-        '<div id="konto-pw-strength" class="pw-strength-wrap" style="display:none">' +
-          '<div class="pw-strength-bar"><div id="konto-pw-bar" class="pw-strength-fill"></div></div>' +
-          '<div id="konto-pw-groups" class="pw-groups"></div>' +
+
+      // Theme card
+      '<div class="panel" style="padding:16px;margin-bottom:16px">' +
+        '<div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">&#x1F319; Erscheinungsbild</div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px" id="theme-btns">' +
+          '<button class="btn btn-sm ' + (getThemePref()==='auto'  ? 'btn-primary' : 'btn-ghost') + '" onclick="setTheme(\'auto\')" style="justify-content:flex-start">&#x1F4BB; Automatisch</button>' +
+          '<button class="btn btn-sm ' + (getThemePref()==='light' ? 'btn-primary' : 'btn-ghost') + '" onclick="setTheme(\'light\')" style="justify-content:flex-start">&#x2600;&#xFE0F; Hell</button>' +
+          '<button class="btn btn-sm ' + (getThemePref()==='dark'  ? 'btn-primary' : 'btn-ghost') + '" onclick="setTheme(\'dark\')" style="justify-content:flex-start">&#x1F319; Dunkel</button>' +
         '</div>' +
       '</div>' +
-      '<div class="form-group full"><label>Neues Passwort wiederholen</label><input type="password" id="pw-neu2" placeholder="Wiederholen" autocomplete="new-password"/></div>' +
+
+      // Konto löschen card
+      '<div class="panel" style="padding:16px;border:1px solid #ffcdd2">' +
+        '<div style="font-size:12px;font-weight:700;color:#cc0000;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">&#x26A0;&#xFE0E; Konto löschen</div>' +
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.5">Konto wird vom Athletenprofil getrennt und 30 Tage lang in den Papierkorb verschoben.</div>' +
+        '<button class="btn btn-ghost btn-sm" style="color:#cc0000;border-color:#cc0000;width:100%" onclick="showKontoLoeschenDialog()">Konto löschen…</button>' +
+      '</div>' +
+
     '</div>' +
-    '<div id="pw-msg" style="display:none;margin:10px 0;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600"></div>' +
-    '<button class="btn btn-primary btn-sm" style="margin-top:16px;margin-bottom:32px" onclick="changePasswort()">Passwort ändern</button>' +
-    '<hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px"/>' +
-    '<div style="margin-bottom:6px"><strong>&#x1F512; Zwei-Faktor-Authentifizierung</strong></div>' +
-    '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">Mindestens eine Methode muss aktiv sein.</div>' +
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">' +
-      '<span style="font-size:13px">&#x1F4F1; Authenticator-App (TOTP)</span>' +
-      (currentUser.totp_aktiv
-        ? '<button class="btn btn-sm btn-ghost" style="color:#cc0000" onclick="disableTotp()">Deaktivieren</button>'
-        : '<button class="btn btn-sm btn-primary" onclick="showTotpSetupInProfile()">Einrichten</button>') +
-    '</div>' +
-    '<div style="margin-bottom:12px">' +
-      '<div style="margin-bottom:8px;font-size:13px">&#x1F511; Passkeys</div>' +
-      '<div id="passkey-section-profil"></div>' +
-    '</div>' +
-    '<div style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap">' +
-    '<hr style="border:none;border-top:1px solid var(--border);margin:32px 0 16px"/>' +
-    '<div style="margin-bottom:6px"><strong style="color:var(--accent)">&#x26A0;&#xFE0E; Konto löschen</strong></div>' +
-    '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">Das Benutzerkonto wird vom Athletenprofil getrennt und in den Papierkorb verschoben. Das Athletenprofil bleibt erhalten. Innerhalb von 30 Tagen kann das Konto wiederhergestellt werden.</div>' +
-    '<button class="btn btn-ghost btn-sm" style="color:var(--accent);border-color:var(--accent)" onclick="showKontoLoeschenDialog()">Konto löschen…</button>' +
-  '</div>';
+
+    // ── Right column ──
+    '<div>' +
+
+      // Password card
+      '<div class="panel" style="padding:20px;margin-bottom:16px">' +
+        '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px">&#x1F511; Passwort ändern</div>' +
+        '<div class="form-grid">' +
+          '<div class="form-group full"><label>Aktuelles Passwort</label><input type="password" id="pw-alt" placeholder="" autocomplete="current-password"/></div>' +
+          '<div class="form-group full"><label>Neues Passwort</label><input type="password" id="pw-neu" placeholder="min. 12 Zeichen" autocomplete="new-password" oninput="kontoNewPwCheck()"/>' +
+            '<div id="konto-pw-strength" class="pw-strength-wrap" style="display:none">' +
+              '<div class="pw-strength-bar"><div id="konto-pw-bar" class="pw-strength-fill"></div></div>' +
+              '<div id="konto-pw-groups" class="pw-groups"></div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="form-group full"><label>Neues Passwort wiederholen</label><input type="password" id="pw-neu2" placeholder="Wiederholen" autocomplete="new-password"/></div>' +
+        '</div>' +
+        '<div id="pw-msg" style="display:none;margin:8px 0;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600"></div>' +
+        '<button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="changePasswort()">Passwort ändern</button>' +
+      '</div>' +
+
+      // 2FA card
+      '<div class="panel" style="padding:20px">' +
+        '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">&#x1F512; Zwei-Faktor-Authentifizierung</div>' +
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Mindestens eine Methode muss aktiv sein.</div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">' +
+          '<span style="font-size:13px">&#x1F4F1; Authenticator-App (TOTP)</span>' +
+          (currentUser.totp_aktiv
+            ? '<button class="btn btn-sm btn-ghost" style="color:#cc0000" onclick="disableTotp()">Deaktivieren</button>'
+            : '<button class="btn btn-sm btn-primary" onclick="showTotpSetupInProfile()">Einrichten</button>') +
+        '</div>' +
+        '<div style="padding:10px 0">' +
+          '<div style="font-size:13px;margin-bottom:8px">&#x1F511; Passkeys</div>' +
+          '<div id="passkey-section-profil"></div>' +
+        '</div>' +
+      '</div>' +
+
+    '</div>' + // end right column
+    '</div>'; // end grid
+
   setTimeout(function() { renderPasskeySection('passkey-section-profil'); }, 50);
 }
 
@@ -1903,17 +1928,17 @@ function kontoNewPwCheck() {
 
 function showKontoLoeschenDialog() {
   showModal(
-    '<h2 style="color:var(--accent)">&#x26A0;&#xFE0E; Konto löschen <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<h2 style="color:#cc0000">&#x26A0;&#xFE0E; Konto löschen <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<p style="font-size:13px;color:var(--text2);margin:0 0 16px">Das Benutzerkonto wird vom Athletenprofil getrennt und gelöscht.<br>' +
     'Das Athletenprofil bleibt erhalten. Innerhalb von <strong>30 Tagen</strong> kann das Konto wiederhergestellt werden.</p>' +
     '<div class="form-group" style="margin-bottom:16px">' +
       '<label style="font-weight:600">Bitte tippe <strong style="font-family:monospace;background:var(--surf2);padding:1px 6px;border-radius:4px">KONTO LÖSCHEN</strong> ein um fortzufahren:</label>' +
       '<input type="text" id="kl-bestaetigung" placeholder="KONTO LÖSCHEN" style="margin-top:6px;font-family:monospace"/>' +
     '</div>' +
-    '<div id="kl-err" style="color:var(--accent);font-size:13px;min-height:18px;margin-bottom:8px"></div>' +
+    '<div id="kl-err" style="color:#cc0000;font-size:13px;min-height:18px;margin-bottom:8px"></div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-      '<button class="btn btn-danger" onclick="doKontoLoeschen()">Unwiderruflich löschen</button>' +
+      '<button class="btn btn-ghost btn-sm" style="color:#cc0000;border-color:#cc0000" onclick="doKontoLoeschen()">Unwiderruflich löschen</button>' +
     '</div>'
   );
 }
