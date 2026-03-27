@@ -1,3 +1,12 @@
+## v779 – Neueste Bestleistungen
+
+- Neue API-Felder: `vorher_club` und `vorher_pers` separat vom gemeinsamen `vorher_val`
+- Wenn Vereinsrekord UND persönlicher Rekord gleichzeitig gebrochen werden und die Vorgänger unterschiedlich sind: beide werden angezeigt
+  - z.B. "Vereins vorher: 19:30 · PB vorher: 18:44"
+- Wenn nur ein Vorgänger oder beide gleich: wie bisher "vorher: X"
+
+---
+
 ## v778
 
 - Kategorien: `flex:0 0 auto` → nehmen nur so viel Platz wie nötig
