@@ -122,6 +122,7 @@ try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXIS
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS disziplin_mapping_id INT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS altersklasse VARCHAR(20) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS genehmigt TINYINT(1) NOT NULL DEFAULT 1"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS geloescht_am DATETIME NULL"); } catch (\Exception $e) {}
 // Migration: Rollen-System (rollen-Tabelle)
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rollen') . " (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -398,6 +399,16 @@ if ($res === 'auth') {
         jsonOk(null);
     }
     // --- Logout ---
+    // Konto löschen (in Papierkorb – 30 Tage Wiederherstellung)
+    if ($method === 'DELETE' && $id === 'konto') {
+        $user = Auth::requireLogin();
+        $uid = (int)$user['id'];
+        // Vom Athletenprofil trennen + geloescht_am setzen
+        DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET athlet_id = NULL, aktiv = 0, geloescht_am = NOW() WHERE id = ?', [$uid]);
+        Auth::logout();
+        jsonOk(['msg' => 'Konto gelöscht.']);
+    }
+
     if ($method === 'POST' && $id === 'logout') {
         Auth::logout();
         jsonOk('Abgemeldet.');

@@ -1,3 +1,14 @@
+## v760 – Konto-Seite
+
+- **Abstand**: Mehr Platz zwischen "Passwort wiederholen" und "Passwort ändern"-Button (margin-top:16px)
+- **Abmelden entfernt**: Kein Abmelden-Button auf der Konto-Seite mehr
+- **Konto löschen**: Neuer Bereich mit roter Warnung, Beschreibung und Button
+  - Dialog mit Pflichtfeld: User muss "KONTO LÖSCHEN" eintippen
+  - Backend: `DELETE auth/konto` → trennt Athletenprofil, setzt `aktiv=0` und `geloescht_am=NOW()`
+  - User wird abgemeldet; Konto bleibt 30 Tage im Papierkorb wiederherstellbar (via Admin)
+
+---
+
 ## v759 – Konto Passwort-Bereich
 
 - **Placeholder**: "min. 8 Zeichen" → "min. 12 Zeichen"
