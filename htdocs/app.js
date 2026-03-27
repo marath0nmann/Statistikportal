@@ -1628,6 +1628,7 @@ async function _ladeKontoAthletPanel() {
     '<option value="">-- wählen --</option>',
     '<option value="M"' + (a.geschlecht === 'M' ? ' selected' : '') + '>♂ Männlich</option>',
     '<option value="W"' + (a.geschlecht === 'W' ? ' selected' : '') + '>♀ Weiblich</option>',
+    '<option value="D"' + (a.geschlecht === 'D' ? ' selected' : '') + '>⚧ Divers</option>',
   ].join('');
 
   var formHtml =
@@ -1698,7 +1699,7 @@ function _renderKontoPage() {
     '<h1 style="font-size:22px;font-weight:700;color:var(--primary);margin-bottom:20px">&#x1F512; Konto</h1>' +
 
     // Two-column grid
-    '<div style="display:grid;grid-template-columns:220px 1fr;gap:24px;align-items:start;max-width:860px">' +
+    '<div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:20px;align-items:start;max-width:1100px">' +
 
     // ── Left column ──
     '<div>' +
@@ -1734,7 +1735,7 @@ function _renderKontoPage() {
 
     '</div>' +
 
-    // ── Right column ──
+    // ── Middle column: Passwort + 2FA ──
     '<div>' +
 
       // Password card
@@ -1754,15 +1755,6 @@ function _renderKontoPage() {
         '<button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="changePasswort()">Passwort ändern</button>' +
       '</div>' +
 
-      // Athletenprofil-Karte (nur wenn verknüpft)
-      (currentUser.athlet_id ? (
-        '<div class="panel" style="padding:20px;margin-bottom:16px" id="konto-athlet-panel">' +
-          '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">&#x1F3C3;&#xFE0E; Athletenprofil</div>' +
-          '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Änderungen werden von einem Editor oder Admin geprüft.</div>' +
-          '<div class="loading"><div class="spinner"></div></div>' +
-        '</div>'
-      ) : '') +
-
       // 2FA card
       '<div class="panel" style="padding:20px">' +
         '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">&#x1F512; Zwei-Faktor-Authentifizierung</div>' +
@@ -1779,7 +1771,17 @@ function _renderKontoPage() {
         '</div>' +
       '</div>' +
 
-    '</div>' + // end right column
+    '</div>' +
+
+    // ── Right column: Athletenprofil ──
+    (currentUser.athlet_id ?
+      '<div><div class="panel" style="padding:20px" id="konto-athlet-panel">' +
+        '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">&#x1F3C3;&#xFE0E; Athletenprofil</div>' +
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Änderungen werden von einem Editor oder Admin geprüft.</div>' +
+        '<div class="loading"><div class="spinner"></div></div>' +
+      '</div></div>'
+    : '') +
+
     '</div>'; // end grid
 
   setTimeout(function() { renderPasskeySection('passkey-section-profil'); }, 50);
@@ -3809,7 +3811,8 @@ function _renderAthletenTable() {
     var canDel = isAdmin && parseInt(a.anz_ergebnisse) === 0;
     var aktuellAK = (a.geschlecht && a.geburtsjahr) ? calcDlvAK(a.geburtsjahr, a.geschlecht, jetzt) : '';
     var gSymbol = a.geschlecht === 'M' ? '<span title="Männlich" style="font-size:15px">♂</span>'
-                : a.geschlecht === 'W' ? '<span title="Weiblich" style="font-size:15px">♀</span>' : '';
+                : a.geschlecht === 'W' ? '<span title="Weiblich" style="font-size:15px">♀</span>'
+                : a.geschlecht === 'D' ? '<span title="Divers" style="font-size:15px">⚧</span>' : '';
     rows +=
       '<tr>' +
         '<td><span class="athlet-link" onclick="openAthletById(' + a.id + ')">' + a.nachname + '</span></td>' +
@@ -4157,7 +4160,7 @@ async function openAthletById(id) {
         (gruppenTags && _canSeePersoenlicheDaten() ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">' + gruppenTags + '</div>' : '') +
         '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">' +
           '<span class="badge badge-ak">' + totalErg + ' Wettkämpfe</span>' +
-          (athlet.geschlecht ? '<span class="badge" style="background:var(--surf2);color:var(--text)">' + (athlet.geschlecht === 'M' ? '♂ Männlich' : '♀ Weiblich') + '</span>' : '') +
+          (athlet.geschlecht ? '<span class="badge" style="background:var(--surf2);color:var(--text)">' + (athlet.geschlecht === 'M' ? '♂ Männlich' : athlet.geschlecht === 'W' ? '♀ Weiblich' : '⚧ Divers') + '</span>' : '') +
           (_canSeePersoenlicheDaten() && athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jg. ' + athlet.geburtsjahr + '</span>' : '') +
           (function(){ var _ak = (athlet.geschlecht && athlet.geburtsjahr) ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : ''; return _ak ? akBadge(_ak) : ''; })() +
         '</div>' +
@@ -10475,7 +10478,7 @@ function showNeuerAthletModal() {
     '<div class="form-grid">' +
       '<div class="form-group"><label>Nachname *</label><input type="text" id="na-nn"/></div>' +
       '<div class="form-group"><label>Vorname *</label><input type="text" id="na-vn"/></div>' +
-      '<div class="form-group"><label>Geschlecht</label><select id="na-g"><option value="">&#x2013;</option><option value="M">M&auml;nnlich</option><option value="W">Weiblich</option></select></div>' +
+      '<div class="form-group"><label>Geschlecht</label><select id="na-g"><option value="">&#x2013;</option><option value="M">M&auml;nnlich</option><option value="W">Weiblich</option><option value="D">Divers</option></select></div>' +
       '<div class="form-group"><label>Geburtsjahr</label><input type="number" id="na-gebj" min="1930" max="2020" placeholder="z.B. 1988" style="width:130px"/></div>' +
       '<div class="form-group full"><label>Gruppen <span style="font-size:11px;color:var(--text2)">(kommagetrennt)</span></label><input type="text" id="na-gr" placeholder="z.B. Senioren, Masters"/></div>' +
     '</div>' +
@@ -10512,6 +10515,7 @@ function showAthletEditModal(id) {
         '<option value=""' + (!a.geschlecht?' selected':'') + '>&#x2013;</option>' +
         '<option value="M"' + (a.geschlecht==='M'?' selected':'') + '>M\u00e4nnlich</option>' +
         '<option value="W"' + (a.geschlecht==='W'?' selected':'') + '>Weiblich</option>' +
+        '<option value="D"' + (a.geschlecht==='D'?' selected':'') + '>Divers</option>' +
       '</select></div>' +
       '<div class="form-group"><label>Geburtsjahr</label><input type="number" id="ea-gebj" value="' + gebJahr + '" min="1930" max="2020" placeholder="z.B. 1988" style="width:120px"/></div>' +
       '<div class="form-group full"><label>Gruppen <span style="font-size:11px;color:var(--text2)">(kommagetrennt)</span></label><input type="text" id="ea-gr" value="' + curGruppen + '" placeholder="z.B. Senioren, Masters"/></div>' +
@@ -12683,7 +12687,7 @@ function renderGruppenInline(gruppen) {
 
 function akBadge(ak) {
   if (!ak) return '&ndash;';
-  var cls = /^W/i.test(ak) ? 'badge-w' : /^[MH]/i.test(ak) ? 'badge-m' : '';
+  var cls = /^W/i.test(ak) ? 'badge-w' : /^[MHD]/i.test(ak) ? 'badge-m' : '';
   return '<span class="badge ' + cls + '">' + ak + '</span>';
 }
 
