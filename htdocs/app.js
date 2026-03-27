@@ -1650,12 +1650,18 @@ function _renderKontoPage() {
     '</div>' +
     '<hr style="border:none;border-top:1px solid var(--border);margin:0 0 16px"/>' +
     '<div class="form-grid">' +
-      '<div class="form-group full"><label>Aktuelles Passwort</label><input type="password" id="pw-alt" placeholder=""/></div>' +
-      '<div class="form-group"><label>Neues Passwort</label><input type="password" id="pw-neu" placeholder="min. 8 Zeichen"/></div>' +
-      '<div class="form-group"><label>Wiederholen</label><input type="password" id="pw-neu2" placeholder="Wiederholen"/></div>' +
+      '<div class="form-group full"><label>Aktuelles Passwort</label><input type="password" id="pw-alt" placeholder="" autocomplete="current-password"/></div>' +
+      '<div class="form-group full"><label>Neues Passwort</label><input type="password" id="pw-neu" placeholder="min. 12 Zeichen" autocomplete="new-password" oninput="kontoNewPwCheck()"/>' +
+        '<div id="konto-pw-strength" class="pw-strength-wrap" style="display:none">' +
+          '<div class="pw-strength-bar"><div id="konto-pw-bar" class="pw-strength-fill"></div></div>' +
+          '<div id="konto-pw-groups" class="pw-groups"></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="form-group full"><label>Neues Passwort wiederholen</label><input type="password" id="pw-neu2" placeholder="Wiederholen" autocomplete="new-password"/></div>' +
     '</div>' +
     '<div id="pw-msg" style="display:none;margin:10px 0;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600"></div>' +
-    '<hr style="border:none;border-top:1px solid var(--border);margin:0 0 16px"/>' +
+    '<button class="btn btn-primary btn-sm" style="margin-bottom:24px" onclick="changePasswort()">Passwort ändern</button>' +
+    '<hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px"/>' +
     '<div style="margin-bottom:6px"><strong>&#x1F512; Zwei-Faktor-Authentifizierung</strong></div>' +
     '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">Mindestens eine Methode muss aktiv sein.</div>' +
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">' +
@@ -1669,7 +1675,7 @@ function _renderKontoPage() {
       '<div id="passkey-section-profil"></div>' +
     '</div>' +
     '<div style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap">' +
-      '<button class="btn btn-primary" onclick="changePasswort()">Passwort ändern</button>' +
+      
       '<button class="btn btn-ghost" style="color:var(--accent)" onclick="logout()">Abmelden</button>' +
     '</div>' +
   '</div>';
@@ -1863,6 +1869,36 @@ async function deleteAvatar() {
 if(state.tab==='konto')_renderKontoPage();
     } else { notify(data.fehler || 'Fehler.', 'err'); }
   } catch(e) { notify('Fehler.', 'err'); }
+}
+
+function kontoNewPwCheck() {
+  var pw   = document.getElementById('pw-neu') ? document.getElementById('pw-neu').value : '';
+  var wrap = document.getElementById('konto-pw-strength');
+  var bar  = document.getElementById('konto-pw-bar');
+  var grps = document.getElementById('konto-pw-groups');
+  if (!wrap) return;
+  if (!pw) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  var s = _pwScore(pw);
+  var fullyOk = s.lengthOk && s.groups >= 3;
+  var pct   = Math.min((pw.length / 12) * 60 + (s.groups / 4) * 40, 100);
+  var color = fullyOk ? '#16a34a' : s.groups >= 3 ? '#eab308' : s.groups >= 2 ? '#f97316' : '#ef4444';
+  bar.style.width = pct + '%';
+  bar.style.background = color;
+  var labels = [
+    { key: /[A-Z]/, label: 'Großbuchstaben' },
+    { key: /[a-z]/, label: 'Kleinbuchstaben' },
+    { key: /[0-9]/, label: 'Zahlen' },
+    { key: /[^A-Za-z0-9]/, label: 'Sonderzeichen' },
+  ];
+  var html = '';
+  for (var i = 0; i < labels.length; i++) {
+    var ok = labels[i].key.test(pw);
+    html += '<span class="pw-group ' + (ok ? 'ok' : 'missing') + '">' + (ok ? '✓' : '○') + ' ' + labels[i].label + '</span>';
+  }
+  var lenOk = pw.length >= 12;
+  html += '<span class="pw-group ' + (lenOk ? 'ok' : 'missing') + '">' + (lenOk ? '✓' : '○') + ' 12+ Zeichen (' + pw.length + ')</span>';
+  grps.innerHTML = html;
 }
 
 async function changePasswort() {
