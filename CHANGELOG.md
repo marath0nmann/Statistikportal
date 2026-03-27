@@ -1,3 +1,10 @@
+## v777
+
+- **Kategorien nebeneinander**: Jede Kategorie bekommt `flex:1; min-width:160px` → bei genug Breite stehen sie nebeneinander, bei wenig Platz stapeln sie sich vertikal
+- Rein CSS-basiert, kein JS nötig
+
+---
+
 ## v776
 
 - **Datenbank**: `geschlecht ENUM('M','W','D','')` – 'D' war nicht im ENUM, daher wurde es silently verworfen
