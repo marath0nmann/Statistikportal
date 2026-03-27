@@ -1,3 +1,12 @@
+## v780
+
+- **Vorige Werte im Badge**: `Bestleistung Frauen (73,81s)` statt separatem "vorher: ..."-Text
+- Bei zwei unterschiedlichen Vorgängern: Club-Badge bekommt Vereins-Vorgänger, PB-Badge den persönlichen Vorgänger
+- Bei gleichem Vorgänger: nur einmal im PB-Badge
+- Keine separate vorher-Zeile mehr
+
+---
+
 ## v779 – Neueste Bestleistungen
 
 - Neue API-Felder: `vorher_club` und `vorher_pers` separat vom gemeinsamen `vorher_val`

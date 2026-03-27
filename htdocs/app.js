@@ -2683,20 +2683,36 @@ async function renderDashboard() {
 function timelineBadges(rek) {
   var lc = rek.label_club || null;
   var lp = rek.label_pers || null;
+  var fmt = rek.fmt || '';
+  var _fmtV = function(v) {
+    if (v === null || v === undefined) return '';
+    return fmtValNum(v, fmt === 's' ? 's' : (fmt === 'm' ? 'm' : 'min'));
+  };
+  var vcFmt = _fmtV(rek.vorher_club);
+  var vpFmt = _fmtV(rek.vorher_pers);
+  // Wenn beide gleich: nur einmal zeigen; wenn unterschiedlich: je Badge zuordnen
+  var bothSame = vcFmt && vpFmt && vcFmt === vpFmt;
+  var singleVorher = bothSame ? vcFmt : '';
+
   var html = '';
   if (lc) {
     var isGold = lc.indexOf('Gesamt') >= 0 || lc.indexOf('Männer') >= 0 || lc.indexOf('Frauen') >= 0 || lc.indexOf('Ergebnis M') >= 0 || lc.indexOf('Ergebnis W') >= 0;
-    html += '<span class="badge ' + (isGold ? 'badge-gold' : 'badge-silver') + '">' + lc + '</span> ';
+    var vcSuffix = (!rek.extern && !bothSame && vcFmt) ? ' <span style="opacity:.75;font-weight:400">(' + vcFmt + ')</span>' : '';
+    html += '<span class="badge ' + (isGold ? 'badge-gold' : 'badge-silver') + '">' + lc + vcSuffix + '</span> ';
   }
   if (lp) {
-    html += '<span class="badge badge-pb">' + lp + '</span>';
+    var vpSuffix = (!rek.extern && !bothSame && vpFmt) ? ' <span style="opacity:.75;font-weight:400">(' + vpFmt + ')</span>'
+                : (!rek.extern && singleVorher) ? ' <span style="opacity:.75;font-weight:400">(' + singleVorher + ')</span>' : '';
+    html += '<span class="badge badge-pb">' + lp + vpSuffix + '</span>';
   }
   // Fallback für ältere Daten ohne label_club/label_pers
   if (!lc && !lp && rek.label) {
     var lbl = rek.label;
     var cls = (lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge-gold'
-            : (lbl === 'PB' || lbl === 'Debüt') ? 'badge-pb' : 'badge-silver';
-    html += '<span class="badge ' + cls + '">' + lbl + '</span>';
+            : (lbl === 'PB' || lbl === 'Débüt') ? 'badge-pb' : 'badge-silver';
+    var fallbackV = _fmtV(rek.vorher_val);
+    var fbSuffix = (!rek.extern && fallbackV) ? ' <span style="opacity:.75;font-weight:400">(' + fallbackV + ')</span>' : '';
+    html += '<span class="badge ' + cls + '">' + lbl + fbSuffix + '</span>';
   }
   return html.trim();
 }
@@ -2718,22 +2734,7 @@ function timelineBadges(rek) {
     var athletNameVN = _nvParts.length >= 2 ? (_nvParts.slice(1).join(' ') + ' ' + _nvParts[0]).trim() : athletName;
     var athLink = rek.athlet_id ? '<span class="athlet-link" style="color:var(--primary);font-weight:700" data-athlet-id="' + rek.athlet_id + '">' + athletNameVN + '</span>' : '<span style="color:var(--primary);font-weight:700">' + athletNameVN + '</span>';
 
-    // Vorheriges Ergebnis aufbereiten – ggf. zwei getrennte Werte (Club + Persönlich)
-    var vorherHtml = '';
-    if (!rek.extern) {
-      var _vFmt = function(v) { return v !== null && v !== undefined ? fmtValNum(v, fmt === 's' ? 's' : (fmt === 'm' ? 'm' : 'min')) : ''; };
-      var _vClub = _vFmt(rek.vorher_club);
-      var _vPers = _vFmt(rek.vorher_pers);
-      var _vMain = _vFmt(rek.vorher_val); // Fallback
-      if (_vClub && _vPers && _vClub !== _vPers) {
-        // Beide vorigen Werte unterschiedlich: beide anzeigen
-        vorherHtml = '<span style="color:var(--text2);font-size:12px;margin-left:6px">' +
-          'Vereins vorher: ' + _vClub + ' &middot; PB vorher: ' + _vPers + '</span>';
-      } else if (_vClub || _vPers || _vMain) {
-        var _v = _vClub || _vPers || _vMain;
-        vorherHtml = '<span style="color:var(--text2);font-size:12px;margin-left:6px">vorher: ' + _v + '</span>';
-      }
-    }
+    var vorherHtml = ''; // vorher-Werte sind jetzt in den Badges integriert
 
     timelineHtml += '<div class="timeline-item">';
     timelineHtml += '<div class="timeline-date">' + formatDate(rek.datum) + '</div>';
@@ -2926,15 +2927,7 @@ function timelineBadges(rek) {
             ? '<span class="athlet-link" style="color:var(--primary);font-weight:700" data-athlet-id="' + fItem.athlet_id + '">' + fAthletNameVN + '</span>'
             : '<span style="color:var(--primary);font-weight:700">' + fAthletNameVN + '</span>';
           var fVorher = '';
-          if (!fItem.extern) {
-            var _fvF = function(v) { return v !== null && v !== undefined ? fmtValNum(v, fFmt === 's' ? 's' : (fFmt === 'm' ? 'm' : 'min')) : ''; };
-            var _fvc = _fvF(fItem.vorher_club), _fvp = _fvF(fItem.vorher_pers), _fvm = _fvF(fItem.vorher_val);
-            if (_fvc && _fvp && _fvc !== _fvp) {
-              fVorher = '<span style="color:var(--text2);font-size:12px;margin-left:6px">Vereins vorher: ' + _fvc + ' &middot; PB vorher: ' + _fvp + '</span>';
-            } else if (_fvc || _fvp || _fvm) {
-              fVorher = '<span style="color:var(--text2);font-size:12px;margin-left:6px">vorher: ' + (_fvc || _fvp || _fvm) + '</span>';
-            }
-          }
+          var fVorher = ''; // vorher-Werte sind in Badges integriert
           var fDiszLink = '<span class="athlet-link" style="color:var(--text2);font-size:13px;cursor:pointer" data-rek-disz="' + fItem.disziplin.replace(/"/g,'&quot;') + '" data-rek-mid="' + (fItem.disziplin_mapping_id||'') + '" onclick="navigateToDisz(this.dataset.rekDisz,this.dataset.rekMid)">' + ergDiszLabel(fItem) + '</span>';
           filteredTimeline +=
             '<div class="timeline-item">' +
