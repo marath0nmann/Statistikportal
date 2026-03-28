@@ -76,8 +76,7 @@ class Auth {
         }
 
         // Erfolgreicher Passwort-Check – Versuch loggen
-        // Login-Versuch loggen (Methode: password – 2FA folgt noch)
-        try { DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg, methode) VALUES (?, ?, 1, ?)', [$user['email'], $ip, 'password']); } catch (\Exception $e) {}
+        // Login-Versuch wird NACH 2FA geloggt (in finalizeLogin)
 
         // 2FA für alle User: TOTP oder Passkey
         $hasTotp    = !empty($user['totp_aktiv']);
@@ -150,6 +149,8 @@ class Auth {
         if (!TOTP::verify($user['totp_secret'], $code)) {
             return ['ok' => false, 'fehler' => 'Ungültiger Code. Bitte erneut versuchen.'];
         }
+        $ip2 = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+        try { \DB::query('INSERT INTO ' . \DB::tbl('login_versuche') . ' (benutzername, ip, erfolg, methode) VALUES (?, ?, 1, ?)', [$user['email'], $ip2, 'totp']); } catch (\Exception $e) {}
         unset($_SESSION['totp_pending_user']);
         return self::finalizeLogin($user);
     }

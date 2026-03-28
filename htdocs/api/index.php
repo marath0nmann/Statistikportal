@@ -980,16 +980,19 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     $__myUid = (int)($adminUser['id'] ?? 0); // aus requireAdmin() – sicher
     if ($__myUid) {
         try {
-            $meRow = DB::fetchOne('SELECT b.id, b.benutzername, b.email, b.vorname, b.nachname, b.rolle, b.avatar_pfad FROM ' . DB::tbl('benutzer') . ' b WHERE b.id=? AND b.aktiv=1', [$__myUid]);
+            $meRow = DB::fetchOne('SELECT b.id, b.benutzername, b.email, b.rolle, b.avatar_pfad FROM ' . DB::tbl('benutzer') . ' b WHERE b.id=? AND b.aktiv=1', [$__myUid]);
             if ($meRow) {
-                $aktiveBenutzer[] = ['id' => (int)$meRow['id'], 'name' => trim(($meRow['vorname']??'').' '.($meRow['nachname']??'')) ?: ($meRow['email']??$meRow['benutzername']), 'rolle' => $meRow['rolle'], 'seit' => date('Y-m-d H:i:s'), 'avatar' => $meRow['avatar_pfad']];
+                // Name aus verknüpftem Athletenprofil laden
+                $meName = $meRow['email'] ?? $meRow['benutzername'];
+                try { $ath = DB::fetchOne('SELECT CONCAT(vorname,\' \',nachname) AS n FROM ' . DB::tbl('athleten') . ' a JOIN ' . DB::tbl('benutzer') . ' b2 ON b2.athlet_id=a.id WHERE b2.id=?', [$__myUid]); if ($ath && trim($ath['n'])) $meName = trim($ath['n']); } catch(\Exception $e) {}
+                $aktiveBenutzer[] = ['id' => (int)$meRow['id'], 'name' => $meName, 'rolle' => $meRow['rolle'], 'seit' => date('Y-m-d H:i:s'), 'avatar' => $meRow['avatar_pfad']];
                 $geseheneIds[$__myUid] = true;
             }
         } catch (\Exception $e) {}
     }
     try {
         $rows = DB::fetchAll(
-            "SELECT b.id, b.benutzername, b.email, b.vorname, b.nachname, b.rolle,
+            "SELECT b.id, b.benutzername, b.email, b.rolle,
                     MAX(s.erstellt_am) AS letzter_aktivitaet, b.avatar_pfad
              FROM " . DB::tbl('seitenaufrufe') . " s
              JOIN " . DB::tbl('benutzer') . " b ON b.id = s.benutzer_id
@@ -1002,7 +1005,7 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
             if (!empty($geseheneIds[(int)$r['id']])) continue;
             $aktiveBenutzer[] = [
                 'id'          => (int)$r['id'],
-                'name'        => trim(($r['vorname'] ?? '') . ' ' . ($r['nachname'] ?? '')) ?: ($r['email'] ?? $r['benutzername']),
+                'name'        => $r['email'] ?? $r['benutzername'],
                 'benutzername'=> $r['benutzername'],
                 'rolle'       => $r['rolle'],
                 'seit'        => $r['letzter_aktivitaet'],
