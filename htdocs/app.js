@@ -5,7 +5,7 @@
 const API = 'api/index.php';
 let currentUser = null;
 let state = {
-  tab: 'dashboard', subTab: 'strasse',
+  tab: 'dashboard', subTab: null,
   page: 1, limit: 100,
   veranstPage: 1,
   filters: {}, sortCol: null, sortDir: 'asc',
@@ -2512,9 +2512,10 @@ function restoreFromHash() {
     state.subTab = sub;
   } else if (tab === 'rekorde' && sub) {
     state.subTab = sub;
-  } else if (tab === 'eintragen' && sub) {
+  } else if (tab === 'eintragen') {
+    state.subTab = null;
     var validEint = ['bulk'];
-    if (validEint.indexOf(sub) >= 0) state.subTab = sub;
+    if (sub && validEint.indexOf(sub) >= 0) state.subTab = sub;
   }
 }
 
@@ -5261,7 +5262,9 @@ async function saveEigenesErgebnis() {
 function renderEintragen() {
   // Standardtab: bulk wenn berechtigt, sonst eigenes
   // Sicherheitscheck: kein Zugriff auf bulk ohne Berechtigung
-  if (!state.subTab || (state.subTab === 'bulk' && !_canBulkEintragen())) {
+  var _validEintSubTabs = ['bulk', 'eigenes'];
+  if (!state.subTab || _validEintSubTabs.indexOf(state.subTab) < 0 ||
+      (state.subTab === 'bulk' && !_canBulkEintragen())) {
     state.subTab = _canBulkEintragen() ? 'bulk' : (_canEigenesEintragen() ? 'eigenes' : '');
   }
   if (!state.subTab) {
@@ -5279,6 +5282,18 @@ function renderEintragen() {
   tabHtml += '</div>';
 
   if (sub === 'eigenes') {
+    document.getElementById('main-content').innerHTML = tabHtml;
+    renderEigenesEintragen();
+    return;
+  }
+
+  // Absoluter Sicherheitscheck: Bulk-Inhalt nur für berechtigte User
+  if (!_canBulkEintragen()) {
+    state.subTab = _canEigenesEintragen() ? 'eigenes' : '';
+    if (!state.subTab) {
+      document.getElementById('main-content').innerHTML = '<div class="panel" style="padding:32px;text-align:center;color:var(--text2)">Keine Berechtigung.</div>';
+      return;
+    }
     document.getElementById('main-content').innerHTML = tabHtml;
     renderEigenesEintragen();
     return;
