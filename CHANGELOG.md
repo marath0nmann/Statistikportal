@@ -1,3 +1,11 @@
+## v805
+
+**Neueste Bestleistungen**: Wenn Filter aktiv (hidden_types, nur Favoriten), wird jetzt 4× so viel vom Server geladen und danach client-seitig auf das konfigurierte Limit geschnitten – kein Zählen vor dem Filtern mehr
+
+**Mein Athletenprofil-Widget**: Zeigt jetzt wie das Athletenprofil-Modal: Wettkämpfe-Badge, AK-Badge, Jg. sowie 🥇 N Titel · 🏆 N Bestleistungen mit Tooltip
+
+---
+
 ## v804 – Athletenprofil Auszeichnungen
 
 - **Titel-Tooltip**: je Meisterschaft+Disziplin eine Zeile mit Jahreszahlen (wie HoF-Medals)

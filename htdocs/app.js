@@ -2552,6 +2552,13 @@ async function _loadEigenesProfilWidget(elId, showErg) {
   }
 
   // Header
+  // Wettkampf-Anzahl
+  var totalErg2 = 0;
+  for (var _ki=0;_ki<kategorien.length;_ki++) totalErg2 += (kategorien[_ki].ergebnisse||[]).length;
+
+  // Auszeichnungen laden
+  var rAusz2 = await apiGet('athleten/' + currentUser.athlet_id + '/auszeichnungen');
+
   var headerHtml =
     '<div style="display:flex;align-items:center;gap:14px;padding:14px 18px 10px">' +
       '<div style="cursor:pointer" onclick="openAthletById(' + athlet.id + ')" title="Profil öffnen">' + avatarHtml2 + '</div>' +
@@ -2560,9 +2567,31 @@ async function _loadEigenesProfilWidget(elId, showErg) {
           (athlet.vorname||'') + ' ' + (athlet.nachname||'') +
         '</div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center">' +
+          '<span class="badge badge-ak">' + totalErg2 + ' Wettkämpfe</span>' +
           akBadgeHtml +
           (athlet.geburtsjahr ? '<span style="font-size:11px;color:var(--text2)">Jg. ' + athlet.geburtsjahr + '</span>' : '') +
         '</div>' +
+        (function(){
+          var ausz = (rAusz2 && rAusz2.ok) ? rAusz2.data : null;
+          if (!ausz || (!ausz.meisterschaften.length && !ausz.bestleistungen.length)) return '';
+          var parts2 = [];
+          if (ausz.meisterschaften.length) parts2.push('&#x1F947; ' + ausz.meisterschaften.length + ' Titel');
+          if (ausz.bestleistungen.length) parts2.push('&#x1F3C6; ' + ausz.bestleistungen.length + ' Bestleistungen');
+          if (!parts2.length) return '';
+          // Titel-Tooltip
+          var mGrp2={}, mOrd2=[];
+          (ausz.meisterschaften||[]).forEach(function(mt){
+            if(!mGrp2[mt.label]){mGrp2[mt.label]={jahre:[]};mOrd2.push(mt.label);}
+            if(mt.jahr&&mGrp2[mt.label].jahre.indexOf(mt.jahr)<0)mGrp2[mt.label].jahre.push(mt.jahr);
+          });
+          var mTip2=mOrd2.map(function(k){var g=mGrp2[k];g.jahre.sort();return k+(g.jahre.length?' '+g.jahre.join(', '):'')} ).join('&#10;');
+          // Bestleistungs-Tooltip (vereinfacht: je Label eine Zeile)
+          var bTip2=(ausz.bestleistungen||[]).map(function(b){return b.label+' über '+b.disziplin;}).join('&#10;');
+          return '<div style="margin-top:5px;display:flex;gap:10px">' +
+            (ausz.meisterschaften.length&&mTip2 ? '<span title="'+mTip2+'" style="font-size:12px;color:var(--text2);cursor:help">&#x1F947; '+ausz.meisterschaften.length+' Titel</span>' : '') +
+            (ausz.bestleistungen.length&&bTip2 ? '<span title="'+bTip2+'" style="font-size:12px;color:var(--text2);cursor:help">&#x1F3C6; '+ausz.bestleistungen.length+' Bestleistungen</span>' : '') +
+            '</div>';
+        }()) +
       '</div>' +
     '</div>';
 
@@ -2668,7 +2697,18 @@ async function renderDashboard() {
       if (_col2.widget === 'timeline') { mergeAKTl = _col2.tl_merge_ak !== false; break; }
     }
   }
-  var r = await apiGet('dashboard?timeline_limit=' + timelineLimit + '&merge_ak_tl=' + (mergeAKTl ? '1' : '0'));
+  // Over-fetch when filters may reduce count; slice client-side after filtering
+  var _tlFetchLimit = timelineLimit;
+  try {
+    var _layout2 = JSON.parse(appConfig.dashboard_layout || '[]');
+    for (var _rr=0;_rr<_layout2.length;_rr++) for (var _cc=0;_cc<(_layout2[_rr].cols||[]).length;_cc++) {
+      var _wc = _layout2[_rr].cols[_cc];
+      if (_wc.widget === 'timeline' && (_wc.hidden_types?.length || _wc.tl_nur_favoriten)) {
+        _tlFetchLimit = Math.min(timelineLimit * 4, 200); break;
+      }
+    }
+  } catch(e) {}
+  var r = await apiGet('dashboard?timeline_limit=' + _tlFetchLimit + '&merge_ak_tl=' + (mergeAKTl ? '1' : '0'));
   if (!r || !r.ok) {
     document.getElementById('main-content').innerHTML =
       '<div class="panel" style="padding:32px;text-align:center">' +
@@ -2932,6 +2972,7 @@ function timelineBadges(rek) {
           return dc !== 0 ? dc : a.prio - b.prio;
         });
         filteredTimeline = '';
+        filtItems = filtItems.slice(0, timelineLimit);
         for (var fi = 0; fi < filtItems.length; fi++) {
           var fItem = filtItems[fi].rek;
           var fLbl  = filtItems[fi].label;
