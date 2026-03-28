@@ -1,3 +1,11 @@
+## v810 – Fix Timeline Auto-Fill
+
+- **Neuer Ansatz**: Misst die Höhe der größten Nachbarspalte in der Zeile (statt window.innerHeight)
+- Die Zeile wächst durch den höchsten Inhalt (z.B. Hall of Fame) – die Timeline füllt genau diese Höhe
+- Verfügbar = tallestSibling.offsetHeight - panelHeader; passendeItems = ⌊verfügbar / itemHeight⌋
+
+---
+
 ## v809
 
 - **Fix $prevByG**: Wenn eine neue Gesamtbestleistung gesetzt wird, wurde bisher der vorherige Frauen/Männer-Wert nicht gesichert → "Bestleistung Frauen" ohne Vorgänger. Jetzt wird $prevByG[$g] korrekt gesichert bevor $bestByG[$g] überschrieben wird

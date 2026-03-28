@@ -3013,21 +3013,26 @@ function timelineBadges(rek) {
       }
       var _tlId = 'tl-widget-' + ri + '-' + ci;
     if (wcfg.tl_auto_fill) {
-      // After render: use viewport height to calculate how many items fit
+      // After render: measure tallest sibling column in the same row to get target height
       setTimeout(function(_id, _ri2, _ci2) {
         var _panel = document.getElementById(_id);
         if (!_panel) return;
         var _items = _panel.querySelectorAll('.timeline-item');
         if (!_items.length) return;
-        // Available height = viewport minus fixed chrome (header + tab-bar)
-        var _headerEl = document.querySelector('header');
-        var _tabEl    = document.querySelector('.tab-bar, nav');
-        var _chromeH  = (_headerEl ? _headerEl.offsetHeight : 0) + (_tabEl ? _tabEl.offsetHeight : 0);
+        // Find the row wrapper and measure tallest SIBLING column
+        var _col = _panel.parentElement;       // direct parent = column div
+        var _row = _col ? _col.parentElement : null; // row = dash-row-wrap
+        var _maxSiblingH = 0;
+        if (_row) {
+          Array.from(_row.children).forEach(function(c) {
+            if (c !== _col) _maxSiblingH = Math.max(_maxSiblingH, c.offsetHeight);
+          });
+        }
+        if (!_maxSiblingH) return; // no siblings or row not found
         var _panelHeaderH = (_panel.querySelector('.panel-header') || {}).offsetHeight || 44;
-        var _availH = window.innerHeight - _chromeH - _panelHeaderH;
+        var _availH = _maxSiblingH - _panelHeaderH;
         var _itemH  = _items[0].offsetHeight || 60;
         var _fitsCount = Math.max(1, Math.floor(_availH / _itemH));
-        if (_fitsCount === _items.length) return; // already correct
         var _key3 = _ri2 + '-' + _ci2;
         if (_tlAutoFillLimits[_key3] === _fitsCount) return; // already correct
         _tlAutoFillLimits[_key3] = _fitsCount;
