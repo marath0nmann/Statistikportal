@@ -974,8 +974,19 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
         }
     } catch (\Exception $e) {}
 
-    // 2. Aktive Benutzer: via seitenaufrufe JOIN (benutzer_id wird beim ping-Call gesetzt)
+    // 2. Aktive Benutzer: aktueller Admin + seitenaufrufe der letzten 10 Min
     $aktiveBenutzer = [];
+    $geseheneIds = [];
+    $__myUid = (int)($_SESSION['user_id'] ?? 0);
+    if ($__myUid) {
+        try {
+            $meRow = DB::fetchOne('SELECT b.id, b.benutzername, b.email, b.vorname, b.nachname, b.rolle, b.avatar_pfad FROM ' . DB::tbl('benutzer') . ' b WHERE b.id=? AND b.aktiv=1', [$__myUid]);
+            if ($meRow) {
+                $aktiveBenutzer[] = ['id' => (int)$meRow['id'], 'name' => trim(($meRow['vorname']??'').' '.($meRow['nachname']??'')) ?: ($meRow['email']??$meRow['benutzername']), 'rolle' => $meRow['rolle'], 'seit' => date('Y-m-d H:i:s'), 'avatar' => $meRow['avatar_pfad']];
+                $geseheneIds[$__myUid] = true;
+            }
+        } catch (\Exception $e) {}
+    }
     try {
         $rows = DB::fetchAll(
             "SELECT b.id, b.benutzername, b.email, b.vorname, b.nachname, b.rolle,
@@ -988,6 +999,7 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
              ORDER BY letzter_aktivitaet DESC"
         );
         foreach ($rows as $r) {
+            if (!empty($geseheneIds[(int)$r['id']])) continue;
             $aktiveBenutzer[] = [
                 'id'          => (int)$r['id'],
                 'name'        => trim(($r['vorname'] ?? '') . ' ' . ($r['nachname'] ?? '')) ?: ($r['email'] ?? $r['benutzername']),

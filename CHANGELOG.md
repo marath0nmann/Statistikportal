@@ -1,3 +1,11 @@
+## v844
+
+- **Aktiv**: Wer admin-dashboard aufruft, erscheint jetzt IMMER in 'Aktiv' (direkte DB-Abfrage mit Session-User-ID)
+- Weitere aktive Benutzer kommen weiterhin aus seitenaufrufe JOIN
+- Hintergrund: benutzer_id im ping-Call ist auf dem Live-Server aus ungeklärtem Grund NULL
+
+---
+
 ## v843
 
 - **Aktiv**: Abfrage nutzt seitenaufrufe JOIN statt letzter_aktivitaet-Spalte (die auf dem Live-Server nicht existiert)
