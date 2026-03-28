@@ -1,3 +1,12 @@
+## v854
+
+- **Farbe**: Admin-Badges jetzt hart rot (#e53935) statt blau
+- **Nav-Badge**: Registrierungen + Anträge werden als kombinierter Badge direkt am 'Admin'-Nav-Button angezeigt – auch von anderen Seiten aus sichtbar
+- **Sofortiges Laden**: _ladeAntraegeBadge() wird auch in buildNav() aufgerufen (150ms verzögert, nicht blockend) – kein Warten mehr bis Admin-Tab geöffnet wird
+- Zähler werden in window._adminPendingAntraege / _adminPendingRegs zwischengespeichert
+
+---
+
 ## v853
 
 - **Initial State**: subTab startet jetzt als null statt 'strasse' – kein falscher Wert beim Seitenstart

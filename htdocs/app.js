@@ -2258,6 +2258,7 @@ function buildNav() {
   if (currentUser.rolle === 'admin')
     tabs.push({ id: 'admin', icon: '⚙️️', label: 'Admin' });
   _renderNavTabs(tabs);
+  if (currentUser && currentUser.rolle === 'admin') setTimeout(function(){ _ladeAntraegeBadge(); }, 150);
 }
 
 function _renderNavTabs(tabs) {
@@ -10537,7 +10538,7 @@ async function bearbeiteAntrag(id, action) {
 
 // Anträge-Zähler für Subtab-Badge aktualisieren
 function _adminBadge(n) {
-  return n > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px">' + n + '</span>' : '';
+  return n > 0 ? ' <span style="background:#e53935;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px;font-weight:700">' + n + '</span>' : '';
 }
 async function _ladeAntraegeBadge() {
   if (!currentUser || currentUser.rolle === 'leser' || currentUser.rolle === 'athlet') return;
@@ -10545,6 +10546,7 @@ async function _ladeAntraegeBadge() {
     // Anträge-Badge
     var r = await apiGet('ergebnis-aenderungen?status=pending');
     var n = r && r.ok ? (r.data||[]).length : 0;
+    window._adminPendingAntraege = n;
     var btn = document.querySelector('.subtab[onclick*=\'antraege\']');
     if (btn) btn.innerHTML = '\u270B Antr\u00e4ge' + _adminBadge(n);
   } catch(e) {}
@@ -10553,6 +10555,7 @@ async function _ladeAntraegeBadge() {
     var rr = await apiGet('auth/registrierungen');
     var _rrData = rr && rr.ok ? (Array.isArray(rr.data) ? rr.data : (rr.data.registrierungen||[])) : [];
     var nr = _rrData.filter(function(x){ return x.status==='pending'; }).length;
+    window._adminPendingRegs = nr;
     var regBtn = document.querySelector('.subtab[onclick*=\'registrierungen\']');
     if (regBtn) regBtn.innerHTML = '\uD83D\uDCDD Registrierungen' + _adminBadge(nr);
   } catch(e) {}
@@ -10566,6 +10569,16 @@ async function _ladeAntraegeBadge() {
     }
     var pkBtn = document.querySelector('.subtab[onclick*=\'papierkorb\']');
     if (pkBtn) pkBtn.innerHTML = '\uD83D\uDDD1\uFE0F Papierkorb' + _adminBadge(np);
+  } catch(e) {}
+  // Admin-Nav-Button: kombinierter Badge (Registrierungen + Anträge)
+  try {
+    window._adminNavBadgeCount = (window._adminPendingAntraege || 0) + (window._adminPendingRegs || 0);
+    var adminNavBtn = document.querySelector('#main-nav button[onclick*=\'admin\'], #mobile-nav-items button[onclick*=\'admin\']');
+    if (adminNavBtn) {
+      var baseHtml = '<span class="nav-icon">⚙️️</span><span class="nav-label">Admin';
+      var totalN = window._adminNavBadgeCount;
+      adminNavBtn.innerHTML = baseHtml + (totalN > 0 ? ' <span style="background:#e53935;color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle">' + totalN + '</span>' : '') + '</span>';
+    }
   } catch(e) {}
 }
 function adminSubtabs() {
