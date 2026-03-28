@@ -1,3 +1,10 @@
+## v849
+
+- **Root cause**: Handler für POST ergebnisse/eigenes lag im $res==='benutzer'-Block → Unbekannte Route
+- Fix: Handler als eigener Top-Level-Block if ($res==='ergebnisse' && $id==='eigenes')
+
+---
+
 ## v848
 
 - **Ursache**: CONCAT(a.vorname, a.nachname) ohne GROUP BY / Aggregat → auf all-inkl.com (MySQL strict mode ONLY_FULL_GROUP_BY) SQL-Error → Max Mustermann verschwand

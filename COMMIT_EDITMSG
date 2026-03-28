@@ -1,1 +1,1 @@
-v848: Fix ONLY_FULL_GROUP_BY – MAX(vorname)/MAX(nachname) statt direkt
+v849: Fix 'Eigenes Ergebnis eintragen' – Handler in falschem $res-Block
