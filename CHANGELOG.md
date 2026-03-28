@@ -1,3 +1,9 @@
+## v824
+
+- Gäste-Tabelle erscheint jetzt vor den Aktiv/Login-Tabellen
+
+---
+
 ## v823
 
 - Login-Versuche zeigen jetzt aufgelösten Namen (Vor-/Nachname) statt rohem Benutzernamen
