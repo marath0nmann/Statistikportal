@@ -2014,9 +2014,13 @@ if ($res === 'athleten') {
             } catch(\Exception $e) {}
         }
 
-        // Vereinsbestleistungen: Gesamtbestleistung + Geschlechts-/AK-Bestleistung
+        // Vereinsbestleistungen: identische Logik wie Hall of Fame
+        // Athlet-Geschlecht einmalig laden
+        $athRow2 = DB::fetchOne('SELECT geschlecht FROM ' . DB::tbl('athleten') . ' WHERE id=?', [$athletId]);
+        $athGeschlecht2 = $athRow2['geschlecht'] ?? '';
         if ($unified) {
-            $diszList = DB::fetchAll(
+            // Alle Disziplinen aller Athleten laden (wie HoF) – then check if this athlete holds a record
+            $diszListAll = DB::fetchAll(
                 "SELECT DISTINCT e.disziplin, e.disziplin_mapping_id,
                  COALESCE(m.fmt_override, k.fmt, 'min') AS fmt,
                  COALESCE(k.sort_dir,'ASC') AS sort_dir,
@@ -2024,10 +2028,10 @@ if ($res === 'athleten') {
                  FROM " . DB::tbl('ergebnisse') . " e
                  LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
                  LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
-                 WHERE e.athlet_id=? AND e.geloescht_am IS NULL",
-                [$athletId]
+                 WHERE e.geloescht_am IS NULL",
+                []
             );
-            foreach ($diszList as $dRow) {
+            foreach ($diszListAll as $dRow) {
                 if (!empty($dRow['hof_exclude'])) continue;
                 $disz = $dRow['disziplin']; $mappingId = $dRow['disziplin_mapping_id'] ?? null;
                 $fmt  = $dRow['fmt'] ?? 'min'; $dir = strtoupper($dRow['sort_dir'] ?? 'ASC');
@@ -2038,33 +2042,52 @@ if ($res === 'athleten') {
                            ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END";
                 $hofWhere = $mappingId ? 'e.disziplin_mapping_id = ?' : 'e.disziplin = ?';
                 $hofParam = $mappingId ?? $disz;
-                // Globales Bestes für diese Disziplin (alle Athleten)
-                $bestAll = DB::fetchOne(
-                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
-                    [$hofParam]
-                );
-                if (!$bestAll) continue;
-                // Bestes dieses Athleten
+                // Bestes dieses Athleten in dieser Disziplin
                 $bestMe = DB::fetchOne(
                     "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
                     [$hofParam, $athletId]
                 );
                 if (!$bestMe) continue;
-                // Ist der Athlet auf Platz 1 (Gesamtbestleistung)?
-                if (abs((float)$bestMe['val'] - (float)$bestAll['val']) < 0.001) {
+                $myVal = (float)$bestMe['val'];
+                // 1. Gesamtbestleistung?
+                $bestAll = DB::fetchOne("SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1", [$hofParam]);
+                if ($bestAll && abs($myVal - (float)$bestAll['val']) < 0.001) {
                     $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Gesamtbestleistung'];
+                    // Auch Geschlecht checken (könnte zusätzlich gelten – hier aber continue wie HoF)
                     continue;
                 }
-                // Geschlechts-Bestleistung?
-                $athGeschlecht = DB::fetchOne('SELECT geschlecht FROM ' . DB::tbl('athleten') . ' WHERE id=?', [$athletId])['geschlecht'] ?? '';
-                if ($athGeschlecht === 'M' || $athGeschlecht === 'W') {
+                // 2. Geschlechts-Bestleistung?
+                if ($athGeschlecht2 === 'M' || $athGeschlecht2 === 'W') {
                     $bestG = DB::fetchOne(
                         "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id WHERE $hofWhere AND a.geschlecht=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
-                        [$hofParam, $athGeschlecht]
+                        [$hofParam, $athGeschlecht2]
                     );
-                    if ($bestG && abs((float)$bestMe['val'] - (float)$bestG['val']) < 0.001) {
-                        $gLabel = $athGeschlecht === 'M' ? 'Bestleistung Männer' : 'Bestleistung Frauen';
+                    if ($bestG && abs($myVal - (float)$bestG['val']) < 0.001) {
+                        $gLabel = $athGeschlecht2 === 'M' ? 'Bestleistung Männer' : 'Bestleistung Frauen';
                         $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => $gLabel];
+                        // AK-Check auch bei Geschlechts-Bestleistung (HoF macht das immer)
+                    }
+                }
+                // 3. AK-Bestleistung? (immer prüfen, unabhängig von Gesamt/Geschlecht – wie HoF)
+                // Altersklasse(n) dieses Athleten in dieser Disziplin ermitteln
+                $myAKs = DB::fetchAll(
+                    "SELECT DISTINCT e.altersklasse FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND e.altersklasse IS NOT NULL AND e.altersklasse != '' AND e.geloescht_am IS NULL",
+                    [$hofParam, $athletId]
+                );
+                foreach ($myAKs as $akRow) {
+                    $ak = $akRow['altersklasse'];
+                    // Bestes in dieser AK über alle Athleten
+                    $bestAK = DB::fetchOne(
+                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.altersklasse=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
+                        [$hofParam, $ak]
+                    );
+                    // Bestes dieses Athleten in dieser AK
+                    $bestMeAK = DB::fetchOne(
+                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND e.altersklasse=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
+                        [$hofParam, $athletId, $ak]
+                    );
+                    if ($bestAK && $bestMeAK && abs((float)$bestMeAK['val'] - (float)$bestAK['val']) < 0.001) {
+                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Bestleistung ' . $ak];
                     }
                 }
             }

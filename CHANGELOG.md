@@ -1,3 +1,17 @@
+## v797
+
+- **HoF**: Medaillen-Emojis 20px → 15px, Abstand 3px → 1px
+- **Athletenprofil**: Titel/Bestleistungen durch Trennlinie auf eigener Zeile
+
+---
+
+## v796
+
+- **Ursache**: /auszeichnungen prüfte nur Gesamt- und Geschlechts-Bestleistung, nicht AK-Bestleistungen
+- **Fix**: Gleiche Logik wie HoF – prüft alle drei Ebenen: Gesamt, Geschlecht, alle AKs
+
+---
+
 ## v795 – Athletenprofil Auszeichnungen
 
 - Statt vieler Emojis und Badges: kompakte Zeile "🥇 20 Titel · 🏆 57 Bestleistungen"

@@ -3152,7 +3152,7 @@ function timelineBadges(rek) {
             mg.jahre.sort();
             var jahreStr = mg.jahre.length ? ' ' + mg.jahre.join(', ') : '';
             var tooltip = mstrName + mSuffix + ' ' + diszPart + katStr + jahreStr;
-            hBadgesHtml += '<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:20px;display:inline-block;margin:2px 3px;cursor:default;line-height:1">&#x1F947;</span>';
+            hBadgesHtml += '<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:15px;display:inline-block;margin:1px 1px;cursor:default;line-height:1">&#x1F947;</span>';
           });
         }
                 for (var gi = 0; gi < groupOrder.length; gi++) {
@@ -4293,7 +4293,7 @@ async function openAthletById(id) {
             var parts = [];
             if (mCnt) parts.push('&#x1F947; ' + mCnt + ' ' + (mCnt === 1 ? 'Titel' : 'Titel'));
             if (bCnt) parts.push('&#x1F3C6; ' + bCnt + ' ' + (bCnt === 1 ? 'Bestleistung' : 'Bestleistungen'));
-            return '<div style="margin-top:8px">' +
+            return '<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">' +
               '<span title="' + tooltip + '" style="font-size:13px;color:var(--text2);cursor:help;border-bottom:1px dotted var(--text2)">' +
               parts.join(' · ') + '</span></div>';
           }()) +
