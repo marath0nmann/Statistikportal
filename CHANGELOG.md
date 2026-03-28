@@ -1,3 +1,10 @@
+## v847
+
+- Aktive Benutzer: Athleten-Name (vorname+nachname) wird jetzt für ALLE Benutzer im seitenaufrufe-JOIN via LEFT JOIN auf athleten geladen
+- Vorher: nur der aktuelle Admin bekam den Athleten-Namen; andere Benutzer sahen nur E-Mail
+
+---
+
 ## v846
 
 - **Aktiv root cause**: SELECT enthielt b.vorname/b.nachname – diese Spalten existieren in der benutzer-Tabelle nicht → stille Exception → leeres Array. Fix: Name kommt aus verknüpftem Athletenprofil via separatem JOIN

@@ -993,9 +993,11 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     try {
         $rows = DB::fetchAll(
             "SELECT b.id, b.benutzername, b.email, b.rolle,
-                    MAX(s.erstellt_am) AS letzter_aktivitaet, b.avatar_pfad
+                    MAX(s.erstellt_am) AS letzter_aktivitaet, b.avatar_pfad,
+                    CONCAT(a.vorname, ' ', a.nachname) AS athlet_name
              FROM " . DB::tbl('seitenaufrufe') . " s
              JOIN " . DB::tbl('benutzer') . " b ON b.id = s.benutzer_id
+             LEFT JOIN " . DB::tbl('athleten') . " a ON a.id = b.athlet_id
              WHERE s.erstellt_am >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
                AND b.aktiv = 1
              GROUP BY b.id
@@ -1005,7 +1007,7 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
             if (!empty($geseheneIds[(int)$r['id']])) continue;
             $aktiveBenutzer[] = [
                 'id'          => (int)$r['id'],
-                'name'        => $r['email'] ?? $r['benutzername'],
+                'name'        => (isset($r['athlet_name']) && trim($r['athlet_name']) !== ' ') ? trim($r['athlet_name']) : ($r['email'] ?? $r['benutzername']),
                 'benutzername'=> $r['benutzername'],
                 'rolle'       => $r['rolle'],
                 'seit'        => $r['letzter_aktivitaet'],

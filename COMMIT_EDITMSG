@@ -1,1 +1,1 @@
-v846: Fix Aktiv (vorname/nachname fehlen in benutzer-Tabelle); 1 Login-Eintrag statt 2
+v847: Aktiv – Athleten-Name für alle aktiven Benutzer via LEFT JOIN
