@@ -1,1 +1,1 @@
-v800: Fix PB-Badge zeigt immer vorigen Wert (außer wenn Club-Badge ihn schon zeigt)
+v801: PB-Badge zeigt vorigen Wert immer, auch wenn Club-Badge ihn schon hat
