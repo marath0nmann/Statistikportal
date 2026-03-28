@@ -175,12 +175,40 @@ if ($method === 'GET' && $res === 'ping') {
     jsonOk(['pong' => true]);
 }
 
+// Migration: benutzername = email für alle Benutzer ohne Athlet-Verknüpfung
+try { DB::query("
+    UPDATE " . DB::tbl('benutzer') . " b
+    SET b.benutzername = b.email
+    WHERE b.benutzername != b.email
+      AND b.benutzername NOT REGEXP '^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$'
+"); } catch (\Exception $e) {}
+
+// Migration: inaktive_athleten_sehen zu admin + editor Rollen hinzufügen
+try {
+    $adminRolle = DB::fetchOne("SELECT rechte FROM " . DB::tbl('rollen') . " WHERE name='admin'");
+    if ($adminRolle) {
+        $r = json_decode($adminRolle['rechte'] ?? '[]', true) ?: [];
+        if (!in_array('inaktive_athleten_sehen', $r)) {
+            $r[] = 'inaktive_athleten_sehen';
+            DB::query("UPDATE " . DB::tbl('rollen') . " SET rechte=? WHERE name='admin'", [json_encode($r)]);
+        }
+    }
+    $editorRolle = DB::fetchOne("SELECT rechte FROM " . DB::tbl('rollen') . " WHERE name='editor'");
+    if ($editorRolle) {
+        $r = json_decode($editorRolle['rechte'] ?? '[]', true) ?: [];
+        if (!in_array('inaktive_athleten_sehen', $r)) {
+            $r[] = 'inaktive_athleten_sehen';
+            DB::query("UPDATE " . DB::tbl('rollen') . " SET rechte=? WHERE name='editor'", [json_encode($r)]);
+        }
+    }
+} catch (\Exception $e) {}
+
 // Standard-Rollen anlegen falls leer
 try {
     if (!DB::fetchOne('SELECT id FROM ' . DB::tbl('rollen') . ' LIMIT 1')) {
         $defaultRollen = [
-            ['admin',  '["vollzugriff","benutzer_verwalten","rekorde_bearbeiten","einstellungen_aendern","alle_ergebnisse","eigene_ergebnisse","lesen","personenbezogene_daten","veranstaltung_eintragen","veranstaltung_loeschen"]', 'Administrator', 1],
-            ['editor', '["alle_ergebnisse","lesen","personenbezogene_daten","veranstaltung_eintragen","veranstaltung_loeschen"]', 'Editor', 1],
+            ['admin',  '["vollzugriff","benutzer_verwalten","rekorde_bearbeiten","einstellungen_aendern","alle_ergebnisse","eigene_ergebnisse","lesen","personenbezogene_daten","veranstaltung_eintragen","veranstaltung_loeschen","inaktive_athleten_sehen"]', 'Administrator', 1],
+            ['editor', '["alle_ergebnisse","lesen","personenbezogene_daten","veranstaltung_eintragen","veranstaltung_loeschen","inaktive_athleten_sehen"]', 'Editor', 1],
             ['athlet', '["eigene_ergebnisse","lesen","personenbezogene_daten"]', 'Athlet*in', 1],
             ['leser',  '["lesen","personenbezogene_daten"]', 'Leser*in', 1],
         ];

@@ -1,3 +1,11 @@
+## v832
+
+- **Migration**: benutzername wird auf email gesetzt für alle Accounts die noch den alten internen Namen haben
+- **Migration**: inaktive_athleten_sehen wird automatisch zu admin- und editor-Rollen in der Datenbank hinzugefügt (idempotent)
+- Standard-Rollen (Neuinstallationen) enthalten inaktive_athleten_sehen für admin und editor
+
+---
+
 ## v831 – Neues Recht
 
 - **inaktive_athleten_sehen**: steuert ob inaktive Athleten in der Athletenliste angezeigt werden
