@@ -1,1 +1,1 @@
-v825: Fix Aktiv + Logins verschwunden – überzähliges Semikolon nach Gäste-Sektion
+v826: Fix Aktiv + Logins leer – robustere Abfragen, letzter_aktivitaet nach body-Parse

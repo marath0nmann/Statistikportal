@@ -33,19 +33,15 @@ $parts  = explode('/', $path);
 $res    = $parts[0] ?? '';
 $id     = $parts[1] ?? null;
 
-// Aktivitätsstempel bei jedem Auth-Request aktualisieren
-session_start_if_needed: {
-    // session bereits gestartet via Auth::check – nur updaten falls eingeloggt
-    $__uid = $_SESSION['user_id'] ?? null;
-    if ($__uid && $res !== 'ping') {
-        try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_aktivitaet = NOW() WHERE id = ?', [(int)$__uid]); } catch (\Exception $e) {}
-    }
-}
 
 $body = [];
 if (in_array($method, ['POST','PUT','PATCH'])) {
     $raw = file_get_contents('php://input');
     $body = json_decode($raw, true) ?? [];
+}
+// Aktivitätsstempel bei jedem eingeloggten Request aktualisieren
+if (!empty($_SESSION['user_id'])) {
+    try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_aktivitaet = NOW() WHERE id = ?', [(int)$_SESSION['user_id']]); } catch (\Exception $e) {}
 }
 
 function jsonOk(mixed $data): void {
@@ -949,16 +945,13 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     $__curUid = $_SESSION['user_id'] ?? null;
     if ($__curUid) try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_aktivitaet = NOW() WHERE id = ?', [(int)$__curUid]); } catch(\Exception $e) {}
     try {
-        // Aktiv = letzter_aktivitaet in den letzten 10 Min ODER seitenaufrufe in letzten 10 Min
+        // Aktiv = letzter_aktivitaet in den letzten 10 Min
         $rows = DB::fetchAll(
-            "SELECT DISTINCT b.id, b.benutzername, b.vorname, b.nachname, b.rolle, b.letzter_aktivitaet, b.avatar_pfad
+            "SELECT b.id, b.benutzername, b.vorname, b.nachname, b.rolle, b.letzter_aktivitaet, b.avatar_pfad
              FROM " . DB::tbl('benutzer') . " b
-             LEFT JOIN " . DB::tbl('seitenaufrufe') . " s ON s.benutzer_id = b.id AND s.erstellt_am >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
-             WHERE b.aktiv = 1 AND (
-               b.letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
-               OR s.id IS NOT NULL
-             )
-             ORDER BY COALESCE(b.letzter_aktivitaet, '1970-01-01') DESC"
+             WHERE b.aktiv = 1
+               AND b.letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+             ORDER BY b.letzter_aktivitaet DESC"
         );
         foreach ($rows as $r) {
             $aktiveBenutzer[] = [
@@ -1012,35 +1005,44 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
         }
     } catch (\Exception $e) {}
 
-    // 4. Letzte Login-Versuche (chronologisch, mit Erfolg/Fehlschlag + IP)
+    // 4. Letzte Login-Versuche – einfache Abfrage ohne JOIN
     $letzteLogins = [];
     try {
-        $lRows = DB::fetchAll(
-            'SELECT lv.benutzername, lv.ip, lv.erfolg, lv.erstellt_am,'
-            . ' b.vorname, b.nachname, b.email, b.rolle'
+        // Login-Versuche der letzten 5 Tage
+        $lvRows = DB::fetchAll(
+            'SELECT lv.benutzername, lv.ip, lv.erfolg, lv.erstellt_am'
             . ' FROM ' . DB::tbl('login_versuche') . ' lv'
-            . ' LEFT JOIN ' . DB::tbl('benutzer') . ' b'
-            . '   ON (b.benutzername = lv.benutzername OR b.email = lv.benutzername)'
             . ' WHERE lv.erstellt_am >= DATE_SUB(NOW(), INTERVAL 5 DAY)'
             . ' ORDER BY lv.erstellt_am DESC LIMIT 200'
         );
-        // GeoIP für Login-IPs
+        // Benutzer-Namen per separater Abfrage (robust gegenüber fehlenden Spalten)
+        $bNamen = [];
+        try {
+            $bRows = DB::fetchAll('SELECT benutzername, email, vorname, nachname, rolle FROM ' . DB::tbl('benutzer'));
+            foreach ($bRows as $b) {
+                $vn = trim(($b['vorname'] ?? '') . ' ' . ($b['nachname'] ?? ''));
+                $entry = ['name' => $vn ?: $b['benutzername'], 'email' => $b['email'] ?? null, 'rolle' => $b['rolle'] ?? null];
+                $bNamen[$b['benutzername']] = $entry;
+                if (!empty($b['email'])) $bNamen[$b['email']] = $entry;
+            }
+        } catch (\Exception $e) {}
+        // GeoIP-Cache
         $loginGeoCache = [];
-        foreach ($lRows as $l) {
+        foreach ($lvRows as $l) {
             $lip = $l['ip'] ?? null;
             $lcountry = null; $lcountryCode = null;
-            if ($lip && !in_array($lip, ['127.0.0.1','::1']) && !str_starts_with($lip,'192.168.') && !str_starts_with($lip,'10.')) {
+            if ($lip && !in_array($lip, ['127.0.0.1','::1']) && substr($lip,0,8)!=='192.168.' && substr($lip,0,3)!=='10.') {
                 if (!isset($loginGeoCache[$lip])) {
-                    try { $ctx = stream_context_create(['http'=>['timeout'=>2,'ignore_errors'=>true]]); $gjson = @file_get_contents('http://ip-api.com/json/'.urlencode($lip).'?fields=country,countryCode&lang=de',false,$ctx); $gg = $gjson?json_decode($gjson,true):null; $loginGeoCache[$lip] = ($gg&&($gg['status']??'')!=='fail')?$gg:null; } catch(\Exception $e) { $loginGeoCache[$lip]=null; }
+                    try { $ctx = stream_context_create(['http'=>['timeout'=>2,'ignore_errors'=>true]]); $gj = @file_get_contents('http://ip-api.com/json/'.urlencode($lip).'?fields=country,countryCode&lang=de',false,$ctx); $gg=$gj?json_decode($gj,true):null; $loginGeoCache[$lip]=($gg&&($gg['status']??'')!=='fail')?$gg:null; } catch(\Exception $e){ $loginGeoCache[$lip]=null; }
                 }
                 if ($loginGeoCache[$lip]) { $lcountry=$loginGeoCache[$lip]['country']??null; $lcountryCode=strtoupper($loginGeoCache[$lip]['countryCode']??''); }
             }
-            $vn   = trim(($l['vorname']??'').' '.($l['nachname']??''));
+            $bInfo = $bNamen[$l['benutzername']] ?? null;
             $letzteLogins[] = [
                 'benutzername'  => $l['benutzername'],
-                'anzeigeName'   => $vn ?: $l['benutzername'],
-                'email'         => $l['email'] ?? null,
-                'rolle'         => $l['rolle'] ?? null,
+                'anzeigeName'   => $bInfo ? $bInfo['name'] : $l['benutzername'],
+                'email'         => $bInfo['email'] ?? null,
+                'rolle'         => $bInfo['rolle'] ?? null,
                 'ip'            => $lip,
                 'country'       => $lcountry,
                 'countryCode'   => $lcountryCode,
@@ -1050,7 +1052,7 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
         }
     } catch (\Exception $e) {}
 
-    // 5. Zählstatistiken    // 5. Zählstatistiken – jede Abfrage separat try/catch
+        // 5. Zählstatistiken    // 5. Zählstatistiken – jede Abfrage separat try/catch
     $stats = [
         'benutzer'=>0,'aeltesterBenutzer'=>null,'neusterBenutzer'=>null,'neusterBenutzerDatum'=>null,
         'athleten'=>0,'athletenAktiv'=>0,'ergebnisse'=>0,'erstesErgebnisDatum'=>null,

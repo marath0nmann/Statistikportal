@@ -1,3 +1,11 @@
+## v826
+
+- **letzteLogins**: JOIN entfernt → einfache Abfrage auf login_versuche, Benutzerauflösung separat und try/catch-geschützt
+- **aktiveBenutzer**: JOIN auf seitenaufrufe entfernt (konnte fehlschlagen), nur noch letzter_aktivitaet
+- **letzter_aktivitaet Update**: nach $body-Parsing platziert (DB ist dann sicher initialisiert)
+
+---
+
 ## v825
 
 - **Fix**: Beim Umordnen der Sektionen wurde ein Semikolon mitten in den el.innerHTML-String gesetzt → el.innerHTML endete nach der Gäste-Tabelle, Aktiv + Logins wurden nie gerendert
