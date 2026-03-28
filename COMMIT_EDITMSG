@@ -1,1 +1,1 @@
-v842: Aktiv try/catch; Login-Lookup auch via Vorname (historische Einträge)
+v843: Aktiv via seitenaufrufe; Login-Methode (Passkey/E-Mail/TOTP); kein doppelter Anzeigename

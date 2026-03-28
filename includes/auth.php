@@ -76,8 +76,8 @@ class Auth {
         }
 
         // Erfolgreicher Passwort-Check – Versuch loggen
-        DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg) VALUES (?, ?, 1)',
-            [$user['email'], $ip]); // E-Mail als Kennung bei Erfolg
+        // Login-Versuch loggen (Methode: password – 2FA folgt noch)
+        try { DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg, methode) VALUES (?, ?, 1, ?)', [$user['email'], $ip, 'password']); } catch (\Exception $e) {}
 
         // 2FA für alle User: TOTP oder Passkey
         $hasTotp    = !empty($user['totp_aktiv']);
