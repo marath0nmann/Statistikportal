@@ -10256,7 +10256,7 @@ function rrukConfirm() {
 
 async function renderAdminSystem() {
   var el = document.getElementById('main-content');
-  el.innerHTML = adminSubtabs() + '<div class="loading" style="padding:32px;text-align:center"><div class="spinner"></div> Lade System-Informationenâ€¦</div>';
+  el.innerHTML = adminSubtabs() + '<div class="loading" style="padding:32px;text-align:center"><div class="spinner"></div> Lade System-Informationen&hellip;</div>';
   var r = await apiGet('admin-dashboard');
   if (!r || !r.ok) { el.innerHTML = adminSubtabs() + '<div style="color:var(--accent);padding:20px">Fehler beim Laden.</div>'; return; }
   var d = r.data;
@@ -10303,7 +10303,7 @@ async function renderAdminSystem() {
     shead('System') +
     srow('Portal in Betrieb seit', fmtDate(s.portalSeit)) +
     srow('Datenbank-Server', d.dbVersion || '\u2013') +
-    srow('Datenbank-Größe', d.dbSize !== null ? d.dbSize + ' MB' : '\u2013') +
+    srow('Datenbank-Gr&ouml;&szlig;e', d.dbSize !== null ? d.dbSize + ' MB' : '\u2013') +
     srow('PHP-Version', d.phpVersion || '\u2013') +
     shead('Benutzer') +
     srow('Anzahl Benutzer (aktiv)', s.benutzer || 0) +
@@ -10329,7 +10329,7 @@ async function renderAdminSystem() {
     srow('Gemappte Disziplinen', s.disziplinen || 0) +
     shead('Wartung') +
     srow('Papierkorb (Ergebnisse)', s.papierkorb || 0) +
-    srow('Offene Anträge', s.antraege ? '<span style="color:var(--accent);font-weight:700">' + s.antraege + '</span>' : 0, false) +
+    srow('Offene Antr&auml;ge', s.antraege ? '<span style="color:var(--accent);font-weight:700">' + s.antraege + '</span>' : 0, false) +
     srow('Ausstehende Registrierungen', s.registrierungen ? '<span style="color:var(--accent);font-weight:700">' + s.registrierungen + '</span>' : 0, false);
 
   // Active users table
@@ -10345,7 +10345,7 @@ async function renderAdminSystem() {
     return '<tr><td style="padding:7px 10px;font-weight:600">' + (l.name||'\u2013') + '</td>' +
       '<td style="padding:7px 10px">' + badge(l.rolle) + '</td>' +
       '<td style="padding:7px 10px;font-size:12px;color:var(--text2)">' + fmtDate(l.datum) + '</td></tr>';
-  }).join('') || '<tr><td colspan="3" style="padding:14px;text-align:center;color:var(--text2);font-size:13px">Keine Einträge</td></tr>';
+  }).join('') || '<tr><td colspan="3" style="padding:14px;text-align:center;color:var(--text2);font-size:13px">Keine Eintr&auml;ge</td></tr>';
 
   var gaesteRows = (d.gaeste || []).map(function(g) {
     return '<tr>' +
@@ -10377,8 +10377,8 @@ async function renderAdminSystem() {
         '<tbody>' + loginRows + '</tbody></table></div>' +
     '</div>' +
 
-    // Gäste
-    '<div class="panel" style="margin-bottom:24px"><div class="panel-header"><div class="panel-title">&#x1F465; Gäste <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 15 Min.)</span></div></div>' +
+    // G&auml;ste
+    '<div class="panel" style="margin-bottom:24px"><div class="panel-header"><div class="panel-title">&#x1F465; G&auml;ste <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 15 Min.)</span></div></div>' +
       '<div class="table-scroll"><table style="width:100%"><thead><tr>' +
         thStyle('IP-Adresse') + thStyle('Browser') + thStyle('Zuletzt') + thStyle('Aufrufe') +
       '</tr></thead><tbody>' + gaesteRows + '</tbody></table></div></div>';
