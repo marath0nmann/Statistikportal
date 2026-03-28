@@ -954,7 +954,7 @@ if ($res === 'upload' && $id === 'avatar') {
 // ADMIN DASHBOARD
 // ============================================================
 if ($res === 'admin-dashboard' && $method === 'GET') {
-    Auth::requireAdmin();
+    $adminUser = Auth::requireAdmin(); // $adminUser['id'] ist die sichere User-ID
 
     // 1. System-Info
     $phpVersion = PHP_VERSION;
@@ -977,7 +977,7 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     // 2. Aktive Benutzer: aktueller Admin + seitenaufrufe der letzten 10 Min
     $aktiveBenutzer = [];
     $geseheneIds = [];
-    $__myUid = (int)($_SESSION['user_id'] ?? 0);
+    $__myUid = (int)($adminUser['id'] ?? 0); // aus requireAdmin() – sicher
     if ($__myUid) {
         try {
             $meRow = DB::fetchOne('SELECT b.id, b.benutzername, b.email, b.vorname, b.nachname, b.rolle, b.avatar_pfad FROM ' . DB::tbl('benutzer') . ' b WHERE b.id=? AND b.aktiv=1', [$__myUid]);
