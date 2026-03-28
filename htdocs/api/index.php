@@ -254,6 +254,36 @@ function ergebnisTbl(string $key, bool $unified, array $sys): string {
     return $unified ? 'ergebnisse' : ($sys[$key] ?? 'ergebnisse_strasse');
 }
 
+// Migration: approved insert-Anträge ohne ergebnis_id nachträglich verarbeiten
+try {
+    $stuckAntraege = DB::fetchAll(
+        'SELECT * FROM ' . DB::tbl('ergebnis_aenderungen') .
+        ' WHERE typ=? AND status=? AND ergebnis_id IS NULL',
+        ['insert', 'approved']
+    );
+    foreach ($stuckAntraege as $sa) {
+        $sv = json_decode($sa['neue_werte'] ?? '{}', true) ?: [];
+        $svid = intOrNull($sv['veranstaltung_id'] ?? null);
+        $said = intOrNull($sv['athlet_id'] ?? null);
+        $sdisz = $sv['disziplin'] ?? '';
+        $sdmId = intOrNull($sv['disziplin_mapping_id'] ?? null);
+        $sres = $sv['resultat'] ?? '';
+        $sak = $sv['altersklasse'] ?? '';
+        $svon = intOrNull($sv['erstellt_von'] ?? null);
+        if ($svid && $said && $sdisz && $sres) {
+            DB::query(
+                'INSERT INTO ' . DB::tbl('ergebnisse') .
+                ' (veranstaltung_id,athlet_id,disziplin,disziplin_mapping_id,resultat,altersklasse,erstellt_von)'
+                . ' VALUES (?,?,?,?,?,?,?)',
+                [$svid,$said,$sdisz,$sdmId,$sres,$sak,$svon]
+            );
+            $snewId = DB::lastInsertId();
+            DB::query('UPDATE ' . DB::tbl('ergebnis_aenderungen') . ' SET ergebnis_id=? WHERE id=?', [$snewId, $sa['id']]);
+            DB::query('UPDATE ' . DB::tbl('veranstaltungen') . ' SET genehmigt=1 WHERE id=?', [$svid]);
+        }
+    }
+} catch (\Exception $e) {}
+
 // ============================================================
 // AUTH
 // ============================================================
@@ -2098,8 +2128,14 @@ if ($res === 'athleten') {
 
     // ── Sub-Ressource: externe PBs  /athleten/{id}/pb[/{pbid}] ──
     if ($id && ($parts[2] ?? '') === 'pb') {
-        Auth::requireEditor();
+        $user = Auth::requireLogin();
+        // Athleten dürfen nur eigene PBs schreiben; Editoren/Admins dürfen alle
         $athletId = (int)$id;
+        $isEditorOrAdmin = in_array($user['rolle'], ['admin','editor']);
+        if (!$isEditorOrAdmin) {
+            $buRow = DB::fetchOne('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [$user['id']]);
+            if (!$buRow || (int)($buRow['athlet_id'] ?? 0) !== $athletId) jsonErr('Keine Berechtigung.', 403);
+        }
         $pbId     = isset($parts[3]) ? (int)$parts[3] : null;
 
         if ($method === 'GET') {
@@ -3598,9 +3634,11 @@ if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
 if ($res === 'veranstaltungen' && $method === 'DELETE' && $id) {
     Auth::requireRecht('veranstaltung_loeschen');
     $eTbl = ergebnisTbl('strasse', $unified, $_sys);
-    $anz = DB::fetchOne("SELECT COUNT(*) c FROM $eTbl WHERE veranstaltung_id=? AND geloescht_am IS NULL", [$id])['c'];
-    // Ergebnisse der Veranstaltung ebenfalls in Papierkorb
-    DB::query("UPDATE $eTbl SET geloescht_am=NOW() WHERE veranstaltung_id=? AND geloescht_am IS NULL", [$id]);
+    // Ergebnisse aus ALLEN Tabellen soft-löschen (unified + legacy)
+    $anz = 0;
+    try { $anz += (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE veranstaltung_id=? AND geloescht_am IS NULL", [$id])['c'] ?? 0); } catch (\Exception $e) {}
+    try { DB::query("UPDATE " . DB::tbl('ergebnisse') . " SET geloescht_am=NOW() WHERE veranstaltung_id=? AND geloescht_am IS NULL", [$id]); } catch (\Exception $e) {}
+    try { DB::query("UPDATE $eTbl SET geloescht_am=NOW() WHERE veranstaltung_id=? AND geloescht_am IS NULL", [$id]); } catch (\Exception $e) {}
     DB::query("UPDATE " . DB::tbl('veranstaltungen') . " SET geloescht_am=NOW() WHERE id=?", [$id]);
     jsonOk('In Papierkorb verschoben (' . $anz . ' Ergebnisse ebenfalls).');
 }
@@ -3829,7 +3867,9 @@ if ($res === 'papierkorb') {
 
         // Papierkorb komplett leeren
         if ($rtyp === 'alle') {
-            DB::query("DELETE FROM $eTbl WHERE geloescht_am IS NOT NULL");
+            // Alle Ergebnistabellen leeren (unified + legacy)
+            try { DB::query("DELETE FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NOT NULL"); } catch (\Exception $e) {}
+            try { DB::query("DELETE FROM $eTbl WHERE geloescht_am IS NOT NULL"); } catch (\Exception $e) {}
             DB::query("DELETE FROM " . DB::tbl('athleten') . " WHERE geloescht_am IS NOT NULL");
             DB::query("DELETE FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NOT NULL");
             jsonOk('Papierkorb geleert.');
@@ -3842,7 +3882,9 @@ if ($res === 'papierkorb') {
         } elseif ($rtyp === 'athlet') {
             DB::query("DELETE FROM " . DB::tbl('athleten') . " WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
         } elseif ($rtyp === 'veranstaltung') {
-            DB::query("DELETE FROM $eTbl WHERE veranstaltung_id=? AND geloescht_am IS NOT NULL", [$rid]);
+            // Ergebnisse aus allen Tabellen löschen (FK constraint!)
+            try { DB::query("DELETE FROM " . DB::tbl('ergebnisse') . " WHERE veranstaltung_id=? AND geloescht_am IS NOT NULL", [$rid]); } catch (\Exception $e) {}
+            try { DB::query("DELETE FROM $eTbl WHERE veranstaltung_id=? AND geloescht_am IS NOT NULL", [$rid]); } catch (\Exception $e) {}
             DB::query("DELETE FROM " . DB::tbl('veranstaltungen') . " WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
         } else jsonErr('Unbekannter Typ.');
         jsonOk('Endgültig gelöscht.');
@@ -4283,6 +4325,9 @@ if ($res === 'ergebnis-aenderungen') {
                         . ' VALUES (?,?,?,?,?,?,?)',
                         [$vid2,$aid2,$disz2,$dmId2,$res2,$ak2,$von2]
                     );
+                    $newErgId = DB::lastInsertId();
+                    // ergebnis_id im Antrag speichern (für spätere Referenz)
+                    DB::query('UPDATE ' . DB::tbl('ergebnis_aenderungen') . ' SET ergebnis_id=? WHERE id=?', [$newErgId, $id]);
                     // Veranstaltung genehmigen falls sie als pending angelegt wurde
                     DB::query('UPDATE ' . DB::tbl('veranstaltungen') . ' SET genehmigt=1 WHERE id=?', [$vid2]);
                 }

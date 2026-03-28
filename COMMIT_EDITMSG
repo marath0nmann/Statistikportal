@@ -1,1 +1,1 @@
-v859: Kritischer Fix – Menü-Feedback-Loop: buildNav→_ladeAntraegeBadge→buildNav∞
+v861: Migration – approved Anträge ohne Ergebnis werden nachträglich eingetragen
