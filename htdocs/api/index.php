@@ -143,8 +143,8 @@ try { DB::query("ALTER TABLE " . DB::tbl('rollen') . " ADD COLUMN IF NOT EXISTS 
 // Migration: Rechte zu Systemrollen hinzufügen
 try {
     $sysRollenRechte = [
-        'admin'  => ['personenbezogene_daten','athleten_details','athleten_editieren','bulk_eintragen','veranstaltung_eintragen','veranstaltung_loeschen'],
-        'editor' => ['personenbezogene_daten','athleten_details','athleten_editieren','bulk_eintragen','veranstaltung_eintragen','veranstaltung_loeschen'],
+        'admin'  => ['personenbezogene_daten','athleten_details','athleten_editieren','bulk_eintragen','veranstaltung_eintragen','veranstaltung_loeschen','inaktive_athleten_sehen'],
+        'editor' => ['personenbezogene_daten','athleten_details','athleten_editieren','bulk_eintragen','veranstaltung_eintragen','veranstaltung_loeschen','inaktive_athleten_sehen'],
         'athlet' => ['personenbezogene_daten','athleten_details'],
         'leser'  => ['personenbezogene_daten','athleten_details'],
     ];
@@ -945,21 +945,29 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     $__curUid = $_SESSION['user_id'] ?? null;
     if ($__curUid) try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_aktivitaet = NOW() WHERE id = ?', [(int)$__curUid]); } catch(\Exception $e) {}
     try {
-        // Aktiv = letzter_aktivitaet in den letzten 10 Min
+        // Aktiv = in seitenaufrufe in den letzten 10 Min ODER letzter_aktivitaet < 10 Min
         $rows = DB::fetchAll(
-            "SELECT b.id, b.benutzername, b.vorname, b.nachname, b.rolle, b.letzter_aktivitaet, b.avatar_pfad
+            "SELECT DISTINCT b.id, b.benutzername, b.email, b.vorname, b.nachname, b.rolle,
+                    b.letzter_aktivitaet, b.avatar_pfad,
+                    COALESCE(MAX(s.erstellt_am), b.letzter_aktivitaet) AS letzter_kontakt
              FROM " . DB::tbl('benutzer') . " b
-             WHERE b.aktiv = 1
-               AND b.letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
-             ORDER BY b.letzter_aktivitaet DESC"
+             LEFT JOIN " . DB::tbl('seitenaufrufe') . " s
+               ON s.benutzer_id = b.id
+               AND s.erstellt_am >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+             WHERE b.aktiv = 1 AND (
+               s.id IS NOT NULL
+               OR b.letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+             )
+             GROUP BY b.id
+             ORDER BY letzter_kontakt DESC"
         );
         foreach ($rows as $r) {
             $aktiveBenutzer[] = [
                 'id'          => (int)$r['id'],
-                'name'        => trim(($r['vorname'] ?? '') . ' ' . ($r['nachname'] ?? '')) ?: $r['email'],
+                'name'        => trim(($r['vorname'] ?? '') . ' ' . ($r['nachname'] ?? '')) ?: ($r['email'] ?? $r['benutzername']),
                 'benutzername'=> $r['benutzername'],
                 'rolle'       => $r['rolle'],
-                'seit'        => $r['letzter_aktivitaet'],
+                'seit'        => $r['letzter_kontakt'] ?? $r['letzter_aktivitaet'],
                 'avatar'      => $r['avatar_pfad'],
             ];
         }
