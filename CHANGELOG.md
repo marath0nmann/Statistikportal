@@ -1,3 +1,10 @@
+## v814
+
+- **Fix**: Python-Escaping hatte \$method statt $method erzeugt → PHP-Syntaxfehler → 500 auf allen Requests
+- ping-Endpoint und seitenaufrufe-INSERT jetzt mit korrekten PHP-Variablen
+
+---
+
 ## v813 – Admin System-Dashboard
 
 - **phpBB-Stil**: Zwei Spalten mit Statistik/Wert-Tabellen mit farbigen Abschnittsköpfen
