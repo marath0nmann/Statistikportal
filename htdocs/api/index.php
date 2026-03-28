@@ -4266,7 +4266,27 @@ if ($res === 'ergebnis-aenderungen') {
         if (!$antrag || $antrag['status'] !== 'pending') jsonErr('Antrag nicht gefunden oder bereits bearbeitet.', 404);
         if ($action === 'approve') {
             $tbl2 = DB::tbl($antrag['ergebnis_tbl']);
-            if ($antrag['typ'] === 'delete') {
+            if ($antrag['typ'] === 'insert') {
+                // Neues Ergebnis anlegen
+                $vals = json_decode($antrag['neue_werte'] ?? '{}', true) ?: [];
+                $vid2  = intOrNull($vals['veranstaltung_id'] ?? null);
+                $aid2  = intOrNull($vals['athlet_id'] ?? null);
+                $disz2 = $vals['disziplin'] ?? '';
+                $dmId2 = intOrNull($vals['disziplin_mapping_id'] ?? null);
+                $res2  = $vals['resultat'] ?? '';
+                $ak2   = $vals['altersklasse'] ?? '';
+                $von2  = intOrNull($vals['erstellt_von'] ?? null);
+                if ($vid2 && $aid2 && $disz2 && $res2) {
+                    DB::query(
+                        'INSERT INTO ' . DB::tbl('ergebnisse') .
+                        ' (veranstaltung_id,athlet_id,disziplin,disziplin_mapping_id,resultat,altersklasse,erstellt_von)'
+                        . ' VALUES (?,?,?,?,?,?,?)',
+                        [$vid2,$aid2,$disz2,$dmId2,$res2,$ak2,$von2]
+                    );
+                    // Veranstaltung genehmigen falls sie als pending angelegt wurde
+                    DB::query('UPDATE ' . DB::tbl('veranstaltungen') . ' SET genehmigt=1 WHERE id=?', [$vid2]);
+                }
+            } elseif ($antrag['typ'] === 'delete') {
                 DB::query("UPDATE $tbl2 SET geloescht_am=NOW() WHERE id=?", [$antrag['ergebnis_id']]);
             } elseif ($antrag['typ'] === 'update') {
                 $vals = json_decode($antrag['neue_werte'] ?? '{}', true) ?: [];

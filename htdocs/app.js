@@ -2255,8 +2255,11 @@ function buildNav() {
   }
   if (currentUser.rolle === 'editor' || currentUser.rolle === 'admin' || currentUser.rolle === 'athlet')
     tabs.push({ id: 'eintragen', icon: '➕️', label: 'Eintragen' });
-  if (currentUser.rolle === 'admin')
-    tabs.push({ id: 'admin', icon: '⚙️️', label: 'Admin' });
+  if (currentUser.rolle === 'admin') {
+    var _adminN = (window._adminPendingAntraege||0) + (window._adminPendingRegs||0);
+    var _adminLabel = 'Admin' + (_adminN > 0 ? ' <span style="background:#e53935;color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _adminN + '</span>' : '');
+    tabs.push({ id: 'admin', icon: '⚙️️', label: _adminLabel, rawLabel: true });
+  }
   _renderNavTabs(tabs);
   if (currentUser && currentUser.rolle === 'admin') setTimeout(function(){ _ladeAntraegeBadge(); }, 150);
 }
@@ -10574,12 +10577,8 @@ async function _ladeAntraegeBadge() {
   // Admin-Nav-Button: kombinierter Badge (Registrierungen + Anträge)
   try {
     window._adminNavBadgeCount = (window._adminPendingAntraege || 0) + (window._adminPendingRegs || 0);
-    var adminNavBtn = document.querySelector('#main-nav button[onclick*=\'admin\'], #mobile-nav-items button[onclick*=\'admin\']');
-    if (adminNavBtn) {
-      var baseHtml = '<span class="nav-icon">⚙️️</span><span class="nav-label">Admin';
-      var totalN = window._adminNavBadgeCount;
-      adminNavBtn.innerHTML = baseHtml + (totalN > 0 ? ' <span style="background:#e53935;color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle">' + totalN + '</span>' : '') + '</span>';
-    }
+    // Nav neu bauen damit badge-Label sofort stimmt
+    if (typeof buildNav === 'function') buildNav();
   } catch(e) {}
 }
 function adminSubtabs() {
