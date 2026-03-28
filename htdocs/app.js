@@ -10525,18 +10525,18 @@ async function _ladeAntraegeBadge() {
   } catch(e) {}
 }
 function adminSubtabs() {
-  var t = state.adminTab || 'benutzer';
+  var t = state.adminTab || 'system';
   return '<div class="subtabs" style="margin-bottom:20px">' +
-    '<button class="subtab' + (t==='benutzer'       ? ' active' : '') + '" onclick="navAdmin(\'benutzer\')">👥 Benutzer</button>' +
-    '<button class="subtab' + (t==='registrierungen'? ' active' : '') + '" onclick="navAdmin(\'registrierungen\')">📝 Registrierungen</button>' +
-    '<button class="subtab' + (t==='disziplinen'    ? ' active' : '') + '" onclick="navAdmin(\'disziplinen\')">🏷️ Disziplinen</button>' +
-    '<button class="subtab' + (t==='altersklassen'  ? ' active' : '') + '" onclick="navAdmin(\'altersklassen\')">👤 Altersklassen</button>' +
-    '<button class="subtab' + (t==='meisterschaften' ? ' active' : '') + '" onclick="navAdmin(\'meisterschaften\')">🏅 Meisterschaften</button>' +
-    '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">🎨 Darstellung</button>' +
-    '<button class="subtab' + (t==='dashboard_cfg'   ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">📊︎ Dashboard</button>' +
-    '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">✋ Antr\u00e4ge</button>' +
-    '<button class="subtab' + (t==='system' ? ' active' : '') + '" onclick="navAdmin(\\\'system\\\')">\xf0\x9f\x96\xa5\xef\xb8\x8e System</button>' +
-    '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb</button>' +
+    '<button class="subtab' + (t==='system'         ? ' active' : '') + '" onclick="navAdmin(\'system\')">&#x1F5A5;&#xFE0E; System</button>' +
+    '<button class="subtab' + (t==='benutzer'       ? ' active' : '') + '" onclick="navAdmin(\'benutzer\')">&#x1F465; Benutzer</button>' +
+    '<button class="subtab' + (t==='registrierungen'? ' active' : '') + '" onclick="navAdmin(\'registrierungen\')">&#x1F4DD; Registrierungen</button>' +
+    '<button class="subtab' + (t==='disziplinen'    ? ' active' : '') + '" onclick="navAdmin(\'disziplinen\')">&#x1F3F7;&#xFE0F; Disziplinen</button>' +
+    '<button class="subtab' + (t==='altersklassen'  ? ' active' : '') + '" onclick="navAdmin(\'altersklassen\')">&#x1F464; Altersklassen</button>' +
+    '<button class="subtab' + (t==='meisterschaften'? ' active' : '') + '" onclick="navAdmin(\'meisterschaften\')">&#x1F3C5; Meisterschaften</button>' +
+    '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">&#x1F3A8; Darstellung</button>' +
+    '<button class="subtab' + (t==='dashboard_cfg'  ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">&#x1F4CA;&#xFE0E; Dashboard</button>' +
+    '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">&#x270B; Anträge</button>' +
+    '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">&#x1F5D1;&#xFE0F; Papierkorb</button>' +
   '</div>';
 }
 
@@ -10575,7 +10575,7 @@ function sortBenutzerTabelle(col) {
 }
 
 async function renderAdmin() {
-  if (!state.adminTab) state.adminTab = 'benutzer';
+  if (!state.adminTab) state.adminTab = 'system';
   _ladeAntraegeBadge();
   if (state.adminTab === 'system')          { await renderAdminSystem(); return; }
   if (state.adminTab === 'disziplinen')    { await renderAdminDisziplinen(); return; }

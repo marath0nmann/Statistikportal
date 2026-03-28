@@ -1,3 +1,11 @@
+## v816
+
+- Admin-Menü öffnet jetzt direkt das System-Dashboard (statt Benutzer)
+- System-Button steht an erster Stelle in den Subtabs
+- adminSubtabs() komplett neu geschrieben (bereinigt falsch insertierten Button)
+
+---
+
 ## v815
 
 - **Fix**: catch (\\Exception \\) statt catch (\\Exception $e) in CREATE TABLE seitenaufrufe – hat alle API-Requests mit 500 gecrasht
