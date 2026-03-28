@@ -1,3 +1,10 @@
+## v787 – Fix Hall of Fame Meisterschafts-Titel
+
+- **Ursache**: `$tbl` ist im HoF-Endpunkt nicht definiert (wird nur in anderen Endpunkten lokal gesetzt)
+- **Fix**: Explizit `DB::tbl('ergebnisse')` für unified-Modus, Legacy-Tabellen für nicht-unified
+
+---
+
 ## v786 – Fix HoF Meisterschafts-Titel
 
 - **Ursache**: Code prüfte `ak_platz_meisterschaft = 1` (überall NULL), statt `ak_platzierung = 1 AND meisterschaft IS NOT NULL`

@@ -3618,7 +3618,6 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         }
 
         // ── Meisterschafts-Titel: 1. Platz in einer Meisterschaft ──
-        // meisterschaft-ID steht in ergebnisse.meisterschaft, Name in einstellungen.meisterschaften_liste
         $mstrListRaw = '';
         try { $mstrListRaw = DB::fetchOne('SELECT wert FROM ' . DB::tbl('einstellungen') . ' WHERE schluessel = ?', ['meisterschaften_liste'])['wert'] ?? ''; } catch(\Exception $e) {}
         $mstrMap = [];
@@ -3627,8 +3626,9 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         }
 
         if (!empty($mstrMap)) {
-            // 1. Plätze aus allen Ergebnis-Tabellen laden
-            foreach ([$tbl, DB::tbl('ergebnisse_strasse'), DB::tbl('ergebnisse_sprint'), DB::tbl('ergebnisse_mittelstrecke'), DB::tbl('ergebnisse_sprungwurf')] as $_mTbl) {
+            // Nur die tatsächlich vorhandene Tabelle verwenden (unified → ergebnisse)
+            $_hofTbls = $unified ? [DB::tbl('ergebnisse')] : [DB::tbl('ergebnisse_strasse'), DB::tbl('ergebnisse_sprint'), DB::tbl('ergebnisse_mittelstrecke'), DB::tbl('ergebnisse_sprungwurf')];
+            foreach ($_hofTbls as $_mTbl) {
                 try {
                     $colCheck = DB::fetchOne("SHOW COLUMNS FROM $_mTbl LIKE 'ak_platz_meisterschaft'");
                     if (!$colCheck) continue;

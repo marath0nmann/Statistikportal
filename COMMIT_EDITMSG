@@ -1,1 +1,1 @@
-v786: Fix Hall of Fame – richtiges Feld für Meisterschafts-Titel
+v787: Fix HoF – $tbl war undefined im HoF-Kontext
