@@ -4191,7 +4191,7 @@ function _apRender() {
 }
 
 async function openAthletById(id) {
-  var r = await apiGet('athleten/' + id);
+  var [r, rAusz] = await Promise.all([apiGet('athleten/' + id), apiGet('athleten/' + id + '/auszeichnungen')]);
   if (!r || !r.ok) return;
   var athlet = r.data.athlet;
   var kategorien = r.data.kategorien || [];
@@ -4266,6 +4266,30 @@ async function openAthletById(id) {
           (athlet.geschlecht ? '<span class="badge" style="background:var(--surf2);color:var(--text)">' + (athlet.geschlecht === 'M' ? '♂ Männlich' : athlet.geschlecht === 'W' ? '♀ Weiblich' : '⚧ Divers') + '</span>' : '') +
           (_canSeePersoenlicheDaten() && athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jg. ' + athlet.geburtsjahr + '</span>' : '') +
           (function(){ var _ak = (athlet.geschlecht && athlet.geburtsjahr) ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : ''; return _ak ? akBadge(_ak) : ''; })() +
+          (function() {
+            var ausz = (rAusz && rAusz.ok) ? rAusz.data : null;
+            if (!ausz) return '';
+            var aHtml = '';
+            // Meisterschaften
+            var mGrp = {}, mOrd = [];
+            (ausz.meisterschaften || []).forEach(function(mt) {
+              var k = mt.label;
+              if (!mGrp[k]) { mGrp[k] = { label: mt.label, jahre: [] }; mOrd.push(k); }
+              if (mt.jahr && mGrp[k].jahre.indexOf(mt.jahr) < 0) mGrp[k].jahre.push(mt.jahr);
+            });
+            mOrd.forEach(function(k) {
+              var mg = mGrp[k]; mg.jahre.sort();
+              var tip = mg.label + (mg.jahre.length ? ' ' + mg.jahre.join(', ') : '');
+              aHtml += '<span title="' + tip.replace(/"/g,'&quot;') + '" style="font-size:18px;cursor:default">&#x1F947;</span>';
+            });
+            // Vereinsbestleistungen
+            (ausz.bestleistungen || []).forEach(function(b) {
+              var cls = b.label.indexOf('Gesamt') >= 0 ? 'badge-gold' : 'badge-silver';
+              aHtml += '<span class="badge ' + cls + '" style="font-size:11px">' + b.label + ' über ' + b.disziplin + '</span>';
+            });
+            if (!aHtml) return '';
+            return '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">' + aHtml + '</div>';
+          }()) +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -8003,7 +8027,7 @@ async function rrUnmatchedModal(unmatched) {
                 '<input id="rrm-vorname-' + i + '" type="text" placeholder="Vorname" value="' + (nameNorm.split(' ')[0]||'') + '" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
                 '<input id="rrm-nachname-' + i + '" type="text" placeholder="Nachname" value="' + (nameNorm.split(' ').slice(1).join(' ')||'') + '" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
                 '<select id="rrm-geschlecht-' + i + '" style="width:80px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
-                  '<option value="">G.</option><option value="M"' + (u.geschlecht==='M'?' selected':'') + '>M</option><option value="W"' + (u.geschlecht==='W'?' selected':'') + '>W</option>' +
+                  '<option value="">G.</option><option value="M"' + (u.geschlecht==='M'?' selected':'') + '>M</option><option value="W"' + (u.geschlecht==='W'?' selected':'') + '>W</option><option value="D"' + (u.geschlecht==='D'?' selected':'') + '>D</option>' +
                 '</select>' +
                 '<input id="rrm-gebj-' + i + '" type="number" placeholder="Jahrg." value="' + (u.year||'') + '" min="1920" max="2020" style="width:90px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
               '</div>' +
@@ -8238,6 +8262,7 @@ async function bulkNewAthleteDialog(candidates) {
                 '<option value="">G.</option>' +
                 '<option value="M"' + (g==='M'?' selected':'') + '>M</option>' +
                 '<option value="W"' + (g==='W'?' selected':'') + '>W</option>' +
+                '<option value="D"' + (g==='D'?' selected':'') + '>D</option>' +
               '</select>' +
               '<input id="bnad-gj-' + i + '" type="number" placeholder="Jahrg." value="' + (c.year||'') + '" min="1920" max="2025" ' +
                 'style="width:85px;padding:6px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
@@ -9894,7 +9919,7 @@ async function rrUnmatchedModal(unmatched) {
                 '<input id="rrm-vorname-' + i + '" type="text" placeholder="Vorname" value="' + (nameNorm.split(' ')[0]||'') + '" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
                 '<input id="rrm-nachname-' + i + '" type="text" placeholder="Nachname" value="' + (nameNorm.split(' ').slice(1).join(' ')||'') + '" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
                 '<select id="rrm-geschlecht-' + i + '" style="width:80px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
-                  '<option value="">G.</option><option value="M"' + (u.geschlecht==='M'?' selected':'') + '>M</option><option value="W"' + (u.geschlecht==='W'?' selected':'') + '>W</option>' +
+                  '<option value="">G.</option><option value="M"' + (u.geschlecht==='M'?' selected':'') + '>M</option><option value="W"' + (u.geschlecht==='W'?' selected':'') + '>W</option><option value="D"' + (u.geschlecht==='D'?' selected':'') + '>D</option>' +
                 '</select>' +
                 '<input id="rrm-gebj-' + i + '" type="number" placeholder="Jahrg." value="' + (u.year||'') + '" min="1920" max="2020" style="width:90px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text)">' +
               '</div>' +
