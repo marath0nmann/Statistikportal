@@ -10383,6 +10383,13 @@ async function renderAdminSystem() {
       '<div>' + stable(rightRows) + '</div>' +
     '</div>' +
 
+
+
+    // G&auml;ste
+    '<div class="panel" style="margin-bottom:24px"><div class="panel-header"><div class="panel-title">&#x1F465; G&auml;ste <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 15 Min.)</span></div></div>' +
+      '<div class="table-scroll"><table style="width:100%"><thead><tr>' +
+        thStyle('IP-Adresse') + thStyle('Land') + thStyle('Browser') + thStyle('Zuletzt') + thStyle('Aufrufe') +
+      '</tr></thead><tbody>' + gaesteRows + '</tbody></table></div></div>'; +
     // Aktive Benutzer + Letzte Logins
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
       '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F7E2; Aktiv <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 5 Min.)</span></div></div>' +
@@ -10391,16 +10398,9 @@ async function renderAdminSystem() {
       '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F550; Letzte Logins</div></div>' +
         '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Status') + thStyle('Land') + thStyle('IP') + thStyle('Zeitpunkt') + '</tr></thead>' +
         '<tbody>' + loginRows + '</tbody></table></div>' +
-    '</div>' +
-
-    // G&auml;ste
-    '<div class="panel" style="margin-bottom:24px"><div class="panel-header"><div class="panel-title">&#x1F465; G&auml;ste <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 15 Min.)</span></div></div>' +
-      '<div class="table-scroll"><table style="width:100%"><thead><tr>' +
-        thStyle('IP-Adresse') + thStyle('Land') + thStyle('Browser') + thStyle('Zuletzt') + thStyle('Aufrufe') +
-      '</tr></thead><tbody>' + gaesteRows + '</tbody></table></div></div>';
+    '</div>';
 
 }
-
 async function renderAdminAntraege() {
   var el = document.getElementById('main-content');
   el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
