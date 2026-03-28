@@ -943,14 +943,22 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
         }
     } catch (\Exception $e) {}
 
-    // 2. Aktive Benutzer (letzter_aktivitaet < 5 min)
+    // 2. Aktive Benutzer: letzter_aktivitaet (aus seitenaufrufe benutzer_id ODER letzter_aktivitaet Spalte)
     $aktiveBenutzer = [];
+    // Erst letzter_aktivitaet direkt aktualisieren für den aktuellen User
+    $__curUid = $_SESSION['user_id'] ?? null;
+    if ($__curUid) try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_aktivitaet = NOW() WHERE id = ?', [(int)$__curUid]); } catch(\Exception $e) {}
     try {
+        // Aktiv = letzter_aktivitaet in den letzten 10 Min ODER seitenaufrufe in letzten 10 Min
         $rows = DB::fetchAll(
-            "SELECT b.id, b.benutzername, b.vorname, b.nachname, b.rolle, b.letzter_aktivitaet, b.avatar_pfad
+            "SELECT DISTINCT b.id, b.benutzername, b.vorname, b.nachname, b.rolle, b.letzter_aktivitaet, b.avatar_pfad
              FROM " . DB::tbl('benutzer') . " b
-             WHERE b.aktiv = 1 AND b.letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
-             ORDER BY b.letzter_aktivitaet DESC"
+             LEFT JOIN " . DB::tbl('seitenaufrufe') . " s ON s.benutzer_id = b.id AND s.erstellt_am >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+             WHERE b.aktiv = 1 AND (
+               b.letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+               OR s.id IS NOT NULL
+             )
+             ORDER BY COALESCE(b.letzter_aktivitaet, '1970-01-01') DESC"
         );
         foreach ($rows as $r) {
             $aktiveBenutzer[] = [
@@ -1004,27 +1012,37 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
         }
     } catch (\Exception $e) {}
 
-    // 4. Letzte Logins
+    // 4. Letzte Login-Versuche (chronologisch, mit Erfolg/Fehlschlag + IP)
     $letzteLogins = [];
     try {
-        // Spalten-safe: vorname/nachname könnten fehlen
-        $lHasVN = DB::fetchOne("SHOW COLUMNS FROM " . DB::tbl('benutzer') . " LIKE 'vorname'");
-        $lSel   = $lHasVN ? "b.benutzername, b.vorname, b.nachname, b.rolle, b.letzter_login" : "b.benutzername, b.rolle, b.letzter_login";
         $lRows = DB::fetchAll(
-            "SELECT $lSel FROM " . DB::tbl('benutzer') . " b
-             WHERE b.letzter_login IS NOT NULL
-             ORDER BY b.letzter_login DESC LIMIT 10"
+            'SELECT lv.benutzername, lv.ip, lv.erfolg, lv.erstellt_am'
+            . ' FROM ' . DB::tbl('login_versuche') . ' lv'
+            . ' ORDER BY lv.erstellt_am DESC LIMIT 20'
         );
+        // GeoIP für Login-IPs
+        $loginGeoCache = [];
         foreach ($lRows as $l) {
+            $lip = $l['ip'] ?? null;
+            $lcountry = null; $lcountryCode = null;
+            if ($lip && !in_array($lip, ['127.0.0.1','::1']) && !str_starts_with($lip,'192.168.') && !str_starts_with($lip,'10.')) {
+                if (!isset($loginGeoCache[$lip])) {
+                    try { $ctx = stream_context_create(['http'=>['timeout'=>2,'ignore_errors'=>true]]); $gjson = @file_get_contents('http://ip-api.com/json/'.urlencode($lip).'?fields=country,countryCode&lang=de',false,$ctx); $gg = $gjson?json_decode($gjson,true):null; $loginGeoCache[$lip] = ($gg&&($gg['status']??'')!=='fail')?$gg:null; } catch(\Exception $e) { $loginGeoCache[$lip]=null; }
+                }
+                if ($loginGeoCache[$lip]) { $lcountry=$loginGeoCache[$lip]['country']??null; $lcountryCode=strtoupper($loginGeoCache[$lip]['countryCode']??''); }
+            }
             $letzteLogins[] = [
-                'name'   => $lHasVN ? (trim(($l['vorname'] ?? '') . ' ' . ($l['nachname'] ?? '')) ?: $l['benutzername']) : $l['benutzername'],
-                'rolle'  => $l['rolle'],
-                'datum'  => $l['letzter_login'],
+                'benutzername' => $l['benutzername'],
+                'ip'           => $lip,
+                'country'      => $lcountry,
+                'countryCode'  => $lcountryCode,
+                'erfolg'       => (bool)$l['erfolg'],
+                'datum'        => $l['erstellt_am'],
             ];
         }
     } catch (\Exception $e) {}
 
-    // 5. Zählstatistiken – jede Abfrage separat try/catch
+    // 5. Zählstatistiken    // 5. Zählstatistiken – jede Abfrage separat try/catch
     $stats = [
         'benutzer'=>0,'aeltesterBenutzer'=>null,'neusterBenutzer'=>null,'neusterBenutzerDatum'=>null,
         'athleten'=>0,'athletenAktiv'=>0,'ergebnisse'=>0,'erstesErgebnisDatum'=>null,

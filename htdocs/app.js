@@ -10342,10 +10342,19 @@ async function renderAdminSystem() {
   }).join('') || '<tr><td colspan="3" style="padding:14px;text-align:center;color:var(--text2);font-size:13px">Niemand aktiv</td></tr>';
 
   var loginRows = (d.letzteLogins || []).map(function(l) {
-    return '<tr><td style="padding:7px 10px;font-weight:600">' + (l.name||'\u2013') + '</td>' +
-      '<td style="padding:7px 10px">' + badge(l.rolle) + '</td>' +
-      '<td style="padding:7px 10px;font-size:12px;color:var(--text2)">' + fmtDate(l.datum) + '</td></tr>';
-  }).join('') || '<tr><td colspan="3" style="padding:14px;text-align:center;color:var(--text2);font-size:13px">Keine Eintr&auml;ge</td></tr>';
+    var cc = (l.countryCode || '').toUpperCase();
+    var flag = cc.length===2 ? String.fromCodePoint(0x1F1E6+cc.charCodeAt(0)-65)+String.fromCodePoint(0x1F1E6+cc.charCodeAt(1)-65) : '';
+    var geo = (flag?flag+' ':'') + (l.country || l.ip || '\u2013');
+    return '<tr>' +
+      '<td style="padding:6px 10px">' + (l.benutzername||'\u2013') + '</td>' +
+      '<td style="padding:6px 10px;font-size:12px">' +
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+(l.erfolg?'#2ecc71':'var(--accent)')+';margin-right:5px"></span>' +
+        (l.erfolg?'Erfolg':'Fehlschlag') +
+      '</td>' +
+      '<td style="padding:6px 10px;font-size:11px;color:var(--text2)" title="'+(l.ip||'')+'">' + geo + '</td>' +
+      '<td style="padding:6px 10px;font-size:11px;color:var(--text2)">' + fmtDate(l.datum) + '</td>' +
+    '</tr>';
+  }).join('') || '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--text2);font-size:13px">Keine Eintr&auml;ge</td></tr>';
 
   var gaesteRows = (d.gaeste || []).map(function(g) {
     return '<tr>' +
@@ -10374,7 +10383,7 @@ async function renderAdminSystem() {
         '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Aktiv seit') + '</tr></thead>' +
         '<tbody>' + aktiveRows + '</tbody></table></div>' +
       '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F550; Letzte Logins</div></div>' +
-        '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Zeitpunkt') + '</tr></thead>' +
+        '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Status') + thStyle('Land / IP') + thStyle('Zeitpunkt') + '</tr></thead>' +
         '<tbody>' + loginRows + '</tbody></table></div>' +
     '</div>' +
 

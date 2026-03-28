@@ -1,3 +1,10 @@
+## v821
+
+- **Aktiv**: letzter_aktivitaet wird jetzt direkt am Anfang des admin-dashboard Requests gesetzt; JOIN mit seitenaufrufe als Fallback; 10-Min-Fenster
+- **Letzte Login-Versuche**: Statt 'letzter Login pro User' jetzt chronologische Liste aus login_versuche mit Status (Erfolg/Fehlschlag), IP, Land-Emoji
+
+---
+
 ## v820
 
 - **letzter_aktivitaet**: Update jetzt bei JEDEM API-Request (nicht nur auth/me)
