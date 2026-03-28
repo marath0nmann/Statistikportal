@@ -1,3 +1,11 @@
+## v791 – Fix Hall of Fame Medaillen
+
+- **Ursache**: Emoji als rohe UTF-8-Bytes im JS-String → 4 Hieroglyphen statt 🥇
+- **Fix**: `&#x1F947;` (HTML-Entity) → wird korrekt als Goldmedaille gerendert
+- Tooltip: z.B. "Nordrhein-Meisterin 1.500m (Bahn) 2021, 2024"
+
+---
+
 ## v790 – Hall of Fame Meisterschafts-Titel
 
 - **Kein ×N** mehr neben dem Emoji
