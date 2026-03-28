@@ -1,3 +1,11 @@
+## v862
+
+- **Sicherheit**: canEdit war true für Rolle 'athlet' → Edit/Delete-Buttons und Spalte 'Eingetragen von' für Athleten sichtbar. Fix: canEdit nur für admin/editor
+- **Spalte 'Eingetragen'**: nur sichtbar wenn canEdit (admin/editor)
+- **F5 auf #ergebnisse**: state.subTab war null → API-Route 'null?limit=...' → 404. Fix: restoreFromHash setzt subTab='strasse' wenn kein Sub im Hash
+
+---
+
 ## v861
 
 - **Root cause**: Beide Marathon-Anträge wurden genehmigt bevor v858 deployed war – der INSERT-Code fehlte noch, ergebnis_id blieb NULL, kein Ergebnis wurde angelegt

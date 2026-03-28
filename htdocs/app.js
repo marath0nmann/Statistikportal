@@ -2512,8 +2512,8 @@ function restoreFromHash() {
     var validAdmin = ['benutzer','registrierungen','disziplinen','altersklassen',
                       'meisterschaften','darstellung','dashboard_cfg','antraege','papierkorb'];
     if (validAdmin.indexOf(sub) >= 0) state.adminTab = sub;
-  } else if (tab === 'ergebnisse' && sub) {
-    state.subTab = sub;
+  } else if (tab === 'ergebnisse') {
+    state.subTab = sub || 'strasse';
   } else if (tab === 'rekorde' && sub) {
     state.subTab = sub;
   } else if (tab === 'eintragen') {
@@ -3498,7 +3498,7 @@ async function loadErgebnisseData() {
     katOptHtml += '<option value="' + kategorien[ki].tbl_key + '"' + (state.filters.kategorie === kategorien[ki].tbl_key ? ' selected' : '') + '>' + kategorien[ki].name + '</option>';
   }
 
-  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor' || currentUser.rolle === 'athlet');
+  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
   var totalPages = Math.ceil(total / state.limit);
   var tableHtml = buildErgebnisseTable(state.subTab, rows, canEdit);
 
@@ -3552,7 +3552,8 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
   if (hasPace) headers.push('Pace /km');
   headers.push('Platz AK');
   if (subTab !== 'mittelstrecke') { headers.push('Meisterschaft'); headers.push('Platz MS'); }
-  headers.push('Veranstaltung','Eingetragen');
+  headers.push('Veranstaltung');
+  if (canEdit) headers.push('Eingetragen');
   if (canEdit) headers.push('');
 
   // Sortierbare Spalten: key → API-sort-Parameter
@@ -3589,7 +3590,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
       cells += '<td class="ort-text" style="font-size:12px">' + (rr.meisterschaft && rr.ak_platz_meisterschaft ? platzBadge(rr.ak_platz_meisterschaft) : '') + '</td>';
     }
     cells += '<td class="ort-text">' + ort + '</td>';
-    cells += '<td class="ort-text">' + (rr.eingetragen_von || 'Excel-Import') + '</td>';
+    if (canEdit) cells += '<td class="ort-text">' + (rr.eingetragen_von || 'Excel-Import') + '</td>';
     if (canEdit) {
       cells +=
         '<td style="white-space:nowrap">' +
