@@ -1,3 +1,20 @@
+## v804 – Athletenprofil Auszeichnungen
+
+- **Titel-Tooltip**: je Meisterschaft+Disziplin eine Zeile mit Jahreszahlen (wie HoF-Medals)
+- **Bestleistungs-Tooltip**: exakt gleiche Gruppierung wie HoF-Badges (Gesamtbestleistung Frauen · Bestleistung W45–W65 über 1.500m)
+- **Zwei separate Spans**: 🥇 N Titel und 🏆 N Bestleistungen mit eigenem Tooltip
+- PHP: kat_name zu bestleistungen ergänzt
+
+---
+
+## v803 – Athletenprofil Auszeichnungen
+
+- Zwei separate Spans: '🥇 N Titel' und '🏆 N Bestleistungen' mit je eigenem Tooltip
+- Titel-Tooltip: wie HoF (label + Jahreszahlen)
+- Bestleistungen-Tooltip: wie HoF gruppiert (Gesamt/Geschlecht über Disziplinen; komprimierte AK-Ranges)
+
+---
+
 ## v802
 
 - **border-top** der Auszeichnungen-Zeile entfernt (erschien als Strich unter den Wettkämpfe-Badges)
