@@ -1,1 +1,1 @@
-v815: Fix HTTP 500 – letztes escaped \ in CREATE TABLE catch-Block
+v816: Admin öffnet direkt System-Dashboard; System-Button an erster Stelle
