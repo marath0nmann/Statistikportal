@@ -1,3 +1,21 @@
+## v831 – Neues Recht
+
+- **inaktive_athleten_sehen**: steuert ob inaktive Athleten in der Athletenliste angezeigt werden
+- Vorher: an 'athleten_details' gekoppelt (semantisch falsch)
+- Jetzt: eigenes Recht, standardmäßig admin + editor; Athlet-Rolle bekommt es nicht
+- Migration: bestehende admin/editor-Rollen erhalten das Recht automatisch
+
+---
+
+## v830
+
+- **Aktive Benutzer**: Primärquelle jetzt seitenaufrufe-Tabelle (benutzer_id JOIN) – funktioniert unabhängig von letzter_aktivitaet-Spalte
+- **E-Mail als Login-Kennung**: Session, login_versuche, Benutzertabelle UI (v828/v829 akkumuliert)
+- **Login-Versuche**: anzeigeName aus Athletenprofil, Benutzername-Untertitel
+- **Neuer Benutzer**: benutzername = email automatisch
+
+---
+
 ## v829
 
 - Login-Formular bereits E-Mail-basiert ✓

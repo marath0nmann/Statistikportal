@@ -2204,6 +2204,13 @@ function _canVeranstaltungLoeschen() {
   return r.indexOf('vollzugriff') >= 0 || r.indexOf('veranstaltung_loeschen') >= 0;
 }
 
+function _canSeeInaktiveAthleten() {
+  if (!currentUser) return false;
+  if (currentUser.rolle === 'admin') return true;
+  var r = currentUser.rechte || [];
+  return r.indexOf('vollzugriff') >= 0 || r.indexOf('inaktive_athleten_sehen') >= 0;
+}
+
 function _canBulkEintragen() {
   if (!currentUser) return false;
   if (currentUser.rolle === 'admin') return true;
@@ -3982,9 +3989,10 @@ function _renderAthletenTable() {
   var isAdmin    = currentUser && currentUser.rolle === 'admin';
   var jetzt = new Date().getFullYear();
 
-  // Inaktive Athleten nur für Details-Berechtigte sichtbar
+  // Inaktive Athleten nur mit spezifischem Recht sichtbar
+  var canSeeInaktive = _canSeeInaktiveAthleten();
   var athleten = alleAthleten.filter(function(a) {
-    if (!showDetails && !a.aktiv) return false;
+    if (!canSeeInaktive && !a.aktiv) return false;
     return true;
   });
   if (aktGruppe) {
@@ -10713,7 +10721,8 @@ var _RECHTE_LISTE = [
   { key: 'veranstaltung_loeschen',      label: 'Veranstaltung löschen' },
   { key: 'lesen',                label: 'Lesen' },
   { key: 'personenbezogene_daten', label: 'Personenbezogene Daten sehen (Athleten-Seite, Gruppen, Jahrgang)' },
-  { key: 'athleten_details',       label: 'Athleten-Details sehen (Geschlecht, Anzahl Ergebnisse, inaktive Athleten)' },
+  { key: 'athleten_details',       label: 'Athleten-Details sehen (Geschlecht, Anzahl Ergebnisse)' },
+  { key: 'inaktive_athleten_sehen', label: 'Inaktive Athleten sehen' },
   { key: 'athleten_editieren',     label: 'Athleten editieren' },
 ];
 
