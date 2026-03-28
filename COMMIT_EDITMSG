@@ -1,1 +1,1 @@
-v854: Admin-Badges rot; kombinierter Badge am Admin-Nav-Button; sofortiges Laden
+v855: Admin-Badges persistent – direkt in adminSubtabs() eingebettet
