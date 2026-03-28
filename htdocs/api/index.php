@@ -2257,6 +2257,8 @@ if ($res === 'athleten') {
         $athRow2 = DB::fetchOne('SELECT geschlecht FROM ' . DB::tbl('athleten') . ' WHERE id=?', [$athletId]);
         $athGeschlecht2 = $athRow2['geschlecht'] ?? '';
         if ($unified) {
+            // AK-Merge-Ausdruck EINMALIG vor der Disziplin-Schleife bauen (wie HoF)
+            $akExprAusz = buildAkCaseExpr(true);
             // Alle Disziplinen aller Athleten laden (wie HoF) – then check if this athlete holds a record
             $diszListAll = DB::fetchAll(
                 "SELECT DISTINCT e.disziplin, e.disziplin_mapping_id,
@@ -2301,32 +2303,34 @@ if ($res === 'athleten') {
                         [$hofParam, $athGeschlecht2]
                     );
                     if ($bestG && abs($myVal - (float)$bestG['val']) < 0.001) {
-                        $gLabel = $athGeschlecht2 === 'M' ? 'Bestleistung Männer' : 'Bestleistung Frauen';
+                        $gLabel = $athGeschlecht2 === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen';
                         $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => $gLabel];
                     }
                 }
                 // 3. AK-Bestleistung? (immer prüfen, unabhängig von Gesamt/Geschlecht – wie HoF)
                 // Altersklasse(n) dieses Athleten in dieser Disziplin ermitteln
+                // AKs dieses Athleten MIT merge (identisch zu HoF)
                 $myAKs = DB::fetchAll(
-                    "SELECT DISTINCT e.altersklasse FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND e.altersklasse IS NOT NULL AND e.altersklasse != '' AND e.geloescht_am IS NULL",
+                    "SELECT DISTINCT ($akExprAusz) AS altersklasse FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz) IS NOT NULL AND ($akExprAusz) != '' AND e.geloescht_am IS NULL",
                     [$hofParam, $athletId]
                 );
                 foreach ($myAKs as $akRow) {
                     $ak = $akRow['altersklasse'];
-                    // Bestes in dieser AK über alle Athleten
+                    // Bestes in dieser (merged) AK über alle Athleten
                     $bestAK = DB::fetchOne(
-                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.altersklasse=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
+                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND ($akExprAusz)=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
                         [$hofParam, $ak]
                     );
-                    // Bestes dieses Athleten in dieser AK
+                    // Bestes dieses Athleten in dieser (merged) AK
                     $bestMeAK = DB::fetchOne(
-                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND e.altersklasse=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
+                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz)=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
                         [$hofParam, $athletId, $ak]
                     );
                     if ($bestAK && $bestMeAK && abs((float)$bestMeAK['val'] - (float)$bestAK['val']) < 0.001) {
                         // Überspringen wenn identisch mit bereits gezählter Gesamtbestleistung
                         if ($isGesamtBest && abs((float)$bestMeAK['val'] - $myVal) < 0.001) continue;
-                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Bestleistung ' . $ak];
+                        $akLbl = preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $ak);
+                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Bestleistung ' . $akLbl];
                     }
                 }
             }
@@ -3989,7 +3993,8 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
             // Ausnahme: wenn identischer Wert wie Gesamtbestleistung → bereits durch Tier 1 abgedeckt
             foreach ($bestAKAid as $ak => $aid) {
                 if (!empty($hasGesamtBest[$aid]) && abs($bestByAK[$ak] - $bestGesamt) < 0.001) continue;
-                $addTitel($aid, 'Bestleistung ' . $ak, $bestAKDatum[$ak]);
+                $akNorm = preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $ak);
+                $addTitel($aid, 'Bestleistung ' . $akNorm, $bestAKDatum[$ak]);
             }
         }
 
