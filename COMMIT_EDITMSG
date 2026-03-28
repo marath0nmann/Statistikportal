@@ -1,1 +1,1 @@
-v826: Fix Aktiv + Logins leer – robustere Abfragen, letzter_aktivitaet nach body-Parse
+v829: Vollständige E-Mail-Umstellung – kein Benutzername mehr im UI

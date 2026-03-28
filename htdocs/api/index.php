@@ -956,7 +956,7 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
         foreach ($rows as $r) {
             $aktiveBenutzer[] = [
                 'id'          => (int)$r['id'],
-                'name'        => trim(($r['vorname'] ?? '') . ' ' . ($r['nachname'] ?? '')) ?: $r['benutzername'],
+                'name'        => trim(($r['vorname'] ?? '') . ' ' . ($r['nachname'] ?? '')) ?: $r['email'],
                 'benutzername'=> $r['benutzername'],
                 'rolle'       => $r['rolle'],
                 'seit'        => $r['letzter_aktivitaet'],
@@ -1239,10 +1239,12 @@ if ($res === 'benutzer') {
                         b.avatar_pfad, b.email_login_bevorzugt, b.totp_aktiv,
                         a.name_nv AS athlet_name,
                         a.vorname  AS athlet_vorname,
+                        a.nachname AS athlet_nachname,
+                        COALESCE(NULLIF(TRIM(CONCAT(a.vorname,\' \',a.nachname)),\'\'),b.email) AS name,
                         (SELECT COUNT(*) FROM ' . DB::tbl('passkeys') . ' p WHERE p.user_id = b.id) AS passkey_count
                  FROM ' . DB::tbl('benutzer') . ' b
                  LEFT JOIN ' . DB::tbl('athleten') . ' a ON a.id = b.athlet_id
-                 ORDER BY b.benutzername'
+                 ORDER BY b.email'
             );
         } catch (\Exception $e) {
             $rows = DB::fetchAll(

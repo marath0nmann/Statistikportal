@@ -77,7 +77,7 @@ class Auth {
 
         // Erfolgreicher Passwort-Check – Versuch loggen
         DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg) VALUES (?, ?, 1)',
-            [$user['benutzername'], $ip]);
+            [$user['email'], $ip]); // E-Mail als Kennung bei Erfolg
 
         // 2FA für alle User: TOTP oder Passkey
         $hasTotp    = !empty($user['totp_aktiv']);
@@ -257,11 +257,11 @@ class Auth {
             if ($ath) $vorname = $ath['vorname'] ?? '';
         }
         $_SESSION['user_id']    = $user['id'];
-        $_SESSION['user_name']  = $user['benutzername'];
+        $_SESSION['user_name']  = $user['email']; // E-Mail als primäre Kennung
         $_SESSION['user_rolle'] = $user['rolle'];
         session_regenerate_id(true);
         return ['ok' => true, 'totp_required' => false, 'rolle' => $user['rolle'],
-                'name' => $user['benutzername'], 'email' => $user['email'], 'vorname' => $vorname];
+                'name' => $user['email'], 'email' => $user['email'], 'vorname' => $vorname];
     }
 
     // ============================================================
