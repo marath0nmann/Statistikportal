@@ -3011,30 +3011,27 @@ function timelineBadges(rek) {
       }
       var _tlId = 'tl-widget-' + ri + '-' + ci;
     if (wcfg.tl_auto_fill) {
-      // After render: measure container, count items, re-render with exact fill
+      // After render: use viewport height to calculate how many items fit
       setTimeout(function(_id, _ri2, _ci2) {
         var _panel = document.getElementById(_id);
         if (!_panel) return;
-        var _tl = _panel.querySelector('.timeline');
-        if (!_tl) return;
-        var _items = _tl.querySelectorAll('.timeline-item');
+        var _items = _panel.querySelectorAll('.timeline-item');
         if (!_items.length) return;
-        var _panelH = _panel.offsetHeight;
-        var _headerH = (_panel.querySelector('.panel-header') || {}).offsetHeight || 44;
-        var _availH = _panelH - _headerH;
-        // Measure first item height
-        var _itemH = _items[0].offsetHeight || 56;
+        // Available height = viewport minus fixed chrome (header + tab-bar)
+        var _headerEl = document.querySelector('header');
+        var _tabEl    = document.querySelector('.tab-bar, nav');
+        var _chromeH  = (_headerEl ? _headerEl.offsetHeight : 0) + (_tabEl ? _tabEl.offsetHeight : 0);
+        var _panelHeaderH = (_panel.querySelector('.panel-header') || {}).offsetHeight || 44;
+        var _availH = window.innerHeight - _chromeH - _panelHeaderH;
+        var _itemH  = _items[0].offsetHeight || 60;
         var _fitsCount = Math.max(1, Math.floor(_availH / _itemH));
-        // Only re-render if we have more items or currently showing too many
-        if (_fitsCount === _items.length) return;
-        // Re-slice filteredTimeline html (simpler: re-trigger full render)
-        // Store computed limit in wcfg for this render cycle
+        if (_fitsCount === _items.length) return; // already correct
         var _layout3 = dashGetLayout();
         if (_layout3[_ri2] && _layout3[_ri2].cols[_ci2]) {
           _layout3[_ri2].cols[_ci2]._auto_fill_limit = _fitsCount;
         }
         renderDashboard(_layout3);
-      }, 60, _tlId, ri, ci);
+      }, 80, _tlId, ri, ci);
     }
     // Use _auto_fill_limit if set (post-measure render)
     var _displayLimit = wcfg._auto_fill_limit || null;

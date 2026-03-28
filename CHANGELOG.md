@@ -1,3 +1,11 @@
+## v807 – Fix Timeline Auto-Fill
+
+- **Ursache**: Panel wächst mit dem Inhalt – offsetHeight lieferte nie die begrenzte Höhe
+- **Fix**: Verfügbare Höhe = `window.innerHeight - Header - Tab-Bar - Panel-Header`
+- Damit passt die Anzahl Einträge exakt in den Viewport
+
+---
+
 ## v806 – Neueste Bestleistungen: Auto-Fill
 
 - Neue Option im Widget-Config: **"Box automatisch füllen"**
