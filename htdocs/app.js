@@ -3013,28 +3013,32 @@ function timelineBadges(rek) {
       }
       var _tlId = 'tl-widget-' + ri + '-' + ci;
     if (wcfg.tl_auto_fill) {
-      // After render: measure tallest sibling column in the same row to get target height
+      // Measure sibling natural height by temporarily collapsing this column
       setTimeout(function(_id, _ri2, _ci2) {
         var _panel = document.getElementById(_id);
         if (!_panel) return;
         var _items = _panel.querySelectorAll('.timeline-item');
         if (!_items.length) return;
-        // Find the row wrapper and measure tallest SIBLING column
-        var _col = _panel.parentElement;       // direct parent = column div
-        var _row = _col ? _col.parentElement : null; // row = dash-row-wrap
+        var _col = _panel.parentElement;
+        var _row = _col ? _col.parentElement : null;
+        if (!_row) return;
+        // Temporarily collapse this column so siblings show their natural height
+        var _origCss = _col.style.cssText;
+        _col.style.alignSelf = 'flex-start';
+        _col.style.height = '0px';
+        var _reflow = _row.offsetHeight; // force reflow
         var _maxSiblingH = 0;
-        if (_row) {
-          Array.from(_row.children).forEach(function(c) {
-            if (c !== _col) _maxSiblingH = Math.max(_maxSiblingH, c.offsetHeight);
-          });
-        }
-        if (!_maxSiblingH) return; // no siblings or row not found
+        Array.from(_row.children).forEach(function(c) {
+          if (c !== _col) _maxSiblingH = Math.max(_maxSiblingH, c.offsetHeight);
+        });
+        _col.style.cssText = _origCss; // restore
+        if (!_maxSiblingH) return;
         var _panelHeaderH = (_panel.querySelector('.panel-header') || {}).offsetHeight || 44;
         var _availH = _maxSiblingH - _panelHeaderH;
         var _itemH  = _items[0].offsetHeight || 60;
         var _fitsCount = Math.max(1, Math.floor(_availH / _itemH));
         var _key3 = _ri2 + '-' + _ci2;
-        if (_tlAutoFillLimits[_key3] === _fitsCount) return; // already correct
+        if (_tlAutoFillLimits[_key3] === _fitsCount) return;
         _tlAutoFillLimits[_key3] = _fitsCount;
         renderDashboard();
       }, 80, _tlId, ri, ci);
