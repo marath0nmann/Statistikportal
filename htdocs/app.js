@@ -10350,6 +10350,7 @@ async function renderAdminSystem() {
   var gaesteRows = (d.gaeste || []).map(function(g) {
     return '<tr>' +
       '<td style="padding:6px 10px;font-family:monospace;font-size:12px">' + (g.ip||'\u2013') + '</td>' +
+      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)" data-geoip-ip="' + (g.ip||'') + '">\u2026</td>' +
       '<td style="padding:6px 10px;font-size:11px;color:var(--text2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (g.user_agent||'').replace(/^Mozilla\/5\.0 /,'').slice(0,70) + '</td>' +
       '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + timeSince(g.zuletzt) + '</td>' +
       '<td style="padding:6px 10px;font-size:12px;text-align:right">' + g.aufrufe + '</td>' +
@@ -10380,8 +10381,31 @@ async function renderAdminSystem() {
     // G&auml;ste
     '<div class="panel" style="margin-bottom:24px"><div class="panel-header"><div class="panel-title">&#x1F465; G&auml;ste <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 15 Min.)</span></div></div>' +
       '<div class="table-scroll"><table style="width:100%"><thead><tr>' +
-        thStyle('IP-Adresse') + thStyle('Browser') + thStyle('Zuletzt') + thStyle('Aufrufe') +
+        thStyle('IP-Adresse') + thStyle('Land') + thStyle('Browser') + thStyle('Zuletzt') + thStyle('Aufrufe') +
       '</tr></thead><tbody>' + gaesteRows + '</tbody></table></div></div>';
+
+  // GeoIP: Laender per ip-api.com nachschlagen
+  setTimeout(function() {
+    var ipCells = document.querySelectorAll('[data-geoip-ip]');
+    var byIP = {};
+    ipCells.forEach(function(td) {
+      var ip = td.dataset.geoipIp;
+      if (!ip) return;
+      (byIP[ip] = byIP[ip] || []).push(td);
+    });
+    var ips = Object.keys(byIP).filter(function(ip) { return !ip.startsWith('127.') && !ip.startsWith('192.168.') && !ip.startsWith('10.') && ip !== '::1'; });
+    ips.forEach(function(ip) {
+      fetch('https://ip-api.com/json/' + encodeURIComponent(ip) + '?fields=country,countryCode,city&lang=de')
+        .then(function(r) { return r.json(); })
+        .then(function(geo) {
+          if (!geo || geo.status === 'fail') return;
+          var cc = (geo.countryCode || '').toUpperCase();
+          var flag = cc.length === 2 ? String.fromCodePoint(0x1F1E6 + cc.charCodeAt(0) - 65) + String.fromCodePoint(0x1F1E6 + cc.charCodeAt(1) - 65) : '';
+          var label = (flag ? flag + ' ' : '') + (geo.city ? geo.city + ', ' : '') + (geo.country || cc);
+          byIP[ip].forEach(function(td) { td.textContent = label || ip; });
+        }).catch(function() {});
+    });
+  }, 200);
 }
 
 

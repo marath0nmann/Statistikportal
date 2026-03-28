@@ -1,1 +1,1 @@
-v817: Fix Admin-Dashboard – isolierte try/catch je Stat-Abfrage; Umlaut-Fix
+v818: Aktiv/Logins fix; GeoIP für Gäste-IPs via ip-api.com
