@@ -1,1 +1,1 @@
-v809: Fix prevByG-Bug; Auto-Fill ohne DOM-Erstellung; Bestleistung Frauen zeigt jetzt korrekt Vorgänger
+v810: Auto-Fill misst Höhe der Nachbar-Widgets statt Viewport
