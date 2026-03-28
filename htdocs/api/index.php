@@ -2059,6 +2059,108 @@ if ($res === 'athleten') {
     }
 
     // Eigener Profil-Änderungsantrag (Athlet ändert sein eigenes Profil → Genehmigung)
+    // ── Sub-Ressource: Auszeichnungen (HoF-Daten) für einen Athleten ──
+    if ($method === 'GET' && $id && ($parts[2] ?? '') === 'auszeichnungen') {
+        $athletId = (int)$id;
+        // Vereinsbestleistungen aus HoF-Logik (vereinfacht: nur für diesen Athleten)
+        $result = ['bestleistungen' => [], 'meisterschaften' => []];
+
+        // Meisterschafts-Titel (1. Platz + Meisterschaft)
+        $mstrListRaw = '';
+        try { $mstrListRaw = DB::fetchOne('SELECT wert FROM ' . DB::tbl('einstellungen') . ' WHERE schluessel = ?', ['meisterschaften_liste'])['wert'] ?? ''; } catch(\Exception $e) {}
+        $mstrMap = [];
+        foreach (json_decode($mstrListRaw ?: '[]', true) ?: [] as $m) {
+            if (!empty($m['id']) && !empty($m['label'])) $mstrMap[(int)$m['id']] = $m['label'];
+        }
+        if ($unified && !empty($mstrMap)) {
+            $akExpr = buildAkCaseExpr(true);
+            try {
+                $firstPlaces = DB::fetchAll(
+                    'SELECT e.meisterschaft, e.disziplin, e.altersklasse,' .
+                    ' COALESCE(k.name, \'Sonstige\') AS kat_name, v.datum' .
+                    ' FROM ' . DB::tbl('ergebnisse') . ' e' .
+                    ' JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id = e.veranstaltung_id' .
+                    ' LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' m ON m.id = e.disziplin_mapping_id' .
+                    ' LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' k ON k.id = m.kategorie_id' .
+                    ' WHERE e.athlet_id = ? AND e.ak_platzierung = 1 AND e.meisterschaft IS NOT NULL AND e.geloescht_am IS NULL',
+                    [$athletId]
+                );
+                // Athleten-Geschlecht für Suffix
+                $athRow = DB::fetchOne('SELECT geschlecht FROM ' . DB::tbl('athleten') . ' WHERE id = ?', [$athletId]);
+                $geschlecht = $athRow['geschlecht'] ?? '';
+                $mSuffix = $geschlecht === 'M' ? '-Meister' : ($geschlecht === 'W' ? '-Meisterin' : '-Meister/in');
+                foreach ($firstPlaces as $fp) {
+                    $mId   = (int)($fp['meisterschaft'] ?? 0);
+                    $mName = $mstrMap[$mId] ?? null;
+                    if (!$mName) continue;
+                    $disz = $fp['disziplin'] ?? '';
+                    $kat  = $fp['kat_name'] ?? '';
+                    $jahr = (int)substr($fp['datum'] ?? '', 0, 4);
+                    $label = $mName . $mSuffix . ' ' . $disz . ($kat && $kat !== 'Sonstige' ? ' (' . $kat . ')' : '');
+                    $result['meisterschaften'][] = ['label' => $label, 'jahr' => $jahr, 'disz' => $disz, 'kat' => $kat, 'mstr' => $mName];
+                }
+            } catch(\Exception $e) {}
+        }
+
+        // Vereinsbestleistungen: Gesamtbestleistung + Geschlechts-/AK-Bestleistung
+        if ($unified) {
+            $diszList = DB::fetchAll(
+                "SELECT DISTINCT e.disziplin, e.disziplin_mapping_id,
+                 COALESCE(m.fmt_override, k.fmt, 'min') AS fmt,
+                 COALESCE(k.sort_dir,'ASC') AS sort_dir,
+                 COALESCE(m.hof_exclude, 0) AS hof_exclude
+                 FROM " . DB::tbl('ergebnisse') . " e
+                 LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
+                 LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
+                 WHERE e.athlet_id=? AND e.geloescht_am IS NULL",
+                [$athletId]
+            );
+            foreach ($diszList as $dRow) {
+                if (!empty($dRow['hof_exclude'])) continue;
+                $disz = $dRow['disziplin']; $mappingId = $dRow['disziplin_mapping_id'] ?? null;
+                $fmt  = $dRow['fmt'] ?? 'min'; $dir = strtoupper($dRow['sort_dir'] ?? 'ASC');
+                $valExpr = $fmt === 'm'
+                    ? "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))"
+                    : "CASE WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}' THEN TIME_TO_SEC(e.resultat)
+                           WHEN e.resultat REGEXP '^[0-9]+:[0-9]' THEN TIME_TO_SEC(CONCAT('00:', REPLACE(e.resultat,',','.')))
+                           ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END";
+                $hofWhere = $mappingId ? 'e.disziplin_mapping_id = ?' : 'e.disziplin = ?';
+                $hofParam = $mappingId ?? $disz;
+                // Globales Bestes für diese Disziplin (alle Athleten)
+                $bestAll = DB::fetchOne(
+                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
+                    [$hofParam]
+                );
+                if (!$bestAll) continue;
+                // Bestes dieses Athleten
+                $bestMe = DB::fetchOne(
+                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
+                    [$hofParam, $athletId]
+                );
+                if (!$bestMe) continue;
+                // Ist der Athlet auf Platz 1 (Gesamtbestleistung)?
+                if (abs((float)$bestMe['val'] - (float)$bestAll['val']) < 0.001) {
+                    $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Gesamtbestleistung'];
+                    continue;
+                }
+                // Geschlechts-Bestleistung?
+                $athGeschlecht = DB::fetchOne('SELECT geschlecht FROM ' . DB::tbl('athleten') . ' WHERE id=?', [$athletId])['geschlecht'] ?? '';
+                if ($athGeschlecht === 'M' || $athGeschlecht === 'W') {
+                    $bestG = DB::fetchOne(
+                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id WHERE $hofWhere AND a.geschlecht=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
+                        [$hofParam, $athGeschlecht]
+                    );
+                    if ($bestG && abs((float)$bestMe['val'] - (float)$bestG['val']) < 0.001) {
+                        $gLabel = $athGeschlecht === 'M' ? 'Bestleistung Männer' : 'Bestleistung Frauen';
+                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => $gLabel];
+                    }
+                }
+            }
+        }
+
+        jsonOk($result);
+    }
+
     if ($method === 'POST' && $id && ($parts[2] ?? '') === 'profil-antrag') {
         $user = Auth::requireLogin();
         $athletId = (int)$id;

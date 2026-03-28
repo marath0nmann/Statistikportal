@@ -1,3 +1,19 @@
+## v793 – Fixes
+
+- **Divers** in allen verbleibenden Geschlecht-Dropdowns (Bulk-Eintragen neue Athleten, Registrierungen-Modal)
+- Alle fehlenden D-Optionen ergänzt
+
+---
+
+## v792 – Athletenprofil: Auszeichnungen
+
+- Neuer API-Endpoint: `GET athleten/{id}/auszeichnungen`
+- Athletenprofil-Header zeigt jetzt:
+  - 🥇-Emoji mit Tooltip pro Meistertitel (z.B. "NRW-Meisterin 10km (Straße) 2021, 2023")
+  - Gold/Silber-Badges für Vereinsbestleistungen
+
+---
+
 ## v791 – Fix Hall of Fame Medaillen
 
 - **Ursache**: Emoji als rohe UTF-8-Bytes im JS-String → 4 Hieroglyphen statt 🥇
