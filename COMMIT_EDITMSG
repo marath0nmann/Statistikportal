@@ -1,1 +1,1 @@
-v855: Admin-Badges persistent – direkt in adminSubtabs() eingebettet
+v856: Fix Admin-Subtab-Emojis (doppelte Escapes in adminSubtabs)

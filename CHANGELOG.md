@@ -1,3 +1,10 @@
+## v856
+
+- **Bugfix**: adminSubtabs() hatte \\U0001f4dd / \\u270b als literal Python-Unicode-Escapes statt echte UTF-8-Bytes → Browser zeigte 'U0001F4DD REGISTRIERUNGEN' statt '📝 Registrierungen'
+- Fix: echte UTF-8-Bytes ✋ 📝 🗑️ direkt in den JS-String-Literalen
+
+---
+
 ## v855
 
 - **Root cause**: _ladeAntraegeBadge() setzte Badges per querySelector auf die Buttons – aber bei jedem Subtab-Wechsel rendert adminSubtabs() die Buttons neu als statisches HTML ohne Badges → Badges verschwinden
