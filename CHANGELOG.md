@@ -1,3 +1,9 @@
+## v825
+
+- **Fix**: Beim Umordnen der Sektionen wurde ein Semikolon mitten in den el.innerHTML-String gesetzt → el.innerHTML endete nach der Gäste-Tabelle, Aktiv + Logins wurden nie gerendert
+
+---
+
 ## v824
 
 - Gäste-Tabelle erscheint jetzt vor den Aktiv/Login-Tabellen
