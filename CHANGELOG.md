@@ -1,3 +1,19 @@
+## v861
+
+- **Root cause**: Beide Marathon-Anträge wurden genehmigt bevor v858 deployed war – der INSERT-Code fehlte noch, ergebnis_id blieb NULL, kein Ergebnis wurde angelegt
+- **Migration**: Beim ersten API-Aufruf nach v861-Deploy werden alle approved insert-Anträge mit ergebnis_id=NULL automatisch nachverarbeitet (Ergebnis anlegen, Veranstaltung genehmigen)
+- **Going forward**: Approval-Handler speichert jetzt auch die neue ergebnis_id im Antrag
+
+---
+
+## v860
+
+- **Externes PB eintragen (Athlet)**: /athleten/{id}/pb erforderte requireEditor() → Athleten bekamen 'Keine Berechtigung'. Fix: requireLogin() + Prüfung ob eigenes Profil
+- **Veranstaltung löschen (FK-Fehler)**: Beim endgültigen Löschen aus Papierkorb wurde ergebnisse-Tabelle nicht berücksichtigt → SQLSTATE[23000] FK-Constraint. Fix: DELETE aus ergebnisse UND Legacy-Tabelle vor DELETE aus veranstaltungen
+- **Soft-Delete**: UPDATE geloescht_am jetzt auf ergebnisse UND Legacy-Tabelle bei Veranstaltung in Papierkorb verschieben
+
+---
+
 ## v859
 
 - **Root cause Menü-Flackern**: buildNav() rief _ladeAntraegeBadge() per setTimeout auf; _ladeAntraegeBadge() rief am Ende buildNav() auf → Endlosschleife, die Nav re-rendert sich hunderte Male pro Sekunde
