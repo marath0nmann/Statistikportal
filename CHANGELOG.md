@@ -1,3 +1,19 @@
+## v858
+
+- **Bugfix**: Beim Genehmigen eines Antrags (typ='insert') wurde kein Ergebnis angelegt
+- Der Approval-Handler behandelte nur 'delete' und 'update' – 'insert' wurde stillschweigend ignoriert
+- Fix: neuer elseif-Zweig für typ='insert': legt das Ergebnis in ergebnisse an und setzt genehmigt=1 auf der Veranstaltung
+
+---
+
+## v857
+
+- **Admin-Nav-Badge**: Zähler wird jetzt direkt beim Aufbau der Nav in buildNav() aus window._adminPendingAntraege + window._adminPendingRegs gelesen und in das Label eingebettet – kein nachträgliches querySelector-Patching mehr
+- Nach dem ersten Laden ruft _ladeAntraegeBadge() buildNav() neu auf → Badge aktualisiert sich konsistent
+- Prinzip identisch zu Subtab-Badges: gecachte window-Variablen, direkt im HTML-String
+
+---
+
 ## v856
 
 - **Bugfix**: adminSubtabs() hatte \\U0001f4dd / \\u270b als literal Python-Unicode-Escapes statt echte UTF-8-Bytes → Browser zeigte 'U0001F4DD REGISTRIERUNGEN' statt '📝 Registrierungen'

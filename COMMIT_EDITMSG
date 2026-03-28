@@ -1,1 +1,1 @@
-v856: Fix Admin-Subtab-Emojis (doppelte Escapes in adminSubtabs)
+v858: Antrag genehmigen – INSERT-Typ fehlte im Approval-Handler
