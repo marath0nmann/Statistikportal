@@ -1,3 +1,32 @@
+## v853
+
+- **Initial State**: subTab startet jetzt als null statt 'strasse' – kein falscher Wert beim Seitenstart
+- **Hard Guard** (direkt vor var isBulk): if (!_canBulkEintragen()) → immer zu eigenes/keine Berechtigung
+- **restoreFromHash**: eintragen-Tab setzt subTab=null (kein URL-Hash-Bypass mehr)
+- **Backend**: requireEditor() auf POST ergebnisse/bulk (seit v850)
+
+Vierfach abgesichert – kein Pfad führt mehr zu Bulk-Inhalt für Athleten
+
+---
+
+## v852
+
+- **1. restoreFromHash**: 'bulk' aus validEint entfernt – URL #eintragen/bulk setzt state.subTab nicht mehr direkt
+- **2. Hard Guard**: Unmittelbar vor dem Bulk-Content ein expliziter _canBulkEintragen()-Check mit return – egal wie state.subTab gesetzt wurde
+- **3. Backend**: requireEditor() auf POST ergebnisse/bulk (seit v850)
+
+Kein Code-Pfad kann mehr Bulk-Inhalt für einen Athleten rendern.
+
+---
+
+## v851
+
+- **Root cause**: state.subTab ist initial 'strasse'. restoreFromHash() setzte bei #eintragen ohne Sub nur state.tab, nie state.subTab. renderEintragen() prüfte nur auf null und 'bulk' – 'strasse' passierte den Check, und der Code fiel durch zur Bulk-Darstellung.
+- **Fix 1**: restoreFromHash() setzt state.subTab = null wenn tab='eintragen', bevor ein etwaiges Sub gesetzt wird
+- **Fix 2**: renderEintragen() prüft jetzt ob subTab in ['bulk','eigenes'] ist – jeder andere Wert (auch 'strasse') löst den Permission-Reset aus
+
+---
+
 ## v850
 
 - **Sicherheit Backend**: POST ergebnisse/bulk nutzte requireAthlet() → jeder eingeloggte Athlet konnte Bulk-Ergebnisse eintragen. Fix: requireEditor()
