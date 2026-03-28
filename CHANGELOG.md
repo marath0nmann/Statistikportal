@@ -1,3 +1,11 @@
+## v834
+
+- **Ursache**: Ein Athlet der Geschlechts-Bestleistung hält (z.B. Bestleistung Männer 300m Hürden) bekam zusätzlich die AK-Bestleistung (Bestleistung M75) → Doppelzählung
+- **Fix**: HoF-Endpoint überspringt AK-Titel wenn Athlet in dieser Disziplin bereits Geschlechts-Bestleistung hat (identische Logik wie auszeichnungen-Endpoint)
+- **JS**: Gold-Erkennung erweitert auf 'Bestleistung Männer'/'Bestleistung Frauen' (Labels vom auszeichnungen-Endpoint)
+
+---
+
 ## v833
 
 - **Athletenprofil**: Badge zeigte Anzahl der Titelgruppen (15) statt Einzeltitel (20)

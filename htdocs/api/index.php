@@ -3972,10 +3972,14 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
 
             // Geschlechts-Bestleistung → "Gesamtbestleistung Männer/Frauen" (gold)
             // Die frühere "Gesamtbestleistung über alle" entfällt
+            $hasGenderBest = []; // [aid => true] – verhindert doppelte AK-Titel
             foreach ($bestGAid as $g => $aid) {
                 $addTitel($aid, $g === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen', $bestGDatum[$g]);
+                $hasGenderBest[$aid] = true;
             }
             foreach ($bestAKAid as $ak => $aid) {
+                // Kein AK-Titel wenn bereits Geschlechts-Bestleistung in dieser Disziplin
+                if (!empty($hasGenderBest[$aid])) continue;
                 $addTitel($aid, 'Bestleistung ' . $ak, $bestAKDatum[$ak]);
             }
         }
