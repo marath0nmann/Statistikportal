@@ -1,3 +1,26 @@
+## v813 – Admin System-Dashboard
+
+- **phpBB-Stil**: Zwei Spalten mit Statistik/Wert-Tabellen mit farbigen Abschnittsköpfen
+- **Links**: System (Portal seit, DB-Server, DB-Größe, PHP), Benutzer, Seitenaufrufe
+- **Rechts**: Ergebnisse + pro Tag, erstes Ergebnis-Datum, Veranstaltungen + pro Tag, Athleten, externe PBs, Importe, Disziplinen, Wartungswerte
+- Aktive Benutzer und letzte Logins bleiben als Tabellen darunter
+
+---
+
+## v812 – Admin System-Dashboard
+
+- **Neuer Subtab '🖥 System'** im Admin-Menü
+- **System-Info**: PHP-Version, Datenbank-Version, DB-Größe in MB
+- **Statistik-Karten**: Benutzer, Athleten, Ergebnisse, Veranstaltungen, offene Anträge/Registrierungen, Papierkorb
+- **Aktive Benutzer**: Wer war in den letzten 5 Minuten aktiv (Name, Rolle, seit wann)
+- **Letzte 10 Logins**: Wer hat sich wann eingeloggt
+- **Gäste**: IP, User-Agent, letzter Besuch, Anzahl Aufrufe – letzte 15 Minuten
+- **Seitenaufrufe**: Heute / Gestern / 7 Tage
+- Neue seitenaufrufe-Tabelle wird automatisch angelegt
+- Ping-Tracking bei jedem App-Start
+
+---
+
 ## v811 – Fix Timeline Auto-Fill
 
 - **Ursache**: Flexbox streckt alle Spalten auf die gleiche Höhe → Geschwister hatten auch 12837px

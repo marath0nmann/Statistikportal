@@ -155,6 +155,21 @@ try {
         }
     }
 } catch (\Exception $e) {}
+// Seitenaufrufe-Tabelle für Besucher-Tracking
+try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('seitenaufrufe') . "
+    (id INT AUTO_INCREMENT PRIMARY KEY, benutzer_id INT NULL, ip VARCHAR(45) NULL,
+     user_agent VARCHAR(255) NULL, erstellt_am DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+     INDEX idx_erstellt (erstellt_am)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (\Exception \$e) {}
+// Seitenaufruf tracken (jeder API-Request)
+if (\$method === 'GET' && \$res === 'ping') {
+    \$bId = isset(\$_SESSION['user_id']) ? (int)\$_SESSION['user_id'] : null;
+    \$ip  = \$_SERVER['REMOTE_ADDR'] ?? null;
+    \$ua  = substr(\$_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
+    try { DB::query('INSERT INTO ' . DB::tbl('seitenaufrufe') . ' (benutzer_id,ip,user_agent) VALUES (?,?,?)', [\$bId, \$ip, \$ua]); } catch (\Exception \$e) {}
+    try { DB::query('DELETE FROM ' . DB::tbl('seitenaufrufe') . ' WHERE erstellt_am < DATE_SUB(NOW(), INTERVAL 24 HOUR)'); } catch (\Exception \$e) {}
+    jsonOk(['pong' => true]);
+}
+
 // Standard-Rollen anlegen falls leer
 try {
     if (!DB::fetchOne('SELECT id FROM ' . DB::tbl('rollen') . ' LIMIT 1')) {
@@ -891,6 +906,147 @@ if ($res === 'upload' && $id === 'avatar') {
 // ============================================================
 // EINSTELLUNGEN (öffentlich lesbar, Schreiben nur Admin)
 // ============================================================
+
+// ============================================================
+// ADMIN DASHBOARD
+// ============================================================
+if ($res === 'admin-dashboard' && $method === 'GET') {
+    Auth::requireAdmin();
+
+    // 1. System-Info
+    $phpVersion = PHP_VERSION;
+    $dbVersion = 'unbekannt';
+    try { $dbVersion = DB::fetchOne('SELECT VERSION() AS v')['v'] ?? 'unbekannt'; } catch (\Exception $e) {}
+
+    // DB-Größe in MB
+    $dbSize = null;
+    try {
+        $dbName = DB::fetchOne('SELECT DATABASE() AS d')['d'] ?? null;
+        if ($dbName) {
+            $row = DB::fetchOne(
+                "SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS mb
+                 FROM information_schema.tables WHERE table_schema = ?", [$dbName]
+            );
+            $dbSize = (float)($row['mb'] ?? 0);
+        }
+    } catch (\Exception $e) {}
+
+    // 2. Aktive Benutzer (letzter_aktivitaet < 5 min)
+    $aktiveBenutzer = [];
+    try {
+        $rows = DB::fetchAll(
+            "SELECT b.id, b.benutzername, b.vorname, b.nachname, b.rolle, b.letzter_aktivitaet, b.avatar_pfad
+             FROM " . DB::tbl('benutzer') . " b
+             WHERE b.aktiv = 1 AND b.letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+             ORDER BY b.letzter_aktivitaet DESC"
+        );
+        foreach ($rows as $r) {
+            $aktiveBenutzer[] = [
+                'id'          => (int)$r['id'],
+                'name'        => trim(($r['vorname'] ?? '') . ' ' . ($r['nachname'] ?? '')) ?: $r['benutzername'],
+                'benutzername'=> $r['benutzername'],
+                'rolle'       => $r['rolle'],
+                'seit'        => $r['letzter_aktivitaet'],
+                'avatar'      => $r['avatar_pfad'],
+            ];
+        }
+    } catch (\Exception $e) {}
+
+    // 3. Gäste + Besucher (letzten 15 Min aus seitenaufrufe, benutzer_id=NULL)
+    $gaeste = [];
+    try {
+        $gRows = DB::fetchAll(
+            "SELECT ip, user_agent, MAX(erstellt_am) AS zuletzt, COUNT(*) AS aufrufe
+             FROM " . DB::tbl('seitenaufrufe') . "
+             WHERE benutzer_id IS NULL AND erstellt_am >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+             GROUP BY ip, user_agent ORDER BY zuletzt DESC LIMIT 50"
+        );
+        foreach ($gRows as $g) {
+            $gaeste[] = [
+                'ip'         => $g['ip'],
+                'user_agent' => $g['user_agent'],
+                'zuletzt'    => $g['zuletzt'],
+                'aufrufe'    => (int)$g['aufrufe'],
+            ];
+        }
+    } catch (\Exception $e) {}
+
+    // 4. Letzte Logins
+    $letzteLogins = [];
+    try {
+        $lRows = DB::fetchAll(
+            "SELECT b.benutzername, b.vorname, b.nachname, b.rolle, b.letzter_login
+             FROM " . DB::tbl('benutzer') . " b
+             WHERE b.letzter_login IS NOT NULL AND b.aktiv = 1
+             ORDER BY b.letzter_login DESC LIMIT 10"
+        );
+        foreach ($lRows as $l) {
+            $letzteLogins[] = [
+                'name'   => trim(($l['vorname'] ?? '') . ' ' . ($l['nachname'] ?? '')) ?: $l['benutzername'],
+                'rolle'  => $l['rolle'],
+                'datum'  => $l['letzter_login'],
+            ];
+        }
+    } catch (\Exception $e) {}
+
+    // 5. Zählstatistiken + phpBB-Stil Werte
+    $stats = [];
+    try {
+        // Benutzer
+        $stats['benutzer']     = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('benutzer') . " WHERE aktiv=1 AND geloescht_am IS NULL")['c'] ?? 0);
+        $erstelltRow = DB::fetchOne("SELECT MIN(erstellt_am) AS d FROM " . DB::tbl('benutzer'));
+        $stats['aeltesterBenutzer'] = $erstelltRow['d'] ?? null;
+        $neusterRow = DB::fetchOne("SELECT benutzername, vorname, nachname, erstellt_am FROM " . DB::tbl('benutzer') . " WHERE aktiv=1 AND geloescht_am IS NULL ORDER BY erstellt_am DESC LIMIT 1");
+        $stats['neusterBenutzer'] = $neusterRow ? (trim(($neusterRow['vorname']??'').' '.($neusterRow['nachname']??'')) ?: $neusterRow['benutzername']) : null;
+        $stats['neusterBenutzerDatum'] = $neusterRow['erstellt_am'] ?? null;
+        // Athleten
+        $stats['athleten']     = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athleten') . " WHERE geloescht_am IS NULL")['c'] ?? 0);
+        $stats['athletenAktiv'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athleten') . " WHERE aktiv=1 AND geloescht_am IS NULL")['c'] ?? 0);
+        // Ergebnisse
+        $stats['ergebnisse']   = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NULL")['c'] ?? 0);
+        // Ergebnisse pro Tag (seit ältestem Datum)
+        $eDatumRow = DB::fetchOne("SELECT MIN(v.datum) AS d FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id WHERE e.geloescht_am IS NULL");
+        $stats['erstesErgebnisDatum'] = $eDatumRow['d'] ?? null;
+        if ($stats['erstesErgebnisDatum'] && $stats['ergebnisse']) {
+            $daysSince = max(1, (int)((time() - strtotime($stats['erstesErgebnisDatum'])) / 86400));
+            $stats['ergebnisseProTag'] = round($stats['ergebnisse'] / $daysSince, 2);
+        } else { $stats['ergebnisseProTag'] = 0; }
+        // Veranstaltungen
+        $stats['veranstaltungen'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NULL")['c'] ?? 0);
+        if ($stats['erstesErgebnisDatum'] && $stats['veranstaltungen']) {
+            $daysSince2 = max(1, (int)((time() - strtotime($stats['erstesErgebnisDatum'])) / 86400));
+            $stats['veranstaltungenProTag'] = round($stats['veranstaltungen'] / $daysSince2, 2);
+        } else { $stats['veranstaltungenProTag'] = 0; }
+        // Externe PBs
+        $stats['externePBs'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athlet_pb'))['c'] ?? 0);
+        // Importe (excel/raceresult-Quelle)
+        $impRow = DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE import_quelle IS NOT NULL AND geloescht_am IS NULL");
+        $stats['importiert'] = (int)($impRow['c'] ?? 0);
+        // Disziplinen (gemappte)
+        $stats['disziplinen'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('disziplin_mapping'))['c'] ?? 0);
+        // Portal in Betrieb seit
+        $portalSeitRow = DB::fetchOne("SELECT MIN(erstellt_am) AS d FROM " . DB::tbl('benutzer'));
+        $stats['portalSeit'] = $portalSeitRow['d'] ?? null;
+        // Ausstehende Anträge
+        $stats['antraege']     = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnis_aenderungen') . " WHERE status='pending'")['c'] ?? 0);
+        // Registrierungsanfragen
+        $hasRegTbl = DB::fetchOne("SHOW TABLES LIKE '" . DB::tbl('registrierungen') . "'");
+        $stats['registrierungen'] = $hasRegTbl ? (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('registrierungen') . " WHERE status='pending'")['c'] ?? 0) : 0;
+        // Papierkorb
+        $stats['papierkorb']   = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NOT NULL")['c'] ?? 0);
+    } catch (\Exception $e) {}
+
+    // 6. Seitenaufrufe heute vs. gestern
+    $aufrufe = [];
+    try {
+        $aufrufe['heute']    = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('seitenaufrufe') . " WHERE DATE(erstellt_am)=CURDATE()")['c'] ?? 0);
+        $aufrufe['gestern']  = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('seitenaufrufe') . " WHERE DATE(erstellt_am)=DATE_SUB(CURDATE(),INTERVAL 1 DAY)")['c'] ?? 0);
+        $aufrufe['7tage']    = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('seitenaufrufe') . " WHERE erstellt_am >= DATE_SUB(NOW(),INTERVAL 7 DAY)")['c'] ?? 0);
+    } catch (\Exception $e) {}
+
+    jsonOk(compact('phpVersion','dbVersion','dbSize','aktiveBenutzer','gaeste','letzteLogins','stats','aufrufe'));
+}
+
 if ($res === 'einstellungen') {
     // Öffentliche Konfig (alle Einstellungen ohne Auth lesbar – kein Geheimnis)
     if ($method === 'GET' && !$id) {

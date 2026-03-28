@@ -400,6 +400,7 @@ async function init() {
   // Erst Config laden (kein Auth nötig), dann User
   var cfgR = await apiGet('einstellungen');
   if (cfgR && cfgR.ok) applyConfig(cfgR.data);
+  apiGet('ping').catch(function(){}); // Seitenaufruf tracken
 
   var r = await apiGet('auth/me');
   if (r && r.ok) {
@@ -10253,6 +10254,137 @@ function rrukConfirm() {
 }
 /* ── 08_admin.js ── */
 
+async function renderAdminSystem() {
+  var el = document.getElementById('main-content');
+  el.innerHTML = adminSubtabs() + '<div class="loading" style="padding:32px;text-align:center"><div class="spinner"></div> Lade System-Informationen…</div>';
+  var r = await apiGet('admin-dashboard');
+  if (!r || !r.ok) { el.innerHTML = adminSubtabs() + '<div style="color:var(--accent);padding:20px">Fehler beim Laden.</div>'; return; }
+  var d = r.data;
+  var s = d.stats || {};
+
+  function fmtDate(iso) {
+    if (!iso) return '\u2013';
+    return new Date(iso).toLocaleString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  }
+  function fmtDateOnly(iso) {
+    if (!iso) return '\u2013';
+    return new Date(iso).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'});
+  }
+  function timeSince(iso) {
+    if (!iso) return '\u2013';
+    var diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 60) return 'gerade eben';
+    if (diff < 3600) return Math.floor(diff/60) + ' Min. her';
+    if (diff < 86400) return Math.floor(diff/3600) + ' Std. her';
+    return new Date(iso).toLocaleDateString('de-DE');
+  }
+  function badge(rolle) {
+    var colors = { admin: 'var(--accent)', editor: 'var(--primary)', athlet: '#2ecc71', leser: 'var(--text2)' };
+    var c = colors[rolle] || 'var(--text2)';
+    return '<span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;background:' + c + '22;color:' + c + '">' + (rolle||'\u2013') + '</span>';
+  }
+
+  // phpBB-style stat row
+  function srow(label, val, bold) {
+    return '<tr>' +
+      '<td style="padding:7px 12px;border-bottom:1px solid var(--border);color:var(--text2);font-size:13px">' + label + '</td>' +
+      '<td style="padding:7px 12px;border-bottom:1px solid var(--border);font-size:13px;' + (bold!==false?'font-weight:700':'') + '">' + val + '</td>' +
+    '</tr>';
+  }
+  function shead(label) {
+    return '<tr><th colspan="2" style="padding:8px 12px;background:var(--primary);color:#fff;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">' + label + '</th></tr>';
+  }
+  function stable(rows) {
+    return '<table style="width:100%;border-collapse:collapse;border:1px solid var(--border);border-radius:8px;overflow:hidden">' + rows + '</table>';
+  }
+
+  // Left column
+  var leftRows =
+    shead('System') +
+    srow('Portal in Betrieb seit', fmtDate(s.portalSeit)) +
+    srow('Datenbank-Server', d.dbVersion || '\u2013') +
+    srow('Datenbank-Gr��e', d.dbSize !== null ? d.dbSize + ' MB' : '\u2013') +
+    srow('PHP-Version', d.phpVersion || '\u2013') +
+    shead('Benutzer') +
+    srow('Anzahl Benutzer (aktiv)', s.benutzer || 0) +
+    srow('Neuester Benutzer', (s.neusterBenutzer || '\u2013') + (s.neusterBenutzerDatum ? ' <span style="font-weight:400;color:var(--text2);font-size:11px">(' + fmtDateOnly(s.neusterBenutzerDatum) + ')</span>' : '')) +
+    shead('Seitenaufrufe') +
+    srow('Heute', d.aufrufe.heute || 0) +
+    srow('Gestern', d.aufrufe.gestern || 0) +
+    srow('Letzte 7 Tage', d.aufrufe['7tage'] || 0);
+
+  // Right column
+  var rightRows =
+    shead('Ergebnisse & Veranstaltungen') +
+    srow('Anzahl Ergebnisse', (s.ergebnisse||0).toLocaleString('de-DE')) +
+    srow('Ergebnisse pro Tag', s.ergebnisseProTag || 0) +
+    srow('Erstes Ergebnis', fmtDateOnly(s.erstesErgebnisDatum)) +
+    srow('Anzahl Veranstaltungen', s.veranstaltungen || 0) +
+    srow('Veranstaltungen pro Tag', s.veranstaltungenProTag || 0) +
+    shead('Athleten & Daten') +
+    srow('Anzahl Athleten', s.athleten || 0) +
+    srow('Davon aktiv', s.athletenAktiv || 0) +
+    srow('Externe PBs', s.externePBs || 0) +
+    srow('Importierte Ergebnisse', (s.importiert||0).toLocaleString('de-DE')) +
+    srow('Gemappte Disziplinen', s.disziplinen || 0) +
+    shead('Wartung') +
+    srow('Papierkorb (Ergebnisse)', s.papierkorb || 0) +
+    srow('Offene Antr�ge', s.antraege ? '<span style="color:var(--accent);font-weight:700">' + s.antraege + '</span>' : 0, false) +
+    srow('Ausstehende Registrierungen', s.registrierungen ? '<span style="color:var(--accent);font-weight:700">' + s.registrierungen + '</span>' : 0, false);
+
+  // Active users table
+  var aktiveRows = (d.aktiveBenutzer || []).map(function(u) {
+    var av = avatarHtml(u.avatar, u.name || '?', 32, 12);
+    return '<tr><td style="padding:7px 10px"><div style="display:flex;align-items:center;gap:8px">' + av +
+      '<span style="font-weight:600">' + (u.name||u.benutzername) + '</span></div></td>' +
+      '<td style="padding:7px 10px">' + badge(u.rolle) + '</td>' +
+      '<td style="padding:7px 10px;font-size:12px;color:var(--text2)">' + timeSince(u.seit) + '</td></tr>';
+  }).join('') || '<tr><td colspan="3" style="padding:14px;text-align:center;color:var(--text2);font-size:13px">Niemand aktiv</td></tr>';
+
+  var loginRows = (d.letzteLogins || []).map(function(l) {
+    return '<tr><td style="padding:7px 10px;font-weight:600">' + (l.name||'\u2013') + '</td>' +
+      '<td style="padding:7px 10px">' + badge(l.rolle) + '</td>' +
+      '<td style="padding:7px 10px;font-size:12px;color:var(--text2)">' + fmtDate(l.datum) + '</td></tr>';
+  }).join('') || '<tr><td colspan="3" style="padding:14px;text-align:center;color:var(--text2);font-size:13px">Keine Eintr�ge</td></tr>';
+
+  var gaesteRows = (d.gaeste || []).map(function(g) {
+    return '<tr>' +
+      '<td style="padding:6px 10px;font-family:monospace;font-size:12px">' + (g.ip||'\u2013') + '</td>' +
+      '<td style="padding:6px 10px;font-size:11px;color:var(--text2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (g.user_agent||'').replace(/^Mozilla\/5\.0 /,'').slice(0,70) + '</td>' +
+      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + timeSince(g.zuletzt) + '</td>' +
+      '<td style="padding:6px 10px;font-size:12px;text-align:right">' + g.aufrufe + '</td>' +
+    '</tr>';
+  }).join('') || '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--text2);font-size:13px">Keine Gast-Besucher</td></tr>';
+
+  function thStyle(t) { return '<th style="padding:7px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px">' + t + '</th>'; }
+
+  el.innerHTML = adminSubtabs() +
+    '<h2 style="margin-bottom:18px">&#x1F5A5;&#xFE0E; System-Dashboard</h2>' +
+
+    // phpBB-style two-column stat tables
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
+      '<div>' + stable(leftRows) + '</div>' +
+      '<div>' + stable(rightRows) + '</div>' +
+    '</div>' +
+
+    // Aktive Benutzer + Letzte Logins
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
+      '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F7E2; Aktiv <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 5 Min.)</span></div></div>' +
+        '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Aktiv seit') + '</tr></thead>' +
+        '<tbody>' + aktiveRows + '</tbody></table></div>' +
+      '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F550; Letzte Logins</div></div>' +
+        '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Zeitpunkt') + '</tr></thead>' +
+        '<tbody>' + loginRows + '</tbody></table></div>' +
+    '</div>' +
+
+    // G�ste
+    '<div class="panel" style="margin-bottom:24px"><div class="panel-header"><div class="panel-title">&#x1F465; G�ste <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 15 Min.)</span></div></div>' +
+      '<div class="table-scroll"><table style="width:100%"><thead><tr>' +
+        thStyle('IP-Adresse') + thStyle('Browser') + thStyle('Zuletzt') + thStyle('Aufrufe') +
+      '</tr></thead><tbody>' + gaesteRows + '</tbody></table></div></div>';
+}
+
+
 async function renderAdminAntraege() {
   var el = document.getElementById('main-content');
   el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
@@ -10403,6 +10535,7 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">🎨 Darstellung</button>' +
     '<button class="subtab' + (t==='dashboard_cfg'   ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">📊︎ Dashboard</button>' +
     '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">✋ Antr\u00e4ge</button>' +
+    '<button class="subtab' + (t==='system' ? ' active' : '') + '" onclick="navAdmin(\\\'system\\\')">\xf0\x9f\x96\xa5\xef\xb8\x8e System</button>' +
     '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb</button>' +
   '</div>';
 }
@@ -10444,6 +10577,7 @@ function sortBenutzerTabelle(col) {
 async function renderAdmin() {
   if (!state.adminTab) state.adminTab = 'benutzer';
   _ladeAntraegeBadge();
+  if (state.adminTab === 'system')          { await renderAdminSystem(); return; }
   if (state.adminTab === 'disziplinen')    { await renderAdminDisziplinen(); return; }
   if (state.adminTab === 'altersklassen')  { await renderAdminAltersklassen(); return; }
   if (state.adminTab === 'meisterschaften'){ await renderAdminMeisterschaften(); return; }
