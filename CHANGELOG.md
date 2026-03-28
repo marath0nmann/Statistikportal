@@ -1,3 +1,11 @@
+## v846
+
+- **Aktiv root cause**: SELECT enthielt b.vorname/b.nachname – diese Spalten existieren in der benutzer-Tabelle nicht → stille Exception → leeres Array. Fix: Name kommt aus verknüpftem Athletenprofil via separatem JOIN
+- **Doppelte Login-Einträge**: loginStep1 schrieb Row bei Passworterfolg, dann schrieb email-code-verify nochmal. Eintrag aus loginStep1 entfernt → 1 Zeile pro Login
+- **TOTP-Login**: login_versuche-Eintrag mit methode='totp' in loginStep2 ergänzt
+
+---
+
 ## v845
 
 - **Root cause**: $_SESSION['user_id'] war zum Zeitpunkt des admin-dashboard-Handlers möglicherweise nicht mehr verfügbar (Session-State unklar auf all-inkl.com)

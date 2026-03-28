@@ -1,1 +1,1 @@
-v845: Aktiv – User-ID aus requireAdmin() statt $_SESSION
+v846: Fix Aktiv (vorname/nachname fehlen in benutzer-Tabelle); 1 Login-Eintrag statt 2
