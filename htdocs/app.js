@@ -2676,6 +2676,8 @@ async function _loadEigenesProfilWidget(elId, showErg) {
   );
 }
 
+
+var _tlAutoFillLimits = {};
 async function renderDashboard() {
   var ds = getDarstellungSettings();
   // timeline_limit: erst aus Widget-Config, dann appConfig, dann Default
@@ -3026,20 +3028,21 @@ function timelineBadges(rek) {
         var _itemH  = _items[0].offsetHeight || 60;
         var _fitsCount = Math.max(1, Math.floor(_availH / _itemH));
         if (_fitsCount === _items.length) return; // already correct
-        var _layout3 = dashGetLayout();
-        if (_layout3[_ri2] && _layout3[_ri2].cols[_ci2]) {
-          _layout3[_ri2].cols[_ci2]._auto_fill_limit = _fitsCount;
-        }
-        renderDashboard(_layout3);
+        var _key3 = _ri2 + '-' + _ci2;
+        if (_tlAutoFillLimits[_key3] === _fitsCount) return; // already correct
+        _tlAutoFillLimits[_key3] = _fitsCount;
+        renderDashboard();
       }, 80, _tlId, ri, ci);
     }
     // Use _auto_fill_limit if set (post-measure render)
-    var _displayLimit = wcfg._auto_fill_limit || null;
-    var _limitedTimeline = _displayLimit ? (function(){
-      var _tmp = document.createElement('div'); _tmp.innerHTML = filteredTimeline;
-      var _its = _tmp.querySelectorAll('.timeline-item');
-      return Array.from(_its).slice(0, _displayLimit).map(function(el){ return el.outerHTML; }).join('');
-    }()) : filteredTimeline;
+    var _displayLimit = _tlAutoFillLimits[ri + '-' + ci] || null;
+    // Slice filteredTimeline to _displayLimit items via regex split on timeline-item divs
+    var _limitedTimeline = (function(){
+      if (!_displayLimit) return filteredTimeline;
+      var _parts = filteredTimeline.split('<div class="timeline-item">');
+      if (_parts.length <= _displayLimit + 1) return filteredTimeline;
+      return _parts.slice(0, _displayLimit + 1).join('<div class="timeline-item">');
+    }());
     return '<div class="panel" style="height:100%" id="' + _tlId + '">' +
         '<div class="panel-header"><div class="panel-title">&#x1F3C6; ' + widgetTitle(wcfg, 'Neueste Bestleistungen') + '</div></div>' +
         '<div class="timeline" style="overflow:hidden">' + _limitedTimeline + '</div>' +

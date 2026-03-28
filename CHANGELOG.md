@@ -1,3 +1,18 @@
+## v809
+
+- **Fix $prevByG**: Wenn eine neue Gesamtbestleistung gesetzt wird, wurde bisher der vorherige Frauen/Männer-Wert nicht gesichert → "Bestleistung Frauen" ohne Vorgänger. Jetzt wird $prevByG[$g] korrekt gesichert bevor $bestByG[$g] überschrieben wird
+- **Fix Auto-Fill**: _limitedTimeline nutzte document.createElement() beim Rendern. Ersetzt durch String-Split auf '.timeline-item'
+
+---
+
+## v808 – Fix Timeline Auto-Fill
+
+- **Ursache**: renderDashboard() ignoriert Parameter; _auto_fill_limit landete nie in wcfg
+- **Fix**: _tlAutoFillLimits['ri-ci'] als globaler Cache; renderDashboard() liest daraus
+- renderDashboard() ist jetzt async (war nötig für den über-fetch await)
+
+---
+
 ## v807 – Fix Timeline Auto-Fill
 
 - **Ursache**: Panel wächst mit dem Inhalt – offsetHeight lieferte nie die begrenzte Höhe

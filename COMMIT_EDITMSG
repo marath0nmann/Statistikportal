@@ -1,1 +1,1 @@
-v807: Fix Auto-Fill – window.innerHeight statt Panel-offsetHeight
+v809: Fix prevByG-Bug; Auto-Fill ohne DOM-Erstellung; Bestleistung Frauen zeigt jetzt korrekt Vorgänger
