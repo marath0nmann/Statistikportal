@@ -3636,7 +3636,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                         'SELECT e.athlet_id, e.meisterschaft, e.altersklasse, v.datum'
                         . ' FROM ' . $_mTbl . ' e'
                         . ' JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id = e.veranstaltung_id'
-                        . ' WHERE e.ak_platz_meisterschaft = 1 AND e.geloescht_am IS NULL AND e.meisterschaft IS NOT NULL',
+                        . ' WHERE e.ak_platzierung = 1 AND e.meisterschaft IS NOT NULL AND e.geloescht_am IS NULL',
                         []
                     );
                     foreach ($firstPlaces as $fp) {

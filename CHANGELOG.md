@@ -1,3 +1,10 @@
+## v786 – Fix HoF Meisterschafts-Titel
+
+- **Ursache**: Code prüfte `ak_platz_meisterschaft = 1` (überall NULL), statt `ak_platzierung = 1 AND meisterschaft IS NOT NULL`
+- **Fix**: Query korrigiert → Angelika Kappenhagen hat z.B. Nordrhein-, NRW- und Regio-Meisterschaften (mstr=5,6,7) mit Platz 1
+
+---
+
 ## v785 – Hall of Fame: Meisterschafts-Titel
 
 - **Neue Datenquelle**: Erste Plätze in Meisterschaften (`ak_platz_meisterschaft = 1`) werden als Titel gewertet
