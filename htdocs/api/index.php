@@ -1016,9 +1016,13 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     $letzteLogins = [];
     try {
         $lRows = DB::fetchAll(
-            'SELECT lv.benutzername, lv.ip, lv.erfolg, lv.erstellt_am'
+            'SELECT lv.benutzername, lv.ip, lv.erfolg, lv.erstellt_am,'
+            . ' b.vorname, b.nachname, b.email, b.rolle'
             . ' FROM ' . DB::tbl('login_versuche') . ' lv'
-            . ' ORDER BY lv.erstellt_am DESC LIMIT 20'
+            . ' LEFT JOIN ' . DB::tbl('benutzer') . ' b'
+            . '   ON (b.benutzername = lv.benutzername OR b.email = lv.benutzername)'
+            . ' WHERE lv.erstellt_am >= DATE_SUB(NOW(), INTERVAL 5 DAY)'
+            . ' ORDER BY lv.erstellt_am DESC LIMIT 200'
         );
         // GeoIP für Login-IPs
         $loginGeoCache = [];
@@ -1031,13 +1035,17 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
                 }
                 if ($loginGeoCache[$lip]) { $lcountry=$loginGeoCache[$lip]['country']??null; $lcountryCode=strtoupper($loginGeoCache[$lip]['countryCode']??''); }
             }
+            $vn   = trim(($l['vorname']??'').' '.($l['nachname']??''));
             $letzteLogins[] = [
-                'benutzername' => $l['benutzername'],
-                'ip'           => $lip,
-                'country'      => $lcountry,
-                'countryCode'  => $lcountryCode,
-                'erfolg'       => (bool)$l['erfolg'],
-                'datum'        => $l['erstellt_am'],
+                'benutzername'  => $l['benutzername'],
+                'anzeigeName'   => $vn ?: $l['benutzername'],
+                'email'         => $l['email'] ?? null,
+                'rolle'         => $l['rolle'] ?? null,
+                'ip'            => $lip,
+                'country'       => $lcountry,
+                'countryCode'   => $lcountryCode,
+                'erfolg'        => (bool)$l['erfolg'],
+                'datum'         => $l['erstellt_am'],
             ];
         }
     } catch (\Exception $e) {}

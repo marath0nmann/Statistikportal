@@ -1,1 +1,1 @@
-v821: Aktiv fix via JOIN; Letzte Login-Versuche mit Erfolg/Fehlschlag + IP + Land
+v823: Login-Versuche mit aufgelöstem Benutzernamen + Rolle; JOIN auf benutzer-Tabelle
