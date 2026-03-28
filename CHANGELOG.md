@@ -1,3 +1,11 @@
+## v855
+
+- **Root cause**: _ladeAntraegeBadge() setzte Badges per querySelector auf die Buttons – aber bei jedem Subtab-Wechsel rendert adminSubtabs() die Buttons neu als statisches HTML ohne Badges → Badges verschwinden
+- **Fix**: adminSubtabs() liest window._adminPendingAntraege / _adminPendingRegs / _adminPendingPapierkorb direkt aus und bettet die Badges in die HTML-Strings ein
+- Badges bleiben jetzt bei jedem Re-Render erhalten
+
+---
+
 ## v854
 
 - **Farbe**: Admin-Badges jetzt hart rot (#e53935) statt blau
