@@ -1,3 +1,30 @@
+## v829
+
+- Login-Formular bereits E-Mail-basiert ✓
+- Neuer-Benutzer-Modal: benutzername = email (keine separate Eingabe mehr)
+- Benutzer-Edit-Modal: zeigt nur noch E-Mail in der Überschrift
+- deleteBenutzer: Bestätigungsdialog zeigt E-Mail statt benutzername
+- Aktive Benutzer: name/email statt benutzername
+- Login-Versuche: benutzername-Untertitel mit email-Fallback
+
+---
+
+## v828
+
+- **auth.php**: Session und login_versuche speichern E-Mail statt benutzername
+- **GET /benutzer**: name = vorname+nachname (Athletenprofil) oder E-Mail-Fallback
+- **Admin-Dashboard aktive Benutzer**: E-Mail statt benutzername
+
+---
+
+## v827
+
+- **Erklärung**: Bei erfolgreichen Logins speichert auth.php den internen benutzername (z.B. 'Daniel'), nicht die eingetippte E-Mail
+- Anzeige: Name + Rolle (groß), darunter kleiner der rohe Login-Benutzername ('Daniel', 'dw@vy99.de')
+- Damit ist sofort erkennbar, welcher Login zu welchem Account gehört
+
+---
+
 ## v826
 
 - **letzteLogins**: JOIN entfernt → einfache Abfrage auf login_versuche, Benutzerauflösung separat und try/catch-geschützt

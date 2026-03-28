@@ -10336,7 +10336,7 @@ async function renderAdminSystem() {
   var aktiveRows = (d.aktiveBenutzer || []).map(function(u) {
     var av = avatarHtml(u.avatar, u.name || '?', 32, 12);
     return '<tr><td style="padding:7px 10px"><div style="display:flex;align-items:center;gap:8px">' + av +
-      '<span style="font-weight:600">' + (u.name||u.benutzername) + '</span></div></td>' +
+      '<span style="font-weight:600">' + (u.name||u.email||'?') + '</span></div></td>' +
       '<td style="padding:7px 10px">' + badge(u.rolle) + '</td>' +
       '<td style="padding:7px 10px;font-size:12px;color:var(--text2)">' + timeSince(u.seit) + '</td></tr>';
   }).join('') || '<tr><td colspan="3" style="padding:14px;text-align:center;color:var(--text2);font-size:13px">Niemand aktiv</td></tr>';
@@ -10348,9 +10348,10 @@ async function renderAdminSystem() {
     var ok = l.erfolg;
     var failRed = '#c0392b';
     return '<tr style="' + (ok?'':'background:rgba(192,57,43,.07)') + '">' +
-      '<td style="padding:6px 10px;font-weight:600" title="Login-Name: ' + (l.benutzername||'') + (l.email&&l.email!==l.benutzername?' | E-Mail: '+l.email:'') + '">' +
-      (l.anzeigeName || l.benutzername || '\u2013') +
+      '<td style="padding:6px 10px">' +
+      '<span style="font-weight:600">' + (l.anzeigeName || l.benutzername || '\u2013') + '</span>' +
       (l.rolle ? ' ' + badge(l.rolle) : '') +
+      '<br><span style="font-size:11px;color:var(--text2)">' + (l.benutzername||l.email||'') + '</span>' +
     '</td>' +
       '<td style="padding:6px 10px;font-size:12px;white-space:nowrap">' +
         '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+(ok?'#27ae60':failRed)+';margin-right:5px"></span>' +
@@ -10665,7 +10666,7 @@ async function renderAdmin() {
       '<td style="padding:8px 8px;text-align:right">' +
         '<div style="display:flex;gap:4px;justify-content:flex-end">' +
           '<button class="btn btn-ghost btn-sm" onclick="showBenutzerEditModal(' + b.id + ')" title="Bearbeiten">\u270f\ufe0f</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="deleteBenutzer(' + b.id + ',\'' + b.benutzername + '\')" title="L\xf6schen">\u2715</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="deleteBenutzer(' + b.id + ',\'' + b.email + '\')" title="L\xf6schen">\u2715</button>' +
         '</div>' +
       '</td>' +
     '</tr>';
@@ -10840,7 +10841,7 @@ function showNeuerBenutzerModal() {
 
 async function createBenutzer() {
   var r = await apiPost('benutzer', {
-    benutzername: document.getElementById('nb-user').value,
+    benutzername: document.getElementById('nb-email').value, // E-Mail = Login-Kennung
     email:        document.getElementById('nb-email').value,
     passwort:     document.getElementById('nb-pw').value,
     rolle:        document.getElementById('nb-rolle').value,
@@ -10860,7 +10861,7 @@ function showBenutzerEditModal(id) {
   }
   showModal(
     '<h2>&#x270F;&#xFE0F; Benutzer bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
-    '<div style="color:var(--text2);margin-bottom:16px">' + b.benutzername + ' &middot; ' + b.email + '</div>' +
+    '<div style="color:var(--text2);margin-bottom:16px">' + b.email + '</div>' +
     '<div class="form-grid">' +
       '<div class="form-group"><label>E-Mail</label><input type="email" id="eb-email" value="' + b.email + '"/></div>' +
       '<div class="form-group"><label>Rolle</label><select id="eb-rolle"><option value="leser"' + (b.rolle==='leser'?' selected':'') + '>Leser</option><option value="athlet"' + (b.rolle==='athlet'?' selected':'') + '>Athlet</option><option value="editor"' + (b.rolle==='editor'?' selected':'') + '>Editor</option><option value="admin"' + (b.rolle==='admin'?' selected':'') + '>Admin</option></select></div>' +
