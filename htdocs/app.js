@@ -10587,14 +10587,14 @@ function adminSubtabs() {
   return '<div class="subtabs" style="margin-bottom:20px">' +
     '<button class="subtab' + (t==='system'         ? ' active' : '') + '" onclick="navAdmin(\'system\')">&#x1F5A5;&#xFE0E; System</button>' +
     '<button class="subtab' + (t==='benutzer'       ? ' active' : '') + '" onclick="navAdmin(\'benutzer\')">&#x1F465; Benutzer</button>' +
-    '<button class="subtab' + (t==='registrierungen'? ' active' : '') + '" onclick="navAdmin(\'registrierungen\')">\U0001f4dd Registrierungen' + _adminBadge(window._adminPendingRegs||0) + '</button>' +
+    '<button class="subtab' + (t==='registrierungen'? ' active' : '') + '" onclick="navAdmin(\'registrierungen\')">📝 Registrierungen' + _adminBadge(window._adminPendingRegs||0) + '</button>' +
     '<button class="subtab' + (t==='disziplinen'    ? ' active' : '') + '" onclick="navAdmin(\'disziplinen\')">&#x1F3F7;&#xFE0F; Disziplinen</button>' +
     '<button class="subtab' + (t==='altersklassen'  ? ' active' : '') + '" onclick="navAdmin(\'altersklassen\')">&#x1F464; Altersklassen</button>' +
     '<button class="subtab' + (t==='meisterschaften'? ' active' : '') + '" onclick="navAdmin(\'meisterschaften\')">&#x1F3C5; Meisterschaften</button>' +
     '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">&#x1F3A8; Darstellung</button>' +
     '<button class="subtab' + (t==='dashboard_cfg'  ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">&#x1F4CA;&#xFE0E; Dashboard</button>' +
-    '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">\u270b Antr\u00e4ge' + _adminBadge(window._adminPendingAntraege||0) + '</button>' +
-    '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">\U0001f5d1\ufe0f Papierkorb' + _adminBadge(window._adminPendingPapierkorb||0) + '</button>' +
+    '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">✋ Anträge' + _adminBadge(window._adminPendingAntraege||0) + '</button>' +
+    '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb' + _adminBadge(window._adminPendingPapierkorb||0) + '</button>' +
   '</div>';
 }
 
