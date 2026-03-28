@@ -1778,7 +1778,7 @@ if ($res === 'dashboard' && $method === 'GET') {
          JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
          LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
          LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
-         WHERE e.geloescht_am IS NULL
+         WHERE e.geloescht_am IS NULL AND v.genehmigt = 1
          ORDER BY v.datum DESC, e.id DESC LIMIT 20"
     );
 
@@ -3594,12 +3594,12 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
                 COUNT(DISTINCT e.athlet_id) AS anz_athleten
          FROM " . DB::tbl('veranstaltungen') . " v
          LEFT JOIN $eTbl e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
-         WHERE v.geloescht_am IS NULL
+         WHERE v.geloescht_am IS NULL AND v.genehmigt = 1
          GROUP BY v.id
          ORDER BY v.datum DESC
          LIMIT $limit OFFSET $offset"
     );
-    $total = DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NULL")['c'];
+    $total = DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NULL AND genehmigt = 1")['c'];
     foreach ($veranst as &$v) {
         $v['ergebnisse'] = DB::fetchAll(
             "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
@@ -4294,10 +4294,42 @@ if ($res === 'ergebnis-aenderungen') {
     if ($method === 'GET') {
         $user = Auth::requireAthlet();
         if (Auth::canEditAll()) {
-            $rows = DB::fetchAll('SELECT ea.*, b.benutzername AS beantragt_von_name FROM ' . DB::tbl('ergebnis_aenderungen') . ' ea LEFT JOIN ' . DB::tbl('benutzer') . ' b ON b.id = ea.beantragt_von WHERE ea.status = ? ORDER BY ea.beantragt_am DESC', [$_GET['status'] ?? 'pending']);
+            $rows = DB::fetchAll(
+                'SELECT ea.*,
+                        b.benutzername AS beantragt_von_name,
+                        CONCAT(a.vorname, \' \', a.nachname) AS beantragt_von_athlet,
+                        b2.benutzername AS bearbeitet_von_name,
+                        CONCAT(a2.vorname, \' \', a2.nachname) AS bearbeitet_von_athlet
+                 FROM ' . DB::tbl('ergebnis_aenderungen') . ' ea
+                 LEFT JOIN ' . DB::tbl('benutzer') . ' b  ON b.id  = ea.beantragt_von
+                 LEFT JOIN ' . DB::tbl('athleten') . ' a  ON a.id  = b.athlet_id
+                 LEFT JOIN ' . DB::tbl('benutzer') . ' b2 ON b2.id = ea.bearbeitet_von
+                 LEFT JOIN ' . DB::tbl('athleten') . ' a2 ON a2.id = b2.athlet_id
+                 WHERE ea.status = ? ORDER BY ea.beantragt_am DESC',
+                [$_GET['status'] ?? 'pending']
+            );
         } else {
             $rows = DB::fetchAll('SELECT * FROM ' . DB::tbl('ergebnis_aenderungen') . ' WHERE beantragt_von = ? ORDER BY beantragt_am DESC', [$user['id']]);
         }
+        // Veranstaltungsdetails anreichern
+        foreach ($rows as &$row) {
+            $nv = json_decode($row['neue_werte'] ?? '{}', true) ?: [];
+            $vid = intOrNull($nv['veranstaltung_id'] ?? null);
+            // Für delete/update: Veranstaltung aus ergebnis laden
+            if (!$vid && $row['ergebnis_id']) {
+                try {
+                    $ergRow = DB::fetchOne('SELECT veranstaltung_id FROM ' . DB::tbl('ergebnisse') . ' WHERE id=?', [$row['ergebnis_id']]);
+                    $vid = intOrNull($ergRow['veranstaltung_id'] ?? null);
+                } catch (\Exception $e) {}
+            }
+            if ($vid) {
+                try {
+                    $vRow = DB::fetchOne('SELECT name, ort, datum FROM ' . DB::tbl('veranstaltungen') . ' WHERE id=?', [$vid]);
+                    if ($vRow) { $row['veranstaltung_name'] = $vRow['name']; $row['veranstaltung_ort'] = $vRow['ort']; $row['veranstaltung_datum'] = $vRow['datum']; }
+                } catch (\Exception $e) {}
+            }
+        }
+        unset($row);
         jsonOk($rows);
     }
     if ($method === 'POST' && $id) {
