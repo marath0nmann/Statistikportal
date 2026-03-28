@@ -1,3 +1,11 @@
+## v833
+
+- **Athletenprofil**: Badge zeigte Anzahl der Titelgruppen (15) statt Einzeltitel (20)
+- Tooltip gruppiert weiterhin nach Label+Jahre (korrekte Darstellung)
+- Zähler nutzt jetzt ausz.meisterschaften.length (= alle Einzeltitel)
+
+---
+
 ## v832
 
 - **Migration**: benutzername wird auf email gesetzt für alle Accounts die noch den alten internen Namen haben
