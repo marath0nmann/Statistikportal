@@ -431,6 +431,9 @@ if ($res === 'auth') {
     }
     // --- Session prüfen ---
     if ($method === 'GET' && $id === 'me') {
+        if (Auth::check()) {
+            try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_aktivitaet = NOW() WHERE id = ?', [$_SESSION['user_id']]); } catch (\Exception $e) {}
+        }
         $user = Auth::check();
         if (!$user) jsonErr('Nicht eingeloggt.', 401);
         // totp_aktiv + Passkey-Status
@@ -977,7 +980,7 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
         $lRows = DB::fetchAll(
             "SELECT b.benutzername, b.vorname, b.nachname, b.rolle, b.letzter_login
              FROM " . DB::tbl('benutzer') . " b
-             WHERE b.letzter_login IS NOT NULL AND b.aktiv = 1
+             WHERE b.letzter_login IS NOT NULL
              ORDER BY b.letzter_login DESC LIMIT 10"
         );
         foreach ($lRows as $l) {

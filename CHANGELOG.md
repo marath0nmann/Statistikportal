@@ -1,3 +1,11 @@
+## v818
+
+- **letzter_aktivitaet**: wird jetzt bei jedem auth/me-Call aktualisiert → Aktive Benutzer funktioniert
+- **Letzte Logins**: WHERE-Bedingung bereinigt (geloescht_am fehlt auf manchen Instanzen)
+- **GeoIP**: Jede Gast-IP wird async via ip-api.com aufgelöst → Flagge + Stadt, Land in eigener Spalte
+
+---
+
 ## v817
 
 - **Fehlende Statistiken**: Ein einziger try/catch-Block für alle Abfragen – erste Fehler (z.B. fehlende Spalte) hat alle folgenden Werte auf 0 gesetzt. Jetzt hat jede Abfrage ihren eigenen try/catch
