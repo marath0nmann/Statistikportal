@@ -1,3 +1,19 @@
+## v789 – Hall of Fame Meisterschafts-Titel
+
+- **Format**: Kein Badge mehr – stattdessen 🥇-Emoji mit Tooltip
+- **Tooltip**: z.B. "🥇 NRW 10km (Straße) ×3" – ohne AK, mit Kategorie und Anzahl
+- **API**: Label enthält Meisterschaft + Disziplin (ohne AK), Kategorie separat
+
+---
+
+## v788 – Hall of Fame
+
+- Meisterschafts-Titel werden jetzt nach Disziplin und Kategorie gruppiert (statt nach AK)
+- Format: `10km: 🥇 NRW W60, 🥇 Nordrhein W60 (Straße)`
+- API gibt nun `disziplin` und `kat_name` pro Meisterschafts-Titel zurück
+
+---
+
 ## v787 – Fix Hall of Fame Meisterschafts-Titel
 
 - **Ursache**: `$tbl` ist im HoF-Endpunkt nicht definiert (wird nur in anderen Endpunkten lokal gesetzt)
