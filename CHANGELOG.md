@@ -1,3 +1,12 @@
+## v806 – Neueste Bestleistungen: Auto-Fill
+
+- Neue Option im Widget-Config: **"Box automatisch füllen"**
+- Wenn gesetzt: misst nach dem Rendern die verfügbare Höhe, berechnet wie viele Items passen, und re-rendert mit exakt dieser Anzahl
+- Anzahl-Eingabefeld wird dabei deaktiviert
+- Fetcht bis zu 200 Einträge vom Server als Puffer
+
+---
+
 ## v805
 
 **Neueste Bestleistungen**: Wenn Filter aktiv (hidden_types, nur Favoriten), wird jetzt 4× so viel vom Server geladen und danach client-seitig auf das konfigurierte Limit geschnitten – kein Zählen vor dem Filtern mehr

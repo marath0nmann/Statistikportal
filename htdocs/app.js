@@ -2685,7 +2685,11 @@ async function renderDashboard() {
     for (var _tli = 0; _tli < _lay.length; _tli++) {
       for (var _tlj = 0; _tlj < (_lay[_tli].cols||[]).length; _tlj++) {
         var _tlc = _lay[_tli].cols[_tlj];
-        if (_tlc.widget === 'timeline' && _tlc.tl_limit) { timelineLimit = parseInt(_tlc.tl_limit); break; }
+        if (_tlc.widget === 'timeline') {
+        if (_tlc.tl_auto_fill) { timelineLimit = 200; }
+        else if (_tlc.tl_limit) { timelineLimit = parseInt(_tlc.tl_limit); }
+        break;
+      }
       }
     }
   } catch(e) {}
@@ -3005,9 +3009,43 @@ function timelineBadges(rek) {
         }
         if (!filteredTimeline) filteredTimeline = '<div class="empty"><div class="empty-icon">&#x1F3C6;</div><div class="empty-text">Keine Einträge für diese Auswahl</div></div>';
       }
-      return '<div class="panel" style="height:100%">' +
+      var _tlId = 'tl-widget-' + ri + '-' + ci;
+    if (wcfg.tl_auto_fill) {
+      // After render: measure container, count items, re-render with exact fill
+      setTimeout(function(_id, _ri2, _ci2) {
+        var _panel = document.getElementById(_id);
+        if (!_panel) return;
+        var _tl = _panel.querySelector('.timeline');
+        if (!_tl) return;
+        var _items = _tl.querySelectorAll('.timeline-item');
+        if (!_items.length) return;
+        var _panelH = _panel.offsetHeight;
+        var _headerH = (_panel.querySelector('.panel-header') || {}).offsetHeight || 44;
+        var _availH = _panelH - _headerH;
+        // Measure first item height
+        var _itemH = _items[0].offsetHeight || 56;
+        var _fitsCount = Math.max(1, Math.floor(_availH / _itemH));
+        // Only re-render if we have more items or currently showing too many
+        if (_fitsCount === _items.length) return;
+        // Re-slice filteredTimeline html (simpler: re-trigger full render)
+        // Store computed limit in wcfg for this render cycle
+        var _layout3 = dashGetLayout();
+        if (_layout3[_ri2] && _layout3[_ri2].cols[_ci2]) {
+          _layout3[_ri2].cols[_ci2]._auto_fill_limit = _fitsCount;
+        }
+        renderDashboard(_layout3);
+      }, 60, _tlId, ri, ci);
+    }
+    // Use _auto_fill_limit if set (post-measure render)
+    var _displayLimit = wcfg._auto_fill_limit || null;
+    var _limitedTimeline = _displayLimit ? (function(){
+      var _tmp = document.createElement('div'); _tmp.innerHTML = filteredTimeline;
+      var _its = _tmp.querySelectorAll('.timeline-item');
+      return Array.from(_its).slice(0, _displayLimit).map(function(el){ return el.outerHTML; }).join('');
+    }()) : filteredTimeline;
+    return '<div class="panel" style="height:100%" id="' + _tlId + '">' +
         '<div class="panel-header"><div class="panel-title">&#x1F3C6; ' + widgetTitle(wcfg, 'Neueste Bestleistungen') + '</div></div>' +
-        '<div class="timeline">' + filteredTimeline + '</div>' +
+        '<div class="timeline" style="overflow:hidden">' + _limitedTimeline + '</div>' +
       '</div>';
     }
     if (w === 'veranstaltungen') {
@@ -11306,10 +11344,14 @@ function dashTimelineConfigHtml(ri, ci, hidden_types, prio_order, col) {
   }
   return '<div style="padding:2px 0 6px">' +
     '<div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Neueste Bestleistungen</div>' +
+    '<label style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:8px">' +
+      '<input type="checkbox" data-tl="auto_fill" data-ri="' + ri + '" data-ci="' + ci + '"' + ((col && col.tl_auto_fill) ? ' checked' : '') + ' onchange="dashUpdateLayout();var _lEl=document.getElementById(\'tl-limit-'+ri+'-'+ci+'\');if(_lEl)_lEl.disabled=this.checked;">' +
+      '<span style="color:var(--text2)">Box automatisch füllen</span>' +
+    '</label>' +
     '<label style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:12px">' +
       '<span style="min-width:120px;color:var(--text2)">Anzahl Einträge</span>' +
       '<input type="number" id="tl-limit-' + ri + '-' + ci + '" value="' + ((col && col.tl_limit) || appConfig.dashboard_timeline_limit || 20) + '" min="5" max="200" ' +
-      'class="settings-input" style="width:70px" onchange="dashUpdateLayout()">' +
+      'class="settings-input" style="width:70px" onchange="dashUpdateLayout()"' + ((col && col.tl_auto_fill) ? ' disabled' : '') + '>' +
     '</label>' +
     '<label style="display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:16px">' +
       '<input type="checkbox" data-tl="merge_ak" data-ri="' + ri + '" data-ci="' + ci + '"' + (mergeAK ? ' checked' : '') + ' onchange="dashUpdateLayout()">' +
@@ -11577,6 +11619,13 @@ function dashUpdateLayout() {
         // Nur Favoriten Checkbox
         var tlFavEl = document.querySelector('input[data-tl="nur_favoriten"][data-ri="' + ri + '"][data-ci="' + ci + '"]');
         if (tlFavEl) cols[ci].tl_nur_favoriten = tlFavEl.checked;
+        // Auto-fill
+        var tlAutoFillEl = document.querySelector('input[data-tl="auto_fill"][data-ri="' + ri + '"][data-ci="' + ci + '"]');
+        if (tlAutoFillEl) {
+          cols[ci].tl_auto_fill = tlAutoFillEl.checked;
+          var _limEl = document.getElementById('tl-limit-' + ri + '-' + ci);
+          if (_limEl) _limEl.disabled = tlAutoFillEl.checked;
+        }
         // Anzahl Einträge
         var tlLimitEl = document.getElementById('tl-limit-' + ri + '-' + ci);
         if (tlLimitEl) {
