@@ -1,3 +1,10 @@
+## v848
+
+- **Ursache**: CONCAT(a.vorname, a.nachname) ohne GROUP BY / Aggregat → auf all-inkl.com (MySQL strict mode ONLY_FULL_GROUP_BY) SQL-Error → Max Mustermann verschwand
+- Fix: MAX(a.vorname), MAX(a.nachname) – da jeder Benutzer max. ein Athletenprofil hat, ist MAX() identisch mit dem direkten Wert
+
+---
+
 ## v847
 
 - Aktive Benutzer: Athleten-Name (vorname+nachname) wird jetzt für ALLE Benutzer im seitenaufrufe-JOIN via LEFT JOIN auf athleten geladen

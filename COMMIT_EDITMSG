@@ -1,1 +1,1 @@
-v847: Aktiv – Athleten-Name für alle aktiven Benutzer via LEFT JOIN
+v848: Fix ONLY_FULL_GROUP_BY – MAX(vorname)/MAX(nachname) statt direkt

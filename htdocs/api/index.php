@@ -994,7 +994,7 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
         $rows = DB::fetchAll(
             "SELECT b.id, b.benutzername, b.email, b.rolle,
                     MAX(s.erstellt_am) AS letzter_aktivitaet, b.avatar_pfad,
-                    CONCAT(a.vorname, ' ', a.nachname) AS athlet_name
+                    CONCAT(MAX(a.vorname), ' ', MAX(a.nachname)) AS athlet_name
              FROM " . DB::tbl('seitenaufrufe') . " s
              JOIN " . DB::tbl('benutzer') . " b ON b.id = s.benutzer_id
              LEFT JOIN " . DB::tbl('athleten') . " a ON a.id = b.athlet_id
