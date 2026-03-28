@@ -1,3 +1,11 @@
+## v820
+
+- **letzter_aktivitaet**: Update jetzt bei JEDEM API-Request (nicht nur auth/me)
+- **letzteLogins**: Fallback wenn vorname/nachname-Spalten fehlen
+- **Land**: Emoji-Flagge aus countryCode (\xf0\x9f\x87\xa9\xf0\x9f\x87\xaa Billerbeck, Deutschland)
+
+---
+
 ## v819
 
 - GeoIP jetzt serverseitig: PHP ruft ip-api.com per HTTP auf (Free-Tier blockiert HTTPS im Browser)

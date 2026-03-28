@@ -33,6 +33,15 @@ $parts  = explode('/', $path);
 $res    = $parts[0] ?? '';
 $id     = $parts[1] ?? null;
 
+// Aktivitätsstempel bei jedem Auth-Request aktualisieren
+session_start_if_needed: {
+    // session bereits gestartet via Auth::check – nur updaten falls eingeloggt
+    $__uid = $_SESSION['user_id'] ?? null;
+    if ($__uid && $res !== 'ping') {
+        try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_aktivitaet = NOW() WHERE id = ?', [(int)$__uid]); } catch (\Exception $e) {}
+    }
+}
+
 $body = [];
 if (in_array($method, ['POST','PUT','PATCH'])) {
     $raw = file_get_contents('php://input');
@@ -980,15 +989,17 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
                 }
                 $geo = $geoCache[$ip];
                 if ($geo) {
-                    $country = trim(($geo['city'] ?? '') . ($geo['city'] ? ', ' : '') . ($geo['country'] ?? ''));
+                    $country     = trim(($geo['city'] ?? '') . ($geo['city'] ? ', ' : '') . ($geo['country'] ?? ''));
+                    $countryCode = strtoupper($geo['countryCode'] ?? '');
                 }
             }
             $gaeste[] = [
-                'ip'         => $ip,
-                'country'    => $country,
-                'user_agent' => $g['user_agent'],
-                'zuletzt'    => $g['zuletzt'],
-                'aufrufe'    => (int)$g['aufrufe'],
+                'ip'          => $ip,
+                'country'     => $country,
+                'countryCode' => $countryCode ?? null,
+                'user_agent'  => $g['user_agent'],
+                'zuletzt'     => $g['zuletzt'],
+                'aufrufe'     => (int)$g['aufrufe'],
             ];
         }
     } catch (\Exception $e) {}
@@ -996,15 +1007,17 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     // 4. Letzte Logins
     $letzteLogins = [];
     try {
+        // Spalten-safe: vorname/nachname könnten fehlen
+        $lHasVN = DB::fetchOne("SHOW COLUMNS FROM " . DB::tbl('benutzer') . " LIKE 'vorname'");
+        $lSel   = $lHasVN ? "b.benutzername, b.vorname, b.nachname, b.rolle, b.letzter_login" : "b.benutzername, b.rolle, b.letzter_login";
         $lRows = DB::fetchAll(
-            "SELECT b.benutzername, b.vorname, b.nachname, b.rolle, b.letzter_login
-             FROM " . DB::tbl('benutzer') . " b
+            "SELECT $lSel FROM " . DB::tbl('benutzer') . " b
              WHERE b.letzter_login IS NOT NULL
              ORDER BY b.letzter_login DESC LIMIT 10"
         );
         foreach ($lRows as $l) {
             $letzteLogins[] = [
-                'name'   => trim(($l['vorname'] ?? '') . ' ' . ($l['nachname'] ?? '')) ?: $l['benutzername'],
+                'name'   => $lHasVN ? (trim(($l['vorname'] ?? '') . ' ' . ($l['nachname'] ?? '')) ?: $l['benutzername']) : $l['benutzername'],
                 'rolle'  => $l['rolle'],
                 'datum'  => $l['letzter_login'],
             ];

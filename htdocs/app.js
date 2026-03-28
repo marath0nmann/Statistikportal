@@ -10350,7 +10350,7 @@ async function renderAdminSystem() {
   var gaesteRows = (d.gaeste || []).map(function(g) {
     return '<tr>' +
       '<td style="padding:6px 10px;font-family:monospace;font-size:12px">' + (g.ip||'\u2013') + '</td>' +
-      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (g.country || '\u2013') + '</td>' +
+      '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (g.countryCode ? String.fromCodePoint(0x1F1E6+g.countryCode.charCodeAt(0)-65)+String.fromCodePoint(0x1F1E6+g.countryCode.charCodeAt(1)-65)+' ' : '') + (g.country || '\u2013') + '</td>' +
       '<td style="padding:6px 10px;font-size:11px;color:var(--text2);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (g.user_agent||'').replace(/^Mozilla\/5\.0 /,'').slice(0,70) + '</td>' +
       '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + timeSince(g.zuletzt) + '</td>' +
       '<td style="padding:6px 10px;font-size:12px;text-align:right">' + g.aufrufe + '</td>' +
