@@ -1,1 +1,1 @@
-v844: Aktiv – aktueller Admin immer sichtbar; Ping benutzer_id fix
+v845: Aktiv – User-ID aus requireAdmin() statt $_SESSION

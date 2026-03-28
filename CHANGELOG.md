@@ -1,3 +1,10 @@
+## v845
+
+- **Root cause**: $_SESSION['user_id'] war zum Zeitpunkt des admin-dashboard-Handlers möglicherweise nicht mehr verfügbar (Session-State unklar auf all-inkl.com)
+- **Fix**: requireAdmin() gibt das User-Array zurück – $adminUser['id'] ist garantiert gesetzt wenn der Code erreicht wird
+
+---
+
 ## v844
 
 - **Aktiv**: Wer admin-dashboard aufruft, erscheint jetzt IMMER in 'Aktiv' (direkte DB-Abfrage mit Session-User-ID)
