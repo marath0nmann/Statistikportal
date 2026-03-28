@@ -1,3 +1,10 @@
+## v802
+
+- **border-top** der Auszeichnungen-Zeile entfernt (erschien als Strich unter den Wettkämpfe-Badges)
+- **border-bottom dotted** des Auszeichnungen-Span entfernt
+
+---
+
 ## v801
 
 - PB-Badge zeigt vorherigen Wert immer an – keine Unterdrückung mehr
