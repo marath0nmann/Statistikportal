@@ -1,3 +1,13 @@
+## v837
+
+**Root cause**: auszeichnungen-Endpoint hatte 'continue' nach Tier 1 (Gesamtbestleistung) → übersprung alle AK-Checks für diese Disziplin. HoF-Endpoint prüft AK immer.
+
+**Fix**: Kein 'continue' nach Tier 1. Tier 3 (AK) läuft immer. Ausnahme: AK-Wert identisch mit dem bereits gezählten Gesamtbestleistungs-Wert → wird übersprungen (wäre Doppelzählung).
+
+Beispiel Meyer 800m: Gesamtbestleistung aus M65-Jahr → erscheint als 'Gesamtbestleistung'. M45/M50/M55-Rekorde aus früheren Jahren → eigene Werte → erscheinen als separate 'Bestleistung M45' etc.
+
+---
+
 ## v836
 
 **Root cause**: HoF-Endpoint fehlte Tier 1 (Gesamtbestleistung über alle Geschlechter/AKs)
