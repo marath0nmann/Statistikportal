@@ -1,3 +1,13 @@
+## v839
+
+- **Root cause**: HoF-Karte prüfte nur 'Gesamtbestleistung Männer' / 'Gesamtbestleistung Frauen' als gold-Flag
+- Athleten mit 'Gesamtbestleistung' (Tier 1, bestes über alle) wurden nicht als gesamt erkannt
+- Folge: Knipper's 7 Gesamtbestleistungs-Disziplinen wurden nicht zu einer Gruppe zusammengefasst
+- Fix: gesamtAll-Flag für 'Gesamtbestleistung' (ohne Geschlecht), gesamt = gesamtM || gesamtW || gesamtAll
+- Alle 7 Disziplinen gruppieren jetzt zu einer Zeile 'Gesamtbestleistung über 100m Hürden, Diskuswurf, ...'
+
+---
+
 ## v838
 
 - **Root cause**: auszeichnungen-Endpoint rief buildAkCaseExpr() in jeder Disziplin-Iteration neu auf statt einmalig vor der Schleife
