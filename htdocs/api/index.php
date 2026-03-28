@@ -964,9 +964,28 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
              WHERE benutzer_id IS NULL AND erstellt_am >= DATE_SUB(NOW(), INTERVAL 15 MINUTE)
              GROUP BY ip, user_agent ORDER BY zuletzt DESC LIMIT 50"
         );
+        // GeoIP via ip-api.com (server-seitig, HTTP erlaubt, max 45/min)
+        $geoCache = [];
         foreach ($gRows as $g) {
+            $ip = $g['ip'] ?? null;
+            $country = null;
+            if ($ip && !in_array($ip, ['127.0.0.1','::1']) && !str_starts_with($ip,'192.168.') && !str_starts_with($ip,'10.')) {
+                if (!isset($geoCache[$ip])) {
+                    try {
+                        $ctx = stream_context_create(['http' => ['timeout' => 2, 'ignore_errors' => true]]);
+                        $json = @file_get_contents('http://ip-api.com/json/' . urlencode($ip) . '?fields=country,countryCode,city&lang=de', false, $ctx);
+                        $geo  = $json ? json_decode($json, true) : null;
+                        $geoCache[$ip] = ($geo && ($geo['status'] ?? '') !== 'fail') ? $geo : null;
+                    } catch (\Exception $e) { $geoCache[$ip] = null; }
+                }
+                $geo = $geoCache[$ip];
+                if ($geo) {
+                    $country = trim(($geo['city'] ?? '') . ($geo['city'] ? ', ' : '') . ($geo['country'] ?? ''));
+                }
+            }
             $gaeste[] = [
-                'ip'         => $g['ip'],
+                'ip'         => $ip,
+                'country'    => $country,
                 'user_agent' => $g['user_agent'],
                 'zuletzt'    => $g['zuletzt'],
                 'aufrufe'    => (int)$g['aufrufe'],
