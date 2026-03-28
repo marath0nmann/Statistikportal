@@ -1,3 +1,10 @@
+## v811 – Fix Timeline Auto-Fill
+
+- **Ursache**: Flexbox streckt alle Spalten auf die gleiche Höhe → Geschwister hatten auch 12837px
+- **Fix**: Spalte wird kurz auf height:0/align-self:flex-start gesetzt, Reflow erzwungen, dann Geschwisterhöhe gemessen (= natürliche Inhaltshöhe, z.B. 3300px), dann Spalte wiederhergestellt
+
+---
+
 ## v810 – Fix Timeline Auto-Fill
 
 - **Neuer Ansatz**: Misst die Höhe der größten Nachbarspalte in der Zeile (statt window.innerHeight)
