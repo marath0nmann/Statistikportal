@@ -1,1 +1,1 @@
-v798: Profil Auszeichnungen auf eigener Zeile; Club-Badge zeigt immer Vorgänger
+v800: Fix PB-Badge zeigt immer vorigen Wert (außer wenn Club-Badge ihn schon zeigt)

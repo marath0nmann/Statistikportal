@@ -2008,7 +2008,8 @@ if ($res === 'athleten') {
                     $disz = $fp['disziplin'] ?? '';
                     $kat  = $fp['kat_name'] ?? '';
                     $jahr = (int)substr($fp['datum'] ?? '', 0, 4);
-                    $label = $mName . $mSuffix . ' ' . $disz . ($kat && $kat !== 'Sonstige' ? ' (' . $kat . ')' : '');
+                    $_sep = preg_match('/e$/i', $mName) ? ' ' : '-';
+                    $label = $mName . $_sep . ltrim($mSuffix, '-') . ' ' . $disz . ($kat && $kat !== 'Sonstige' ? ' (' . $kat . ')' : '');
                     $result['meisterschaften'][] = ['label' => $label, 'jahr' => $jahr, 'disz' => $disz, 'kat' => $kat, 'mstr' => $mName];
                 }
             } catch(\Exception $e) {}
