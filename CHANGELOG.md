@@ -1,3 +1,20 @@
+## v842
+
+- **Aktiv**: try/catch um aktive-Abfrage – wenn letzter_aktivitaet-Spalte fehlt, leeres Array statt Crash
+- **Letzte Logins**: Lookup-Map enthält jetzt auch Vorname als Key (z.B. 'Daniel') → historische login_versuche-Einträge vor der E-Mail-Migration werden korrekt aufgelöst
+
+---
+
+## v841
+
+- **Letzte Logins**: login_versuche-Eintrag fehlte bei E-Mail-Code- und Passkey-Login
+  - loginStep1 (Passwort) schrieb schon → war bekannt
+  - email-code-verify und passkey-auth-verify riefen nur finalizeLogin auf → kein Eintrag
+  - Fix: beide Pfade schreiben jetzt ebenfalls IP + E-Mail in login_versuche
+- **Aktiv**: letzter_aktivitaet-Update läuft bereits korrekt – nach erstem Deploy und API-Call sollte es erscheinen
+
+---
+
 ## v840 – Hotfix
 
 - **Ursache v839-Bug**: Block-Ersetzung via Python hat \u00e4 zu \\u00e4 verdoppelt → Vergleiche wie 'Gesamtbestleistung Männer' schlugen fehl, Regex /\d/ matchte nicht mehr auf Ziffern
