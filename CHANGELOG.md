@@ -1,3 +1,10 @@
+## v850
+
+- **Sicherheit Backend**: POST ergebnisse/bulk nutzte requireAthlet() → jeder eingeloggte Athlet konnte Bulk-Ergebnisse eintragen. Fix: requireEditor()
+- **Sicherheit Frontend**: currentUser bei Login hatte kein rechte-Feld → _canBulkEintragen() konnte in Timing-Window fehlerhaft auswerten. Fix: alle 8 Login-Pfade setzen jetzt rechte: (r.data.rechte || [])
+
+---
+
 ## v849
 
 - **Root cause**: Handler für POST ergebnisse/eigenes lag im $res==='benutzer'-Block → Unbekannte Route
