@@ -2775,7 +2775,7 @@ function timelineBadges(rek) {
   // Fallback für ältere Daten ohne label_club/label_pers
   if (!lc && !lp && rek.label) {
     var lbl = rek.label;
-    var cls = (lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge-gold'
+    var cls = (lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0 || lbl === 'Bestleistung Männer' || lbl === 'Bestleistung Frauen') ? 'badge-gold'
             : (lbl === 'PB' || lbl === 'Débüt') ? 'badge-pb' : 'badge-silver';
     var fallbackV = _fmtV(rek.vorher_val);
     var fbSuffix = (!rek.extern && fallbackV) ? ' <span style="opacity:.75;font-weight:400">(' + fallbackV + ')</span>' : '';
@@ -2993,7 +2993,7 @@ function timelineBadges(rek) {
           var fRek  = filtItems[fi].rek;
           var fFmt  = fItem.fmt || '';
           var fRes  = fFmt === 'm' ? fmtMeter(fItem.resultat) : fmtTime(fItem.resultat, fFmt === 's' ? 's' : undefined);
-          var fLblCls = (fLbl.indexOf('Gesamtbestleistung') >= 0 || fLbl.indexOf('Erste Gesamtleistung') >= 0) ? 'badge badge-gold' :
+          var fLblCls = (fLbl.indexOf('Gesamtbestleistung') >= 0 || fLbl.indexOf('Erste Gesamtleistung') >= 0 || fLbl === 'Bestleistung Männer' || fLbl === 'Bestleistung Frauen') ? 'badge badge-gold' :
                         (fLbl === 'PB' || fLbl === 'Debüt') ? 'badge badge-pb' : 'badge badge-silver';
           var fBadgesHtml = timelineBadges(Object.assign({}, fRek, {
             label_club: hiddenTypes.indexOf(timelineLabelType(fRek.label_club)) < 0 ? fRek.label_club : null,
