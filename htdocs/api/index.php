@@ -1971,94 +1971,6 @@ if ($res === 'athleten') {
         jsonOk($rows);
     }
 
-    if ($method === 'GET' && $id) {
-        $hasDelColA = DB::fetchOne("SHOW COLUMNS FROM " . DB::tbl('athleten') . " LIKE 'geloescht_am'");
-        $athlet = $hasDelColA
-            ? DB::fetchOne('SELECT a.*, b.avatar_pfad FROM ' . DB::tbl('athleten') . ' a LEFT JOIN ' . DB::tbl('benutzer') . ' b ON b.athlet_id=a.id WHERE a.id=? AND a.geloescht_am IS NULL', [$id])
-            : DB::fetchOne('SELECT a.*, b.avatar_pfad FROM ' . DB::tbl('athleten') . ' a LEFT JOIN ' . DB::tbl('benutzer') . ' b ON b.athlet_id=a.id WHERE a.id=?', [$id]);
-        if (!$athlet) jsonErr('Nicht gefunden.', 404);
-        try {
-            $athlet['gruppen'] = DB::fetchAll('SELECT g.id, g.name FROM ' . DB::tbl('gruppen') . ' g JOIN ' . DB::tbl('athlet_gruppen') . ' ag ON ag.gruppe_id=g.id WHERE ag.athlet_id=? ORDER BY g.name', [$id]);
-        } catch (\Exception $e) { $athlet['gruppen'] = []; }
-        // Avatar aus verknüpftem Benutzer laden
-        $bUser = DB::fetchOne('SELECT avatar_pfad FROM ' . DB::tbl('benutzer') . ' WHERE athlet_id = ? AND aktiv = 1 LIMIT 1', [$id]);
-        $athlet['avatar_pfad'] = $bUser ? $bUser['avatar_pfad'] : null;
-        if ($unified) {
-            $alle = DB::fetchAll(
-                'SELECT e.id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.pace, e.altersklasse, e.meisterschaft,
-                        v.kuerzel AS veranstaltung, v.ort AS veranstaltung_ort, v.name AS veranstaltung_name, v.datum,
-                        COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
-                        COALESCE(dk.name, \'Sonstige\') AS kat_name,
-                        COALESCE(dk.reihenfolge, 99) AS kat_sort
-                 FROM ' . DB::tbl('ergebnisse') . ' e
-                 JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
-                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
-                 LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
-                 WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY dk.reihenfolge, v.datum DESC', [$id]);
-            // Gruppieren nach Kategorie
-            $kategorien = [];
-            foreach ($alle as $row) {
-                $kn = $row['kat_name'];
-                if (!isset($kategorien[$kn])) {
-                    $kategorien[$kn] = [
-                        'name' => $kn,
-                        'fmt'  => $row['fmt'],
-                        'ergebnisse' => []
-                    ];
-                }
-                $kategorien[$kn]['ergebnisse'][] = $row;
-            }
-            $kategorien = array_values($kategorien);
-            // Externe PBs mitsenden
-            $pbs = DB::fetchAll('SELECT pb.id, pb.disziplin, pb.resultat, pb.wettkampf, pb.datum, pb.verein, pb.altersklasse,
-                        pb.disziplin_mapping_id,
-                        COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
-                        COALESCE(dk.name, \'Sonstige\') AS kat_name,
-                        COALESCE(dk.reihenfolge, 99) AS kat_sort,
-                        COALESCE(dm.disziplin, pb.disziplin) AS disziplin_mapped
-                 FROM ' . DB::tbl('athlet_pb') . ' pb
-                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=pb.disziplin_mapping_id
-                 LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
-                 WHERE pb.athlet_id=? ORDER BY dk.reihenfolge, pb.disziplin', [(int)$id]);
-            jsonOk(compact('athlet','kategorien','pbs'));
-        } else {
-            $strasse = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_strasse') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
-            $sprint  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprint') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
-            $mittel  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_mittelstrecke') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
-            $sw      = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprungwurf') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
-            jsonOk(compact('athlet','strasse','sprint','mittel','sw'));
-        }
-    }
-
-    if ($method === 'POST') {
-        Auth::requireEditor();
-        $nv = sanitize($body['name_nv'] ?? '');
-        $nn = sanitize($body['nachname'] ?? '');
-        $vn = sanitize($body['vorname'] ?? '');
-        if (!$nv || !$nn) jsonErr('Name erforderlich.');
-        $gebj = intOrNull($body['geburtsjahr'] ?? null);
-        try {
-            DB::query('INSERT INTO ' . DB::tbl('athleten') . ' (name_nv,nachname,vorname,geschlecht,geburtsjahr) VALUES (?,?,?,?,?)',
-                [$nv, $nn, $vn, sanitize($body['geschlecht'] ?? ''), $gebj]);
-            $newId = DB::lastInsertId();
-            // Gruppen zuordnen
-            if (!empty($body['gruppen']) && is_array($body['gruppen'])) {
-                foreach ($body['gruppen'] as $gname) {
-                    $gname = trim(sanitize($gname));
-                    if (!$gname) continue;
-                    $g = DB::fetchOne('SELECT id FROM ' . DB::tbl('gruppen') . ' WHERE name=?', [$gname]);
-                    if (!$g) { DB::query('INSERT INTO ' . DB::tbl('gruppen') . ' (name) VALUES (?)', [$gname]); $gid = DB::lastInsertId(); }
-                    else $gid = $g['id'];
-                    DB::query('INSERT IGNORE INTO ' . DB::tbl('athlet_gruppen') . ' (athlet_id,gruppe_id) VALUES (?,?)', [$newId, $gid]);
-                }
-            }
-            jsonOk(['id' => $newId]);
-        } catch (\Exception $e) {
-            jsonErr('Athlet bereits vorhanden.');
-        }
-    }
-
-    // Eigener Profil-Änderungsantrag (Athlet ändert sein eigenes Profil → Genehmigung)
     // ── Sub-Ressource: Auszeichnungen (HoF-Daten) für einen Athleten ──
     if ($method === 'GET' && $id && ($parts[2] ?? '') === 'auszeichnungen') {
         $athletId = (int)$id;
@@ -2159,6 +2071,94 @@ if ($res === 'athleten') {
         }
 
         jsonOk($result);
+    }
+
+
+    if ($method === 'GET' && $id) {
+        $hasDelColA = DB::fetchOne("SHOW COLUMNS FROM " . DB::tbl('athleten') . " LIKE 'geloescht_am'");
+        $athlet = $hasDelColA
+            ? DB::fetchOne('SELECT a.*, b.avatar_pfad FROM ' . DB::tbl('athleten') . ' a LEFT JOIN ' . DB::tbl('benutzer') . ' b ON b.athlet_id=a.id WHERE a.id=? AND a.geloescht_am IS NULL', [$id])
+            : DB::fetchOne('SELECT a.*, b.avatar_pfad FROM ' . DB::tbl('athleten') . ' a LEFT JOIN ' . DB::tbl('benutzer') . ' b ON b.athlet_id=a.id WHERE a.id=?', [$id]);
+        if (!$athlet) jsonErr('Nicht gefunden.', 404);
+        try {
+            $athlet['gruppen'] = DB::fetchAll('SELECT g.id, g.name FROM ' . DB::tbl('gruppen') . ' g JOIN ' . DB::tbl('athlet_gruppen') . ' ag ON ag.gruppe_id=g.id WHERE ag.athlet_id=? ORDER BY g.name', [$id]);
+        } catch (\Exception $e) { $athlet['gruppen'] = []; }
+        // Avatar aus verknüpftem Benutzer laden
+        $bUser = DB::fetchOne('SELECT avatar_pfad FROM ' . DB::tbl('benutzer') . ' WHERE athlet_id = ? AND aktiv = 1 LIMIT 1', [$id]);
+        $athlet['avatar_pfad'] = $bUser ? $bUser['avatar_pfad'] : null;
+        if ($unified) {
+            $alle = DB::fetchAll(
+                'SELECT e.id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.pace, e.altersklasse, e.meisterschaft,
+                        v.kuerzel AS veranstaltung, v.ort AS veranstaltung_ort, v.name AS veranstaltung_name, v.datum,
+                        COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
+                        COALESCE(dk.name, \'Sonstige\') AS kat_name,
+                        COALESCE(dk.reihenfolge, 99) AS kat_sort
+                 FROM ' . DB::tbl('ergebnisse') . ' e
+                 JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
+                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
+                 LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
+                 WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY dk.reihenfolge, v.datum DESC', [$id]);
+            // Gruppieren nach Kategorie
+            $kategorien = [];
+            foreach ($alle as $row) {
+                $kn = $row['kat_name'];
+                if (!isset($kategorien[$kn])) {
+                    $kategorien[$kn] = [
+                        'name' => $kn,
+                        'fmt'  => $row['fmt'],
+                        'ergebnisse' => []
+                    ];
+                }
+                $kategorien[$kn]['ergebnisse'][] = $row;
+            }
+            $kategorien = array_values($kategorien);
+            // Externe PBs mitsenden
+            $pbs = DB::fetchAll('SELECT pb.id, pb.disziplin, pb.resultat, pb.wettkampf, pb.datum, pb.verein, pb.altersklasse,
+                        pb.disziplin_mapping_id,
+                        COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
+                        COALESCE(dk.name, \'Sonstige\') AS kat_name,
+                        COALESCE(dk.reihenfolge, 99) AS kat_sort,
+                        COALESCE(dm.disziplin, pb.disziplin) AS disziplin_mapped
+                 FROM ' . DB::tbl('athlet_pb') . ' pb
+                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=pb.disziplin_mapping_id
+                 LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
+                 WHERE pb.athlet_id=? ORDER BY dk.reihenfolge, pb.disziplin', [(int)$id]);
+            jsonOk(compact('athlet','kategorien','pbs'));
+        } else {
+            $strasse = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_strasse') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
+            $sprint  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprint') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
+            $mittel  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_mittelstrecke') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
+            $sw      = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprungwurf') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
+            jsonOk(compact('athlet','strasse','sprint','mittel','sw'));
+        }
+    }
+
+    if ($method === 'POST') {
+        Auth::requireEditor();
+        $nv = sanitize($body['name_nv'] ?? '');
+        $nn = sanitize($body['nachname'] ?? '');
+        $vn = sanitize($body['vorname'] ?? '');
+        if (!$nv || !$nn) jsonErr('Name erforderlich.');
+        $gebj = intOrNull($body['geburtsjahr'] ?? null);
+        try {
+            DB::query('INSERT INTO ' . DB::tbl('athleten') . ' (name_nv,nachname,vorname,geschlecht,geburtsjahr) VALUES (?,?,?,?,?)',
+                [$nv, $nn, $vn, sanitize($body['geschlecht'] ?? ''), $gebj]);
+            $newId = DB::lastInsertId();
+            // Gruppen zuordnen
+            if (!empty($body['gruppen']) && is_array($body['gruppen'])) {
+                foreach ($body['gruppen'] as $gname) {
+                    $gname = trim(sanitize($gname));
+                    if (!$gname) continue;
+                    $g = DB::fetchOne('SELECT id FROM ' . DB::tbl('gruppen') . ' WHERE name=?', [$gname]);
+                    if (!$g) { DB::query('INSERT INTO ' . DB::tbl('gruppen') . ' (name) VALUES (?)', [$gname]); $gid = DB::lastInsertId(); }
+                    else $gid = $g['id'];
+                    DB::query('INSERT IGNORE INTO ' . DB::tbl('athlet_gruppen') . ' (athlet_id,gruppe_id) VALUES (?,?)', [$newId, $gid]);
+                }
+            }
+            jsonOk(['id' => $newId]);
+        } catch (\Exception $e) {
+            jsonErr('Athlet bereits vorhanden.');
+        }
     }
 
     if ($method === 'POST' && $id && ($parts[2] ?? '') === 'profil-antrag') {

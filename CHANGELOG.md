@@ -1,3 +1,10 @@
+## v794 – Fix Athletenprofil Auszeichnungen
+
+- **Ursache**: `GET athleten/{id}/auszeichnungen` wurde nach dem generischen `GET athleten/{id}`-Handler platziert – dieser rief `jsonOk()` auf bevor der Sub-Ressource-Check greifen konnte
+- **Fix**: auszeichnungen-Check vor den generischen Handler verschoben
+
+---
+
 ## v793 – Fixes
 
 - **Divers** in allen verbleibenden Geschlecht-Dropdowns (Bulk-Eintragen neue Athleten, Registrierungen-Modal)
