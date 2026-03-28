@@ -2289,13 +2289,13 @@ if ($res === 'athleten') {
                 $myVal = (float)$bestMe['val'];
                 // 1. Gesamtbestleistung?
                 $bestAll = DB::fetchOne("SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1", [$hofParam]);
-                if ($bestAll && abs($myVal - (float)$bestAll['val']) < 0.001) {
+                $isGesamtBest = $bestAll && abs($myVal - (float)$bestAll['val']) < 0.001;
+                if ($isGesamtBest) {
                     $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Gesamtbestleistung'];
-                    // Auch Geschlecht checken (könnte zusätzlich gelten – hier aber continue wie HoF)
-                    continue;
+                    // Kein continue – AK-Checks laufen weiter (andere Jahre = andere AK-Rekorde)
                 }
-                // 2. Geschlechts-Bestleistung?
-                if ($athGeschlecht2 === 'M' || $athGeschlecht2 === 'W') {
+                // 2. Geschlechts-Bestleistung? (nur wenn nicht bereits Tier 1)
+                if (!$isGesamtBest && ($athGeschlecht2 === 'M' || $athGeschlecht2 === 'W')) {
                     $bestG = DB::fetchOne(
                         "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id WHERE $hofWhere AND a.geschlecht=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
                         [$hofParam, $athGeschlecht2]
@@ -2303,7 +2303,6 @@ if ($res === 'athleten') {
                     if ($bestG && abs($myVal - (float)$bestG['val']) < 0.001) {
                         $gLabel = $athGeschlecht2 === 'M' ? 'Bestleistung Männer' : 'Bestleistung Frauen';
                         $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => $gLabel];
-                        // AK-Check auch bei Geschlechts-Bestleistung (HoF macht das immer)
                     }
                 }
                 // 3. AK-Bestleistung? (immer prüfen, unabhängig von Gesamt/Geschlecht – wie HoF)
@@ -2325,6 +2324,8 @@ if ($res === 'athleten') {
                         [$hofParam, $athletId, $ak]
                     );
                     if ($bestAK && $bestMeAK && abs((float)$bestMeAK['val'] - (float)$bestAK['val']) < 0.001) {
+                        // Überspringen wenn identisch mit bereits gezählter Gesamtbestleistung
+                        if ($isGesamtBest && abs((float)$bestMeAK['val'] - $myVal) < 0.001) continue;
                         $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Bestleistung ' . $ak];
                     }
                 }
