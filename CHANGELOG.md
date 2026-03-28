@@ -1,3 +1,9 @@
+## v815
+
+- **Fix**: catch (\\Exception \\) statt catch (\\Exception $e) in CREATE TABLE seitenaufrufe – hat alle API-Requests mit 500 gecrasht
+
+---
+
 ## v814
 
 - **Fix**: Python-Escaping hatte \$method statt $method erzeugt → PHP-Syntaxfehler → 500 auf allen Requests
