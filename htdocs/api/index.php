@@ -203,6 +203,9 @@ try {
     }
 } catch (\Exception $e) {}
 
+// Migration: methode-Spalte für login_versuche
+try { DB::query("ALTER TABLE " . DB::tbl('login_versuche') . " ADD COLUMN IF NOT EXISTS methode VARCHAR(20) NULL"); } catch (\Exception $e) {}
+
 // Standard-Rollen anlegen falls leer
 try {
     if (!DB::fetchOne('SELECT id FROM ' . DB::tbl('rollen') . ' LIMIT 1')) {
@@ -388,7 +391,7 @@ if ($res === 'auth') {
         if (!$user) jsonErr('Benutzer nicht gefunden.', 401);
         unset($_SESSION['totp_pending_user'], $_SESSION['email_login_code_hash'], $_SESSION['email_login_code_exp']);
         $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-        try { DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg) VALUES (?, ?, 1)', [$user['email'], $ip]); } catch (\Exception $e) {}
+        try { DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg, methode) VALUES (?, ?, 1, ?)', [$user['email'], $ip, 'email']); } catch (\Exception $e) {}
         jsonOk(Auth::finalizeLoginPublic($user));
     }
 
@@ -421,7 +424,7 @@ if ($res === 'auth') {
         if (!$user) jsonErr('Benutzer nicht gefunden.', 401);
         $loginResult = Auth::finalizeLoginPublic($user);
         $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-        try { DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg) VALUES (?, ?, 1)', [$user['email'], $ip]); } catch (\Exception $e) {}
+        try { DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg, methode) VALUES (?, ?, 1, ?)', [$user['email'], $ip, 'passkey']); } catch (\Exception $e) {}
         jsonOk(['rolle' => $loginResult['rolle'], 'name' => $loginResult['name'], 'vorname' => $loginResult['vorname'] ?? '', 'email' => $loginResult['email'] ?? '']);
     }
     // ── Passkey: Registrierung Challenge (eingeloggt, für Profil) ──
@@ -971,24 +974,19 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
         }
     } catch (\Exception $e) {}
 
-    // 2. Aktive Benutzer: letzter_aktivitaet (aus seitenaufrufe benutzer_id ODER letzter_aktivitaet Spalte)
+    // 2. Aktive Benutzer: via seitenaufrufe JOIN (benutzer_id wird beim ping-Call gesetzt)
     $aktiveBenutzer = [];
-    // Erst letzter_aktivitaet direkt aktualisieren für den aktuellen User
-    $__curUid = $_SESSION['user_id'] ?? null;
-    if ($__curUid) try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_aktivitaet = NOW() WHERE id = ?', [(int)$__curUid]); } catch(\Exception $e) {}
     try {
-        // Aktiv = letzter_aktivitaet in den letzten 10 Min
-        // Fallback: auch ohne letzter_aktivitaet-Spalte funktionsfähig
-        try {
-            $rows = DB::fetchAll(
-                "SELECT b.id, b.benutzername, b.email, b.vorname, b.nachname, b.rolle,
-                        b.letzter_aktivitaet, b.avatar_pfad
-                 FROM " . DB::tbl('benutzer') . " b
-                 WHERE b.aktiv = 1
-                   AND b.letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
-                 ORDER BY b.letzter_aktivitaet DESC"
-            );
-        } catch (\Exception $e) { $rows = []; }
+        $rows = DB::fetchAll(
+            "SELECT b.id, b.benutzername, b.email, b.vorname, b.nachname, b.rolle,
+                    MAX(s.erstellt_am) AS letzter_aktivitaet, b.avatar_pfad
+             FROM " . DB::tbl('seitenaufrufe') . " s
+             JOIN " . DB::tbl('benutzer') . " b ON b.id = s.benutzer_id
+             WHERE s.erstellt_am >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+               AND b.aktiv = 1
+             GROUP BY b.id
+             ORDER BY letzter_aktivitaet DESC"
+        );
         foreach ($rows as $r) {
             $aktiveBenutzer[] = [
                 'id'          => (int)$r['id'],
@@ -1046,7 +1044,8 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     try {
         // Login-Versuche der letzten 5 Tage
         $lvRows = DB::fetchAll(
-            'SELECT lv.benutzername, lv.ip, lv.erfolg, lv.erstellt_am'
+            'SELECT lv.benutzername, lv.ip, lv.erfolg, lv.erstellt_am,'
+            . ' COALESCE(lv.methode, NULL) AS methode'
             . ' FROM ' . DB::tbl('login_versuche') . ' lv'
             . ' WHERE lv.erstellt_am >= DATE_SUB(NOW(), INTERVAL 5 DAY)'
             . ' ORDER BY lv.erstellt_am DESC LIMIT 200'
@@ -1085,6 +1084,7 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
                 'country'       => $lcountry,
                 'countryCode'   => $lcountryCode,
                 'erfolg'        => (bool)$l['erfolg'],
+                'methode'       => $l['methode'] ?? null,
                 'datum'         => $l['erstellt_am'],
             ];
         }

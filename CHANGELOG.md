@@ -1,3 +1,11 @@
+## v843
+
+- **Aktiv**: Abfrage nutzt seitenaufrufe JOIN statt letzter_aktivitaet-Spalte (die auf dem Live-Server nicht existiert)
+- **Login-Methode**: login_versuche hat neue Spalte 'methode' (password/email/passkey), Badge im Login-Log
+- **Doppelter Name**: Untertitel wird nur angezeigt wenn benutzername != anzeigeName
+
+---
+
 ## v842
 
 - **Aktiv**: try/catch um aktive-Abfrage – wenn letzter_aktivitaet-Spalte fehlt, leeres Array statt Crash
