@@ -1,3 +1,10 @@
+## v859
+
+- **Root cause Menü-Flackern**: buildNav() rief _ladeAntraegeBadge() per setTimeout auf; _ladeAntraegeBadge() rief am Ende buildNav() auf → Endlosschleife, die Nav re-rendert sich hunderte Male pro Sekunde
+- **Fix**: _ladeAntraegeBadge() ruft NICHT mehr buildNav() auf, sondern aktualisiert den Admin-Nav-Button direkt per querySelector auf .nav-label → kein Re-Render, kein Loop
+
+---
+
 ## v858
 
 - **Bugfix**: Beim Genehmigen eines Antrags (typ='insert') wurde kein Ergebnis angelegt

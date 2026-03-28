@@ -10577,8 +10577,16 @@ async function _ladeAntraegeBadge() {
   // Admin-Nav-Button: kombinierter Badge (Registrierungen + Anträge)
   try {
     window._adminNavBadgeCount = (window._adminPendingAntraege || 0) + (window._adminPendingRegs || 0);
-    // Nav neu bauen damit badge-Label sofort stimmt
-    if (typeof buildNav === 'function') buildNav();
+    // Admin-Nav-Button direkt aktualisieren (KEIN buildNav() - das erzeugt einen Loop)
+    var _totalN = (window._adminPendingAntraege||0) + (window._adminPendingRegs||0);
+    var _adminBtns = document.querySelectorAll('#main-nav button, #mobile-nav-items button');
+    for (var _bi = 0; _bi < _adminBtns.length; _bi++) {
+      var _btn = _adminBtns[_bi];
+      if (_btn.getAttribute('onclick') && _btn.getAttribute('onclick').indexOf('admin') >= 0) {
+        var _lbl = _btn.querySelector('.nav-label');
+        if (_lbl) _lbl.innerHTML = 'Admin' + (_totalN > 0 ? ' <span style="background:#e53935;color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _totalN + '</span>' : '');
+      }
+    }
   } catch(e) {}
 }
 function adminSubtabs() {
