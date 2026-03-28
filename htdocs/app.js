@@ -4268,27 +4268,34 @@ async function openAthletById(id) {
           (function(){ var _ak = (athlet.geschlecht && athlet.geburtsjahr) ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : ''; return _ak ? akBadge(_ak) : ''; })() +
           (function() {
             var ausz = (rAusz && rAusz.ok) ? rAusz.data : null;
-            if (!ausz) return '';
-            var aHtml = '';
-            // Meisterschaften
+            if (!ausz || (!ausz.meisterschaften.length && !ausz.bestleistungen.length)) return '';
+            var mCnt = ausz.meisterschaften.length;
+            var bCnt = ausz.bestleistungen.length;
+            // Tooltip-Text aufbauen
+            var tipLines = [];
+            // Meisterschaftstitel (dedupliziert mit Jahreszahlen)
             var mGrp = {}, mOrd = [];
+            var haGeschlecht = athlet.geschlecht || '';
+            var mSuffix = haGeschlecht === 'M' ? '-Meister' : haGeschlecht === 'W' ? '-Meisterin' : '-Meister/in';
             (ausz.meisterschaften || []).forEach(function(mt) {
-              var k = mt.label;
-              if (!mGrp[k]) { mGrp[k] = { label: mt.label, jahre: [] }; mOrd.push(k); }
-              if (mt.jahr && mGrp[k].jahre.indexOf(mt.jahr) < 0) mGrp[k].jahre.push(mt.jahr);
+              if (!mGrp[mt.label]) { mGrp[mt.label] = []; mOrd.push(mt.label); }
+              if (mt.jahr && mGrp[mt.label].indexOf(mt.jahr) < 0) mGrp[mt.label].push(mt.jahr);
             });
-            mOrd.forEach(function(k) {
-              var mg = mGrp[k]; mg.jahre.sort();
-              var tip = mg.label + (mg.jahre.length ? ' ' + mg.jahre.join(', ') : '');
-              aHtml += '<span title="' + tip.replace(/"/g,'&quot;') + '" style="font-size:18px;cursor:default">&#x1F947;</span>';
+            mOrd.forEach(function(lbl) {
+              var jahre = mGrp[lbl].sort().join(', ');
+              tipLines.push(lbl + (jahre ? ' ' + jahre : ''));
             });
             // Vereinsbestleistungen
             (ausz.bestleistungen || []).forEach(function(b) {
-              var cls = b.label.indexOf('Gesamt') >= 0 ? 'badge-gold' : 'badge-silver';
-              aHtml += '<span class="badge ' + cls + '" style="font-size:11px">' + b.label + ' über ' + b.disziplin + '</span>';
+              tipLines.push(b.label + ' über ' + b.disziplin);
             });
-            if (!aHtml) return '';
-            return '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">' + aHtml + '</div>';
+            var tooltip = tipLines.join('&#10;');
+            var parts = [];
+            if (mCnt) parts.push('&#x1F947; ' + mCnt + ' ' + (mCnt === 1 ? 'Titel' : 'Titel'));
+            if (bCnt) parts.push('&#x1F3C6; ' + bCnt + ' ' + (bCnt === 1 ? 'Bestleistung' : 'Bestleistungen'));
+            return '<div style="margin-top:8px">' +
+              '<span title="' + tooltip + '" style="font-size:13px;color:var(--text2);cursor:help;border-bottom:1px dotted var(--text2)">' +
+              parts.join(' · ') + '</span></div>';
           }()) +
         '</div>' +
       '</div>' +

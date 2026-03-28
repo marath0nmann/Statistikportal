@@ -1,3 +1,11 @@
+## v795 – Athletenprofil Auszeichnungen
+
+- Statt vieler Emojis und Badges: kompakte Zeile "🥇 20 Titel · 🏆 57 Bestleistungen"
+- Tooltip (hover) listet alle einzelnen Titel und Bestleistungen auf
+- Unterstrichen mit gestrichelter Linie als Hover-Hinweis
+
+---
+
 ## v794 – Fix Athletenprofil Auszeichnungen
 
 - **Ursache**: `GET athleten/{id}/auszeichnungen` wurde nach dem generischen `GET athleten/{id}`-Handler platziert – dieser rief `jsonOk()` auf bevor der Sub-Ressource-Check greifen konnte
