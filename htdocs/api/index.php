@@ -160,13 +160,13 @@ try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('seitenaufrufe') . "
     (id INT AUTO_INCREMENT PRIMARY KEY, benutzer_id INT NULL, ip VARCHAR(45) NULL,
      user_agent VARCHAR(255) NULL, erstellt_am DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
      INDEX idx_erstellt (erstellt_am)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (\Exception \$e) {}
-// Seitenaufruf tracken (jeder API-Request)
-if (\$method === 'GET' && \$res === 'ping') {
-    \$bId = isset(\$_SESSION['user_id']) ? (int)\$_SESSION['user_id'] : null;
-    \$ip  = \$_SERVER['REMOTE_ADDR'] ?? null;
-    \$ua  = substr(\$_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
-    try { DB::query('INSERT INTO ' . DB::tbl('seitenaufrufe') . ' (benutzer_id,ip,user_agent) VALUES (?,?,?)', [\$bId, \$ip, \$ua]); } catch (\Exception \$e) {}
-    try { DB::query('DELETE FROM ' . DB::tbl('seitenaufrufe') . ' WHERE erstellt_am < DATE_SUB(NOW(), INTERVAL 24 HOUR)'); } catch (\Exception \$e) {}
+// Seitenaufruf tracken
+if ($method === 'GET' && $res === 'ping') {
+    $bId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
+    $ip  = $_SERVER['REMOTE_ADDR'] ?? null;
+    $ua  = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255);
+    try { DB::query('INSERT INTO ' . DB::tbl('seitenaufrufe') . ' (benutzer_id,ip,user_agent) VALUES (?,?,?)', [$bId, $ip, $ua]); } catch (\Exception $e) {}
+    try { DB::query('DELETE FROM ' . DB::tbl('seitenaufrufe') . ' WHERE erstellt_am < DATE_SUB(NOW(), INTERVAL 24 HOUR)'); } catch (\Exception $e) {}
     jsonOk(['pong' => true]);
 }
 

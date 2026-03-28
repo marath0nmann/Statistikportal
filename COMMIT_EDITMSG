@@ -1,1 +1,1 @@
-v813: Admin System-Dashboard im phpBB-Stil mit erweiterten Statistiken
+v814: Fix HTTP 500 – escaped Variablen im Ping-Endpoint korrigiert
