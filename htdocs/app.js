@@ -2710,12 +2710,12 @@ function timelineBadges(rek) {
   var html = '';
   if (lc) {
     var isGold = lc.indexOf('Gesamt') >= 0 || lc.indexOf('Männer') >= 0 || lc.indexOf('Frauen') >= 0 || lc.indexOf('Ergebnis M') >= 0 || lc.indexOf('Ergebnis W') >= 0;
-    var vcSuffix = (!rek.extern && !bothSame && vcFmt) ? ' <span style="opacity:.75;font-weight:400">(' + vcFmt + ')</span>' : '';
+    var vcSuffix = (!rek.extern && vcFmt) ? ' <span style="opacity:.75;font-weight:400">(' + vcFmt + ')</span>' : '';
     html += '<span class="badge ' + (isGold ? 'badge-gold' : 'badge-silver') + '">' + lc + vcSuffix + '</span> ';
   }
   if (lp) {
     var vpSuffix = (!rek.extern && !bothSame && vpFmt) ? ' <span style="opacity:.75;font-weight:400">(' + vpFmt + ')</span>'
-                : (!rek.extern && singleVorher) ? ' <span style="opacity:.75;font-weight:400">(' + singleVorher + ')</span>' : '';
+                : (!rek.extern && !bothSame && singleVorher) ? ' <span style="opacity:.75;font-weight:400">(' + singleVorher + ')</span>' : '';
     html += '<span class="badge badge-pb">' + lp + vpSuffix + '</span>';
   }
   // Fallback für ältere Daten ohne label_club/label_pers
@@ -4266,7 +4266,8 @@ async function openAthletById(id) {
           (athlet.geschlecht ? '<span class="badge" style="background:var(--surf2);color:var(--text)">' + (athlet.geschlecht === 'M' ? '♂ Männlich' : athlet.geschlecht === 'W' ? '♀ Weiblich' : '⚧ Divers') + '</span>' : '') +
           (_canSeePersoenlicheDaten() && athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jg. ' + athlet.geburtsjahr + '</span>' : '') +
           (function(){ var _ak = (athlet.geschlecht && athlet.geburtsjahr) ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : ''; return _ak ? akBadge(_ak) : ''; })() +
-          (function() {
+        '</div>' +
+        (function() {
             var ausz = (rAusz && rAusz.ok) ? rAusz.data : null;
             if (!ausz || (!ausz.meisterschaften.length && !ausz.bestleistungen.length)) return '';
             var mCnt = ausz.meisterschaften.length;
@@ -4297,7 +4298,6 @@ async function openAthletById(id) {
               '<span title="' + tooltip + '" style="font-size:13px;color:var(--text2);cursor:help;border-bottom:1px dotted var(--text2)">' +
               parts.join(' · ') + '</span></div>';
           }()) +
-        '</div>' +
       '</div>' +
     '</div>' +
     '<div id="_ap-kat-tabs" style="margin-bottom:12px"></div>' +

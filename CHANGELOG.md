@@ -1,3 +1,10 @@
+## v798
+
+- **Athletenprofil**: Titel/Bestleistungen jetzt korrekt auf eigener Zeile mit Trennlinie (war noch innerhalb der Badges-Flex-Row)
+- **Timeline**: Club-Badge (Bestleistung Frauen/Männer/AK) zeigt jetzt immer den Vorgängerwert – auch wenn er identisch mit dem persönlichen PB ist. PB-Badge zeigt nur dann einen Wert wenn er sich vom Club-Vorgänger unterscheidet
+
+---
+
 ## v797
 
 - **HoF**: Medaillen-Emojis 20px → 15px, Abstand 3px → 1px
