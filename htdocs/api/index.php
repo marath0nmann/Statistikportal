@@ -989,52 +989,30 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
         }
     } catch (\Exception $e) {}
 
-    // 5. Zählstatistiken + phpBB-Stil Werte
-    $stats = [];
-    try {
-        // Benutzer
-        $stats['benutzer']     = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('benutzer') . " WHERE aktiv=1 AND geloescht_am IS NULL")['c'] ?? 0);
-        $erstelltRow = DB::fetchOne("SELECT MIN(erstellt_am) AS d FROM " . DB::tbl('benutzer'));
-        $stats['aeltesterBenutzer'] = $erstelltRow['d'] ?? null;
-        $neusterRow = DB::fetchOne("SELECT benutzername, vorname, nachname, erstellt_am FROM " . DB::tbl('benutzer') . " WHERE aktiv=1 AND geloescht_am IS NULL ORDER BY erstellt_am DESC LIMIT 1");
-        $stats['neusterBenutzer'] = $neusterRow ? (trim(($neusterRow['vorname']??'').' '.($neusterRow['nachname']??'')) ?: $neusterRow['benutzername']) : null;
-        $stats['neusterBenutzerDatum'] = $neusterRow['erstellt_am'] ?? null;
-        // Athleten
-        $stats['athleten']     = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athleten') . " WHERE geloescht_am IS NULL")['c'] ?? 0);
-        $stats['athletenAktiv'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athleten') . " WHERE aktiv=1 AND geloescht_am IS NULL")['c'] ?? 0);
-        // Ergebnisse
-        $stats['ergebnisse']   = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NULL")['c'] ?? 0);
-        // Ergebnisse pro Tag (seit ältestem Datum)
-        $eDatumRow = DB::fetchOne("SELECT MIN(v.datum) AS d FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id WHERE e.geloescht_am IS NULL");
-        $stats['erstesErgebnisDatum'] = $eDatumRow['d'] ?? null;
-        if ($stats['erstesErgebnisDatum'] && $stats['ergebnisse']) {
-            $daysSince = max(1, (int)((time() - strtotime($stats['erstesErgebnisDatum'])) / 86400));
-            $stats['ergebnisseProTag'] = round($stats['ergebnisse'] / $daysSince, 2);
-        } else { $stats['ergebnisseProTag'] = 0; }
-        // Veranstaltungen
-        $stats['veranstaltungen'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NULL")['c'] ?? 0);
-        if ($stats['erstesErgebnisDatum'] && $stats['veranstaltungen']) {
-            $daysSince2 = max(1, (int)((time() - strtotime($stats['erstesErgebnisDatum'])) / 86400));
-            $stats['veranstaltungenProTag'] = round($stats['veranstaltungen'] / $daysSince2, 2);
-        } else { $stats['veranstaltungenProTag'] = 0; }
-        // Externe PBs
-        $stats['externePBs'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athlet_pb'))['c'] ?? 0);
-        // Importe (excel/raceresult-Quelle)
-        $impRow = DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE import_quelle IS NOT NULL AND geloescht_am IS NULL");
-        $stats['importiert'] = (int)($impRow['c'] ?? 0);
-        // Disziplinen (gemappte)
-        $stats['disziplinen'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('disziplin_mapping'))['c'] ?? 0);
-        // Portal in Betrieb seit
-        $portalSeitRow = DB::fetchOne("SELECT MIN(erstellt_am) AS d FROM " . DB::tbl('benutzer'));
-        $stats['portalSeit'] = $portalSeitRow['d'] ?? null;
-        // Ausstehende Anträge
-        $stats['antraege']     = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnis_aenderungen') . " WHERE status='pending'")['c'] ?? 0);
-        // Registrierungsanfragen
-        $hasRegTbl = DB::fetchOne("SHOW TABLES LIKE '" . DB::tbl('registrierungen') . "'");
-        $stats['registrierungen'] = $hasRegTbl ? (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('registrierungen') . " WHERE status='pending'")['c'] ?? 0) : 0;
-        // Papierkorb
-        $stats['papierkorb']   = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NOT NULL")['c'] ?? 0);
-    } catch (\Exception $e) {}
+    // 5. Zählstatistiken – jede Abfrage separat try/catch
+    $stats = [
+        'benutzer'=>0,'aeltesterBenutzer'=>null,'neusterBenutzer'=>null,'neusterBenutzerDatum'=>null,
+        'athleten'=>0,'athletenAktiv'=>0,'ergebnisse'=>0,'erstesErgebnisDatum'=>null,
+        'ergebnisseProTag'=>0,'veranstaltungen'=>0,'veranstaltungenProTag'=>0,
+        'externePBs'=>0,'importiert'=>0,'disziplinen'=>0,'portalSeit'=>null,
+        'antraege'=>0,'registrierungen'=>0,'papierkorb'=>0
+    ];
+    try { $stats['benutzer'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('benutzer') . " WHERE aktiv=1 AND geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
+    try { $r2 = DB::fetchOne("SELECT MIN(erstellt_am) AS d FROM " . DB::tbl('benutzer')); $stats['aeltesterBenutzer'] = $r2['d'] ?? null; $stats['portalSeit'] = $r2['d'] ?? null; } catch(\Exception $e) {}
+    try { $nr = DB::fetchOne("SELECT benutzername, vorname, nachname, erstellt_am FROM " . DB::tbl('benutzer') . " WHERE aktiv=1 AND geloescht_am IS NULL ORDER BY erstellt_am DESC LIMIT 1"); $stats['neusterBenutzer'] = $nr ? (trim(($nr['vorname']??'').' '.($nr['nachname']??'')) ?: $nr['benutzername']) : null; $stats['neusterBenutzerDatum'] = $nr['erstellt_am'] ?? null; } catch(\Exception $e) {}
+    try { $stats['athleten'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athleten') . " WHERE geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
+    try { $stats['athletenAktiv'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athleten') . " WHERE aktiv=1 AND geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
+    try { $stats['ergebnisse'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
+    try { $ed = DB::fetchOne("SELECT MIN(v.datum) AS d FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id WHERE e.geloescht_am IS NULL"); $stats['erstesErgebnisDatum'] = $ed['d'] ?? null; } catch(\Exception $e) {}
+    if ($stats['erstesErgebnisDatum'] && $stats['ergebnisse']) { $days = max(1,(int)((time()-strtotime($stats['erstesErgebnisDatum']))/86400)); $stats['ergebnisseProTag'] = round($stats['ergebnisse']/$days,2); }
+    try { $stats['veranstaltungen'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
+    if ($stats['erstesErgebnisDatum'] && $stats['veranstaltungen']) { $days2 = max(1,(int)((time()-strtotime($stats['erstesErgebnisDatum']))/86400)); $stats['veranstaltungenProTag'] = round($stats['veranstaltungen']/$days2,2); }
+    try { $stats['externePBs'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athlet_pb'))['c'] ?? 0); } catch(\Exception $e) {}
+    try { $stats['importiert'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE import_quelle IS NOT NULL AND geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
+    try { $stats['disziplinen'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('disziplin_mapping'))['c'] ?? 0); } catch(\Exception $e) {}
+    try { $stats['antraege'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnis_aenderungen') . " WHERE status='pending'")['c'] ?? 0); } catch(\Exception $e) {}
+    try { $hasRegTbl = DB::fetchOne("SHOW TABLES LIKE '" . DB::tbl('registrierungen') . "'"); $stats['registrierungen'] = $hasRegTbl ? (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('registrierungen') . " WHERE status='pending'")['c'] ?? 0) : 0; } catch(\Exception $e) {}
+    try { $stats['papierkorb'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NOT NULL")['c'] ?? 0); } catch(\Exception $e) {}
 
     // 6. Seitenaufrufe heute vs. gestern
     $aufrufe = [];

@@ -1,3 +1,10 @@
+## v817
+
+- **Fehlende Statistiken**: Ein einziger try/catch-Block für alle Abfragen – erste Fehler (z.B. fehlende Spalte) hat alle folgenden Werte auf 0 gesetzt. Jetzt hat jede Abfrage ihren eigenen try/catch
+- **Umlaute**: Rohe UTF-8-Bytes in renderAdminSystem durch HTML-Entities ersetzt
+
+---
+
 ## v816
 
 - Admin-Menü öffnet jetzt direkt das System-Dashboard (statt Benutzer)

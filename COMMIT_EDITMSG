@@ -1,1 +1,1 @@
-v816: Admin öffnet direkt System-Dashboard; System-Button an erster Stelle
+v817: Fix Admin-Dashboard – isolierte try/catch je Stat-Abfrage; Umlaut-Fix
