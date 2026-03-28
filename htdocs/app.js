@@ -1029,7 +1029,7 @@ async function _startConditionalPasskey() {
       if (errEl) { errEl.textContent = '❌ Passkey-Verifizierung fehlgeschlagen.'; errEl.style.display='block'; }
       return;
     }
-    currentUser = { name: verR.data.name || '', email: verR.data.email || '', vorname: verR.data.vorname || '', rolle: verR.data.rolle };
+    currentUser = { name: verR.data.name || '', email: verR.data.email || '', vorname: verR.data.vorname || '', rolle: verR.data.rolle, rechte: (verR.data.rechte || []) };
     showApp();
   } catch(e) {
     // AbortError = wir haben selbst abgebrochen → still
@@ -1103,7 +1103,7 @@ async function doLoginPasskeyDiscover() {
     };
     var verR = await apiPost('auth/passkey-auth-verify', { credential: cred });
     if (!verR || !verR.ok) { errEl.textContent = '\u274C ' + ((verR&&verR.fehler)||'Passkey fehlgeschlagen.'); errEl.style.display='block'; return; }
-    currentUser = { name: verR.data.name || '', email: verR.data.email || '', vorname: verR.data.vorname || '', rolle: verR.data.rolle };
+    currentUser = { name: verR.data.name || '', email: verR.data.email || '', vorname: verR.data.vorname || '', rolle: verR.data.rolle, rechte: (verR.data.rechte || []) };
     showApp();
   } catch(e) {
     if (e && e.name !== 'NotAllowedError') {
@@ -1162,7 +1162,7 @@ async function doLoginPasskeyStep2() {
     };
     var verR = await apiPost('auth/passkey-auth-verify', { credential: cred });
     if (!verR || !verR.ok) { errEl.textContent = '❌ ' + ((verR&&verR.fehler)||'Passkey fehlgeschlagen.'); errEl.style.display='block'; return; }
-    currentUser = { name: verR.data.name||'', email: verR.data.email||'', vorname: verR.data.vorname||'', rolle: verR.data.rolle };
+    currentUser = { name: verR.data.name||'', email: verR.data.email||'', vorname: verR.data.vorname||'', rolle: verR.data.rolle, rechte: (verR.data.rechte || []) };
     showApp();
   } catch(e) {
     if (e && e.name !== 'NotAllowedError') { errEl.textContent = '⚠️ Passkey-Dialog fehlgeschlagen.'; errEl.style.display='block'; }
@@ -1186,7 +1186,7 @@ async function doLoginStep2() {
         renderLoginStep3(false, false, true); // autoSend=true
       } else renderLoginStep3(r.data.has_totp !== false, r.data.has_passkey !== false);
     } else {
-      currentUser = { name: r.data.name || _loginState.ident, email: r.data.email || _loginState.ident, vorname: r.data.vorname || '', rolle: r.data.rolle };
+      currentUser = { name: r.data.name || _loginState.ident, email: r.data.email || _loginState.ident, vorname: r.data.vorname || '', rolle: r.data.rolle, rechte: (r.data.rechte || []) };
       showApp();
     }
   } else {
@@ -1307,7 +1307,7 @@ async function doEmailCodeVerify() {
   var r = await apiPost('auth/email-code-verify', { code: code });
   btn.textContent = 'Best\u00e4tigen'; btn.disabled = false;
   if (r && r.ok) {
-    currentUser = { name: r.data.name || _loginState.ident, email: r.data.email || _loginState.ident, vorname: r.data.vorname || '', rolle: r.data.rolle };
+    currentUser = { name: r.data.name || _loginState.ident, email: r.data.email || _loginState.ident, vorname: r.data.vorname || '', rolle: r.data.rolle, rechte: (r.data.rechte || []) };
     showApp();
   } else {
     errEl.textContent = '\u274C ' + ((r&&r.fehler)||'Ung\u00fcltiger Code.');
@@ -1384,7 +1384,7 @@ async function doPasskeyAuth() {
     };
     var verR = await apiPost('auth/passkey-auth-verify', { credential: cred });
     if (!verR || !verR.ok) throw new Error((verR && verR.fehler) || 'Verifikation fehlgeschlagen');
-    currentUser = { name: verR.data.name || _loginState.ident || _loginPendingName, email: verR.data.email || _loginState.ident, vorname: verR.data.vorname || '', rolle: verR.data.rolle };
+    currentUser = { name: verR.data.name || _loginState.ident || _loginPendingName, email: verR.data.email || _loginState.ident, vorname: verR.data.vorname || '', rolle: verR.data.rolle, rechte: (verR.data.rechte || []) };
     showApp();
   } catch(e) {
     var errEl = document.getElementById('passkey-err');
@@ -1422,7 +1422,7 @@ async function doTotpVerify() {
   var r = await apiPost('auth/totp-verify', { code: code });
   if (btn) { btn.textContent = 'Best\u00e4tigen'; btn.disabled = false; }
   if (r && r.ok) {
-    currentUser = { name: r.data.name || _loginState.ident || _loginPendingName, email: r.data.email || _loginState.ident, vorname: r.data.vorname || '', rolle: r.data.rolle };
+    currentUser = { name: r.data.name || _loginState.ident || _loginPendingName, email: r.data.email || _loginState.ident, vorname: r.data.vorname || '', rolle: r.data.rolle, rechte: (r.data.rechte || []) };
     _loginPendingName = '';
     showApp();
   } else {
@@ -1468,7 +1468,7 @@ async function doTotpSetupConfirm() {
   var r = await apiPost('auth/totp-setup', { code: code });
   btn.textContent = 'Einrichten & Anmelden'; btn.disabled = false;
   if (r && r.ok) {
-    currentUser = { name: _loginPendingName, rolle: r.data.rolle };
+    currentUser = { name: _loginPendingName, rolle: r.data.rolle, rechte: (r.data.rechte || []) };
     _loginPendingName = '';
     showBackupCodes(r.data.backup_codes);
   } else {

@@ -1,1 +1,1 @@
-v849: Fix 'Eigenes Ergebnis eintragen' – Handler in falschem $res-Block
+v850: Sicherheitsfix – Bulk-Eintragen nur Admin/Editor; rechte in allen Login-Pfaden

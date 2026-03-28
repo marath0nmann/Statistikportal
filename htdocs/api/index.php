@@ -3653,7 +3653,7 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes') {
 
 
 if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
-    $user = Auth::requireAthlet(); // leser darf Ergebnisse eintragen
+    $user = Auth::requireEditor(); // nur Admin/Editor darf Bulk-Eintragen
     $items = $body['items'] ?? [];
     if (!is_array($items) || !count($items)) jsonErr('Keine Einträge.');
     $imported = 0; $skipped = 0; $errors = [];
