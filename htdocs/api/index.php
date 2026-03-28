@@ -1385,8 +1385,10 @@ if ($res === 'dashboard' && $method === 'GET') {
                 $labelClub = ($prevGesamt === null || $sameDayGesamt) ? 'Erste Gesamtleistung' : 'Gesamtbestleistung';
                 $vorherClub = (!$sameDayGesamt) ? ($prevGesamt ?? null) : null;
                 if ($vorher === null && !$sameDayGesamt) $vorher = $prevGesamt;
-                // Geschlechts-Bestleistung mitaktualisieren
+                // Geschlechts-Bestleistung mitaktualisieren (prevByG sichern!)
                 if ($g === 'M' || $g === 'W') {
+                    $prevByG[$g]      = $bestByG[$g] ?? null;
+                    $prevByGDatum     = $bestByGDatum[$g] ?? null;
                     $bestByG[$g]      = $val;
                     $bestByGDatum[$g] = $datum;
                 }
