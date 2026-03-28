@@ -1,3 +1,10 @@
+## v801
+
+- PB-Badge zeigt vorherigen Wert immer an – keine Unterdrückung mehr
+- Beispiel: "Bestleistung Frauen (73,81s) PB (73,81s)" statt "Bestleistung Frauen (73,81s) PB"
+
+---
+
 ## v800 – Fix Neueste Bestleistungen
 
 - **Ursache**: Wenn Club-Vorgänger = persönlicher PB-Vorgänger (häufigster Fall), hat `bothSame=true` den Wert im PB-Badge unterdrückt

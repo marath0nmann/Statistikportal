@@ -2715,7 +2715,7 @@ function timelineBadges(rek) {
   }
   if (lp) {
     // PB-Badge: Vorgaenger zeigen, ausser er wird schon im Club-Badge angezeigt (bothSame + lc vorhanden)
-    var vpSuffix = (!rek.extern && vpFmt && !(bothSame && lc)) ? ' <span style="opacity:.75;font-weight:400">(' + vpFmt + ')</span>' : '';
+    var vpSuffix = (!rek.extern && vpFmt) ? ' <span style="opacity:.75;font-weight:400">(' + vpFmt + ')</span>' : '';
     html += '<span class="badge badge-pb">' + lp + vpSuffix + '</span>';
   }
   // Fallback für ältere Daten ohne label_club/label_pers
