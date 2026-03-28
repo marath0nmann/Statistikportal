@@ -1,3 +1,10 @@
+## v819
+
+- GeoIP jetzt serverseitig: PHP ruft ip-api.com per HTTP auf (Free-Tier blockiert HTTPS im Browser)
+- Stadt + Land wird mit den Gäste-Daten aus der API geliefert und direkt in der Tabelle angezeigt
+
+---
+
 ## v818
 
 - **letzter_aktivitaet**: wird jetzt bei jedem auth/me-Call aktualisiert → Aktive Benutzer funktioniert
