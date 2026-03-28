@@ -4295,8 +4295,8 @@ async function openAthletById(id) {
             var parts = [];
             if (mCnt) parts.push('&#x1F947; ' + mCnt + ' ' + (mCnt === 1 ? 'Titel' : 'Titel'));
             if (bCnt) parts.push('&#x1F3C6; ' + bCnt + ' ' + (bCnt === 1 ? 'Bestleistung' : 'Bestleistungen'));
-            return '<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">' +
-              '<span title="' + tooltip + '" style="font-size:13px;color:var(--text2);cursor:help;border-bottom:1px dotted var(--text2)">' +
+            return '<div style="margin-top:6px">' +
+              '<span title="' + tooltip + '" style="font-size:13px;color:var(--text2);cursor:help">' +
               parts.join(' · ') + '</span></div>';
           }()) +
       '</div>' +
