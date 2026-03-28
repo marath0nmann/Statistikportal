@@ -4437,7 +4437,7 @@ async function openAthletById(id) {
             var html = '<div style="margin-top:6px;display:flex;gap:12px">';
             if (mParts.length) {
               var mTip = mParts.join('&#10;');
-              html += '<span title="' + mTip + '" style="font-size:13px;color:var(--text2);cursor:help">&#x1F947; ' + mParts.length + ' Titel</span>';
+              html += '<span title="' + mTip + '" style="font-size:13px;color:var(--text2);cursor:help">&#x1F947; ' + ausz.meisterschaften.length + ' Titel</span>';
             }
             if (bParts.length) {
               var bTip = bParts.join('&#10;');

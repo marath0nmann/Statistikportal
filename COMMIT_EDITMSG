@@ -1,1 +1,1 @@
-v832: Migration benutzername=email; inaktive_athleten_sehen in Rollen-DB
+v833: Fix Titelzählung im Athletenprofil – zeigt Einzeltitel statt Gruppen
