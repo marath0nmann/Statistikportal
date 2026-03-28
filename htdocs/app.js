@@ -2257,7 +2257,7 @@ function buildNav() {
     tabs.push({ id: 'eintragen', icon: '➕️', label: 'Eintragen' });
   if (currentUser.rolle === 'admin') {
     var _adminN = (window._adminPendingAntraege||0) + (window._adminPendingRegs||0);
-    var _adminLabel = 'Admin' + (_adminN > 0 ? ' <span style="background:#e53935;color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _adminN + '</span>' : '');
+    var _adminLabel = 'Admin' + (_adminN > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _adminN + '</span>' : '');
     tabs.push({ id: 'admin', icon: '⚙️️', label: _adminLabel, rawLabel: true });
   }
   _renderNavTabs(tabs);
@@ -10485,9 +10485,10 @@ async function renderAdminAntraege() {
         '<div style="border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--surface)">' +
           '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
             typBadge +
-            '<span style="font-weight:600">' + (a.beantragt_von_name || 'Unbekannt') + '</span>' +
+            '<span style="font-weight:600">' + (a.beantragt_von_athlet && a.beantragt_von_athlet.trim() ? a.beantragt_von_athlet.trim() : (a.beantragt_von_name || 'Unbekannt')) + '</span>' +
             '<span style="font-size:12px;color:var(--text2)">' + (a.beantragt_am ? a.beantragt_am.slice(0,16).replace('T',' ') : '') + '</span>' +
-            '<span style="font-size:12px;color:var(--text2)">Ergebnis-ID: ' + (a.ergebnis_id || '–') + '</span>' +
+            (a.veranstaltung_name ? '<span style="font-size:12px;color:var(--text2)">📍 ' + a.veranstaltung_name + (a.veranstaltung_datum ? ' &middot; ' + a.veranstaltung_datum.slice(0,10).split('-').reverse().join('.') : '') + (a.veranstaltung_ort ? ', ' + a.veranstaltung_ort : '') + '</span>' : '') +
+          (a.typ !== 'insert' && a.ergebnis_id ? '<span style="font-size:11px;color:var(--text2)">Ergebnis #' + a.ergebnis_id + '</span>' : '') +
           '</div>' +
           werte +
           '<div style="display:flex;gap:8px;margin-top:12px">' +
@@ -10517,8 +10518,10 @@ async function renderAdminAntraege() {
       html += '<tr>' +
         '<td>' + typLabel + '</td>' +
         '<td>' + (d.beantragt_von_name || '–') + '</td>' +
+        '<td style="color:var(--text2);font-size:12px">' + (d.veranstaltung_name ? (d.veranstaltung_datum ? d.veranstaltung_datum.slice(0,10).split('-').reverse().join('.') + ' ' : '') + d.veranstaltung_name : '–') + '</td>' +
         '<td style="color:var(--text2);font-size:12px">' + (d.beantragt_am ? d.beantragt_am.slice(0,16).replace('T',' ') : '–') + '</td>' +
         '<td>' + statusBadge + '</td>' +
+        '<td style="color:var(--text2);font-size:12px">' + (d.bearbeitet_von_athlet && d.bearbeitet_von_athlet.trim() ? d.bearbeitet_von_athlet.trim() : (d.bearbeitet_von_name || '–')) + '</td>' +
         '<td style="color:var(--text2);font-size:12px">' + (d.kommentar || '–') + '</td>' +
       '</tr>';
     }
@@ -10542,7 +10545,7 @@ async function bearbeiteAntrag(id, action) {
 
 // Anträge-Zähler für Subtab-Badge aktualisieren
 function _adminBadge(n) {
-  return n > 0 ? ' <span style="background:#e53935;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px;font-weight:700">' + n + '</span>' : '';
+  return n > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px;font-weight:700">' + n + '</span>' : '';
 }
 async function _ladeAntraegeBadge() {
   if (!currentUser || currentUser.rolle === 'leser' || currentUser.rolle === 'athlet') return;
@@ -10585,7 +10588,7 @@ async function _ladeAntraegeBadge() {
       var _btn = _adminBtns[_bi];
       if (_btn.getAttribute('onclick') && _btn.getAttribute('onclick').indexOf('admin') >= 0) {
         var _lbl = _btn.querySelector('.nav-label');
-        if (_lbl) _lbl.innerHTML = 'Admin' + (_totalN > 0 ? ' <span style="background:#e53935;color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _totalN + '</span>' : '');
+        if (_lbl) _lbl.innerHTML = 'Admin' + (_totalN > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _totalN + '</span>' : '');
       }
     }
   } catch(e) {}

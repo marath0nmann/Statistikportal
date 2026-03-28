@@ -1,3 +1,19 @@
+## v864
+
+- **Veranstaltung pending**: genehmigt=0 Veranstaltungen (von Athleten eingereicht) sind erst nach Genehmigung in der Veranstaltungsliste und im Dashboard sichtbar (WHERE genehmigt=1)
+- **Badge-Farbe**: Admin-Nav-Badge und Admin-Subtab-Badges verwenden jetzt var(--accent) statt hartem Rot – auf der roten Navigationsleiste deutlich besser erkennbar
+
+---
+
+## v863
+
+- **Antragsteller**: Athletenname (vorname+nachname) statt benutzername/E-Mail in offenen Anträgen und 'Zuletzt bearbeitet'
+- **Veranstaltung**: Spalte mit Datum + Name in 'Zuletzt bearbeitet'; im offenen Antrag bereits vorhanden
+- **Bearbeitet von**: neue Spalte in 'Zuletzt bearbeitet' mit Athletenname des bearbeitenden Admins
+- **Ergebnis-ID**: bei typ='insert' leer (macht Sinn – Ergebnis existiert erst nach Genehmigung); nach v861-Approval wird ID gespeichert
+
+---
+
 ## v862
 
 - **Sicherheit**: canEdit war true für Rolle 'athlet' → Edit/Delete-Buttons und Spalte 'Eingetragen von' für Athleten sichtbar. Fix: canEdit nur für admin/editor
