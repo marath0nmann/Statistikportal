@@ -2714,8 +2714,8 @@ function timelineBadges(rek) {
     html += '<span class="badge ' + (isGold ? 'badge-gold' : 'badge-silver') + '">' + lc + vcSuffix + '</span> ';
   }
   if (lp) {
-    var vpSuffix = (!rek.extern && !bothSame && vpFmt) ? ' <span style="opacity:.75;font-weight:400">(' + vpFmt + ')</span>'
-                : (!rek.extern && !bothSame && singleVorher) ? ' <span style="opacity:.75;font-weight:400">(' + singleVorher + ')</span>' : '';
+    // PB-Badge: Vorgaenger zeigen, ausser er wird schon im Club-Badge angezeigt (bothSame + lc vorhanden)
+    var vpSuffix = (!rek.extern && vpFmt && !(bothSame && lc)) ? ' <span style="opacity:.75;font-weight:400">(' + vpFmt + ')</span>' : '';
     html += '<span class="badge badge-pb">' + lp + vpSuffix + '</span>';
   }
   // Fallback für ältere Daten ohne label_club/label_pers
@@ -3151,7 +3151,8 @@ function timelineBadges(rek) {
             var katStr = mg.kat && mg.kat !== 'Sonstige' ? ' (' + mg.kat + ')' : '';
             mg.jahre.sort();
             var jahreStr = mg.jahre.length ? ' ' + mg.jahre.join(', ') : '';
-            var tooltip = mstrName + mSuffix + ' ' + diszPart + katStr + jahreStr;
+            var _sep = /e$/i.test(mstrName) ? ' ' : '-';
+            var tooltip = mstrName + _sep + mSuffix.replace(/^-/, '') + ' ' + diszPart + katStr + jahreStr;
             hBadgesHtml += '<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:15px;display:inline-block;margin:1px 1px;cursor:default;line-height:1">&#x1F947;</span>';
           });
         }

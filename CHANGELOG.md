@@ -1,3 +1,19 @@
+## v800 – Fix Neueste Bestleistungen
+
+- **Ursache**: Wenn Club-Vorgänger = persönlicher PB-Vorgänger (häufigster Fall), hat `bothSame=true` den Wert im PB-Badge unterdrückt
+- **Fix**: PB-Badge zeigt seinen Vorgänger immer, außer ein Club-Badge ist vorhanden und zeigt bereits denselben Wert
+- Resultat: z.B. "Bestleistung Frauen (73,81s) PB (73,81s)" wenn beide Badges separate Labels haben, oder nur Club zeigt (73,81s) wenn PB-Vorgänger identisch
+
+---
+
+## v799
+
+- "Deutsche-Meisterin" → "Deutsche Meisterin" (Leerzeichen statt Bindestrich)
+- Regel: endet der Meisterschaftsname auf 'e' (Deutsche, Europäische…), wird ein Leerzeichen gesetzt; sonst Bindestrich (NRW-Meisterin, Nordrhein-Meisterin…)
+- Fix in JS (HoF-Tooltip) und PHP (/auszeichnungen-Endpoint)
+
+---
+
 ## v798
 
 - **Athletenprofil**: Titel/Bestleistungen jetzt korrekt auf eigener Zeile mit Trennlinie (war noch innerhalb der Badges-Flex-Row)
