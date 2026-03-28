@@ -387,6 +387,8 @@ if ($res === 'auth') {
         $user = DB::fetchOne('SELECT * FROM ' . DB::tbl('benutzer') . ' WHERE id = ? AND aktiv = 1', [$uid]);
         if (!$user) jsonErr('Benutzer nicht gefunden.', 401);
         unset($_SESSION['totp_pending_user'], $_SESSION['email_login_code_hash'], $_SESSION['email_login_code_exp']);
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+        try { DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg) VALUES (?, ?, 1)', [$user['email'], $ip]); } catch (\Exception $e) {}
         jsonOk(Auth::finalizeLoginPublic($user));
     }
 
@@ -418,6 +420,8 @@ if ($res === 'auth') {
         $user = DB::fetchOne('SELECT * FROM ' . DB::tbl('benutzer') . ' WHERE id = ? AND aktiv = 1', [$uid]);
         if (!$user) jsonErr('Benutzer nicht gefunden.', 401);
         $loginResult = Auth::finalizeLoginPublic($user);
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+        try { DB::query('INSERT INTO ' . DB::tbl('login_versuche') . ' (benutzername, ip, erfolg) VALUES (?, ?, 1)', [$user['email'], $ip]); } catch (\Exception $e) {}
         jsonOk(['rolle' => $loginResult['rolle'], 'name' => $loginResult['name'], 'vorname' => $loginResult['vorname'] ?? '', 'email' => $loginResult['email'] ?? '']);
     }
     // ── Passkey: Registrierung Challenge (eingeloggt, für Profil) ──
@@ -973,29 +977,25 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     $__curUid = $_SESSION['user_id'] ?? null;
     if ($__curUid) try { DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_aktivitaet = NOW() WHERE id = ?', [(int)$__curUid]); } catch(\Exception $e) {}
     try {
-        // Aktiv = in seitenaufrufe in den letzten 10 Min ODER letzter_aktivitaet < 10 Min
-        $rows = DB::fetchAll(
-            "SELECT DISTINCT b.id, b.benutzername, b.email, b.vorname, b.nachname, b.rolle,
-                    b.letzter_aktivitaet, b.avatar_pfad,
-                    COALESCE(MAX(s.erstellt_am), b.letzter_aktivitaet) AS letzter_kontakt
-             FROM " . DB::tbl('benutzer') . " b
-             LEFT JOIN " . DB::tbl('seitenaufrufe') . " s
-               ON s.benutzer_id = b.id
-               AND s.erstellt_am >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
-             WHERE b.aktiv = 1 AND (
-               s.id IS NOT NULL
-               OR b.letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
-             )
-             GROUP BY b.id
-             ORDER BY letzter_kontakt DESC"
-        );
+        // Aktiv = letzter_aktivitaet in den letzten 10 Min
+        // Fallback: auch ohne letzter_aktivitaet-Spalte funktionsfähig
+        try {
+            $rows = DB::fetchAll(
+                "SELECT b.id, b.benutzername, b.email, b.vorname, b.nachname, b.rolle,
+                        b.letzter_aktivitaet, b.avatar_pfad
+                 FROM " . DB::tbl('benutzer') . " b
+                 WHERE b.aktiv = 1
+                   AND b.letzter_aktivitaet >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+                 ORDER BY b.letzter_aktivitaet DESC"
+            );
+        } catch (\Exception $e) { $rows = []; }
         foreach ($rows as $r) {
             $aktiveBenutzer[] = [
                 'id'          => (int)$r['id'],
                 'name'        => trim(($r['vorname'] ?? '') . ' ' . ($r['nachname'] ?? '')) ?: ($r['email'] ?? $r['benutzername']),
                 'benutzername'=> $r['benutzername'],
                 'rolle'       => $r['rolle'],
-                'seit'        => $r['letzter_kontakt'] ?? $r['letzter_aktivitaet'],
+                'seit'        => $r['letzter_aktivitaet'],
                 'avatar'      => $r['avatar_pfad'],
             ];
         }
@@ -1057,9 +1057,11 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
             $bRows = DB::fetchAll('SELECT benutzername, email, vorname, nachname, rolle FROM ' . DB::tbl('benutzer'));
             foreach ($bRows as $b) {
                 $vn = trim(($b['vorname'] ?? '') . ' ' . ($b['nachname'] ?? ''));
-                $entry = ['name' => $vn ?: $b['benutzername'], 'email' => $b['email'] ?? null, 'rolle' => $b['rolle'] ?? null];
+                $entry = ['name' => $vn ?: ($b['email'] ?? $b['benutzername']), 'email' => $b['email'] ?? null, 'rolle' => $b['rolle'] ?? null];
                 $bNamen[$b['benutzername']] = $entry;
                 if (!empty($b['email'])) $bNamen[$b['email']] = $entry;
+                // Athlet-Vorname als zusätzlicher Lookup (historische Einträge vor E-Mail-Migration)
+                if (!empty($vn)) $bNamen[$vn] = $entry;
             }
         } catch (\Exception $e) {}
         // GeoIP-Cache
