@@ -1,3 +1,11 @@
+## v840 – Hotfix
+
+- **Ursache v839-Bug**: Block-Ersetzung via Python hat \u00e4 zu \\u00e4 verdoppelt → Vergleiche wie 'Gesamtbestleistung Männer' schlugen fehl, Regex /\d/ matchte nicht mehr auf Ziffern
+- Alle betroffenen Strings und Regex-Patterns im HoF-Badge-Renderer auf korrekte Escapes zurückgesetzt
+- gesamtAll-Logik für 'Gesamtbestleistung' (ohne Geschlecht) bleibt erhalten
+
+---
+
 ## v839
 
 - **Root cause**: HoF-Karte prüfte nur 'Gesamtbestleistung Männer' / 'Gesamtbestleistung Frauen' als gold-Flag
