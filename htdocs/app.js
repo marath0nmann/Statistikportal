@@ -3186,19 +3186,19 @@ function timelineBadges(rek) {
         for (var hdi = 0; hdi < diszKeys.length; hdi++) {
           var hd = diszKeys[hdi];
           var htitels = ha.disziplinen[hd];
-          var gesamtM   = htitels.some(function(t){ return t.label === 'Gesamtbestleistung M\\u00e4nner'; });
+          var gesamtM   = htitels.some(function(t){ return t.label === 'Gesamtbestleistung M\u00e4nner'; });
           var gesamtW   = htitels.some(function(t){ return t.label === 'Gesamtbestleistung Frauen'; });
           var gesamtAll = htitels.some(function(t){ return t.label === 'Gesamtbestleistung'; });
           var gesamt    = gesamtM || gesamtW || gesamtAll;
-          var _mhnLabel = htitels.find(function(t){ return t.label === 'Bestleistung M\\u00e4nner' || t.label === 'Bestleistung MHK'; });
+          var _mhnLabel = htitels.find(function(t){ return t.label === 'Bestleistung M\u00e4nner' || t.label === 'Bestleistung MHK'; });
           var _whnLabel = htitels.find(function(t){ return t.label === 'Bestleistung Frauen'  || t.label === 'Bestleistung WHK'; });
           var hasMaenner = !!_mhnLabel;
           var hasFrauen  = !!_whnLabel;
           // Label aus tatsächlichem Titel übernehmen (WHK/MHK statt Frauen/Männer)
-          var mhnText = _mhnLabel ? _mhnLabel.label.replace('Bestleistung ', '') : 'M\\u00e4nner';
+          var mhnText = _mhnLabel ? _mhnLabel.label.replace('Bestleistung ', '') : 'M\u00e4nner';
           var whnText = _whnLabel ? _whnLabel.label.replace('Bestleistung ', '') : 'Frauen';
-          var akM = htitels.filter(function(t){ return /^Bestleistung M(?:\\d|U\\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
-          var akW = htitels.filter(function(t){ return /^Bestleistung W(?:\\d|U\\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
+          var akM = htitels.filter(function(t){ return /^Bestleistung M(?:\d|U\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
+          var akW = htitels.filter(function(t){ return /^Bestleistung W(?:\d|U\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
 
           var parts = [];
           if (gesamtAll) parts.push('Gesamtbestleistung');
