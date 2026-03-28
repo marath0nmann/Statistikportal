@@ -1,3 +1,16 @@
+## v836
+
+**Root cause**: HoF-Endpoint fehlte Tier 1 (Gesamtbestleistung über alle Geschlechter/AKs)
+
+**3-Tier-System (jetzt identisch zu auszeichnungen):**
+- Tier 1: Gesamtbestleistung (bestes über ALLE) → 'Gesamtbestleistung', Tier 2+3 übersprungen
+- Tier 2: Geschlechts-Bestleistung (nur wenn nicht Tier 1) → 'Gesamtbestleistung Männer/Frauen'
+- Tier 3: AK-Bestleistung (immer, unabhängig von Tier 2; nur übersprungen wenn identisch mit Tier 1)
+
+**Ergebnis**: Simons 300m Hürden = Gesamtbestleistung → 1 Eintrag (nicht 2); Kappenhagen W45/15km = Tier 2 + Tier 3 separat
+
+---
+
 ## v835
 
 - **Rückgängig v834-Überfixing**: hasGenderBest hat AK-Titel zu aggressiv übersprungen
