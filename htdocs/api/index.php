@@ -3970,17 +3970,24 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                 }
             };
 
-            // Geschlechts-Bestleistung → "Gesamtbestleistung Männer/Frauen" (gold)
-            // Die frühere "Gesamtbestleistung über alle" entfällt
-            $genderBestVal = []; // [aid => float] – Wert der Geschlechts-Bestleistung
-            foreach ($bestGAid as $g => $aid) {
-                $addTitel($aid, $g === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen', $bestGDatum[$g]);
-                $genderBestVal[$aid] = $bestByG[$g]; // Wert merken
+            // 3-Tier-System identisch zu auszeichnungen-Endpoint:
+            // Tier 1: Gesamtbestleistung (beste über ALLE Geschlechter+AKs) → skip Tier 2+3
+            // Tier 2: Geschlechts-Bestleistung → "Gesamtbestleistung Männer/Frauen"
+            // Tier 3: AK-Bestleistung (immer prüfen, unabhängig von Tier 2)
+            $hasGesamtBest = []; // aids die Tier-1 haben
+            if ($bestGesamtAid !== null && isset($athletMap[$bestGesamtAid])) {
+                $addTitel($bestGesamtAid, 'Gesamtbestleistung', $bestGesamtDatum);
+                $hasGesamtBest[$bestGesamtAid] = true;
             }
+            // Tier 2: Geschlechts-Bestleistung (nur wenn NICHT bereits Tier-1)
+            foreach ($bestGAid as $g => $aid) {
+                if (!empty($hasGesamtBest[$aid])) continue;
+                $addTitel($aid, $g === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen', $bestGDatum[$g]);
+            }
+            // Tier 3: AK-Bestleistung (immer, unabhängig von Tier 1+2)
+            // Ausnahme: wenn identischer Wert wie Gesamtbestleistung → bereits durch Tier 1 abgedeckt
             foreach ($bestAKAid as $ak => $aid) {
-                // Kein AK-Titel wenn Athlet bereits Geschlechts-Bestleistung mit IDENTISCHEM Wert hält
-                // (= dieselbe Leistung, nur in anderer AK gewertet)
-                if (isset($genderBestVal[$aid]) && abs($bestByAK[$ak] - $genderBestVal[$aid]) < 0.001) continue;
+                if (!empty($hasGesamtBest[$aid]) && abs($bestByAK[$ak] - $bestGesamt) < 0.001) continue;
                 $addTitel($aid, 'Bestleistung ' . $ak, $bestAKDatum[$ak]);
             }
         }
