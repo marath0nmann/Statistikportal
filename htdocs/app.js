@@ -3128,7 +3128,7 @@ function timelineBadges(rek) {
 
         // Badges rendern
         var hBadgesHtml = '';
-        // Meisterschaften: Emoji-Medaillen mit Tooltip (Jahreszahlen, kein x-Superskript)
+        // Meisterschaften: Emoji-Medaillen mit Tooltip
         var mTitel = ha.meisterschaftsTitel || [];
         var haGeschlecht = ha.geschlecht || '';
         var mSuffix = haGeschlecht === 'M' ? '-Meister' : haGeschlecht === 'W' ? '-Meisterin' : '-Meister/in';
@@ -3142,19 +3142,17 @@ function timelineBadges(rek) {
           }
           mOrder.forEach(function(key) {
             var mg = mGroups[key];
-            // Label umbauen: '\xf0\x9f\xa5\x87 NRW 10km' -> 'NRW-Meisterin 10km'
-            // label ist z.B. '\xf0\x9f\xa5\x87 NRW 10km'
-            var rawLabel = mg.label.replace(/^\xf0\x9f\xa5\x87\s*/, '');
+            // label: "🥇 Nordrhein 1.500m" – alles nach erstem Leerzeichen
+            var afterEmoji = mg.label.indexOf(' ') >= 0 ? mg.label.slice(mg.label.indexOf(' ') + 1) : mg.label;
             // Ersten Token = Meisterschaftsname, Rest = Disziplin
-            var spIdx = rawLabel.indexOf(' ');
-            var mstrName = spIdx > 0 ? rawLabel.slice(0, spIdx) : rawLabel;
-            var diszPart = spIdx > 0 ? rawLabel.slice(spIdx + 1) : '';
+            var sp2 = afterEmoji.indexOf(' ');
+            var mstrName = sp2 > 0 ? afterEmoji.slice(0, sp2) : afterEmoji;
+            var diszPart  = sp2 > 0 ? afterEmoji.slice(sp2 + 1) : '';
             var katStr = mg.kat && mg.kat !== 'Sonstige' ? ' (' + mg.kat + ')' : '';
             mg.jahre.sort();
             var jahreStr = mg.jahre.length ? ' ' + mg.jahre.join(', ') : '';
             var tooltip = mstrName + mSuffix + ' ' + diszPart + katStr + jahreStr;
-            hBadgesHtml += '<span title="' + tooltip.replace(/"/g,'&quot;') + '" style="font-size:20px;display:inline-block;margin:2px 3px;cursor:default;line-height:1">' +
-              '\xf0\x9f\xa5\x87</span>';
+            hBadgesHtml += '<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:20px;display:inline-block;margin:2px 3px;cursor:default;line-height:1">&#x1F947;</span>';
           });
         }
                 for (var gi = 0; gi < groupOrder.length; gi++) {
