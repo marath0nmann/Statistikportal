@@ -3678,7 +3678,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         $mTitel = [];
         foreach ($ath['titel'] as $t) {
             if (!empty($t['is_meisterschaft'])) {
-                $mTitel[] = ['label' => $t['label'], 'datum' => $t['datum'], 'disziplin' => $t['disziplin'] ?? '', 'kat_name' => $t['kat_name'] ?? '', 'ak' => $t['ak'] ?? ''];
+                $mTitel[] = ['label' => $t['label'], 'datum' => $t['datum'], 'disziplin' => $t['disziplin'] ?? '', 'kat_name' => $t['kat_name'] ?? '', 'ak' => $t['ak'] ?? '', 'jahr' => (int)substr($t['datum'] ?? '', 0, 4)];
             } else {
                 $byDisz[$t['disziplin']][] = ['label' => $t['label'], 'datum' => $t['datum']];
             }

@@ -1,3 +1,11 @@
+## v790 – Hall of Fame Meisterschafts-Titel
+
+- **Kein ×N** mehr neben dem Emoji
+- **Tooltip**: "NRW-Meisterin 10km (Straße) 2021, 2023" – Jahreszahlen statt Anzahl
+- **Geschlecht**: -Meister (M), -Meisterin (W), -Meister/in (D/unbekannt)
+
+---
+
 ## v789 – Hall of Fame Meisterschafts-Titel
 
 - **Format**: Kein Badge mehr – stattdessen 🥇-Emoji mit Tooltip

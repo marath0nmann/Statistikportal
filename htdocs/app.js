@@ -3128,23 +3128,33 @@ function timelineBadges(rek) {
 
         // Badges rendern
         var hBadgesHtml = '';
-        // Meisterschaften: Emoji-Medaillen mit Tooltip
+        // Meisterschaften: Emoji-Medaillen mit Tooltip (Jahreszahlen, kein x-Superskript)
         var mTitel = ha.meisterschaftsTitel || [];
+        var haGeschlecht = ha.geschlecht || '';
+        var mSuffix = haGeschlecht === 'M' ? '-Meister' : haGeschlecht === 'W' ? '-Meisterin' : '-Meister/in';
         if (mTitel.length) {
           var mGroups = {}, mOrder = [];
           for (var mi = 0; mi < mTitel.length; mi++) {
             var mt = mTitel[mi];
             var mgKey = mt.label + '|' + (mt.kat_name || '');
-            if (!mGroups[mgKey]) { mGroups[mgKey] = { label: mt.label, kat: mt.kat_name, count: 0 }; mOrder.push(mgKey); }
-            mGroups[mgKey].count++;
+            if (!mGroups[mgKey]) { mGroups[mgKey] = { label: mt.label, kat: mt.kat_name, jahre: [] }; mOrder.push(mgKey); }
+            if (mt.jahr && mGroups[mgKey].jahre.indexOf(mt.jahr) < 0) mGroups[mgKey].jahre.push(mt.jahr);
           }
           mOrder.forEach(function(key) {
             var mg = mGroups[key];
+            // Label umbauen: '\xf0\x9f\xa5\x87 NRW 10km' -> 'NRW-Meisterin 10km'
+            // label ist z.B. '\xf0\x9f\xa5\x87 NRW 10km'
+            var rawLabel = mg.label.replace(/^\xf0\x9f\xa5\x87\s*/, '');
+            // Ersten Token = Meisterschaftsname, Rest = Disziplin
+            var spIdx = rawLabel.indexOf(' ');
+            var mstrName = spIdx > 0 ? rawLabel.slice(0, spIdx) : rawLabel;
+            var diszPart = spIdx > 0 ? rawLabel.slice(spIdx + 1) : '';
             var katStr = mg.kat && mg.kat !== 'Sonstige' ? ' (' + mg.kat + ')' : '';
-            var tooltip = mg.label + katStr + (mg.count > 1 ? ' ×' + mg.count : '');
-            var cntSup = mg.count > 1 ? '<sup style="font-size:10px;font-weight:700">×' + mg.count + '</sup>' : '';
+            mg.jahre.sort();
+            var jahreStr = mg.jahre.length ? ' ' + mg.jahre.join(', ') : '';
+            var tooltip = mstrName + mSuffix + ' ' + diszPart + katStr + jahreStr;
             hBadgesHtml += '<span title="' + tooltip.replace(/"/g,'&quot;') + '" style="font-size:20px;display:inline-block;margin:2px 3px;cursor:default;line-height:1">' +
-              '🥇' + cntSup + '</span>';
+              '\xf0\x9f\xa5\x87</span>';
           });
         }
                 for (var gi = 0; gi < groupOrder.length; gi++) {
