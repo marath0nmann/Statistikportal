@@ -1,1 +1,1 @@
-v834: Fix HoF PB-Zählung – kein Doppelzählen wenn Athlet Geschlechts-Bestleistung hat
+v835: Fix HoF PB-Doppelzählung – nur überspringen wenn identischer Wert

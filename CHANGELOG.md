@@ -1,3 +1,12 @@
+## v835
+
+- **Rückgängig v834-Überfixing**: hasGenderBest hat AK-Titel zu aggressiv übersprungen
+- **Korrekte Logik**: AK-Titel wird nur übersprungen wenn (a) Athlet bereits Geschlechts-Bestleistung hält UND (b) der Wert identisch ist (= dieselbe Leistung, nur in anderer AK gewertet)
+- Beispiel Kappenhagen: W35-Rekord in 15km kann identisch mit Gesamtbestleistung Frauen sein → kein Doppel; W40, W55, W60-Rekorde sind eigene Leistungen → bleiben erhalten
+- Beispiel Simons: M75-Rekord identisch mit Männer-Bestleistung → kein Doppel
+
+---
+
 ## v834
 
 - **Ursache**: Ein Athlet der Geschlechts-Bestleistung hält (z.B. Bestleistung Männer 300m Hürden) bekam zusätzlich die AK-Bestleistung (Bestleistung M75) → Doppelzählung
