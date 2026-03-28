@@ -3633,9 +3633,13 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                     $colCheck = DB::fetchOne("SHOW COLUMNS FROM $_mTbl LIKE 'ak_platz_meisterschaft'");
                     if (!$colCheck) continue;
                     $firstPlaces = DB::fetchAll(
-                        'SELECT e.athlet_id, e.meisterschaft, e.altersklasse, v.datum'
+                        'SELECT e.athlet_id, e.meisterschaft, e.altersklasse, e.disziplin,'
+                        . ' COALESCE(e.disziplin_mapping_id, 0) AS mapping_id,'
+                        . ' COALESCE(k.name, \'Sonstige\') AS kat_name, v.datum'
                         . ' FROM ' . $_mTbl . ' e'
                         . ' JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id = e.veranstaltung_id'
+                        . ' LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' m ON m.id = e.disziplin_mapping_id'
+                        . ' LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' k ON k.id = m.kategorie_id'
                         . ' WHERE e.ak_platzierung = 1 AND e.meisterschaft IS NOT NULL AND e.geloescht_am IS NULL',
                         []
                     );
@@ -3644,9 +3648,19 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                         $mId   = (int)$fp['meisterschaft'];
                         $mName = $mstrMap[$mId] ?? null;
                         if (!$mName || !isset($athletMap[$aid])) continue;
-                        $ak = $fp['altersklasse'] ?? '';
-                        $titelLabel = '🥇 ' . $mName . ($ak ? ' ' . $ak : '');
-                        $athletMap[$aid]['titel'][] = ['disziplin' => '__meisterschaft__', 'label' => $titelLabel, 'datum' => $fp['datum'], 'is_meisterschaft' => true];
+                        $ak    = $fp['altersklasse'] ?? '';
+                        $disz  = $fp['disziplin'] ?? '';
+                        $katNm = $fp['kat_name'] ?? 'Sonstige';
+                        // Label: Meisterschaft + Disziplin (ohne AK)
+                        $titelLabel = '🥇 ' . $mName . ' ' . $disz;
+                        $athletMap[$aid]['titel'][] = [
+                            'disziplin'    => $disz,
+                            'kat_name'     => $katNm,
+                            'label'        => $titelLabel,
+                            'ak'           => $ak,
+                            'datum'        => $fp['datum'],
+                            'is_meisterschaft' => true
+                        ];
                     }
                 } catch(\Exception $e) {}
             }
@@ -3664,7 +3678,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         $mTitel = [];
         foreach ($ath['titel'] as $t) {
             if (!empty($t['is_meisterschaft'])) {
-                $mTitel[] = ['label' => $t['label'], 'datum' => $t['datum']];
+                $mTitel[] = ['label' => $t['label'], 'datum' => $t['datum'], 'disziplin' => $t['disziplin'] ?? '', 'kat_name' => $t['kat_name'] ?? '', 'ak' => $t['ak'] ?? ''];
             } else {
                 $byDisz[$t['disziplin']][] = ['label' => $t['label'], 'datum' => $t['datum']];
             }

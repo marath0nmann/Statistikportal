@@ -3128,22 +3128,26 @@ function timelineBadges(rek) {
 
         // Badges rendern
         var hBadgesHtml = '';
-        // Meisterschafts-Titel zuerst (gold, prominent)
+        // Meisterschaften: Emoji-Medaillen mit Tooltip
         var mTitel = ha.meisterschaftsTitel || [];
         if (mTitel.length) {
-          var mGroups = {};
+          var mGroups = {}, mOrder = [];
           for (var mi = 0; mi < mTitel.length; mi++) {
-            var mLbl = mTitel[mi].label;
-            if (!mGroups[mLbl]) mGroups[mLbl] = 0;
-            mGroups[mLbl]++;
+            var mt = mTitel[mi];
+            var mgKey = mt.label + '|' + (mt.kat_name || '');
+            if (!mGroups[mgKey]) { mGroups[mgKey] = { label: mt.label, kat: mt.kat_name, count: 0 }; mOrder.push(mgKey); }
+            mGroups[mgKey].count++;
           }
-          Object.keys(mGroups).forEach(function(lbl) {
-            var cnt = mGroups[lbl];
-            hBadgesHtml += '<span class="badge badge-gold" style="display:inline-block;margin:3px 4px 3px 0;line-height:1.4">' +
-              lbl + (cnt > 1 ? ' ×' + cnt : '') + '</span>';
+          mOrder.forEach(function(key) {
+            var mg = mGroups[key];
+            var katStr = mg.kat && mg.kat !== 'Sonstige' ? ' (' + mg.kat + ')' : '';
+            var tooltip = mg.label + katStr + (mg.count > 1 ? ' ×' + mg.count : '');
+            var cntSup = mg.count > 1 ? '<sup style="font-size:10px;font-weight:700">×' + mg.count + '</sup>' : '';
+            hBadgesHtml += '<span title="' + tooltip.replace(/"/g,'&quot;') + '" style="font-size:20px;display:inline-block;margin:2px 3px;cursor:default;line-height:1">' +
+              '🥇' + cntSup + '</span>';
           });
         }
-        for (var gi = 0; gi < groupOrder.length; gi++) {
+                for (var gi = 0; gi < groupOrder.length; gi++) {
           var gKey = groupOrder[gi], gData = groupMap[gKey], dl = gData.disz;
           var diszStr = dl.length===1 ? diszMitKat(dl[0]) : dl.slice(0,-1).map(function(d){ return diszMitKat(d); }).join(', ')+' und '+diszMitKat(dl[dl.length-1]);
           hBadgesHtml += '<span class="'+gData.lineClass+'" style="display:inline-block;margin:3px 4px 3px 0;line-height:1.4">'+gKey+' \u00fcber '+diszStr+'</span>';
