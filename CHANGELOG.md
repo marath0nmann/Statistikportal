@@ -1,3 +1,12 @@
+## v838
+
+- **Root cause**: auszeichnungen-Endpoint rief buildAkCaseExpr() in jeder Disziplin-Iteration neu auf statt einmalig vor der Schleife
+- **Fix**: $akExprAusz wird einmalig vor dem Disziplin-Loop gebaut und überall wiederverwendet
+- **Params-Fix**: myAKs-Query hatte 4 Params für 2 Platzhalter – korrigiert auf 2
+- Resultat: Epanda/Hückelhoven AKs werden jetzt korrekt zusammengeführt (W11+W12→WU12 etc.)
+
+---
+
 ## v837
 
 **Root cause**: auszeichnungen-Endpoint hatte 'continue' nach Tier 1 (Gesamtbestleistung) → übersprung alle AK-Checks für diese Disziplin. HoF-Endpoint prüft AK immer.
