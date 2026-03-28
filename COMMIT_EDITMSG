@@ -1,1 +1,1 @@
-v858: Antrag genehmigen – INSERT-Typ fehlte im Approval-Handler
+v859: Kritischer Fix – Menü-Feedback-Loop: buildNav→_ladeAntraegeBadge→buildNav∞
