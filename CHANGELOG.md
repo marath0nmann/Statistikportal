@@ -1,3 +1,22 @@
+## v823
+
+- Login-Versuche zeigen jetzt aufgelösten Namen (Vor-/Nachname) statt rohem Benutzernamen
+- Rolle als Badge in der Benutzerspalte
+- Tooltip: roher Login-Name + E-Mail falls abweichend
+- JOIN auf benutzer-Tabelle über benutzername ODER email (deckt beide Login-Methoden ab)
+- Erklärung: 'dw@vy99.de' = Testbenutzer Max Mustermann, 'Daniel' = daniel.weyers@tus-oedt.de
+
+---
+
+## v822
+
+- Nur letzte 5 Tage anzeigen (vorher 20 Einträge ohne Zeitlimit)
+- IP immer in eigener Spalte (nicht mehr im Tooltip)
+- Fehlgeschlagene Logins: harte Rotfärbung (#c0392b) statt Akzentfarbe, Zeile rötlich hinterlegt
+- Tabelle: 5 Spalten (Benutzer, Status, Land, IP, Zeitpunkt)
+
+---
+
 ## v821
 
 - **Aktiv**: letzter_aktivitaet wird jetzt direkt am Anfang des admin-dashboard Requests gesetzt; JOIN mit seitenaufrufe als Fallback; 10-Min-Fenster

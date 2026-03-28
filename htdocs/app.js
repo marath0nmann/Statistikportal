@@ -10344,17 +10344,23 @@ async function renderAdminSystem() {
   var loginRows = (d.letzteLogins || []).map(function(l) {
     var cc = (l.countryCode || '').toUpperCase();
     var flag = cc.length===2 ? String.fromCodePoint(0x1F1E6+cc.charCodeAt(0)-65)+String.fromCodePoint(0x1F1E6+cc.charCodeAt(1)-65) : '';
-    var geo = (flag?flag+' ':'') + (l.country || l.ip || '\u2013');
-    return '<tr>' +
-      '<td style="padding:6px 10px">' + (l.benutzername||'\u2013') + '</td>' +
-      '<td style="padding:6px 10px;font-size:12px">' +
-        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+(l.erfolg?'#2ecc71':'var(--accent)')+';margin-right:5px"></span>' +
-        (l.erfolg?'Erfolg':'Fehlschlag') +
+    var geoStr = (flag?flag+' ':'') + (l.country || '');
+    var ok = l.erfolg;
+    var failRed = '#c0392b';
+    return '<tr style="' + (ok?'':'background:rgba(192,57,43,.07)') + '">' +
+      '<td style="padding:6px 10px;font-weight:600" title="Login-Name: ' + (l.benutzername||'') + (l.email&&l.email!==l.benutzername?' | E-Mail: '+l.email:'') + '">' +
+      (l.anzeigeName || l.benutzername || '\u2013') +
+      (l.rolle ? ' ' + badge(l.rolle) : '') +
+    '</td>' +
+      '<td style="padding:6px 10px;font-size:12px;white-space:nowrap">' +
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+(ok?'#27ae60':failRed)+';margin-right:5px"></span>' +
+        '<span style="color:'+(ok?'inherit':failRed)+';font-weight:'+(ok?'400':'700')+'">' + (ok?'Erfolg':'Fehlschlag') + '</span>' +
       '</td>' +
-      '<td style="padding:6px 10px;font-size:11px;color:var(--text2)" title="'+(l.ip||'')+'">' + geo + '</td>' +
+      '<td style="padding:6px 10px;font-size:11px;color:var(--text2)">' + (geoStr||'\u2013') + '</td>' +
+      '<td style="padding:6px 10px;font-size:11px;font-family:monospace;color:var(--text2)">' + (l.ip||'\u2013') + '</td>' +
       '<td style="padding:6px 10px;font-size:11px;color:var(--text2)">' + fmtDate(l.datum) + '</td>' +
     '</tr>';
-  }).join('') || '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--text2);font-size:13px">Keine Eintr&auml;ge</td></tr>';
+  }).join('') || '<tr><td colspan="5" style="padding:14px;text-align:center;color:var(--text2);font-size:13px">Keine Eintr&auml;ge</td></tr>';
 
   var gaesteRows = (d.gaeste || []).map(function(g) {
     return '<tr>' +
@@ -10383,7 +10389,7 @@ async function renderAdminSystem() {
         '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Aktiv seit') + '</tr></thead>' +
         '<tbody>' + aktiveRows + '</tbody></table></div>' +
       '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F550; Letzte Logins</div></div>' +
-        '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Status') + thStyle('Land / IP') + thStyle('Zeitpunkt') + '</tr></thead>' +
+        '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Status') + thStyle('Land') + thStyle('IP') + thStyle('Zeitpunkt') + '</tr></thead>' +
         '<tbody>' + loginRows + '</tbody></table></div>' +
     '</div>' +
 
