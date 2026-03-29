@@ -2136,6 +2136,22 @@ function rolleLabel(r, oeffentlichOnly) {
   return m[r] || r;
 }
 
+function _renderHeaderAvatar(el, avatarPfad, name, isOnline) {
+  if (!el) return;
+  el.style.overflow = 'visible';
+  el.style.position = 'relative';
+  var dotHtml = isOnline ? _avatarDot('online', 28) : '';
+  if (avatarPfad) {
+    el.innerHTML = '<img src="' + avatarPfad + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display=\'none\'">' + dotHtml;
+  } else {
+    // VN-Schema: Vorname[0] + Nachname[0] wenn beide auf currentUser vorhanden
+    var initials = (currentUser && currentUser.vorname && currentUser.nachname)
+      ? (currentUser.vorname.trim()[0] + currentUser.nachname.trim()[0]).toUpperCase()
+      : nameInitials(name || '?');
+    el.innerHTML = '<span style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:13px">' + initials + '</span>' + dotHtml;
+  }
+}
+
 // ── NAVIGATION ─────────────────────────────────────────────
 function buildFooter() {
   var el = document.getElementById('app-footer');

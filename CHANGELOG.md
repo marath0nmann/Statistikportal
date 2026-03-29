@@ -1,3 +1,17 @@
+## v869
+
+- **Hotfix**: Funktion _renderHeaderAvatar() fehlte seit v863 → Safari ReferenceError 'Can't find variable: _renderHeaderAvatar' / weisse Seite
+- Funktion aus v849 exakt wiederhergestellt
+
+---
+
+## v868
+
+- **Hotfix**: Funktion _renderHeaderAvatar() fehlte seit v863 (durch Merge-Fehler entfernt) → Safari ReferenceError und weisse Seite
+- Funktion wiederhergestellt aus v849
+
+---
+
 ## v867
 
 - **Hotfix**: rolleLabel()-Funktion war durch Merge-Fehler in v865 korrumpiert (Avatar-Code eingebettet) -> weisse Seite. Behoben.
