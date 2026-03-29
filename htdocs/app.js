@@ -5807,6 +5807,7 @@ function bulkDetectUrl(text) {
   if (/^https?:\/\/[^\/]*\.mikatiming\.(com|de|net)/i.test(t)) return 'mikatiming';
   if (/^https?:\/\/uitslagen\.nl\//i.test(t))          return 'uitslagen';
   if (/^https?:\/\/ergebnisse\.leichtathletik\.de\//i.test(t)) return 'leichtathletik';
+  if (/^https?:\/\/(www\.)?acn-timing\.com/i.test(t)) return 'acn';
   return null;
 }
 
@@ -5860,6 +5861,8 @@ async function bulkImportUrl() {
       await bulkImportFromMika(raw, kat, statusEl);
     } else if (urlType === 'uitslagen') {
       await bulkImportFromUits(raw, kat, statusEl);
+    } else if (urlType === 'acn') {
+      await bulkImportFromAcn(raw, kat, statusEl);
     } else if (urlType === 'leichtathletik') {
       await bulkImportFromLA(raw, kat, statusEl);
     }
@@ -6382,6 +6385,121 @@ function mikaExtractRowsForBulk(data, kat) {
     };
   });
 }
+
+
+// ── ACN Timing importer ────────────────────────────────────────────────────────
+
+async function bulkImportFromAcn(url, kat, statusEl) {
+  // URL: https://www.acn-timing.com/?...#/events/.../ctx/{ctx}/.../home/{raceId}
+  var ctxMatch  = url.match(/#.*?ctx\/([^\/]+)/);
+  var raceMatch = url.match(/\/home\/([A-Z0-9]+)/);
+  var ctx       = ctxMatch  ? ctxMatch[1]  : null;
+  var raceId    = raceMatch ? raceMatch[1] : null;
+
+  if (!ctx || !raceId) {
+    _bkDbgLine('Fehler', 'Kein ctx/raceId in URL. Bitte Ergebnisseite einer Strecke verwenden (Klick auf "Resultaten")');
+    if (statusEl) statusEl.textContent = '\u274c Keine Race-URL';
+    return;
+  }
+
+  _bkDbgLine('ACN ctx',    ctx);
+  _bkDbgLine('ACN raceId', raceId);
+
+  var apiUrl = 'https://results.chronorace.be/api/results/table/search/' + ctx + '/' + raceId + '?srch=&pageSize=12000';
+  _bkDbgLine('API', apiUrl);
+  if (statusEl) statusEl.textContent = '\u23f3 Lade ACN-Daten\u2026';
+
+  var resp;
+  try { resp = await fetch(apiUrl); } catch(e) {
+    _bkDbgLine('Fetch-Fehler', e.message);
+    if (statusEl) statusEl.textContent = '\u274c Fetch fehlgeschlagen: ' + e.message;
+    return;
+  }
+  if (!resp.ok) {
+    _bkDbgLine('HTTP-Fehler', resp.status);
+    if (statusEl) statusEl.textContent = '\u274c HTTP ' + resp.status;
+    return;
+  }
+  var data    = await resp.json();
+  var allRows = (data.Groups && data.Groups[0]) ? data.Groups[0].SlaveRows || [] : [];
+  _bkDbgLine('Gesamt Zeilen', allRows.length);
+
+  // Datum + Ort aus ctx (Format: YYYYMMDD_ort) vorausfuellen
+  var ctxParts = ctx.match(/^(\d{4})(\d{2})(\d{2})_(.+)$/);
+  if (ctxParts) {
+    var evDate = ctxParts[1] + '-' + ctxParts[2] + '-' + ctxParts[3];
+    var evOrt  = ctxParts[4].charAt(0).toUpperCase() + ctxParts[4].slice(1);
+    var datEl  = document.getElementById('bk-datum');
+    var ortEl  = document.getElementById('bk-ort');
+    if (datEl && !datEl.value) { datEl.value = evDate; bkSyncDatum(evDate); }
+    if (ortEl && !ortEl.value) ortEl.value = evOrt;
+    _bkDbgLine('Datum', evDate);
+    _bkDbgLine('Ort',   evOrt);
+  }
+
+  // Name aus HTML: "<b>Firstname LASTNAME</b><br/>..."
+  function acnParseName(html) {
+    var m = html.match(/<b>([^<]+)<\/b>/);
+    return m ? m[1].trim() : '';
+  }
+
+  // AK-Mapping: ACN Msen/Vsen, M35/V35 -> DLV Msen/Wsen, M35/W35
+  function acnParseAk(akRaw, gender) {
+    if (!akRaw) return '';
+    var a  = akRaw.trim();
+    var isF = (a.charAt(0) === 'V') || gender === 'F';
+    var pfx = isF ? 'W' : 'M';
+    if (a === 'Msen' || a === 'Vsen') return pfx + 'sen';
+    var num = a.match(/\d+/);
+    return num ? pfx + num[0] : a;
+  }
+
+  // Alle Zeilen parsen
+  // Spalten: [0]=rank [1]=bib [2]=name-html [3]=gender [4]=club [5]=city [6]=land [8]=ak [15]=bruttozeit [16]=nettozeit+tempo
+  var parsedRows = [];
+  for (var ri = 0; ri < allRows.length; ri++) {
+    var row     = allRows[ri];
+    var name    = acnParseName(row[2] || '');
+    if (!name) continue;
+    var gender  = row[3] || '';
+    var akRaw   = row[8] || '';
+    var gross   = (row[15] || '').trim();
+    var netHtml = row[16] || '';
+    var rankRaw = (row[0] || '').replace(/\.$/, '').trim();
+
+    // Nettozeit aus "1:35:05<br/><small>  21.0 km/h</small>"
+    var netM = netHtml.match(/^([^<]+)/);
+    var zeit = (netM ? netM[1].trim() : gross) || gross;
+
+    parsedRows.push({ name: name, zeit: zeit, ak: acnParseAk(akRaw, gender), platz: rankRaw });
+  }
+  _bkDbgLine('Geparste Zeilen', parsedRows.length);
+
+  // Name-Matching gegen Athleten-DB (kein Vereinsname vorhanden)
+  var _athleten = state.athleten || [];
+  var rowsToImport = parsedRows.filter(function(row) {
+    return uitsAutoMatch(row.name, _athleten) !== null;
+  });
+  _bkDbgLine('Treffer (Name-Match)', rowsToImport.length);
+
+  if (rowsToImport.length === 0) {
+    _bkDbgLine('Hinweis', 'Keine Vereinsathleten gefunden. Erste 20 Namen:');
+    parsedRows.slice(0, 20).forEach(function(r) { _bkDbgLine('  Name', r.name); });
+    if (statusEl) statusEl.textContent = '\u274c Keine Vereinsathleten gefunden \u2013 Debug-Log pruefen';
+    return;
+  }
+
+  var bulkRows = rowsToImport.map(function(row) {
+    var diszObj = uitsAutoDiszMatchKat(row.ak, state.disziplinen, kat);
+    var disz    = diszObj
+      ? ((state.disziplinen || []).find(function(d) { return (d.id || d.mapping_id) == diszObj; }) || {}).disziplin || ''
+      : '';
+    return { name: row.name, resultat: row.zeit, ak: row.ak, platz: row.platz, disziplin: disz, diszMid: diszObj };
+  });
+
+  bulkFillFromImport(bulkRows, statusEl);
+}
+
 
 async function bulkFillFromImport(rows, statusEl) {
   if (!rows.length) {
@@ -10462,6 +10580,14 @@ async function renderAdminSystem() {
     srow('Datenbank-Server', d.dbVersion || '\u2013') +
     srow('Datenbank-Gr&ouml;&szlig;e', d.dbSize !== null ? d.dbSize + ' MB' : '\u2013') +
     srow('PHP-Version', d.phpVersion || '\u2013') +
+    (ghExpiry ? srow('GitHub-Token l\u00e4uft ab', (function(){
+      var expDate = new Date(ghExpiry);
+      var dl = Math.ceil((expDate - new Date()) / 86400000);
+      var dateStr = expDate.toLocaleDateString('de-DE');
+      var suffix = dl > 0 ? ' (noch ' + dl + ' Tag' + (dl === 1 ? '' : 'e') + ')' : ' (\u26a0\ufe0e abgelaufen!)';
+      var style = dl <= 14 ? 'color:#e53935;font-weight:700' : '';
+      return style ? '<span style="' + style + '">' + dateStr + suffix + '</span>' : dateStr + suffix;
+    })()) : '') +
     shead('Benutzer') +
     srow('Anzahl Benutzer (aktiv)', s.benutzer || 0) +
     srow('Neuester Benutzer', (s.neusterBenutzer || '\u2013') + (s.neusterBenutzerDatum ? ' <span style="font-weight:400;color:var(--text2);font-size:11px">(' + fmtDateOnly(s.neusterBenutzerDatum) + ')</span>' : '')) +

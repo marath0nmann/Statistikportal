@@ -1,3 +1,22 @@
+## v877
+
+### Neuer Importer: ACN Timing (acn-timing.com)
+- URL-Erkennung fuer acn-timing.com
+- API: results.chronorace.be/api/results/table/search/{ctx}/{raceId}?pageSize=12000
+- Kein Vereinsname in den Daten -> Matching per Athletenname (_normUmlauts, uitsAutoMatch)
+- AK-Mapping: Msen/Vsen -> Msen/Wsen, M35/V35 -> M35/W35 usw.
+- Datum + Ort werden automatisch aus dem ctx-Parameter (YYYYMMDD_ort) befuellt
+- Debug-Log zeigt alle Schritte inkl. Probe-Namen wenn kein Treffer
+- Bitte Ergebnisseite einer Strecke verwenden (nach Klick auf 'Resultaten')
+
+---
+
+## v876
+
+- **Hotfix**: GitHub-Token-Ablaufdatum wurde zwar berechnet aber nie in das System-Dashboard-Template eingefuegt. Jetzt korrekt nach PHP-Version angezeigt.
+
+---
+
 ## v875
 
 - **Admin -> Darstellung -> GitHub**: neues Feld 'Token laeuft ab am' (Datumseingabe)
