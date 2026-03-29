@@ -1,3 +1,11 @@
+## v879
+
+- **ACN Label**: zeigte 'uitslagen.nl' nach URL-Eingabe -> zeigt jetzt 'ACN Timing'
+- **ACN /cms/CAP**: alle /cms/-Pfade (CG_1, CAP, etc.) loesen Auto-Discovery aus – nur /home/LIVE... wird als einzelne Strecke behandelt
+- Die Fehlermeldung 'Keine Race-URL' kam vom alten Importer (v877) – v878 hat das bereits behoben, aber das Deploy fehlte
+
+---
+
 ## v878
 
 ### ACN Timing Importer – Auto-Discovery
