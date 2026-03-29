@@ -308,6 +308,11 @@ function _updateBodyThemeColor() {
 
 function applyConfig(cfg) {
   appConfig = cfg || {};
+  // Rollennamen aus Konfiguration laden (ueberschreibt Hardcoded-Fallback)
+  if (cfg && cfg.rollen_labels && cfg.rollen_labels.length) {
+    window._rollenMap = window._rollenMap || {};
+    cfg.rollen_labels.forEach(function(r) { window._rollenMap[r.name] = r; });
+  }
 
   // ── CSS-Farben setzen – abgeleitete Farben berechnen ──
   var root = document.documentElement;
@@ -1729,7 +1734,7 @@ function _renderKontoPage() {
           '<div style="position:absolute;bottom:0;right:0;background:var(--primary);color:var(--on-primary);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;">&#x1F4F7;</div>' +
         '</div>' +
         '<input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadAvatar(this)">' +
-        '<div style="font-weight:700;font-size:15px">' + name + '</div>' +
+        '<div style="font-weight:700;font-size:15px;'+( pb.verein ? 'color:var(--text)' : 'color:var(--primary)')+'">' + name + '</div>' +
         '<div style="color:var(--text2);font-size:12px;margin-top:3px">' + rolleLabel(currentUser.rolle) + '</div>' +
         (currentUser.avatar ? '<button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:11px;color:var(--text2)" onclick="deleteAvatar()">&#x2715; Avatar entfernen</button>' : '') +
       '</div>' +
@@ -2127,14 +2132,7 @@ function rolleLabel(r, oeffentlichOnly) {
       return rd.label || r;
     }
   }
-  var m = { admin: 'Administrator', editor: 'Editor', athlet: 'Athlet*in', leser: 'Leser*in' };
-  return m[r] || r;
-}
-
-// Rendert den Header-Avatar mit optionalem Online-Dot
-function _renderHeaderAvatar(el, avatarPfad, name, isOnline) {
-  if (!el) return;
-  el.style.overflow = 'visible';
+  var m = { admin: 'Administrator', editor: 'Editor', athlet: 'Athlet', leser: 'Leser' };
   el.style.position = 'relative';
   var dotHtml = isOnline ? _avatarDot('online', 28) : '';
   if (avatarPfad) {
@@ -2580,9 +2578,9 @@ async function _loadEigenesProfilWidget(elId, showErg) {
           (athlet.vorname||'') + ' ' + (athlet.nachname||'') +
         '</div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center">' +
-          '<span class="badge badge-ak">' + totalErg2 + ' Wettkämpfe</span>' +
+          '<span class="badge badge-ak">' + totalErg2 + ' Wettkampf' + (totalErg2 === 1 ? '' : 'e') + '</span>' +
           akBadgeHtml +
-          (athlet.geburtsjahr ? '<span style="font-size:11px;color:var(--text2)">Jg. ' + athlet.geburtsjahr + '</span>' : '') +
+          (athlet.geburtsjahr ? '<span style="font-size:11px;color:var(--text2)">Jahrgang ' + athlet.geburtsjahr + '</span>' : '') +
         '</div>' +
         (function(){
           var ausz = (rAusz2 && rAusz2.ok) ? rAusz2.data : null;
@@ -3553,7 +3551,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
   headers.push('Platz AK');
   if (subTab !== 'mittelstrecke') { headers.push('Meisterschaft'); headers.push('Platz MS'); }
   headers.push('Veranstaltung');
-  if (canEdit) headers.push('Eingetragen');
+  if (canEdit) headers.push('Eingetragen von');
   if (canEdit) headers.push('');
 
   // Sortierbare Spalten: key → API-sort-Parameter
@@ -3950,7 +3948,7 @@ function _athSortHeader() {
   ];
   if (showD) cols.push({ key: 'geschlecht', label: '♂♀' });
   cols.push({ key: 'jahrgang', label: 'Jahrgang' }, { key: 'ak', label: 'AK' }, { key: 'gruppen', label: 'Gruppen' });
-  if (showD) { cols.push({ key: 'ergebnisse', label: 'Erg.' }, { key: 'letzte', label: 'Letzte Akt.' }, { key: 'aktiv', label: 'Status' }); }
+  if (showD) { cols.push({ key: 'ergebnisse', label: 'Erg.' }, { key: 'letzte', label: 'Letzte Akt.' }); if (canSeeInaktive) cols.push({ key: 'aktiv', label: 'Status' }); }
   if (showE) cols.push({ key: '', label: '' });
   return cols.map(function(c) {
     if (!c.key) return '<th></th>';
@@ -4113,7 +4111,7 @@ async function _loadLetzteAktivitaet() {
   }
 }
 
-// Athleten-Profil State
+// Athletenprofil State
 var _apState = { kategorien: [], pbs: [], selKat: 0, selDisz: null, tab: 'ergebnisse', athletId: null };
 
 function _apFmtRes(e, fallbackFmt) {
@@ -4343,7 +4341,7 @@ async function openAthletById(id) {
   }
 
   showModal(
-    '<h2 style="margin-bottom:12px">Athleten-Profil <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<h2 style="margin-bottom:12px">Athletenprofil <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div class="profile-header" style="margin-bottom:12px">' +
       (function(){
         // Online-Status: dot wird asynchron gesetzt nach API-Abfrage
@@ -4368,9 +4366,9 @@ async function openAthletById(id) {
         '<div style="font-size:20px;font-weight:700">' + (athlet.vorname || '') + ' ' + (athlet.nachname || '') + '</div>' +
         (gruppenTags && _canSeePersoenlicheDaten() ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">' + gruppenTags + '</div>' : '') +
         '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">' +
-          '<span class="badge badge-ak">' + totalErg + ' Wettkämpfe</span>' +
+          '<span class="badge badge-ak">' + totalErg + ' ' + (totalErg === 1 ? 'Wettkampf' : 'Wettkämpfe') + '</span>' +
           (athlet.geschlecht ? '<span class="badge" style="background:var(--surf2);color:var(--text)">' + (athlet.geschlecht === 'M' ? '♂ Männlich' : athlet.geschlecht === 'W' ? '♀ Weiblich' : '⚧ Divers') + '</span>' : '') +
-          (_canSeePersoenlicheDaten() && athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jg. ' + athlet.geburtsjahr + '</span>' : '') +
+          (_canSeePersoenlicheDaten() && athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jahrgang ' + athlet.geburtsjahr + '</span>' : '') +
           (function(){ var _ak = (athlet.geschlecht && athlet.geburtsjahr) ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : ''; return _ak ? akBadge(_ak) : ''; })() +
         '</div>' +
         (function() {
@@ -5225,12 +5223,18 @@ async function saveEigenesErgebnis() {
   // Anderer Verein → externes Ergebnis (athlet_pb)
   var isExternal = verein && verein.toLowerCase() !== clubName.toLowerCase();
   if (isExternal) {
-    var r = await apiPost('athleten/' + currentUser.athlet_id + '/pb', {
-      disziplin: diszName, resultat: res, altersklasse: ak || null,
-      disziplin_mapping_id: diszMappingId, verein: verein, datum: document.getElementById('ee-datum') ? document.getElementById('ee-datum').value : null,
-      wettkampf: document.getElementById('ee-evname') ? document.getElementById('ee-evname').value.trim() : ''
-    });
-    if (r && r.ok) { notify('Externes Ergebnis gespeichert.', 'ok'); state.subTab = null; renderEintragen(); }
+    // Externes Ergebnis ebenfalls per Antrag (muss genehmigt werden)
+    var extBody = {
+      disziplin: diszName, disziplin_mapping_id: diszMappingId,
+      resultat: res, altersklasse: ak || null,
+      externer_verein: verein,
+      datum: document.getElementById('ee-datum') ? document.getElementById('ee-datum').value : null,
+      veranstaltung_name: document.getElementById('ee-evname') ? document.getElementById('ee-evname').value.trim() : ''
+    };
+    if (veranstId) extBody.veranstaltung_id = veranstId;
+    else { extBody.datum = datum; extBody.ort = ort; }
+    var r = await apiPost('ergebnisse/eigenes', extBody);
+    if (r && r.ok) { notify(r.data && r.data.pending ? 'Ergebnis eingereicht – wird geprüft.' : 'Gespeichert.', 'ok'); state.subTab = null; renderEintragen(); }
     else if (errEl) errEl.textContent = (r && r.fehler) ? r.fehler : 'Fehler beim Speichern.';
     return;
   }
@@ -7705,7 +7709,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var _netto0 = String(_raw0[_r0.iNetto]||'').trim();
     var _yr0 = _r0.iYear >= 0 ? String(_raw0[_r0.iYear]||'').trim() : '';
     var _g0 = '';
-    // Geschlecht aus Athleten-Profil des gematchten Athleten
+    // Geschlecht aus Athletenprofil des gematchten Athleten
     var _chk0 = document.querySelector('.rr-chk[data-idx="0"]');
     var _ath0 = _chk0 ? _chk0.closest('tr').querySelector('.rr-athlet') : null;
     var _athId0 = _ath0 ? parseInt(_ath0.value)||0 : 0;
@@ -9597,7 +9601,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
     var _netto0 = String(_raw0[_r0.iNetto]||'').trim();
     var _yr0 = _r0.iYear >= 0 ? String(_raw0[_r0.iYear]||'').trim() : '';
     var _g0 = '';
-    // Geschlecht aus Athleten-Profil des gematchten Athleten
+    // Geschlecht aus Athletenprofil des gematchten Athleten
     var _chk0 = document.querySelector('.rr-chk[data-idx="0"]');
     var _ath0 = _chk0 ? _chk0.closest('tr').querySelector('.rr-athlet') : null;
     var _athId0 = _ath0 ? parseInt(_ath0.value)||0 : 0;

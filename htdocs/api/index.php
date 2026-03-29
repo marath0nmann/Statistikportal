@@ -1176,7 +1176,13 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
 if ($res === 'einstellungen') {
     // Öffentliche Konfig (alle Einstellungen ohne Auth lesbar – kein Geheimnis)
     if ($method === 'GET' && !$id) {
-        jsonOk(Settings::all());
+        $cfg = Settings::all();
+        // Rollennamen/Labels immer mitsenden (für rolleLabel() im Frontend)
+        try {
+            $rollenRows = DB::fetchAll('SELECT name, label, oeffentlich FROM ' . DB::tbl('rollen'));
+            $cfg['rollen_labels'] = $rollenRows;
+        } catch (\Exception $e) { $cfg['rollen_labels'] = []; }
+        jsonOk($cfg);
     }
     // Einzelne Einstellung (Admin)
     if ($method === 'PUT' || $method === 'POST') {
@@ -1878,13 +1884,14 @@ if (in_array($res, $ergebnisTabellen)) {
                        $extraCols
                        e.ak_platzierung, e.meisterschaft,
                        v.kuerzel AS veranstaltung, v.datum, v.ort, v.ort AS veranstaltung_ort, v.name AS veranstaltung_name,
-                       b.benutzername AS eingetragen_von, e.erstellt_am,
+                       COALESCE(CONCAT(ab.vorname,' ',ab.nachname), b.benutzername) AS eingetragen_von, e.erstellt_am,
                        COALESCE(dm.fmt_override, dk.fmt) AS fmt,
                        dk.name AS kategorie_name, dk.tbl_key AS kategorie_key
                 FROM $tbl e
                 JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
                 JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
                 LEFT JOIN " . DB::tbl('benutzer') . " b ON b.id=e.erstellt_von
+                LEFT JOIN " . DB::tbl('athleten') . " ab ON ab.id=b.athlet_id
                 LEFT JOIN " . DB::tbl('disziplin_mapping') . " dm ON dm.id=e.disziplin_mapping_id
                 LEFT JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.id=dm.kategorie_id
                 WHERE e.geloescht_am IS NULL AND " . implode(' AND ', $where) . "
