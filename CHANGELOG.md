@@ -1,3 +1,10 @@
+## v884
+
+- **Disziplin-Matching**: uitsAutoDiszMatchKat kennt NL-Namen ('Halve Marathon') nicht -> gab 300m zurueck -> beide Eintraege hatten disziplin='' -> Laufserie-Dialog. Fix: acnFindDisz() sucht direkt per Namen inkl. NL/DE-Aliase (Halve Marathon=Halbmarathon, 21km=Halbmarathon, 42km=Marathon)
+- Oliver Marissen: 1x Halbmarathon + 1x 5km = zwei verschiedene Disziplinen = kein Laufserie-Dialog
+
+---
+
 ## v883
 
 - **Laufserie Marissen behoben**: LIVEC3 (5km) hat keine Split-Spalten -> diszHint war leer -> AK-Fallback ergab '300m'. Fix: Disziplin wird jetzt aus der Siegerzeit abgeleitet (<20min=5km, 20-45min=10km, >45min=Halve Marathon)
