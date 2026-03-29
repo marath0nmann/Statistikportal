@@ -1,1 +1,1 @@
-v874: System-Dashboard: GitHub-Token-Ablaufdatum (rot wenn < 14 Tage)
+v875: GitHub-Token-Ablauf: manuelles Datum statt API-Header

@@ -10409,6 +10409,14 @@ async function renderAdminSystem() {
   if (!r || !r.ok) { el.innerHTML = adminSubtabs() + '<div style="color:var(--accent);padding:20px">Fehler beim Laden.</div>'; return; }
   var d = r.data;
   var s = d.stats || {};
+  // GitHub-Token Ablaufdatum aus Einstellungen lesen
+  var ghExpiry = null;
+  var daysLeft = null;
+  var _ghExpStr = (appConfig && appConfig.github_token_expires) ? appConfig.github_token_expires.trim() : '';
+  if (appConfig && appConfig.github_repo && appConfig.github_token && _ghExpStr) {
+    ghExpiry = _ghExpStr;
+    daysLeft = Math.ceil((new Date(_ghExpStr) - new Date()) / 86400000);
+  }
 
   function fmtDate(iso) {
     if (!iso) return '\u2013';
@@ -12169,6 +12177,7 @@ async function renderAdminDarstellung() {
       '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">F\xc3\xbcr die Funktion "Schlechten Import melden" im Bulk-Eintragen.</div>' +
       row('Repository', 'Format: owner/repo (z.B. tus-oedt/statistik)', textIn('cfg-github_repo', cfgVal('github_repo',''), 'z.B. tus-oedt/statistik')) +
       row('Personal Access Token', 'GitHub PAT mit Issues-Schreibrecht (Settings \u2192 Developer settings)', '<input type="password" id="cfg-github_token" value="' + (cfgVal('github_token','')||'').replace(/"/g,'&quot;') + '" placeholder="ghp_..." class="settings-input"/>') +
+      row('Token l\u00e4uft ab am', 'Optional: Ablaufdatum des PAT (f\u00fcr Warnanzeige im System-Dashboard)', '<input type="date" id="cfg-github_token_expires" value="' + (cfgVal('github_token_expires','')||'') + '" class="settings-input" style="width:180px"/>') +
     '</div>' +
 '<button class="btn btn-primary" onclick="saveAllSettings()">&#x1F4BE; Alle Einstellungen speichern</button>' +
       '</div>' +
@@ -12260,7 +12269,7 @@ async function saveAllSettings() {
     'adressleiste_farbe',
     'veranstaltung_anzeige',
     'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url',
-    'github_repo','github_token',
+    'github_repo','github_token','github_token_expires',
   ];
   var payload = {};
   for (var i = 0; i < keys.length; i++) {
