@@ -1,3 +1,15 @@
+## v878
+
+### ACN Timing Importer – Auto-Discovery
+- Uebersichts-URL (/cms/CG_1) funktioniert jetzt direkt – kein Klick auf 'Resultaten' noetig
+- Importer probt alle 90 moeglichen Race-IDs (LIVE{A-K}{1-9}) parallel in einem Schritt
+- Alle gefundenen Strecken werden gleichzeitig (parallel) geladen und zusammengefuehrt
+- Duplikate (z.B. Einzel vs. Team-Ergebnisse) werden per Name+Zeit dedupliziert
+- Debug-Log zeigt gefundene Strecken mit Teilnehmerzahl
+- Einzelne Strecken-URL funktioniert weiterhin
+
+---
+
 ## v877
 
 ### Neuer Importer: ACN Timing (acn-timing.com)
