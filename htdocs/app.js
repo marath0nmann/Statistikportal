@@ -2133,6 +2133,10 @@ function rolleLabel(r, oeffentlichOnly) {
     }
   }
   var m = { admin: 'Administrator', editor: 'Editor', athlet: 'Athlet', leser: 'Leser' };
+  if (window._rollenMap) {
+    var rd2 = window._rollenMap[r];
+    if (rd2 && rd2.label) return rd2.label;
+  }
   return m[r] || r;
 }
 
@@ -4530,7 +4534,7 @@ async function _apRenderPb() {
     var pb = pbs[i];
     rows += '<tr>' +
       '<td style="padding:6px 8px">' + diszMitKat(pb.disziplin) + '</td>' +
-      '<td style="padding:6px 8px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:15px">' + (pb.resultat || '') + '</td>' +
+      '<td style="padding:6px 8px;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:15px;color:' + (pb.verein ? 'var(--text)' : 'var(--primary)') + '">' + (pb.resultat || '') + '</td>' +
       '<td style="padding:6px 8px;color:var(--text2);font-size:12px">' + (pb.wettkampf || '&ndash;') + '</td>' +
       '<td style="padding:6px 8px;color:var(--text2);font-size:12px">' + (pb.datum ? formatDate(pb.datum) : '&ndash;') + '</td>' +
       (canEdit ?
@@ -6544,8 +6548,26 @@ function bulkReset() {
   // Tabellen-Zeilen leeren
   var tbody = document.getElementById('bulk-rows');
   if (tbody) tbody.innerHTML = '';
+  // Paste-Feld leeren
   var pasteEl = document.getElementById('bk-paste-area');
   if (pasteEl) { pasteEl.value = ''; pasteEl.focus(); }
+  // Debug-Log leeren
+  var dbgWrap = document.getElementById('bk-import-debug-wrap');
+  if (dbgWrap) { dbgWrap.style.display = 'none'; dbgWrap.open = false; }
+  var dbgPre = document.getElementById('bk-import-debug');
+  if (dbgPre) dbgPre.textContent = '';
+  if (typeof _bkDbgLines !== 'undefined') _bkDbgLines = [];
+  // Veranstaltungsfelder leeren
+  ['bk-datum','bk-ort','bk-evname'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  // Importkategorie-Wrapper verstecken
+  var katWrap = document.getElementById('bk-import-kat-wrap');
+  if (katWrap) katWrap.style.display = 'none';
+  // Bestehende-Veranstaltung-Auswahl weg
+  var veranstSel = document.getElementById('bk-veranst-existing');
+  if (veranstSel) veranstSel.value = '';
 }
 
 async function bulkMeldeImport() {
@@ -10421,6 +10443,7 @@ async function renderAdminSystem() {
   // Left column
   var leftRows =
     shead('System') +
+    srow('Portal-Version', (function(){ var s2 = document.querySelector('script[src*="app.js"]'); if (!s2) return '–'; var m = s2.src.match(/v=(\d+)/); return m ? 'v' + m[1] : '–'; })()) +
     srow('Portal in Betrieb seit', fmtDate(s.portalSeit)) +
     srow('Datenbank-Server', d.dbVersion || '\u2013') +
     srow('Datenbank-Gr&ouml;&szlig;e', d.dbSize !== null ? d.dbSize + ' MB' : '\u2013') +
@@ -10597,7 +10620,7 @@ async function renderAdminAntraege() {
     html += '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">📋 Zuletzt bearbeitet</div></div>' +
       '<div style="overflow-x:auto"><table class="data-table" style="width:100%">' +
-        '<thead><tr><th>Typ</th><th>Antragsteller</th><th>Datum</th><th>Status</th><th>Kommentar</th></tr></thead>' +
+        '<thead><tr><th>Typ</th><th>Antragsteller</th><th>Veranstaltung</th><th>Eingereicht</th><th>Status</th><th>Bearbeitet von</th></tr></thead>' +
         '<tbody>';
     for (var j = 0; j < done.length; j++) {
       var d = done[j];
@@ -10607,7 +10630,7 @@ async function renderAdminAntraege() {
       var typLabel = d.typ === 'delete' ? '🗑️ Löschen' : d.typ === 'update' ? '✏️ Ändern' : '➕ Eintragen';
       html += '<tr>' +
         '<td>' + typLabel + '</td>' +
-        '<td>' + (d.beantragt_von_name || '–') + '</td>' +
+        '<td>' + (d.beantragt_von_athlet && d.beantragt_von_athlet.trim() ? d.beantragt_von_athlet.trim() : (d.beantragt_von_name || '–')) + '</td>' +
         '<td style="color:var(--text2);font-size:12px">' + (d.veranstaltung_name ? (d.veranstaltung_datum ? d.veranstaltung_datum.slice(0,10).split('-').reverse().join('.') + ' ' : '') + d.veranstaltung_name : '–') + '</td>' +
         '<td style="color:var(--text2);font-size:12px">' + (d.beantragt_am ? d.beantragt_am.slice(0,16).replace('T',' ') : '–') + '</td>' +
         '<td>' + statusBadge + '</td>' +
@@ -14105,21 +14128,39 @@ function uitsRenderPreview(parsed) {
 }
 
 // ── Auto-Match Athlet ────────────────────────────────────────────
+function _normUmlauts(s) {
+  // Umlaute normalisieren: ß/ss, ae/ä, oe/ö, ue/ü und umgekehrt
+  return s
+    .replace(/ß/g, 'ss').replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+    .replace(/Ä/g, 'ae').replace(/Ö/g, 'oe').replace(/Ü/g, 'ue')
+    .replace(/\xe9|\xe8|\xea/g, 'e').replace(/\xe0|\xe2/g, 'a').replace(/\xfc/g, 'ue');
+}
 function uitsAutoMatch(name, athleten) {
   if (!name || !athleten.length) return null;
   var nl = name.toLowerCase();
-  // Exakter Match auf name_nv ("Nachname, Vorname")
+  var nlN = _normUmlauts(nl); // normalisierte Version zum Vergleich
   for (var i = 0; i < athleten.length; i++) {
     var a = athleten[i];
-    var anl = (a.name_nv || '').toLowerCase();
-    // Beide Richtungen: "Kebeck, Rüdige" oder "Rüdige Kebeck"
-    var parts = nl.split(/[\s,]+/).filter(Boolean);
-    var aparts = anl.split(/[\s,]+/).filter(Boolean);
-    var matchScore = 0;
-    parts.forEach(function(p) {
-      if (p.length > 2 && aparts.some(function(ap){ return ap.startsWith(p) || p.startsWith(ap); })) matchScore++;
-    });
-    if (matchScore >= Math.min(2, parts.length)) return a.id;
+    var anl  = (a.name_nv || '').toLowerCase();
+    var anlN = _normUmlauts(anl);
+    // Match auf originale UND normalisierte Strings (beide Richtungen)
+    function scoreMatch(inputParts, refParts) {
+      var score = 0;
+      inputParts.forEach(function(p) {
+        if (p.length > 2 && refParts.some(function(ap){ return ap.startsWith(p) || p.startsWith(ap); })) score++;
+      });
+      return score;
+    }
+    var parts  = nl.split(/[\s,]+/).filter(Boolean);
+    var partsN = nlN.split(/[\s,]+/).filter(Boolean);
+    var aparts  = anl.split(/[\s,]+/).filter(Boolean);
+    var apartsN = anlN.split(/[\s,]+/).filter(Boolean);
+    var needed = Math.min(2, parts.length);
+    // 4 Kombinationen: orig/norm x orig/norm
+    if (scoreMatch(parts,  aparts)  >= needed) return a.id;
+    if (scoreMatch(partsN, apartsN) >= needed) return a.id;
+    if (scoreMatch(partsN, aparts)  >= needed) return a.id;
+    if (scoreMatch(parts,  apartsN) >= needed) return a.id;
   }
   return null;
 }

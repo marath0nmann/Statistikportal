@@ -1,1 +1,1 @@
-v869: Hotfix _renderHeaderAvatar fehlte (seit v863 entfernt)
+v871: Bulk Reset komplett; Umlaut-Matching (Heiss=Heiß, ae=ä, oe=ö)
