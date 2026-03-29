@@ -1,3 +1,11 @@
+## v875
+
+- **Admin -> Darstellung -> GitHub**: neues Feld 'Token laeuft ab am' (Datumseingabe)
+- **System-Dashboard**: zeigt Ablaufdatum + verbleibende Tage; rot + fett wenn < 14 Tage
+- Hintergrund: GitHub-API liefert den Expiry-Header nicht fuer alle Token-Typen; manuelles Datum ist zuverlaessiger
+
+---
+
 ## v874
 
 - **System-Dashboard**: zeigt Ablaufdatum des GitHub-PAT (via api.github.com/rate_limit Header 'github-authentication-token-expiration')

@@ -1200,7 +1200,7 @@ if ($res === 'einstellungen') {
                 'farbe_primary','farbe_accent',
                 'dashboard_timeline_limit','version_nur_admins',
                 'adressleiste_farbe','dashboard_layout',
-                'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url','github_repo','github_token',
+                'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url','github_repo','github_token','github_token_expires',
                 'disziplin_kategorie_suffix',
                 'footer_datenschutz_text','footer_nutzung_text','footer_impressum_text',
                 'jugend_aks',
