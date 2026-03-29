@@ -1,3 +1,9 @@
+## v882
+
+- **Hotfix**: Variablenname-Tippfehler 'ni' statt 'nettoIdx' in der Zeitvalidierung -> sampleNet war immer leer -> alle Rennen wurden uebersprungen
+
+---
+
 ## v881
 
 - **Laufserie-Dialog**: LIVEA3/LIVEB3/LIVEC3 sind Teamresultaten (enthalten 'RowAction'-Spalte und 'detail:...' statt Zeiten) – werden jetzt erkannt und uebersprungen

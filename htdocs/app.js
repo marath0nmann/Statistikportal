@@ -6523,7 +6523,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
       if (hasRowAction) { _bkDbgLine(id, 'Uebersprungen (Teamresultaten)'); return null; }
 
       // Pruefen ob erster Zeile eine gueltige Nettozeit hat
-      var sampleNet = (ni >= 0 && rows[0]) ? (rows[0][ni] || '') : '';
+      var sampleNet = (nettoIdx >= 0 && rows[0]) ? (rows[0][nettoIdx] || '') : '';
       if (!sampleNet || sampleNet.toString().indexOf('detail:') >= 0 || !sampleNet.toString().match(/\d+:\d+/)) {
         _bkDbgLine(id, 'Uebersprungen (keine gueltigen Zeiten: ' + sampleNet + ')');
         return null;
