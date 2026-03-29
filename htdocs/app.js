@@ -2133,17 +2133,7 @@ function rolleLabel(r, oeffentlichOnly) {
     }
   }
   var m = { admin: 'Administrator', editor: 'Editor', athlet: 'Athlet', leser: 'Leser' };
-  el.style.position = 'relative';
-  var dotHtml = isOnline ? _avatarDot('online', 28) : '';
-  if (avatarPfad) {
-    el.innerHTML = '<img src="' + avatarPfad + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display=\'none\'">' + dotHtml;
-  } else {
-    // VN-Schema: Vorname[0] + Nachname[0] wenn beide auf currentUser vorhanden
-    var initials = (currentUser && currentUser.vorname && currentUser.nachname)
-      ? (currentUser.vorname.trim()[0] + currentUser.nachname.trim()[0]).toUpperCase()
-      : nameInitials(name || '?');
-    el.innerHTML = '<span style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-weight:700;font-size:13px">' + initials + '</span>' + dotHtml;
-  }
+  return m[r] || r;
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────
@@ -6559,14 +6549,21 @@ async function bulkMeldeImport() {
     cells.forEach(function(c) { if (c.name || c.id) row[c.name || c.id] = c.value; });
     rows.push(row);
   });
+  // Debug-Log sammeln
+  var debugLog = (typeof _bkDbgLines !== 'undefined' && _bkDbgLines.length) ? _bkDbgLines.join('\n') : '(kein Debug-Log)';
+  var _vEl = document.querySelector('script[src*="app.js"]');
+  var _vm = _vEl ? (_vEl.src||'').match(/v=(\d+)/) : null;
+  var vNum = _vm ? _vm[1] : '?';
   var body = {
-    title: '[Import-Fehler] Schlechter Bulk-Import gemeldet am ' + new Date().toLocaleDateString('de-DE'),
-    body: '## Gemeldeter Import-Fehler\n\n**Gemeldet von:** ' + (currentUser ? currentUser.email || currentUser.name : 'Unbekannt') + '\n' +
-          '**Zeitstempel:** ' + new Date().toISOString() + '\n' +
-          '**Portal-Version:** ' + (document.querySelector('script[src*="app.js"]')?.src?.match(/v=(\d+)/)?.[1] || '?') + '\n\n' +
-          '### Eingabe (Rohtext)\n```\n' + raw.slice(0, 2000) + (raw.length > 2000 ? '\n[...gek\u00fcrzt]' : '') + '\n```\n\n' +
-          '### Importierte Zeilen\n```json\n' + JSON.stringify(rows.slice(0, 30), null, 2) + '\n```\n\n' +
-          '### Weitere Informationen\n_Bitte erg\u00e4nze hier, was falsch importiert wurde:_\n',
+    title: '[Import-Fehler] v' + vNum + ' ' + new Date().toLocaleDateString('de-DE'),
+    body: '## Gemeldeter Import-Fehler\n\n' +
+          '| Feld | Wert |\n|---|---|\n' +
+          '| Gemeldet von | ' + (currentUser ? (currentUser.email||currentUser.name||'?') : '?') + ' |\n' +
+          '| Zeitstempel | ' + new Date().toISOString() + ' |\n' +
+          '| Portal-Version | v' + vNum + ' |\n\n' +
+          '### Import-Debug-Log\n```\n' + debugLog + '\n```\n\n' +
+          '### Rohtext\n```\n' + raw.slice(0,3000) + (raw.length>3000?'\n...[gek\u00fcrzt]':'') + '\n```\n\n' +
+          '### Fehlerbeschreibung\n_Bitte hier erg\u00e4nzen was falsch importiert wurde:_\n',
     labels: ['import-fehler']
   };
   var btn = document.querySelector('#bk-post-import-actions button:last-child');

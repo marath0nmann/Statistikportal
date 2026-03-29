@@ -1,3 +1,10 @@
+## v867
+
+- **Hotfix**: rolleLabel()-Funktion war durch Merge-Fehler in v865 korrumpiert (Avatar-Code eingebettet) -> weisse Seite. Behoben.
+- **Schlechten Import melden**: Issue enthaelt jetzt das komplette Import-Debug-Log (_bkDbgLines) plus Rohtext, Version und User als Kontext
+
+---
+
 ## v866
 
 ### GitHub-Integration
