@@ -6387,42 +6387,23 @@ function mikaExtractRowsForBulk(data, kat) {
 }
 
 
-// ── ACN Timing importer ────────────────────────────────────────────────────────
+
+// ── ACN Timing importer ──────────────────────────────────────────────────────
 
 async function bulkImportFromAcn(url, kat, statusEl) {
-  // URL: https://www.acn-timing.com/?...#/events/.../ctx/{ctx}/.../home/{raceId}
+  // Accepts both:
+  //   Overview URL: .../ctx/{ctx}/cms/CG_1
+  //   Race URL:     .../ctx/{ctx}/generic/.../home/{raceId}
   var ctxMatch  = url.match(/#.*?ctx\/([^\/]+)/);
   var raceMatch = url.match(/\/home\/([A-Z0-9]+)/);
-  var ctx       = ctxMatch  ? ctxMatch[1]  : null;
-  var raceId    = raceMatch ? raceMatch[1] : null;
+  var ctx       = ctxMatch ? ctxMatch[1] : null;
 
-  if (!ctx || !raceId) {
-    _bkDbgLine('Fehler', 'Kein ctx/raceId in URL. Bitte Ergebnisseite einer Strecke verwenden (Klick auf "Resultaten")');
-    if (statusEl) statusEl.textContent = '\u274c Keine Race-URL';
+  if (!ctx) {
+    _bkDbgLine('Fehler', 'Kein ctx in URL gefunden');
+    if (statusEl) statusEl.textContent = '\u274c Keine ACN-URL erkannt';
     return;
   }
-
-  _bkDbgLine('ACN ctx',    ctx);
-  _bkDbgLine('ACN raceId', raceId);
-
-  var apiUrl = 'https://results.chronorace.be/api/results/table/search/' + ctx + '/' + raceId + '?srch=&pageSize=12000';
-  _bkDbgLine('API', apiUrl);
-  if (statusEl) statusEl.textContent = '\u23f3 Lade ACN-Daten\u2026';
-
-  var resp;
-  try { resp = await fetch(apiUrl); } catch(e) {
-    _bkDbgLine('Fetch-Fehler', e.message);
-    if (statusEl) statusEl.textContent = '\u274c Fetch fehlgeschlagen: ' + e.message;
-    return;
-  }
-  if (!resp.ok) {
-    _bkDbgLine('HTTP-Fehler', resp.status);
-    if (statusEl) statusEl.textContent = '\u274c HTTP ' + resp.status;
-    return;
-  }
-  var data    = await resp.json();
-  var allRows = (data.Groups && data.Groups[0]) ? data.Groups[0].SlaveRows || [] : [];
-  _bkDbgLine('Gesamt Zeilen', allRows.length);
+  _bkDbgLine('ACN ctx', ctx);
 
   // Datum + Ort aus ctx (Format: YYYYMMDD_ort) vorausfuellen
   var ctxParts = ctx.match(/^(\d{4})(\d{2})(\d{2})_(.+)$/);
@@ -6437,6 +6418,59 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     _bkDbgLine('Ort',   evOrt);
   }
 
+  // Race-IDs ermitteln
+  var raceIds = [];
+  if (raceMatch && raceMatch[1]) {
+    // Spezifische Strecke -> nur diese laden
+    raceIds = [raceMatch[1]];
+    _bkDbgLine('Modus', 'Einzelne Strecke: ' + raceIds[0]);
+  } else {
+    // Uebersichtsseite -> alle Strecken auto-entdecken
+    if (statusEl) statusEl.textContent = '\u23f3 Entdecke Strecken\u2026';
+    _bkDbgLine('Modus', 'Auto-Discovery aller Strecken');
+    var candidates = [];
+    var letters = ['A','B','C','D','E','F','G','H','J','K'];
+    for (var li = 0; li < letters.length; li++) {
+      for (var n = 1; n <= 9; n++) {
+        candidates.push('LIVE' + letters[li] + n);
+      }
+    }
+    // Paralleltest: alle Kandidaten gleichzeitig anfragen (nur Count=1 -> schnell)
+    var probeResults = await Promise.all(candidates.map(async function(id) {
+      try {
+        var r = await fetch('https://results.chronorace.be/api/results/table/search/' + ctx + '/' + id + '?srch=&pageSize=1');
+        if (!r.ok) return null;
+        var d = await r.json();
+        return (d.Count || 0) > 0 ? { id: id, count: d.Count } : null;
+      } catch(e) { return null; }
+    }));
+    raceIds = probeResults.filter(Boolean).map(function(r) { return r.id; });
+    var foundInfo = probeResults.filter(Boolean);
+    _bkDbgLine('Gefundene Strecken', raceIds.length);
+    foundInfo.forEach(function(r) { _bkDbgLine('  ' + r.id, r.count + ' Teilnehmer'); });
+  }
+
+  if (raceIds.length === 0) {
+    _bkDbgLine('Fehler', 'Keine Strecken gefunden');
+    if (statusEl) statusEl.textContent = '\u274c Keine Strecken gefunden';
+    return;
+  }
+
+  // Alle Strecken parallel laden
+  if (statusEl) statusEl.textContent = '\u23f3 Lade ' + raceIds.length + ' Strecke(n)\u2026';
+  var allFetched = await Promise.all(raceIds.map(async function(id) {
+    try {
+      var r = await fetch('https://results.chronorace.be/api/results/table/search/' + ctx + '/' + id + '?srch=&pageSize=12000');
+      if (!r.ok) return [];
+      var d = await r.json();
+      var rows = (d.Groups && d.Groups[0]) ? d.Groups[0].SlaveRows || [] : [];
+      _bkDbgLine(id, rows.length + ' Zeilen');
+      return rows;
+    } catch(e) { _bkDbgLine(id + ' Fehler', e.message); return []; }
+  }));
+  var totalRows = allFetched.reduce(function(s,r) { return s + r.length; }, 0);
+  _bkDbgLine('Gesamt Zeilen', totalRows);
+
   // Name aus HTML: "<b>Firstname LASTNAME</b><br/>..."
   function acnParseName(html) {
     var m = html.match(/<b>([^<]+)<\/b>/);
@@ -6446,36 +6480,40 @@ async function bulkImportFromAcn(url, kat, statusEl) {
   // AK-Mapping: ACN Msen/Vsen, M35/V35 -> DLV Msen/Wsen, M35/W35
   function acnParseAk(akRaw, gender) {
     if (!akRaw) return '';
-    var a  = akRaw.trim();
-    var isF = (a.charAt(0) === 'V') || gender === 'F';
+    var a   = akRaw.trim();
+    var isF = a.charAt(0) === 'V' || gender === 'F';
     var pfx = isF ? 'W' : 'M';
     if (a === 'Msen' || a === 'Vsen') return pfx + 'sen';
     var num = a.match(/\d+/);
     return num ? pfx + num[0] : a;
   }
 
-  // Alle Zeilen parsen
-  // Spalten: [0]=rank [1]=bib [2]=name-html [3]=gender [4]=club [5]=city [6]=land [8]=ak [15]=bruttozeit [16]=nettozeit+tempo
+  // Alle Zeilen parsen + deduplizieren per Name+Zeit
+  // Spalten: [0]=rank [1]=bib [2]=name-html [3]=gender [4]=club [5]=city [8]=ak [15]=bruttozeit [16]=nettozeit+tempo
+  var seen = {};
   var parsedRows = [];
-  for (var ri = 0; ri < allRows.length; ri++) {
-    var row     = allRows[ri];
-    var name    = acnParseName(row[2] || '');
-    if (!name) continue;
-    var gender  = row[3] || '';
-    var akRaw   = row[8] || '';
-    var gross   = (row[15] || '').trim();
-    var netHtml = row[16] || '';
-    var rankRaw = (row[0] || '').replace(/\.$/, '').trim();
-
-    // Nettozeit aus "1:35:05<br/><small>  21.0 km/h</small>"
-    var netM = netHtml.match(/^([^<]+)/);
-    var zeit = (netM ? netM[1].trim() : gross) || gross;
-
-    parsedRows.push({ name: name, zeit: zeit, ak: acnParseAk(akRaw, gender), platz: rankRaw });
+  for (var fi = 0; fi < allFetched.length; fi++) {
+    var rows = allFetched[fi];
+    for (var ri = 0; ri < rows.length; ri++) {
+      var row    = rows[ri];
+      var name   = acnParseName(row[2] || '');
+      if (!name) continue;
+      var gender = row[3] || '';
+      var akRaw  = row[8] || '';
+      var gross  = (row[15] || '').trim();
+      var netHtml= row[16] || '';
+      var rankRaw= (row[0] || '').replace(/\.$/, '').trim();
+      var netM   = netHtml.match(/^([^<]+)/);
+      var zeit   = (netM ? netM[1].trim() : gross) || gross;
+      var key    = name + '|' + zeit;
+      if (seen[key]) continue; // Deduplizieren (z.B. Team-Ergebnisse)
+      seen[key] = true;
+      parsedRows.push({ name: name, zeit: zeit, ak: acnParseAk(akRaw, gender), platz: rankRaw });
+    }
   }
-  _bkDbgLine('Geparste Zeilen', parsedRows.length);
+  _bkDbgLine('Geparste Zeilen (dedup)', parsedRows.length);
 
-  // Name-Matching gegen Athleten-DB (kein Vereinsname vorhanden)
+  // Name-Matching gegen Athleten-DB
   var _athleten = state.athleten || [];
   var rowsToImport = parsedRows.filter(function(row) {
     return uitsAutoMatch(row.name, _athleten) !== null;
@@ -6483,7 +6521,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
   _bkDbgLine('Treffer (Name-Match)', rowsToImport.length);
 
   if (rowsToImport.length === 0) {
-    _bkDbgLine('Hinweis', 'Keine Vereinsathleten gefunden. Erste 20 Namen:');
+    _bkDbgLine('Hinweis', 'Keine Vereinsathleten gefunden. Erste 20 Namen aus Ergebnissen:');
     parsedRows.slice(0, 20).forEach(function(r) { _bkDbgLine('  Name', r.name); });
     if (statusEl) statusEl.textContent = '\u274c Keine Vereinsathleten gefunden \u2013 Debug-Log pruefen';
     return;
