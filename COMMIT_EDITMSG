@@ -1,1 +1,1 @@
-v867: Hotfix weisse Seite (rolleLabel korrupt) + Debug-Log in Issue
+v869: Hotfix _renderHeaderAvatar fehlte (seit v863 entfernt)
