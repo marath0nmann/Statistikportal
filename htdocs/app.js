@@ -6518,6 +6518,17 @@ async function bulkImportFromAcn(url, kat, statusEl) {
 
       _bkDbgLine(id, rows.length + ' Zeilen | Netto-Col:' + nettoIdx + ' | Disz:' + (diszHint || '?'));
 
+      // Team-Ergebnisse ueberspringen: RowAction-Spalte vorhanden = Teamresultaten
+      var hasRowAction = cols.some(function(c) { return (c.DisplayName || '').toLowerCase().indexOf('rowaction') >= 0 || (c.Name || '').toLowerCase().indexOf('rowaction') >= 0; });
+      if (hasRowAction) { _bkDbgLine(id, 'Uebersprungen (Teamresultaten)'); return null; }
+
+      // Pruefen ob erster Zeile eine gueltige Nettozeit hat
+      var sampleNet = (ni >= 0 && rows[0]) ? (rows[0][ni] || '') : '';
+      if (!sampleNet || sampleNet.toString().indexOf('detail:') >= 0 || !sampleNet.toString().match(/\d+:\d+/)) {
+        _bkDbgLine(id, 'Uebersprungen (keine gueltigen Zeiten: ' + sampleNet + ')');
+        return null;
+      }
+
       // Kids-Rennen (kein Disziplin-Hinweis, sehr kurze Zeiten) weglassen
       if (!diszHint) {
         var sampleRow = rows[0] || [];
