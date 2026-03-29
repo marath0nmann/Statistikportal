@@ -6389,12 +6389,10 @@ function mikaExtractRowsForBulk(data, kat) {
 
 
 
+
 // ── ACN Timing importer ──────────────────────────────────────────────────────
 
 async function bulkImportFromAcn(url, kat, statusEl) {
-  // Accepts both:
-  //   Overview URL: .../ctx/{ctx}/cms/CG_1
-  //   Race URL:     .../ctx/{ctx}/generic/.../home/{raceId}
   var ctxMatch  = url.match(/#.*?ctx\/([^\/]+)/);
   var raceMatch = url.match(/\/home\/([A-Z0-9]+)/);
   var ctx       = ctxMatch ? ctxMatch[1] : null;
@@ -6406,7 +6404,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
   }
   _bkDbgLine('ACN ctx', ctx);
 
-  // Datum + Ort aus ctx (Format: YYYYMMDD_ort) vorausfuellen
+  // Datum + Ort aus ctx (Format: YYYYMMDD_ort)
   var ctxParts = ctx.match(/^(\d{4})(\d{2})(\d{2})_(.+)$/);
   if (ctxParts) {
     var evDate = ctxParts[1] + '-' + ctxParts[2] + '-' + ctxParts[3];
@@ -6422,21 +6420,16 @@ async function bulkImportFromAcn(url, kat, statusEl) {
   // Race-IDs ermitteln
   var raceIds = [];
   if (raceMatch && raceMatch[1]) {
-    // Spezifische Strecke -> nur diese laden
     raceIds = [raceMatch[1]];
     _bkDbgLine('Modus', 'Einzelne Strecke: ' + raceIds[0]);
   } else {
-    // Uebersichtsseite -> alle Strecken auto-entdecken
     if (statusEl) statusEl.textContent = '\u23f3 Entdecke Strecken\u2026';
-    _bkDbgLine('Modus', 'Auto-Discovery aller Strecken');
+    _bkDbgLine('Modus', 'Auto-Discovery');
     var candidates = [];
     var letters = ['A','B','C','D','E','F','G','H','J','K'];
     for (var li = 0; li < letters.length; li++) {
-      for (var n = 1; n <= 9; n++) {
-        candidates.push('LIVE' + letters[li] + n);
-      }
+      for (var n = 1; n <= 9; n++) candidates.push('LIVE' + letters[li] + n);
     }
-    // Paralleltest: alle Kandidaten gleichzeitig anfragen (nur Count=1 -> schnell)
     var probeResults = await Promise.all(candidates.map(async function(id) {
       try {
         var r = await fetch('https://results.chronorace.be/api/results/table/search/' + ctx + '/' + id + '?srch=&pageSize=1');
@@ -6451,65 +6444,147 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     foundInfo.forEach(function(r) { _bkDbgLine('  ' + r.id, r.count + ' Teilnehmer'); });
   }
 
-  if (raceIds.length === 0) {
+  if (!raceIds.length) {
     _bkDbgLine('Fehler', 'Keine Strecken gefunden');
     if (statusEl) statusEl.textContent = '\u274c Keine Strecken gefunden';
     return;
   }
 
-  // Alle Strecken parallel laden
-  if (statusEl) statusEl.textContent = '\u23f3 Lade ' + raceIds.length + ' Strecke(n)\u2026';
-  var allFetched = await Promise.all(raceIds.map(async function(id) {
-    try {
-      var r = await fetch('https://results.chronorace.be/api/results/table/search/' + ctx + '/' + id + '?srch=&pageSize=12000');
-      if (!r.ok) return [];
-      var d = await r.json();
-      var rows = (d.Groups && d.Groups[0]) ? d.Groups[0].SlaveRows || [] : [];
-      _bkDbgLine(id, rows.length + ' Zeilen');
-      return rows;
-    } catch(e) { _bkDbgLine(id + ' Fehler', e.message); return []; }
-  }));
-  var totalRows = allFetched.reduce(function(s,r) { return s + r.length; }, 0);
-  _bkDbgLine('Gesamt Zeilen', totalRows);
-
-  // Name aus HTML: "<b>Firstname LASTNAME</b><br/>..."
+  // Hilfsfunktionen
   function acnParseName(html) {
     var m = html.match(/<b>([^<]+)<\/b>/);
     return m ? m[1].trim() : '';
   }
-
-  // AK-Mapping: ACN Msen/Vsen, M35/V35 -> DLV Msen/Wsen, M35/W35
   function acnParseAk(akRaw, gender) {
-    if (!akRaw) return '';
-    var a   = akRaw.trim();
+    var a   = (akRaw || '').trim();
     var isF = a.charAt(0) === 'V' || gender === 'F';
     var pfx = isF ? 'W' : 'M';
     if (a === 'Msen' || a === 'Vsen') return pfx + 'sen';
     var num = a.match(/\d+/);
     return num ? pfx + num[0] : a;
   }
+  // Disziplinname aus Split-Spalten ableiten
+  function acnDiszFromSplits(splitCols) {
+    if (!splitCols || !splitCols.length) return null;
+    var lastSplit = splitCols[splitCols.length - 1].toLowerCase();
+    // 20km-Split -> Halbmarathon
+    if (lastSplit === '20km') return 'Halve Marathon';
+    // Nur 5km-Split -> 10km-Rennen
+    if (lastSplit === '5km' && splitCols.length === 1) return '10km';
+    // Nur 2.5km/3km-Split -> 5km
+    if (splitCols.length === 1 && (lastSplit === '2.5km' || lastSplit === '3km')) return '5km';
+    // Allgemein: letzten Split-Wert verdoppeln (grobe Naeherung)
+    var km = parseFloat(lastSplit);
+    if (km) return (km * 2) + 'km';
+    return lastSplit;
+  }
 
-  // Alle Zeilen parsen + deduplizieren per Name+Zeit
-  // Spalten: [0]=rank [1]=bib [2]=name-html [3]=gender [4]=club [5]=city [8]=ak [15]=bruttozeit [16]=nettozeit+tempo
+  // Alle Strecken laden
+  if (statusEl) statusEl.textContent = '\u23f3 Lade ' + raceIds.length + ' Strecke(n)\u2026';
+  var allFetched = await Promise.all(raceIds.map(async function(id) {
+    try {
+      var r = await fetch('https://results.chronorace.be/api/results/table/search/' + ctx + '/' + id + '?srch=&pageSize=12000');
+      if (!r.ok) return null;
+      var d = await r.json();
+      var cols    = (d.TableDefinition && d.TableDefinition.Columns) ? d.TableDefinition.Columns : [];
+      var rows    = (d.Groups && d.Groups[0]) ? d.Groups[0].SlaveRows || [] : [];
+
+      // Netto-Spaltenindex dynamisch ermitteln
+      var nettoIdx = -1;
+      for (var ci = 0; ci < cols.length; ci++) {
+        if ((cols[ci].DisplayName || '').toLowerCase().indexOf('netto') >= 0 ||
+            (cols[ci].Name        || '').toLowerCase().indexOf('netto') >= 0) {
+          nettoIdx = cols[ci].FieldIdx !== undefined ? cols[ci].FieldIdx : ci;
+          break;
+        }
+      }
+      if (nettoIdx < 0) {
+        // Fallback: letztes Element mit <br/><small> in erster Zeile
+        var sample = rows[0] || [];
+        for (var si = sample.length - 1; si >= 0; si--) {
+          if (typeof sample[si] === 'string' && sample[si].indexOf('<br/>') >= 0 && sample[si].indexOf('km/h') >= 0) {
+            nettoIdx = si; break;
+          }
+        }
+      }
+
+      // Split-Spaltennamen fuer Disziplin
+      var splitNames = [];
+      for (var ci2 = 0; ci2 < cols.length; ci2++) {
+        var dn = (cols[ci2].DisplayName || '');
+        if (/^\d+(\.\d+)?km$/i.test(dn)) splitNames.push(dn);
+      }
+      var diszHint = acnDiszFromSplits(splitNames);
+
+      _bkDbgLine(id, rows.length + ' Zeilen | Netto-Col:' + nettoIdx + ' | Disz:' + (diszHint || '?'));
+
+      // Kids-Rennen (kein Disziplin-Hinweis, sehr kurze Zeiten) weglassen
+      if (!diszHint) {
+        var sampleRow = rows[0] || [];
+        var sampleTime = nettoIdx >= 0 ? (sampleRow[nettoIdx] || '') : '';
+        var tm = sampleTime.match(/^(\d+):(\d+)/);
+        // Unter 5 Minuten = Kids Run -> überspringen
+        if (!tm || (parseInt(tm[1]) === 0 && parseInt(tm[2]) < 5)) {
+          _bkDbgLine(id, 'Uebersprungen (Kids Run / keine Disziplin)');
+          return null;
+        }
+        // Laengere Rennzeit aber kein Split -> als "Laufen" behandeln
+        diszHint = '';
+      }
+
+      return { id: id, rows: rows, nettoIdx: nettoIdx, diszHint: diszHint };
+    } catch(e) {
+      _bkDbgLine(id + ' Fehler', e.message);
+      return null;
+    }
+  }));
+
+  // Zeilen parsen + deduplizieren per Name+Zeit
   var seen = {};
   var parsedRows = [];
   for (var fi = 0; fi < allFetched.length; fi++) {
-    var rows = allFetched[fi];
+    var race = allFetched[fi];
+    if (!race) continue;
+    var rows = race.rows;
+    var ni   = race.nettoIdx;
+    var dh   = race.diszHint;
+
     for (var ri = 0; ri < rows.length; ri++) {
       var row    = rows[ri];
       var name   = acnParseName(row[2] || '');
       if (!name) continue;
       var gender = row[3] || '';
       var akRaw  = row[8] || '';
-      var gross  = (row[15] || '').trim();
-      var netHtml= row[16] || '';
+
+      // Kids-AK-Filter
+      if (akRaw === 'J' || akRaw === 'B' || akRaw === 'P' || akRaw === 'K') continue;
+
       var rankRaw= (row[0] || '').replace(/\.$/, '').trim();
-      var netM   = netHtml.match(/^([^<]+)/);
-      var zeit   = (netM ? netM[1].trim() : gross) || gross;
-      var key    = name + '|' + zeit;
-      if (seen[key]) continue; // Deduplizieren (z.B. Team-Ergebnisse)
+
+      // Nettozeit aus dem korrekten Spaltenindex
+      var netHtml = (ni >= 0 && ni < row.length) ? (row[ni] || '') : '';
+      var netM    = netHtml.match(/^([^<]+)/);
+      var zeit    = (netM ? netM[1].trim() : '');
+      // Fallback: vorletzte Spalte mit Zeitformat
+      if (!zeit || zeit.indexOf(':') < 0) {
+        for (var bi = row.length - 1; bi >= 9; bi--) {
+          var bv = (row[bi] || '').toString();
+          if (/^\d+:\d+/.test(bv) && bv.indexOf('<') < 0) { zeit = bv; break; }
+        }
+      }
+      if (!zeit) continue;
+
+      var key = name + '|' + zeit + '|' + (race.id);
+      if (seen[key]) continue;
       seen[key] = true;
-      parsedRows.push({ name: name, zeit: zeit, ak: acnParseAk(akRaw, gender), platz: rankRaw });
+
+      parsedRows.push({
+        name:      name,
+        zeit:      zeit,
+        ak:        acnParseAk(akRaw, gender),
+        platz:     rankRaw,
+        diszHint:  dh
+      });
     }
   }
   _bkDbgLine('Geparste Zeilen (dedup)', parsedRows.length);
@@ -6521,15 +6596,16 @@ async function bulkImportFromAcn(url, kat, statusEl) {
   });
   _bkDbgLine('Treffer (Name-Match)', rowsToImport.length);
 
-  if (rowsToImport.length === 0) {
-    _bkDbgLine('Hinweis', 'Keine Vereinsathleten gefunden. Erste 20 Namen aus Ergebnissen:');
+  if (!rowsToImport.length) {
+    _bkDbgLine('Hinweis', 'Keine Vereinsathleten gefunden. Erste 20 Namen:');
     parsedRows.slice(0, 20).forEach(function(r) { _bkDbgLine('  Name', r.name); });
     if (statusEl) statusEl.textContent = '\u274c Keine Vereinsathleten gefunden \u2013 Debug-Log pruefen';
     return;
   }
 
   var bulkRows = rowsToImport.map(function(row) {
-    var diszObj = uitsAutoDiszMatchKat(row.ak, state.disziplinen, kat);
+    // Disziplin: erst diszHint nutzen, dann kat-Fallback
+    var diszObj = uitsAutoDiszMatchKat(row.diszHint || row.ak, state.disziplinen, kat);
     var disz    = diszObj
       ? ((state.disziplinen || []).find(function(d) { return (d.id || d.mapping_id) == diszObj; }) || {}).disziplin || ''
       : '';

@@ -1,3 +1,13 @@
+## v880
+
+### ACN Timing Importer v3
+- **NaN-Zeiten behoben**: Netto-Spaltenindex wird dynamisch aus TableDefinition.Columns ermittelt (col 16 fuer HM, col 12 fuer 10km, col 11 fuer Kids Runs) – nicht mehr hardcodiert
+- **Disziplin aus Split-Namen**: Splits '20km' -> 'Halve Marathon', '5km' (einzig) -> '10km'; kein Fallback mehr auf AK ('M55' -> '300m')
+- **Kids Runs gefiltert**: Rennen ohne Disziplin-Hinweis und sehr kurze Zeiten (<5min) werden uebersprungen; AK 'J'/'B'/'P'/'K' wird ignoriert
+- Deduplizierung per Name+Zeit+RaceID
+
+---
+
 ## v879
 
 - **ACN Label**: zeigte 'uitslagen.nl' nach URL-Eingabe -> zeigt jetzt 'ACN Timing'
