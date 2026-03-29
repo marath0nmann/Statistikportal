@@ -5822,7 +5822,8 @@ function bulkPasteInput() {
     katWrap.style.display = 'flex';
     var srcText = urlType === 'raceresult'      ? '🌍︎ RaceResult' :
                   urlType === 'mikatiming'      ? '⌛︎ MikaTiming' :
-                  urlType === 'leichtathletik'  ? '🏃︎ leichtathletik.de' : '🇳🇱 uitslagen.nl';
+                  urlType === 'leichtathletik'  ? '🏃︎ leichtathletik.de' :
+        urlType === 'acn'            ? '🇳🇱 ACN Timing' : '🇳🇱 uitslagen.nl';
     if (srcLabel) srcLabel.textContent = srcText;
     if (statusEl) statusEl.textContent = '';
   } else {
@@ -5846,7 +5847,7 @@ async function bulkImportUrl() {
   if (statusEl) statusEl.textContent = '⏳ Lade…';
   var _bkQuelle = urlType === 'raceresult'     ? 'RaceResult' :
                   urlType === 'mikatiming'     ? 'MikaTiming' :
-                  urlType === 'leichtathletik' ? 'leichtathletik.de' : 'uitslagen.nl';
+                  urlType === 'leichtathletik' ? 'leichtathletik.de' : urlType === 'acn' ? 'ACN Timing' : 'uitslagen.nl';
   // Importkategorie in bk-kat setzen + Disziplin-Dropdowns aktualisieren
   var _bkKatEl = document.getElementById('bk-kat');
   if (_bkKatEl && kat) { _bkKatEl.value = kat; bkKatChanged(); }
