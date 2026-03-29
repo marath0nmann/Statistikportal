@@ -1,3 +1,10 @@
+## v881
+
+- **Laufserie-Dialog**: LIVEA3/LIVEB3/LIVEC3 sind Teamresultaten (enthalten 'RowAction'-Spalte und 'detail:...' statt Zeiten) – werden jetzt erkannt und uebersprungen
+- Zusaetzliche Pruefung: Rennen ohne gueltige Nettozeit im ersten Datensatz werden ebenfalls uebersprungen
+
+---
+
 ## v880
 
 ### ACN Timing Importer v3
