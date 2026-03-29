@@ -1,3 +1,16 @@
+## v866
+
+### GitHub-Integration
+- **Admin → Darstellung**: neue Sektion 'GitHub-Integration' mit Repository (owner/repo) und Personal Access Token
+- Daten werden in einstellungen gespeichert
+
+### Bulk-Eintragen
+- Nach dem Einlesen: Einlesen-Button verschwindet, stattdessen erscheinen:
+  - **Reset**: leert die Tabelle, zeigt Einlesen-Button wieder
+  - **Schlechten Import melden** (nur wenn GitHub konfiguriert): erstellt automatisch ein GitHub Issue mit URL, eingelesenen Daten, Rohtext, Version und Zeitstempel – öffnet Issue direkt im Browser
+
+---
+
 ## v865
 
 - **Athlet*in → Athlet**: 10 Stellen hardcodiert auf 'Athlet' (Spaltenheader, Labels, Buttons)

@@ -5335,6 +5335,10 @@ function renderEintragen() {
           '</div>' +
           '<div style="display:flex;gap:8px;margin-top:8px;align-items:center">' +
             '<button class="btn btn-primary btn-sm" id="bk-einlesen-btn" onclick="bulkEinlesen()">&#x25B6; Einlesen</button>' +
+            '<div id="bk-post-import-actions" style="display:none;gap:8px;align-items:center">' +
+              '<button class="btn btn-ghost btn-sm" onclick="bulkReset()">&#x21BA; Reset</button>' +
+              (appConfig && appConfig.github_repo ? '<button class="btn btn-ghost btn-sm" style="color:#e53935;border-color:#e53935" onclick="bulkMeldeImport()">&#x26A0;&#xFE0F; Schlechten Import melden</button>' : '') +
+            '</div>' +
             '<div id="bk-import-status" style="font-size:12px;color:var(--text2)"></div>' +
           '</div>' +
           '<details id="bk-import-debug-wrap" style="display:none;margin-top:8px">' +
@@ -6509,6 +6513,11 @@ async function bulkFillFromImport(rows, statusEl) {
   }
 
   if (statusEl) statusEl.textContent = '✅ ' + rows.length + ' Zeilen eingefügt';
+  // Einlesen-Button verstecken, Aktions-Buttons zeigen
+  var einlesenBtn = document.getElementById('bk-einlesen-btn');
+  if (einlesenBtn) einlesenBtn.style.display = 'none';
+  var actionDiv = document.getElementById('bk-post-import-actions');
+  if (actionDiv) actionDiv.style.display = 'flex';
   // Paste-Feld leeren
   var pasteEl = document.getElementById('bk-paste-area');
   if (pasteEl) pasteEl.value = '';
@@ -6517,6 +6526,70 @@ async function bulkFillFromImport(rows, statusEl) {
 }
 
 // ── Smart-Paste Parser ──────────────────────────────────────────────────────
+
+function bulkReset() {
+  // Einlesen-Button wieder zeigen, Aktions-Buttons verstecken
+  var einlesenBtn = document.getElementById('bk-einlesen-btn');
+  if (einlesenBtn) einlesenBtn.style.display = '';
+  var actionDiv = document.getElementById('bk-post-import-actions');
+  if (actionDiv) actionDiv.style.display = 'none';
+  var statusEl = document.getElementById('bk-import-status');
+  if (statusEl) statusEl.textContent = '';
+  // Tabellen-Zeilen leeren
+  var tbody = document.getElementById('bulk-rows');
+  if (tbody) tbody.innerHTML = '';
+  var pasteEl = document.getElementById('bk-paste-area');
+  if (pasteEl) { pasteEl.value = ''; pasteEl.focus(); }
+}
+
+async function bulkMeldeImport() {
+  var repo = (appConfig && appConfig.github_repo) ? appConfig.github_repo.trim() : '';
+  var token = (appConfig && appConfig.github_token) ? appConfig.github_token.trim() : '';
+  if (!repo || !token) {
+    notify('GitHub-Einstellungen nicht konfiguriert (Admin \u2192 Darstellung).', 'err');
+    return;
+  }
+  // Daten sammeln
+  var raw = (document.getElementById('bk-paste-area') || {}).value || '[nicht mehr verf\u00fcgbar]';
+  var rows = [];
+  var trs = document.querySelectorAll('#bulk-rows tr');
+  trs.forEach(function(tr) {
+    var cells = tr.querySelectorAll('input, select');
+    var row = {};
+    cells.forEach(function(c) { if (c.name || c.id) row[c.name || c.id] = c.value; });
+    rows.push(row);
+  });
+  var body = {
+    title: '[Import-Fehler] Schlechter Bulk-Import gemeldet am ' + new Date().toLocaleDateString('de-DE'),
+    body: '## Gemeldeter Import-Fehler\n\n**Gemeldet von:** ' + (currentUser ? currentUser.email || currentUser.name : 'Unbekannt') + '\n' +
+          '**Zeitstempel:** ' + new Date().toISOString() + '\n' +
+          '**Portal-Version:** ' + (document.querySelector('script[src*="app.js"]')?.src?.match(/v=(\d+)/)?.[1] || '?') + '\n\n' +
+          '### Eingabe (Rohtext)\n```\n' + raw.slice(0, 2000) + (raw.length > 2000 ? '\n[...gek\u00fcrzt]' : '') + '\n```\n\n' +
+          '### Importierte Zeilen\n```json\n' + JSON.stringify(rows.slice(0, 30), null, 2) + '\n```\n\n' +
+          '### Weitere Informationen\n_Bitte erg\u00e4nze hier, was falsch importiert wurde:_\n',
+    labels: ['import-fehler']
+  };
+  var btn = document.querySelector('#bk-post-import-actions button:last-child');
+  if (btn) { btn.textContent = '\u23F3 Melde...'; btn.disabled = true; }
+  try {
+    var r = await fetch('https://api.github.com/repos/' + repo + '/issues', {
+      method: 'POST',
+      headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
+      body: JSON.stringify(body)
+    });
+    var d = await r.json();
+    if (r.ok && d.html_url) {
+      notify('\u2705 Issue erstellt: ' + d.number, 'ok');
+      window.open(d.html_url, '_blank');
+    } else {
+      notify('\u274C GitHub-Fehler: ' + (d.message || r.status), 'err');
+    }
+  } catch(e) {
+    notify('\u274C Fehler: ' + e.message, 'err');
+  } finally {
+    if (btn) { btn.innerHTML = '&#x26A0;&#xFE0F; Schlechten Import melden'; btn.disabled = false; }
+  }
+}
 function bulkEinlesen() {
   var raw = ((document.getElementById('bk-paste-area') || {}).value || '').trim();
   if (!raw) return;
@@ -12049,7 +12122,13 @@ async function renderAdminDarstellung() {
 
     '<div style="padding-bottom:8px">' +
       '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-bottom:8px">' +
-        '<button class="btn btn-primary" onclick="saveAllSettings()">&#x1F4BE; Alle Einstellungen speichern</button>' +
+        '<div class="panel" style="padding:20px;margin-bottom:16px">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px">&#128279; GitHub-Integration</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">F\xc3\xbcr die Funktion "Schlechten Import melden" im Bulk-Eintragen.</div>' +
+      row('Repository', 'Format: owner/repo (z.B. tus-oedt/statistik)', textIn('cfg-github_repo', cfgVal('github_repo',''), 'z.B. tus-oedt/statistik')) +
+      row('Personal Access Token', 'GitHub PAT mit Issues-Schreibrecht (Settings \u2192 Developer settings)', '<input type="password" id="cfg-github_token" value="' + (cfgVal('github_token','')||'').replace(/"/g,'&quot;') + '" placeholder="ghp_..." class="settings-input"/>') +
+    '</div>' +
+'<button class="btn btn-primary" onclick="saveAllSettings()">&#x1F4BE; Alle Einstellungen speichern</button>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -12139,6 +12218,7 @@ async function saveAllSettings() {
     'adressleiste_farbe',
     'veranstaltung_anzeige',
     'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url',
+    'github_repo','github_token',
   ];
   var payload = {};
   for (var i = 0; i < keys.length; i++) {
