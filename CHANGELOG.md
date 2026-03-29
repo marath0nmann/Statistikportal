@@ -1,3 +1,19 @@
+## v873
+
+- **rolleLabel**: 'admin' zeigte internen Namen statt 'Administrator' wenn label=null. Fix: rd.label || m[r] || r
+- **GitHub Issue Modal**: nach Issue-Erstellung oeffnet sich ein Modal (Issue-Nr. + Link) statt window.open
+- **Bulk Reset**: leert jetzt vollstaendig (Debug-Log, Veranstaltungsfelder, _bkDbgLines)
+- **Umlaut-Matching**: _normUmlauts() - Heiss=Heis, ae/oe/ue bidirektional
+
+---
+
+## v872
+
+- **rolleLabel**: rd.label war null fuer 'admin' → zeigte 'admin'. Fix: Fallback-Reihenfolge ist jetzt rd.label → m[r] → r, d.h. bei null wird 'Administrator' aus der Hardcode-Map verwendet
+- **Schlechten Import melden**: oeffnet jetzt ein Modal mit Bestaetigung statt window.open. Das Modal zeigt Issue-Nummer und -Titel; optionaler Link zum Issue-Ansehen bleibt verfuegbar
+
+---
+
 ## v871
 
 - **Bulk Reset**: leert jetzt auch Debug-Log, Veranstaltungsfelder (Datum/Ort/Name), Importkategorie-Auswahl und _bkDbgLines-Array
