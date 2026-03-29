@@ -1,3 +1,10 @@
+## v885
+
+- **Falsch-Treffer behoben**: 'Alex ALEX WOLTERS' hat Giozis, Alexander getroffen weil startsWith('alex') == true. Neue Regel: Prefix-Match nur erlaubt wenn beide Token >= 5 Zeichen UND kuerzerer >= 80% des laengeren abdeckt. 'Alex' (4 Zeichen) matcht 'Alexander' (9 Zeichen) nicht mehr
+- Umlaute (Heiss/Heiß) und echte Abkuerzungen (Thomas/Tom ab 5+4 Zeichen) bleiben erhalten
+
+---
+
 ## v884
 
 - **Disziplin-Matching**: uitsAutoDiszMatchKat kennt NL-Namen ('Halve Marathon') nicht -> gab 300m zurueck -> beide Eintraege hatten disziplin='' -> Laufserie-Dialog. Fix: acnFindDisz() sucht direkt per Namen inkl. NL/DE-Aliase (Halve Marathon=Halbmarathon, 21km=Halbmarathon, 42km=Marathon)
