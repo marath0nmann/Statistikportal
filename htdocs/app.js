@@ -6529,18 +6529,18 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         return null;
       }
 
-      // Kids-Rennen (kein Disziplin-Hinweis, sehr kurze Zeiten) weglassen
+      // Kein Split -> Disziplin aus Siegerzeit ableiten
       if (!diszHint) {
-        var sampleRow = rows[0] || [];
-        var sampleTime = nettoIdx >= 0 ? (sampleRow[nettoIdx] || '') : '';
-        var tm = sampleTime.match(/^(\d+):(\d+)/);
-        // Unter 5 Minuten = Kids Run -> überspringen
-        if (!tm || (parseInt(tm[1]) === 0 && parseInt(tm[2]) < 5)) {
-          _bkDbgLine(id, 'Uebersprungen (Kids Run / keine Disziplin)');
-          return null;
-        }
-        // Laengere Rennzeit aber kein Split -> als "Laufen" behandeln
-        diszHint = '';
+        var sampleRow2 = rows[0] || [];
+        var sampleTime2 = nettoIdx >= 0 ? (sampleRow2[nettoIdx] || '').toString() : '';
+        var tm2 = sampleTime2.match(/^(\d+):(\d+)/);
+        if (!tm2) { _bkDbgLine(id, 'Uebersprungen (keine Siegerzeit)'); return null; }
+        var totalMin = parseInt(tm2[1]) * 60 + parseInt(tm2[2]);
+        if (totalMin < 5) { _bkDbgLine(id, 'Uebersprungen (Kids Run, ' + sampleTime2.slice(0,8) + ')'); return null; }
+        if      (totalMin < 20) diszHint = '5km';
+        else if (totalMin < 45) diszHint = '10km';
+        else                    diszHint = 'Halve Marathon';
+        _bkDbgLine(id, 'Disz aus Siegerzeit ' + sampleTime2.slice(0,8) + ' -> ' + diszHint);
       }
 
       return { id: id, rows: rows, nettoIdx: nettoIdx, diszHint: diszHint };

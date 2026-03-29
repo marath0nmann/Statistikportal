@@ -1,3 +1,10 @@
+## v883
+
+- **Laufserie Marissen behoben**: LIVEC3 (5km) hat keine Split-Spalten -> diszHint war leer -> AK-Fallback ergab '300m'. Fix: Disziplin wird jetzt aus der Siegerzeit abgeleitet (<20min=5km, 20-45min=10km, >45min=Halve Marathon)
+- Kids Runs (Siegerzeit <5min) werden weiterhin uebersprungen
+
+---
+
 ## v882
 
 - **Hotfix**: Variablenname-Tippfehler 'ni' statt 'nettoIdx' in der Zeitvalidierung -> sampleNet war immer leer -> alle Rennen wurden uebersprungen
