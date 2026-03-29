@@ -6614,13 +6614,32 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     return;
   }
 
+  // Disziplin-Lookup: direkte Namenssuche statt uitsAutoDiszMatchKat (das kennt NL-Namen nicht)
+  function acnFindDisz(hint, kat) {
+    if (!hint) return { disz: '', diszMid: null };
+    var hl = hint.toLowerCase().replace(/[\s-]/g, '');
+    // Normalisierung: NL->DE und Varianten
+    var aliases = {
+      'halvemarathon': 'Halbmarathon', 'halfmarathon': 'Halbmarathon', 'halbmarathon': 'Halbmarathon',
+      '21km': 'Halbmarathon', '21,1km': 'Halbmarathon',
+      'marathon': 'Marathon', '42km': 'Marathon', '42,2km': 'Marathon',
+    };
+    var target = aliases[hl] || hint;
+    var tl = target.toLowerCase();
+    var dl = (state.disziplinen || []).filter(function(d) {
+      return !kat || d.tbl_key === kat;
+    });
+    // 1. Exakter Match
+    var found = dl.find(function(d) { return (d.disziplin || '').toLowerCase() === tl; });
+    // 2. Starts-with Match
+    if (!found) found = dl.find(function(d) { return (d.disziplin || '').toLowerCase().startsWith(tl) || tl.startsWith((d.disziplin || '').toLowerCase()); });
+    if (!found) return { disz: '', diszMid: null };
+    return { disz: found.disziplin, diszMid: found.id || found.mapping_id };
+  }
+
   var bulkRows = rowsToImport.map(function(row) {
-    // Disziplin: erst diszHint nutzen, dann kat-Fallback
-    var diszObj = uitsAutoDiszMatchKat(row.diszHint || row.ak, state.disziplinen, kat);
-    var disz    = diszObj
-      ? ((state.disziplinen || []).find(function(d) { return (d.id || d.mapping_id) == diszObj; }) || {}).disziplin || ''
-      : '';
-    return { name: row.name, resultat: row.zeit, ak: row.ak, platz: row.platz, disziplin: disz, diszMid: diszObj };
+    var r = acnFindDisz(row.diszHint, kat);
+    return { name: row.name, resultat: row.zeit, ak: row.ak, platz: row.platz, disziplin: r.disz, diszMid: r.diszMid };
   });
 
   bulkFillFromImport(bulkRows, statusEl);
