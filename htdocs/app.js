@@ -14424,16 +14424,28 @@ function _normUmlauts(s) {
 function uitsAutoMatch(name, athleten) {
   if (!name || !athleten.length) return null;
   var nl = name.toLowerCase();
-  var nlN = _normUmlauts(nl); // normalisierte Version zum Vergleich
+  var nlN = _normUmlauts(nl);
   for (var i = 0; i < athleten.length; i++) {
     var a = athleten[i];
     var anl  = (a.name_nv || '').toLowerCase();
     var anlN = _normUmlauts(anl);
-    // Match auf originale UND normalisierte Strings (beide Richtungen)
+    // Exakter Token-Match (kein startsWith mehr) um Falsch-Treffer zu vermeiden
+    // 'Alex' darf nicht 'Alexander' treffen; nur gleichlange oder identische Token
     function scoreMatch(inputParts, refParts) {
       var score = 0;
       inputParts.forEach(function(p) {
-        if (p.length > 2 && refParts.some(function(ap){ return ap.startsWith(p) || p.startsWith(ap); })) score++;
+        if (p.length < 3) return;
+        var hit = refParts.some(function(ap) {
+          if (ap.length < 3) return false;
+          // Exakter Match
+          if (ap === p) return true;
+          // Erlaubt: ein Token ist Prefix des anderen NUR wenn beide >= 5 Zeichen
+          // und der kuerzere mindestens 80% des laengeren abdeckt
+          var shorter = p.length < ap.length ? p : ap;
+          var longer  = p.length < ap.length ? ap : p;
+          return shorter.length >= 5 && longer.startsWith(shorter) && shorter.length >= longer.length * 0.8;
+        });
+        if (hit) score++;
       });
       return score;
     }
@@ -14442,7 +14454,6 @@ function uitsAutoMatch(name, athleten) {
     var aparts  = anl.split(/[\s,]+/).filter(Boolean);
     var apartsN = anlN.split(/[\s,]+/).filter(Boolean);
     var needed = Math.min(2, parts.length);
-    // 4 Kombinationen: orig/norm x orig/norm
     if (scoreMatch(parts,  aparts)  >= needed) return a.id;
     if (scoreMatch(partsN, apartsN) >= needed) return a.id;
     if (scoreMatch(partsN, aparts)  >= needed) return a.id;
