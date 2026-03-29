@@ -2124,18 +2124,14 @@ function _handleSaveResult(r, successMsg) {
   return false;
 }
 function rolleLabel(r, oeffentlichOnly) {
-  // Labels aus geladenen Rollen-Daten (mit oeffentlich-Flag)
+  var m = { admin: 'Administrator', editor: 'Editor', athlet: 'Athlet', leser: 'Leser' };
   if (window._rollenMap) {
     var rd = window._rollenMap[r];
     if (rd) {
-      if (oeffentlichOnly && !rd.oeffentlich) return r; // interner Name wenn nicht öffentlich
-      return rd.label || r;
+      if (oeffentlichOnly && !rd.oeffentlich) return r;
+      // rd.label kann null sein (wenn nicht konfiguriert) -> auf Fallback-Map zugreifen
+      return rd.label || m[r] || r;
     }
-  }
-  var m = { admin: 'Administrator', editor: 'Editor', athlet: 'Athlet', leser: 'Leser' };
-  if (window._rollenMap) {
-    var rd2 = window._rollenMap[r];
-    if (rd2 && rd2.label) return rd2.label;
   }
   return m[r] || r;
 }
@@ -6614,8 +6610,18 @@ async function bulkMeldeImport() {
     });
     var d = await r.json();
     if (r.ok && d.html_url) {
-      notify('\u2705 Issue erstellt: ' + d.number, 'ok');
-      window.open(d.html_url, '_blank');
+      showModal(
+        '<h2>&#x2705; Import gemeldet <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+        '<p style="color:var(--text2);font-size:14px;margin:8px 0 16px">Das Issue wurde erfolgreich bei GitHub erstellt.</p>' +
+        '<div style="background:var(--surf2);border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px">' +
+          '<div><strong>Issue #' + d.number + '</strong></div>' +
+          '<div style="color:var(--text2);margin-top:4px">' + d.title + '</div>' +
+        '</div>' +
+        '<div class="modal-actions">' +
+          '<a href="' + d.html_url + '" target="_blank" class="btn btn-ghost btn-sm">&#x1F517; Issue ansehen</a>' +
+          '<button class="btn btn-primary btn-sm" onclick="closeModal()">OK</button>' +
+        '</div>'
+      );
     } else {
       notify('\u274C GitHub-Fehler: ' + (d.message || r.status), 'err');
     }
