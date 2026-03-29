@@ -1,3 +1,16 @@
+## v865
+
+- **Athlet*in → Athlet**: 10 Stellen hardcodiert auf 'Athlet' (Spaltenheader, Labels, Buttons)
+- **Ergebnisse 'Eingetragen'**: Spalte heißt 'Eingetragen von'; zeigt Vor+Nachname aus Athletenprofil (LEFT JOIN athleten)
+- **Athleten Status-Spalte**: bereits korrekt – nur sichtbar wenn canSeeInaktive
+- **System-Dashboard**: Portal-Version (aus app.js?v=X) als erste Zeile
+- **Anträge Zuletzt-Tabelle**: Header korrigiert (7 Spalten), Kommentar entfernt
+- **Externe Ergebnisse**: isExternal-Pfad geht jetzt auch durch ergebnisse/eigenes → Antrag statt sofort freischalten
+- **Athletenprofil PB-Farben**: Externe PBs (pb.verein gesetzt) in var(--text), Vereins-PBs in var(--primary)
+- **GitHub Issues**: native Schnittstelle nicht verfügbar (erfordert OAuth-Token) – kein sinnvoller Quick-Fix möglich
+
+---
+
 ## v864
 
 - **Veranstaltung pending**: genehmigt=0 Veranstaltungen (von Athleten eingereicht) sind erst nach Genehmigung in der Veranstaltungsliste und im Dashboard sichtbar (WHERE genehmigt=1)
