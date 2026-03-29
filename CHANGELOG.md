@@ -1,3 +1,11 @@
+## v874
+
+- **System-Dashboard**: zeigt Ablaufdatum des GitHub-PAT (via api.github.com/rate_limit Header 'github-authentication-token-expiration')
+- Bei weniger als 14 Tagen Restlaufzeit: roter Text + fett
+- Nur sichtbar wenn github_repo + github_token konfiguriert sind
+
+---
+
 ## v873
 
 - **rolleLabel**: 'admin' zeigte internen Namen statt 'Administrator' wenn label=null. Fix: rd.label || m[r] || r
