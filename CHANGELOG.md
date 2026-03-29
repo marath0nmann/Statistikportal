@@ -1,3 +1,19 @@
+## v871
+
+- **Bulk Reset**: leert jetzt auch Debug-Log, Veranstaltungsfelder (Datum/Ort/Name), Importkategorie-Auswahl und _bkDbgLines-Array
+- **Umlaut-Matching**: neue Funktion _normUmlauts() normalisiert ß→ss, ä→ae, ö→oe, ü→ue (und umgekehrt) vor dem Vergleich – 'Heiss, Theo' findet jetzt 'Heiß, Theo' in der DB
+
+---
+
+## v870
+
+- **rolleLabel**: admin-Label war null in _rollenMap → zeigte 'admin' statt 'Administrator'. Fix: Fallback-Map wird nach _rollenMap geprüft
+- **PB-Farben Athletenprofil**: Vereins-Ergebnisse in var(--primary), externe PBs (verein gesetzt) in var(--text)
+- **Anträge Zuletzt bearbeitet**: Antragsteller zeigt Athletenname statt E-Mail; Header korrekt (6 Spalten)
+- **System-Dashboard**: Portal-Version als erste Zeile
+
+---
+
 ## v869
 
 - **Hotfix**: Funktion _renderHeaderAvatar() fehlte seit v863 → Safari ReferenceError 'Can't find variable: _renderHeaderAvatar' / weisse Seite
