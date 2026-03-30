@@ -1,3 +1,22 @@
+## v892
+
+- **Hotfix**: _athSortHeader() verwendete die lokale Variable 'canSeeInaktive' aus _renderAthletenTable() – ausserhalb ihres Scope. Fix: ersetzt durch _canSeeInaktiveAthleten() (die globale Hilfsfunktion)
+
+---
+
+## v891
+
+### Datenquelle
+- **Bulk-Formular**: neues Feld 'Datenquelle (URL)' wird automatisch mit der eingelesenen URL befüllt
+- **Veranstaltung**: datenquelle wird beim Anlegen gespeichert (DB-Migration: ALTER TABLE ADD COLUMN)
+- **Veranstaltungsseite**: Datenquelle als klickbarer Link in der Veranstaltungskarte angezeigt
+- Reset leert auch das Datenquelle-Feld
+
+### Datum
+- Das Datum-Feld (type=date) wird vom ACN-Importer korrekt mit '2026-03-29' (ISO) befüllt; bulkAddRow konvertiert zu 'DD.MM.YYYY' fuer jede Zeile. Falls das Venloop-Datum falsch war, wurde es mit einer alten Version importiert – bitte Veranstaltungsdatum manuell korrigieren.
+
+---
+
 ## v890
 
 - **ACN AK-Platzierung**: col[17] (GroupDisplayName='Categorie') enthaelt die AK-Platzierung ('97/634' -> '97'). Vorher wurde col[0] (Gesamtrang '2343.') verwendet

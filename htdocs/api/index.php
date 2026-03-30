@@ -127,6 +127,7 @@ try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXIS
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS disziplin_mapping_id INT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS altersklasse VARCHAR(20) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS genehmigt TINYINT(1) NOT NULL DEFAULT 1"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS datenquelle VARCHAR(1024) NULL DEFAULT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS geloescht_am DATETIME NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athleten') . " MODIFY COLUMN geschlecht ENUM('M','W','D','') NOT NULL DEFAULT ''"); } catch (\Exception $e) {}
 // Migration: Rollen-System (rollen-Tabelle)
@@ -1412,8 +1413,9 @@ if ($res === 'benutzer') {
             $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
             $v = DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=?', [$kuerzel]);
             if (!$v) {
-                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum) VALUES (?,?,?,?)',
-                    [$kuerzel, $evname ?: $kuerzel, $ort, $datum]);
+                $datenquelle = isset($item['datenquelle']) ? trim($item['datenquelle']) : null;
+                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum,datenquelle) VALUES (?,?,?,?,?)',
+                    [$kuerzel, $evname ?: $kuerzel, $ort, $datum, $datenquelle ?: null]);
                 $vid = DB::lastInsertId();
             } else $vid = $v['id'];
             // Duplikat-Check (nur nicht-gelöschte Einträge)
@@ -1883,7 +1885,7 @@ if (in_array($res, $ergebnisTabellen)) {
                        e.disziplin, e.disziplin_mapping_id, e.resultat,
                        $extraCols
                        e.ak_platzierung, e.meisterschaft,
-                       v.kuerzel AS veranstaltung, v.datum, v.ort, v.ort AS veranstaltung_ort, v.name AS veranstaltung_name,
+                       v.kuerzel AS veranstaltung, v.datum, v.ort, v.ort AS veranstaltung_ort, v.name AS veranstaltung_name, v.datenquelle AS veranstaltung_quelle,
                        COALESCE(CONCAT(ab.vorname,' ',ab.nachname), b.benutzername) AS eingetragen_von, e.erstellt_am,
                        COALESCE(dm.fmt_override, dk.fmt) AS fmt,
                        dk.name AS kategorie_name, dk.tbl_key AS kategorie_key

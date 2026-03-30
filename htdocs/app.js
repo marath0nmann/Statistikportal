@@ -3954,7 +3954,7 @@ function _athSortHeader() {
   ];
   if (showD) cols.push({ key: 'geschlecht', label: '♂♀' });
   cols.push({ key: 'jahrgang', label: 'Jahrgang' }, { key: 'ak', label: 'AK' }, { key: 'gruppen', label: 'Gruppen' });
-  if (showD) { cols.push({ key: 'ergebnisse', label: 'Erg.' }, { key: 'letzte', label: 'Letzte Akt.' }); if (canSeeInaktive) cols.push({ key: 'aktiv', label: 'Status' }); }
+  if (showD) { cols.push({ key: 'ergebnisse', label: 'Erg.' }, { key: 'letzte', label: 'Letzte Akt.' }); if (_canSeeInaktiveAthleten()) cols.push({ key: 'aktiv', label: 'Status' }); }
   if (showE) cols.push({ key: '', label: '' });
   return cols.map(function(c) {
     if (!c.key) return '<th></th>';
@@ -5362,6 +5362,7 @@ function renderEintragen() {
           '<div class="form-group"><label>Datum *</label><input type="date" id="bk-datum" value="' + today + '" onchange="bkSyncDatum(this.value)"/></div>' +
           '<div class="form-group"><label>Ort *</label><input type="text" id="bk-ort" placeholder="z.B. D&uuml;sseldorf"/></div>' +
           '<div class="form-group"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. Düsseldorf Marathon"/></div>' +
+          '<div class="form-group"><label>Datenquelle (URL)</label><input type="url" id="bk-quelle" placeholder="z.B. https://my.raceresult.com/..." style="font-size:12px"/></div>' +
           '<div class="form-group" style="display:flex;align-items:flex-end;gap:12px">' +
             '<div style="flex:1"><label>Kategorie</label><select id="bk-kat" style="width:100%" onchange="bkKatChanged()">' + (function(){
             var seen={}, opts='<option value="">Alle Kategorien</option>';
@@ -5693,6 +5694,7 @@ async function bulkSubmit() {
       meisterschaft: (function(){ var s=row.querySelector('.bk-mstr-sel'); return s&&s.value?parseInt(s.value)||null:null; })(),
       ak_platz_meisterschaft: (function(){ var s=row.querySelector('.bk-mstr-platz'); return s&&s.value?parseInt(s.value)||null:null; })(),
       ort: ort, veranstaltung_name: evname,
+      datenquelle: ((document.getElementById('bk-quelle') || {}).value || '') || null,
       veranstaltung_id: veranstId ? parseInt(veranstId) : null,
       athlet_id: parseInt(athlet_id) || null,
       disziplin: disziplin, disziplin_mapping_id: _diszMid || null, resultat: dbRes(resultat),
@@ -5848,6 +5850,10 @@ async function bulkImportUrl() {
   var _bkQuelle = urlType === 'raceresult'     ? 'RaceResult' :
                   urlType === 'mikatiming'     ? 'MikaTiming' :
                   urlType === 'leichtathletik' ? 'leichtathletik.de' : urlType === 'acn' ? 'ACN Timing' : 'uitslagen.nl';
+
+  // Datenquelle-Feld mit der eingelesenen URL vorbelegen
+  var _quelleEl = document.getElementById('bk-quelle');
+  if (_quelleEl && !_quelleEl.value) _quelleEl.value = raw;
   // Importkategorie in bk-kat setzen + Disziplin-Dropdowns aktualisieren
   var _bkKatEl = document.getElementById('bk-kat');
   if (_bkKatEl && kat) { _bkKatEl.value = kat; bkKatChanged(); }
@@ -6817,7 +6823,7 @@ function bulkReset() {
   if (dbgPre) dbgPre.textContent = '';
   if (typeof _bkDbgLines !== 'undefined') _bkDbgLines = [];
   // Veranstaltungsfelder leeren
-  ['bk-datum','bk-ort','bk-evname'].forEach(function(id) {
+  ['bk-datum','bk-ort','bk-evname','bk-quelle'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -14858,6 +14864,10 @@ async function renderVeranstaltungen() {
           '<div>' +
             '<div class="panel-title">' + name + '</div>' +
             '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + v.ort : '') + '</div>' +
+          (v.datenquelle ? '<div style="font-size:11px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">' +
+            '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" style="color:var(--text2);text-decoration:underline">' +
+            '\xf0\x9f\x94\x97 ' + v.datenquelle.replace(/^https?:\/\//, '').slice(0,50) + (v.datenquelle.length > 53 ? '\u2026' : '') +
+            '</a></div>' : '') +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:10px">' +
             '<span style="font-size:13px;color:var(--text2)">' + v.anz_ergebnisse + ' Ergebnisse &middot; ' + v.anz_athleten + ' Athleten</span>' +
