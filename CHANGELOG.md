@@ -1,3 +1,26 @@
+## v896
+
+- **Einzelseite Veranstaltung**: komplett auf dieselben Hilfsfunktionen wie Veranstaltungsseite
+  - akBadge() fuer AK (dunkelblaue Pill), platzBadge() fuer Platzierung (Kreis-Badge)
+  - class='result' fuer Zeiten (Primaerfarbe), class='ort-text' fuer Pace
+  - calcPace()/diszKm() fuer Pace; veranst-dash-table + vcol-* fuer gleiche Spaltenbreiten
+- Rebuild: v895 hatte Datei-Truncation-Bug, vollstaendig auf v892-Basis neu aufgebaut
+
+---
+
+## v895
+
+- **Hotfix**: 'veranstaltung' fehlte in validTabs -> restoreFromHash ignorierte den Hash -> Startseite. Behoben.
+- Anonyme Nutzer duerfen die Veranstaltungs-Einzelseite jetzt ebenfalls aufrufen (kein Login erforderlich fuer geteilte Links)
+
+---
+
+## v894
+
+- Zurueck-Button auf der Veranstaltungs-Einzelseite entfernt (Seite wird direkt verlinkt, kein Browserverlauf garantiert). Nur noch Teilen-Button oben rechts.
+
+---
+
 ## v893
 
 ### Neue Funktion: Veranstaltung teilen
