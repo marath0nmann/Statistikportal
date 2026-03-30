@@ -1,3 +1,12 @@
+## v893
+
+### Neue Funktion: Veranstaltung teilen
+- **Teilen-Button** (🔗) auf jeder Veranstaltungskarte
+- **Teilen-Modal**: Direktlink zum Kopieren + Markdown-Text zum Kopieren (mit Tabellen je Disziplin + Link am Ende)
+- **Einzelseite** #veranstaltung/{id}: zeigt Veranstaltungsdaten exakt wie auf der Veranstaltungsseite, incl. Datenquellenlink. Aufrufbar per direktem Link (auch ohne Login, wenn Portal oeffentlich)
+
+---
+
 ## v892
 
 - **Hotfix**: _athSortHeader() verwendete die lokale Variable 'canSeeInaktive' aus _renderAthletenTable() – ausserhalb ihres Scope. Fix: ersetzt durch _canSeeInaktiveAthleten() (die globale Hilfsfunktion)
