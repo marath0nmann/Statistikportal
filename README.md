@@ -1,5 +1,5 @@
 # TuS Oedt – Leichtathletik Statistik
-## Version v885 | Stand: März 2026
+## Version v887 | Stand: März 2026
 
 Webbasiertes Statistikportal für den Leichtathletik-Bereich des TuS Oedt e.V.  
 PHP/MariaDB · Shared Hosting (all-inkl.com) · Vanilla JS/CSS · keine externen Frameworks

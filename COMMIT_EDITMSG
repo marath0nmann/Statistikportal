@@ -1,1 +1,1 @@
-v885: uitsAutoMatch – strikteres Token-Matching (Alex != Alexander)
+v887: uitsAutoMatch – Nachname UND Vorname beides muss matchen, Umlaute auf beiden Seiten normalisiert
