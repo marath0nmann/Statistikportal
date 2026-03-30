@@ -1,3 +1,21 @@
+## v889
+
+- Syntax-Fehler in _PREPS-Objekt behoben ('dos:1' hatte fehlendes Abschluss-Quote)
+
+---
+
+## v888
+
+### ACN Importer
+- **10km fehlte**: LIVEB2 hat RowAction-Spalte mit '_2'-Links (Individual-Detail, OK) – nur '_3'-Links sind Teamresultaten. Filter jetzt korrekt
+- **Veranstaltungsname**: prod.chronorace.be/api/Event/view/{uuid} liefert Title ('ARROW Venloop') – wird ins bk-evname-Feld eingetragen
+
+### uitsAutoMatch
+- **Praepositionsfilter**: von/van/de/der/den/des/ter/ten etc. werden aus Nachnamen-Tokens herausgefiltert. 'Gitta VAN DER MOLEN' trifft nicht mehr 'von der Burg-Hellermann, Gitta'
+- **Umlaut-Normalisierung auf BEIDEN Seiten** jetzt konsequent in _un()
+
+---
+
 ## v887
 
 - **Matching verschaerft**: Nachname UND mindestens ein Vorname-Token muessen uebereinstimmen
