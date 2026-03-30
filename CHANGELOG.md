@@ -1,3 +1,27 @@
+## v887
+
+- **Matching verschaerft**: Nachname UND mindestens ein Vorname-Token muessen uebereinstimmen
+- **Umlaute**: beide Seiten normalisiert (Heiss=Heiß)
+- **Bindestrichnamen**: 'Burg-Hellermann' -> ['burg','hellermann']
+- **Falsch-Treffer behoben**: 'Gitta WOLTERS' != Burg-Hellermann; 'Thomas BURG' != Gitta
+
+---
+
+## v886
+
+### Admin responsive
+- **Subtabs**: scrollen horizontal auf Smartphone, kleinere Schrift
+- **Konto**: 3-spaltig (200px/1fr/1fr) -> 1-spaltig auf Tablet/Smartphone (konto-grid Klasse)
+- **Admin System**: 2-spaltige Uebersicht -> 1-spaltig auf Smartphone (admin-sys-grid)
+- **Darstellung/Einstellungen**: settings-input volle Breite auf Tablet+Smartphone
+- **Datentabellen**: overflow-x:auto + min-width fuer horizontales Scrollen
+- **Antraege 'Zuletzt bearbeitet'**: done-table-wrap mit overflow
+- **Benutzer-Zeilen**: flex-wrap fuer Aktions-Buttons
+- **Bulk-Tabelle**: overflow-x:auto
+- **iOS zoom fix**: 16px Fontgrösse fuer alle Inputs im Admin
+
+---
+
 ## v885
 
 - **Falsch-Treffer behoben**: 'Alex ALEX WOLTERS' hat Giozis, Alexander getroffen weil startsWith('alex') == true. Neue Regel: Prefix-Match nur erlaubt wenn beide Token >= 5 Zeichen UND kuerzerer >= 80% des laengeren abdeckt. 'Alex' (4 Zeichen) matcht 'Alexander' (9 Zeichen) nicht mehr

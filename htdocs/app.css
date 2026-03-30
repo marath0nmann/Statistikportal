@@ -1269,3 +1269,96 @@ tr:hover td { background: var(--surf2); }
 }
 
 .badge-athlet  { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+
+/* ══════════════════════════════════════════════
+   ADMIN – Responsive (Smartphone / Tablet)
+   ══════════════════════════════════════════════ */
+
+/* ── Gemeinsam: Admin-Tabellen scrollen ── */
+.admin-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.admin-table-wrap table { min-width: 480px; }
+
+/* ── Admin Subtabs: mehr Abstand, besser scrollbar ── */
+@media (max-width: 900px) {
+  .subtabs { gap: 3px; }
+  .subtab  { font-size: 11px; padding: 6px 10px; }
+}
+
+/* ── Tablet (601–1024px) ── */
+@media (max-width: 1024px) {
+  /* Darstellung: max-width + Inputs voll breit */
+  .settings-row { flex-direction: column; gap: 6px; }
+  .settings-input { width: 100% !important; box-sizing: border-box; }
+
+  /* System-Dashboard: 2-col-Grid → 1-col */
+  .admin-sys-grid { grid-template-columns: 1fr !important; }
+
+  /* Benutzer-Karte: Actions umbrechen */
+  .user-row { flex-wrap: wrap; }
+  .user-row-actions { margin-left: 0; width: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* Konto: 3-col → 1-col */
+  .konto-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── Smartphone (≤ 600px) ── */
+@media (max-width: 600px) {
+  /* Admin-Tabellen: horizontal scrollen */
+  #main-content .data-table { display: block; overflow-x: auto; white-space: nowrap; }
+  #main-content .data-table td,
+  #main-content .data-table th { padding: 8px 10px; font-size: 12px; }
+
+  /* Anträge-Tabelle */
+  #main-content table { display: block; overflow-x: auto; width: 100%; }
+
+  /* Buttons in Zeilen nicht umbrechen */
+  .data-table .btn-sm { font-size: 11px; padding: 3px 7px; }
+
+  /* Panel-Innenabstand kompakter */
+  #main-content .panel { padding: 0; }
+  #main-content .panel > div[style*="padding:20"] { padding: 14px !important; }
+  #main-content .panel > div[style*="padding: 20"] { padding: 14px !important; }
+
+  /* Formulare: volle Breite */
+  .settings-row-input,
+  .settings-input { width: 100% !important; box-sizing: border-box; }
+
+  /* Darstellung: Farb-Picker nebeneinander */
+  .settings-row > .settings-row-input > div { flex-wrap: wrap; }
+
+  /* Konto-Seite: Spalten untereinander */
+  .konto-grid { grid-template-columns: 1fr !important; }
+
+  /* User-Row: kompakter */
+  .user-row { padding: 10px 12px; }
+  .user-row-email { font-size: 10px; }
+
+  /* Admin Benutzer: Rolle + Aktionen umbrechen */
+  .user-row { flex-wrap: wrap; gap: 6px; }
+  .user-row-actions { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-start; }
+
+  /* Registrierungen: Karten statt Tabelle */
+  .reg-card { display: block !important; }
+
+  /* Bulk-Eintragen: Eingabe-Tabelle scrollbar */
+  #bulk-table-wrap { overflow-x: auto; }
+  #bulk-table-wrap table { min-width: 540px; }
+
+  /* Antraege-Zuletzt-Tabelle scrollbar */
+  .done-table-wrap { overflow-x: auto; }
+
+  /* System-Dashboard Aktiv-Nutzer-Tabelle */
+  .admin-aktiv-wrap { overflow-x: auto; }
+
+  /* GitHub + Darstellung: Inputs */
+  input[type="date"].settings-input,
+  input[type="text"].settings-input,
+  input[type="password"].settings-input,
+  input[type="number"].settings-input { width: 100% !important; }
+
+  /* Subtabs: etwas kleiner */
+  .subtab { font-size: 11px; padding: 5px 9px; }
+
+  /* HoF-Karte: volle Breite */
+  .hof-card { min-width: 0 !important; width: 100% !important; }
+}

@@ -1722,7 +1722,7 @@ function _renderKontoPage() {
     '<h1 style="font-size:22px;font-weight:700;color:var(--primary);margin-bottom:20px">&#x1F512; Konto</h1>' +
 
     // Two-column grid
-    '<div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:20px;align-items:start;max-width:1100px">' +
+    '<div style="konto-grid" style="display:grid;grid-template-columns:200px 1fr 1fr;gap:20px;align-items:start;max-width:1100px">' +
 
     // ── Left column ──
     '<div>' +
@@ -10808,7 +10808,7 @@ async function renderAdminSystem() {
     '<h2 style="margin-bottom:18px">&#x1F5A5;&#xFE0E; System-Dashboard</h2>' +
 
     // phpBB-style two-column stat tables
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
+    '<div style="admin-sys-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
       '<div>' + stable(leftRows) + '</div>' +
       '<div>' + stable(rightRows) + '</div>' +
     '</div>' +
@@ -10822,7 +10822,7 @@ async function renderAdminSystem() {
       '</tr></thead><tbody>' + gaesteRows + '</tbody></table></div></div>' +
 
     // Aktive Benutzer + Letzte Logins
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
+    '<div style="admin-sys-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
       '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F7E2; Aktiv <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 5 Min.)</span></div></div>' +
         '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Aktiv seit') + '</tr></thead>' +
         '<tbody>' + aktiveRows + '</tbody></table></div>' +
@@ -10904,7 +10904,7 @@ async function renderAdminAntraege() {
   if (done.length) {
     html += '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">📋 Zuletzt bearbeitet</div></div>' +
-      '<div style="overflow-x:auto"><table class="data-table" style="width:100%">' +
+      '<div class="done-table-wrap" style="overflow-x:auto"><table class="data-table" style="width:100%">' +
         '<thead><tr><th>Typ</th><th>Antragsteller</th><th>Veranstaltung</th><th>Eingereicht</th><th>Status</th><th>Bearbeitet von</th></tr></thead>' +
         '<tbody>';
     for (var j = 0; j < done.length; j++) {
