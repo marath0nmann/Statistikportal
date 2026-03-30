@@ -1,3 +1,10 @@
+## v890
+
+- **ACN AK-Platzierung**: col[17] (GroupDisplayName='Categorie') enthaelt die AK-Platzierung ('97/634' -> '97'). Vorher wurde col[0] (Gesamtrang '2343.') verwendet
+- **'Schlechten Import melden'**: Button von Post-Import-Actions (nach Einlesen) nach unten neben 'Alle speichern' verschoben – immer sichtbar wenn GitHub konfiguriert; Reset bleibt alleine in der Post-Import-Leiste
+
+---
+
 ## v889
 
 - Syntax-Fehler in _PREPS-Objekt behoben ('dos:1' hatte fehlendes Abschluss-Quote)

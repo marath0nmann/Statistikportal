@@ -5343,7 +5343,6 @@ function renderEintragen() {
             '<button class="btn btn-primary btn-sm" id="bk-einlesen-btn" onclick="bulkEinlesen()">&#x25B6; Einlesen</button>' +
             '<div id="bk-post-import-actions" style="display:none;gap:8px;align-items:center">' +
               '<button class="btn btn-ghost btn-sm" onclick="bulkReset()">&#x21BA; Reset</button>' +
-              (appConfig && appConfig.github_repo ? '<button class="btn btn-ghost btn-sm" style="color:#e53935;border-color:#e53935" onclick="bulkMeldeImport()">&#x26A0;&#xFE0F; Schlechten Import melden</button>' : '') +
             '</div>' +
             '<div id="bk-import-status" style="font-size:12px;color:var(--text2)"></div>' +
           '</div>' +
@@ -5408,6 +5407,7 @@ function renderEintragen() {
         '<div style="margin-top:12px;display:flex;gap:10px;align-items:center">' +
           '<button class="btn btn-ghost btn-sm" onclick="bulkAddRow()">+ Zeile hinzuf&uuml;gen</button>' +
           '<button class="btn btn-primary" onclick="bulkSubmit()">&#x1F4BE; Alle speichern</button>' +
+          (appConfig && appConfig.github_repo ? '<button class="btn btn-ghost btn-sm" style="color:#e53935;border-color:#e53935;margin-left:4px" onclick="bulkMeldeImport()">&#x26A0;&#xFE0F; Schlechten Import melden</button>' : '') +
           '<span id="bulk-status" style="font-size:13px;color:var(--text2)"></span>' +
         '</div>' +
       '</div>';
@@ -6517,13 +6517,18 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         }
       }
 
-      // Netto-Spaltenindex
+      // Netto-Spaltenindex und AK-Platzierungs-Index
       var nettoIdx = -1;
+      var akPlatzIdx = -1;
       for (var ci2 = 0; ci2 < cols.length; ci2++) {
-        if ((cols[ci2].DisplayName || '').toLowerCase().indexOf('netto') >= 0 ||
-            (cols[ci2].Name        || '').toLowerCase().indexOf('netto') >= 0) {
+        var dn2 = (cols[ci2].DisplayName || '').toLowerCase();
+        var gd2 = (cols[ci2].GroupDisplayName || '').toLowerCase();
+        if (dn2.indexOf('netto') >= 0 || (cols[ci2].Name||'').toLowerCase().indexOf('netto') >= 0) {
           nettoIdx = cols[ci2].FieldIdx !== undefined ? cols[ci2].FieldIdx : ci2;
-          break;
+        }
+        // AK-Platzierung: Spalte 'Pos' in Gruppe 'Categorie'
+        if (dn2 === 'pos' && gd2.indexOf('categ') >= 0) {
+          akPlatzIdx = cols[ci2].FieldIdx !== undefined ? cols[ci2].FieldIdx : ci2;
         }
       }
       if (nettoIdx < 0) {
@@ -6564,7 +6569,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         _bkDbgLine(id, rows.length + ' Zeilen | Netto-Col:' + nettoIdx + ' | Disz:' + diszHint);
       }
 
-      return { id: id, rows: rows, nettoIdx: nettoIdx, diszHint: diszHint };
+      return { id: id, rows: rows, nettoIdx: nettoIdx, akPlatzIdx: akPlatzIdx, diszHint: diszHint };
     } catch(e) {
       _bkDbgLine(id + ' Fehler', e.message);
       return null;
@@ -6592,7 +6597,10 @@ async function bulkImportFromAcn(url, kat, statusEl) {
       var key = name + '|' + zeit + '|' + race.id;
       if (seen[key]) continue;
       seen[key] = true;
-      parsedRows.push({ name: name, zeit: zeit, ak: acnParseAk(akRaw, gender), platz: rankRaw, diszHint: race.diszHint });
+      // AK-Platzierung aus Categorie-Spalte (z.B. '97/634' -> '97')
+      var akPlatzRaw = (race.akPlatzIdx >= 0 && race.akPlatzIdx < row.length) ? (row[race.akPlatzIdx] || '').toString() : '';
+      var akPlatz = akPlatzRaw ? akPlatzRaw.split('/')[0].trim() : rankRaw;
+      parsedRows.push({ name: name, zeit: zeit, ak: acnParseAk(akRaw, gender), platz: akPlatz, diszHint: race.diszHint });
     }
   }
   _bkDbgLine('Geparste Zeilen (dedup)', parsedRows.length);
