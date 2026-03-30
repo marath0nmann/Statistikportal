@@ -6390,12 +6390,14 @@ function mikaExtractRowsForBulk(data, kat) {
 
 
 
+
 // ── ACN Timing importer ──────────────────────────────────────────────────────
 
 async function bulkImportFromAcn(url, kat, statusEl) {
-  var ctxMatch  = url.match(/#.*?ctx\/([^\/]+)/);
-  var raceMatch = url.match(/\/home\/([A-Z0-9]+)/);
-  var ctx       = ctxMatch ? ctxMatch[1] : null;
+  var ctxMatch   = url.match(/#.*?ctx\/([^\/]+)/);
+  var raceMatch  = url.match(/\/home\/([A-Z0-9]+)/);
+  var eventMatch = url.match(/#.*?events\/(\d+)/);
+  var ctx        = ctxMatch  ? ctxMatch[1]  : null;
 
   if (!ctx) {
     _bkDbgLine('Fehler', 'Kein ctx in URL gefunden');
@@ -6415,6 +6417,22 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     if (ortEl && !ortEl.value) ortEl.value = evOrt;
     _bkDbgLine('Datum', evDate);
     _bkDbgLine('Ort',   evOrt);
+  }
+
+  // Veranstaltungsname via prod.chronorace.be/api/Event/view/{eventId}
+  if (eventMatch && eventMatch[1]) {
+    try {
+      var evR = await fetch('https://prod.chronorace.be/api/Event/view/' + eventMatch[1]);
+      if (evR.ok) {
+        var evD = await evR.json();
+        var evName = evD.Title || evD.name || '';
+        if (evName) {
+          _bkDbgLine('Veranstaltung', evName);
+          var evnEl = document.getElementById('bk-evname');
+          if (evnEl && !evnEl.value) evnEl.value = evName;
+        }
+      }
+    } catch(e) { _bkDbgLine('Event-Name Fehler', e.message); }
   }
 
   // Race-IDs ermitteln
@@ -6463,20 +6481,12 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     var num = a.match(/\d+/);
     return num ? pfx + num[0] : a;
   }
-  // Disziplinname aus Split-Spalten ableiten
   function acnDiszFromSplits(splitCols) {
     if (!splitCols || !splitCols.length) return null;
     var lastSplit = splitCols[splitCols.length - 1].toLowerCase();
-    // 20km-Split -> Halbmarathon
     if (lastSplit === '20km') return 'Halve Marathon';
-    // Nur 5km-Split -> 10km-Rennen
     if (lastSplit === '5km' && splitCols.length === 1) return '10km';
-    // Nur 2.5km/3km-Split -> 5km
-    if (splitCols.length === 1 && (lastSplit === '2.5km' || lastSplit === '3km')) return '5km';
-    // Allgemein: letzten Split-Wert verdoppeln (grobe Naeherung)
-    var km = parseFloat(lastSplit);
-    if (km) return (km * 2) + 'km';
-    return lastSplit;
+    return null;
   }
 
   // Alle Strecken laden
@@ -6489,17 +6499,34 @@ async function bulkImportFromAcn(url, kat, statusEl) {
       var cols    = (d.TableDefinition && d.TableDefinition.Columns) ? d.TableDefinition.Columns : [];
       var rows    = (d.Groups && d.Groups[0]) ? d.Groups[0].SlaveRows || [] : [];
 
-      // Netto-Spaltenindex dynamisch ermitteln
-      var nettoIdx = -1;
+      // Teamresultaten erkennen: RowAction-Spalte vorhanden UND erste Zeile enthaelt "_3" (Team-Detail-Link)
+      var rowActionIdx = -1;
       for (var ci = 0; ci < cols.length; ci++) {
-        if ((cols[ci].DisplayName || '').toLowerCase().indexOf('netto') >= 0 ||
-            (cols[ci].Name        || '').toLowerCase().indexOf('netto') >= 0) {
-          nettoIdx = cols[ci].FieldIdx !== undefined ? cols[ci].FieldIdx : ci;
+        if ((cols[ci].DisplayName || '').toLowerCase().indexOf('rowaction') >= 0 ||
+            (cols[ci].Name        || '').toLowerCase().indexOf('rowaction') >= 0) {
+          rowActionIdx = cols[ci].FieldIdx !== undefined ? cols[ci].FieldIdx : ci;
+          break;
+        }
+      }
+      if (rowActionIdx >= 0 && rows[0]) {
+        var sampleAction = (rows[0][rowActionIdx] || '').toString();
+        // "_3" = Team-Detail, "_2" = Individual-Detail (nicht filtern)
+        if (sampleAction.match(/_3$/)) {
+          _bkDbgLine(id, 'Uebersprungen (Teamresultaten, ' + sampleAction + ')');
+          return null;
+        }
+      }
+
+      // Netto-Spaltenindex
+      var nettoIdx = -1;
+      for (var ci2 = 0; ci2 < cols.length; ci2++) {
+        if ((cols[ci2].DisplayName || '').toLowerCase().indexOf('netto') >= 0 ||
+            (cols[ci2].Name        || '').toLowerCase().indexOf('netto') >= 0) {
+          nettoIdx = cols[ci2].FieldIdx !== undefined ? cols[ci2].FieldIdx : ci2;
           break;
         }
       }
       if (nettoIdx < 0) {
-        // Fallback: letztes Element mit <br/><small> in erster Zeile
         var sample = rows[0] || [];
         for (var si = sample.length - 1; si >= 0; si--) {
           if (typeof sample[si] === 'string' && sample[si].indexOf('<br/>') >= 0 && sample[si].indexOf('km/h') >= 0) {
@@ -6508,39 +6535,33 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         }
       }
 
-      // Split-Spaltennamen fuer Disziplin
+      // Zeitvalidierung
+      var sampleNet = (nettoIdx >= 0 && rows[0]) ? (rows[0][nettoIdx] || '').toString() : '';
+      if (!sampleNet || sampleNet.indexOf('detail:') >= 0 || !sampleNet.match(/\d+:\d+/)) {
+        _bkDbgLine(id, 'Uebersprungen (keine gueltigen Zeiten: ' + sampleNet.slice(0,20) + ')');
+        return null;
+      }
+
+      // Split-Spalten fuer Disziplin
       var splitNames = [];
-      for (var ci2 = 0; ci2 < cols.length; ci2++) {
-        var dn = (cols[ci2].DisplayName || '');
+      for (var ci3 = 0; ci3 < cols.length; ci3++) {
+        var dn = (cols[ci3].DisplayName || '');
         if (/^\d+(\.\d+)?km$/i.test(dn)) splitNames.push(dn);
       }
       var diszHint = acnDiszFromSplits(splitNames);
 
-      _bkDbgLine(id, rows.length + ' Zeilen | Netto-Col:' + nettoIdx + ' | Disz:' + (diszHint || '?'));
-
-      // Team-Ergebnisse ueberspringen: RowAction-Spalte vorhanden = Teamresultaten
-      var hasRowAction = cols.some(function(c) { return (c.DisplayName || '').toLowerCase().indexOf('rowaction') >= 0 || (c.Name || '').toLowerCase().indexOf('rowaction') >= 0; });
-      if (hasRowAction) { _bkDbgLine(id, 'Uebersprungen (Teamresultaten)'); return null; }
-
-      // Pruefen ob erster Zeile eine gueltige Nettozeit hat
-      var sampleNet = (nettoIdx >= 0 && rows[0]) ? (rows[0][nettoIdx] || '') : '';
-      if (!sampleNet || sampleNet.toString().indexOf('detail:') >= 0 || !sampleNet.toString().match(/\d+:\d+/)) {
-        _bkDbgLine(id, 'Uebersprungen (keine gueltigen Zeiten: ' + sampleNet + ')');
-        return null;
-      }
-
-      // Kein Split -> Disziplin aus Siegerzeit ableiten
+      // Kein Split -> aus Siegerzeit ableiten
       if (!diszHint) {
-        var sampleRow2 = rows[0] || [];
-        var sampleTime2 = nettoIdx >= 0 ? (sampleRow2[nettoIdx] || '').toString() : '';
-        var tm2 = sampleTime2.match(/^(\d+):(\d+)/);
+        var tm2 = sampleNet.match(/^(\d+):(\d+)/);
         if (!tm2) { _bkDbgLine(id, 'Uebersprungen (keine Siegerzeit)'); return null; }
         var totalMin = parseInt(tm2[1]) * 60 + parseInt(tm2[2]);
-        if (totalMin < 5) { _bkDbgLine(id, 'Uebersprungen (Kids Run, ' + sampleTime2.slice(0,8) + ')'); return null; }
+        if (totalMin < 5) { _bkDbgLine(id, 'Uebersprungen (Kids Run, ' + sampleNet.slice(0,8) + ')'); return null; }
         if      (totalMin < 20) diszHint = '5km';
         else if (totalMin < 45) diszHint = '10km';
         else                    diszHint = 'Halve Marathon';
-        _bkDbgLine(id, 'Disz aus Siegerzeit ' + sampleTime2.slice(0,8) + ' -> ' + diszHint);
+        _bkDbgLine(id, 'Disz aus Siegerzeit ' + sampleNet.slice(0,8) + ' -> ' + diszHint);
+      } else {
+        _bkDbgLine(id, rows.length + ' Zeilen | Netto-Col:' + nettoIdx + ' | Disz:' + diszHint);
       }
 
       return { id: id, rows: rows, nettoIdx: nettoIdx, diszHint: diszHint };
@@ -6550,57 +6571,33 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     }
   }));
 
-  // Zeilen parsen + deduplizieren per Name+Zeit
+  // Zeilen parsen + deduplizieren
   var seen = {};
   var parsedRows = [];
   for (var fi = 0; fi < allFetched.length; fi++) {
     var race = allFetched[fi];
     if (!race) continue;
-    var rows = race.rows;
-    var ni   = race.nettoIdx;
-    var dh   = race.diszHint;
-
-    for (var ri = 0; ri < rows.length; ri++) {
-      var row    = rows[ri];
+    for (var ri = 0; ri < race.rows.length; ri++) {
+      var row    = race.rows[ri];
       var name   = acnParseName(row[2] || '');
       if (!name) continue;
       var gender = row[3] || '';
       var akRaw  = row[8] || '';
-
-      // Kids-AK-Filter
       if (akRaw === 'J' || akRaw === 'B' || akRaw === 'P' || akRaw === 'K') continue;
-
       var rankRaw= (row[0] || '').replace(/\.$/, '').trim();
-
-      // Nettozeit aus dem korrekten Spaltenindex
-      var netHtml = (ni >= 0 && ni < row.length) ? (row[ni] || '') : '';
-      var netM    = netHtml.match(/^([^<]+)/);
-      var zeit    = (netM ? netM[1].trim() : '');
-      // Fallback: vorletzte Spalte mit Zeitformat
-      if (!zeit || zeit.indexOf(':') < 0) {
-        for (var bi = row.length - 1; bi >= 9; bi--) {
-          var bv = (row[bi] || '').toString();
-          if (/^\d+:\d+/.test(bv) && bv.indexOf('<') < 0) { zeit = bv; break; }
-        }
-      }
-      if (!zeit) continue;
-
-      var key = name + '|' + zeit + '|' + (race.id);
+      var netHtml = (race.nettoIdx >= 0 && race.nettoIdx < row.length) ? (row[race.nettoIdx] || '') : '';
+      var netM   = netHtml.toString().match(/^([^<]+)/);
+      var zeit   = netM ? netM[1].trim() : '';
+      if (!zeit || !zeit.match(/\d+:\d+/)) continue;
+      var key = name + '|' + zeit + '|' + race.id;
       if (seen[key]) continue;
       seen[key] = true;
-
-      parsedRows.push({
-        name:      name,
-        zeit:      zeit,
-        ak:        acnParseAk(akRaw, gender),
-        platz:     rankRaw,
-        diszHint:  dh
-      });
+      parsedRows.push({ name: name, zeit: zeit, ak: acnParseAk(akRaw, gender), platz: rankRaw, diszHint: race.diszHint });
     }
   }
   _bkDbgLine('Geparste Zeilen (dedup)', parsedRows.length);
 
-  // Name-Matching gegen Athleten-DB
+  // Name-Matching
   var _athleten = state.athleten || [];
   var rowsToImport = parsedRows.filter(function(row) {
     return uitsAutoMatch(row.name, _athleten) !== null;
@@ -6614,11 +6611,10 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     return;
   }
 
-  // Disziplin-Lookup: direkte Namenssuche statt uitsAutoDiszMatchKat (das kennt NL-Namen nicht)
-  function acnFindDisz(hint, kat) {
+  // Disziplin-Lookup
+  function acnFindDisz(hint, kat2) {
     if (!hint) return { disz: '', diszMid: null };
     var hl = hint.toLowerCase().replace(/[\s-]/g, '');
-    // Normalisierung: NL->DE und Varianten
     var aliases = {
       'halvemarathon': 'Halbmarathon', 'halfmarathon': 'Halbmarathon', 'halbmarathon': 'Halbmarathon',
       '21km': 'Halbmarathon', '21,1km': 'Halbmarathon',
@@ -6626,20 +6622,16 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     };
     var target = aliases[hl] || hint;
     var tl = target.toLowerCase();
-    var dl = (state.disziplinen || []).filter(function(d) {
-      return !kat || d.tbl_key === kat;
-    });
-    // 1. Exakter Match
-    var found = dl.find(function(d) { return (d.disziplin || '').toLowerCase() === tl; });
-    // 2. Starts-with Match
-    if (!found) found = dl.find(function(d) { return (d.disziplin || '').toLowerCase().startsWith(tl) || tl.startsWith((d.disziplin || '').toLowerCase()); });
+    var dl = (state.disziplinen || []).filter(function(d2) { return !kat2 || d2.tbl_key === kat2; });
+    var found = dl.find(function(d2) { return (d2.disziplin || '').toLowerCase() === tl; });
+    if (!found) found = dl.find(function(d2) { return (d2.disziplin || '').toLowerCase().startsWith(tl) || tl.startsWith((d2.disziplin || '').toLowerCase()); });
     if (!found) return { disz: '', diszMid: null };
     return { disz: found.disziplin, diszMid: found.id || found.mapping_id };
   }
 
   var bulkRows = rowsToImport.map(function(row) {
-    var r = acnFindDisz(row.diszHint, kat);
-    return { name: row.name, resultat: row.zeit, ak: row.ak, platz: row.platz, disziplin: r.disz, diszMid: r.diszMid };
+    var r2 = acnFindDisz(row.diszHint, kat);
+    return { name: row.name, resultat: row.zeit, ak: row.ak, platz: row.platz, disziplin: r2.disz, diszMid: r2.diszMid };
   });
 
   bulkFillFromImport(bulkRows, statusEl);
@@ -14421,47 +14413,46 @@ function _normUmlauts(s) {
     .replace(/Ä/g, 'ae').replace(/Ö/g, 'oe').replace(/Ü/g, 'ue')
     .replace(/\xe9|\xe8|\xea/g, 'e').replace(/\xe0|\xe2/g, 'a').replace(/\xfc/g, 'ue');
 }
+var _PREPS = {von:1,van:1,'de':1,der:1,den:1,des:1,ter:1,ten:1,zum:1,zur:1,im:1,am:1,an:1,'in':1,zu:1,the:1,of:1,le:1,la:1,les:1,du:1,di:1,del:1,della:1,und:1,en:1,'do':1,'da':1,dos:1,das:1};
 function uitsAutoMatch(name, athleten) {
   if (!name || !athleten.length) return null;
-  var nl = name.toLowerCase();
-  var nlN = _normUmlauts(nl);
-  for (var i = 0; i < athleten.length; i++) {
+
+  function _un(s) {
+    return (s||'').toLowerCase()
+      .replace(/ß/g,'ss').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
+      .replace(/Ä/g,'ae').replace(/Ö/g,'oe').replace(/Ü/g,'ue')
+      .replace(/[-]/g,' ').trim();
+  }
+  function _toks(s, noPreps) {
+    var t = _un(s).split(/[\s,]+/).filter(function(x){return x.length>=3;});
+    return noPreps ? t.filter(function(x){return !_PREPS[x];}) : t;
+  }
+  function _tokEq(a,b) {
+    var an=_un(a), bn=_un(b);
+    if (an===bn) return true;
+    var sh=an.length<bn.length?an:bn, lo=an.length<bn.length?bn:an;
+    return sh.length>=5 && lo.indexOf(sh)===0 && sh.length>=lo.length*0.8;
+  }
+
+  for (var i=0; i<athleten.length; i++) {
     var a = athleten[i];
-    var anl  = (a.name_nv || '').toLowerCase();
-    var anlN = _normUmlauts(anl);
-    // Exakter Token-Match (kein startsWith mehr) um Falsch-Treffer zu vermeiden
-    // 'Alex' darf nicht 'Alexander' treffen; nur gleichlange oder identische Token
-    function scoreMatch(inputParts, refParts) {
-      var score = 0;
-      inputParts.forEach(function(p) {
-        if (p.length < 3) return;
-        var hit = refParts.some(function(ap) {
-          if (ap.length < 3) return false;
-          // Exakter Match
-          if (ap === p) return true;
-          // Erlaubt: ein Token ist Prefix des anderen NUR wenn beide >= 5 Zeichen
-          // und der kuerzere mindestens 80% des laengeren abdeckt
-          var shorter = p.length < ap.length ? p : ap;
-          var longer  = p.length < ap.length ? ap : p;
-          return shorter.length >= 5 && longer.startsWith(shorter) && shorter.length >= longer.length * 0.8;
-        });
-        if (hit) score++;
-      });
-      return score;
-    }
-    var parts  = nl.split(/[\s,]+/).filter(Boolean);
-    var partsN = nlN.split(/[\s,]+/).filter(Boolean);
-    var aparts  = anl.split(/[\s,]+/).filter(Boolean);
-    var apartsN = anlN.split(/[\s,]+/).filter(Boolean);
-    var needed = Math.min(2, parts.length);
-    if (scoreMatch(parts,  aparts)  >= needed) return a.id;
-    if (scoreMatch(partsN, apartsN) >= needed) return a.id;
-    if (scoreMatch(partsN, aparts)  >= needed) return a.id;
-    if (scoreMatch(parts,  apartsN) >= needed) return a.id;
+    var cp = (a.name_nv||'').split(',');
+    // Surname-Tokens: Praepositionsfilter (von/van/de/der etc. werden ignoriert)
+    var surTok   = _toks(cp[0]||'', true);
+    var firstTok = _toks((cp.slice(1).join(' '))||'', false);
+    if (!surTok.length) continue;
+
+    var inTok = _toks(name, false);
+    if (!inTok.length) continue;
+
+    var surOk = surTok.some(function(st){ return inTok.some(function(it){ return _tokEq(it,st); }); });
+    if (!surOk) continue;
+    if (!firstTok.length) return a.id;
+    var firstOk = firstTok.some(function(ft){ return inTok.some(function(it){ return _tokEq(it,ft); }); });
+    if (firstOk) return a.id;
   }
   return null;
 }
-
 function uitsAthOptHtml(athleten, selectedId) {
   var html = '<option value="">– Athlet wählen –</option>';
   athleten.forEach(function(a) {
