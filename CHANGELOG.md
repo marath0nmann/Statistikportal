@@ -1,3 +1,9 @@
+## v897
+
+- **Datum-Fix**: bk-datum ist type='date' und hat immer today als Defaultwert -> !datEl.value war immer false -> Datum wurde nie ueberschrieben -> Venloop: 30.03.2026 statt 29.03.2026. Fix: datEl.value wird jetzt immer auf evDate gesetzt (aus ctx: 20260329_venlo -> 2026-03-29)
+
+---
+
 ## v896
 
 - **Einzelseite Veranstaltung**: komplett auf dieselben Hilfsfunktionen wie Veranstaltungsseite

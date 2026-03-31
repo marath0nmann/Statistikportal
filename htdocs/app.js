@@ -6895,7 +6895,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     var evOrt  = ctxParts[4].charAt(0).toUpperCase() + ctxParts[4].slice(1);
     var datEl  = document.getElementById('bk-datum');
     var ortEl  = document.getElementById('bk-ort');
-    if (datEl && !datEl.value) { datEl.value = evDate; bkSyncDatum(evDate); }
+    if (datEl) { datEl.value = evDate; bkSyncDatum(evDate); }
     if (ortEl && !ortEl.value) ortEl.value = evOrt;
     _bkDbgLine('Datum', evDate);
     _bkDbgLine('Ort',   evOrt);
