@@ -1,3 +1,9 @@
+## v900
+
+- **5km fehlte**: RowAction-Suffix '_3' bedeutet NICHT 'Teamresultaten' – der Suffix entspricht einfach der Ziffer im Race-ID (LIVEC3 -> _3, aber individuelles 5km-Rennen). Echter Indikator: leere Nettozeit-Spalte. LIVEA3/LIVEB3 haben keine Nettozeit -> Teamresultaten. LIVEC3 hat 0:14:43 -> Individual. RowAction-Check vollstaendig entfernt.
+
+---
+
 ## v899
 
 - **Teamresultaten-Erkennung**: pruefte nur rows[0] -> LIVEC3 (5km) hatte zufaellig '_3' in Zeile 0 und wurde gefiltert. Fix: erste 10 Zeilen werden geprueft; nur wenn ALLE _3-Links haben wird als Teamresultaten eingestuft

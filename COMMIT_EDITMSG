@@ -1,1 +1,1 @@
-v899: ACN Teamresultaten-Filter robuster – 10 Zeilen pruefen statt nur erste
+v900: ACN – RowAction-Filter entfernt, Teamresultaten nur noch per leerer Nettozeit erkannt
