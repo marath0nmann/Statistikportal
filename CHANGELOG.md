@@ -1,3 +1,9 @@
+## v904
+
+- **AK-Platz 1 fuer alle behoben**: _toSec() entfernte HTML-Tags mit replace(/<[^>]+>/g,'') -> '0:14:43  20.4 km/h' -> letztes Segment '43  20.4 km/h' -> NaN -> alle hatten den gleichen Key -> Rang 1. Fix: replace(/<.*$\/,'') schneidet ab dem ersten '<' ab -> '0:14:43' -> korrekte Sekundenumrechnung
+
+---
+
 ## v903
 
 - **AK-Platzierung (5km)**: wird jetzt aus ALLEN geladenen Teilnehmern (pageSize=12000) berechnet, nicht nur aus den gematchten TuS-Athleten. Alle Zeilen werden nach AK gruppiert und nach Nettozeit sortiert -> korrekter Rang im gesamten Teilnehmerfeld. Beispiel: Oliver Marissen 5km -> rank unter allen M55-Teilnehmern der LIVEC3
