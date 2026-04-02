@@ -3595,17 +3595,29 @@ if ($res === 'autocomplete' && $id === 'athleten') {
 // Ausstehende Veranstaltungen (genehmigt=0) – nur Admin/Editor
 if ($res === 'veranstaltungen' && $method === 'GET' && isset($_GET['pending'])) {
     Auth::requireRecht('veranstaltung_eintragen');
+    // Unveröffentlicht (genehmigt=0)
     $pending = DB::fetchAll(
         "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum,
                 COUNT(e.id) AS anz_ergebnisse,
-                COUNT(DISTINCT e.athlet_id) AS anz_athleten
+                COUNT(DISTINCT e.athlet_id) AS anz_athleten,
+                0 AS geloescht
          FROM " . DB::tbl('veranstaltungen') . " v
          LEFT JOIN " . DB::tbl('ergebnisse') . " e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
          WHERE v.geloescht_am IS NULL AND v.genehmigt = 0
-         GROUP BY v.id
-         ORDER BY v.datum DESC"
+         GROUP BY v.id"
     );
-    jsonOk(['pending' => $pending]);
+    // Gelöscht aber mit Ergebnissen (versehentlich gelöscht)
+    $geloescht = DB::fetchAll(
+        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum,
+                COUNT(e.id) AS anz_ergebnisse,
+                COUNT(DISTINCT e.athlet_id) AS anz_athleten,
+                1 AS geloescht
+         FROM " . DB::tbl('veranstaltungen') . " v
+         JOIN " . DB::tbl('ergebnisse') . " e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
+         WHERE v.geloescht_am IS NOT NULL
+         GROUP BY v.id"
+    );
+    jsonOk(['pending' => array_merge($pending, $geloescht)]);
 }
 
 if ($res === 'veranstaltungen' && $method === 'GET') {
@@ -3647,10 +3659,11 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
 if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
     Auth::requireRecht('veranstaltung_eintragen');
     $felder = []; $params = [];
-    if (isset($body['name']))      { $felder[] = 'name=?';      $params[] = sanitize($body['name'] ?? '') ?: null; }
-    if (!empty($body['datum']))    { $felder[] = 'datum=?';     $params[] = $body['datum']; }
-    if (isset($body['ort']))       { $felder[] = 'ort=?';       $params[] = sanitize($body['ort'] ?? '') ?: null; }
-    if (isset($body['genehmigt'])){ $felder[] = 'genehmigt=?'; $params[] = $body['genehmigt'] ? 1 : 0; }
+    if (isset($body['name']))        { $felder[] = 'name=?';        $params[] = sanitize($body['name'] ?? '') ?: null; }
+    if (!empty($body['datum']))      { $felder[] = 'datum=?';       $params[] = $body['datum']; }
+    if (isset($body['ort']))         { $felder[] = 'ort=?';         $params[] = sanitize($body['ort'] ?? '') ?: null; }
+    if (isset($body['genehmigt']))   { $felder[] = 'genehmigt=?';   $params[] = $body['genehmigt'] ? 1 : 0; }
+    if (!empty($body['restore']))    { $felder[] = 'geloescht_am=NULL'; } // Aus Papierkorb wiederherstellen
     if (!$felder) jsonErr('Keine Änderungen.');
     $params[] = $id;
     DB::query('UPDATE ' . DB::tbl('veranstaltungen') . ' SET ' . implode(',', $felder) . ' WHERE id=?', $params);

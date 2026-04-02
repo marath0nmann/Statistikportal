@@ -2638,12 +2638,17 @@ async function renderAdminVeranstFreigabe() {
       var name = v.name || v.kuerzel;
       var date = v.datum ? v.datum.split('-').reverse().join('.') : '';
       html += '<tr style="border-bottom:1px solid var(--border)">';
-      html += '<td style="padding:10px 12px;font-weight:600">' + name + '</td>';
+      html += '<td style="padding:10px 12px;font-weight:600">' + name +
+        (v.geloescht ? ' <span style="font-size:11px;color:var(--accent);font-weight:400">(gel\u00f6scht)</span>' : '') + '</td>';
       html += '<td style="padding:10px 12px;color:var(--text2)">' + date + '</td>';
       html += '<td style="padding:10px 12px;color:var(--text2)">' + (v.ort || '') + '</td>';
       html += '<td style="padding:10px 12px;text-align:right;color:var(--text2)">' + v.anz_ergebnisse + '</td>';
       html += '<td style="padding:10px 12px;text-align:right">';
-      html += '<button class="btn btn-primary btn-sm" onclick="adminFreigebenVeranst(' + v.id + ',this)">Freigeben</button>';
+      if (v.geloescht) {
+        html += '<button class="btn btn-warning btn-sm" onclick="adminFreigebenVeranst(' + v.id + ',this,true)">\u21a9 Wiederherstellen</button>';
+      } else {
+        html += '<button class="btn btn-primary btn-sm" onclick="adminFreigebenVeranst(' + v.id + ',this,false)">Freigeben</button>';
+      }
       html += '</td></tr>';
     });
     html += '</tbody></table>';
@@ -2652,14 +2657,15 @@ async function renderAdminVeranstFreigabe() {
   el.innerHTML = html;
 }
 
-async function adminFreigebenVeranst(vid, btn) {
+async function adminFreigebenVeranst(vid, btn, restore) {
   btn.disabled = true; btn.textContent = '\u23f3';
-  var r = await apiPut('veranstaltungen/' + vid, { genehmigt: 1 });
+  var payload = restore ? { genehmigt: 1, restore: 1 } : { genehmigt: 1 };
+  var r = await apiPut('veranstaltungen/' + vid, payload);
   if (r && r.ok) {
     var row = btn.closest('tr');
     if (row) {
       row.style.opacity = '0.4';
-      btn.textContent = '\u2705 Freigegeben';
+      btn.textContent = restore ? '\u2705 Wiederhergestellt' : '\u2705 Freigegeben';
       btn.className = 'btn btn-ghost btn-sm';
     }
     window._adminPendingFreigabe = Math.max(0, (window._adminPendingFreigabe||1) - 1);
@@ -2778,7 +2784,7 @@ function buildNav() {
   if (currentUser.rolle === 'editor' || currentUser.rolle === 'admin' || currentUser.rolle === 'athlet')
     tabs.push({ id: 'eintragen', icon: '➕️', label: 'Eintragen' });
   if (currentUser.rolle === 'admin') {
-    var _adminN = (window._adminPendingAntraege||0) + (window._adminPendingRegs||0);
+    var _adminN = (window._adminPendingAntraege||0) + (window._adminPendingRegs||0) + (window._adminPendingFreigabe||0);
     var _adminLabel = 'Admin' + (_adminN > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _adminN + '</span>' : '');
     tabs.push({ id: 'admin', icon: '⚙️️', label: _adminLabel, rawLabel: true });
   }
@@ -3048,7 +3054,7 @@ function restoreFromHash() {
 
   if (tab === 'admin' && sub) {
     var validAdmin = ['benutzer','registrierungen','disziplinen','altersklassen',
-                      'meisterschaften','darstellung','dashboard_cfg','antraege','veranst-freigabe','papierkorb'];
+                      'meisterschaften','darstellung','dashboard_cfg','antraege','papierkorb'];
     if (validAdmin.indexOf(sub) >= 0) state.adminTab = sub;
   } else if (tab === 'veranstaltung' && sub) {
     state.veranstaltungId = parseInt(sub) || null;
@@ -11480,6 +11486,32 @@ async function renderAdminAntraege() {
   }
   html += '</div>';
 
+  // Ausstehende Veranstaltungen (genehmigt=0 oder geloescht mit Ergebnissen)
+  var rFreigabe = await apiGet('veranstaltungen?pending=1');
+  var pendingVeranst = (rFreigabe && rFreigabe.ok && rFreigabe.data.pending) ? rFreigabe.data.pending : [];
+  if (pendingVeranst.length) {
+    html += '<div class="panel" style="margin-bottom:20px">' +
+      '<div class="panel-header">' +
+        '<div class="panel-title">\ud83d\udccb Ausstehende Veranstaltungen (' + pendingVeranst.length + ')</div>' +
+      '</div>' +
+      '<div style="padding:16px;display:flex;flex-direction:column;gap:10px">';
+    pendingVeranst.forEach(function(v) {
+      var vname = v.name || v.kuerzel;
+      var vdate = v.datum ? v.datum.split('-').reverse().join('.') : '';
+      var isGeloescht = v.geloescht == 1;
+      html += '<div style="border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--surface);display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+        '<span style="font-weight:600">' + vname + '</span>' +
+        (isGeloescht ? '<span class="badge badge-inaktiv">gel\u00f6scht</span>' : '<span class="badge badge-editor">unverf\u00f6fentlicht</span>') +
+        '<span style="font-size:12px;color:var(--text2)">' + vdate + (v.ort ? ' \u00b7 ' + v.ort : '') + '</span>' +
+        '<span style="font-size:12px;color:var(--text2);margin-left:auto">' + v.anz_ergebnisse + ' Ergebnisse</span>' +
+        '<button class="btn btn-primary btn-sm" onclick="adminFreigebenVeranst(' + v.id + ',this,' + (isGeloescht?'true':'false') + ')">' +
+          (isGeloescht ? '\u21a9 Wiederherstellen' : 'Freigeben') +
+        '</button>' +
+      '</div>';
+    });
+    html += '</div></div>';
+  }
+
   // Zuletzt bearbeitete
   if (done.length) {
     html += '<div class="panel">' +
@@ -11570,13 +11602,10 @@ async function _ladeAntraegeBadge() {
       }
     }
   } catch(e) {}
-  // Ausstehende Veranstaltungen-Badge
+  // Ausstehende Veranstaltungen: zum Antraege-Badge addieren
   try {
     var _rfr = await apiGet('veranstaltungen?pending=1');
-    var _pn = (_rfr && _rfr.ok && _rfr.data.pending) ? _rfr.data.pending.length : 0;
-    window._adminPendingFreigabe = _pn;
-    var _frel = document.querySelector('.subtab[onclick*="veranst-freigabe"]');
-    if (_frel) { _frel.innerHTML = '&#x1F4CB; Freigabe' + (_pn > 0 ? _adminBadge(_pn) : ''); }
+    window._adminPendingFreigabe = (_rfr && _rfr.ok && _rfr.data.pending) ? _rfr.data.pending.length : 0;
   } catch(e) {}
 }
 
@@ -11591,8 +11620,8 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='meisterschaften'? ' active' : '') + '" onclick="navAdmin(\'meisterschaften\')">&#x1F3C5; Meisterschaften</button>' +
     '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">&#x1F3A8; Darstellung</button>' +
     '<button class="subtab' + (t==='dashboard_cfg'  ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">&#x1F4CA;&#xFE0E; Dashboard</button>' +
-    '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">✋ Anträge' + _adminBadge(window._adminPendingAntraege||0) + '</button>' +
-    '<button class="subtab' + (t==="veranst-freigabe"? ' active' : '') + '" onclick="navAdmin(\'veranst-freigabe\')">&#x1F4CB; Freigabe' + _adminBadge(window._adminPendingFreigabe||0) + '</button>' +
+    '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">✋ Anträge' + _adminBadge((window._adminPendingAntraege||0)+(window._adminPendingFreigabe||0)) + '</button>' +
+    '<button class+
     '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb' + _adminBadge(window._adminPendingPapierkorb||0) + '</button>' +
   '</div>';
 }
@@ -11639,7 +11668,6 @@ async function renderAdmin() {
   if (state.adminTab === 'altersklassen')  { await renderAdminAltersklassen(); return; }
   if (state.adminTab === 'meisterschaften'){ await renderAdminMeisterschaften(); return; }
   if (state.adminTab === 'antraege')        { await renderAdminAntraege(); return; }
-  if (state.adminTab === 'veranst-freigabe') { await renderAdminVeranstFreigabe(); return; }
   if (state.adminTab === 'papierkorb')     { await renderPapierkorb(); return; }
   if (state.adminTab === 'darstellung')    { renderAdminDarstellung(); return; }
   if (state.adminTab === 'dashboard_cfg')  { await renderAdminDashboard(); return; }
