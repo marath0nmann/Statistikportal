@@ -1,3 +1,14 @@
+## v905
+
+### Admin -> Freigabe
+- Neuer Subtab 'Freigabe' (Klemmbrett-Icon) in der Admin-Navigation
+- Zeigt alle Veranstaltungen mit genehmigt=0 (werden unter #veranstaltungen nicht angezeigt)
+- 'Freigeben'-Button setzt genehmigt=1 per PUT veranstaltungen/{id}
+- Badge zeigt Anzahl ausstehender Veranstaltungen (wie Antraege-Badge)
+- PHP: PUT veranstaltungen/{id} unterstuetzt jetzt genehmigt-Feld; GET veranstaltungen?pending=1 gibt alle pending zurueck
+
+---
+
 ## v904
 
 - **AK-Platz 1 fuer alle behoben**: _toSec() entfernte HTML-Tags mit replace(/<[^>]+>/g,'') -> '0:14:43  20.4 km/h' -> letztes Segment '43  20.4 km/h' -> NaN -> alle hatten den gleichen Key -> Rang 1. Fix: replace(/<.*$\/,'') schneidet ab dem ersten '<' ab -> '0:14:43' -> korrekte Sekundenumrechnung
