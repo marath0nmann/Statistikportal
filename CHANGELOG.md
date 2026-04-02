@@ -1,3 +1,21 @@
+## v903
+
+- **AK-Platzierung (5km)**: wird jetzt aus ALLEN geladenen Teilnehmern (pageSize=12000) berechnet, nicht nur aus den gematchten TuS-Athleten. Alle Zeilen werden nach AK gruppiert und nach Nettozeit sortiert -> korrekter Rang im gesamten Teilnehmerfeld. Beispiel: Oliver Marissen 5km -> rank unter allen M55-Teilnehmern der LIVEC3
+
+---
+
+## v902
+
+- **AK-Platzierung (5km)**: Wo keine Categorie-Pos-Spalte vorhanden (LIVEC3), wird der AK-Rang aus allen geparsten Zeilen berechnet: alle Zeilen mit gleicher AK+Disziplin nach Zeit sortieren, Rang = Position in dieser Gruppe. Gilt nur als Fallback wenn akPlatzIdx=-1 (kein Wert aus API)
+
+---
+
+## v901
+
+- **AK-Platzierung**: LIVEC3 (5km) hat keine 'Pos'-Spalte in der Categorie-Gruppe -> akPlatzIdx=-1 -> Fallback war bisher der Gesamtrang (rankRaw). Fix: leerer String wenn kein AK-Platz vorhanden
+
+---
+
 ## v900
 
 - **5km fehlte**: RowAction-Suffix '_3' bedeutet NICHT 'Teamresultaten' – der Suffix entspricht einfach der Ziffer im Race-ID (LIVEC3 -> _3, aber individuelles 5km-Rennen). Echter Indikator: leere Nettozeit-Spalte. LIVEA3/LIVEB3 haben keine Nettozeit -> Teamresultaten. LIVEC3 hat 0:14:43 -> Individual. RowAction-Check vollstaendig entfernt.
