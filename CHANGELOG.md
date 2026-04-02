@@ -1,3 +1,9 @@
+## v899
+
+- **Teamresultaten-Erkennung**: pruefte nur rows[0] -> LIVEC3 (5km) hatte zufaellig '_3' in Zeile 0 und wurde gefiltert. Fix: erste 10 Zeilen werden geprueft; nur wenn ALLE _3-Links haben wird als Teamresultaten eingestuft
+
+---
+
 ## v898
 
 - **uitsAutoMatch**: Athleten mit aktiv=false werden beim Bulk-Import-Matching uebersprungen (Daniela Frenzel trifft nicht mehr Daniel Frenzel)
