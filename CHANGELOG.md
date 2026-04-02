@@ -1,3 +1,9 @@
+## v906
+
+- **Freigabe-Tab zeigte immer 'Keine ausstehenden'**: der ?pending=1-Request wurde vom allgemeinen GET-Handler (ohne pending-Check) abgefangen, der jsonOk()+exit aufruft. Fix: pending-Handler vor den allgemeinen GET-Handler verschoben. Venloop (genehmigt=0) wird jetzt korrekt angezeigt.
+
+---
+
 ## v905
 
 ### Admin -> Freigabe
