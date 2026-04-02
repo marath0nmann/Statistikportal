@@ -2609,6 +2609,68 @@ async function renderVeranstaltungDetail(vid) {
 }
 
 
+async function renderAdminVeranstFreigabe() {
+  var el = document.getElementById('main-content');
+  el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Lade ausstehende Veranstaltungen\u2026</div>';
+
+  var r = await apiGet('veranstaltungen?pending=1');
+  if (!r || !r.ok) { el.innerHTML = adminSubtabs() + '<div style="color:var(--accent);padding:20px">Fehler beim Laden.</div>'; return; }
+  var pending = r.data.pending || [];
+
+  var html = adminSubtabs();
+  html += '<div class="panel" style="padding:24px">';
+  html += '<h2 style="margin:0 0 6px;font-size:18px">\uD83D\uDCCB Veranstaltungen freigeben</h2>';
+  html += '<p style="color:var(--text2);font-size:13px;margin:0 0 20px">Veranstaltungen mit <code>genehmigt=0</code> erscheinen nicht unter \u201eVeranstaltungen\u201c. Diese entstehen z.B. wenn Athleten Ergebnisse selbst eintragen oder ein Freigabe-Workflow aktiv ist.</p>';
+
+  if (!pending.length) {
+    html += '<div style="text-align:center;padding:32px;color:var(--text2)">\u2705 Keine ausstehenden Veranstaltungen.</div>';
+  } else {
+    html += '<table style="width:100%;border-collapse:collapse">';
+    html += '<thead><tr style="border-bottom:2px solid var(--border)">';
+    html += '<th style="text-align:left;padding:8px 12px;font-size:12px;color:var(--text2)">Veranstaltung</th>';
+    html += '<th style="text-align:left;padding:8px 12px;font-size:12px;color:var(--text2)">Datum</th>';
+    html += '<th style="text-align:left;padding:8px 12px;font-size:12px;color:var(--text2)">Ort</th>';
+    html += '<th style="text-align:right;padding:8px 12px;font-size:12px;color:var(--text2)">Ergebnisse</th>';
+    html += '<th style="padding:8px 12px"></th>';
+    html += '</tr></thead><tbody>';
+
+    pending.forEach(function(v) {
+      var name = v.name || v.kuerzel;
+      var date = v.datum ? v.datum.split('-').reverse().join('.') : '';
+      html += '<tr style="border-bottom:1px solid var(--border)">';
+      html += '<td style="padding:10px 12px;font-weight:600">' + name + '</td>';
+      html += '<td style="padding:10px 12px;color:var(--text2)">' + date + '</td>';
+      html += '<td style="padding:10px 12px;color:var(--text2)">' + (v.ort || '') + '</td>';
+      html += '<td style="padding:10px 12px;text-align:right;color:var(--text2)">' + v.anz_ergebnisse + '</td>';
+      html += '<td style="padding:10px 12px;text-align:right">';
+      html += '<button class="btn btn-primary btn-sm" onclick="adminFreigebenVeranst(' + v.id + ',this)">Freigeben</button>';
+      html += '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function adminFreigebenVeranst(vid, btn) {
+  btn.disabled = true; btn.textContent = '\u23f3';
+  var r = await apiPut('veranstaltungen/' + vid, { genehmigt: 1 });
+  if (r && r.ok) {
+    var row = btn.closest('tr');
+    if (row) {
+      row.style.opacity = '0.4';
+      btn.textContent = '\u2705 Freigegeben';
+      btn.className = 'btn btn-ghost btn-sm';
+    }
+    window._adminPendingFreigabe = Math.max(0, (window._adminPendingFreigabe||1) - 1);
+    _ladeAntraegeBadge();
+  } else {
+    btn.disabled = false; btn.textContent = 'Freigeben';
+    notify('Fehler beim Freigeben.', 'err');
+  }
+}
+
+
 function buildFooter() {
   var el = document.getElementById('app-footer');
   if (!el) return;
@@ -2986,7 +3048,7 @@ function restoreFromHash() {
 
   if (tab === 'admin' && sub) {
     var validAdmin = ['benutzer','registrierungen','disziplinen','altersklassen',
-                      'meisterschaften','darstellung','dashboard_cfg','antraege','papierkorb'];
+                      'meisterschaften','darstellung','dashboard_cfg','antraege','veranst-freigabe','papierkorb'];
     if (validAdmin.indexOf(sub) >= 0) state.adminTab = sub;
   } else if (tab === 'veranstaltung' && sub) {
     state.veranstaltungId = parseInt(sub) || null;
@@ -11508,7 +11570,16 @@ async function _ladeAntraegeBadge() {
       }
     }
   } catch(e) {}
+  // Ausstehende Veranstaltungen-Badge
+  try {
+    var _rfr = await apiGet('veranstaltungen?pending=1');
+    var _pn = (_rfr && _rfr.ok && _rfr.data.pending) ? _rfr.data.pending.length : 0;
+    window._adminPendingFreigabe = _pn;
+    var _frel = document.querySelector('.subtab[onclick*="veranst-freigabe"]');
+    if (_frel) { _frel.innerHTML = '&#x1F4CB; Freigabe' + (_pn > 0 ? _adminBadge(_pn) : ''); }
+  } catch(e) {}
 }
+
 function adminSubtabs() {
   var t = state.adminTab || 'system';
   return '<div class="subtabs" style="margin-bottom:20px">' +
@@ -11521,6 +11592,7 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">&#x1F3A8; Darstellung</button>' +
     '<button class="subtab' + (t==='dashboard_cfg'  ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">&#x1F4CA;&#xFE0E; Dashboard</button>' +
     '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">✋ Anträge' + _adminBadge(window._adminPendingAntraege||0) + '</button>' +
+    '<button class="subtab' + (t==="veranst-freigabe"? ' active' : '') + '" onclick="navAdmin(\'veranst-freigabe\')">&#x1F4CB; Freigabe' + _adminBadge(window._adminPendingFreigabe||0) + '</button>' +
     '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb' + _adminBadge(window._adminPendingPapierkorb||0) + '</button>' +
   '</div>';
 }
@@ -11567,6 +11639,7 @@ async function renderAdmin() {
   if (state.adminTab === 'altersklassen')  { await renderAdminAltersklassen(); return; }
   if (state.adminTab === 'meisterschaften'){ await renderAdminMeisterschaften(); return; }
   if (state.adminTab === 'antraege')        { await renderAdminAntraege(); return; }
+  if (state.adminTab === 'veranst-freigabe') { await renderAdminVeranstFreigabe(); return; }
   if (state.adminTab === 'papierkorb')     { await renderPapierkorb(); return; }
   if (state.adminTab === 'darstellung')    { renderAdminDarstellung(); return; }
   if (state.adminTab === 'dashboard_cfg')  { await renderAdminDashboard(); return; }
