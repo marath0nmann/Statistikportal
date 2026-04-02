@@ -1,3 +1,37 @@
+## v910
+
+- Separaten 'Freigabe'-Tab entfernt
+- Ausstehende Veranstaltungen (unveroeff. + geloescht mit Ergebnissen) erscheinen als Block im 'Antraege'-Tab
+- Antraege-Badge zaehlt beides
+- 'Freigeben'- und 'Wiederherstellen'-Buttons unveraendert
+
+---
+
+## v909
+
+- Separaten 'Freigabe'-Tab entfernt
+- Ausstehende Veranstaltungen (unveroeffenlicht / geloescht mit Ergebnissen) erscheinen jetzt als Block im 'Antraege'-Tab
+- Antraege-Badge zaehlt beides
+- 'Freigeben'- und 'Wiederherstellen'-Buttons funktionieren unveraendert
+
+---
+
+## v908
+
+- **Tabs zusammengefasst**: 'Freigabe' ist jetzt Teil des 'Antraege'-Tabs. Kein separater Tab mehr.
+- Antraege-Badge zeigt jetzt kombinierte Anzahl (offene Antraege + ausstehende Veranstaltungen)
+- Ausstehende Veranstaltungen erscheinen als eigener Block zwischen 'Offene Antraege' und 'Zuletzt bearbeitet'
+
+---
+
+## v907
+
+- **Venloop wiederherstellbar**: Freigabe-Tab zeigt jetzt auch soft-geloeschte Veranstaltungen die noch Ergebnisse haben (='versehentlich geloescht'). Gekennzeichnet mit '(geloescht)' und 'Wiederherstellen'-Button statt 'Freigeben'
+- PUT veranstaltungen/{id}: neuer Parameter 'restore:1' setzt geloescht_am=NULL
+- ARROW Venloop (id=589) erscheint damit im Freigabe-Tab -> Wiederherstellen -> sichtbar unter #veranstaltungen
+
+---
+
 ## v906
 
 - **Freigabe-Tab zeigte immer 'Keine ausstehenden'**: der ?pending=1-Request wurde vom allgemeinen GET-Handler (ohne pending-Check) abgefangen, der jsonOk()+exit aufruft. Fix: pending-Handler vor den allgemeinen GET-Handler verschoben. Venloop (genehmigt=0) wird jetzt korrekt angezeigt.
