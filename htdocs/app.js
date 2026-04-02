@@ -7035,7 +7035,40 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         _bkDbgLine(id, rows.length + ' Zeilen | Netto-Col:' + nettoIdx + ' | Disz:' + diszHint);
       }
 
-      return { id: id, rows: rows, nettoIdx: nettoIdx, akPlatzIdx: akPlatzIdx, diszHint: diszHint };
+      // AK-Rang-Tabelle aus ALLEN Zeilen aufbauen (fuer Rennen ohne Categorie-Pos-Spalte)
+      var akRankMap = {}; // 'AK|zeit_sek' -> rank (1-based)
+      if (akPlatzIdx < 0) {
+        function _toSec(t) {
+          if (!t) return 999999;
+          var s = t.toString().replace(/<[^>]+>/g,'').trim();
+          var p = s.split(':').map(Number);
+          if (p.length===3) return p[0]*3600+p[1]*60+p[2];
+          if (p.length===2) return p[0]*60+p[1];
+          return 999999;
+        }
+        // Gruppiere alle Zeilen nach AK, sortiere nach Nettozeit
+        var _akGroups = {};
+        for (var _ri = 0; _ri < rows.length; _ri++) {
+          var _row = rows[_ri];
+          var _ak = (_row[8] || '').trim();
+          if (!_ak || _ak === '-') continue;
+          var _net = (nettoIdx >= 0 && nettoIdx < _row.length) ? (_row[nettoIdx] || '').toString() : '';
+          var _sec = _toSec(_net);
+          if (_sec >= 999999) continue;
+          if (!_akGroups[_ak]) _akGroups[_ak] = [];
+          _akGroups[_ak].push(_sec);
+        }
+        // Sortiere jede Gruppe und erstelle Lookup: 'AK|sek' -> rank
+        Object.keys(_akGroups).forEach(function(ak) {
+          var sorted = _akGroups[ak].slice().sort(function(a,b){return a-b;});
+          sorted.forEach(function(sec, i) {
+            var key = ak + '|' + sec;
+            if (!akRankMap[key]) akRankMap[key] = i + 1; // erste Eintrag gewinnt bei Zeitgleichheit
+          });
+        });
+        _bkDbgLine(id + ' AK-Rang', Object.keys(_akGroups).length + ' AK-Gruppen berechnet');
+      }
+      return { id: id, rows: rows, nettoIdx: nettoIdx, akPlatzIdx: akPlatzIdx, akRankMap: akRankMap, diszHint: diszHint };
     } catch(e) {
       _bkDbgLine(id + ' Fehler', e.message);
       return null;
@@ -7063,9 +7096,27 @@ async function bulkImportFromAcn(url, kat, statusEl) {
       var key = name + '|' + zeit + '|' + race.id;
       if (seen[key]) continue;
       seen[key] = true;
-      // AK-Platzierung aus Categorie-Spalte (z.B. '97/634' -> '97')
+      // AK-Platzierung aus Categorie-Spalte oder berechnet aus akRankMap
       var akPlatzRaw = (race.akPlatzIdx >= 0 && race.akPlatzIdx < row.length) ? (row[race.akPlatzIdx] || '').toString() : '';
-      var akPlatz = akPlatzRaw ? akPlatzRaw.split('/')[0].trim() : rankRaw;
+      var akPlatz = '';
+      if (akPlatzRaw) {
+        akPlatz = akPlatzRaw.split('/')[0].trim();
+      } else if (race.akRankMap && Object.keys(race.akRankMap).length) {
+        // Rang aus vorberechneter Map: 'AK|sek' -> rank
+        function _toSec2(t) {
+          if (!t) return 999999;
+          var s = t.toString().replace(/<[^>]+>/g,'').trim();
+          var p = s.split(':').map(Number);
+          if (p.length===3) return p[0]*3600+p[1]*60+p[2];
+          if (p.length===2) return p[0]*60+p[1];
+          return 999999;
+        }
+        var _akRaw = (row[8] || '').trim();
+        var _netRaw = (race.nettoIdx >= 0 && race.nettoIdx < row.length) ? (row[race.nettoIdx] || '').toString() : '';
+        var _sec2 = _toSec2(_netRaw);
+        var _rk = race.akRankMap[_akRaw + '|' + _sec2];
+        if (_rk) akPlatz = String(_rk);
+      }
       parsedRows.push({ name: name, zeit: zeit, ak: acnParseAk(akRaw, gender), platz: akPlatz, diszHint: race.diszHint });
     }
   }
