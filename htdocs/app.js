@@ -6981,7 +6981,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
       var cols    = (d.TableDefinition && d.TableDefinition.Columns) ? d.TableDefinition.Columns : [];
       var rows    = (d.Groups && d.Groups[0]) ? d.Groups[0].SlaveRows || [] : [];
 
-      // Teamresultaten erkennen: RowAction-Spalte vorhanden UND erste Zeile enthaelt "_3" (Team-Detail-Link)
+      // Teamresultaten erkennen: Mehrheit der Zeilen hat '_3'-RowAction UND keine echten Zeiten
       var rowActionIdx = -1;
       for (var ci = 0; ci < cols.length; ci++) {
         if ((cols[ci].DisplayName || '').toLowerCase().indexOf('rowaction') >= 0 ||
@@ -6990,11 +6990,16 @@ async function bulkImportFromAcn(url, kat, statusEl) {
           break;
         }
       }
-      if (rowActionIdx >= 0 && rows[0]) {
-        var sampleAction = (rows[0][rowActionIdx] || '').toString();
-        // "_3" = Team-Detail, "_2" = Individual-Detail (nicht filtern)
-        if (sampleAction.match(/_3$/)) {
-          _bkDbgLine(id, 'Uebersprungen (Teamresultaten, ' + sampleAction + ')');
+      if (rowActionIdx >= 0) {
+        // Pruefe erste 10 Zeilen: wenn alle _3-Links haben -> Teamresultaten
+        var sampleSize = Math.min(10, rows.length);
+        var teamCount = 0;
+        for (var si2 = 0; si2 < sampleSize; si2++) {
+          var ra = (rows[si2][rowActionIdx] || '').toString();
+          if (ra.match(/_3$/)) teamCount++;
+        }
+        if (teamCount === sampleSize) {
+          _bkDbgLine(id, 'Uebersprungen (Teamresultaten, ' + sampleSize + '/' + sampleSize + ' _3-Links)');
           return null;
         }
       }
