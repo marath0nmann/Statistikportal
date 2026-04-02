@@ -3592,6 +3592,22 @@ if ($res === 'autocomplete' && $id === 'athleten') {
 // ============================================================
 // VERANSTALTUNGEN
 // ============================================================
+// Ausstehende Veranstaltungen (genehmigt=0) – nur Admin/Editor
+if ($res === 'veranstaltungen' && $method === 'GET' && isset($_GET['pending'])) {
+    Auth::requireRecht('veranstaltung_eintragen');
+    $pending = DB::fetchAll(
+        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum,
+                COUNT(e.id) AS anz_ergebnisse,
+                COUNT(DISTINCT e.athlet_id) AS anz_athleten
+         FROM " . DB::tbl('veranstaltungen') . " v
+         LEFT JOIN " . DB::tbl('ergebnisse') . " e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
+         WHERE v.geloescht_am IS NULL AND v.genehmigt = 0
+         GROUP BY v.id
+         ORDER BY v.datum DESC"
+    );
+    jsonOk(['pending' => $pending]);
+}
+
 if ($res === 'veranstaltungen' && $method === 'GET') {
     // Öffentlich zugänglich
     $eTbl = ergebnisTbl('strasse', $unified, $_sys);
@@ -3626,22 +3642,6 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     }
     unset($v);
     jsonOk(compact('veranst','total'));
-}
-
-// Ausstehende Veranstaltungen (genehmigt=0) – nur Admin/Editor
-if ($res === 'veranstaltungen' && $method === 'GET' && isset($_GET['pending'])) {
-    Auth::requireRecht('veranstaltung_eintragen');
-    $pending = DB::fetchAll(
-        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum,
-                COUNT(e.id) AS anz_ergebnisse,
-                COUNT(DISTINCT e.athlet_id) AS anz_athleten
-         FROM " . DB::tbl('veranstaltungen') . " v
-         LEFT JOIN " . DB::tbl('ergebnisse') . " e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
-         WHERE v.geloescht_am IS NULL AND v.genehmigt = 0
-         GROUP BY v.id
-         ORDER BY v.datum DESC"
-    );
-    jsonOk(['pending' => $pending]);
 }
 
 if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
