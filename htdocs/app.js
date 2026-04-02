@@ -7040,10 +7040,11 @@ async function bulkImportFromAcn(url, kat, statusEl) {
       if (akPlatzIdx < 0) {
         function _toSec(t) {
           if (!t) return 999999;
-          var s = t.toString().replace(/<[^>]+>/g,'').trim();
+          // Nur den Zeitteil extrahieren (vor HTML/Leerzeichen: '0:14:43<br/>...' -> '0:14:43')
+          var s = t.toString().replace(/<.*$/,'').trim();
           var p = s.split(':').map(Number);
-          if (p.length===3) return p[0]*3600+p[1]*60+p[2];
-          if (p.length===2) return p[0]*60+p[1];
+          if (p.length===3 && !isNaN(p[2])) return p[0]*3600+p[1]*60+p[2];
+          if (p.length===2 && !isNaN(p[1])) return p[0]*60+p[1];
           return 999999;
         }
         // Gruppiere alle Zeilen nach AK, sortiere nach Nettozeit
@@ -7105,10 +7106,10 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         // Rang aus vorberechneter Map: 'AK|sek' -> rank
         function _toSec2(t) {
           if (!t) return 999999;
-          var s = t.toString().replace(/<[^>]+>/g,'').trim();
+          var s = t.toString().replace(/<.*$/,'').trim();
           var p = s.split(':').map(Number);
-          if (p.length===3) return p[0]*3600+p[1]*60+p[2];
-          if (p.length===2) return p[0]*60+p[1];
+          if (p.length===3 && !isNaN(p[2])) return p[0]*3600+p[1]*60+p[2];
+          if (p.length===2 && !isNaN(p[1])) return p[0]*60+p[1];
           return 999999;
         }
         var _akRaw = (row[8] || '').trim();
