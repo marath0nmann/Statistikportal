@@ -1,3 +1,10 @@
+## v916 – Athleten: Tabellensortierung repariert
+
+- **Alle Athleten**: Spaltenköpfe waren nicht klickbar (onclick-Attribut hatte fehlende schließende Klammer)
+- Sortierung nach Name, Vorname, Jahrgang, AK, Ergebnisse etc. funktioniert wieder
+
+---
+
 ## v915 – System-Dashboard: Zweispaltiges Layout wiederhergestellt
 
 - **System-Dashboard** (Admin → System): Grid-Layout war defekt durch doppeltes `style`-Attribut
