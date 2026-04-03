@@ -250,6 +250,32 @@ function mstrLabel(val) {
   var n = parseInt(val, 10);
   return MSTR_MAP[n] || ('MS ' + val);
 }
+// Globale Hilfsfunktion: AK-Array → lesbarer Range-String (W45–W65, W35–W45 und W55–W65, …)
+function compressAKList(aks) {
+  var seen = {}, unique = [];
+  for (var _i = 0; _i < aks.length; _i++) { if (!seen[aks[_i]]) { seen[aks[_i]] = true; unique.push(aks[_i]); } }
+  aks = unique;
+  if (aks.length <= 2) return aks.join(' und ');
+  var prefix = aks[0].replace(/\d+/, '');
+  var nums = aks.map(function(a) { return parseInt(a.replace(/\D/g, ''), 10); });
+  nums.sort(function(a, b) { return a - b; });
+  var allConsec = true;
+  for (var _ci = 1; _ci < nums.length; _ci++) {
+    if (nums[_ci] - nums[_ci - 1] !== 5) { allConsec = false; break; }
+  }
+  if (allConsec) return prefix + nums[0] + '\u2013' + prefix + nums[nums.length - 1];
+  var groups = [[nums[0]]];
+  for (var _gi = 1; _gi < nums.length; _gi++) {
+    if (nums[_gi] - nums[_gi - 1] === 5) groups[groups.length - 1].push(nums[_gi]);
+    else groups.push([nums[_gi]]);
+  }
+  var gparts = groups.map(function(g) {
+    if (g.length >= 3) return prefix + g[0] + '\u2013' + prefix + g[g.length - 1];
+    return g.map(function(n) { return prefix + n; }).join(', ');
+  });
+  return gparts.slice(0, -1).join(', ') + ' und ' + gparts[gparts.length - 1];
+}
+
 function medalBadge(n) {
   if (!n) return '';
   n = parseInt(n, 10);
@@ -3440,34 +3466,6 @@ function timelineBadges(rek) {
         // Gruppierung: gleiche AK-Kombination → eine Box, Disziplinen zusammenfassen.
         // Zusätzlich: konsekutive AK-Ranges komprimieren (W45,W50,W55,W60,W65 → W45–W65)
 
-        function compressAKList(aks) {
-          // Duplikate entfernen
-          var seen = {}, unique = [];
-          for (var _di = 0; _di < aks.length; _di++) { if (!seen[aks[_di]]) { seen[aks[_di]] = true; unique.push(aks[_di]); } }
-          aks = unique;
-          if (aks.length <= 2) return aks.join(' und ');
-          var prefix = aks[0].replace(/\d+/,'');
-          var nums = aks.map(function(a){ return parseInt(a.replace(/\D/g,''),10); });
-          nums.sort(function(a,b){return a-b;});
-          var allConsec = true;
-          for (var _ci = 1; _ci < nums.length; _ci++) {
-            if (nums[_ci] - nums[_ci-1] !== 5) { allConsec = false; break; }
-          }
-          if (allConsec && nums.length >= 3) {
-            return prefix + nums[0] + '\u2013' + prefix + nums[nums.length-1];
-          }
-          var groups = [[nums[0]]];
-          for (var _gi = 1; _gi < nums.length; _gi++) {
-            if (nums[_gi] - nums[_gi-1] === 5) groups[groups.length-1].push(nums[_gi]);
-            else groups.push([nums[_gi]]);
-          }
-          var gparts = groups.map(function(g) {
-            if (g.length >= 3) return prefix + g[0] + '\u2013' + prefix + g[g.length-1];
-            return g.map(function(n){ return prefix+n; }).join(', ');
-          });
-          return gparts.slice(0,-1).join(', ') + ' und ' + gparts[gparts.length-1];
-        }
-
         function joinList(arr) {
           if (arr.length === 0) return '';
           if (arr.length === 1) return arr[0];
@@ -4743,17 +4741,8 @@ async function openAthletById(id) {
                 });
                 Object.keys(akMap).forEach(function(k) {
                   var entry = akMap[k];
-                  var aks = entry.aks;
                   var dl = entry.disz;
-                  var prefix = aks[0].replace(/\d+$/, '');
-                  var nums = aks.map(function(a){ return parseInt(a.replace(/\D/g,''),10); }).sort(function(a,b){return a-b;});
-                  var akStr;
-                  if (nums.length <= 2) {
-                    akStr = aks.join(' und ');
-                  } else {
-                    var allConsec = nums.every(function(n,i){ return i===0 || n-nums[i-1]===5; });
-                    akStr = allConsec ? prefix+nums[0]+'\u2013'+prefix+nums[nums.length-1] : aks.join(', ');
-                  }
+                  var akStr = compressAKList(entry.aks);
                   var dStr = dl.length === 1 ? dl[0] : dl.slice(0,-1).join(', ') + ' und ' + dl[dl.length-1];
                   katLines.push('Bestleistung ' + akStr + ' \u00fcber ' + dStr);
                 });
