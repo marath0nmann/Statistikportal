@@ -1722,7 +1722,7 @@ function _renderKontoPage() {
     '<h1 style="font-size:22px;font-weight:700;color:var(--primary);margin-bottom:20px">&#x1F512; Konto</h1>' +
 
     // Two-column grid
-    '<div style="konto-grid" style="display:grid;grid-template-columns:200px 1fr 1fr;gap:20px;align-items:start;max-width:1100px">' +
+    '<div class="konto-grid" style="display:grid;grid-template-columns:200px 1fr 1fr;gap:20px;align-items:start;max-width:1100px">' +
 
     // ── Left column ──
     '<div>' +

@@ -1,3 +1,9 @@
+## v925 – Bugfix: Konto-Seite 3-spaltiges Layout wiederhergestellt
+
+- **Bugfix**: `style="konto-grid"` korrigiert auf `class="konto-grid"` – dadurch greift das CSS-Grid wieder korrekt
+
+---
+
 ## v924 – Bugfix: Konto-Seite lädt nicht (pb is not defined)
 
 - **Bugfix**: In `_renderKontoPage()` wurde fälschlicherweise `pb.verein` referenziert – korrigiert auf `currentUser.verein`
