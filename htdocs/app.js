@@ -2504,10 +2504,7 @@ function buildNav() {
     _renderNavTabs(visibleTabs);
     return;
   }
-  // Eingeloggte User: Athleten-Tab sichtbar wenn persoenliche_daten_ab passt
-  if (!_canSeePersoenlicheDaten()) {
-    tabs = tabs.filter(function(t) { return t.id !== 'athleten'; });
-  }
+  // Eingeloggte User: Athleten-Tab immer sichtbar
   if (currentUser.rolle === 'editor' || currentUser.rolle === 'admin' || currentUser.rolle === 'athlet')
     tabs.push({ id: 'eintragen', icon: '➕️', label: 'Eintragen' });
   if (currentUser.rolle === 'admin') {
