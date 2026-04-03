@@ -3626,13 +3626,13 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     $limit = min((int)($_GET['limit'] ?? 10), 50);
     $offset = (int)($_GET['offset'] ?? 0);
     $veranst = DB::fetchAll(
-        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum,
+        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.datenquelle,
                 COUNT(e.id) AS anz_ergebnisse,
                 COUNT(DISTINCT e.athlet_id) AS anz_athleten
          FROM " . DB::tbl('veranstaltungen') . " v
          LEFT JOIN $eTbl e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
          WHERE v.geloescht_am IS NULL AND v.genehmigt = 1
-         GROUP BY v.id
+         GROUP BY v.id, v.datenquelle
          ORDER BY v.datum DESC
          LIMIT $limit OFFSET $offset"
     );
