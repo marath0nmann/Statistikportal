@@ -1,3 +1,18 @@
+## v922 – Admin System-Dashboard responsive
+
+- **phpBB-Statistiktabellen**: `border`/`border-radius`/`overflow` vom `<table>`-Element in einen Wrapper-`<div>` verschoben → Tabelle füllt nun zuverlässig die volle Breite
+- **Gäste-Tabelle**: Browser-Spalte auf Mobilgeräten (≤600px) ausgeblendet
+- **Letzte Logins**: IP- und Zeitpunkt-Spalten auf Mobilgeräten ausgeblendet; Tabelle in `table-scroll` eingebettet
+- Verbleibende Spalten füllen die volle Panel-Breite auf iPhone
+
+---
+
+## v921 – Hall of Fame – Medaillen-Zeile kompakter
+
+- **Hall of Fame Widget**: Medaillen-Emojis sitzen enger zusammen (`gap:1px`, kein `margin`) – einzelne Medaille in zweiter Zeile tritt nicht mehr auf
+
+---
+
 ## v920 – Dashboard-Widget „Persönliche Bestleistungen" mobil
 
 - **iPhone/Smartphone**: Disziplin-Kacheln innerhalb einer Kategorie (z. B. Straße) umbrechen jetzt in die nächste Zeile statt seitlich abgeschnitten zu werden
