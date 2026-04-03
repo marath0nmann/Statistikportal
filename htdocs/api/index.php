@@ -1229,17 +1229,8 @@ if ($res === 'einstellungen') {
 // Hilfsfunktion: AK-CASE-Expression aus Settings oder Fallback-Hardcode
 function buildAkCaseExpr(bool $merge, string $alias = 'e'): string {
     if (!$merge) return $alias . '.altersklasse';
-    // Mappings aus ak_mapping Tabelle laden (hat Priorität)
-    $mappingCases = '';
-    try {
-        $maps = DB::fetchAll("SELECT ak_roh, ak_standard FROM " . DB::tbl('ak_mapping'));
-        foreach ($maps as $m) {
-            $roh = addslashes($m['ak_roh']);
-            $std = addslashes($m['ak_standard']);
-            $mappingCases .= "WHEN $alias.altersklasse='$roh' THEN '$std'\n        ";
-        }
-    } catch (Exception $e) {}
-    // Legacy: jugend_aks Einstellungen als Fallback
+
+    // jugend_aks zuerst laden (haben Priorität vor ak_mapping)
     $jugendAksJson = Settings::get('jugend_aks') ?: '';
     $jugendAks = $jugendAksJson ? (json_decode($jugendAksJson, true) ?: []) : [];
     if (empty($jugendAks)) {
@@ -1251,12 +1242,34 @@ function buildAkCaseExpr(bool $merge, string $alias = 'e'): string {
         if (strtoupper(substr($ak,0,1)) === 'W' || in_array($ak, ['F'])) $wAks[] = $ak;
         else $mAks[] = $ak;
     }
+
+    // ak_mapping: Normalisierung von Nicht-Standard-AKs; jugend_aks-Zielwerte werden
+    // direkt zu MHK/WHK aufgelöst, damit jugend_aks nicht durch ak_mapping umgangen wird.
+    $mappingCases = '';
+    try {
+        $maps = DB::fetchAll("SELECT ak_roh, ak_standard FROM " . DB::tbl('ak_mapping'));
+        foreach ($maps as $m) {
+            $roh = addslashes($m['ak_roh']);
+            $std = $m['ak_standard'];
+            if (in_array($std, $mAks)) {
+                $mappingCases .= "WHEN $alias.altersklasse='" . $roh . "' THEN 'MHK'\n        ";
+            } elseif (in_array($std, $wAks)) {
+                $mappingCases .= "WHEN $alias.altersklasse='" . $roh . "' THEN 'WHK'\n        ";
+            } else {
+                $mappingCases .= "WHEN $alias.altersklasse='" . $roh . "' THEN '" . addslashes($std) . "'\n        ";
+            }
+        }
+    } catch (Exception $e) {}
+
     $mList = implode("','", array_map('addslashes', $mAks));
     $wList = implode("','", array_map('addslashes', $wAks));
-    return "CASE\n        {$mappingCases}"
+    // jugend_aks IN-Clauses kommen VOR ak_mapping, damit explizit konfigurierte
+    // Jugend-AKs nicht durch einen ak_mapping-Eintrag (z.B. AK→AK selbst) blockiert werden.
+    return "CASE\n        "
         . "WHEN $alias.altersklasse IN ('$mList') THEN 'MHK'\n"
         . "        WHEN $alias.altersklasse IN ('$wList') THEN 'WHK'\n"
-        . "        ELSE $alias.altersklasse END";
+        . "        {$mappingCases}"
+        . "ELSE $alias.altersklasse END";
 }
 
 
