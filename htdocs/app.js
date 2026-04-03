@@ -13657,8 +13657,7 @@ async function renderAdminAltersklassen() {
   var el = document.getElementById('main-content');
   el.innerHTML = adminSubtabs() + '<div style="padding:20px;color:var(--text2)">⏳ Lade Altersklassen…</div>';
 
-  var r1 = await apiGet('ak-standard');
-  var r2 = await apiGet('ak-mapping');
+  var [r1, r2, r3] = await Promise.all([apiGet('ak-standard'), apiGet('ak-mapping'), apiGet('einstellungen')]);
   if (!r1 || !r1.ok || !r2 || !r2.ok) {
     el.innerHTML = adminSubtabs() + '<div class="panel" style="padding:24px">Fehler beim Laden.</div>';
     return;
@@ -13666,6 +13665,8 @@ async function renderAdminAltersklassen() {
 
   _akStdData  = r1.data || [];
   _akUsedData = (r2.data && r2.data.used) ? r2.data.used : [];
+  var _jugendAksCurrent = [];
+  try { _jugendAksCurrent = JSON.parse((r3 && r3.data && r3.data.jugend_aks) || '[]') || []; } catch(e) {}
 
   // ── ABSCHNITT 1: Standard-AKs ─────────────────────────────
   var stdByGeschlecht = {M: [], W: [], '': []};
@@ -13768,7 +13769,46 @@ async function renderAdminAltersklassen() {
       '</div>' +
     '</div>';
 
-  el.innerHTML = adminSubtabs() + stdHtml + mapHtml;
+  // ── ABSCHNITT 3: Jugend-AK-Merge-Konfiguration ───────────────
+  // Zeigt alle Standard-AKs als Checkboxen; gecheckte werden bei
+  // "Jugend-AK zu MHK/WHK zusammenfassen" zur Hauptklasse zusammengefasst.
+  function jugendGroup(label, arr) {
+    if (!arr.length) return '';
+    return '<div style="margin-bottom:14px">' +
+      '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:8px">' + label + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
+      arr.map(function(s) {
+        var checked = _jugendAksCurrent.indexOf(s.ak) !== -1 ? ' checked' : '';
+        return '<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;' +
+          'background:var(--surf2);border:1px solid var(--border);border-radius:20px;' +
+          'padding:4px 12px;font-size:13px;font-family:\'Barlow Condensed\',monospace;font-weight:600">' +
+          '<input type="checkbox" class="ak-jugend-cb" data-ak="' + s.ak.replace(/"/g,'&quot;') + '"' + checked +
+          ' style="width:13px;height:13px;accent-color:var(--btn-bg);cursor:pointer">' +
+          s.ak + '</label>';
+      }).join('') +
+      '</div></div>';
+  }
+
+  var jugendHtml =
+    '<div class="panel" style="padding:24px;margin-bottom:20px">' +
+      '<div class="panel-title" style="margin-bottom:4px">&#x1F9EC; Jugend-AK-Merge-Konfiguration</div>' +
+      '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">' +
+        'Welche Standard-AKs sollen bei \u201eJugend-AK zu MHK/WHK zusammenfassen\u201c einbezogen werden? ' +
+        'Gew\u00e4hlte AKs werden in Bestleistungen und Statistiken zur Hauptklasse (MHK/WHK) zusammengefasst.' +
+      '</div>' +
+      jugendGroup('M\u00e4nner', (_akStdData).filter(function(s){ return s.geschlecht === 'M'; })) +
+      jugendGroup('Frauen',   (_akStdData).filter(function(s){ return s.geschlecht === 'W'; })) +
+      ((_akStdData).filter(function(s){ return !s.geschlecht; }).length
+        ? jugendGroup('Sonstige', (_akStdData).filter(function(s){ return !s.geschlecht; })) : '') +
+      '<div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
+        '<button class="btn btn-primary" onclick="akJugendSave()">\ud83d\udcbe Konfiguration speichern</button>' +
+        '<button class="btn btn-ghost" onclick="akJugendSelectAll(true)">Alle</button>' +
+        '<button class="btn btn-ghost" onclick="akJugendSelectAll(false)">Keine</button>' +
+        '<span id="ak-jugend-status" style="font-size:13px;color:var(--text2)"></span>' +
+      '</div>' +
+    '</div>';
+
+  el.innerHTML = adminSubtabs() + stdHtml + mapHtml + jugendHtml;
 }
 
 // Auto-Vorschlag f\u00fcr Nicht-Standard AKs
@@ -13834,6 +13874,28 @@ async function akMappingSave() {
     notify('Fehler beim Speichern', 'err');
   }
 }
+async function akJugendSave() {
+  var st = document.getElementById('ak-jugend-status');
+  if (st) st.textContent = '\u23f3 Speichere\u2026';
+  var checked = [];
+  document.querySelectorAll('.ak-jugend-cb').forEach(function(cb) {
+    if (cb.checked) checked.push(cb.dataset.ak);
+  });
+  var r = await apiPost('einstellungen', { jugend_aks: JSON.stringify(checked) });
+  if (r && r.ok) {
+    if (st) st.textContent = '\u2705 Gespeichert';
+    setTimeout(function() { if (st) st.textContent = ''; }, 3000);
+    notify('Jugend-AK-Konfiguration gespeichert.', 'ok');
+  } else {
+    if (st) st.textContent = '\u274c Fehler';
+    notify('Fehler beim Speichern', 'err');
+  }
+}
+
+function akJugendSelectAll(val) {
+  document.querySelectorAll('.ak-jugend-cb').forEach(function(cb) { cb.checked = val; });
+}
+
 /* ── 09_utils.js ── */
 function setSubTab(t) { state.subTab = t; state.page = 1; state.filters = {}; state.diszFilter = null; syncHash(); renderPage(); }
 function setDiszFilter(d) { state.diszFilter = d; state.page = 1; loadErgebnisseData(); }
