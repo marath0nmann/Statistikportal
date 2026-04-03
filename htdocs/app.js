@@ -15479,17 +15479,13 @@ async function renderVeranstaltungen() {
           '<div>' +
             '<div class="panel-title">' + name + '</div>' +
             '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + v.ort : '') + '</div>' +
-          (v.datenquelle ? '<div style="font-size:11px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">' +
-            '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" style="color:var(--text2);text-decoration:underline">' +
-            '\xf0\x9f\x94\x97 ' + v.datenquelle.replace(/^https?:\/\//, '').slice(0,50) + (v.datenquelle.length > 53 ? '\u2026' : '') +
-            '</a></div>' : '') +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:10px">' +
             '<span style="font-size:13px;color:var(--text2)">' + v.anz_ergebnisse + ' Ergebnisse &middot; ' + v.anz_athleten + ' Athleten</span>' +
             (currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor') ?
               '<button class="btn btn-ghost btn-sm" onclick="showVeranstEditModal(' + v.id + ')">&#x270F;&#xFE0F;</button>' : '') +
-            (v.datenquelle ? '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" class="btn btn-ghost btn-sm" title="Ergebnisquelle">\uD83D\uDD17</a>' : '') +
-            '<button class="btn btn-ghost btn-sm" title="Teilen" onclick="shareVeranstaltung(' + v.id + ')">&#x1F517;</button>' +
+            (v.datenquelle ? '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" class="btn btn-ghost btn-sm" title="Ergebnisquelle">\uD83C\uDF10</a>' : '') +
+            '<button class="btn btn-ghost btn-sm" title="Teilen" onclick="shareVeranstaltung(' + v.id + ')">\uD83D\uDCE4</button>' +
                         (_canVeranstaltungLoeschen() ?
               '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&#x2715;</button>' : '') +
           '</div>' +
