@@ -1,3 +1,10 @@
+## v937 – Einheitliche AK-Range-Darstellung in HoF und Athletenprofil
+
+- `compressAKList` als globale Funktion extrahiert (war lokal nur in HoF)
+- Athletenprofil-Tooltip nutzt jetzt dieselbe Logik wie HoF: konsekutive Teil-Ranges werden zu W35–W45 und W55–W65 zusammengefasst
+
+---
+
 ## v936 – Bugfix: Athletenprofil Tooltips nach v935-Regression
 
 - ORDER BY-Alias `kat_sort` in DISTINCT-Query durch direkte COALESCE-Expression ersetzt → SQL-Fehler auf MariaDB behoben
