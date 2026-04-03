@@ -3803,6 +3803,7 @@ async function loadErgebnisseData() {
   var totalPages = Math.ceil(total / state.limit);
   var tableHtml = buildErgebnisseTable(state.subTab, rows, canEdit);
 
+  var _ergFoc = _saveFocus();
   document.getElementById('main-content').innerHTML =
     '<div class="filter-bar">' +
       '<div class="fg"><label>Athlet</label><input type="text" id="erg-athlet-filter" placeholder="Name…" value="' + (state.filters.athlet||'') + '" oninput="_ergAthletFilter(this.value)" style="min-width:0;width:100%"/></div>' +
@@ -3818,6 +3819,8 @@ async function loadErgebnisseData() {
       '<div class="table-scroll">' + tableHtml + '</div>' +
       buildPagination(state.page, totalPages, total) +
     '</div>';
+
+  _restoreFocus(_ergFoc);
 
   // Event-Delegation für Edit + Delete (muss nach DOM-Insertion passieren)
   var tbl = document.getElementById('ergebnisse-table');
@@ -13909,6 +13912,20 @@ function akJugendSelectAll(val) {
 }
 
 /* ── 09_utils.js ── */
+// Fokus eines Eingabefelds sichern/wiederherstellen (verhindert Fokusverlust bei innerHTML-Ersatz)
+function _saveFocus() {
+  var ae = document.activeElement;
+  if (!ae || !ae.id) return null;
+  return { id: ae.id, s: ae.selectionStart, e: ae.selectionEnd };
+}
+function _restoreFocus(saved) {
+  if (!saved) return;
+  var el = document.getElementById(saved.id);
+  if (!el) return;
+  el.focus();
+  try { if (saved.s !== null) el.setSelectionRange(saved.s, saved.e); } catch(e) {}
+}
+
 function setSubTab(t) { state.subTab = t; state.page = 1; state.filters = {}; state.diszFilter = null; syncHash(); renderPage(); }
 function setDiszFilter(d) { state.diszFilter = d; state.page = 1; loadErgebnisseData(); }
 function setDiszTabFilter(cat, disz) { state.subTab = cat; state.diszFilter = disz; state.page = 1; state.filters = {}; syncHash(); loadErgebnisseData(); }
@@ -15270,6 +15287,7 @@ function setVeranstSuche(val) {
 
 async function renderVeranstaltungen() {
   var el = document.getElementById('main-content');
+  var _vFoc = _saveFocus();
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
   var sucheParam = state.veranstSuche ? '&suche=' + encodeURIComponent(state.veranstSuche) : '';
   var r = await apiGet('veranstaltungen?limit=10&offset=' + ((state.veranstPage-1)*10) + sucheParam);
@@ -15352,6 +15370,7 @@ async function renderVeranstaltungen() {
     '<div class="fg"><label>Suche</label><input type="search" id="veranst-suche" placeholder="Veranstaltung suchen&hellip;" value="' + (state.veranstSuche || '').replace(/"/g,'&quot;') + '" oninput="setVeranstSuche(this.value)" style="min-width:0;width:100%"/></div>' +
   '</div>';
   el.innerHTML = searchBar + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
+  _restoreFocus(_vFoc);
 }
 
 

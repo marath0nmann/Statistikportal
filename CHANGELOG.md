@@ -1,3 +1,10 @@
+## v934 – Bugfix: Fokusverlust in Ergebnisse- und Veranstaltungssuche
+
+- Fokus bleibt beim Tippen im Suchfeld erhalten, auch wenn sich die Ergebnisse live aktualisieren
+- Hilfsfunktionen `_saveFocus` / `_restoreFocus` sichern Fokus und Cursorposition vor jedem innerHTML-Ersatz
+
+---
+
 ## v933 – Hall of Fame: Medaillen bei >9 auf gleichmäßige Zeilen aufteilen
 
 - Mehr als 9 Meisterschafts-Medaillen werden gleichmäßig auf mehrere Zeilen verteilt (max. 9 pro Zeile)
