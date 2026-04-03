@@ -11042,7 +11042,7 @@ async function renderAdminSystem() {
     return '<tr><th colspan="2" style="padding:8px 12px;background:var(--primary);color:#fff;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">' + label + '</th></tr>';
   }
   function stable(rows) {
-    return '<table style="width:100%;border-collapse:collapse;border:1px solid var(--border);border-radius:8px;overflow:hidden">' + rows + '</table>';
+    return '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden"><table style="width:100%;border-collapse:collapse">' + rows + '</table></div>';
   }
 
   // Left column
@@ -11145,7 +11145,7 @@ async function renderAdminSystem() {
 
     // G&auml;ste
     '<div class="panel" style="margin-bottom:24px"><div class="panel-header"><div class="panel-title">&#x1F465; G&auml;ste <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 15 Min.)</span></div></div>' +
-      '<div class="table-scroll"><table style="width:100%"><thead><tr>' +
+      '<div class="table-scroll"><table class="admin-gaeste-table" style="width:100%"><thead><tr>' +
         thStyle('IP-Adresse') + thStyle('Land') + thStyle('Browser') + thStyle('Zuletzt') + thStyle('Aufrufe') +
       '</tr></thead><tbody>' + gaesteRows + '</tbody></table></div></div>' +
 
@@ -11155,8 +11155,8 @@ async function renderAdminSystem() {
         '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Aktiv seit') + '</tr></thead>' +
         '<tbody>' + aktiveRows + '</tbody></table></div>' +
       '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F550; Letzte Logins</div></div>' +
-        '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Status') + thStyle('Land') + thStyle('IP') + thStyle('Zeitpunkt') + '</tr></thead>' +
-        '<tbody>' + loginRows + '</tbody></table></div>' +
+        '<div class="table-scroll"><table class="admin-login-table" style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Status') + thStyle('Land') + thStyle('IP') + thStyle('Zeitpunkt') + '</tr></thead>' +
+        '<tbody>' + loginRows + '</tbody></table></div></div>' +
     '</div>';
 
 }
