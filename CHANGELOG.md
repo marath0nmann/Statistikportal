@@ -1,3 +1,9 @@
+## v912 – API: Datenquelle in Veranstaltungsliste
+
+- **API**: `v.datenquelle` im GET-Endpunkt `veranstaltungen` ergänzt – wird nun an das Frontend übergeben und als Link in den Veranstaltungskarten angezeigt
+
+---
+
 ## v911 – Bugfixes Veranstaltungen & Admin
 
 - **Veranstaltungen**: Doppelter „Teilen"-Button in Veranstaltungskarten entfernt
