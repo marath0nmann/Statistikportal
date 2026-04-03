@@ -2722,6 +2722,21 @@ async function loadAthleten() {
 
 // ── PAGE ROUTER ─────────────────────────────────────────────
 async function renderPage() {
+  // Wartungsmodus: Nicht eingeloggte Besucher sehen Wartungsseite
+  if (!currentUser && (appConfig.wartung_aktiv === '1' || appConfig.wartung_aktiv === 1)) {
+    var el = document.getElementById('main-content');
+    var msg = appConfig.wartung_nachricht || 'Das Portal befindet sich derzeit in Wartung. Bitte sp\u00e4ter erneut versuchen.';
+    el.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;min-height:60vh;padding:24px">' +
+        '<div class="panel" style="max-width:480px;width:100%;padding:48px 36px;text-align:center">' +
+          '<div style="font-size:48px;margin-bottom:16px">&#x1F6E0;&#xFE0E;</div>' +
+          '<div style="font-size:22px;font-weight:700;margin-bottom:12px">Wartungsmodus</div>' +
+          '<div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:28px">' + msg + '</div>' +
+          '<button class="btn btn-primary" onclick="showLogin()">&#x1F511; Als Administrator anmelden</button>' +
+        '</div>' +
+      '</div>';
+    return;
+  }
   // Anonyme User dürfen Dashboard und Bestleistungen sehen
   if (!currentUser && state.tab !== 'rekorde' && state.tab !== 'dashboard' && state.tab !== 'veranstaltung') {
     state.tab = 'rekorde';
@@ -11510,6 +11525,7 @@ var _RECHTE_LISTE = [
   { key: 'athleten_details',       label: 'Athleten-Details sehen (Geschlecht, Anzahl Ergebnisse)' },
   { key: 'inaktive_athleten_sehen', label: 'Inaktive Athleten sehen' },
   { key: 'athleten_editieren',     label: 'Athleten editieren' },
+  { key: 'wartung_login',          label: 'Im Wartungsmodus einloggen' },
 ];
 
 async function _ladeRollenManager() {
@@ -12700,6 +12716,20 @@ async function renderAdminDarstellung() {
   el.innerHTML = adminSubtabs() +
     '<div style="max-width:680px;display:flex;flex-direction:column;gap:20px">' +
 
+    // ── Wartungsmodus ──
+    '<div class="panel">' +
+      '<div class="panel-header"><div class="panel-title">&#x1F6E0;&#xFE0E; Wartungsmodus</div></div>' +
+      '<div class="settings-panel-body">' +
+        row('Wartungsmodus', 'Wenn aktiv, k\u00f6nnen sich nur Administratoren (oder Rollen mit dem Recht \u201eIm Wartungsmodus einloggen\u201c) anmelden. Alle anderen Besucher sehen die Wartungsseite.',
+          '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
+          '<input type="checkbox" id="cfg-wartung_aktiv" ' + (cfgVal('wartung_aktiv','0') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer" onchange="saveWartungAktiv(this.checked)"/>' +
+          '<span style="font-size:13px;color:var(--text2)">Wartungsmodus aktivieren</span>' +
+          '</label>') +
+        row('Wartungsseite – Nachricht', 'Diese Meldung wird nicht eingeloggten Besuchern angezeigt.',
+          '<textarea id="cfg-wartung_nachricht" rows="3" class="settings-input" style="resize:vertical">' + (cfgVal('wartung_nachricht','')||'').replace(/</g,'&lt;') + '</textarea>') +
+      '</div>' +
+    '</div>' +
+
     // ── Verein ──
     '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">🏟️ Verein</div></div>' +
@@ -12801,6 +12831,17 @@ async function renderAdminDarstellung() {
   '</div>';
 }
 
+async function saveWartungAktiv(checked) {
+  var val = checked ? '1' : '0';
+  var r = await apiPost('einstellungen', { wartung_aktiv: val });
+  if (r && r.ok) {
+    appConfig.wartung_aktiv = val;
+    notify(checked ? 'Wartungsmodus aktiviert.' : 'Wartungsmodus deaktiviert.', checked ? 'err' : 'ok');
+  } else {
+    notify((r && r.fehler) || 'Fehler beim Speichern.', 'err');
+  }
+}
+
 function previewLogo(input) {
   var file = input.files[0];
   if (!file) return;
@@ -12886,6 +12927,7 @@ async function saveAllSettings() {
     'veranstaltung_anzeige',
     'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url',
     'github_repo','github_token','github_token_expires',
+    'wartung_nachricht',
   ];
   var payload = {};
   for (var i = 0; i < keys.length; i++) {
@@ -12893,7 +12935,7 @@ async function saveAllSettings() {
     if (el) payload[keys[i]] = el.value;
   }
   // Checkboxen separat (checked → '1', unchecked → '0')
-  var cbKeys = ['version_nur_admins'];
+  var cbKeys = ['version_nur_admins', 'wartung_aktiv'];
 
   for (var j = 0; j < cbKeys.length; j++) {
     var cb = document.getElementById('cfg-' + cbKeys[j]);
