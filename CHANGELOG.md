@@ -1,3 +1,11 @@
+## v919 – Dashboard-Layout iPad
+
+- **Dashboard „Letzte Veranstaltungen"**: AK-Badge (z. B. „M45") wird auf iPad nicht mehr mit „…" abgeschnitten
+- **CSS**: AK-Spalte auf Tablet-Breakpoint von 11 % → 15 % verbreitert, Athlet-Spalte von 42 % → 38 % angepasst
+- **Badge-Padding**: Im AK-Feld der Dashboard-Tabelle von `8 px` auf `5 px` reduziert
+
+---
+
 ## v918 – Wartungsmodus
 
 - **Admin → Darstellung → Wartungsmodus**: Checkbox zum Aktivieren/Deaktivieren (sofortige Wirkung)
