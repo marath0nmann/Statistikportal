@@ -2307,7 +2307,7 @@ if ($res === 'athleten') {
                  LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
                  LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
                  WHERE e.geloescht_am IS NULL
-                 ORDER BY kat_sort, e.disziplin",
+                 ORDER BY COALESCE(k.reihenfolge, 99), e.disziplin",
                 []
             );
             foreach ($diszListAll as $dRow) {

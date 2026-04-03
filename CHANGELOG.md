@@ -1,3 +1,9 @@
+## v936 – Bugfix: Athletenprofil Tooltips nach v935-Regression
+
+- ORDER BY-Alias `kat_sort` in DISTINCT-Query durch direkte COALESCE-Expression ersetzt → SQL-Fehler auf MariaDB behoben
+
+---
+
 ## v935 – Athletenprofil: Bestleistungen nach Disziplinkategorie gruppiert
 
 - API gibt `kat_name` für jede Bestleistung zurück (Straße, Halle, Sprint, …)
