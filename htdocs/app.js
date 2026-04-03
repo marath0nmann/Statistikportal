@@ -3546,7 +3546,7 @@ function timelineBadges(rek) {
             var jahreStr = mg.jahre.length ? ' ' + mg.jahre.join(', ') : '';
             var _sep = /e$/i.test(mstrName) ? ' ' : '-';
             var tooltip = mstrName + _sep + mSuffix.replace(/^-/, '') + ' ' + diszPart + katStr + jahreStr;
-            hBadgesHtml += '<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:15px;display:inline-block;margin:1px 1px;cursor:default;line-height:1">&#x1F947;</span>';
+            hBadgesHtml += '<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:15px;display:inline-block;cursor:default;line-height:1">&#x1F947;</span>';
           });
         }
                 for (var gi = 0; gi < groupOrder.length; gi++) {
@@ -3577,7 +3577,7 @@ function timelineBadges(rek) {
             if (_bCnt) _parts.push(_bCnt + ' ' + (_bCnt === 1 ? 'Bestleistung' : 'Bestleistungen'));
             return '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">' + _parts.join(' · ') + '</div>';
           }()) +
-            '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">' + hBadgesHtml + '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:1px">' + hBadgesHtml + '</div>' +
           '</div>';
       }
       var hofPanelTitle = widgetTitle(wcfg, 'Hall of Fame');
