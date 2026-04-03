@@ -1,3 +1,9 @@
+## v927 – Bugfix: Athleten-Tabelle Status-Spaltenüberschrift fehlte
+
+- **Bugfix**: Tabellenüberschrift „Status" fehlte, weil Header und Zeilen unterschiedliche Bedingungen hatten (`_canSeeInaktiveAthleten()` nur im Header) – jetzt einheitlich an `showDetails` geknüpft
+
+---
+
 ## v926 – Athleten-Menü für alle eingeloggten Mitglieder sichtbar
 
 - Athleten-Tab wird jetzt für alle eingeloggten Benutzer angezeigt, nicht mehr nur für Nutzer mit dem Recht `personenbezogene_daten`
