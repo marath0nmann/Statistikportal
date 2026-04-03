@@ -1,3 +1,11 @@
+## v913 – Veranstaltungen: Icons & Darstellung
+
+- **Veranstaltungskarten**: Kaputten Text-Link (Datenquelle unter Datum) entfernt
+- **Ergebnisquelle-Button**: Icon geändert zu 🌐 (Weltkugel)
+- **Teilen-Button**: Icon geändert zu 📤 (Apple-Style Share)
+
+---
+
 ## v912 – API: Datenquelle in Veranstaltungsliste
 
 - **API**: `v.datenquelle` im GET-Endpunkt `veranstaltungen` ergänzt – wird nun an das Frontend übergeben und als Link in den Veranstaltungskarten angezeigt
