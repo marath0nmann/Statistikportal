@@ -4237,7 +4237,7 @@ function _athSortHeader() {
   ];
   if (showD) cols.push({ key: 'geschlecht', label: '♂♀' });
   cols.push({ key: 'jahrgang', label: 'Jahrgang' }, { key: 'ak', label: 'AK' }, { key: 'gruppen', label: 'Gruppen' });
-  if (showD) { cols.push({ key: 'ergebnisse', label: 'Erg.' }, { key: 'letzte', label: 'Letzte Akt.' }); if (_canSeeInaktiveAthleten()) cols.push({ key: 'aktiv', label: 'Status' }); }
+  if (showD) { cols.push({ key: 'ergebnisse', label: 'Erg.' }, { key: 'letzte', label: 'Letzte Akt.' }, { key: 'aktiv', label: 'Status' }); }
   if (showE) cols.push({ key: '', label: '' });
   return cols.map(function(c) {
     if (!c.key) return '<th></th>';
