@@ -4231,7 +4231,7 @@ function _athSortHeader() {
     if (!c.key) return '<th></th>';
     var arrow = _athSort.col === c.key ? (_athSort.dir === 1 ? ' ▲' : ' ▼') : '';
     var style = 'cursor:pointer;user-select:none;white-space:nowrap' + (_athSort.col === c.key ? ';color:var(--primary)' : '');
-    return '<th style="' + style + '" onclick="_athSetSort(\'' + c.key + '\'">' + c.label + arrow + '</th>';
+    return '<th style="' + style + '" onclick="_athSetSort(\'' + c.key + '\')">' + c.label + arrow + '</th>';
   }).join('');
 }
 
