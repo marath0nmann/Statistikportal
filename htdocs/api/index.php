@@ -3646,7 +3646,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
          LIMIT $limit OFFSET $offset",
         $searchParams
     );
-    $total = DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NULL AND genehmigt = 1$whereExtra", $searchParams)['c'];
+    $total = DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " v WHERE v.geloescht_am IS NULL AND v.genehmigt = 1$whereExtra", $searchParams)['c'];
     foreach ($veranst as &$v) {
         $v['ergebnisse'] = DB::fetchAll(
             "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
