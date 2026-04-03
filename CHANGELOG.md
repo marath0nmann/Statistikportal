@@ -1,3 +1,9 @@
+## v926 – Athleten-Menü für alle eingeloggten Mitglieder sichtbar
+
+- Athleten-Tab wird jetzt für alle eingeloggten Benutzer angezeigt, nicht mehr nur für Nutzer mit dem Recht `personenbezogene_daten`
+
+---
+
 ## v925 – Bugfix: Konto-Seite 3-spaltiges Layout wiederhergestellt
 
 - **Bugfix**: `style="konto-grid"` korrigiert auf `class="konto-grid"` – dadurch greift das CSS-Grid wieder korrekt
