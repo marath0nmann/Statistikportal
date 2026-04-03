@@ -1,3 +1,9 @@
+## v929 – Bugfix: Veranstaltungssuche SQL-Fehler (fehlender Alias)
+
+- **Bugfix**: COUNT-Query für Paginierung fehlte Tabellen-Alias `v` → `Unknown column 'v.name' in WHERE`
+
+---
+
 ## v928 – Veranstaltungen: Suche nach Name/Kürzel/Ort
 
 - Suchfeld über der Veranstaltungsliste; filtert nach Name, Kürzel und Ort (300ms Debounce)
