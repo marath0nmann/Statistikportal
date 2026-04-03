@@ -320,6 +320,8 @@ main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
 .veranst-dash-table .vcol-ms       { width: 15%; }
 .veranst-dash-table .vcol-ms-platz { width: 11%; }
 .veranst-dash-table td, .veranst-dash-table th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* AK-Badge kompakter damit er auch in schmalen Spalten nicht abgeschnitten wird */
+.veranst-dash-table td:nth-child(2) .badge { padding: 2px 5px; letter-spacing: 0; }
 table { width: 100%; border-collapse: collapse; }
 th {
   background: var(--surf2); padding: 10px 14px;
@@ -680,8 +682,8 @@ tr:hover td { background: var(--surf2); }
   .veranst-dash-table td:nth-child(7) { display: none; }
 
   /* 4 verbleibende Spalten: Athlet | AK | Ergebnis | Platz AK */
-  .veranst-dash-table .vcol-athlet { width: 42%; }
-  .veranst-dash-table .vcol-ak     { width: 11%; }
+  .veranst-dash-table .vcol-athlet { width: 38%; }
+  .veranst-dash-table .vcol-ak     { width: 15%; }
   .veranst-dash-table .vcol-result { width: 27%; }
   .veranst-dash-table .vcol-platz  { width: 20%; }
 
