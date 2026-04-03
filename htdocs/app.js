@@ -3532,6 +3532,7 @@ function timelineBadges(rek) {
             if (!mGroups[mgKey]) { mGroups[mgKey] = { label: mt.label, kat: mt.kat_name, jahre: [] }; mOrder.push(mgKey); }
             if (mt.jahr && mGroups[mgKey].jahre.indexOf(mt.jahr) < 0) mGroups[mgKey].jahre.push(mt.jahr);
           }
+          var mMedalSpans = [];
           mOrder.forEach(function(key) {
             var mg = mGroups[key];
             // label: "🥇 Nordrhein 1.500m" – alles nach erstem Leerzeichen
@@ -3545,8 +3546,19 @@ function timelineBadges(rek) {
             var jahreStr = mg.jahre.length ? ' ' + mg.jahre.join(', ') : '';
             var _sep = /e$/i.test(mstrName) ? ' ' : '-';
             var tooltip = mstrName + _sep + mSuffix.replace(/^-/, '') + ' ' + diszPart + katStr + jahreStr;
-            hBadgesHtml += '<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:15px;display:inline-block;cursor:default;line-height:1">&#x1F947;</span>';
+            mMedalSpans.push('<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:15px;display:inline-block;cursor:default;line-height:1">&#x1F947;</span>');
           });
+          if (mMedalSpans.length > 9) {
+            var _mNumRows = Math.ceil(mMedalSpans.length / 9);
+            var _mPerRow  = Math.ceil(mMedalSpans.length / _mNumRows);
+            var _mRowsHtml = '';
+            for (var _mri = 0; _mri < mMedalSpans.length; _mri += _mPerRow) {
+              _mRowsHtml += '<div style="display:flex;justify-content:center;gap:1px">' + mMedalSpans.slice(_mri, _mri + _mPerRow).join('') + '</div>';
+            }
+            hBadgesHtml += '<div style="width:100%;display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:2px">' + _mRowsHtml + '</div>';
+          } else {
+            hBadgesHtml += mMedalSpans.join('');
+          }
         }
                 for (var gi = 0; gi < groupOrder.length; gi++) {
           var gKey = groupOrder[gi], gData = groupMap[gKey], dl = gData.disz;
