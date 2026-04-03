@@ -1270,6 +1270,18 @@ tr:hover td { background: var(--surf2); }
   .veranst-dash-table td, .veranst-dash-table th { padding: 5px 6px; font-size: 11px; }
 }
 
+/* ── Admin System-Dashboard: Spalten auf Mobile ausblenden ── */
+@media (max-width: 600px) {
+  /* Gäste: Browser-Spalte (3) ausblenden */
+  .admin-gaeste-table th:nth-child(3),
+  .admin-gaeste-table td:nth-child(3) { display: none; }
+  /* Logins: IP (4) + Zeitpunkt (5) ausblenden */
+  .admin-login-table th:nth-child(4),
+  .admin-login-table td:nth-child(4),
+  .admin-login-table th:nth-child(5),
+  .admin-login-table td:nth-child(5) { display: none; }
+}
+
 .badge-athlet  { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
 
 /* ══════════════════════════════════════════════
