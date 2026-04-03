@@ -2300,17 +2300,21 @@ if ($res === 'athleten') {
                 "SELECT DISTINCT e.disziplin, e.disziplin_mapping_id,
                  COALESCE(m.fmt_override, k.fmt, 'min') AS fmt,
                  COALESCE(k.sort_dir,'ASC') AS sort_dir,
-                 COALESCE(m.hof_exclude, 0) AS hof_exclude
+                 COALESCE(m.hof_exclude, 0) AS hof_exclude,
+                 COALESCE(k.name, 'Sonstige') AS kat_name,
+                 COALESCE(k.reihenfolge, 99) AS kat_sort
                  FROM " . DB::tbl('ergebnisse') . " e
                  LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
                  LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
-                 WHERE e.geloescht_am IS NULL",
+                 WHERE e.geloescht_am IS NULL
+                 ORDER BY kat_sort, e.disziplin",
                 []
             );
             foreach ($diszListAll as $dRow) {
                 if (!empty($dRow['hof_exclude'])) continue;
-                $disz = $dRow['disziplin']; $mappingId = $dRow['disziplin_mapping_id'] ?? null;
-                $fmt  = $dRow['fmt'] ?? 'min'; $dir = strtoupper($dRow['sort_dir'] ?? 'ASC');
+                $disz    = $dRow['disziplin']; $mappingId = $dRow['disziplin_mapping_id'] ?? null;
+                $fmt     = $dRow['fmt'] ?? 'min'; $dir = strtoupper($dRow['sort_dir'] ?? 'ASC');
+                $katName = $dRow['kat_name'] ?? 'Sonstige';
                 $valExpr = $fmt === 'm'
                     ? "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))"
                     : "CASE WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}' THEN TIME_TO_SEC(e.resultat)
@@ -2329,7 +2333,7 @@ if ($res === 'athleten') {
                 $bestAll = DB::fetchOne("SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1", [$hofParam]);
                 $isGesamtBest = $bestAll && abs($myVal - (float)$bestAll['val']) < 0.001;
                 if ($isGesamtBest) {
-                    $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Gesamtbestleistung'];
+                    $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Gesamtbestleistung', 'kat_name' => $katName];
                     // Kein continue – AK-Checks laufen weiter (andere Jahre = andere AK-Rekorde)
                 }
                 // 2. Geschlechts-Bestleistung? (nur wenn nicht bereits Tier 1)
@@ -2340,7 +2344,7 @@ if ($res === 'athleten') {
                     );
                     if ($bestG && abs($myVal - (float)$bestG['val']) < 0.001) {
                         $gLabel = $athGeschlecht2 === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen';
-                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => $gLabel];
+                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => $gLabel, 'kat_name' => $katName];
                     }
                 }
                 // 3. AK-Bestleistung? (immer prüfen, unabhängig von Gesamt/Geschlecht – wie HoF)
@@ -2366,7 +2370,7 @@ if ($res === 'athleten') {
                         // Überspringen wenn identisch mit bereits gezählter Gesamtbestleistung
                         if ($isGesamtBest && abs((float)$bestMeAK['val'] - $myVal) < 0.001) continue;
                         $akLbl = preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $ak);
-                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Bestleistung ' . $akLbl];
+                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Bestleistung ' . $akLbl, 'kat_name' => $katName];
                     }
                 }
             }
