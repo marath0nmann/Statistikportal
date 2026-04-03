@@ -1,3 +1,10 @@
+## v920 – Dashboard-Widget „Persönliche Bestleistungen" mobil
+
+- **iPhone/Smartphone**: Disziplin-Kacheln innerhalb einer Kategorie (z. B. Straße) umbrechen jetzt in die nächste Zeile statt seitlich abgeschnitten zu werden
+- `flex-wrap:nowrap` → `flex-wrap:wrap` im Button-Container; Kategorie-Sektion nimmt volle Breite ein (`flex:1 1 100%`)
+
+---
+
 ## v919 – Dashboard-Layout iPad
 
 - **Dashboard „Letzte Veranstaltungen"**: AK-Badge (z. B. „M45") wird auf iPad nicht mehr mit „…" abgeschnitten
