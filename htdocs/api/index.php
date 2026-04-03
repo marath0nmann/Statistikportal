@@ -1205,6 +1205,7 @@ if ($res === 'einstellungen') {
                 'disziplin_kategorie_suffix',
                 'footer_datenschutz_text','footer_nutzung_text','footer_impressum_text',
                 'jugend_aks',
+                'wartung_aktiv','wartung_nachricht',
                 'kategoriegruppen',
                 'meisterschaften_liste',
                 'top_disziplinen',

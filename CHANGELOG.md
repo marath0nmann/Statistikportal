@@ -1,3 +1,13 @@
+## v918 – Wartungsmodus
+
+- **Admin → Darstellung → Wartungsmodus**: Checkbox zum Aktivieren/Deaktivieren (sofortige Wirkung)
+- **Wartungsseite**: Nicht eingeloggte Besucher sehen statt aller Inhalte eine konfigurierbare Wartungsmeldung
+- **Login gesperrt**: Im Wartungsmodus können sich nur Administratoren anmelden; alle anderen erhalten eine Fehlermeldung
+- **Rollen & Rechte**: Neues Recht „Im Wartungsmodus einloggen" – damit können einzelne Rollen (z. B. Editoren) gezielt auch im Wartungsmodus zugelassen werden
+- **Backend**: Wartungsprüfung in `finalizeLogin()` mit HTTP 503
+
+---
+
 ## v917 – Athleten: Überschrift zeigt aktive Gruppe
 
 - Panel-Titel wechselt von „Alle Athleten" zum Namen der gewählten Gruppe (z. B. „Senioren")
