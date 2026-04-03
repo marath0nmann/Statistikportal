@@ -1,3 +1,11 @@
+## v914 – Veranstaltung-Detailseite: Navigation
+
+- **Zurück-Button** entfernt (macht keinen Sinn bei extern geteilten Links)
+- **Veranstaltungsliste**: Klick auf Event-Titel öffnet Detailseite in neuem Tab
+- **Share-Modal**: „Seite öffnen" öffnet ebenfalls in neuem Tab
+
+---
+
 ## v913 – Veranstaltungen: Icons & Darstellung
 
 - **Veranstaltungskarten**: Kaputten Text-Link (Datenquelle unter Datum) entfernt
