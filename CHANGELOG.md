@@ -1,3 +1,9 @@
+## v921 – Hall of Fame – Medaillen-Zeile kompakter
+
+- **Hall of Fame Widget**: Medaillen-Emojis sitzen enger zusammen (`gap:1px`, kein `margin`) – einzelne Medaille in zweiter Zeile tritt nicht mehr auf
+
+---
+
 ## v920 – Dashboard-Widget „Persönliche Bestleistungen" mobil
 
 - **iPhone/Smartphone**: Disziplin-Kacheln innerhalb einer Kategorie (z. B. Straße) umbrechen jetzt in die nächste Zeile statt seitlich abgeschnitten zu werden
