@@ -1,3 +1,10 @@
+## v917 – Athleten: Überschrift zeigt aktive Gruppe
+
+- Panel-Titel wechselt von „Alle Athleten" zum Namen der gewählten Gruppe (z. B. „Senioren")
+- Ohne Gruppenfilter bleibt der Titel „Alle Athleten"
+
+---
+
 ## v916 – Athleten: Tabellensortierung repariert
 
 - **Alle Athleten**: Spaltenköpfe waren nicht klickbar (onclick-Attribut hatte fehlende schließende Klammer)
