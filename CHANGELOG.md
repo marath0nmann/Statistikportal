@@ -1,3 +1,11 @@
+## v911 – Bugfixes Veranstaltungen & Admin
+
+- **Veranstaltungen**: Doppelter „Teilen"-Button in Veranstaltungskarten entfernt
+- **Veranstaltungen**: Fehlender Datenquelle-Link als Button in der Aktionsleiste ergänzt (erscheint nur wenn Datenquelle gesetzt)
+- **Admin**: Abgebrochene Zeile (`'<button class+`) aus Freigabe-Tab-Bereinigung (v910) entfernt – verhinderte JS-Ausführung
+
+---
+
 ## v910
 
 - Separaten 'Freigabe'-Tab entfernt
