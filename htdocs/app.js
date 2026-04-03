@@ -1734,7 +1734,7 @@ function _renderKontoPage() {
           '<div style="position:absolute;bottom:0;right:0;background:var(--primary);color:var(--on-primary);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;">&#x1F4F7;</div>' +
         '</div>' +
         '<input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadAvatar(this)">' +
-        '<div style="font-weight:700;font-size:15px;'+( pb.verein ? 'color:var(--text)' : 'color:var(--primary)')+'">' + name + '</div>' +
+        '<div style="font-weight:700;font-size:15px;'+( currentUser.verein ? 'color:var(--text)' : 'color:var(--primary)')+'">' + name + '</div>' +
         '<div style="color:var(--text2);font-size:12px;margin-top:3px">' + rolleLabel(currentUser.rolle) + '</div>' +
         (currentUser.avatar ? '<button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:11px;color:var(--text2)" onclick="deleteAvatar()">&#x2715; Avatar entfernen</button>' : '') +
       '</div>' +
