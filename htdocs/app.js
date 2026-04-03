@@ -2966,7 +2966,7 @@ async function _loadEigenesProfilWidget(elId, showErg) {
     }
     if (!btns) continue;
     pbSections +=
-      '<div class="pb-kat-section" style="flex:1 1 100%">' +
+      '<div class="pb-kat-section" style="flex:1 1 auto;min-width:180px">' +
         '<div style="padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px">' + kat.name + '</div>' +
         '<div style="padding:0 14px 10px;display:flex;flex-wrap:wrap;gap:6px">' + btns + '</div>' +
       '</div>';
@@ -11042,7 +11042,7 @@ async function renderAdminSystem() {
     return '<tr><th colspan="2" style="padding:8px 12px;background:var(--primary);color:#fff;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">' + label + '</th></tr>';
   }
   function stable(rows) {
-    return '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden"><table style="width:100%;border-collapse:collapse">' + rows + '</table></div>';
+    return '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden"><table class="admin-phpbb-table" style="width:100%;border-collapse:collapse"><colgroup><col><col></colgroup>' + rows + '</table></div>';
   }
 
   // Left column
@@ -11152,7 +11152,7 @@ async function renderAdminSystem() {
     // Aktive Benutzer + Letzte Logins
     '<div class="admin-sys-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
       '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F7E2; Aktiv <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 5 Min.)</span></div></div>' +
-        '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Aktiv seit') + '</tr></thead>' +
+        '<table class="admin-aktiv-table" style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Aktiv seit') + '</tr></thead>' +
         '<tbody>' + aktiveRows + '</tbody></table></div>' +
       '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F550; Letzte Logins</div></div>' +
         '<div class="table-scroll"><table class="admin-login-table" style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Status') + thStyle('Land') + thStyle('IP') + thStyle('Zeitpunkt') + '</tr></thead>' +

@@ -1,3 +1,11 @@
+## v923 – System-Dashboard Tabellen mobil verbessert
+
+- **Alle Spalten sichtbar**: Gäste-Tabelle (Browser) und Letzte-Logins-Tabelle (IP, Zeitpunkt) blenden Spalten auf Mobilgeräten nicht mehr aus
+- **100% Tabellenbreite**: Globales `display:block` auf `<table>`-Elementen wird für System-Dashboard-Tabellen überschrieben → Zellen füllen nun die volle Breite
+- **Persönliche Bestleistungen Dashboard**: Kategorien (Straße, Bahn etc.) werden nebeneinander angezeigt, solange Platz vorhanden
+
+---
+
 ## v922 – Admin System-Dashboard responsive
 
 - **phpBB-Statistiktabellen**: `border`/`border-radius`/`overflow` vom `<table>`-Element in einen Wrapper-`<div>` verschoben → Tabelle füllt nun zuverlässig die volle Breite
