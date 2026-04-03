@@ -1,3 +1,9 @@
+## v933 – Hall of Fame: Medaillen bei >9 auf gleichmäßige Zeilen aufteilen
+
+- Mehr als 9 Meisterschafts-Medaillen werden gleichmäßig auf mehrere Zeilen verteilt (max. 9 pro Zeile)
+
+---
+
 ## v932 – Bugfix: Jugend-AK-Merge-Priorität gegenüber ak_mapping
 
 - `jugend_aks` IN-Clauses kommen jetzt vor `ak_mapping` im SQL-CASE → AKs in `ak_mapping` (z.B. auf sich selbst gemappt) blockieren den Jugend-Merge nicht mehr
