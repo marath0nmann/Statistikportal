@@ -4350,7 +4350,7 @@ async function renderAthleten() {
       (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showGeburtjahrImportModal()" title="Geburtsjahr-Bulk-Import">&#x1F4C5; Geburtsjahr importieren</button>' : '') +
     '</div>' +
     '<div class="panel">' +
-      '<div class="panel-header"><div class="panel-title">&#x1F464; Alle Athleten</div><div class="panel-count" id="athlet-count"></div></div>' +
+      '<div class="panel-header"><div class="panel-title">&#x1F464; ' + (aktGruppe || 'Alle Athleten') + '</div><div class="panel-count" id="athlet-count"></div></div>' +
       '<div class="table-scroll"><table id="athlet-tabelle">' +
         '<thead><tr>' + _athSortHeader() + '</tr></thead>' +
         '<tbody></tbody>' +
