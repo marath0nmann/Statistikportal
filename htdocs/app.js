@@ -11121,7 +11121,7 @@ async function renderAdminSystem() {
     '<h2 style="margin-bottom:18px">&#x1F5A5;&#xFE0E; System-Dashboard</h2>' +
 
     // phpBB-style two-column stat tables
-    '<div style="admin-sys-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
+    '<div class="admin-sys-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
       '<div>' + stable(leftRows) + '</div>' +
       '<div>' + stable(rightRows) + '</div>' +
     '</div>' +
@@ -11135,7 +11135,7 @@ async function renderAdminSystem() {
       '</tr></thead><tbody>' + gaesteRows + '</tbody></table></div></div>' +
 
     // Aktive Benutzer + Letzte Logins
-    '<div style="admin-sys-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
+    '<div class="admin-sys-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
       '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F7E2; Aktiv <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 5 Min.)</span></div></div>' +
         '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Aktiv seit') + '</tr></thead>' +
         '<tbody>' + aktiveRows + '</tbody></table></div>' +
