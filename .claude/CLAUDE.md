@@ -43,7 +43,7 @@ Kein ZIP-Export mehr nötig.
 - **Auth**: Session + TOTP + Passkey (3-Schritt-Login)
 - **JS-Syntax prüfen**: `node --check htdocs/app.js` oder `node -e "new Function(require('fs').readFileSync('htdocs/app.js','utf8'))"`
 
-## Aktuelle Version: v920
+## Aktuelle Version: v922
 
 ### Wichtige Patterns
 
