@@ -1,3 +1,11 @@
+## v931 – Admin Altersklassen: Jugend-AK-Merge-Konfiguration
+
+- Neuer Abschnitt "Jugend-AK-Merge-Konfiguration" in Admin → Altersklassen
+- Checkboxen für alle Standard-AKs: welche werden bei "Jugend-AK zu MHK/WHK zusammenfassen" einbezogen?
+- Speichert Konfiguration in der `jugend_aks`-Einstellung; Buttons "Alle" / "Keine"
+
+---
+
 ## v930 – System-Dashboard: Layout Aktiv/Letzte Logins 30/70
 
 - Spaltenbreite der Tabellen "Aktiv" und "Letzte Logins" von 50/50 auf 30/70 angepasst
