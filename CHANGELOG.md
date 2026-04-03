@@ -1,3 +1,10 @@
+## v928 – Veranstaltungen: Suche nach Name/Kürzel/Ort
+
+- Suchfeld über der Veranstaltungsliste; filtert nach Name, Kürzel und Ort (300ms Debounce)
+- API: `?suche=` Parameter an `/veranstaltungen` – serverseitiges LIKE-Filter, Paginierung bleibt korrekt
+
+---
+
 ## v927 – Bugfix: Athleten-Tabelle Status-Spaltenüberschrift fehlte
 
 - **Bugfix**: Tabellenüberschrift „Status" fehlte, weil Header und Zeilen unterschiedliche Bedingungen hatten (`_canSeeInaktiveAthleten()` nur im Header) – jetzt einheitlich an `showDetails` geknüpft
