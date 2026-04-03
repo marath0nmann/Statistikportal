@@ -1,3 +1,10 @@
+## v932 – Bugfix: Jugend-AK-Merge-Priorität gegenüber ak_mapping
+
+- `jugend_aks` IN-Clauses kommen jetzt vor `ak_mapping` im SQL-CASE → AKs in `ak_mapping` (z.B. auf sich selbst gemappt) blockieren den Jugend-Merge nicht mehr
+- `ak_mapping`-Einträge, deren Ziel in `jugend_aks` liegt, werden direkt zu MHK/WHK aufgelöst
+
+---
+
 ## v931 – Admin Altersklassen: Jugend-AK-Merge-Konfiguration
 
 - Neuer Abschnitt "Jugend-AK-Merge-Konfiguration" in Admin → Altersklassen
