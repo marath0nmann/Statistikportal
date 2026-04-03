@@ -1,3 +1,9 @@
+## v930 – System-Dashboard: Layout Aktiv/Letzte Logins 30/70
+
+- Spaltenbreite der Tabellen "Aktiv" und "Letzte Logins" von 50/50 auf 30/70 angepasst
+
+---
+
 ## v929 – Bugfix: Veranstaltungssuche SQL-Fehler (fehlender Alias)
 
 - **Bugfix**: COUNT-Query für Paginierung fehlte Tabellen-Alias `v` → `Unknown column 'v.name' in WHERE`
