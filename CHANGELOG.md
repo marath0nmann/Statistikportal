@@ -1,3 +1,9 @@
+## v924 – Bugfix: Konto-Seite lädt nicht (pb is not defined)
+
+- **Bugfix**: In `_renderKontoPage()` wurde fälschlicherweise `pb.verein` referenziert – korrigiert auf `currentUser.verein`
+
+---
+
 ## v923 – System-Dashboard Tabellen mobil verbessert
 
 - **Alle Spalten sichtbar**: Gäste-Tabelle (Browser) und Letzte-Logins-Tabelle (IP, Zeitpunkt) blenden Spalten auf Mobilgeräten nicht mehr aus
