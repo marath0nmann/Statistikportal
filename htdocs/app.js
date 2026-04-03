@@ -2246,261 +2246,11 @@ async function shareVeranstaltung(vid) {
           'navigator.clipboard.writeText(document.getElementById(\'share-md-area\').value).then(function(){' +
           'var b=this;b.textContent=\'\\u2705 Kopiert!\';setTimeout(function(){b.textContent=\'Markdown kopieren\'},2000)}.bind(this))"' +
           '>Markdown kopieren</button>' +
-        '<button class="btn btn-primary btn-sm" onclick="closeModal();navigate(\'veranstaltung/' + vid + '\')">Seite \u00f6ffnen &#x2192;</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="closeModal();window.open(location.origin+location.pathname+\'#veranstaltung/' + vid + '\',\'_blank\')">Seite \u00f6ffnen &#x2192;</button>' +
       '</div>' +
     '</div>'
   , false, true);
 }
-
-// ── Einzelseite: Veranstaltung ──────────────────────────────────────────────
-
-async function renderVeranstaltungDetail(vid) {
-  var el = document.getElementById('main-content');
-  el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
-
-  // Load data
-  var r = await apiGet('veranstaltungen?limit=200&offset=0');
-  if (!r || !r.ok) { el.innerHTML = '<div class="panel" style="padding:32px;text-align:center;color:var(--accent)">Fehler beim Laden.</div>'; return; }
-  window._lastVeranstList = r.data.veranst || [];
-  var v = window._lastVeranstList.find(function(x) { return x.id == vid; });
-  if (!v) { el.innerHTML = '<div class="panel" style="padding:32px;text-align:center">Veranstaltung nicht gefunden.</div>'; return; }
-
-  var name  = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel;
-  var date  = v.datum ? v.datum.split('-').reverse().join('.') : (v.kuerzel || '').split(' ')[0];
-  var ergs  = v.ergebnisse || [];
-  var url   = location.origin + location.pathname + '#veranstaltung/' + vid;
-
-  // Group by discipline
-  var byDisz = {}, diszOrder = [];
-  ergs.forEach(function(e) {
-    var d = e.disziplin || '?';
-    if (!byDisz[d]) { byDisz[d] = []; diszOrder.push(d); }
-    byDisz[d].push(e);
-  });
-
-  // Build table HTML (same style as renderVeranstaltungen)
-  function ergTable(ergs) {
-    var rows = ergs.map(function(e) {
-      var name2 = (e.athlet || '').split(', ').reverse().join(' ');
-      var res   = _veranstFormatResult(e);
-      return '<tr>' +
-        '<td>' + name2 + '</td>' +
-        '<td><span class="badge badge-ak">' + (e.altersklasse || '') + '</span></td>' +
-        '<td style="font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:15px">' + res + '</td>' +
-        '<td style="color:var(--text2);font-size:12px">' + (e.ak_platzierung ? 'Platz\u00a0' + e.ak_platzierung : '') + '</td>' +
-        '</tr>';
-    }).join('');
-    return '<table style="width:100%;border-collapse:collapse">' +
-      '<thead><tr style="border-bottom:2px solid var(--border)">' +
-        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">Athlet</th>' +
-        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">AK</th>' +
-        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">Zeit</th>' +
-        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">Platz AK</th>' +
-      '</tr></thead><tbody>' + rows + '</tbody></table>';
-  }
-
-  var diszHtml = diszOrder.map(function(disz) {
-    return '<div style="margin-bottom:20px">' +
-      '<div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">' + diszMitKat(disz) + '</div>' +
-      ergTable(byDisz[disz]) +
-    '</div>';
-  }).join('');
-
-  el.innerHTML =
-    '<div style="max-width:720px;margin:0 auto">' +
-      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">' +
-        '<button class="btn btn-ghost btn-sm" onclick="history.back()">&#x2190; Zur\u00fcck</button>' +
-        '<button class="btn btn-ghost btn-sm" onclick="shareVeranstaltung(' + vid + ')">&#x1F517; Teilen</button>' +
-      '</div>' +
-      '<div class="panel" style="padding:24px">' +
-        '<h1 style="font-size:22px;font-weight:700;margin:0 0 4px;color:var(--primary)">' + name + '</h1>' +
-        '<div style="color:var(--text2);font-size:14px;margin-bottom:20px">' +
-          date + (v.ort ? ' \u00b7 ' + v.ort : '') +
-          (v.datenquelle ? ' &nbsp;\u00b7&nbsp; <a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" style="color:var(--text2);font-size:12px">\uD83D\uDD17 Ergebnisquelle</a>' : '') +
-        '</div>' +
-        diszHtml +
-        '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--text2)">' +
-          '\uD83D\uDD17 <a href="' + url + '" style="color:var(--text2)">' + url + '</a>' +
-        '</div>' +
-      '</div>' +
-    '</div>';
-}
-
-
-
-// ── Veranstaltung teilen ────────────────────────────────────────────────────
-
-function _veranstFormatResult(e) {
-  var res = e.resultat || '';
-  // Strip leading zeros: 00:18:26 -> 18:26
-  res = res.replace(/^0+:?/, '').replace(/^:/, '');
-  return res;
-}
-
-function _veranstMarkdown(v) {
-  var url  = location.origin + location.pathname + '#veranstaltung/' + v.id;
-  var date = v.datum ? v.datum.split('-').reverse().join('.') : v.kuerzel?.split(' ')[0] || '';
-  var header = '## ' + (v.name || v.kuerzel) + '\n';
-  header += '\u{1F4CD} ' + date + (v.ort ? ' \u00b7 ' + v.ort : '') + '\n\n';
-
-  // Group by disziplin
-  var ergs = v.ergebnisse || [];
-  var byDisz = {}, diszOrder = [];
-  ergs.forEach(function(e) {
-    var d = e.disziplin || '?';
-    if (!byDisz[d]) { byDisz[d] = []; diszOrder.push(d); }
-    byDisz[d].push(e);
-  });
-
-  var body = '';
-  diszOrder.forEach(function(disz) {
-    body += '### ' + disz + '\n';
-    body += '| Athlet | AK | Zeit | Platz AK |\n';
-    body += '|--------|----|----- |---------|\n';
-    byDisz[disz].forEach(function(e) {
-      var name = (e.athlet || '').split(', ').reverse().join(' ');
-      body += '| ' + name + ' | ' + (e.altersklasse || '') + ' | ' + _veranstFormatResult(e) + ' | ' + (e.ak_platzierung || '') + ' |\n';
-    });
-    body += '\n';
-  });
-
-  return header + body + '\u{1F517} ' + url;
-}
-
-async function shareVeranstaltung(vid) {
-  // Load veranstaltung data
-  var r = await apiGet('veranstaltungen?limit=1&offset=0&id=' + vid);
-  // veranstaltungen endpoint doesn't filter by id - find from list or use inline data
-  // Try to get from current rendered data
-  var v = null;
-  // Search in the page's rendered veranst cards
-  if (window._lastVeranstList) {
-    v = window._lastVeranstList.find(function(x) { return x.id == vid; });
-  }
-  if (!v) {
-    // Fallback: load fresh
-    var r2 = await apiGet('veranstaltungen?limit=200&offset=0');
-    if (r2 && r2.ok) {
-      window._lastVeranstList = r2.data.veranst || [];
-      v = window._lastVeranstList.find(function(x) { return x.id == vid; });
-    }
-  }
-  if (!v) { notify('Veranstaltung nicht gefunden.', 'err'); return; }
-
-  var url  = location.origin + location.pathname + '#veranstaltung/' + vid;
-  var md   = _veranstMarkdown(v);
-  var date = v.datum ? v.datum.split('-').reverse().join('.') : '';
-
-  showModal(
-    '<h2 style="margin-bottom:16px">\u{1F517} Veranstaltung teilen' +
-    ' <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
-
-    '<div style="margin-bottom:16px">' +
-      '<div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Direktlink</div>' +
-      '<div style="display:flex;gap:8px;align-items:center">' +
-        '<input type="text" id="share-url-input" value="' + url.replace(/"/g,'&quot;') + '"' +
-          ' readonly style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;' +
-          'background:var(--surf2);color:var(--text);font-size:13px;font-family:monospace"/>' +
-        '<button class="btn btn-primary btn-sm" onclick="' +
-          'navigator.clipboard.writeText(document.getElementById(\'share-url-input\').value).then(function(){' +
-          'var b=this;b.textContent=\'\\u2705 Kopiert!\';setTimeout(function(){b.textContent=\'Kopieren\'},2000)}.bind(this))"' +
-          '>Kopieren</button>' +
-      '</div>' +
-    '</div>' +
-
-    '<div>' +
-      '<div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Markdown</div>' +
-      '<textarea id="share-md-area" readonly style="width:100%;height:240px;box-sizing:border-box;padding:10px 12px;' +
-        'border:1.5px solid var(--border);border-radius:7px;background:var(--surf2);color:var(--text);' +
-        'font-size:12px;font-family:monospace;resize:vertical;line-height:1.5">' +
-        md.replace(/</g,'&lt;').replace(/>/g,'&gt;') +
-      '</textarea>' +
-      '<div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">' +
-        '<button class="btn btn-ghost btn-sm" onclick="' +
-          'navigator.clipboard.writeText(document.getElementById(\'share-md-area\').value).then(function(){' +
-          'var b=this;b.textContent=\'\\u2705 Kopiert!\';setTimeout(function(){b.textContent=\'Markdown kopieren\'},2000)}.bind(this))"' +
-          '>Markdown kopieren</button>' +
-        '<button class="btn btn-primary btn-sm" onclick="closeModal();navigate(\'veranstaltung/' + vid + '\')">Seite \u00f6ffnen &#x2192;</button>' +
-      '</div>' +
-    '</div>'
-  , false, true);
-}
-
-// ── Einzelseite: Veranstaltung ──────────────────────────────────────────────
-
-async function renderVeranstaltungDetail(vid) {
-  var el = document.getElementById('main-content');
-  el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
-
-  // Load data
-  var r = await apiGet('veranstaltungen?limit=200&offset=0');
-  if (!r || !r.ok) { el.innerHTML = '<div class="panel" style="padding:32px;text-align:center;color:var(--accent)">Fehler beim Laden.</div>'; return; }
-  window._lastVeranstList = r.data.veranst || [];
-  var v = window._lastVeranstList.find(function(x) { return x.id == vid; });
-  if (!v) { el.innerHTML = '<div class="panel" style="padding:32px;text-align:center">Veranstaltung nicht gefunden.</div>'; return; }
-
-  var name  = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel;
-  var date  = v.datum ? v.datum.split('-').reverse().join('.') : (v.kuerzel || '').split(' ')[0];
-  var ergs  = v.ergebnisse || [];
-  var url   = location.origin + location.pathname + '#veranstaltung/' + vid;
-
-  // Group by discipline
-  var byDisz = {}, diszOrder = [];
-  ergs.forEach(function(e) {
-    var d = e.disziplin || '?';
-    if (!byDisz[d]) { byDisz[d] = []; diszOrder.push(d); }
-    byDisz[d].push(e);
-  });
-
-  // Build table HTML (same style as renderVeranstaltungen)
-  function ergTable(ergs) {
-    var rows = ergs.map(function(e) {
-      var name2 = (e.athlet || '').split(', ').reverse().join(' ');
-      var res   = _veranstFormatResult(e);
-      return '<tr>' +
-        '<td>' + name2 + '</td>' +
-        '<td><span class="badge badge-ak">' + (e.altersklasse || '') + '</span></td>' +
-        '<td style="font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:15px">' + res + '</td>' +
-        '<td style="color:var(--text2);font-size:12px">' + (e.ak_platzierung ? 'Platz\u00a0' + e.ak_platzierung : '') + '</td>' +
-        '</tr>';
-    }).join('');
-    return '<table style="width:100%;border-collapse:collapse">' +
-      '<thead><tr style="border-bottom:2px solid var(--border)">' +
-        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">Athlet</th>' +
-        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">AK</th>' +
-        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">Zeit</th>' +
-        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">Platz AK</th>' +
-      '</tr></thead><tbody>' + rows + '</tbody></table>';
-  }
-
-  var diszHtml = diszOrder.map(function(disz) {
-    return '<div style="margin-bottom:20px">' +
-      '<div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">' + diszMitKat(disz) + '</div>' +
-      ergTable(byDisz[disz]) +
-    '</div>';
-  }).join('');
-
-  el.innerHTML =
-    '<div style="max-width:720px;margin:0 auto">' +
-      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">' +
-        '<button class="btn btn-ghost btn-sm" onclick="history.back()">&#x2190; Zur\u00fcck</button>' +
-        '<button class="btn btn-ghost btn-sm" onclick="shareVeranstaltung(' + vid + ')">&#x1F517; Teilen</button>' +
-      '</div>' +
-      '<div class="panel" style="padding:24px">' +
-        '<h1 style="font-size:22px;font-weight:700;margin:0 0 4px;color:var(--primary)">' + name + '</h1>' +
-        '<div style="color:var(--text2);font-size:14px;margin-bottom:20px">' +
-          date + (v.ort ? ' \u00b7 ' + v.ort : '') +
-          (v.datenquelle ? ' &nbsp;\u00b7&nbsp; <a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" style="color:var(--text2);font-size:12px">\uD83D\uDD17 Ergebnisquelle</a>' : '') +
-        '</div>' +
-        diszHtml +
-        '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--text2)">' +
-          '\uD83D\uDD17 <a href="' + url + '" style="color:var(--text2)">' + url + '</a>' +
-        '</div>' +
-      '</div>' +
-    '</div>';
-}
-
-
 
 // ── Einzelseite: Veranstaltung ──────────────────────────────────────────────
 
@@ -2514,97 +2264,74 @@ async function renderVeranstaltungDetail(vid) {
     return;
   }
   window._lastVeranstList = r.data.veranst || [];
+  state._veranstMap = {};
+  for (var ci = 0; ci < window._lastVeranstList.length; ci++) state._veranstMap[window._lastVeranstList[ci].id] = window._lastVeranstList[ci];
   var v = window._lastVeranstList.find(function(x) { return x.id == vid; });
   if (!v) {
     el.innerHTML = '<div class="panel" style="padding:32px;text-align:center">Veranstaltung nicht gefunden.</div>';
     return;
   }
 
-  var name  = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel;
-  var date  = v.datum ? v.datum.split('-').reverse().join('.') : (v.kuerzel || '').split(' ')[0];
-  var ergs  = v.ergebnisse || [];
-  var url   = location.origin + location.pathname + '#veranstaltung/' + vid;
+  var name = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel || '';
+  var ergs = v.ergebnisse || [];
 
-  // Group by discipline (same logic as renderVeranstaltungen)
+  // Group by discipline – same logic as renderVeranstaltungen
   var byDisz = {}, diszOrder = [];
-  ergs.forEach(function(e) {
-    var dk = ergDiszKey(e);
-    if (!byDisz[dk]) { byDisz[dk] = []; diszOrder.push(dk); }
-    byDisz[dk].push(e);
-  });
+  for (var ei = 0; ei < ergs.length; ei++) {
+    var e = ergs[ei];
+    var _dk = ergDiszKey(e);
+    if (!byDisz[_dk]) { byDisz[_dk] = []; diszOrder.push(_dk); }
+    byDisz[_dk].push(e);
+  }
+  var _hasMstr = ergs.some(function(e3){ return !!e3.meisterschaft; });
+  var _colspan = _hasMstr ? '7' : '5';
   sortDisziplinen(diszOrder);
 
-  // Build tables using the exact same markup as renderVeranstaltungen
-  var tablesHtml = '';
-  diszOrder.forEach(function(dk) {
-    var ergsD = byDisz[dk];
-    var disz  = ergsD[0] ? ergDiszLabel(ergsD[0]) : dk;
-    var fmt   = ergsD[0] ? (ergsD[0].fmt || 'min') : 'min';
-    var _hasMstr = ergsD.some(function(e) { return e.meisterschaft; });
-
-    var rows = '';
-    ergsD.forEach(function(e2) {
-      var res  = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : undefined);
+  var rows = '';
+  for (var di = 0; di < diszOrder.length; di++) {
+    var _dKey = diszOrder[di];
+    var _diszFirstErg = byDisz[_dKey][0];
+    var disz = _diszFirstErg ? ergDiszLabel(_diszFirstErg) : _dKey;
+    var dErgs = byDisz[_dKey];
+    rows += '<tr class="disz-header-row"><td colspan="' + _colspan + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + disz + '</td></tr>';
+    for (var ei2 = 0; ei2 < dErgs.length; ei2++) {
+      var e2 = dErgs[ei2];
+      var fmt = e2.fmt || '';
+      var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : undefined);
       var _ePace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
       var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
       rows +=
         '<tr>' +
-          '<td>' + e2.athlet + '</td>' +
+          '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span></td>' +
           '<td>' + akBadge(e2.altersklasse) + '</td>' +
           '<td class="result">' + res + '</td>' +
           '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +
           '<td>' + platzBadge(e2.ak_platzierung) + '</td>' +
           (_hasMstr ? '<td>' + mstrBadge(e2.meisterschaft) + '</td>' : '') +
-          (_hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? 'Pl.\u00a0' + e2.ak_platz_meisterschaft : '') + '</td>' : '') +
+          (_hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? platzBadge(e2.ak_platz_meisterschaft) : '') + '</td>' : '') +
         '</tr>';
-    });
-
-    tablesHtml +=
-      '<div class="disz-section" style="margin-bottom:24px">' +
-        '<div class="disziplin-header">' + diszMitKat(disz) + '</div>' +
-        '<table class="veranst-dash-table">' +
-          '<colgroup>' +
-            '<col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' +
-            (_hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') +
-          '</colgroup>' +
-          '<thead><tr>' +
-            '<th>Athlet</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl.\u00a0AK</th>' +
-            (_hasMstr ? '<th>MS</th><th>Pl.\u00a0MS</th>' : '') +
-          '</tr></thead>' +
-          '<tbody>' + rows + '</tbody>' +
-        '</table>' +
-      '</div>';
-  });
+    }
+  }
 
   el.innerHTML =
-    '<div style="max-width:900px;margin:0 auto">' +
-      // Share button top right
-      '<div style="display:flex;justify-content:flex-end;margin-bottom:12px">' +
-        '<button class="btn btn-ghost btn-sm" onclick="shareVeranstaltung(' + vid + ')">&#x1F517; Teilen</button>' +
-      '</div>' +
-      // Event header (same as veranstaltungen card header)
-      '<div class="panel" style="padding:20px 24px;margin-bottom:4px">' +
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">' +
-          '<div>' +
-            '<div style="font-size:18px;font-weight:700;color:var(--primary);margin-bottom:3px">' + name + '</div>' +
-            '<div style="font-size:13px;color:var(--text2)">' +
-              date + (v.ort ? ' \u00b7 ' + v.ort : '') +
-              (v.datenquelle ? ' &nbsp;\u00b7&nbsp; <a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" style="color:var(--text2);font-size:12px">\uD83D\uDD17 Ergebnisquelle</a>' : '') +
-            '</div>' +
-          '</div>' +
-          '<div style="font-size:13px;color:var(--text2);text-align:right;flex-shrink:0">' +
-            ergs.length + ' Erg. &middot; ' + v.anz_athleten + ' Athleten' +
-          '</div>' +
+    '<div class="panel" style="margin-bottom:0">' +
+      '<div class="panel-header">' +
+        '<div>' +
+          '<div class="panel-title">' + name + '</div>' +
+          '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + v.ort : '') + '</div>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+          '<span style="font-size:13px;color:var(--text2)">' + v.anz_ergebnisse + ' Ergebnisse &middot; ' + v.anz_athleten + ' Athleten</span>' +
+          (currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor') ?
+            '<button class="btn btn-ghost btn-sm" onclick="showVeranstEditModal(' + v.id + ')">&#x270F;&#xFE0F;</button>' : '') +
+          (v.datenquelle ? '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" class="btn btn-ghost btn-sm" title="Ergebnisquelle">\uD83C\uDF10</a>' : '') +
+          '<button class="btn btn-ghost btn-sm" title="Teilen" onclick="shareVeranstaltung(' + v.id + ')">\uD83D\uDCE4</button>' +
+          (_canVeranstaltungLoeschen() ?
+            '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&#x2715;</button>' : '') +
         '</div>' +
       '</div>' +
-      // Results tables
-      '<div class="panel" style="padding:0 0 8px">' +
-        tablesHtml +
-      '</div>' +
-      // Permalink at bottom
-      '<div style="margin-top:12px;font-size:11px;color:var(--text2);text-align:center">' +
-        '\uD83D\uDD17 <a href="' + url + '" style="color:var(--text2)">' + url + '</a>' +
-      '</div>' +
+      (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' + (_hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') + '</colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th>' + (_hasMstr ? '<th>Meisterschaft</th><th>Pl. MS</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' :
+              '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
     '</div>';
 }
 
@@ -15477,7 +15204,7 @@ async function renderVeranstaltungen() {
       '<div class="panel" style="margin-bottom:16px">' +
         '<div class="panel-header">' +
           '<div>' +
-            '<div class="panel-title">' + name + '</div>' +
+            '<div class="panel-title" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + v.id + '\',\'_blank\')">' + name + '</div>' +
             '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + v.ort : '') + '</div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:10px">' +
