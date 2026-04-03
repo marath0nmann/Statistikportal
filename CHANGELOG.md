@@ -1,3 +1,12 @@
+## v915 – System-Dashboard: Zweispaltiges Layout wiederhergestellt
+
+- **System-Dashboard** (Admin → System): Grid-Layout war defekt durch doppeltes `style`-Attribut
+- Fix: `style="admin-sys-grid"` → `class="admin-sys-grid"` auf beiden Grid-Containern
+- Statistik-Tabellen und Aktiv/Logins-Bereich werden wieder zweispaltig dargestellt
+- Responsiv: auf iPhone/iPad (≤ 1024 px) weiterhin einspaltig
+
+---
+
 ## v914 – Veranstaltung-Detailseite: Navigation
 
 - **Zurück-Button** entfernt (macht keinen Sinn bei extern geteilten Links)
