@@ -1,3 +1,10 @@
+## v935 – Athletenprofil: Bestleistungen nach Disziplinkategorie gruppiert
+
+- API gibt `kat_name` für jede Bestleistung zurück (Straße, Halle, Sprint, …)
+- Tooltip "Bestleistungen" im Athletenprofil zeigt Kategorien als Abschnitte mit ▸-Header
+
+---
+
 ## v934 – Bugfix: Fokusverlust in Ergebnisse- und Veranstaltungssuche
 
 - Fokus bleibt beim Tippen im Suchfeld erhalten, auch wenn sich die Ergebnisse live aktualisieren

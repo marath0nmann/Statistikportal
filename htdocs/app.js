@@ -4698,51 +4698,71 @@ async function openAthletById(id) {
               });
             }
 
-            // Vereinsbestleistungen: gleiche Gruppierung wie HoF
+            // Vereinsbestleistungen: nach Disziplinkategorie gruppiert
             var bParts = [];
             if (ausz.bestleistungen.length) {
-              var byDisz = {};
+              // 1. Nach Kategorie aufteilen (Reihenfolge bleibt wie API-Sortierung)
+              var bByKat = {}, bKatOrder = [];
               (ausz.bestleistungen || []).forEach(function(b) {
-                if (!byDisz[b.disziplin]) byDisz[b.disziplin] = { gold: [], ak: [] };
-                var isGold = b.label.indexOf('Gesamt') >= 0 || b.label.indexOf('M\u00e4nner') >= 0 || b.label.indexOf('Frauen') >= 0;
-                if (isGold) byDisz[b.disziplin].gold.push(b.label);
-                else byDisz[b.disziplin].ak.push(b.label.replace('Bestleistung ', ''));
+                var kat = b.kat_name || 'Sonstige';
+                if (!bByKat[kat]) { bByKat[kat] = []; bKatOrder.push(kat); }
+                bByKat[kat].push(b);
               });
-              var gesamtLines = {}, gesamtOrd = [];
-              var akMap = {};
-              Object.keys(byDisz).forEach(function(disz) {
-                var d = byDisz[disz];
-                d.gold.forEach(function(lbl) {
-                  if (!gesamtLines[lbl]) { gesamtLines[lbl] = []; gesamtOrd.push(lbl); }
-                  gesamtLines[lbl].push(disz);
+
+              bKatOrder.forEach(function(kat) {
+                var katItems = bByKat[kat];
+                var katLines = [];
+
+                // 2. Innerhalb Kategorie: gleiche Gruppierung wie bisher
+                var byDisz = {};
+                katItems.forEach(function(b) {
+                  if (!byDisz[b.disziplin]) byDisz[b.disziplin] = { gold: [], ak: [] };
+                  var isGold = b.label.indexOf('Gesamt') >= 0 || b.label.indexOf('M\u00e4nner') >= 0 || b.label.indexOf('Frauen') >= 0;
+                  if (isGold) byDisz[b.disziplin].gold.push(b.label);
+                  else byDisz[b.disziplin].ak.push(b.label.replace('Bestleistung ', ''));
                 });
-                if (d.ak.length) {
-                  var sortedAK = d.ak.slice().sort();
-                  var akKey = sortedAK.join('|');
-                  if (!akMap[akKey]) { akMap[akKey] = { aks: sortedAK, disz: [] }; }
-                  akMap[akKey].disz.push(disz);
+                var gesamtLines = {}, gesamtOrd = [];
+                var akMap = {};
+                Object.keys(byDisz).forEach(function(disz) {
+                  var d = byDisz[disz];
+                  d.gold.forEach(function(lbl) {
+                    if (!gesamtLines[lbl]) { gesamtLines[lbl] = []; gesamtOrd.push(lbl); }
+                    gesamtLines[lbl].push(disz);
+                  });
+                  if (d.ak.length) {
+                    var sortedAK = d.ak.slice().sort();
+                    var akKey = sortedAK.join('|');
+                    if (!akMap[akKey]) { akMap[akKey] = { aks: sortedAK, disz: [] }; }
+                    akMap[akKey].disz.push(disz);
+                  }
+                });
+                gesamtOrd.forEach(function(lbl) {
+                  var dl = gesamtLines[lbl];
+                  var dStr = dl.length === 1 ? dl[0] : dl.slice(0,-1).join(', ') + ' und ' + dl[dl.length-1];
+                  katLines.push(lbl + ' \u00fcber ' + dStr);
+                });
+                Object.keys(akMap).forEach(function(k) {
+                  var entry = akMap[k];
+                  var aks = entry.aks;
+                  var dl = entry.disz;
+                  var prefix = aks[0].replace(/\d+$/, '');
+                  var nums = aks.map(function(a){ return parseInt(a.replace(/\D/g,''),10); }).sort(function(a,b){return a-b;});
+                  var akStr;
+                  if (nums.length <= 2) {
+                    akStr = aks.join(' und ');
+                  } else {
+                    var allConsec = nums.every(function(n,i){ return i===0 || n-nums[i-1]===5; });
+                    akStr = allConsec ? prefix+nums[0]+'\u2013'+prefix+nums[nums.length-1] : aks.join(', ');
+                  }
+                  var dStr = dl.length === 1 ? dl[0] : dl.slice(0,-1).join(', ') + ' und ' + dl[dl.length-1];
+                  katLines.push('Bestleistung ' + akStr + ' \u00fcber ' + dStr);
+                });
+
+                // Kategorie-Header + eingerückte Zeilen
+                if (katLines.length) {
+                  bParts.push('\u25b8 ' + kat);
+                  katLines.forEach(function(l) { bParts.push('  ' + l); });
                 }
-              });
-              gesamtOrd.forEach(function(lbl) {
-                var dl = gesamtLines[lbl];
-                var dStr = dl.length === 1 ? dl[0] : dl.slice(0,-1).join(', ') + ' und ' + dl[dl.length-1];
-                bParts.push(lbl + ' \u00fcber ' + dStr);
-              });
-              Object.keys(akMap).forEach(function(k) {
-                var entry = akMap[k];
-                var aks = entry.aks;
-                var dl = entry.disz;
-                var prefix = aks[0].replace(/\d+$/, '');
-                var nums = aks.map(function(a){ return parseInt(a.replace(/\D/g,''),10); }).sort(function(a,b){return a-b;});
-                var akStr;
-                if (nums.length <= 2) {
-                  akStr = aks.join(' und ');
-                } else {
-                  var allConsec = nums.every(function(n,i){ return i===0 || n-nums[i-1]===5; });
-                  akStr = allConsec ? prefix+nums[0]+'\u2013'+prefix+nums[nums.length-1] : aks.join(', ');
-                }
-                var dStr = dl.length === 1 ? dl[0] : dl.slice(0,-1).join(', ') + ' und ' + dl[dl.length-1];
-                bParts.push('Bestleistung ' + akStr + ' \u00fcber ' + dStr);
               });
             }
 
