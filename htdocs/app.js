@@ -8,6 +8,7 @@ let state = {
   tab: 'dashboard', subTab: null,
   page: 1, limit: 100,
   veranstPage: 1,
+  veranstSuche: '',
   filters: {}, sortCol: null, sortDir: 'asc',
   diszFilter: null,
   allDisziplinen: null,
@@ -2677,6 +2678,7 @@ function navigate(tab) {
   state.tab    = tab;
   state.page   = 1;
   state.veranstPage = 1;
+  state.veranstSuche = '';
   syncHash();
   // subTab nur für Tabs mit eigenen Sub-Tabs zurücksetzen
   if (tab === 'ergebnisse') state.subTab = 'strasse';
@@ -15182,10 +15184,21 @@ async function bulkImportFromLA(url, kat, statusEl) {
   await bulkFillFromImport(allResults, statusEl);
 }
 /* ── 10_veranstaltungen.js ── */
+var _veranstSucheTimer = null;
+function setVeranstSuche(val) {
+  clearTimeout(_veranstSucheTimer);
+  _veranstSucheTimer = setTimeout(function() {
+    state.veranstSuche = val.trim();
+    state.veranstPage = 1;
+    renderVeranstaltungen();
+  }, 300);
+}
+
 async function renderVeranstaltungen() {
   var el = document.getElementById('main-content');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
-  var r = await apiGet('veranstaltungen?limit=10&offset=' + ((state.veranstPage-1)*10));
+  var sucheParam = state.veranstSuche ? '&suche=' + encodeURIComponent(state.veranstSuche) : '';
+  var r = await apiGet('veranstaltungen?limit=10&offset=' + ((state.veranstPage-1)*10) + sucheParam);
   if (!r || !r.ok) {
     el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler:</strong> ' + (r && r.fehler ? r.fehler : 'Unbekannt') + '</div>';
     return;
@@ -15260,8 +15273,11 @@ async function renderVeranstaltungen() {
                 '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
       '</div>';
   }
-  if (!html) html = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Noch keine Veranstaltungen</div></div>';
-  el.innerHTML = html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
+  if (!html) html = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Keine Veranstaltungen gefunden</div></div>';
+  var searchBar = '<div class="filter-bar" style="margin-bottom:16px">' +
+    '<div class="fg"><label>Suche</label><input type="search" id="veranst-suche" placeholder="Veranstaltung suchen&hellip;" value="' + (state.veranstSuche || '').replace(/"/g,'&quot;') + '" oninput="setVeranstSuche(this.value)" style="min-width:0;width:100%"/></div>' +
+  '</div>';
+  el.innerHTML = searchBar + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
 }
 
 

@@ -3626,18 +3626,27 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     $eTbl = ergebnisTbl('strasse', $unified, $_sys);
     $limit = min((int)($_GET['limit'] ?? 10), 50);
     $offset = (int)($_GET['offset'] ?? 0);
+    $suche = trim($_GET['suche'] ?? '');
+    $whereExtra = '';
+    $searchParams = [];
+    if ($suche !== '') {
+        $s = '%' . $suche . '%';
+        $whereExtra = ' AND (v.name LIKE ? OR v.kuerzel LIKE ? OR v.ort LIKE ?)';
+        $searchParams = [$s, $s, $s];
+    }
     $veranst = DB::fetchAll(
         "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.datenquelle,
                 COUNT(e.id) AS anz_ergebnisse,
                 COUNT(DISTINCT e.athlet_id) AS anz_athleten
          FROM " . DB::tbl('veranstaltungen') . " v
          LEFT JOIN $eTbl e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
-         WHERE v.geloescht_am IS NULL AND v.genehmigt = 1
+         WHERE v.geloescht_am IS NULL AND v.genehmigt = 1$whereExtra
          GROUP BY v.id, v.datenquelle
          ORDER BY v.datum DESC
-         LIMIT $limit OFFSET $offset"
+         LIMIT $limit OFFSET $offset",
+        $searchParams
     );
-    $total = DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NULL AND genehmigt = 1")['c'];
+    $total = DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NULL AND genehmigt = 1$whereExtra", $searchParams)['c'];
     foreach ($veranst as &$v) {
         $v['ergebnisse'] = DB::fetchAll(
             "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
