@@ -1270,17 +1270,30 @@ tr:hover td { background: var(--surf2); }
   .veranst-dash-table td, .veranst-dash-table th { padding: 5px 6px; font-size: 11px; }
 }
 
-/* ── Admin System-Dashboard: Spalten auf Mobile ausblenden ── */
-@media (max-width: 600px) {
-  /* Gäste: Browser-Spalte (3) ausblenden */
-  .admin-gaeste-table th:nth-child(3),
-  .admin-gaeste-table td:nth-child(3) { display: none; }
-  /* Logins: IP (4) + Zeitpunkt (5) ausblenden */
-  .admin-login-table th:nth-child(4),
-  .admin-login-table td:nth-child(4),
-  .admin-login-table th:nth-child(5),
-  .admin-login-table td:nth-child(5) { display: none; }
+/* ── Admin System-Dashboard: alle Tabellen als echte Tabellen, 100% breit ── */
+/* Überschreibt das globale display:block aus der Mobil-Media-Query */
+.admin-phpbb-table,
+.admin-gaeste-table,
+.admin-login-table,
+.admin-aktiv-table {
+  display: table !important;
+  width: 100% !important;
+  table-layout: fixed;
 }
+/* phpBB Stat-Tabelle: Label-Spalte etwas breiter als Wert-Spalte */
+.admin-phpbb-table col:first-child { width: 55%; }
+/* Zelleninhalt nicht überlaufen lassen */
+.admin-gaeste-table td,
+.admin-login-table td,
+.admin-aktiv-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Erste Spalte (Name/IP) darf umbrechen */
+.admin-gaeste-table td:first-child,
+.admin-login-table td:first-child,
+.admin-aktiv-table td:first-child { white-space: normal; }
 
 .badge-athlet  { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
 
