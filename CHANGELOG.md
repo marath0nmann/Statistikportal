@@ -1,3 +1,195 @@
+## v937 – Einheitliche AK-Range-Darstellung in HoF und Athletenprofil
+
+- `compressAKList` als globale Funktion extrahiert (war lokal nur in HoF)
+- Athletenprofil-Tooltip nutzt jetzt dieselbe Logik wie HoF: konsekutive Teil-Ranges werden zu W35–W45 und W55–W65 zusammengefasst
+
+---
+
+## v936 – Bugfix: Athletenprofil Tooltips nach v935-Regression
+
+- ORDER BY-Alias `kat_sort` in DISTINCT-Query durch direkte COALESCE-Expression ersetzt → SQL-Fehler auf MariaDB behoben
+
+---
+
+## v935 – Athletenprofil: Bestleistungen nach Disziplinkategorie gruppiert
+
+- API gibt `kat_name` für jede Bestleistung zurück (Straße, Halle, Sprint, …)
+- Tooltip "Bestleistungen" im Athletenprofil zeigt Kategorien als Abschnitte mit ▸-Header
+
+---
+
+## v934 – Bugfix: Fokusverlust in Ergebnisse- und Veranstaltungssuche
+
+- Fokus bleibt beim Tippen im Suchfeld erhalten, auch wenn sich die Ergebnisse live aktualisieren
+- Hilfsfunktionen `_saveFocus` / `_restoreFocus` sichern Fokus und Cursorposition vor jedem innerHTML-Ersatz
+
+---
+
+## v933 – Hall of Fame: Medaillen bei >9 auf gleichmäßige Zeilen aufteilen
+
+- Mehr als 9 Meisterschafts-Medaillen werden gleichmäßig auf mehrere Zeilen verteilt (max. 9 pro Zeile)
+
+---
+
+## v932 – Bugfix: Jugend-AK-Merge-Priorität gegenüber ak_mapping
+
+- `jugend_aks` IN-Clauses kommen jetzt vor `ak_mapping` im SQL-CASE → AKs in `ak_mapping` (z.B. auf sich selbst gemappt) blockieren den Jugend-Merge nicht mehr
+- `ak_mapping`-Einträge, deren Ziel in `jugend_aks` liegt, werden direkt zu MHK/WHK aufgelöst
+
+---
+
+## v931 – Admin Altersklassen: Jugend-AK-Merge-Konfiguration
+
+- Neuer Abschnitt "Jugend-AK-Merge-Konfiguration" in Admin → Altersklassen
+- Checkboxen für alle Standard-AKs: welche werden bei "Jugend-AK zu MHK/WHK zusammenfassen" einbezogen?
+- Speichert Konfiguration in der `jugend_aks`-Einstellung; Buttons "Alle" / "Keine"
+
+---
+
+## v930 – System-Dashboard: Layout Aktiv/Letzte Logins 30/70
+
+- Spaltenbreite der Tabellen "Aktiv" und "Letzte Logins" von 50/50 auf 30/70 angepasst
+
+---
+
+## v929 – Bugfix: Veranstaltungssuche SQL-Fehler (fehlender Alias)
+
+- **Bugfix**: COUNT-Query für Paginierung fehlte Tabellen-Alias `v` → `Unknown column 'v.name' in WHERE`
+
+---
+
+## v928 – Veranstaltungen: Suche nach Name/Kürzel/Ort
+
+- Suchfeld über der Veranstaltungsliste; filtert nach Name, Kürzel und Ort (300ms Debounce)
+- API: `?suche=` Parameter an `/veranstaltungen` – serverseitiges LIKE-Filter, Paginierung bleibt korrekt
+
+---
+
+## v927 – Bugfix: Athleten-Tabelle Status-Spaltenüberschrift fehlte
+
+- **Bugfix**: Tabellenüberschrift „Status" fehlte, weil Header und Zeilen unterschiedliche Bedingungen hatten (`_canSeeInaktiveAthleten()` nur im Header) – jetzt einheitlich an `showDetails` geknüpft
+
+---
+
+## v926 – Athleten-Menü für alle eingeloggten Mitglieder sichtbar
+
+- Athleten-Tab wird jetzt für alle eingeloggten Benutzer angezeigt, nicht mehr nur für Nutzer mit dem Recht `personenbezogene_daten`
+
+---
+
+## v925 – Bugfix: Konto-Seite 3-spaltiges Layout wiederhergestellt
+
+- **Bugfix**: `style="konto-grid"` korrigiert auf `class="konto-grid"` – dadurch greift das CSS-Grid wieder korrekt
+
+---
+
+## v924 – Bugfix: Konto-Seite lädt nicht (pb is not defined)
+
+- **Bugfix**: In `_renderKontoPage()` wurde fälschlicherweise `pb.verein` referenziert – korrigiert auf `currentUser.verein`
+
+---
+
+## v923 – System-Dashboard Tabellen mobil verbessert
+
+- **Alle Spalten sichtbar**: Gäste-Tabelle (Browser) und Letzte-Logins-Tabelle (IP, Zeitpunkt) blenden Spalten auf Mobilgeräten nicht mehr aus
+- **100% Tabellenbreite**: Globales `display:block` auf `<table>`-Elementen wird für System-Dashboard-Tabellen überschrieben → Zellen füllen nun die volle Breite
+- **Persönliche Bestleistungen Dashboard**: Kategorien (Straße, Bahn etc.) werden nebeneinander angezeigt, solange Platz vorhanden
+
+---
+
+## v922 – Admin System-Dashboard responsive
+
+- **phpBB-Statistiktabellen**: `border`/`border-radius`/`overflow` vom `<table>`-Element in einen Wrapper-`<div>` verschoben → Tabelle füllt nun zuverlässig die volle Breite
+- **Gäste-Tabelle**: Browser-Spalte auf Mobilgeräten (≤600px) ausgeblendet
+- **Letzte Logins**: IP- und Zeitpunkt-Spalten auf Mobilgeräten ausgeblendet; Tabelle in `table-scroll` eingebettet
+- Verbleibende Spalten füllen die volle Panel-Breite auf iPhone
+
+---
+
+## v921 – Hall of Fame – Medaillen-Zeile kompakter
+
+- **Hall of Fame Widget**: Medaillen-Emojis sitzen enger zusammen (`gap:1px`, kein `margin`) – einzelne Medaille in zweiter Zeile tritt nicht mehr auf
+
+---
+
+## v920 – Dashboard-Widget „Persönliche Bestleistungen" mobil
+
+- **iPhone/Smartphone**: Disziplin-Kacheln innerhalb einer Kategorie (z. B. Straße) umbrechen jetzt in die nächste Zeile statt seitlich abgeschnitten zu werden
+- `flex-wrap:nowrap` → `flex-wrap:wrap` im Button-Container; Kategorie-Sektion nimmt volle Breite ein (`flex:1 1 100%`)
+
+---
+
+## v919 – Dashboard-Layout iPad
+
+- **Dashboard „Letzte Veranstaltungen"**: AK-Badge (z. B. „M45") wird auf iPad nicht mehr mit „…" abgeschnitten
+- **CSS**: AK-Spalte auf Tablet-Breakpoint von 11 % → 15 % verbreitert, Athlet-Spalte von 42 % → 38 % angepasst
+- **Badge-Padding**: Im AK-Feld der Dashboard-Tabelle von `8 px` auf `5 px` reduziert
+
+---
+
+## v918 – Wartungsmodus
+
+- **Admin → Darstellung → Wartungsmodus**: Checkbox zum Aktivieren/Deaktivieren (sofortige Wirkung)
+- **Wartungsseite**: Nicht eingeloggte Besucher sehen statt aller Inhalte eine konfigurierbare Wartungsmeldung
+- **Login gesperrt**: Im Wartungsmodus können sich nur Administratoren anmelden; alle anderen erhalten eine Fehlermeldung
+- **Rollen & Rechte**: Neues Recht „Im Wartungsmodus einloggen" – damit können einzelne Rollen (z. B. Editoren) gezielt auch im Wartungsmodus zugelassen werden
+- **Backend**: Wartungsprüfung in `finalizeLogin()` mit HTTP 503
+
+---
+
+## v917 – Athleten: Überschrift zeigt aktive Gruppe
+
+- Panel-Titel wechselt von „Alle Athleten" zum Namen der gewählten Gruppe (z. B. „Senioren")
+- Ohne Gruppenfilter bleibt der Titel „Alle Athleten"
+
+---
+
+## v916 – Athleten: Tabellensortierung repariert
+
+- **Alle Athleten**: Spaltenköpfe waren nicht klickbar (onclick-Attribut hatte fehlende schließende Klammer)
+- Sortierung nach Name, Vorname, Jahrgang, AK, Ergebnisse etc. funktioniert wieder
+
+---
+
+## v915 – System-Dashboard: Zweispaltiges Layout wiederhergestellt
+
+- **System-Dashboard** (Admin → System): Grid-Layout war defekt durch doppeltes `style`-Attribut
+- Fix: `style="admin-sys-grid"` → `class="admin-sys-grid"` auf beiden Grid-Containern
+- Statistik-Tabellen und Aktiv/Logins-Bereich werden wieder zweispaltig dargestellt
+- Responsiv: auf iPhone/iPad (≤ 1024 px) weiterhin einspaltig
+
+---
+
+## v914 – Veranstaltung-Detailseite: Navigation
+
+- **Zurück-Button** entfernt (macht keinen Sinn bei extern geteilten Links)
+- **Veranstaltungsliste**: Klick auf Event-Titel öffnet Detailseite in neuem Tab
+- **Share-Modal**: „Seite öffnen" öffnet ebenfalls in neuem Tab
+
+---
+
+## v913 – Veranstaltungen: Icons & Darstellung
+
+- **Veranstaltungskarten**: Kaputten Text-Link (Datenquelle unter Datum) entfernt
+- **Ergebnisquelle-Button**: Icon geändert zu 🌐 (Weltkugel)
+- **Teilen-Button**: Icon geändert zu 📤 (Apple-Style Share)
+
+---
+
+## v912 – API: Datenquelle in Veranstaltungsliste
+
+- **API**: `v.datenquelle` im GET-Endpunkt `veranstaltungen` ergänzt – wird nun an das Frontend übergeben und als Link in den Veranstaltungskarten angezeigt
+
+---
+
+## v911 – Bugfixes Veranstaltungen & Admin
+
+- **Veranstaltungen**: Doppelter „Teilen"-Button in Veranstaltungskarten entfernt
+- **Veranstaltungen**: Fehlender Datenquelle-Link als Button in der Aktionsleiste ergänzt (erscheint nur wenn Datenquelle gesetzt)
+- **Admin**: Abgebrochene Zeile (`'<button class+`) aus Freigabe-Tab-Bereinigung (v910) entfernt – verhinderte JS-Ausführung
+
+---
+
 ## v910
 
 - Separaten 'Freigabe'-Tab entfernt
@@ -3651,4 +3843,3 @@ Strukturiertes Debug-Log mit Kopieren-Button:
 
 ## v204 – Git-Integration
 - `.gitignore`, `CHANGELOG.md`, `commit.sh` eingeführt
-
