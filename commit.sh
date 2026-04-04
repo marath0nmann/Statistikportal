@@ -1,5 +1,5 @@
 #!/bin/bash
-# commit.sh – Schnell-Commit für TuS Oedt Statistik
+# commit.sh – Schnell-Commit für Statistikportal
 # Verwendung: ./commit.sh
 # Die Commit-Message ist in COMMIT_EDITMSG vorausgefüllt (von Claude).
 

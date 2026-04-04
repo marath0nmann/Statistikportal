@@ -1,4 +1,4 @@
--- Migration: Externe PBs (Persönliche Bestleistungen außerhalb TuS Oedt)
+-- Migration: Externe PBs (Persönliche Bestleistungen außerhalb des eigenen Vereins)
 -- Ausführen: einmalig auf dem Server
 
 CREATE TABLE IF NOT EXISTS athlet_pb (

@@ -40,7 +40,7 @@ class TOTP {
     }
 
     // ---- OTPAuth-URI für QR-Code ----
-    public static function getUri(string $secret, string $account, string $issuer = 'TuS Oedt Statistik'): string {
+    public static function getUri(string $secret, string $account, string $issuer = 'Statistikportal'): string {
         return 'otpauth://totp/' . rawurlencode($issuer) . ':' . rawurlencode($account)
             . '?secret=' . $secret
             . '&issuer=' . rawurlencode($issuer)

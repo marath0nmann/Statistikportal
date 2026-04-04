@@ -113,7 +113,7 @@ UPDATE veranstaltungen SET name = 'Hamburg Marathon' WHERE kuerzel = '28.04.2024
 UPDATE veranstaltungen SET name = 'Apfelblütenlauf' WHERE kuerzel = '28.04.2024 Tönisvorst';
 UPDATE veranstaltungen SET name = 'Enschede Marathon' WHERE kuerzel = '21.04.2024 Enschede';
 UPDATE veranstaltungen SET name = 'City Lauf' WHERE kuerzel = '21.04.2024 Korschenbroich';
-UPDATE veranstaltungen SET name = 'Bahneröffnung TuS Oedt' WHERE kuerzel = '17.04.2024 Grefrath-Oedt';
+UPDATE veranstaltungen SET name = 'Bahneröffnung Grefrath-Oedt' WHERE kuerzel = '17.04.2024 Grefrath-Oedt';
 UPDATE veranstaltungen SET name = 'NN Marathon' WHERE kuerzel = '14.04.2024 Rotterdam';
 UPDATE veranstaltungen SET name = 'Deutsche Post Marathon' WHERE kuerzel = '14.04.2024 Bonn';
 UPDATE veranstaltungen SET name = 'Generali Halbmarathon' WHERE kuerzel = '07.04.2024 Berlin';
@@ -209,11 +209,11 @@ UPDATE veranstaltungen SET name = 'Stadtlauf' WHERE kuerzel = '04.09.2022 Wachte
 UPDATE veranstaltungen SET name = 'Sommersportfest' WHERE kuerzel = '21.08.2022 Aachen';
 UPDATE veranstaltungen SET name = 'Nordrhein Meisterschaften' WHERE kuerzel = '02.07.2022 Euskirchen';
 UPDATE veranstaltungen SET name = 'Bergfest' WHERE kuerzel = '26.06.2022 Viersen-Süchteln';
-UPDATE veranstaltungen SET name = 'TuS Oedt Sprint- und Mittelstreckenabend' WHERE kuerzel = '15.06.2022 Grefrath-Oedt';
+UPDATE veranstaltungen SET name = 'Sprint- und Mittelstreckenabend Grefrath-Oedt' WHERE kuerzel = '15.06.2022 Grefrath-Oedt';
 UPDATE veranstaltungen SET name = 'Rhein-Ruhr-Marathon' WHERE kuerzel = '12.06.2022 Duisburg';
 UPDATE veranstaltungen SET name = 'Rahser-Run' WHERE kuerzel = '22.05.2022 Viersen';
 UPDATE veranstaltungen SET name = 'Bocholter Citylauf' WHERE kuerzel = '07.05.2022 Bocholt';
-UPDATE veranstaltungen SET name = 'TuS Oedt Bahneröffnung' WHERE kuerzel = '04.05.2022 Grefrath-Oedt';
+UPDATE veranstaltungen SET name = 'Bahneröffnung Grefrath-Oedt' WHERE kuerzel = '04.05.2022 Grefrath-Oedt';
 UPDATE veranstaltungen SET name = 'Enschede Marathon' WHERE kuerzel = '24.04.2022 Enschede';
 UPDATE veranstaltungen SET name = 'Bunert Solo Run' WHERE kuerzel = '27.03.2022 Kerken';
 UPDATE veranstaltungen SET name = 'NRW Meisterschaften' WHERE kuerzel = '19.03.2022 Münster';

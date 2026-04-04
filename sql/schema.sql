@@ -1,5 +1,5 @@
 -- ============================================================
--- TuS Oedt Leichtathletik Statistik – Datenbankschema
+-- Statistikportal Leichtathletik – Datenbankschema
 -- Version 1.49  |  Stand: März 2026
 -- MariaDB / MySQL
 -- ============================================================

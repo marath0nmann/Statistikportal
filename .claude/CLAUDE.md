@@ -1,4 +1,4 @@
-# TuS Oedt Leichtathletik Statistikportal
+# Statistikportal Leichtathletik
 
 ## Projektstruktur
 
