@@ -1205,7 +1205,6 @@ if ($res === 'einstellungen') {
                 'disziplin_kategorie_suffix',
                 'footer_datenschutz_text','footer_nutzung_text','footer_impressum_text',
                 'jugend_aks',
-                'wartung_aktiv','wartung_nachricht',
                 'kategoriegruppen',
                 'meisterschaften_liste',
                 'top_disziplinen',
@@ -1229,8 +1228,17 @@ if ($res === 'einstellungen') {
 // Hilfsfunktion: AK-CASE-Expression aus Settings oder Fallback-Hardcode
 function buildAkCaseExpr(bool $merge, string $alias = 'e'): string {
     if (!$merge) return $alias . '.altersklasse';
-
-    // jugend_aks zuerst laden (haben Priorität vor ak_mapping)
+    // Mappings aus ak_mapping Tabelle laden (hat Priorität)
+    $mappingCases = '';
+    try {
+        $maps = DB::fetchAll("SELECT ak_roh, ak_standard FROM " . DB::tbl('ak_mapping'));
+        foreach ($maps as $m) {
+            $roh = addslashes($m['ak_roh']);
+            $std = addslashes($m['ak_standard']);
+            $mappingCases .= "WHEN $alias.altersklasse='$roh' THEN '$std'\n        ";
+        }
+    } catch (Exception $e) {}
+    // Legacy: jugend_aks Einstellungen als Fallback
     $jugendAksJson = Settings::get('jugend_aks') ?: '';
     $jugendAks = $jugendAksJson ? (json_decode($jugendAksJson, true) ?: []) : [];
     if (empty($jugendAks)) {
@@ -1242,34 +1250,12 @@ function buildAkCaseExpr(bool $merge, string $alias = 'e'): string {
         if (strtoupper(substr($ak,0,1)) === 'W' || in_array($ak, ['F'])) $wAks[] = $ak;
         else $mAks[] = $ak;
     }
-
-    // ak_mapping: Normalisierung von Nicht-Standard-AKs; jugend_aks-Zielwerte werden
-    // direkt zu MHK/WHK aufgelöst, damit jugend_aks nicht durch ak_mapping umgangen wird.
-    $mappingCases = '';
-    try {
-        $maps = DB::fetchAll("SELECT ak_roh, ak_standard FROM " . DB::tbl('ak_mapping'));
-        foreach ($maps as $m) {
-            $roh = addslashes($m['ak_roh']);
-            $std = $m['ak_standard'];
-            if (in_array($std, $mAks)) {
-                $mappingCases .= "WHEN $alias.altersklasse='" . $roh . "' THEN 'MHK'\n        ";
-            } elseif (in_array($std, $wAks)) {
-                $mappingCases .= "WHEN $alias.altersklasse='" . $roh . "' THEN 'WHK'\n        ";
-            } else {
-                $mappingCases .= "WHEN $alias.altersklasse='" . $roh . "' THEN '" . addslashes($std) . "'\n        ";
-            }
-        }
-    } catch (Exception $e) {}
-
     $mList = implode("','", array_map('addslashes', $mAks));
     $wList = implode("','", array_map('addslashes', $wAks));
-    // jugend_aks IN-Clauses kommen VOR ak_mapping, damit explizit konfigurierte
-    // Jugend-AKs nicht durch einen ak_mapping-Eintrag (z.B. AK→AK selbst) blockiert werden.
-    return "CASE\n        "
+    return "CASE\n        {$mappingCases}"
         . "WHEN $alias.altersklasse IN ('$mList') THEN 'MHK'\n"
         . "        WHEN $alias.altersklasse IN ('$wList') THEN 'WHK'\n"
-        . "        {$mappingCases}"
-        . "ELSE $alias.altersklasse END";
+        . "        ELSE $alias.altersklasse END";
 }
 
 
@@ -2300,21 +2286,17 @@ if ($res === 'athleten') {
                 "SELECT DISTINCT e.disziplin, e.disziplin_mapping_id,
                  COALESCE(m.fmt_override, k.fmt, 'min') AS fmt,
                  COALESCE(k.sort_dir,'ASC') AS sort_dir,
-                 COALESCE(m.hof_exclude, 0) AS hof_exclude,
-                 COALESCE(k.name, 'Sonstige') AS kat_name,
-                 COALESCE(k.reihenfolge, 99) AS kat_sort
+                 COALESCE(m.hof_exclude, 0) AS hof_exclude
                  FROM " . DB::tbl('ergebnisse') . " e
                  LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
                  LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
-                 WHERE e.geloescht_am IS NULL
-                 ORDER BY COALESCE(k.reihenfolge, 99), e.disziplin",
+                 WHERE e.geloescht_am IS NULL",
                 []
             );
             foreach ($diszListAll as $dRow) {
                 if (!empty($dRow['hof_exclude'])) continue;
-                $disz    = $dRow['disziplin']; $mappingId = $dRow['disziplin_mapping_id'] ?? null;
-                $fmt     = $dRow['fmt'] ?? 'min'; $dir = strtoupper($dRow['sort_dir'] ?? 'ASC');
-                $katName = $dRow['kat_name'] ?? 'Sonstige';
+                $disz = $dRow['disziplin']; $mappingId = $dRow['disziplin_mapping_id'] ?? null;
+                $fmt  = $dRow['fmt'] ?? 'min'; $dir = strtoupper($dRow['sort_dir'] ?? 'ASC');
                 $valExpr = $fmt === 'm'
                     ? "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))"
                     : "CASE WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}' THEN TIME_TO_SEC(e.resultat)
@@ -2333,7 +2315,7 @@ if ($res === 'athleten') {
                 $bestAll = DB::fetchOne("SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1", [$hofParam]);
                 $isGesamtBest = $bestAll && abs($myVal - (float)$bestAll['val']) < 0.001;
                 if ($isGesamtBest) {
-                    $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Gesamtbestleistung', 'kat_name' => $katName];
+                    $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Gesamtbestleistung'];
                     // Kein continue – AK-Checks laufen weiter (andere Jahre = andere AK-Rekorde)
                 }
                 // 2. Geschlechts-Bestleistung? (nur wenn nicht bereits Tier 1)
@@ -2344,7 +2326,7 @@ if ($res === 'athleten') {
                     );
                     if ($bestG && abs($myVal - (float)$bestG['val']) < 0.001) {
                         $gLabel = $athGeschlecht2 === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen';
-                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => $gLabel, 'kat_name' => $katName];
+                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => $gLabel];
                     }
                 }
                 // 3. AK-Bestleistung? (immer prüfen, unabhängig von Gesamt/Geschlecht – wie HoF)
@@ -2370,7 +2352,7 @@ if ($res === 'athleten') {
                         // Überspringen wenn identisch mit bereits gezählter Gesamtbestleistung
                         if ($isGesamtBest && abs((float)$bestMeAK['val'] - $myVal) < 0.001) continue;
                         $akLbl = preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $ak);
-                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Bestleistung ' . $akLbl, 'kat_name' => $katName];
+                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Bestleistung ' . $akLbl];
                     }
                 }
             }
@@ -3643,27 +3625,18 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     $eTbl = ergebnisTbl('strasse', $unified, $_sys);
     $limit = min((int)($_GET['limit'] ?? 10), 50);
     $offset = (int)($_GET['offset'] ?? 0);
-    $suche = trim($_GET['suche'] ?? '');
-    $whereExtra = '';
-    $searchParams = [];
-    if ($suche !== '') {
-        $s = '%' . $suche . '%';
-        $whereExtra = ' AND (v.name LIKE ? OR v.kuerzel LIKE ? OR v.ort LIKE ?)';
-        $searchParams = [$s, $s, $s];
-    }
     $veranst = DB::fetchAll(
-        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.datenquelle,
+        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum,
                 COUNT(e.id) AS anz_ergebnisse,
                 COUNT(DISTINCT e.athlet_id) AS anz_athleten
          FROM " . DB::tbl('veranstaltungen') . " v
          LEFT JOIN $eTbl e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
-         WHERE v.geloescht_am IS NULL AND v.genehmigt = 1$whereExtra
-         GROUP BY v.id, v.datenquelle
+         WHERE v.geloescht_am IS NULL AND v.genehmigt = 1
+         GROUP BY v.id
          ORDER BY v.datum DESC
-         LIMIT $limit OFFSET $offset",
-        $searchParams
+         LIMIT $limit OFFSET $offset"
     );
-    $total = DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " v WHERE v.geloescht_am IS NULL AND v.genehmigt = 1$whereExtra", $searchParams)['c'];
+    $total = DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NULL AND genehmigt = 1")['c'];
     foreach ($veranst as &$v) {
         $v['ergebnisse'] = DB::fetchAll(
             "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,

@@ -320,8 +320,6 @@ main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
 .veranst-dash-table .vcol-ms       { width: 15%; }
 .veranst-dash-table .vcol-ms-platz { width: 11%; }
 .veranst-dash-table td, .veranst-dash-table th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* AK-Badge kompakter damit er auch in schmalen Spalten nicht abgeschnitten wird */
-.veranst-dash-table td:nth-child(2) .badge { padding: 2px 5px; letter-spacing: 0; }
 table { width: 100%; border-collapse: collapse; }
 th {
   background: var(--surf2); padding: 10px 14px;
@@ -682,8 +680,8 @@ tr:hover td { background: var(--surf2); }
   .veranst-dash-table td:nth-child(7) { display: none; }
 
   /* 4 verbleibende Spalten: Athlet | AK | Ergebnis | Platz AK */
-  .veranst-dash-table .vcol-athlet { width: 38%; }
-  .veranst-dash-table .vcol-ak     { width: 15%; }
+  .veranst-dash-table .vcol-athlet { width: 42%; }
+  .veranst-dash-table .vcol-ak     { width: 11%; }
   .veranst-dash-table .vcol-result { width: 27%; }
   .veranst-dash-table .vcol-platz  { width: 20%; }
 
@@ -1269,31 +1267,6 @@ tr:hover td { background: var(--surf2); }
   .veranst-dash-table .vcol-platz  { width: 22%; }
   .veranst-dash-table td, .veranst-dash-table th { padding: 5px 6px; font-size: 11px; }
 }
-
-/* ── Admin System-Dashboard: alle Tabellen als echte Tabellen, 100% breit ── */
-/* Überschreibt das globale display:block aus der Mobil-Media-Query */
-.admin-phpbb-table,
-.admin-gaeste-table,
-.admin-login-table,
-.admin-aktiv-table {
-  display: table !important;
-  width: 100% !important;
-  table-layout: fixed;
-}
-/* phpBB Stat-Tabelle: Label-Spalte etwas breiter als Wert-Spalte */
-.admin-phpbb-table col:first-child { width: 55%; }
-/* Zelleninhalt nicht überlaufen lassen */
-.admin-gaeste-table td,
-.admin-login-table td,
-.admin-aktiv-table td {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* Erste Spalte (Name/IP) darf umbrechen */
-.admin-gaeste-table td:first-child,
-.admin-login-table td:first-child,
-.admin-aktiv-table td:first-child { white-space: normal; }
 
 .badge-athlet  { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
 
