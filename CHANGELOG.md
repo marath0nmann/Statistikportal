@@ -1,3 +1,12 @@
+## v940 – Bugfix: Dashboard-Fehler „Maximum call stack size exceeded"
+
+- Doppelte `medalBadge`-Definition in `02_app.js` entfernt (selbst-aufrufender Alias verursachte infinite Rekursion)
+- Admin Gäste-Tabelle: „Aufrufe"-Spaltentitel rechtsbündig (passend zu den Werten)
+- Admin Gäste-Tabelle: Leerzeilen-`colspan` auf 5 korrigiert (war 4)
+- Admin Letzte Logins: Spaltenbreiten explizit verteilt, „Benutzer" erhält ausreichend Platz
+
+---
+
 ## v939 – Admin: Spaltenausrichtung Gäste/Letzte Logins korrigiert
 
 - Gäste-Tabelle: „Aufrufe"-Spaltentitel jetzt rechtsbündig (passend zu den Werten)
