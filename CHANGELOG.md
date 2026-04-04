@@ -821,7 +821,7 @@ Beispiel Meyer 800m: Gesamtbestleistung aus M65-Jahr → erscheint als 'Gesamtbe
 - Tier 2: Geschlechts-Bestleistung (nur wenn nicht Tier 1) → 'Gesamtbestleistung Männer/Frauen'
 - Tier 3: AK-Bestleistung (immer, unabhängig von Tier 2; nur übersprungen wenn identisch mit Tier 1)
 
-**Ergebnis**: Simons 300m Hürden = Gesamtbestleistung → 1 Eintrag (nicht 2); Kappenhagen W45/15km = Tier 2 + Tier 3 separat
+**Ergebnis**: Simons 300m Hürden = Gesamtbestleistung → 1 Eintrag (nicht 2); W45/15km = Tier 2 + Tier 3 separat
 
 ---
 
@@ -829,7 +829,7 @@ Beispiel Meyer 800m: Gesamtbestleistung aus M65-Jahr → erscheint als 'Gesamtbe
 
 - **Rückgängig v834-Überfixing**: hasGenderBest hat AK-Titel zu aggressiv übersprungen
 - **Korrekte Logik**: AK-Titel wird nur übersprungen wenn (a) Athlet bereits Geschlechts-Bestleistung hält UND (b) der Wert identisch ist (= dieselbe Leistung, nur in anderer AK gewertet)
-- Beispiel Kappenhagen: W35-Rekord in 15km kann identisch mit Gesamtbestleistung Frauen sein → kein Doppel; W40, W55, W60-Rekorde sind eigene Leistungen → bleiben erhalten
+- Beispiel W35: Rekord in 15km kann identisch mit Gesamtbestleistung Frauen sein → kein Doppel; W40, W55, W60-Rekorde sind eigene Leistungen → bleiben erhalten
 - Beispiel Simons: M75-Rekord identisch mit Männer-Bestleistung → kein Doppel
 
 ---
@@ -1219,7 +1219,7 @@ Beispiel Meyer 800m: Gesamtbestleistung aus M65-Jahr → erscheint als 'Gesamtbe
 ## v786 – Fix HoF Meisterschafts-Titel
 
 - **Ursache**: Code prüfte `ak_platz_meisterschaft = 1` (überall NULL), statt `ak_platzierung = 1 AND meisterschaft IS NOT NULL`
-- **Fix**: Query korrigiert → Angelika Kappenhagen hat z.B. Nordrhein-, NRW- und Regio-Meisterschaften (mstr=5,6,7) mit Platz 1
+- **Fix**: Query korrigiert → Athleten haben z.B. Nordrhein-, NRW- und Regio-Meisterschaften (mstr=5,6,7) mit Platz 1
 
 ---
 
