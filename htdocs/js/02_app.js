@@ -1,3 +1,16 @@
+// ── GLOBALER ZUSTAND ────────────────────────────────────────
+var currentUser = null;
+var state = {
+  tab: 'dashboard', subTab: null,
+  page: 1, limit: 100,
+  veranstPage: 1,
+  filters: {}, sortCol: null, sortDir: 'asc',
+  diszFilter: null,
+  allDisziplinen: null,
+  rekState: { kat: 'strasse', disz: null, view: 'gesamt' },
+  data: {}, athleten: [], disziplinen: [], filterOptions: {},
+};
+
 // ── KONFIGURATION ───────────────────────────────────────────
 var appConfig = {};
 
