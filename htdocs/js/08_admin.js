@@ -136,7 +136,7 @@ async function renderAdminSystem() {
     '</tr>';
   }).join('') || '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--text2);font-size:13px">Keine Gast-Besucher</td></tr>';
 
-  function thStyle(t) { return '<th style="padding:7px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px">' + t + '</th>'; }
+  function thStyle(t, extra) { return '<th style="padding:7px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px' + (extra||'') + '">' + t + '</th>'; }
 
   el.innerHTML = adminSubtabs() +
     '<h2 style="margin-bottom:18px">&#x1F5A5;&#xFE0E; System-Dashboard</h2>' +
@@ -152,7 +152,7 @@ async function renderAdminSystem() {
     // G&auml;ste
     '<div class="panel" style="margin-bottom:24px"><div class="panel-header"><div class="panel-title">&#x1F465; G&auml;ste <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 15 Min.)</span></div></div>' +
       '<div class="table-scroll"><table class="admin-gaeste-table" style="width:100%"><thead><tr>' +
-        thStyle('IP-Adresse') + thStyle('Land') + thStyle('Browser') + thStyle('Zuletzt') + thStyle('Aufrufe') +
+        thStyle('IP-Adresse') + thStyle('Land') + thStyle('Browser') + thStyle('Zuletzt') + thStyle('Aufrufe', ';text-align:right') +
       '</tr></thead><tbody>' + gaesteRows + '</tbody></table></div></div>' +
 
     // Aktive Benutzer + Letzte Logins
@@ -161,7 +161,7 @@ async function renderAdminSystem() {
         '<table class="admin-aktiv-table" style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Aktiv seit') + '</tr></thead>' +
         '<tbody>' + aktiveRows + '</tbody></table></div>' +
       '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F550; Letzte Logins</div></div>' +
-        '<div class="table-scroll"><table class="admin-login-table" style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Status') + thStyle('Land') + thStyle('IP') + thStyle('Zeitpunkt') + '</tr></thead>' +
+        '<div class="table-scroll"><table class="admin-login-table" style="width:100%;table-layout:fixed"><thead><tr>' + thStyle('Benutzer', ';width:28%') + thStyle('Status', ';width:22%') + thStyle('Land', ';width:14%') + thStyle('IP', ';width:16%') + thStyle('Zeitpunkt', ';width:20%') + '</tr></thead>' +
         '<tbody>' + loginRows + '</tbody></table></div></div>' +
     '</div>';
 
