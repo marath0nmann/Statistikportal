@@ -33,7 +33,6 @@ $parts  = explode('/', $path);
 $res    = $parts[0] ?? '';
 $id     = $parts[1] ?? null;
 
-
 $body = [];
 if (in_array($method, ['POST','PUT','PATCH'])) {
     $raw = file_get_contents('php://input');
@@ -63,6 +62,10 @@ function intOrNull(mixed $v): ?int {
 function floatOrNull(mixed $v): ?float {
     return ($v !== null && $v !== '') ? (float)$v : null;
 }
+
+// Passwort-Hashing Hilfsfunktionen
+function hashCode(string $code): string { return password_hash($code, PASSWORD_BCRYPT, ['cost' => 10]); }
+function hashPw(string $pw): string    { return password_hash($pw,   PASSWORD_BCRYPT, ['cost' => 12]); }
 
 // ============================================================
 // HILFSFUNKTION: Disziplin automatisch mappen falls fehlend
@@ -394,7 +397,7 @@ if ($res === 'auth') {
         $user = DB::fetchOne('SELECT benutzername, email FROM ' . DB::tbl('benutzer') . ' WHERE id = ? AND aktiv = 1', [$uid]);
         if (!$user || !$user['email']) jsonErr('Keine E-Mail-Adresse hinterlegt.', 400);
         $code     = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $codeHash = password_hash($code, PASSWORD_BCRYPT, ['cost' => 10]);
+        $codeHash = hashCode($code);
         // Code in Session speichern (5 Minuten)
         $_SESSION['email_login_code_hash'] = $codeHash;
         $_SESSION['email_login_code_exp']  = time() + 300;
@@ -467,7 +470,7 @@ if ($res === 'auth') {
     }
     // ── Passkey: Registrierung bestätigen ──
     if ($method === 'POST' && $id === 'passkey-reg-verify') {
-        $user   = Auth::requireLogin();
+        $user = Auth::requireLogin();
         $result = Passkey::registrationVerify($body['credential'] ?? [], $body['name'] ?? 'Passkey');
         if (!$result['ok']) jsonErr($result['fehler'], 400);
         jsonOk(['name' => $result['name']]);
@@ -550,7 +553,7 @@ if ($res === 'auth') {
     }
     // --- User-Präferenzen speichern ---
     if ($method === 'PUT' && $id === 'prefs') {
-        $user  = Auth::requireLogin();
+        $user = Auth::requireLogin();
         $prefs = $body ?? [];
         // Nur erlaubte Keys
         $allowed = ['rek_merge_ak','rek_unique','rek_hl_cur','rek_hl_prev'];
@@ -569,14 +572,14 @@ if ($res === 'auth') {
     }
     // --- Passwort ändern ---
     if ($method === 'POST' && $id === 'passwort') {
-        $user    = Auth::requireLogin();
+        $user = Auth::requireLogin();
         $aktuell = $body['aktuell'] ?? '';
         $neu     = $body['neu']     ?? '';
         if (strlen($neu) < 8) jsonErr('Neues Passwort muss mindestens 8 Zeichen haben.');
         $row = DB::fetchOne('SELECT passwort FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$user['id']]);
         if (!$row || !password_verify($aktuell, $row['passwort']))
             jsonErr('Aktuelles Passwort ist falsch.', 401);
-        $hash = password_hash($neu, PASSWORD_BCRYPT, ['cost' => 12]);
+        $hash = hashPw($neu);
         DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET passwort = ? WHERE id = ?', [$hash, $user['id']]);
         jsonOk('Passwort geändert.');
     }
@@ -607,8 +610,8 @@ if ($res === 'auth') {
         // pending und rejected: werden unten gelöscht und neu angelegt
 
         $code      = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $codeHash  = password_hash($code, PASSWORD_BCRYPT, ['cost' => 10]);
-        $pwHash    = password_hash($pw, PASSWORD_BCRYPT, ['cost' => 12]);
+        $codeHash  = hashCode($code);
+        $pwHash    = hashPw($pw);
 
         // Alte Einträge löschen (abgelehnte + abgelaufene pending)
         DB::query('DELETE FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status != ?', [$email, 'approved']);
@@ -641,7 +644,7 @@ if ($res === 'auth') {
         if (!$reg) jsonErr('Registrierung nicht gefunden.');
 
         $code     = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $codeHash = password_hash($code, PASSWORD_BCRYPT, ['cost' => 10]);
+        $codeHash = hashCode($code);
         DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET email_code_hash = ?, code_expires_at = DATE_ADD(NOW(), INTERVAL 30 MINUTE) WHERE email = ?',
             [$codeHash, $email]);
 
@@ -978,10 +981,6 @@ if ($res === 'upload' && $id === 'avatar') {
 }
 
 // ============================================================
-// EINSTELLUNGEN (öffentlich lesbar, Schreiben nur Admin)
-// ============================================================
-
-// ============================================================
 // ADMIN DASHBOARD
 // ============================================================
 if ($res === 'admin-dashboard' && $method === 'GET') {
@@ -1174,6 +1173,9 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     jsonOk(compact('phpVersion','dbVersion','dbSize','aktiveBenutzer','gaeste','letzteLogins','stats','aufrufe'));
 }
 
+// ============================================================
+// EINSTELLUNGEN (öffentlich lesbar, Schreiben nur Admin)
+// ============================================================
 if ($res === 'einstellungen') {
     // Öffentliche Konfig (alle Einstellungen ohne Auth lesbar – kein Geheimnis)
     if ($method === 'GET' && !$id) {
@@ -1271,7 +1273,6 @@ function buildAkCaseExpr(bool $merge, string $alias = 'e'): string {
         . "        {$mappingCases}"
         . "ELSE $alias.altersklasse END";
 }
-
 
 // Einmalig: resultat_num für Altdaten nachberechnen (Zeitformate H:MM:SS)
 // Läuft nur wenn noch NULL-Einträge vorhanden sind
@@ -1403,61 +1404,6 @@ if ($res === 'benutzer') {
         DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET ' . implode(',', $felder) . ' WHERE id=?', $params);
         jsonOk('Gespeichert.');
     }
-    // Bulk-Import: POST ergebnisse/bulk
-    if ($method === 'POST' && $id === 'bulk') {
-        $user = Auth::requireAthlet(); // leser darf Ergebnisse eintragen
-        $items = $body['items'] ?? [];
-        if (!is_array($items) || !count($items)) jsonErr('Keine Einträge.');
-        $imported = 0; $skipped = 0; $errors = [];
-        foreach ($items as $idx => $item) {
-            $datum    = sanitize($item['datum'] ?? '');
-            $ort      = sanitize($item['ort'] ?? '');
-            $evname   = sanitize($item['veranstaltung_name'] ?? '');
-            $aid      = intOrNull($item['athlet_id'] ?? null);
-            $ak       = sanitize($item['altersklasse'] ?? '');
-            $disziplin= sanitize($item['disziplin'] ?? '');
-            $resultat = sanitize($item['resultat'] ?? '');
-            // pace wird nicht mehr gespeichert (wird on-the-fly berechnet)
-            $akp      = intOrNull($item['ak_platzierung'] ?? null);
-            $mstr     = intOrNull($item['meisterschaft'] ?? null);
-            if (!$datum || !$ort || !$aid || !$disziplin || !$resultat) {
-                $errors[] = "Zeile " . ($idx+1) . ": Pflichtfeld fehlt";
-                $skipped++; continue;
-            }
-            $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
-            $v = DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=?', [$kuerzel]);
-            if (!$v) {
-                $datenquelle = isset($item['datenquelle']) ? trim($item['datenquelle']) : null;
-                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum,datenquelle) VALUES (?,?,?,?,?)',
-                    [$kuerzel, $evname ?: $kuerzel, $ort, $datum, $datenquelle ?: null]);
-                $vid = DB::lastInsertId();
-            } else $vid = $v['id'];
-            // Duplikat-Check (nur nicht-gelöschte Einträge)
-            $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
-                [$vid, $aid, $disziplin, $resultat]);
-            if ($dup) { $skipped++; continue; }
-            // mapping_id: vom Client wenn vorhanden (exakter Kategorie-Treffer),
-            // sonst per Name, zuletzt NULL
-            $dmMid = intOrNull($item['disziplin_mapping_id'] ?? null);
-            $dmDistanz = null;
-            if ($dmMid) {
-                // mapping_id vom Client → distanz holen, disziplin-Name NICHT überschreiben
-                // (mehrere Kategorien können denselben Namen haben, z.B. '800m' in Halle/Bahn/Straße)
-                $dmInfo = DB::fetchOne("SELECT distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE id=?", [$dmMid]);
-                if ($dmInfo) $dmDistanz = $dmInfo['distanz'];
-            } else {
-                // Fallback: per Name – nur wenn kein dmMid
-                $dmRow2 = DB::fetchOne("SELECT id, distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? AND kategorie_id=(SELECT id FROM " . DB::tbl('disziplin_kategorien') . " WHERE tbl_key=? LIMIT 1) ORDER BY id LIMIT 1", [$disziplin, $item['kategorie'] ?? '']);
-                if (!$dmRow2) $dmRow2 = DB::fetchOne("SELECT id, distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? ORDER BY id LIMIT 1", [$disziplin]);
-                if ($dmRow2) { $dmMid = (int)$dmRow2['id']; $dmDistanz = $dmRow2['distanz']; }
-            }
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,distanz,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$dmMid,$dmDistanz,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
-            $imported++;
-        }
-        jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
-    }
-
     if ($method === 'DELETE' && $id) {
         if ((int)$id === (int)$user['id']) jsonErr('Eigenen Account nicht löschbar.');
         DB::query('DELETE FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [$id]);
@@ -1487,9 +1433,6 @@ if ($res === 'dashboard' && $method === 'GET') {
             'rekorde'       => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('vereinsrekorde') . '')['c'],
         ];
     }
-
-
-
 
     // Rekord-Timeline: alle Tabellen berücksichtigen (unified oder alle Legacy-Tabellen)
     $nameExpr = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
@@ -1807,7 +1750,6 @@ if ($res === 'dashboard' && $method === 'GET') {
     jsonOk(compact('stats','rekordeTimeline','recent'));
 }
 
-
 // ============================================================
 // ERGEBNISSE
 // ============================================================
@@ -2013,49 +1955,6 @@ if (in_array($res, $ergebnisTabellen)) {
         }
         jsonOk(['id' => DB::lastInsertId()]);
     }
-
-    // Bulk-Import: POST ergebnisse/bulk
-    if ($method === 'POST' && $id === 'bulk') {
-        $user = Auth::requireAthlet(); // leser darf Ergebnisse eintragen
-        $items = $body['items'] ?? [];
-        if (!is_array($items) || !count($items)) jsonErr('Keine Einträge.');
-        $imported = 0; $skipped = 0; $errors = [];
-        foreach ($items as $idx => $item) {
-            $datum    = sanitize($item['datum'] ?? '');
-            $ort      = sanitize($item['ort'] ?? '');
-            $evname   = sanitize($item['veranstaltung_name'] ?? '');
-            $aid      = intOrNull($item['athlet_id'] ?? null);
-            $ak       = sanitize($item['altersklasse'] ?? '');
-            $disziplin= sanitize($item['disziplin'] ?? '');
-            $resultat = sanitize($item['resultat'] ?? '');
-            // pace wird nicht mehr gespeichert (wird on-the-fly berechnet)
-            $akp      = intOrNull($item['ak_platzierung'] ?? null);
-            $mstr     = intOrNull($item['meisterschaft'] ?? null);
-            if (!$datum || !$ort || !$aid || !$disziplin || !$resultat) {
-                $errors[] = "Zeile " . ($idx+1) . ": Pflichtfeld fehlt";
-                $skipped++; continue;
-            }
-            $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
-            $v = DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=?', [$kuerzel]);
-            if (!$v) {
-                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum) VALUES (?,?,?,?)',
-                    [$kuerzel, $evname ?: $kuerzel, $ort, $datum]);
-                $vid = DB::lastInsertId();
-            } else $vid = $v['id'];
-            // Duplikat-Check (nur nicht-gelöschte Einträge)
-            $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
-                [$vid, $aid, $disziplin, $resultat]);
-            if ($dup) { $skipped++; continue; }
-            // mapping_id: direkt aus Item (wenn vorhanden) oder per Name-Lookup
-            $midDirect = isset($item['disziplin_mapping_id']) && is_numeric($item['disziplin_mapping_id']) ? (int)$item['disziplin_mapping_id'] : null;
-            $dmBulk = $midDirect ? ['id' => $midDirect] : DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$dmBulk ? (int)$dmBulk['id'] : null,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
-            $imported++;
-        }
-        jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
-    }
-
     if ($method === 'PUT' && $id) {
         $user = Auth::requireAthlet();
         $row = DB::fetchOne("SELECT erstellt_von FROM $tbl WHERE id=?", [$id]);
@@ -2379,7 +2278,6 @@ if ($res === 'athleten') {
         jsonOk($result);
     }
 
-
     if ($method === 'GET' && $id) {
         $hasDelColA = DB::fetchOne("SHOW COLUMNS FROM " . DB::tbl('athleten') . " LIKE 'geloescht_am'");
         $athlet = $hasDelColA
@@ -2529,8 +2427,6 @@ if ($res === 'athleten') {
         jsonOk('In Papierkorb verschoben.');
     }
 }
-
-
 
 if ($res === 'rekorde') {
     // Bestleistungen sind öffentlich zugänglich (kein Login erforderlich)
@@ -2766,7 +2662,6 @@ if ($res === 'rekorde') {
     }
 }
 
-
 // ============================================================
 // DISZIPLIN-KATEGORIEN (Admin)
 // ============================================================
@@ -2831,48 +2726,6 @@ if ($res === 'kategorien') {
     }
 
     // DELETE Kategorie (nur wenn keine Disziplinen zugeordnet)
-    // Bulk-Import: POST ergebnisse/bulk
-    if ($method === 'POST' && $id === 'bulk') {
-        $user = Auth::requireAthlet(); // leser darf Ergebnisse eintragen
-        $items = $body['items'] ?? [];
-        if (!is_array($items) || !count($items)) jsonErr('Keine Einträge.');
-        $imported = 0; $skipped = 0; $errors = [];
-        foreach ($items as $idx => $item) {
-            $datum    = sanitize($item['datum'] ?? '');
-            $ort      = sanitize($item['ort'] ?? '');
-            $evname   = sanitize($item['veranstaltung_name'] ?? '');
-            $aid      = intOrNull($item['athlet_id'] ?? null);
-            $ak       = sanitize($item['altersklasse'] ?? '');
-            $disziplin= sanitize($item['disziplin'] ?? '');
-            $resultat = sanitize($item['resultat'] ?? '');
-            // pace wird nicht mehr gespeichert (wird on-the-fly berechnet)
-            $akp      = intOrNull($item['ak_platzierung'] ?? null);
-            $mstr     = intOrNull($item['meisterschaft'] ?? null);
-            if (!$datum || !$ort || !$aid || !$disziplin || !$resultat) {
-                $errors[] = "Zeile " . ($idx+1) . ": Pflichtfeld fehlt";
-                $skipped++; continue;
-            }
-            $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
-            $v = DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=?', [$kuerzel]);
-            if (!$v) {
-                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum) VALUES (?,?,?,?)',
-                    [$kuerzel, $evname ?: $kuerzel, $ort, $datum]);
-                $vid = DB::lastInsertId();
-            } else $vid = $v['id'];
-            // Duplikat-Check (nur nicht-gelöschte Einträge)
-            $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
-                [$vid, $aid, $disziplin, $resultat]);
-            if ($dup) { $skipped++; continue; }
-            // mapping_id: direkt aus Item (wenn vorhanden) oder per Name-Lookup
-            $midDirect = isset($item['disziplin_mapping_id']) && is_numeric($item['disziplin_mapping_id']) ? (int)$item['disziplin_mapping_id'] : null;
-            $dmBulk = $midDirect ? ['id' => $midDirect] : DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$dmBulk ? (int)$dmBulk['id'] : null,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
-            $imported++;
-        }
-        jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
-    }
-
     if ($method === 'DELETE' && $id) {
         $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM " . DB::tbl('disziplin_mapping') . " WHERE kategorie_id=?", [$id])['c'];
         if ($cnt > 0) jsonErr('Kategorie hat noch ' . $cnt . ' zugeordnete Disziplinen. Bitte zuerst umordnen.', 409);
@@ -3217,48 +3070,6 @@ if ($res === 'disziplin-mapping') {
     }
 
     // DELETE Mapping entfernen
-    // Bulk-Import: POST ergebnisse/bulk
-    if ($method === 'POST' && $id === 'bulk') {
-        $user = Auth::requireAthlet(); // leser darf Ergebnisse eintragen
-        $items = $body['items'] ?? [];
-        if (!is_array($items) || !count($items)) jsonErr('Keine Einträge.');
-        $imported = 0; $skipped = 0; $errors = [];
-        foreach ($items as $idx => $item) {
-            $datum    = sanitize($item['datum'] ?? '');
-            $ort      = sanitize($item['ort'] ?? '');
-            $evname   = sanitize($item['veranstaltung_name'] ?? '');
-            $aid      = intOrNull($item['athlet_id'] ?? null);
-            $ak       = sanitize($item['altersklasse'] ?? '');
-            $disziplin= sanitize($item['disziplin'] ?? '');
-            $resultat = sanitize($item['resultat'] ?? '');
-            // pace wird nicht mehr gespeichert (wird on-the-fly berechnet)
-            $akp      = intOrNull($item['ak_platzierung'] ?? null);
-            $mstr     = intOrNull($item['meisterschaft'] ?? null);
-            if (!$datum || !$ort || !$aid || !$disziplin || !$resultat) {
-                $errors[] = "Zeile " . ($idx+1) . ": Pflichtfeld fehlt";
-                $skipped++; continue;
-            }
-            $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
-            $v = DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=?', [$kuerzel]);
-            if (!$v) {
-                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum) VALUES (?,?,?,?)',
-                    [$kuerzel, $evname ?: $kuerzel, $ort, $datum]);
-                $vid = DB::lastInsertId();
-            } else $vid = $v['id'];
-            // Duplikat-Check (nur nicht-gelöschte Einträge)
-            $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
-                [$vid, $aid, $disziplin, $resultat]);
-            if ($dup) { $skipped++; continue; }
-            // mapping_id: direkt aus Item (wenn vorhanden) oder per Name-Lookup
-            $midDirect = isset($item['disziplin_mapping_id']) && is_numeric($item['disziplin_mapping_id']) ? (int)$item['disziplin_mapping_id'] : null;
-            $dmBulk = $midDirect ? ['id' => $midDirect] : DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,ak_platzierung,meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$dmBulk ? (int)$dmBulk['id'] : null,$resultat,$akp,$mstr,$item['import_quelle'] ?? null,$user['id']]);
-            $imported++;
-        }
-        jsonOk(['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors]);
-    }
-
     if ($method === 'DELETE' && $id) {
         // id = URL-kodierter Disziplinname
         $disziplin = urldecode($id);
@@ -3608,8 +3419,6 @@ if ($res === 'autocomplete' && $id === 'athleten') {
 // ============================================================
 // VERANSTALTUNGEN
 // ============================================================
-// VERANSTALTUNGEN
-// ============================================================
 // Ausstehende Veranstaltungen (genehmigt=0) – nur Admin/Editor
 if ($res === 'veranstaltungen' && $method === 'GET' && isset($_GET['pending'])) {
     Auth::requireRecht('veranstaltung_eintragen');
@@ -3709,7 +3518,6 @@ if ($res === 'veranstaltungen' && $method === 'DELETE' && $id) {
     jsonOk('In Papierkorb verschoben (' . $anz . ' Ergebnisse ebenfalls).');
 }
 
-
 // ============================================================
 // ERGEBNISSE/BULK
 // ============================================================
@@ -3754,7 +3562,6 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes') {
         [null, 'ergebnisse', 'insert', $neueWerte, $user['id']]);
     jsonOk(['pending' => true, 'msg' => 'Ergebnis eingereicht. Wird von einem Editor geprüft.']);
 }
-
 
 if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
     $user = Auth::requireEditor(); // nur Admin/Editor darf Bulk-Eintragen
@@ -3956,8 +3763,6 @@ if ($res === 'papierkorb') {
         jsonOk('Endgültig gelöscht.');
     }
 }
-
-
 
 // ============================================================
 // HALL OF FAME
@@ -4352,7 +4157,6 @@ if ($res === 'ak-mapping') {
     }
 }
 
-
 // ============================================================
 // ERGEBNIS-AENDERUNGSANTRAEGE
 // ============================================================
@@ -4399,7 +4203,7 @@ if ($res === 'ergebnis-aenderungen') {
         jsonOk($rows);
     }
     if ($method === 'POST' && $id) {
-        $user   = Auth::requireEditor();
+        $user = Auth::requireEditor();
         $action = $body['action'] ?? '';
         if (!in_array($action, ['approve','reject'])) jsonErr('Ungueltige Aktion.', 400);
         $antrag = DB::fetchOne('SELECT * FROM ' . DB::tbl('ergebnis_aenderungen') . ' WHERE id = ?', [$id]);
@@ -4459,7 +4263,6 @@ if ($res === 'ergebnis-aenderungen') {
         jsonOk($action === 'approve' ? 'Genehmigt.' : 'Abgelehnt.');
     }
 }
-
 
 // ============================================================
 // ROLLEN-VERWALTUNG
