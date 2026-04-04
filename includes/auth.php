@@ -250,19 +250,6 @@ class Auth {
     // ============================================================
     public static function finalizeLoginPublic(array $user): array { return self::finalizeLogin($user); }
     public static function finalizeLogin(array $user): array {
-        // Wartungsmodus: Logins für Nicht-Admins ohne Sonderrecht blockieren
-        try {
-            if (\Settings::get('wartung_aktiv') === '1' && $user['rolle'] !== 'admin') {
-                $row = DB::fetchOne('SELECT rechte FROM ' . DB::tbl('rollen') . ' WHERE name = ?', [$user['rolle']]);
-                $rechte = json_decode($row['rechte'] ?? '[]', true) ?: [];
-                if (!in_array('wartung_login', $rechte)) {
-                    $msg = \Settings::get('wartung_nachricht') ?: 'Das Portal befindet sich derzeit in Wartung.';
-                    http_response_code(503);
-                    echo json_encode(['ok' => false, 'fehler' => $msg, 'wartung' => true]);
-                    exit;
-                }
-            }
-        } catch (\Throwable $_e) {}
         DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET letzter_login = NOW() WHERE id = ?', [$user['id']]);
         // Vorname aus verknüpftem Athletenprofil laden
         $vorname = '';
