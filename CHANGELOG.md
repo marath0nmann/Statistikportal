@@ -1,3 +1,10 @@
+## v939 – Admin: Spaltenausrichtung Gäste/Letzte Logins korrigiert
+
+- Gäste-Tabelle: „Aufrufe"-Spaltentitel jetzt rechtsbündig (passend zu den Werten)
+- Letzte-Logins-Tabelle: Spaltenbreiten explizit verteilt, „Benutzer" erhält ausreichend Platz
+
+---
+
 ## v937 – Einheitliche AK-Range-Darstellung in HoF und Athletenprofil
 
 - `compressAKList` als globale Funktion extrahiert (war lokal nur in HoF)
