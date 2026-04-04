@@ -61,9 +61,9 @@ async function renderVeranstaltungen() {
             '<td>' + akBadge(e2.altersklasse) + '</td>' +
             '<td class="result">' + res + '</td>' +
             '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +
-            '<td>' + platzBadge(e2.ak_platzierung) + '</td>' +
+            '<td>' + medalBadge(e2.ak_platzierung) + '</td>' +
             (_hasMstr ? '<td>' + mstrBadge(e2.meisterschaft) + '</td>' : '') +
-            (_hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? platzBadge(e2.ak_platz_meisterschaft) : '') + '</td>' : '') +
+            (_hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? medalBadge(e2.ak_platz_meisterschaft) : '') + '</td>' : '') +
           '</tr>';
       }
     }

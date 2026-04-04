@@ -183,10 +183,10 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
       '<td class="result">' + ergebnis + '</td>';
     var paceVal = diszKm(rr.disziplin) >= 1 ? calcPace(rr.disziplin, rr.resultat) : '';
     if (hasPace) cells += '<td class="ort-text">' + (paceVal ? fmtTime(paceVal, 'min/km') : '') + '</td>';
-    cells += '<td>' + platzBadge(rr.ak_platzierung) + '</td>';
+    cells += '<td>' + medalBadge(rr.ak_platzierung) + '</td>';
     if (subTab !== 'mittelstrecke') {
       cells += '<td>' + (rr.meisterschaft ? mstrBadge(rr.meisterschaft) : '') + '</td>';
-      cells += '<td class="ort-text" style="font-size:12px">' + (rr.meisterschaft && rr.ak_platz_meisterschaft ? platzBadge(rr.ak_platz_meisterschaft) : '') + '</td>';
+      cells += '<td class="ort-text" style="font-size:12px">' + (rr.meisterschaft && rr.ak_platz_meisterschaft ? medalBadge(rr.ak_platz_meisterschaft) : '') + '</td>';
     }
     cells += '<td class="ort-text">' + ort + '</td>';
     if (canEdit) cells += '<td class="ort-text">' + (rr.eingetragen_von || 'Excel-Import') + '</td>';
