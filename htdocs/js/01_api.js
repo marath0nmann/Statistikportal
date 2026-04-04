@@ -1,3 +1,5 @@
+const API = 'api/index.php';
+
 async function api(method, path, body, signal) {
   const opts = {
     method: method,
