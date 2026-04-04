@@ -8,7 +8,6 @@ let state = {
   tab: 'dashboard', subTab: null,
   page: 1, limit: 100,
   veranstPage: 1,
-  veranstSuche: '',
   filters: {}, sortCol: null, sortDir: 'asc',
   diszFilter: null,
   allDisziplinen: null,
@@ -250,32 +249,6 @@ function mstrLabel(val) {
   var n = parseInt(val, 10);
   return MSTR_MAP[n] || ('MS ' + val);
 }
-// Globale Hilfsfunktion: AK-Array → lesbarer Range-String (W45–W65, W35–W45 und W55–W65, …)
-function compressAKList(aks) {
-  var seen = {}, unique = [];
-  for (var _i = 0; _i < aks.length; _i++) { if (!seen[aks[_i]]) { seen[aks[_i]] = true; unique.push(aks[_i]); } }
-  aks = unique;
-  if (aks.length <= 2) return aks.join(' und ');
-  var prefix = aks[0].replace(/\d+/, '');
-  var nums = aks.map(function(a) { return parseInt(a.replace(/\D/g, ''), 10); });
-  nums.sort(function(a, b) { return a - b; });
-  var allConsec = true;
-  for (var _ci = 1; _ci < nums.length; _ci++) {
-    if (nums[_ci] - nums[_ci - 1] !== 5) { allConsec = false; break; }
-  }
-  if (allConsec) return prefix + nums[0] + '\u2013' + prefix + nums[nums.length - 1];
-  var groups = [[nums[0]]];
-  for (var _gi = 1; _gi < nums.length; _gi++) {
-    if (nums[_gi] - nums[_gi - 1] === 5) groups[groups.length - 1].push(nums[_gi]);
-    else groups.push([nums[_gi]]);
-  }
-  var gparts = groups.map(function(g) {
-    if (g.length >= 3) return prefix + g[0] + '\u2013' + prefix + g[g.length - 1];
-    return g.map(function(n) { return prefix + n; }).join(', ');
-  });
-  return gparts.slice(0, -1).join(', ') + ' und ' + gparts[gparts.length - 1];
-}
-
 function medalBadge(n) {
   if (!n) return '';
   n = parseInt(n, 10);
@@ -1749,7 +1722,7 @@ function _renderKontoPage() {
     '<h1 style="font-size:22px;font-weight:700;color:var(--primary);margin-bottom:20px">&#x1F512; Konto</h1>' +
 
     // Two-column grid
-    '<div class="konto-grid" style="display:grid;grid-template-columns:200px 1fr 1fr;gap:20px;align-items:start;max-width:1100px">' +
+    '<div style="konto-grid" style="display:grid;grid-template-columns:200px 1fr 1fr;gap:20px;align-items:start;max-width:1100px">' +
 
     // ── Left column ──
     '<div>' +
@@ -1761,7 +1734,7 @@ function _renderKontoPage() {
           '<div style="position:absolute;bottom:0;right:0;background:var(--primary);color:var(--on-primary);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;">&#x1F4F7;</div>' +
         '</div>' +
         '<input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadAvatar(this)">' +
-        '<div style="font-weight:700;font-size:15px;'+( currentUser.verein ? 'color:var(--text)' : 'color:var(--primary)')+'">' + name + '</div>' +
+        '<div style="font-weight:700;font-size:15px;'+( pb.verein ? 'color:var(--text)' : 'color:var(--primary)')+'">' + name + '</div>' +
         '<div style="color:var(--text2);font-size:12px;margin-top:3px">' + rolleLabel(currentUser.rolle) + '</div>' +
         (currentUser.avatar ? '<button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:11px;color:var(--text2)" onclick="deleteAvatar()">&#x2715; Avatar entfernen</button>' : '') +
       '</div>' +
@@ -2273,11 +2246,261 @@ async function shareVeranstaltung(vid) {
           'navigator.clipboard.writeText(document.getElementById(\'share-md-area\').value).then(function(){' +
           'var b=this;b.textContent=\'\\u2705 Kopiert!\';setTimeout(function(){b.textContent=\'Markdown kopieren\'},2000)}.bind(this))"' +
           '>Markdown kopieren</button>' +
-        '<button class="btn btn-primary btn-sm" onclick="closeModal();window.open(location.origin+location.pathname+\'#veranstaltung/' + vid + '\',\'_blank\')">Seite \u00f6ffnen &#x2192;</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="closeModal();navigate(\'veranstaltung/' + vid + '\')">Seite \u00f6ffnen &#x2192;</button>' +
       '</div>' +
     '</div>'
   , false, true);
 }
+
+// ── Einzelseite: Veranstaltung ──────────────────────────────────────────────
+
+async function renderVeranstaltungDetail(vid) {
+  var el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
+
+  // Load data
+  var r = await apiGet('veranstaltungen?limit=200&offset=0');
+  if (!r || !r.ok) { el.innerHTML = '<div class="panel" style="padding:32px;text-align:center;color:var(--accent)">Fehler beim Laden.</div>'; return; }
+  window._lastVeranstList = r.data.veranst || [];
+  var v = window._lastVeranstList.find(function(x) { return x.id == vid; });
+  if (!v) { el.innerHTML = '<div class="panel" style="padding:32px;text-align:center">Veranstaltung nicht gefunden.</div>'; return; }
+
+  var name  = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel;
+  var date  = v.datum ? v.datum.split('-').reverse().join('.') : (v.kuerzel || '').split(' ')[0];
+  var ergs  = v.ergebnisse || [];
+  var url   = location.origin + location.pathname + '#veranstaltung/' + vid;
+
+  // Group by discipline
+  var byDisz = {}, diszOrder = [];
+  ergs.forEach(function(e) {
+    var d = e.disziplin || '?';
+    if (!byDisz[d]) { byDisz[d] = []; diszOrder.push(d); }
+    byDisz[d].push(e);
+  });
+
+  // Build table HTML (same style as renderVeranstaltungen)
+  function ergTable(ergs) {
+    var rows = ergs.map(function(e) {
+      var name2 = (e.athlet || '').split(', ').reverse().join(' ');
+      var res   = _veranstFormatResult(e);
+      return '<tr>' +
+        '<td>' + name2 + '</td>' +
+        '<td><span class="badge badge-ak">' + (e.altersklasse || '') + '</span></td>' +
+        '<td style="font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:15px">' + res + '</td>' +
+        '<td style="color:var(--text2);font-size:12px">' + (e.ak_platzierung ? 'Platz\u00a0' + e.ak_platzierung : '') + '</td>' +
+        '</tr>';
+    }).join('');
+    return '<table style="width:100%;border-collapse:collapse">' +
+      '<thead><tr style="border-bottom:2px solid var(--border)">' +
+        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">Athlet</th>' +
+        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">AK</th>' +
+        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">Zeit</th>' +
+        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">Platz AK</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  var diszHtml = diszOrder.map(function(disz) {
+    return '<div style="margin-bottom:20px">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">' + diszMitKat(disz) + '</div>' +
+      ergTable(byDisz[disz]) +
+    '</div>';
+  }).join('');
+
+  el.innerHTML =
+    '<div style="max-width:720px;margin:0 auto">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">' +
+        '<button class="btn btn-ghost btn-sm" onclick="history.back()">&#x2190; Zur\u00fcck</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="shareVeranstaltung(' + vid + ')">&#x1F517; Teilen</button>' +
+      '</div>' +
+      '<div class="panel" style="padding:24px">' +
+        '<h1 style="font-size:22px;font-weight:700;margin:0 0 4px;color:var(--primary)">' + name + '</h1>' +
+        '<div style="color:var(--text2);font-size:14px;margin-bottom:20px">' +
+          date + (v.ort ? ' \u00b7 ' + v.ort : '') +
+          (v.datenquelle ? ' &nbsp;\u00b7&nbsp; <a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" style="color:var(--text2);font-size:12px">\uD83D\uDD17 Ergebnisquelle</a>' : '') +
+        '</div>' +
+        diszHtml +
+        '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--text2)">' +
+          '\uD83D\uDD17 <a href="' + url + '" style="color:var(--text2)">' + url + '</a>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+}
+
+
+
+// ── Veranstaltung teilen ────────────────────────────────────────────────────
+
+function _veranstFormatResult(e) {
+  var res = e.resultat || '';
+  // Strip leading zeros: 00:18:26 -> 18:26
+  res = res.replace(/^0+:?/, '').replace(/^:/, '');
+  return res;
+}
+
+function _veranstMarkdown(v) {
+  var url  = location.origin + location.pathname + '#veranstaltung/' + v.id;
+  var date = v.datum ? v.datum.split('-').reverse().join('.') : v.kuerzel?.split(' ')[0] || '';
+  var header = '## ' + (v.name || v.kuerzel) + '\n';
+  header += '\u{1F4CD} ' + date + (v.ort ? ' \u00b7 ' + v.ort : '') + '\n\n';
+
+  // Group by disziplin
+  var ergs = v.ergebnisse || [];
+  var byDisz = {}, diszOrder = [];
+  ergs.forEach(function(e) {
+    var d = e.disziplin || '?';
+    if (!byDisz[d]) { byDisz[d] = []; diszOrder.push(d); }
+    byDisz[d].push(e);
+  });
+
+  var body = '';
+  diszOrder.forEach(function(disz) {
+    body += '### ' + disz + '\n';
+    body += '| Athlet | AK | Zeit | Platz AK |\n';
+    body += '|--------|----|----- |---------|\n';
+    byDisz[disz].forEach(function(e) {
+      var name = (e.athlet || '').split(', ').reverse().join(' ');
+      body += '| ' + name + ' | ' + (e.altersklasse || '') + ' | ' + _veranstFormatResult(e) + ' | ' + (e.ak_platzierung || '') + ' |\n';
+    });
+    body += '\n';
+  });
+
+  return header + body + '\u{1F517} ' + url;
+}
+
+async function shareVeranstaltung(vid) {
+  // Load veranstaltung data
+  var r = await apiGet('veranstaltungen?limit=1&offset=0&id=' + vid);
+  // veranstaltungen endpoint doesn't filter by id - find from list or use inline data
+  // Try to get from current rendered data
+  var v = null;
+  // Search in the page's rendered veranst cards
+  if (window._lastVeranstList) {
+    v = window._lastVeranstList.find(function(x) { return x.id == vid; });
+  }
+  if (!v) {
+    // Fallback: load fresh
+    var r2 = await apiGet('veranstaltungen?limit=200&offset=0');
+    if (r2 && r2.ok) {
+      window._lastVeranstList = r2.data.veranst || [];
+      v = window._lastVeranstList.find(function(x) { return x.id == vid; });
+    }
+  }
+  if (!v) { notify('Veranstaltung nicht gefunden.', 'err'); return; }
+
+  var url  = location.origin + location.pathname + '#veranstaltung/' + vid;
+  var md   = _veranstMarkdown(v);
+  var date = v.datum ? v.datum.split('-').reverse().join('.') : '';
+
+  showModal(
+    '<h2 style="margin-bottom:16px">\u{1F517} Veranstaltung teilen' +
+    ' <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+
+    '<div style="margin-bottom:16px">' +
+      '<div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Direktlink</div>' +
+      '<div style="display:flex;gap:8px;align-items:center">' +
+        '<input type="text" id="share-url-input" value="' + url.replace(/"/g,'&quot;') + '"' +
+          ' readonly style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;' +
+          'background:var(--surf2);color:var(--text);font-size:13px;font-family:monospace"/>' +
+        '<button class="btn btn-primary btn-sm" onclick="' +
+          'navigator.clipboard.writeText(document.getElementById(\'share-url-input\').value).then(function(){' +
+          'var b=this;b.textContent=\'\\u2705 Kopiert!\';setTimeout(function(){b.textContent=\'Kopieren\'},2000)}.bind(this))"' +
+          '>Kopieren</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div>' +
+      '<div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Markdown</div>' +
+      '<textarea id="share-md-area" readonly style="width:100%;height:240px;box-sizing:border-box;padding:10px 12px;' +
+        'border:1.5px solid var(--border);border-radius:7px;background:var(--surf2);color:var(--text);' +
+        'font-size:12px;font-family:monospace;resize:vertical;line-height:1.5">' +
+        md.replace(/</g,'&lt;').replace(/>/g,'&gt;') +
+      '</textarea>' +
+      '<div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">' +
+        '<button class="btn btn-ghost btn-sm" onclick="' +
+          'navigator.clipboard.writeText(document.getElementById(\'share-md-area\').value).then(function(){' +
+          'var b=this;b.textContent=\'\\u2705 Kopiert!\';setTimeout(function(){b.textContent=\'Markdown kopieren\'},2000)}.bind(this))"' +
+          '>Markdown kopieren</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="closeModal();navigate(\'veranstaltung/' + vid + '\')">Seite \u00f6ffnen &#x2192;</button>' +
+      '</div>' +
+    '</div>'
+  , false, true);
+}
+
+// ── Einzelseite: Veranstaltung ──────────────────────────────────────────────
+
+async function renderVeranstaltungDetail(vid) {
+  var el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
+
+  // Load data
+  var r = await apiGet('veranstaltungen?limit=200&offset=0');
+  if (!r || !r.ok) { el.innerHTML = '<div class="panel" style="padding:32px;text-align:center;color:var(--accent)">Fehler beim Laden.</div>'; return; }
+  window._lastVeranstList = r.data.veranst || [];
+  var v = window._lastVeranstList.find(function(x) { return x.id == vid; });
+  if (!v) { el.innerHTML = '<div class="panel" style="padding:32px;text-align:center">Veranstaltung nicht gefunden.</div>'; return; }
+
+  var name  = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel;
+  var date  = v.datum ? v.datum.split('-').reverse().join('.') : (v.kuerzel || '').split(' ')[0];
+  var ergs  = v.ergebnisse || [];
+  var url   = location.origin + location.pathname + '#veranstaltung/' + vid;
+
+  // Group by discipline
+  var byDisz = {}, diszOrder = [];
+  ergs.forEach(function(e) {
+    var d = e.disziplin || '?';
+    if (!byDisz[d]) { byDisz[d] = []; diszOrder.push(d); }
+    byDisz[d].push(e);
+  });
+
+  // Build table HTML (same style as renderVeranstaltungen)
+  function ergTable(ergs) {
+    var rows = ergs.map(function(e) {
+      var name2 = (e.athlet || '').split(', ').reverse().join(' ');
+      var res   = _veranstFormatResult(e);
+      return '<tr>' +
+        '<td>' + name2 + '</td>' +
+        '<td><span class="badge badge-ak">' + (e.altersklasse || '') + '</span></td>' +
+        '<td style="font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:15px">' + res + '</td>' +
+        '<td style="color:var(--text2);font-size:12px">' + (e.ak_platzierung ? 'Platz\u00a0' + e.ak_platzierung : '') + '</td>' +
+        '</tr>';
+    }).join('');
+    return '<table style="width:100%;border-collapse:collapse">' +
+      '<thead><tr style="border-bottom:2px solid var(--border)">' +
+        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">Athlet</th>' +
+        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">AK</th>' +
+        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">Zeit</th>' +
+        '<th style="text-align:left;padding:6px 8px;font-size:12px;color:var(--text2)">Platz AK</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  var diszHtml = diszOrder.map(function(disz) {
+    return '<div style="margin-bottom:20px">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">' + diszMitKat(disz) + '</div>' +
+      ergTable(byDisz[disz]) +
+    '</div>';
+  }).join('');
+
+  el.innerHTML =
+    '<div style="max-width:720px;margin:0 auto">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">' +
+        '<button class="btn btn-ghost btn-sm" onclick="history.back()">&#x2190; Zur\u00fcck</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="shareVeranstaltung(' + vid + ')">&#x1F517; Teilen</button>' +
+      '</div>' +
+      '<div class="panel" style="padding:24px">' +
+        '<h1 style="font-size:22px;font-weight:700;margin:0 0 4px;color:var(--primary)">' + name + '</h1>' +
+        '<div style="color:var(--text2);font-size:14px;margin-bottom:20px">' +
+          date + (v.ort ? ' \u00b7 ' + v.ort : '') +
+          (v.datenquelle ? ' &nbsp;\u00b7&nbsp; <a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" style="color:var(--text2);font-size:12px">\uD83D\uDD17 Ergebnisquelle</a>' : '') +
+        '</div>' +
+        diszHtml +
+        '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--text2)">' +
+          '\uD83D\uDD17 <a href="' + url + '" style="color:var(--text2)">' + url + '</a>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+}
+
+
 
 // ── Einzelseite: Veranstaltung ──────────────────────────────────────────────
 
@@ -2291,74 +2514,97 @@ async function renderVeranstaltungDetail(vid) {
     return;
   }
   window._lastVeranstList = r.data.veranst || [];
-  state._veranstMap = {};
-  for (var ci = 0; ci < window._lastVeranstList.length; ci++) state._veranstMap[window._lastVeranstList[ci].id] = window._lastVeranstList[ci];
   var v = window._lastVeranstList.find(function(x) { return x.id == vid; });
   if (!v) {
     el.innerHTML = '<div class="panel" style="padding:32px;text-align:center">Veranstaltung nicht gefunden.</div>';
     return;
   }
 
-  var name = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel || '';
-  var ergs = v.ergebnisse || [];
+  var name  = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel;
+  var date  = v.datum ? v.datum.split('-').reverse().join('.') : (v.kuerzel || '').split(' ')[0];
+  var ergs  = v.ergebnisse || [];
+  var url   = location.origin + location.pathname + '#veranstaltung/' + vid;
 
-  // Group by discipline – same logic as renderVeranstaltungen
+  // Group by discipline (same logic as renderVeranstaltungen)
   var byDisz = {}, diszOrder = [];
-  for (var ei = 0; ei < ergs.length; ei++) {
-    var e = ergs[ei];
-    var _dk = ergDiszKey(e);
-    if (!byDisz[_dk]) { byDisz[_dk] = []; diszOrder.push(_dk); }
-    byDisz[_dk].push(e);
-  }
-  var _hasMstr = ergs.some(function(e3){ return !!e3.meisterschaft; });
-  var _colspan = _hasMstr ? '7' : '5';
+  ergs.forEach(function(e) {
+    var dk = ergDiszKey(e);
+    if (!byDisz[dk]) { byDisz[dk] = []; diszOrder.push(dk); }
+    byDisz[dk].push(e);
+  });
   sortDisziplinen(diszOrder);
 
-  var rows = '';
-  for (var di = 0; di < diszOrder.length; di++) {
-    var _dKey = diszOrder[di];
-    var _diszFirstErg = byDisz[_dKey][0];
-    var disz = _diszFirstErg ? ergDiszLabel(_diszFirstErg) : _dKey;
-    var dErgs = byDisz[_dKey];
-    rows += '<tr class="disz-header-row"><td colspan="' + _colspan + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + disz + '</td></tr>';
-    for (var ei2 = 0; ei2 < dErgs.length; ei2++) {
-      var e2 = dErgs[ei2];
-      var fmt = e2.fmt || '';
-      var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : undefined);
+  // Build tables using the exact same markup as renderVeranstaltungen
+  var tablesHtml = '';
+  diszOrder.forEach(function(dk) {
+    var ergsD = byDisz[dk];
+    var disz  = ergsD[0] ? ergDiszLabel(ergsD[0]) : dk;
+    var fmt   = ergsD[0] ? (ergsD[0].fmt || 'min') : 'min';
+    var _hasMstr = ergsD.some(function(e) { return e.meisterschaft; });
+
+    var rows = '';
+    ergsD.forEach(function(e2) {
+      var res  = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : undefined);
       var _ePace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
       var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
       rows +=
         '<tr>' +
-          '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span></td>' +
+          '<td>' + e2.athlet + '</td>' +
           '<td>' + akBadge(e2.altersklasse) + '</td>' +
           '<td class="result">' + res + '</td>' +
           '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +
           '<td>' + platzBadge(e2.ak_platzierung) + '</td>' +
           (_hasMstr ? '<td>' + mstrBadge(e2.meisterschaft) + '</td>' : '') +
-          (_hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? platzBadge(e2.ak_platz_meisterschaft) : '') + '</td>' : '') +
+          (_hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? 'Pl.\u00a0' + e2.ak_platz_meisterschaft : '') + '</td>' : '') +
         '</tr>';
-    }
-  }
+    });
+
+    tablesHtml +=
+      '<div class="disz-section" style="margin-bottom:24px">' +
+        '<div class="disziplin-header">' + diszMitKat(disz) + '</div>' +
+        '<table class="veranst-dash-table">' +
+          '<colgroup>' +
+            '<col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' +
+            (_hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') +
+          '</colgroup>' +
+          '<thead><tr>' +
+            '<th>Athlet</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl.\u00a0AK</th>' +
+            (_hasMstr ? '<th>MS</th><th>Pl.\u00a0MS</th>' : '') +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+      '</div>';
+  });
 
   el.innerHTML =
-    '<div class="panel" style="margin-bottom:0">' +
-      '<div class="panel-header">' +
-        '<div>' +
-          '<div class="panel-title">' + name + '</div>' +
-          '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + v.ort : '') + '</div>' +
-        '</div>' +
-        '<div style="display:flex;align-items:center;gap:10px">' +
-          '<span style="font-size:13px;color:var(--text2)">' + v.anz_ergebnisse + ' Ergebnisse &middot; ' + v.anz_athleten + ' Athleten</span>' +
-          (currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor') ?
-            '<button class="btn btn-ghost btn-sm" onclick="showVeranstEditModal(' + v.id + ')">&#x270F;&#xFE0F;</button>' : '') +
-          (v.datenquelle ? '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" class="btn btn-ghost btn-sm" title="Ergebnisquelle">\uD83C\uDF10</a>' : '') +
-          '<button class="btn btn-ghost btn-sm" title="Teilen" onclick="shareVeranstaltung(' + v.id + ')">\uD83D\uDCE4</button>' +
-          (_canVeranstaltungLoeschen() ?
-            '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&#x2715;</button>' : '') +
+    '<div style="max-width:900px;margin:0 auto">' +
+      // Share button top right
+      '<div style="display:flex;justify-content:flex-end;margin-bottom:12px">' +
+        '<button class="btn btn-ghost btn-sm" onclick="shareVeranstaltung(' + vid + ')">&#x1F517; Teilen</button>' +
+      '</div>' +
+      // Event header (same as veranstaltungen card header)
+      '<div class="panel" style="padding:20px 24px;margin-bottom:4px">' +
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">' +
+          '<div>' +
+            '<div style="font-size:18px;font-weight:700;color:var(--primary);margin-bottom:3px">' + name + '</div>' +
+            '<div style="font-size:13px;color:var(--text2)">' +
+              date + (v.ort ? ' \u00b7 ' + v.ort : '') +
+              (v.datenquelle ? ' &nbsp;\u00b7&nbsp; <a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" style="color:var(--text2);font-size:12px">\uD83D\uDD17 Ergebnisquelle</a>' : '') +
+            '</div>' +
+          '</div>' +
+          '<div style="font-size:13px;color:var(--text2);text-align:right;flex-shrink:0">' +
+            ergs.length + ' Erg. &middot; ' + v.anz_athleten + ' Athleten' +
+          '</div>' +
         '</div>' +
       '</div>' +
-      (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' + (_hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') + '</colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th>' + (_hasMstr ? '<th>Meisterschaft</th><th>Pl. MS</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' :
-              '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
+      // Results tables
+      '<div class="panel" style="padding:0 0 8px">' +
+        tablesHtml +
+      '</div>' +
+      // Permalink at bottom
+      '<div style="margin-top:12px;font-size:11px;color:var(--text2);text-align:center">' +
+        '\uD83D\uDD17 <a href="' + url + '" style="color:var(--text2)">' + url + '</a>' +
+      '</div>' +
     '</div>';
 }
 
@@ -2531,7 +2777,10 @@ function buildNav() {
     _renderNavTabs(visibleTabs);
     return;
   }
-  // Eingeloggte User: Athleten-Tab immer sichtbar
+  // Eingeloggte User: Athleten-Tab sichtbar wenn persoenliche_daten_ab passt
+  if (!_canSeePersoenlicheDaten()) {
+    tabs = tabs.filter(function(t) { return t.id !== 'athleten'; });
+  }
   if (currentUser.rolle === 'editor' || currentUser.rolle === 'admin' || currentUser.rolle === 'athlet')
     tabs.push({ id: 'eintragen', icon: '➕️', label: 'Eintragen' });
   if (currentUser.rolle === 'admin') {
@@ -2704,7 +2953,6 @@ function navigate(tab) {
   state.tab    = tab;
   state.page   = 1;
   state.veranstPage = 1;
-  state.veranstSuche = '';
   syncHash();
   // subTab nur für Tabs mit eigenen Sub-Tabs zurücksetzen
   if (tab === 'ergebnisse') state.subTab = 'strasse';
@@ -2747,21 +2995,6 @@ async function loadAthleten() {
 
 // ── PAGE ROUTER ─────────────────────────────────────────────
 async function renderPage() {
-  // Wartungsmodus: Nicht eingeloggte Besucher sehen Wartungsseite
-  if (!currentUser && (appConfig.wartung_aktiv === '1' || appConfig.wartung_aktiv === 1)) {
-    var el = document.getElementById('main-content');
-    var msg = appConfig.wartung_nachricht || 'Das Portal befindet sich derzeit in Wartung. Bitte sp\u00e4ter erneut versuchen.';
-    el.innerHTML =
-      '<div style="display:flex;align-items:center;justify-content:center;min-height:60vh;padding:24px">' +
-        '<div class="panel" style="max-width:480px;width:100%;padding:48px 36px;text-align:center">' +
-          '<div style="font-size:48px;margin-bottom:16px">&#x1F6E0;&#xFE0E;</div>' +
-          '<div style="font-size:22px;font-weight:700;margin-bottom:12px">Wartungsmodus</div>' +
-          '<div style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:28px">' + msg + '</div>' +
-          '<button class="btn btn-primary" onclick="showLogin()">&#x1F511; Als Administrator anmelden</button>' +
-        '</div>' +
-      '</div>';
-    return;
-  }
   // Anonyme User dürfen Dashboard und Bestleistungen sehen
   if (!currentUser && state.tab !== 'rekorde' && state.tab !== 'dashboard' && state.tab !== 'veranstaltung') {
     state.tab = 'rekorde';
@@ -2991,9 +3224,9 @@ async function _loadEigenesProfilWidget(elId, showErg) {
     }
     if (!btns) continue;
     pbSections +=
-      '<div class="pb-kat-section" style="flex:1 1 auto;min-width:180px">' +
+      '<div class="pb-kat-section" style="flex:0 0 auto">' +
         '<div style="padding:8px 14px 4px;font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px">' + kat.name + '</div>' +
-        '<div style="padding:0 14px 10px;display:flex;flex-wrap:wrap;gap:6px">' + btns + '</div>' +
+        '<div style="padding:0 14px 10px;display:flex;flex-wrap:nowrap;gap:6px">' + btns + '</div>' +
       '</div>';
   }
   if (!pbSections) pbSections = '<div style="padding:16px 18px;color:var(--text2);font-size:13px">Noch keine Ergebnisse.</div>';
@@ -3466,6 +3699,34 @@ function timelineBadges(rek) {
         // Gruppierung: gleiche AK-Kombination → eine Box, Disziplinen zusammenfassen.
         // Zusätzlich: konsekutive AK-Ranges komprimieren (W45,W50,W55,W60,W65 → W45–W65)
 
+        function compressAKList(aks) {
+          // Duplikate entfernen
+          var seen = {}, unique = [];
+          for (var _di = 0; _di < aks.length; _di++) { if (!seen[aks[_di]]) { seen[aks[_di]] = true; unique.push(aks[_di]); } }
+          aks = unique;
+          if (aks.length <= 2) return aks.join(' und ');
+          var prefix = aks[0].replace(/\d+/,'');
+          var nums = aks.map(function(a){ return parseInt(a.replace(/\D/g,''),10); });
+          nums.sort(function(a,b){return a-b;});
+          var allConsec = true;
+          for (var _ci = 1; _ci < nums.length; _ci++) {
+            if (nums[_ci] - nums[_ci-1] !== 5) { allConsec = false; break; }
+          }
+          if (allConsec && nums.length >= 3) {
+            return prefix + nums[0] + '\u2013' + prefix + nums[nums.length-1];
+          }
+          var groups = [[nums[0]]];
+          for (var _gi = 1; _gi < nums.length; _gi++) {
+            if (nums[_gi] - nums[_gi-1] === 5) groups[groups.length-1].push(nums[_gi]);
+            else groups.push([nums[_gi]]);
+          }
+          var gparts = groups.map(function(g) {
+            if (g.length >= 3) return prefix + g[0] + '\u2013' + prefix + g[g.length-1];
+            return g.map(function(n){ return prefix+n; }).join(', ');
+          });
+          return gparts.slice(0,-1).join(', ') + ' und ' + gparts[gparts.length-1];
+        }
+
         function joinList(arr) {
           if (arr.length === 0) return '';
           if (arr.length === 1) return arr[0];
@@ -3530,7 +3791,6 @@ function timelineBadges(rek) {
             if (!mGroups[mgKey]) { mGroups[mgKey] = { label: mt.label, kat: mt.kat_name, jahre: [] }; mOrder.push(mgKey); }
             if (mt.jahr && mGroups[mgKey].jahre.indexOf(mt.jahr) < 0) mGroups[mgKey].jahre.push(mt.jahr);
           }
-          var mMedalSpans = [];
           mOrder.forEach(function(key) {
             var mg = mGroups[key];
             // label: "🥇 Nordrhein 1.500m" – alles nach erstem Leerzeichen
@@ -3544,19 +3804,8 @@ function timelineBadges(rek) {
             var jahreStr = mg.jahre.length ? ' ' + mg.jahre.join(', ') : '';
             var _sep = /e$/i.test(mstrName) ? ' ' : '-';
             var tooltip = mstrName + _sep + mSuffix.replace(/^-/, '') + ' ' + diszPart + katStr + jahreStr;
-            mMedalSpans.push('<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:15px;display:inline-block;cursor:default;line-height:1">&#x1F947;</span>');
+            hBadgesHtml += '<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:15px;display:inline-block;margin:1px 1px;cursor:default;line-height:1">&#x1F947;</span>';
           });
-          if (mMedalSpans.length > 9) {
-            var _mNumRows = Math.ceil(mMedalSpans.length / 9);
-            var _mPerRow  = Math.ceil(mMedalSpans.length / _mNumRows);
-            var _mRowsHtml = '';
-            for (var _mri = 0; _mri < mMedalSpans.length; _mri += _mPerRow) {
-              _mRowsHtml += '<div style="display:flex;justify-content:center;gap:1px">' + mMedalSpans.slice(_mri, _mri + _mPerRow).join('') + '</div>';
-            }
-            hBadgesHtml += '<div style="width:100%;display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:2px">' + _mRowsHtml + '</div>';
-          } else {
-            hBadgesHtml += mMedalSpans.join('');
-          }
         }
                 for (var gi = 0; gi < groupOrder.length; gi++) {
           var gKey = groupOrder[gi], gData = groupMap[gKey], dl = gData.disz;
@@ -3586,7 +3835,7 @@ function timelineBadges(rek) {
             if (_bCnt) _parts.push(_bCnt + ' ' + (_bCnt === 1 ? 'Bestleistung' : 'Bestleistungen'));
             return '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">' + _parts.join(' · ') + '</div>';
           }()) +
-            '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:1px">' + hBadgesHtml + '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">' + hBadgesHtml + '</div>' +
           '</div>';
       }
       var hofPanelTitle = widgetTitle(wcfg, 'Hall of Fame');
@@ -3801,7 +4050,6 @@ async function loadErgebnisseData() {
   var totalPages = Math.ceil(total / state.limit);
   var tableHtml = buildErgebnisseTable(state.subTab, rows, canEdit);
 
-  var _ergFoc = _saveFocus();
   document.getElementById('main-content').innerHTML =
     '<div class="filter-bar">' +
       '<div class="fg"><label>Athlet</label><input type="text" id="erg-athlet-filter" placeholder="Name…" value="' + (state.filters.athlet||'') + '" oninput="_ergAthletFilter(this.value)" style="min-width:0;width:100%"/></div>' +
@@ -3817,8 +4065,6 @@ async function loadErgebnisseData() {
       '<div class="table-scroll">' + tableHtml + '</div>' +
       buildPagination(state.page, totalPages, total) +
     '</div>';
-
-  _restoreFocus(_ergFoc);
 
   // Event-Delegation für Edit + Delete (muss nach DOM-Insertion passieren)
   var tbl = document.getElementById('ergebnisse-table');
@@ -4252,13 +4498,13 @@ function _athSortHeader() {
   ];
   if (showD) cols.push({ key: 'geschlecht', label: '♂♀' });
   cols.push({ key: 'jahrgang', label: 'Jahrgang' }, { key: 'ak', label: 'AK' }, { key: 'gruppen', label: 'Gruppen' });
-  if (showD) { cols.push({ key: 'ergebnisse', label: 'Erg.' }, { key: 'letzte', label: 'Letzte Akt.' }, { key: 'aktiv', label: 'Status' }); }
+  if (showD) { cols.push({ key: 'ergebnisse', label: 'Erg.' }, { key: 'letzte', label: 'Letzte Akt.' }); if (_canSeeInaktiveAthleten()) cols.push({ key: 'aktiv', label: 'Status' }); }
   if (showE) cols.push({ key: '', label: '' });
   return cols.map(function(c) {
     if (!c.key) return '<th></th>';
     var arrow = _athSort.col === c.key ? (_athSort.dir === 1 ? ' ▲' : ' ▼') : '';
     var style = 'cursor:pointer;user-select:none;white-space:nowrap' + (_athSort.col === c.key ? ';color:var(--primary)' : '');
-    return '<th style="' + style + '" onclick="_athSetSort(\'' + c.key + '\')">' + c.label + arrow + '</th>';
+    return '<th style="' + style + '" onclick="_athSetSort(\'' + c.key + '\'">' + c.label + arrow + '</th>';
   }).join('');
 }
 
@@ -4377,7 +4623,7 @@ async function renderAthleten() {
       (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showGeburtjahrImportModal()" title="Geburtsjahr-Bulk-Import">&#x1F4C5; Geburtsjahr importieren</button>' : '') +
     '</div>' +
     '<div class="panel">' +
-      '<div class="panel-header"><div class="panel-title">&#x1F464; ' + (aktGruppe || 'Alle Athleten') + '</div><div class="panel-count" id="athlet-count"></div></div>' +
+      '<div class="panel-header"><div class="panel-title">&#x1F464; Alle Athleten</div><div class="panel-count" id="athlet-count"></div></div>' +
       '<div class="table-scroll"><table id="athlet-tabelle">' +
         '<thead><tr>' + _athSortHeader() + '</tr></thead>' +
         '<tbody></tbody>' +
@@ -4696,62 +4942,51 @@ async function openAthletById(id) {
               });
             }
 
-            // Vereinsbestleistungen: nach Disziplinkategorie gruppiert
+            // Vereinsbestleistungen: gleiche Gruppierung wie HoF
             var bParts = [];
             if (ausz.bestleistungen.length) {
-              // 1. Nach Kategorie aufteilen (Reihenfolge bleibt wie API-Sortierung)
-              var bByKat = {}, bKatOrder = [];
+              var byDisz = {};
               (ausz.bestleistungen || []).forEach(function(b) {
-                var kat = b.kat_name || 'Sonstige';
-                if (!bByKat[kat]) { bByKat[kat] = []; bKatOrder.push(kat); }
-                bByKat[kat].push(b);
+                if (!byDisz[b.disziplin]) byDisz[b.disziplin] = { gold: [], ak: [] };
+                var isGold = b.label.indexOf('Gesamt') >= 0 || b.label.indexOf('M\u00e4nner') >= 0 || b.label.indexOf('Frauen') >= 0;
+                if (isGold) byDisz[b.disziplin].gold.push(b.label);
+                else byDisz[b.disziplin].ak.push(b.label.replace('Bestleistung ', ''));
               });
-
-              bKatOrder.forEach(function(kat) {
-                var katItems = bByKat[kat];
-                var katLines = [];
-
-                // 2. Innerhalb Kategorie: gleiche Gruppierung wie bisher
-                var byDisz = {};
-                katItems.forEach(function(b) {
-                  if (!byDisz[b.disziplin]) byDisz[b.disziplin] = { gold: [], ak: [] };
-                  var isGold = b.label.indexOf('Gesamt') >= 0 || b.label.indexOf('M\u00e4nner') >= 0 || b.label.indexOf('Frauen') >= 0;
-                  if (isGold) byDisz[b.disziplin].gold.push(b.label);
-                  else byDisz[b.disziplin].ak.push(b.label.replace('Bestleistung ', ''));
+              var gesamtLines = {}, gesamtOrd = [];
+              var akMap = {};
+              Object.keys(byDisz).forEach(function(disz) {
+                var d = byDisz[disz];
+                d.gold.forEach(function(lbl) {
+                  if (!gesamtLines[lbl]) { gesamtLines[lbl] = []; gesamtOrd.push(lbl); }
+                  gesamtLines[lbl].push(disz);
                 });
-                var gesamtLines = {}, gesamtOrd = [];
-                var akMap = {};
-                Object.keys(byDisz).forEach(function(disz) {
-                  var d = byDisz[disz];
-                  d.gold.forEach(function(lbl) {
-                    if (!gesamtLines[lbl]) { gesamtLines[lbl] = []; gesamtOrd.push(lbl); }
-                    gesamtLines[lbl].push(disz);
-                  });
-                  if (d.ak.length) {
-                    var sortedAK = d.ak.slice().sort();
-                    var akKey = sortedAK.join('|');
-                    if (!akMap[akKey]) { akMap[akKey] = { aks: sortedAK, disz: [] }; }
-                    akMap[akKey].disz.push(disz);
-                  }
-                });
-                gesamtOrd.forEach(function(lbl) {
-                  var dl = gesamtLines[lbl];
-                  var dStr = dl.length === 1 ? dl[0] : dl.slice(0,-1).join(', ') + ' und ' + dl[dl.length-1];
-                  katLines.push(lbl + ' \u00fcber ' + dStr);
-                });
-                Object.keys(akMap).forEach(function(k) {
-                  var entry = akMap[k];
-                  var dl = entry.disz;
-                  var akStr = compressAKList(entry.aks);
-                  var dStr = dl.length === 1 ? dl[0] : dl.slice(0,-1).join(', ') + ' und ' + dl[dl.length-1];
-                  katLines.push('Bestleistung ' + akStr + ' \u00fcber ' + dStr);
-                });
-
-                // Kategorie-Header + eingerückte Zeilen
-                if (katLines.length) {
-                  bParts.push('\u25b8 ' + kat);
-                  katLines.forEach(function(l) { bParts.push('  ' + l); });
+                if (d.ak.length) {
+                  var sortedAK = d.ak.slice().sort();
+                  var akKey = sortedAK.join('|');
+                  if (!akMap[akKey]) { akMap[akKey] = { aks: sortedAK, disz: [] }; }
+                  akMap[akKey].disz.push(disz);
                 }
+              });
+              gesamtOrd.forEach(function(lbl) {
+                var dl = gesamtLines[lbl];
+                var dStr = dl.length === 1 ? dl[0] : dl.slice(0,-1).join(', ') + ' und ' + dl[dl.length-1];
+                bParts.push(lbl + ' \u00fcber ' + dStr);
+              });
+              Object.keys(akMap).forEach(function(k) {
+                var entry = akMap[k];
+                var aks = entry.aks;
+                var dl = entry.disz;
+                var prefix = aks[0].replace(/\d+$/, '');
+                var nums = aks.map(function(a){ return parseInt(a.replace(/\D/g,''),10); }).sort(function(a,b){return a-b;});
+                var akStr;
+                if (nums.length <= 2) {
+                  akStr = aks.join(' und ');
+                } else {
+                  var allConsec = nums.every(function(n,i){ return i===0 || n-nums[i-1]===5; });
+                  akStr = allConsec ? prefix+nums[0]+'\u2013'+prefix+nums[nums.length-1] : aks.join(', ');
+                }
+                var dStr = dl.length === 1 ? dl[0] : dl.slice(0,-1).join(', ') + ' und ' + dl[dl.length-1];
+                bParts.push('Bestleistung ' + akStr + ' \u00fcber ' + dStr);
               });
             }
 
@@ -11065,7 +11300,7 @@ async function renderAdminSystem() {
     return '<tr><th colspan="2" style="padding:8px 12px;background:var(--primary);color:#fff;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">' + label + '</th></tr>';
   }
   function stable(rows) {
-    return '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden"><table class="admin-phpbb-table" style="width:100%;border-collapse:collapse"><colgroup><col><col></colgroup>' + rows + '</table></div>';
+    return '<table style="width:100%;border-collapse:collapse;border:1px solid var(--border);border-radius:8px;overflow:hidden">' + rows + '</table>';
   }
 
   // Left column
@@ -11159,7 +11394,7 @@ async function renderAdminSystem() {
     '<h2 style="margin-bottom:18px">&#x1F5A5;&#xFE0E; System-Dashboard</h2>' +
 
     // phpBB-style two-column stat tables
-    '<div class="admin-sys-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
+    '<div style="admin-sys-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
       '<div>' + stable(leftRows) + '</div>' +
       '<div>' + stable(rightRows) + '</div>' +
     '</div>' +
@@ -11168,18 +11403,18 @@ async function renderAdminSystem() {
 
     // G&auml;ste
     '<div class="panel" style="margin-bottom:24px"><div class="panel-header"><div class="panel-title">&#x1F465; G&auml;ste <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 15 Min.)</span></div></div>' +
-      '<div class="table-scroll"><table class="admin-gaeste-table" style="width:100%"><thead><tr>' +
+      '<div class="table-scroll"><table style="width:100%"><thead><tr>' +
         thStyle('IP-Adresse') + thStyle('Land') + thStyle('Browser') + thStyle('Zuletzt') + thStyle('Aufrufe') +
       '</tr></thead><tbody>' + gaesteRows + '</tbody></table></div></div>' +
 
     // Aktive Benutzer + Letzte Logins
-    '<div class="admin-sys-grid" style="display:grid;grid-template-columns:3fr 7fr;gap:16px;margin-bottom:24px">' +
+    '<div style="admin-sys-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">' +
       '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F7E2; Aktiv <span style="font-size:12px;font-weight:400;opacity:.6">(letzte 5 Min.)</span></div></div>' +
-        '<table class="admin-aktiv-table" style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Aktiv seit') + '</tr></thead>' +
+        '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Rolle') + thStyle('Aktiv seit') + '</tr></thead>' +
         '<tbody>' + aktiveRows + '</tbody></table></div>' +
       '<div class="panel"><div class="panel-header"><div class="panel-title">&#x1F550; Letzte Logins</div></div>' +
-        '<div class="table-scroll"><table class="admin-login-table" style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Status') + thStyle('Land') + thStyle('IP') + thStyle('Zeitpunkt') + '</tr></thead>' +
-        '<tbody>' + loginRows + '</tbody></table></div></div>' +
+        '<table style="width:100%"><thead><tr>' + thStyle('Benutzer') + thStyle('Status') + thStyle('Land') + thStyle('IP') + thStyle('Zeitpunkt') + '</tr></thead>' +
+        '<tbody>' + loginRows + '</tbody></table></div>' +
     '</div>';
 
 }
@@ -11386,6 +11621,7 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">&#x1F3A8; Darstellung</button>' +
     '<button class="subtab' + (t==='dashboard_cfg'  ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">&#x1F4CA;&#xFE0E; Dashboard</button>' +
     '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">✋ Anträge' + _adminBadge((window._adminPendingAntraege||0)+(window._adminPendingFreigabe||0)) + '</button>' +
+    '<button class+
     '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb' + _adminBadge(window._adminPendingPapierkorb||0) + '</button>' +
   '</div>';
 }
@@ -11548,7 +11784,6 @@ var _RECHTE_LISTE = [
   { key: 'athleten_details',       label: 'Athleten-Details sehen (Geschlecht, Anzahl Ergebnisse)' },
   { key: 'inaktive_athleten_sehen', label: 'Inaktive Athleten sehen' },
   { key: 'athleten_editieren',     label: 'Athleten editieren' },
-  { key: 'wartung_login',          label: 'Im Wartungsmodus einloggen' },
 ];
 
 async function _ladeRollenManager() {
@@ -12739,20 +12974,6 @@ async function renderAdminDarstellung() {
   el.innerHTML = adminSubtabs() +
     '<div style="max-width:680px;display:flex;flex-direction:column;gap:20px">' +
 
-    // ── Wartungsmodus ──
-    '<div class="panel">' +
-      '<div class="panel-header"><div class="panel-title">&#x1F6E0;&#xFE0E; Wartungsmodus</div></div>' +
-      '<div class="settings-panel-body">' +
-        row('Wartungsmodus', 'Wenn aktiv, k\u00f6nnen sich nur Administratoren (oder Rollen mit dem Recht \u201eIm Wartungsmodus einloggen\u201c) anmelden. Alle anderen Besucher sehen die Wartungsseite.',
-          '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
-          '<input type="checkbox" id="cfg-wartung_aktiv" ' + (cfgVal('wartung_aktiv','0') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer" onchange="saveWartungAktiv(this.checked)"/>' +
-          '<span style="font-size:13px;color:var(--text2)">Wartungsmodus aktivieren</span>' +
-          '</label>') +
-        row('Wartungsseite – Nachricht', 'Diese Meldung wird nicht eingeloggten Besuchern angezeigt.',
-          '<textarea id="cfg-wartung_nachricht" rows="3" class="settings-input" style="resize:vertical">' + (cfgVal('wartung_nachricht','')||'').replace(/</g,'&lt;') + '</textarea>') +
-      '</div>' +
-    '</div>' +
-
     // ── Verein ──
     '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">🏟️ Verein</div></div>' +
@@ -12854,17 +13075,6 @@ async function renderAdminDarstellung() {
   '</div>';
 }
 
-async function saveWartungAktiv(checked) {
-  var val = checked ? '1' : '0';
-  var r = await apiPost('einstellungen', { wartung_aktiv: val });
-  if (r && r.ok) {
-    appConfig.wartung_aktiv = val;
-    notify(checked ? 'Wartungsmodus aktiviert.' : 'Wartungsmodus deaktiviert.', checked ? 'err' : 'ok');
-  } else {
-    notify((r && r.fehler) || 'Fehler beim Speichern.', 'err');
-  }
-}
-
 function previewLogo(input) {
   var file = input.files[0];
   if (!file) return;
@@ -12950,7 +13160,6 @@ async function saveAllSettings() {
     'veranstaltung_anzeige',
     'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url',
     'github_repo','github_token','github_token_expires',
-    'wartung_nachricht',
   ];
   var payload = {};
   for (var i = 0; i < keys.length; i++) {
@@ -12958,7 +13167,7 @@ async function saveAllSettings() {
     if (el) payload[keys[i]] = el.value;
   }
   // Checkboxen separat (checked → '1', unchecked → '0')
-  var cbKeys = ['version_nur_admins', 'wartung_aktiv'];
+  var cbKeys = ['version_nur_admins'];
 
   for (var j = 0; j < cbKeys.length; j++) {
     var cb = document.getElementById('cfg-' + cbKeys[j]);
@@ -13681,7 +13890,8 @@ async function renderAdminAltersklassen() {
   var el = document.getElementById('main-content');
   el.innerHTML = adminSubtabs() + '<div style="padding:20px;color:var(--text2)">⏳ Lade Altersklassen…</div>';
 
-  var [r1, r2, r3] = await Promise.all([apiGet('ak-standard'), apiGet('ak-mapping'), apiGet('einstellungen')]);
+  var r1 = await apiGet('ak-standard');
+  var r2 = await apiGet('ak-mapping');
   if (!r1 || !r1.ok || !r2 || !r2.ok) {
     el.innerHTML = adminSubtabs() + '<div class="panel" style="padding:24px">Fehler beim Laden.</div>';
     return;
@@ -13689,8 +13899,6 @@ async function renderAdminAltersklassen() {
 
   _akStdData  = r1.data || [];
   _akUsedData = (r2.data && r2.data.used) ? r2.data.used : [];
-  var _jugendAksCurrent = [];
-  try { _jugendAksCurrent = JSON.parse((r3 && r3.data && r3.data.jugend_aks) || '[]') || []; } catch(e) {}
 
   // ── ABSCHNITT 1: Standard-AKs ─────────────────────────────
   var stdByGeschlecht = {M: [], W: [], '': []};
@@ -13793,46 +14001,7 @@ async function renderAdminAltersklassen() {
       '</div>' +
     '</div>';
 
-  // ── ABSCHNITT 3: Jugend-AK-Merge-Konfiguration ───────────────
-  // Zeigt alle Standard-AKs als Checkboxen; gecheckte werden bei
-  // "Jugend-AK zu MHK/WHK zusammenfassen" zur Hauptklasse zusammengefasst.
-  function jugendGroup(label, arr) {
-    if (!arr.length) return '';
-    return '<div style="margin-bottom:14px">' +
-      '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:8px">' + label + '</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
-      arr.map(function(s) {
-        var checked = _jugendAksCurrent.indexOf(s.ak) !== -1 ? ' checked' : '';
-        return '<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;' +
-          'background:var(--surf2);border:1px solid var(--border);border-radius:20px;' +
-          'padding:4px 12px;font-size:13px;font-family:\'Barlow Condensed\',monospace;font-weight:600">' +
-          '<input type="checkbox" class="ak-jugend-cb" data-ak="' + s.ak.replace(/"/g,'&quot;') + '"' + checked +
-          ' style="width:13px;height:13px;accent-color:var(--btn-bg);cursor:pointer">' +
-          s.ak + '</label>';
-      }).join('') +
-      '</div></div>';
-  }
-
-  var jugendHtml =
-    '<div class="panel" style="padding:24px;margin-bottom:20px">' +
-      '<div class="panel-title" style="margin-bottom:4px">&#x1F9EC; Jugend-AK-Merge-Konfiguration</div>' +
-      '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">' +
-        'Welche Standard-AKs sollen bei \u201eJugend-AK zu MHK/WHK zusammenfassen\u201c einbezogen werden? ' +
-        'Gew\u00e4hlte AKs werden in Bestleistungen und Statistiken zur Hauptklasse (MHK/WHK) zusammengefasst.' +
-      '</div>' +
-      jugendGroup('M\u00e4nner', (_akStdData).filter(function(s){ return s.geschlecht === 'M'; })) +
-      jugendGroup('Frauen',   (_akStdData).filter(function(s){ return s.geschlecht === 'W'; })) +
-      ((_akStdData).filter(function(s){ return !s.geschlecht; }).length
-        ? jugendGroup('Sonstige', (_akStdData).filter(function(s){ return !s.geschlecht; })) : '') +
-      '<div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
-        '<button class="btn btn-primary" onclick="akJugendSave()">\ud83d\udcbe Konfiguration speichern</button>' +
-        '<button class="btn btn-ghost" onclick="akJugendSelectAll(true)">Alle</button>' +
-        '<button class="btn btn-ghost" onclick="akJugendSelectAll(false)">Keine</button>' +
-        '<span id="ak-jugend-status" style="font-size:13px;color:var(--text2)"></span>' +
-      '</div>' +
-    '</div>';
-
-  el.innerHTML = adminSubtabs() + stdHtml + mapHtml + jugendHtml;
+  el.innerHTML = adminSubtabs() + stdHtml + mapHtml;
 }
 
 // Auto-Vorschlag f\u00fcr Nicht-Standard AKs
@@ -13898,43 +14067,7 @@ async function akMappingSave() {
     notify('Fehler beim Speichern', 'err');
   }
 }
-async function akJugendSave() {
-  var st = document.getElementById('ak-jugend-status');
-  if (st) st.textContent = '\u23f3 Speichere\u2026';
-  var checked = [];
-  document.querySelectorAll('.ak-jugend-cb').forEach(function(cb) {
-    if (cb.checked) checked.push(cb.dataset.ak);
-  });
-  var r = await apiPost('einstellungen', { jugend_aks: JSON.stringify(checked) });
-  if (r && r.ok) {
-    if (st) st.textContent = '\u2705 Gespeichert';
-    setTimeout(function() { if (st) st.textContent = ''; }, 3000);
-    notify('Jugend-AK-Konfiguration gespeichert.', 'ok');
-  } else {
-    if (st) st.textContent = '\u274c Fehler';
-    notify('Fehler beim Speichern', 'err');
-  }
-}
-
-function akJugendSelectAll(val) {
-  document.querySelectorAll('.ak-jugend-cb').forEach(function(cb) { cb.checked = val; });
-}
-
 /* ── 09_utils.js ── */
-// Fokus eines Eingabefelds sichern/wiederherstellen (verhindert Fokusverlust bei innerHTML-Ersatz)
-function _saveFocus() {
-  var ae = document.activeElement;
-  if (!ae || !ae.id) return null;
-  return { id: ae.id, s: ae.selectionStart, e: ae.selectionEnd };
-}
-function _restoreFocus(saved) {
-  if (!saved) return;
-  var el = document.getElementById(saved.id);
-  if (!el) return;
-  el.focus();
-  try { if (saved.s !== null) el.setSelectionRange(saved.s, saved.e); } catch(e) {}
-}
-
 function setSubTab(t) { state.subTab = t; state.page = 1; state.filters = {}; state.diszFilter = null; syncHash(); renderPage(); }
 function setDiszFilter(d) { state.diszFilter = d; state.page = 1; loadErgebnisseData(); }
 function setDiszTabFilter(cat, disz) { state.subTab = cat; state.diszFilter = disz; state.page = 1; state.filters = {}; syncHash(); loadErgebnisseData(); }
@@ -15284,22 +15417,10 @@ async function bulkImportFromLA(url, kat, statusEl) {
   await bulkFillFromImport(allResults, statusEl);
 }
 /* ── 10_veranstaltungen.js ── */
-var _veranstSucheTimer = null;
-function setVeranstSuche(val) {
-  clearTimeout(_veranstSucheTimer);
-  _veranstSucheTimer = setTimeout(function() {
-    state.veranstSuche = val.trim();
-    state.veranstPage = 1;
-    renderVeranstaltungen();
-  }, 300);
-}
-
 async function renderVeranstaltungen() {
   var el = document.getElementById('main-content');
-  var _vFoc = _saveFocus();
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
-  var sucheParam = state.veranstSuche ? '&suche=' + encodeURIComponent(state.veranstSuche) : '';
-  var r = await apiGet('veranstaltungen?limit=10&offset=' + ((state.veranstPage-1)*10) + sucheParam);
+  var r = await apiGet('veranstaltungen?limit=10&offset=' + ((state.veranstPage-1)*10));
   if (!r || !r.ok) {
     el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler:</strong> ' + (r && r.fehler ? r.fehler : 'Unbekannt') + '</div>';
     return;
@@ -15357,15 +15478,19 @@ async function renderVeranstaltungen() {
       '<div class="panel" style="margin-bottom:16px">' +
         '<div class="panel-header">' +
           '<div>' +
-            '<div class="panel-title" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + v.id + '\',\'_blank\')">' + name + '</div>' +
+            '<div class="panel-title">' + name + '</div>' +
             '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + v.ort : '') + '</div>' +
+          (v.datenquelle ? '<div style="font-size:11px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:280px">' +
+            '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" style="color:var(--text2);text-decoration:underline">' +
+            '\xf0\x9f\x94\x97 ' + v.datenquelle.replace(/^https?:\/\//, '').slice(0,50) + (v.datenquelle.length > 53 ? '\u2026' : '') +
+            '</a></div>' : '') +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:10px">' +
             '<span style="font-size:13px;color:var(--text2)">' + v.anz_ergebnisse + ' Ergebnisse &middot; ' + v.anz_athleten + ' Athleten</span>' +
             (currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor') ?
               '<button class="btn btn-ghost btn-sm" onclick="showVeranstEditModal(' + v.id + ')">&#x270F;&#xFE0F;</button>' : '') +
-            (v.datenquelle ? '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" class="btn btn-ghost btn-sm" title="Ergebnisquelle">\uD83C\uDF10</a>' : '') +
-            '<button class="btn btn-ghost btn-sm" title="Teilen" onclick="shareVeranstaltung(' + v.id + ')">\uD83D\uDCE4</button>' +
+'<button class="btn btn-ghost btn-sm" title="Teilen" onclick="shareVeranstaltung(' + v.id + ')">&#x1F517;</button>' +
+            '<button class="btn btn-ghost btn-sm" title="Teilen" onclick="shareVeranstaltung(' + v.id + ')">&#x1F517;</button>' +
                         (_canVeranstaltungLoeschen() ?
               '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&#x2715;</button>' : '') +
           '</div>' +
@@ -15374,12 +15499,8 @@ async function renderVeranstaltungen() {
                 '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
       '</div>';
   }
-  if (!html) html = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Keine Veranstaltungen gefunden</div></div>';
-  var searchBar = '<div class="filter-bar" style="margin-bottom:16px">' +
-    '<div class="fg"><label>Suche</label><input type="search" id="veranst-suche" placeholder="Veranstaltung suchen&hellip;" value="' + (state.veranstSuche || '').replace(/"/g,'&quot;') + '" oninput="setVeranstSuche(this.value)" style="min-width:0;width:100%"/></div>' +
-  '</div>';
-  el.innerHTML = searchBar + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
-  _restoreFocus(_vFoc);
+  if (!html) html = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Noch keine Veranstaltungen</div></div>';
+  el.innerHTML = html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
 }
 
 
