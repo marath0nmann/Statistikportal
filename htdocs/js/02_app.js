@@ -227,7 +227,7 @@ function medalBadge(n) {
   return '<span class="medal-badge ' + cls + '">' + n + '</span>';
 }
 // Alias für AK-Platzierungen
-function platzBadge(platz) { return medalBadge(platz); }
+function medalBadge(platz) { return medalBadge(platz); }
 
 function mstrBadge(val) {
   if (!val) return '';
@@ -387,7 +387,6 @@ async function init() {
     showApp();
   }
 }
-
 
 // Veranstaltungsname aus Ergebnis-Objekt je nach Admin-Einstellung
 function fmtVeranstName(e) {
@@ -657,7 +656,6 @@ function hideLogin() {
 
 // ── REGISTRIERUNG ───────────────────────────────────────────
 var _regState = { step: 1, email: '', name: '', pw: '', totpSecret: '', totpDone: false };
-
 
 // ── Passwort-Score ──────────────────────────────────────────
 function _pwScore(pw) {
@@ -930,7 +928,6 @@ async function regResendCode() {
 
 function hideRegister() { closeModal(); }
 
-
 function loginBackdropClick(e) {
   // Klick auf Overlay (nicht auf die Karte selbst) → schließen
   if (e.target === document.getElementById('login-screen')) {
@@ -1052,44 +1049,6 @@ async function doLoginStep1() {
   _loginState.has_passkey = !!(r.data && r.data.has_passkey);
   renderLoginStep2();
 }
-
-// Passkey: Discoverable (ohne E-Mail) – Browser zeigt alle Passkeys für diese Domain
-async function doLoginPasskeyDiscover() {
-  var errEl = document.getElementById('login-err');
-  errEl.style.display = 'none';
-  try {
-    var optR = await apiPost('auth/passkey-auth-challenge-discover', {});
-    if (!optR || !optR.ok) { errEl.textContent = '\u274C Passkey nicht verfügbar.'; errEl.style.display='block'; return; }
-    var opts = optR.data;
-    var assertion = await navigator.credentials.get({ publicKey: {
-      challenge:        _b64urlToBuffer(opts.challenge),
-      timeout:          opts.timeout || 60000,
-      rpId:             opts.rpId,
-      userVerification: opts.userVerification || 'preferred',
-      allowCredentials: [], // leer = Discoverable
-    }});
-    var cred = {
-      id: assertion.id, type: assertion.type,
-      response: {
-        authenticatorData: _bufferToB64url(assertion.response.authenticatorData),
-        clientDataJSON:    _bufferToB64url(assertion.response.clientDataJSON),
-        signature:         _bufferToB64url(assertion.response.signature),
-        userHandle:        assertion.response.userHandle ? _bufferToB64url(assertion.response.userHandle) : null,
-      }
-    };
-    var verR = await apiPost('auth/passkey-auth-verify', { credential: cred });
-    if (!verR || !verR.ok) { errEl.textContent = '\u274C ' + ((verR&&verR.fehler)||'Passkey fehlgeschlagen.'); errEl.style.display='block'; return; }
-    currentUser = { name: verR.data.name || '', email: verR.data.email || '', vorname: verR.data.vorname || '', rolle: verR.data.rolle, rechte: (verR.data.rechte || []) };
-    showApp();
-  } catch(e) {
-    if (e && e.name !== 'NotAllowedError') {
-      errEl.textContent = '\u26A0\uFE0F Passkey-Dialog fehlgeschlagen.'; errEl.style.display='block';
-    }
-    // NotAllowedError = Nutzer hat abgebrochen → still
-  }
-}
-
-
 // Schritt 2: Passwort (+ optionaler Passkey-Button wenn Passkey vorhanden)
 function renderLoginStep2() {
   var passkeyHint = _loginState.has_passkey
@@ -2085,15 +2044,6 @@ async function disableTotp() {
   }
 }
 
-
-function _handleSaveResult(r, successMsg) {
-  if (r && r.ok && r.data && r.data.pending) {
-    notify('⏳ ' + (r.data.msg || 'Antrag gestellt – wartet auf Genehmigung.'), 'ok');
-    return true;
-  }
-  if (r && r.ok) { notify(successMsg || 'Gespeichert.', 'ok'); return true; }
-  return false;
-}
 function rolleLabel(r, oeffentlichOnly) {
   var m = { admin: 'Administrator', editor: 'Editor', athlet: 'Athlet', leser: 'Leser' };
   if (window._rollenMap) {
@@ -2277,9 +2227,9 @@ async function renderVeranstaltungDetail(vid) {
           '<td>' + akBadge(e2.altersklasse) + '</td>' +
           '<td class="result">' + res + '</td>' +
           '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +
-          '<td>' + platzBadge(e2.ak_platzierung) + '</td>' +
+          '<td>' + medalBadge(e2.ak_platzierung) + '</td>' +
           (_hasMstr ? '<td>' + mstrBadge(e2.meisterschaft) + '</td>' : '') +
-          (_hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? platzBadge(e2.ak_platz_meisterschaft) : '') + '</td>' : '') +
+          (_hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? medalBadge(e2.ak_platz_meisterschaft) : '') + '</td>' : '') +
         '</tr>';
     }
   }
@@ -2305,7 +2255,6 @@ async function renderVeranstaltungDetail(vid) {
               '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
     '</div>';
 }
-
 
 async function renderAdminVeranstFreigabe() {
   var el = document.getElementById('main-content');
@@ -2374,7 +2323,6 @@ async function adminFreigebenVeranst(vid, btn, restore) {
   }
 }
 
-
 function buildFooter() {
   var el = document.getElementById('app-footer');
   if (!el) return;
@@ -2415,13 +2363,6 @@ function _canEditAthleten() {
   if (currentUser.rolle === 'admin') return true;
   var rechte = currentUser.rechte || [];
   return rechte.indexOf('vollzugriff') >= 0 || rechte.indexOf('athleten_editieren') >= 0;
-}
-
-function _canVeranstaltungEintragen() {
-  if (!currentUser) return false;
-  if (currentUser.rolle === 'admin') return true;
-  var r = currentUser.rechte || [];
-  return r.indexOf('vollzugriff') >= 0 || r.indexOf('veranstaltung_eintragen') >= 0;
 }
 function _canVeranstaltungLoeschen() {
   if (!currentUser) return false;
@@ -2660,7 +2601,6 @@ function navigate(tab) {
   renderPage();
 }
 
-
 async function loadDisziplinen() {
   var r = await apiGet("disziplinen");
   if (r && r.ok) {
@@ -2737,8 +2677,6 @@ async function renderPage() {
 }
 
 // ── DASHBOARD ──────────────────────────────────────────────
-
-
 
 // ── Hash-Routing ─────────────────────────────────────────────
 function syncHash() {

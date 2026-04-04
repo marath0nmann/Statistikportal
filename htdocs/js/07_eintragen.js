@@ -370,16 +370,6 @@ async function bkLoadVeranstOptions() {
   }
   sel.innerHTML = opts;
 }
-
-// Disziplin-Optionen für Bulk-Dropdown
-function bkAkOpts(geschlecht) {
-  var wAKs = ['WHK','W8','W9','W10','W11','W12','W13','W14','W15','WU18','WU23','wjA','wjB','W30','W35','W40','W45','W50','W55','W60','W65','W70','W75','W80'];
-  var mAKs = ['MHK','M8','M9','M10','M11','M12','M13','M14','M15','MU18','MU23','mjA','mjB','M30','M35','M40','M45','M50','M55','M60','M65','M70','M75','M80'];
-  var list = geschlecht === 'W' ? wAKs : geschlecht === 'M' ? mAKs : wAKs.concat(mAKs);
-  var opts = '<option value="">– optional –</option>';
-  for (var i = 0; i < list.length; i++) opts += '<option value="' + list[i] + '">' + list[i] + '</option>';
-  return opts;
-}
 // Gibt alle tbl_keys zurück die für eine gewählte Kategorie angezeigt werden sollen
 // inkl. Gruppen-Partner aus appConfig.kategoriegruppen
 function bkKatMitGruppen(kat) {
@@ -653,7 +643,6 @@ async function bulkSubmit() {
   }
 }
 
-
 // ── URL-Erkennung ───────────────────────────────────────────────────────────
 
 // ── Debug-Helfer für Bulk-Import ─────────────────────────────────────────────
@@ -664,21 +653,6 @@ function _bkDbgFlush() {
   var pre  = document.getElementById('bk-import-debug');
   if (wrap) { wrap.style.display = ''; wrap.open = true; }
   if (pre)  pre.textContent = _bkDbgLines.join('\n');
-}
-function _bkDebugClear() {
-  _bkDbgLines = [];
-  var wrap = document.getElementById('bk-import-debug-wrap');
-  var pre  = document.getElementById('bk-import-debug');
-  if (wrap) wrap.style.display = 'none';
-  if (pre)  pre.textContent = '';
-}
-function _bkDebugSet(text) {
-  _bkDbgLines = text ? text.split('\n') : [];
-  _bkDbgFlush();
-}
-function _bkDebugAppend(text) {
-  if (text) _bkDbgLines = _bkDbgLines.concat(text.split('\n'));
-  _bkDbgFlush();
 }
 function _bkDbgLine(label, val) {
   _bkDbgLines.push((label + ':').padEnd(16, ' ') + (val !== undefined ? val : ''));
@@ -1305,10 +1279,6 @@ function mikaExtractRowsForBulk(data, kat) {
   });
 }
 
-
-
-
-
 // ── ACN Timing importer ──────────────────────────────────────────────────────
 
 async function bulkImportFromAcn(url, kat, statusEl) {
@@ -1598,7 +1568,6 @@ async function bulkImportFromAcn(url, kat, statusEl) {
 
   bulkFillFromImport(bulkRows, statusEl);
 }
-
 
 async function bulkFillFromImport(rows, statusEl) {
   if (!rows.length) {
@@ -2104,11 +2073,6 @@ function _bulkFindAthlet(name) {
   }
   return '';
 }
-
-function bkMstrChanged(sel) {
-  // kein extra Toggle nötig
-}
-
 function bkSyncDatum(val) {
   // Globales Datum auf alle Zeilen übertragen die noch keinen eigenen Wert haben
   // oder denselben Wert wie das alte globale Datum
@@ -3283,7 +3247,6 @@ async function rrCheckDuplicates(results) {
   }
 }
 
-
 function rrMstrChanged(sel) {
   // kein extra Toggle nötig — beide Zellen immer sichtbar wenn Meisterschaft aktiv
 }
@@ -3494,16 +3457,7 @@ async function deleteErgebnis(subTab, id) {
   if (r && r.ok) { notify('Gel\u00f6scht.', 'ok'); await loadErgebnisseData(); }
   else notify('Fehler: ' + ((r && r.fehler) || ''), 'err');
 }
-
-async function deleteRekord(id) {
-  if (!confirm('Diesen Vereinsrekord wirklich l&ouml;schen?')) return;
-  var r = await apiDel('rekorde/' + id);
-  if (r && r.ok) { notify('Gel&ouml;scht.', 'ok'); await renderRekorde(); }
-  else notify('Fehler: ' + ((r && r.fehler) || ''), 'err');
-}
-
 // ── ADMIN ──────────────────────────────────────────────────
-
 
 // ── Modal für unzugeordnete Athleten ────────────────────────────────────────
 async function rrUnmatchedModal(unmatched) {
