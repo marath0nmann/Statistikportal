@@ -19,6 +19,8 @@ class Settings {
         'farbe_accent'               => ['#003087',                                             'Akzentfarbe',                                    'farben'],
         'dashboard_timeline_limit'   => ['20',                                                  'Dashboard – Neueste Bestleistungen (Anzahl)',     'darstellung'],
         'version_nur_admins'         => ['1',                                                   'Versionsstand im Header nur für Admins anzeigen', 'darstellung'],
+        'wartung_aktiv'              => ['0',                                                   'Wartungsmodus aktiv',                             'system'],
+        'wartung_nachricht'          => ['Das Portal befindet sich derzeit in Wartung. Bitte später erneut versuchen.', 'Wartungsmodus – Nachricht für Besucher', 'system'],
         'adressleiste_farbe'         => ['aus',                                                 'Safari-Adressleiste einfärben',                   'darstellung'],
         'dashboard_layout'           => ['[{"cols":[{"widget":"stat-ergebnisse"},{"widget":"stat-athleten"},{"widget":"stat-rekorde"}]},{"cols":[{"widget":"timeline","w":340},{"widget":"veranstaltungen"}]}]', 'Dashboard-Layout', 'darstellung'],
         'meisterschaften_liste'      => ['[{"id":1,"label":"Olympia"},{"id":2,"label":"WM"},{"id":3,"label":"EM"},{"id":4,"label":"DM"},{"id":5,"label":"NRW"},{"id":6,"label":"NR"},{"id":7,"label":"Regio"}]', 'Meisterschaftsarten (JSON)', 'meisterschaften'],
