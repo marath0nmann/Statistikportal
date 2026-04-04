@@ -226,8 +226,6 @@ function medalBadge(n) {
   var cls = n === 1 ? 'gold' : n === 2 ? 'silver' : n === 3 ? 'bronze' : 'rank';
   return '<span class="medal-badge ' + cls + '">' + n + '</span>';
 }
-// Alias für AK-Platzierungen
-function medalBadge(platz) { return medalBadge(platz); }
 
 function mstrBadge(val) {
   if (!val) return '';
