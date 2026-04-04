@@ -1,7 +1,7 @@
 // ── Eigenes Ergebnis eintragen ────────────────────────────
 function renderEigenesEintragen() {
   var el = document.getElementById('main-content');
-  var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : 'TuS Oedt';
+  var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : '';
   var katOpts = '<option value="">-- Kategorie wählen --</option>';
   var seen = {};
   (state.disziplinen || []).forEach(function(d) {

@@ -56,7 +56,7 @@ function uitsIstEigenerVerein(vereinText) {
   var vereinCfg = (appConfig.verein_kuerzel || appConfig.verein_name || '').toLowerCase().trim();
   if (!vereinCfg) return false;
   var v = (vereinText || '').toLowerCase();
-  // TuS Oedt → auch "Tus Oedt" oder Teilmatches
+  // Vereinsname → auch Teilmatches und Varianten
   var parts = vereinCfg.split(/\s+/);
   return parts.every(function(p) { return p.length < 2 || v.indexOf(p) >= 0; });
 }

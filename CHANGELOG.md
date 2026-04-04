@@ -2192,7 +2192,7 @@ Alles in Panel-Karten strukturiert – kein auseinandergezogenes Single-Column-L
 
 ---
 
-# Changelog – TuS Oedt Leichtathletik Statistik
+# Changelog – Statistikportal Leichtathletik
 
 Alle wesentlichen Änderungen werden hier dokumentiert.  
 Format: `vXXX – Kurzbeschreibung` mit Details zu Features, Fixes und Änderungen.
@@ -3018,7 +3018,7 @@ Passkey-Auth jetzt auch in Schritt 2 möglich (identify_user_id Session)
 ## v603 – Fix uitslagen.nl Import: Fallback bei fehlendem Vereinsnamen
 
 - Bei manchen Events trägt der Veranstalter nur Ort/Kürzel statt Vereinsname ein
-  (z.B. Swift Cross: "Willich" statt "TuS Oedt") → 0 Treffer
+  (z.B. Swift Cross: "Willich" statt Vereinsname) → 0 Treffer
 - Fallback: wenn 0 Vereinstreffer, alle Einträge übergeben
   bulkFillFromImport matcht dann per Athleten-Name gegen die DB
   → nur echte TuS-Athleten bekommen einen Treffer im Dropdown

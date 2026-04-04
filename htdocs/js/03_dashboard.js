@@ -20,7 +20,7 @@ async function _loadEigenesProfilWidget(elId, showErg) {
   var athlet = r.data.athlet;
   var kategorien = r.data.kategorien || [];
   var rawPbs = r.data.pbs || [];
-  var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : 'TuS Oedt';
+  var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : '';
 
   // Initialen
   var initials = ((athlet.vorname||'')[0]||'').toUpperCase() + ((athlet.nachname||'')[0]||'').toUpperCase();
