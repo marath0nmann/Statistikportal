@@ -237,7 +237,7 @@ function renderEintragen() {
         '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Mehrere Ergebnisse auf einmal eintragen &ndash; alle geh&ouml;ren zur selben Veranstaltung.</div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
-          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
             '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
             '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
@@ -694,6 +694,7 @@ function bulkDetectUrl(text) {
   if (/^https?:\/\/my\.raceresult\.com\//i.test(t))   return 'raceresult';
   if (/^https?:\/\/[^\/]*\.mikatiming\.(com|de|net)/i.test(t)) return 'mikatiming';
   if (/^https?:\/\/uitslagen\.nl\//i.test(t))          return 'uitslagen';
+  if (/^https?:\/\/evenementen\.uitslagen\.nl\//i.test(t)) return 'evenementen';
   if (/^https?:\/\/ergebnisse\.leichtathletik\.de\//i.test(t)) return 'leichtathletik';
   if (/^https?:\/\/(www\.)?acn-timing\.com/i.test(t)) return 'acn';
   return null;
@@ -711,7 +712,8 @@ function bulkPasteInput() {
     var srcText = urlType === 'raceresult'      ? '🌍︎ RaceResult' :
                   urlType === 'mikatiming'      ? '⌛︎ MikaTiming' :
                   urlType === 'leichtathletik'  ? '🏃︎ leichtathletik.de' :
-        urlType === 'acn'            ? '🇳🇱 ACN Timing' : '🇳🇱 uitslagen.nl';
+        urlType === 'acn'            ? '🇳🇱 ACN Timing' :
+                  urlType === 'evenementen'    ? '🇳🇱 evenementen.uitslagen.nl' : '🇳🇱 uitslagen.nl';
     if (srcLabel) srcLabel.textContent = srcText;
     if (statusEl) statusEl.textContent = '';
   } else {
@@ -735,7 +737,7 @@ async function bulkImportUrl() {
   if (statusEl) statusEl.textContent = '⏳ Lade…';
   var _bkQuelle = urlType === 'raceresult'     ? 'RaceResult' :
                   urlType === 'mikatiming'     ? 'MikaTiming' :
-                  urlType === 'leichtathletik' ? 'leichtathletik.de' : urlType === 'acn' ? 'ACN Timing' : 'uitslagen.nl';
+                  urlType === 'leichtathletik' ? 'leichtathletik.de' : urlType === 'acn' ? 'ACN Timing' : urlType === 'evenementen' ? 'evenementen.uitslagen.nl' : 'uitslagen.nl';
 
   // Datenquelle-Feld mit der eingelesenen URL vorbelegen
   var _quelleEl = document.getElementById('bk-quelle');
@@ -754,6 +756,8 @@ async function bulkImportUrl() {
       await bulkImportFromMika(raw, kat, statusEl);
     } else if (urlType === 'uitslagen') {
       await bulkImportFromUits(raw, kat, statusEl);
+    } else if (urlType === 'evenementen') {
+      await bulkImportFromEvenementenUits(raw, kat, statusEl);
     } else if (urlType === 'acn') {
       await bulkImportFromAcn(raw, kat, statusEl);
     } else if (urlType === 'leichtathletik') {
@@ -1277,6 +1281,95 @@ function mikaExtractRowsForBulk(data, kat) {
       diszMid:   diszObj ? (diszObj.id || diszObj.mapping_id) : null,
     };
   });
+}
+
+// ── evenementen.uitslagen.nl → Bulk ─────────────────────────────────────────
+async function bulkImportFromEvenementenUits(url, kat, statusEl) {
+  var pathMatch = url.match(/evenementen\.uitslagen\.nl(\/\d{4}\/[^\/?\s]+\/)/i);
+  if (!pathMatch) { if (statusEl) statusEl.textContent = '\u274c Ungültige evenementen.uitslagen.nl-URL'; return; }
+  var baseUrl = 'https://evenementen.uitslagen.nl' + pathMatch[1];
+
+  if (statusEl) statusEl.textContent = '\u23f3 Lade Strecken\u2026';
+  var rMenu = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'menu.php'));
+  if (!rMenu || !rMenu.ok) { if (statusEl) statusEl.textContent = '\u274c ' + (rMenu && rMenu.fehler || 'Fehler beim Laden'); return; }
+
+  var races = uitsEvenementenParseMenu(rMenu.data.html || '');
+  if (!races.length) { if (statusEl) statusEl.textContent = '\u274c Keine Strecken gefunden'; return; }
+
+  // Strecken-Auswahl per Modal
+  var onParam = await new Promise(function(resolve) {
+    var optsHtml = races.map(function(rc) {
+      return '<option value="' + rc.on + '">' + rc.text.replace(/"/g, '&quot;') + '</option>';
+    }).join('');
+    showModal(
+      '<h2>\uD83C\uDFC1 Strecke w\u00e4hlen <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+      '<select id="_ev-race-sel" style="width:100%;padding:8px;margin:12px 0 18px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface);color:var(--text)">' +
+        optsHtml +
+      '</select>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-ghost" onclick="closeModal();window._evRaceResolve(null)">Abbrechen</button>' +
+        '<button class="btn btn-primary" onclick="window._evRaceResolve(document.getElementById(\'_ev-race-sel\').value);closeModal()">\u25b6 Laden</button>' +
+      '</div>'
+    );
+    window._evRaceResolve = resolve;
+  });
+
+  if (!onParam) { if (statusEl) statusEl.textContent = ''; return; }
+
+  var raceName = (races.find(function(rc) { return rc.on === onParam; }) || {}).text || '';
+  var allRows  = [];
+  var rowNr    = 0;
+  var page     = 1;
+  var MAX_PAGES = 50;
+
+  while (page <= MAX_PAGES) {
+    if (statusEl) statusEl.textContent = '\u23f3 Seite ' + page + ' laden\u2026';
+    var pageUrl = baseUrl + 'uitslag.php?on=' + encodeURIComponent(onParam) + '&p=' + page;
+    var rPage = await apiGet('uits-fetch?url=' + encodeURIComponent(pageUrl));
+    if (!rPage || !rPage.ok) break;
+    var parsed = uitsEvenementenParsePage(rPage.data.html || '');
+    if (!parsed.rows.length) break;
+    parsed.rows.forEach(function(tr) {
+      var row = uitsEvenementenParseRow(Array.from(tr.querySelectorAll('td')), ++rowNr);
+      if (row) allRows.push(row);
+    });
+    if (!parsed.hasMore) break;
+    page++;
+  }
+
+  _bkDbgHeader('evenementen.uitslagen.nl');
+  _bkDbgLine('Strecke', raceName);
+  _bkDbgLine('Gesamt',  allRows.length + ' Eintr\u00e4ge (' + page + ' Seiten)');
+
+  // Vereinsfilter – Fallback auf Athleten-Name-Match
+  var ownRows = allRows.filter(function(r) { return r.ownClub; });
+  if (!ownRows.length && allRows.length) {
+    var _ath = state.athleten || [];
+    ownRows = allRows.filter(function(r) { return uitsAutoMatch(r.name, _ath) !== null; });
+    _bkDbgLine('Hinweis', 'Kein Vereinstreffer – ' + ownRows.length + ' Namens-Treffer');
+  }
+  _bkDbgLine('Gefunden', ownRows.length + ' TuS-Eintr\u00e4ge');
+  if (ownRows.length) {
+    _bkDbgSep(); _bkDbgHeader('Ergebnisse');
+    ownRows.forEach(function(r, i) {
+      var mid = uitsAutoDiszMatchKat(r.kategorie, state.disziplinen || [], kat);
+      var dn  = mid ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==mid;})||{}).disziplin||'?' : '(keine)';
+      _bkDbgLines.push(String(i+1).padStart(2)+'.  '+(r.name||'?').padEnd(22)+(r.ak||'').padEnd(6)+r.zeit.padEnd(10)+(r.platz?'Platz\u00a0'+r.platz:'').padEnd(9)+'\u2192 '+dn+' ['+r.kategorie+']');
+    });
+    _bkDbgFlush();
+  }
+
+  // Veranstaltungsfelder vorausfüllen
+  var evEl = document.getElementById('bk-evname');
+  if (evEl && !evEl.value) evEl.value = raceName;
+
+  var bulkRows = ownRows.map(function(row) {
+    var mid  = uitsAutoDiszMatchKat(row.kategorie, state.disziplinen, kat);
+    var disz = mid ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==mid;})||{}).disziplin||'' : '';
+    return { name: row.name, resultat: row.zeit, ak: row.ak, platz: row.platz, disziplin: disz, diszMid: mid };
+  });
+
+  await bulkFillFromImport(bulkRows, statusEl);
 }
 
 // ── ACN Timing importer ──────────────────────────────────────────────────────
