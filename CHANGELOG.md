@@ -1,3 +1,19 @@
+## v942 – Jährliche Veranstaltungsserien
+
+- Neue Tabelle `veranstaltung_serien`: Gruppen für jährlich wiederkehrende Veranstaltungen (Name + Kürzel)
+- Neues Feld `serie_id` in `veranstaltungen`: Zuordnung einer Veranstaltung zu einer Serie
+- Veranstaltungen-Tab: Toggle zwischen „Alle Veranstaltungen" und „Veranstaltungsserien"
+- Serien-Übersicht: Karten mit Anzahl Austragungen und Jahreszeitraum
+- Serien-Detailseite mit zwei Ansichten:
+  - **Ergebnisse nach Jahr**: alle Austragungen chronologisch (neueste zuerst), jeweils mit Ergebnistabelle
+  - **Bestleistungen**: Disziplinauswahl → Gesamt, Frauen/Männer, AK-Grid (identische Logik wie Bestleistungen-Tab)
+- Veranstaltung-Bearbeiten-Modal: Dropdown zur Serienzuordnung
+- Serien-Verwaltung (Admin/Editor): anlegen, bearbeiten, löschen (Veranstaltungen bleiben erhalten)
+- Serienname als klickbares Badge in der Veranstaltungsliste sichtbar
+- API: neue Endpunkte `veranstaltung-serien` (GET/POST/PUT/DELETE) inkl. Bestleistungen- und Disziplinenliste-Abfrage
+
+---
+
 ## v941 – Teilen: Link als klickbarer Markdown-Link
 
 - Beim „Veranstaltung teilen"-Dialog wird der Link im Markdown-Block jetzt als klickbarer Link formatiert (`[Name](URL)` statt reiner URL)

@@ -131,6 +131,14 @@ try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXIS
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS altersklasse VARCHAR(20) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS genehmigt TINYINT(1) NOT NULL DEFAULT 1"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS datenquelle VARCHAR(1024) NULL DEFAULT NULL"); } catch (\Exception $e) {}
+// v942: Veranstaltungsserien (jährlich wiederkehrende Veranstaltungen)
+try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('veranstaltung_serien') . " (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(200) NOT NULL,
+    kuerzel     VARCHAR(60)  NOT NULL UNIQUE,
+    erstellt_am DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS serie_id INT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS geloescht_am DATETIME NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athleten') . " MODIFY COLUMN geschlecht ENUM('M','W','D','') NOT NULL DEFAULT ''"); } catch (\Exception $e) {}
 // Migration: Rollen-System (rollen-Tabelle)
@@ -3417,6 +3425,209 @@ if ($res === 'autocomplete' && $id === 'athleten') {
 }
 
 // ============================================================
+// VERANSTALTUNG-SERIEN (v942)
+// ============================================================
+
+// GET veranstaltung-serien – Liste aller Serien
+if ($res === 'veranstaltung-serien' && $method === 'GET' && !$id) {
+    $sTbl = DB::tbl('veranstaltung_serien');
+    $vTbl = DB::tbl('veranstaltungen');
+    $serien = DB::fetchAll(
+        "SELECT s.id, s.name, s.kuerzel,
+                COUNT(v.id) AS anz_veranstaltungen,
+                MIN(YEAR(v.datum)) AS jahr_von,
+                MAX(YEAR(v.datum)) AS jahr_bis
+         FROM $sTbl s
+         LEFT JOIN $vTbl v ON v.serie_id = s.id AND v.geloescht_am IS NULL
+         GROUP BY s.id, s.name, s.kuerzel
+         ORDER BY s.name"
+    );
+    jsonOk($serien);
+}
+
+// GET veranstaltung-serien/{id} – Serien-Detail: Veranstaltungen nach Jahr
+if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
+    $sTbl = DB::tbl('veranstaltung_serien');
+    $vTbl = DB::tbl('veranstaltungen');
+    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+
+    $serie = DB::fetchOne("SELECT * FROM $sTbl WHERE id=?", [$id]);
+    if (!$serie) jsonErr('Serie nicht gefunden.', 404);
+
+    // Bestleistungen-Modus: ?disz=&mapping_id=&merge_ak=
+    if (isset($_GET['disz']) && $_GET['disz'] !== '') {
+        $disz      = $_GET['disz'];
+        $mappingId = isset($_GET['mapping_id']) && is_numeric($_GET['mapping_id']) ? (int)$_GET['mapping_id'] : null;
+        $mergeAK   = ($_GET['merge_ak'] ?? '1') !== '0';
+
+        // Kategorie-Meta ermitteln
+        $katRow = null;
+        if ($mappingId) {
+            $katRow = DB::fetchOne(
+                "SELECT k.tbl_key, k.fmt, k.sort_dir FROM " . DB::tbl('disziplin_mapping') . " m
+                 JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
+                 WHERE m.id=?", [$mappingId]
+            );
+        }
+        $fmt     = $katRow['fmt']      ?? 'min';
+        $sortDir = $katRow['sort_dir'] ?? 'ASC';
+
+        // Disziplin-Bedingung
+        if ($mappingId) {
+            $diszCond  = "e.disziplin_mapping_id=?";
+            $diszParam = $mappingId;
+        } else {
+            $diszCond  = "e.disziplin=?";
+            $diszParam = $disz;
+        }
+
+        if ($fmt === 'm') {
+            $sortCol = "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))";
+        } else {
+            $sortCol = $unified
+                ? "COALESCE(e.resultat_num,
+                    CASE WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}'
+                         THEN TIME_TO_SEC(e.resultat)
+                         WHEN e.resultat REGEXP '^[0-9]+:[0-9]'
+                         THEN TIME_TO_SEC(CONCAT('00:',REPLACE(REPLACE(e.resultat,',','.'),';','.')))
+                         ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END)"
+                : "LPAD(e.resultat, 10, '0')";
+        }
+
+        $akExpr    = buildAkCaseExpr($mergeAK);
+        $nameExpr  = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
+
+        $all_rows = DB::fetchAll(
+            "SELECT e.resultat, v.datum, $akExpr AS altersklasse,
+                    $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
+             FROM $eTbl e
+             JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
+             JOIN $vTbl v ON v.id=e.veranstaltung_id
+             WHERE $diszCond AND v.serie_id=? AND e.geloescht_am IS NULL
+               AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL AND v.genehmigt=1
+             ORDER BY $sortCol $sortDir", [$diszParam, $id]
+        );
+
+        $pbDedup = function(array $rows): array {
+            $seen = []; $out = [];
+            foreach ($rows as $r) {
+                $aid = $r['athlet_id'];
+                if (!isset($seen[$aid])) { $seen[$aid] = true; $out[] = $r; }
+            }
+            return $out;
+        };
+
+        $gesamt = array_slice($pbDedup($all_rows), 0, 50);
+        $maenner = array_slice($pbDedup(array_values(array_filter($all_rows, function($r) {
+            return $r['geschlecht'] === 'M';
+        }))), 0, 50);
+        $frauen = array_slice($pbDedup(array_values(array_filter($all_rows, function($r) {
+            return $r['geschlecht'] === 'W';
+        }))), 0, 50);
+
+        // AK-Bestleistungen
+        $aks_raw = array_unique(array_column($all_rows, 'altersklasse'));
+        $by_ak = [];
+        foreach ($aks_raw as $ak_val) {
+            if (!$ak_val) continue;
+            $ak_rows = array_values(array_filter($all_rows, function($r) use ($ak_val) {
+                return (string)$r['altersklasse'] === (string)$ak_val;
+            }));
+            $by_ak[$ak_val] = array_slice($pbDedup($ak_rows), 0, 50);
+        }
+
+        jsonOk(compact('gesamt','maenner','frauen','by_ak','fmt','sortDir'));
+    }
+
+    // Disziplinen-Liste: ?disziplinen=1
+    if (isset($_GET['disziplinen'])) {
+        $disz_rows = DB::fetchAll(
+            "SELECT DISTINCT e.disziplin, e.disziplin_mapping_id,
+                    m.anzeige_name, k.name AS kategorie_name, k.tbl_key, k.reihenfolge,
+                    COUNT(e.id) AS cnt
+             FROM $eTbl e
+             JOIN $vTbl v ON v.id=e.veranstaltung_id
+             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
+             LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
+             WHERE v.serie_id=? AND e.geloescht_am IS NULL
+               AND v.geloescht_am IS NULL AND v.genehmigt=1
+             GROUP BY e.disziplin, e.disziplin_mapping_id
+             ORDER BY k.reihenfolge, e.disziplin", [$id]
+        );
+        jsonOk($disz_rows);
+    }
+
+    // Standard: Serien-Info + Veranstaltungen nach Jahr
+    $veranst = DB::fetchAll(
+        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.datenquelle,
+                YEAR(v.datum) AS jahr,
+                COUNT(e.id) AS anz_ergebnisse,
+                COUNT(DISTINCT e.athlet_id) AS anz_athleten
+         FROM $vTbl v
+         LEFT JOIN $eTbl e ON e.veranstaltung_id=v.id AND e.geloescht_am IS NULL
+         WHERE v.serie_id=? AND v.geloescht_am IS NULL AND v.genehmigt=1
+         GROUP BY v.id
+         ORDER BY v.datum DESC", [$id]
+    );
+
+    foreach ($veranst as &$v) {
+        $v['ergebnisse'] = DB::fetchAll(
+            "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
+                    e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
+                    e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
+                    COALESCE(m.fmt_override, k.fmt) AS fmt
+             FROM $eTbl e
+             JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
+             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
+             LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
+             WHERE e.veranstaltung_id=? AND e.geloescht_am IS NULL
+             ORDER BY e.resultat_num ASC, e.resultat ASC",
+            [$v['id']]
+        );
+    }
+    unset($v);
+
+    jsonOk(compact('serie','veranst'));
+}
+
+// POST veranstaltung-serien – neue Serie anlegen
+if ($res === 'veranstaltung-serien' && $method === 'POST') {
+    Auth::requireRecht('veranstaltung_eintragen');
+    $name    = trim(sanitize($body['name']    ?? ''));
+    $kuerzel = trim(sanitize($body['kuerzel'] ?? ''));
+    if (!$name || !$kuerzel) jsonErr('Name und Kürzel erforderlich.', 400);
+    $sTbl = DB::tbl('veranstaltung_serien');
+    $exist = DB::fetchOne("SELECT id FROM $sTbl WHERE kuerzel=?", [$kuerzel]);
+    if ($exist) jsonErr('Kürzel bereits vergeben.', 409);
+    DB::query("INSERT INTO $sTbl (name, kuerzel) VALUES (?,?)", [$name, $kuerzel]);
+    $newId = DB::lastInsertId();
+    jsonOk(['id' => $newId]);
+}
+
+// PUT veranstaltung-serien/{id} – Serie bearbeiten
+if ($res === 'veranstaltung-serien' && $method === 'PUT' && $id) {
+    Auth::requireRecht('veranstaltung_eintragen');
+    $sTbl  = DB::tbl('veranstaltung_serien');
+    $felder = []; $params = [];
+    if (isset($body['name']))    { $felder[] = 'name=?';    $params[] = sanitize($body['name']); }
+    if (isset($body['kuerzel'])) { $felder[] = 'kuerzel=?'; $params[] = sanitize($body['kuerzel']); }
+    if (!$felder) jsonErr('Keine Änderungen.');
+    $params[] = $id;
+    DB::query("UPDATE $sTbl SET " . implode(',', $felder) . " WHERE id=?", $params);
+    jsonOk('Gespeichert.');
+}
+
+// DELETE veranstaltung-serien/{id} – Serie löschen (Veranstaltungen bleiben, serie_id → NULL)
+if ($res === 'veranstaltung-serien' && $method === 'DELETE' && $id) {
+    Auth::requireRecht('veranstaltung_loeschen');
+    $sTbl = DB::tbl('veranstaltung_serien');
+    $vTbl = DB::tbl('veranstaltungen');
+    DB::query("UPDATE $vTbl SET serie_id=NULL WHERE serie_id=?", [$id]);
+    DB::query("DELETE FROM $sTbl WHERE id=?", [$id]);
+    jsonOk('Serie gel&ouml;scht.');
+}
+
+// ============================================================
 // VERANSTALTUNGEN
 // ============================================================
 // Ausstehende Veranstaltungen (genehmigt=0) – nur Admin/Editor
@@ -3461,13 +3672,13 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
         $searchParams = [$s, $s, $s];
     }
     $veranst = DB::fetchAll(
-        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.datenquelle,
+        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.datenquelle, v.serie_id,
                 COUNT(e.id) AS anz_ergebnisse,
                 COUNT(DISTINCT e.athlet_id) AS anz_athleten
          FROM " . DB::tbl('veranstaltungen') . " v
          LEFT JOIN $eTbl e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
          WHERE v.geloescht_am IS NULL AND v.genehmigt = 1$whereExtra
-         GROUP BY v.id, v.datenquelle
+         GROUP BY v.id, v.datenquelle, v.serie_id
          ORDER BY v.datum DESC
          LIMIT $limit OFFSET $offset",
         $searchParams
@@ -3489,7 +3700,8 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
         );
     }
     unset($v);
-    jsonOk(compact('veranst','total'));
+    $serien = DB::fetchAll("SELECT id, name, kuerzel FROM " . DB::tbl('veranstaltung_serien') . " ORDER BY name");
+    jsonOk(compact('veranst','total','serien'));
 }
 
 if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
@@ -3499,6 +3711,7 @@ if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
     if (!empty($body['datum']))      { $felder[] = 'datum=?';       $params[] = $body['datum']; }
     if (isset($body['ort']))         { $felder[] = 'ort=?';         $params[] = sanitize($body['ort'] ?? '') ?: null; }
     if (isset($body['genehmigt']))   { $felder[] = 'genehmigt=?';   $params[] = $body['genehmigt'] ? 1 : 0; }
+    if (array_key_exists('serie_id', $body)) { $felder[] = 'serie_id=?'; $params[] = $body['serie_id'] ? (int)$body['serie_id'] : null; }
     if (!empty($body['restore']))    { $felder[] = 'geloescht_am=NULL'; } // Aus Papierkorb wiederherstellen
     if (!$felder) jsonErr('Keine Änderungen.');
     $params[] = $id;

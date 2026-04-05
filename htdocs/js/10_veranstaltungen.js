@@ -1,3 +1,5 @@
+// ── VERANSTALTUNGEN ────────────────────────────────────────
+
 var _veranstSucheTimer = null;
 function setVeranstSuche(val) {
   clearTimeout(_veranstSucheTimer);
@@ -8,7 +10,38 @@ function setVeranstSuche(val) {
   }, 300);
 }
 
+// state.veranstView  = 'liste' | 'serien' | 'serie-detail'
+// state.serieId      = ID der aktuell angezeigten Serie
+// state.serieView    = 'jahre' | 'bestleistungen'
+// state.serieDisz    = aktuell gewählte Disziplin im Bestleistungen-View
+// state.serieMappingId = mapping_id der Disziplin
+
+function _veranstViewToggleHtml() {
+  var v = state.veranstView || 'liste';
+  return '<div style="display:flex;gap:8px;margin-bottom:16px">' +
+    '<button class="btn' + (v === 'liste'  ? ' btn-primary' : ' btn-ghost') + '" onclick="switchVeranstView(\'liste\')">\uD83D\uDCCD Alle Veranstaltungen</button>' +
+    '<button class="btn' + (v === 'serien' || v === 'serie-detail' ? ' btn-primary' : ' btn-ghost') + '" onclick="switchVeranstView(\'serien\')">\uD83D\uDD04 Veranstaltungsserien</button>' +
+  '</div>';
+}
+
+function switchVeranstView(v) {
+  state.veranstView = v;
+  state.serieId = null;
+  state.serieView = 'jahre';
+  state.serieDisz = null;
+  state.serieMappingId = null;
+  renderVeranstaltungen();
+}
+
 async function renderVeranstaltungen() {
+  var view = state.veranstView || 'liste';
+  if (view === 'serien')       { await renderSerienListe(); return; }
+  if (view === 'serie-detail') { await renderSerieDetail(state.serieId); return; }
+  await renderVeranstaltungenListe();
+}
+
+// ── LISTE ──────────────────────────────────────────────────
+async function renderVeranstaltungenListe() {
   var el = document.getElementById('main-content');
   var _vFoc = _saveFocus();
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
@@ -19,20 +52,19 @@ async function renderVeranstaltungen() {
     return;
   }
   var veranst = r.data.veranst || [];
-  var total = r.data.total || 0;
+  var total   = r.data.total  || 0;
+  var serien  = r.data.serien || [];
   window._lastVeranstList = veranst;
-  window._lastVeranstList = veranst; // Cache fuer shareVeranstaltung
-  // Cache für Edit-Modal
+  window._lastSerienList  = serien;
   state._veranstMap = {};
   for (var ci = 0; ci < veranst.length; ci++) state._veranstMap[veranst[ci].id] = veranst[ci];
+
   var html = '';
   for (var vi = 0; vi < veranst.length; vi++) {
     var v = veranst[vi];
     var name = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel || '';
     var rows = '';
-    // Gruppiere nach Disziplin
-    var byDisz = {};
-    var diszOrder = [];
+    var byDisz = {}; var diszOrder = [];
     for (var ei = 0; ei < v.ergebnisse.length; ei++) {
       var e = v.ergebnisse[ei];
       var _dk = ergDiszKey(e);
@@ -47,8 +79,223 @@ async function renderVeranstaltungen() {
       var _diszFirstErg = byDisz[_dKey][0];
       var disz = _diszFirstErg ? ergDiszLabel(_diszFirstErg) : _dKey;
       var ergs = byDisz[_dKey];
-      // ergDiszLabel gibt bereits HTML mit Kategorie zurück — nicht nochmal durch diszMitKat
       rows += '<tr class="disz-header-row"><td colspan="' + _colspan + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + disz + '</td></tr>';
+      for (var ei2 = 0; ei2 < ergs.length; ei2++) {
+        var e2 = ergs[ei2];
+        var fmt = e2.fmt || '';
+        var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : undefined);
+        var _ePace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
+        var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
+        rows +=
+          '<tr>' +
+            '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span></td>' +
+            '<td>' + akBadge(e2.altersklasse) + '</td>' +
+            '<td class="result">' + res + '</td>' +
+            '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +
+            '<td>' + medalBadge(e2.ak_platzierung) + '</td>' +
+            (_hasMstr ? '<td>' + mstrBadge(e2.meisterschaft) + '</td>' : '') +
+            (_hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? medalBadge(e2.ak_platz_meisterschaft) : '') + '</td>' : '') +
+          '</tr>';
+      }
+    }
+    // Serie-Badge
+    var serieBadge = '';
+    if (v.serie_id) {
+      var _sv = serien.find(function(s){ return String(s.id) === String(v.serie_id); });
+      if (_sv) {
+        serieBadge = '<span style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:2px 8px;cursor:pointer;margin-left:6px" title="Serie anzeigen" onclick="event.stopPropagation();openSerieDetail(' + _sv.id + ')">\uD83D\uDD04 ' + _sv.name + '</span>';
+      }
+    }
+    html +=
+      '<div class="panel" style="margin-bottom:16px">' +
+        '<div class="panel-header">' +
+          '<div>' +
+            '<div class="panel-title" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + v.id + '\',\'_blank\')">' + name + serieBadge + '</div>' +
+            '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + v.ort : '') + '</div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:10px">' +
+            '<span style="font-size:13px;color:var(--text2)">' + v.anz_ergebnisse + ' Ergebnisse &middot; ' + v.anz_athleten + ' Athleten</span>' +
+            (currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor') ?
+              '<button class="btn btn-ghost btn-sm" onclick="showVeranstEditModal(' + v.id + ')">&#x270F;&#xFE0F;</button>' : '') +
+            (v.datenquelle ? '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" class="btn btn-ghost btn-sm" title="Ergebnisquelle">\uD83C\uDF10</a>' : '') +
+            '<button class="btn btn-ghost btn-sm" title="Teilen" onclick="shareVeranstaltung(' + v.id + ')">\uD83D\uDCE4</button>' +
+            (_canVeranstaltungLoeschen() ?
+              '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&times;</button>' : '') +
+          '</div>' +
+        '</div>' +
+        (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' + (_hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') + '</colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th>' + (_hasMstr ? '<th>Meisterschaft</th><th>Pl. MS</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' :
+                '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
+      '</div>';
+  }
+  if (!html) html = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Keine Veranstaltungen gefunden</div></div>';
+
+  var searchBar = '<div class="filter-bar" style="margin-bottom:16px">' +
+    '<div class="fg"><label>Suche</label><input type="search" id="veranst-suche" placeholder="Veranstaltung suchen&hellip;" value="' + (state.veranstSuche || '').replace(/"/g,'&quot;') + '" oninput="setVeranstSuche(this.value)" style="min-width:0;width:100%"/></div>' +
+  '</div>';
+
+  el.innerHTML = _veranstViewToggleHtml() + searchBar + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
+  _restoreFocus(_vFoc);
+}
+
+// ── SERIEN-LISTE ───────────────────────────────────────────
+async function renderSerienListe() {
+  var el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
+  var r = await apiGet('veranstaltung-serien');
+  if (!r || !r.ok) {
+    el.innerHTML = _veranstViewToggleHtml() + '<div class="panel" style="padding:24px;color:var(--accent)">Fehler: ' + (r && r.fehler ? r.fehler : 'Unbekannt') + '</div>';
+    return;
+  }
+  var serien = r.data || [];
+  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
+
+  var html = _veranstViewToggleHtml();
+  if (canEdit) {
+    html += '<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="showSerieCreateModal()">&#x2795; Neue Serie anlegen</button></div>';
+  }
+
+  if (!serien.length) {
+    html += '<div class="empty"><div class="empty-icon">\uD83D\uDD04</div>' +
+      '<div class="empty-text">Noch keine Serien angelegt.<br><small style="color:var(--text2)">Lege eine Serie an und ordne ihr jährlich wiederkehrende Veranstaltungen zu.</small></div></div>';
+    el.innerHTML = html;
+    return;
+  }
+
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">';
+  for (var i = 0; i < serien.length; i++) {
+    var s = serien[i];
+    var jahrRange = s.jahr_von
+      ? (String(s.jahr_von) === String(s.jahr_bis) ? s.jahr_von : s.jahr_von + '&ndash;' + s.jahr_bis)
+      : '&ndash;';
+    html +=
+      '<div class="panel" style="cursor:pointer;transition:box-shadow .15s" onclick="openSerieDetail(' + s.id + ')" onmouseover="this.style.boxShadow=\'0 4px 18px rgba(0,0,0,.13)\'" onmouseout="this.style.boxShadow=\'\'">' +
+        '<div class="panel-header" style="padding-bottom:8px">' +
+          '<div>' +
+            '<div class="panel-title" style="font-size:16px">' + s.name + '</div>' +
+            '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + s.kuerzel + '</div>' +
+          '</div>' +
+          (canEdit ?
+            '<div style="display:flex;gap:6px" onclick="event.stopPropagation()">' +
+              '<button class="btn btn-ghost btn-sm" onclick="showSerieEditModal(' + s.id + ',\'' + s.name.replace(/'/g,"\\'") + '\',\'' + s.kuerzel.replace(/'/g,"\\'") + '\')">&#x270F;&#xFE0F;</button>' +
+              '<button class="btn btn-danger btn-sm" onclick="deleteSerieConfirm(' + s.id + ',\'' + s.name.replace(/'/g,"\\'") + '\')">&times;</button>' +
+            '</div>' : '') +
+        '</div>' +
+        '<div style="display:flex;gap:20px;font-size:13px;color:var(--text2);padding:0 0 4px">' +
+          '<span>\uD83C\uDFC6 ' + s.anz_veranstaltungen + ' Austragung' + (s.anz_veranstaltungen != 1 ? 'en' : '') + '</span>' +
+          '<span>\uD83D\uDCC5 ' + jahrRange + '</span>' +
+        '</div>' +
+      '</div>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function openSerieDetail(id) {
+  state.veranstView = 'serie-detail';
+  state.serieId = id;
+  state.serieView = 'jahre';
+  state.serieDisz = null;
+  state.serieMappingId = null;
+  renderVeranstaltungen();
+}
+
+// ── SERIE-DETAIL ───────────────────────────────────────────
+async function renderSerieDetail(id) {
+  var el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
+
+  var r = await apiGet('veranstaltung-serien/' + id);
+  if (!r || !r.ok) {
+    el.innerHTML = _serieBackBtn() + '<div class="panel" style="padding:24px;color:var(--accent)">Fehler: ' + (r && r.fehler ? r.fehler : 'Unbekannt') + '</div>';
+    return;
+  }
+  var serie   = r.data.serie;
+  var veranst = r.data.veranst || [];
+
+  var rd = await apiGet('veranstaltung-serien/' + id + '?disziplinen=1');
+  var disziplinen = (rd && rd.ok) ? (rd.data || []) : [];
+
+  var view    = state.serieView || 'jahre';
+  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
+
+  var jahre = veranst.map(function(v){ return parseInt(v.jahr); });
+  var jahrMin = jahre.length ? Math.min.apply(null, jahre) : null;
+  var jahrMax = jahre.length ? Math.max.apply(null, jahre) : null;
+
+  var html = _serieBackBtn();
+  html += '<div class="panel" style="margin-bottom:16px;padding:18px 22px">';
+  html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">';
+  html += '<div>';
+  html += '<div style="font-size:22px;font-weight:700;line-height:1.2">' + serie.name + '</div>';
+  html += '<div style="font-size:13px;color:var(--text2);margin-top:3px">' + serie.kuerzel;
+  html += ' &middot; ' + veranst.length + ' Austragung' + (veranst.length != 1 ? 'en' : '');
+  if (jahrMin) html += ' &middot; ' + (jahrMin === jahrMax ? jahrMin : jahrMin + '&ndash;' + jahrMax);
+  html += '</div>';
+  html += '</div>';
+  if (canEdit) {
+    html += '<button class="btn btn-ghost btn-sm" onclick="showSerieEditModal(' + serie.id + ',\'' + serie.name.replace(/'/g,"\\'") + '\',\'' + serie.kuerzel.replace(/'/g,"\\'") + '\')">&#x270F;&#xFE0F; Bearbeiten</button>';
+  }
+  html += '</div></div>';
+
+  // Sub-Tabs
+  html += '<div style="display:flex;gap:8px;margin-bottom:16px">' +
+    '<button class="btn' + (view === 'jahre' ? ' btn-primary' : ' btn-ghost') + '" onclick="setSerieView(\'jahre\')">\uD83D\uDCC5 Ergebnisse nach Jahr</button>' +
+    '<button class="btn' + (view === 'bestleistungen' ? ' btn-primary' : ' btn-ghost') + '" onclick="setSerieView(\'bestleistungen\')">\uD83C\uDFC6 Bestleistungen</button>' +
+  '</div>';
+
+  if (view === 'jahre') {
+    html += _buildSerieJahreHtml(veranst);
+  } else {
+    html += _buildSerieBestleistungenShell(disziplinen, id);
+  }
+
+  el.innerHTML = html;
+
+  if (view === 'bestleistungen') {
+    var toLoad = state.serieDisz ? { disziplin: state.serieDisz, disziplin_mapping_id: state.serieMappingId } : disziplinen[0];
+    if (toLoad) {
+      state.serieDisz = toLoad.disziplin;
+      state.serieMappingId = toLoad.disziplin_mapping_id || null;
+      _highlightSerieDiszBtn(state.serieDisz, state.serieMappingId);
+      _loadSerieBestleistungen(id, state.serieDisz, state.serieMappingId);
+    }
+  }
+}
+
+function _serieBackBtn() {
+  return '<button class="btn btn-ghost btn-sm" style="margin-bottom:14px" onclick="switchVeranstView(\'serien\')">&larr; Alle Serien</button> ';
+}
+
+function setSerieView(v) {
+  state.serieView = v;
+  renderVeranstaltungen();
+}
+
+// ── Ergebnisse nach Jahr ───────────────────────────────────
+function _buildSerieJahreHtml(veranst) {
+  if (!veranst.length) {
+    return '<div class="empty"><div class="empty-icon">\uD83D\uDCC5</div><div class="empty-text">Noch keine Veranstaltungen in dieser Serie</div></div>';
+  }
+  var html = '';
+  for (var vi = 0; vi < veranst.length; vi++) {
+    var v = veranst[vi];
+    var name = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel || '';
+    var rows = '';
+    var byDisz = {}; var diszOrder = [];
+    for (var ei = 0; ei < v.ergebnisse.length; ei++) {
+      var e = v.ergebnisse[ei];
+      var _dk = ergDiszKey(e);
+      if (!byDisz[_dk]) { byDisz[_dk] = []; diszOrder.push(_dk); }
+      byDisz[_dk].push(e);
+    }
+    var _hasMstr = v.ergebnisse.some(function(e3){ return !!e3.meisterschaft; });
+    sortDisziplinen(diszOrder);
+    for (var di = 0; di < diszOrder.length; di++) {
+      var _dKey = diszOrder[di];
+      var _df = byDisz[_dKey][0];
+      var diszLabel = _df ? ergDiszLabel(_df) : _dKey;
+      var ergs = byDisz[_dKey];
+      rows += '<tr class="disz-header-row"><td colspan="' + (_hasMstr ? '7' : '5') + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszLabel + '</td></tr>';
       for (var ei2 = 0; ei2 < ergs.length; ei2++) {
         var e2 = ergs[ei2];
         var fmt = e2.fmt || '';
@@ -71,47 +318,263 @@ async function renderVeranstaltungen() {
       '<div class="panel" style="margin-bottom:16px">' +
         '<div class="panel-header">' +
           '<div>' +
-            '<div class="panel-title" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + v.id + '\',\'_blank\')">' + name + '</div>' +
+            '<div class="panel-title" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + v.id + '\',\'_blank\')">' +
+              '<span style="font-size:20px;font-weight:800;color:var(--primary);margin-right:10px">' + v.jahr + '</span>' + name +
+            '</div>' +
             '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + v.ort : '') + '</div>' +
           '</div>' +
-          '<div style="display:flex;align-items:center;gap:10px">' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
             '<span style="font-size:13px;color:var(--text2)">' + v.anz_ergebnisse + ' Ergebnisse &middot; ' + v.anz_athleten + ' Athleten</span>' +
-            (currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor') ?
-              '<button class="btn btn-ghost btn-sm" onclick="showVeranstEditModal(' + v.id + ')">&#x270F;&#xFE0F;</button>' : '') +
             (v.datenquelle ? '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" class="btn btn-ghost btn-sm" title="Ergebnisquelle">\uD83C\uDF10</a>' : '') +
-            '<button class="btn btn-ghost btn-sm" title="Teilen" onclick="shareVeranstaltung(' + v.id + ')">\uD83D\uDCE4</button>' +
-                        (_canVeranstaltungLoeschen() ?
-              '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&#x2715;</button>' : '') +
           '</div>' +
         '</div>' +
-        (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' + (_hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') + '</colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th>' + (_hasMstr ? '<th>Meisterschaft</th><th>Pl. MS</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' :
-                '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
+        (rows ?
+          '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' + (_hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') + '</colgroup>' +
+          '<thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th>' + (_hasMstr ? '<th>Meisterschaft</th><th>Pl. MS</th>' : '') + '</tr></thead>' +
+          '<tbody>' + rows + '</tbody></table></div>' :
+          '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
       '</div>';
   }
-  if (!html) html = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Keine Veranstaltungen gefunden</div></div>';
-  var searchBar = '<div class="filter-bar" style="margin-bottom:16px">' +
-    '<div class="fg"><label>Suche</label><input type="search" id="veranst-suche" placeholder="Veranstaltung suchen&hellip;" value="' + (state.veranstSuche || '').replace(/"/g,'&quot;') + '" oninput="setVeranstSuche(this.value)" style="min-width:0;width:100%"/></div>' +
-  '</div>';
-  el.innerHTML = searchBar + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
-  _restoreFocus(_vFoc);
+  return html;
 }
 
+// ── Bestleistungen Shell ───────────────────────────────────
+function _buildSerieBestleistungenShell(disziplinen, serieId) {
+  if (!disziplinen.length) {
+    return '<div class="empty"><div class="empty-icon">\uD83C\uDFC6</div><div class="empty-text">Keine Ergebnisse in dieser Serie</div></div>';
+  }
+  var byKat = {}; var katOrder = [];
+  for (var i = 0; i < disziplinen.length; i++) {
+    var d = disziplinen[i];
+    var kat = d.kategorie_name || 'Weitere';
+    if (!byKat[kat]) { byKat[kat] = []; katOrder.push(kat); }
+    byKat[kat].push(d);
+  }
+  var html = '<div style="margin-bottom:16px">';
+  for (var ki = 0; ki < katOrder.length; ki++) {
+    var kat = katOrder[ki];
+    if (katOrder.length > 1) {
+      html += '<div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);letter-spacing:.06em;margin:12px 0 6px">' + kat + '</div>';
+    }
+    html += '<div class="rek-top-disz" style="margin-top:0">';
+    var disz_in_kat = byKat[kat];
+    for (var di = 0; di < disz_in_kat.length; di++) {
+      var d2 = disz_in_kat[di];
+      var dLabel = d2.anzeige_name || d2.disziplin;
+      var isActive = state.serieDisz === d2.disziplin && String(state.serieMappingId || '') === String(d2.disziplin_mapping_id || '');
+      html += '<button class="rek-top-btn rek-top-btn--sm' + (isActive ? ' active' : '') + '" ' +
+        'data-disz="' + d2.disziplin.replace(/"/g,'&quot;') + '" ' +
+        'data-mid="' + (d2.disziplin_mapping_id || '') + '" ' +
+        'data-serie-id="' + serieId + '" ' +
+        'onclick="selectSerieDisz(this.dataset.disz,this.dataset.mid,this.dataset.serieId)">' +
+        '<span class="rek-top-name">' + dLabel + '</span>' +
+        '<span class="rek-top-cnt">' + d2.cnt + (d2.cnt == 1 ? ' Ergebnis' : ' Ergebnisse') + '</span>' +
+        '</button>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  html += '<div id="serie-best-content"><div class="loading" style="padding:32px"><div class="spinner"></div>Lade Bestleistungen&hellip;</div></div>';
+  return html;
+}
 
+function _highlightSerieDiszBtn(disz, mid) {
+  document.querySelectorAll('.rek-top-btn[data-serie-id]').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.disz === disz && String(btn.dataset.mid || '') === String(mid || ''));
+  });
+}
+
+function selectSerieDisz(disz, mid, serieId) {
+  state.serieDisz = disz;
+  state.serieMappingId = mid ? parseInt(mid) : null;
+  _highlightSerieDiszBtn(disz, mid);
+  _loadSerieBestleistungen(parseInt(serieId), disz, mid ? parseInt(mid) : null);
+}
+
+async function _loadSerieBestleistungen(serieId, disz, mappingId) {
+  var container = document.getElementById('serie-best-content');
+  if (!container) return;
+  container.innerHTML = '<div class="loading" style="padding:32px"><div class="spinner"></div>Lade&hellip;</div>';
+  var params = 'disz=' + encodeURIComponent(disz);
+  if (mappingId) params += '&mapping_id=' + mappingId;
+  var r = await apiGet('veranstaltung-serien/' + serieId + '?' + params);
+  if (!r || !r.ok) {
+    container.innerHTML = '<div style="color:var(--accent);padding:16px">Fehler: ' + (r && r.fehler ? r.fehler : 'Unbekannt') + '</div>';
+    return;
+  }
+  var d   = r.data;
+  var fmt = d.fmt || 'min';
+  var TOP = 10;
+
+  function pbDedup(rows) {
+    var seen = {}; var out = [];
+    for (var i = 0; i < rows.length && out.length < TOP; i++) {
+      var key = rows[i].athlet_id || rows[i].athlet;
+      if (!seen[key]) { seen[key] = true; out.push(rows[i]); }
+    }
+    return out;
+  }
+
+  var showPace = diszKm(disz) >= 1 && fmt !== 'm' && fmt !== 's';
+  var fakeRekState = { highlightCurYear: false, highlightPrevYear: false, disz: disz, rekState: state.rekState || {} };
+
+  function sectionHead(label) {
+    return '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:600;color:var(--text);border-bottom:2px solid var(--border);padding-bottom:6px;margin:0 0 14px">' + label + '</div>';
+  }
+
+  var shtml = sectionHead('Gesamt');
+  shtml += '<div class="panel" style="overflow:hidden;margin-bottom:28px">' + buildRekTable(pbDedup(d.gesamt || []), fmt, false, showPace, 'Athlet*in', disz) + '</div>';
+
+  shtml += sectionHead('Frauen / M&auml;nner');
+  shtml +=
+    '<div class="mw-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:28px">' +
+      '<div class="rek-ak-card"><div class="rek-ak-header" style="background:var(--primary);color:var(--on-primary)">Frauen</div>' +
+        buildRekTable(pbDedup(d.frauen || []), fmt, false, showPace, 'Athletin', disz) + '</div>' +
+      '<div class="rek-ak-card"><div class="rek-ak-header">M&auml;nner</div>' +
+        buildRekTable(pbDedup(d.maenner || []), fmt, false, showPace, 'Athlet', disz) + '</div>' +
+    '</div>';
+
+  var byAk = d.by_ak || {};
+  var akKeys = Object.keys(byAk);
+  akKeys.sort(function(a, b) {
+    function rank(k) {
+      var nm = k.match(/^([MW])(\d+)$/);
+      if (nm) { var g=nm[1]==='W'?'1':'2'; var n=parseInt(nm[2],10); var slot=n<20?(100+n):n<30?(200+n):(300+n); return g+'_'+String(slot).padStart(4,'0'); }
+      if (k==='WHK') return '1_0220'; if (k==='MHK'||k==='M') return '2_0220';
+      if (/^WU/.test(k)) return '1_0'+String(parseInt(k.replace('WU',''))).padStart(4,'0');
+      if (/^MU/.test(k)) return '2_0'+String(parseInt(k.replace('MU',''))).padStart(4,'0');
+      return '9_'+k;
+    }
+    var ra=rank(a), rb=rank(b); return ra<rb?-1:ra>rb?1:0;
+  });
+
+  shtml += sectionHead('Nach Altersklasse');
+  if (!akKeys.length) {
+    shtml += '<div class="empty" style="margin-bottom:28px"><div class="empty-text">Keine AK-Daten vorhanden</div></div>';
+  } else {
+    var prevGender = null; var grids = [[]];
+    for (var aki = 0; aki < akKeys.length; aki++) {
+      var ak = akKeys[aki];
+      var isW = /^W/.test(ak) || ak === 'WHK';
+      var curG = isW ? 'w' : 'm';
+      if (prevGender !== null && prevGender !== curG) grids.push([]);
+      grids[grids.length-1].push({ ak: ak, isW: isW });
+      prevGender = curG;
+    }
+    for (var gi = 0; gi < grids.length; gi++) {
+      if (gi > 0) shtml += '<div style="height:14px"></div>';
+      shtml += '<div class="rek-ak-grid">';
+      for (var ai = 0; ai < grids[gi].length; ai++) {
+        var item = grids[gi][ai];
+        shtml += '<div class="rek-ak-card">';
+        shtml += '<div class="rek-ak-header"' + (item.isW ? ' style="background:var(--primary);color:var(--on-primary)"' : '') + '>' + item.ak + '</div>';
+        shtml += buildRekTable(pbDedup(byAk[item.ak] || []), fmt, true, false, '', disz);
+        shtml += '</div>';
+      }
+      shtml += '</div>';
+    }
+  }
+
+  container.innerHTML = '<div class="panel" style="padding:20px 24px">' + shtml + '</div>';
+}
+
+// ── Modale: Serie anlegen / bearbeiten ────────────────────
+function showSerieCreateModal() {
+  showModal(
+    '<h2>\uD83D\uDD04 Neue Veranstaltungsserie <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<div class="form-grid">' +
+      '<div class="form-group full"><label>Name *</label>' +
+        '<input type="text" id="sr-name" placeholder="z.B. Stra\u00dflenlauf Oedt" autofocus/></div>' +
+      '<div class="form-group full"><label>K\u00fcrzel *</label>' +
+        '<input type="text" id="sr-kuerzel" placeholder="z.B. SL-OEDT"/></div>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="saveSerieCreate()">Anlegen</button>' +
+    '</div>'
+  );
+  var nameIn = document.getElementById('sr-name');
+  if (nameIn) nameIn.addEventListener('input', function() {
+    var kIn = document.getElementById('sr-kuerzel');
+    if (kIn && !kIn.dataset.userEdited) {
+      kIn.value = this.value.toUpperCase().replace(/[\s\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00df]/g, function(c) {
+        return { '\u00e4':'AE','\u00f6':'OE','\u00fc':'UE','\u00c4':'AE','\u00d6':'OE','\u00dc':'UE','\u00df':'SS',' ':'-' }[c] || '-';
+      }).replace(/[^A-Z0-9\-]/g,'').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,30);
+    }
+  });
+  var kIn2 = document.getElementById('sr-kuerzel');
+  if (kIn2) kIn2.addEventListener('input', function() { this.dataset.userEdited = '1'; });
+}
+
+async function saveSerieCreate() {
+  var name    = (document.getElementById('sr-name')    || {}).value || '';
+  var kuerzel = (document.getElementById('sr-kuerzel') || {}).value || '';
+  if (!name.trim() || !kuerzel.trim()) { notify('Name und K\u00fcrzel erforderlich.', 'err'); return; }
+  var r = await apiPost('veranstaltung-serien', { name: name.trim(), kuerzel: kuerzel.trim() });
+  if (r && r.ok) { closeModal(); notify('Serie angelegt.', 'ok'); switchVeranstView('serien'); }
+  else notify((r && r.fehler) || 'Fehler', 'err');
+}
+
+function showSerieEditModal(id, curName, curKuerzel) {
+  showModal(
+    '<h2>&#x270F;&#xFE0F; Serie bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<div class="form-grid">' +
+      '<div class="form-group full"><label>Name</label>' +
+        '<input type="text" id="sr-name" value="' + (curName || '').replace(/"/g,'&quot;') + '"/></div>' +
+      '<div class="form-group full"><label>K\u00fcrzel</label>' +
+        '<input type="text" id="sr-kuerzel" value="' + (curKuerzel || '').replace(/"/g,'&quot;') + '"/></div>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="saveSerie(' + id + ')">Speichern</button>' +
+    '</div>'
+  );
+}
+
+async function saveSerie(id) {
+  var name    = (document.getElementById('sr-name')    || {}).value || '';
+  var kuerzel = (document.getElementById('sr-kuerzel') || {}).value || '';
+  var r = await apiPut('veranstaltung-serien/' + id, { name: name.trim(), kuerzel: kuerzel.trim() });
+  if (r && r.ok) {
+    closeModal(); notify('Gespeichert.', 'ok');
+    if (state.veranstView === 'serie-detail') renderSerieDetail(id);
+    else renderSerienListe();
+  } else notify((r && r.fehler) || 'Fehler', 'err');
+}
+
+async function deleteSerieConfirm(id, name) {
+  if (!confirm('Serie "' + name + '" l\u00f6schen?\nDie Veranstaltungen selbst bleiben erhalten, werden aber keiner Serie mehr zugeordnet.')) return;
+  var r = await api('DELETE', 'veranstaltung-serien/' + id);
+  if (r && r.ok) { notify('Gel\u00f6scht.', 'ok'); switchVeranstView('serien'); }
+  else notify((r && r.fehler) || 'Fehler', 'err');
+}
+
+// ── Veranstaltung-Edit (mit Serie-Zuweisung) ──────────────
 function showVeranstEditModal(id) {
   var v = state._veranstMap && state._veranstMap[id];
   if (!v) return;
-  var curName = v.name || '';
+  var serien   = window._lastSerienList || [];
+  var curName  = v.name  || '';
   var curDatum = (v.datum || '').slice(0, 10);
-  var curOrt = v.ort || '';
+  var curOrt   = v.ort   || '';
+  var curSerie = v.serie_id || '';
+
+  var serieOptHtml = '<option value="">&#8212; Keine Serie &#8212;</option>';
+  for (var i = 0; i < serien.length; i++) {
+    serieOptHtml += '<option value="' + serien[i].id + '"' + (String(serien[i].id) === String(curSerie) ? ' selected' : '') + '>' + serien[i].name + '</option>';
+  }
+
   showModal(
     '<h2>&#x270F;&#xFE0F; Veranstaltung bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Name (optional)</label>' +
-        '<input type="text" id="ve-name" value="' + curName + '" placeholder="z.B. 44. Stra&szlig;enlauf Rund um das Bayer-Kreuz"/></div>' +
+        '<input type="text" id="ve-name" value="' + curName.replace(/"/g,'&quot;') + '" placeholder="z.B. 44. Stra&szlig;enlauf Rund um das Bayer-Kreuz"/></div>' +
       '<div class="form-group"><label>Datum</label>' +
         '<input type="date" id="ve-datum" value="' + curDatum + '"/></div>' +
       '<div class="form-group"><label>Ort</label>' +
-        '<input type="text" id="ve-ort" value="' + curOrt + '" placeholder="z.B. Leverkusen"/></div>' +
+        '<input type="text" id="ve-ort" value="' + curOrt.replace(/"/g,'&quot;') + '" placeholder="z.B. Leverkusen"/></div>' +
+      '<div class="form-group full"><label>\uD83D\uDD04 Serie (optional)</label>' +
+        '<select id="ve-serie">' + serieOptHtml + '</select></div>' +
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -121,10 +584,12 @@ function showVeranstEditModal(id) {
 }
 
 async function saveVeranstaltung(id) {
+  var serieEl = document.getElementById('ve-serie');
   var body = {
-    name:  document.getElementById('ve-name').value.trim() || null,
-    datum: document.getElementById('ve-datum').value,
-    ort:   document.getElementById('ve-ort').value.trim() || null,
+    name:     document.getElementById('ve-name').value.trim() || null,
+    datum:    document.getElementById('ve-datum').value,
+    ort:      document.getElementById('ve-ort').value.trim() || null,
+    serie_id: serieEl ? (serieEl.value ? parseInt(serieEl.value) : null) : undefined,
   };
   var r = await apiPut('veranstaltungen/' + id, body);
   if (r && r.ok) { closeModal(); notify('Gespeichert.', 'ok'); await renderVeranstaltungen(); }
@@ -144,7 +609,6 @@ async function deleteVeranstaltung(id, name) {
   if (r && r.ok) { notify('Gel\u00f6scht.', 'ok'); await renderVeranstaltungen(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
 }
-
 
 function openAthletByName(name) {
   renderPage();

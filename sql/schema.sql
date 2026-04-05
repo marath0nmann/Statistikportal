@@ -148,6 +148,16 @@ CREATE TABLE IF NOT EXISTS athlet_pb (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
+-- Veranstaltungsserien (v942 – jährlich wiederkehrende Veranstaltungen)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS veranstaltung_serien (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    name        VARCHAR(200) NOT NULL,
+    kuerzel     VARCHAR(60)  NOT NULL UNIQUE,
+    erstellt_am DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------
 -- Veranstaltungen
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS veranstaltungen (
@@ -158,6 +168,7 @@ CREATE TABLE IF NOT EXISTS veranstaltungen (
     datum        DATE          NOT NULL,
     genehmigt    TINYINT(1)    NOT NULL DEFAULT 1,
     datenquelle  VARCHAR(1024) NULL,
+    serie_id     INT           NULL     COMMENT 'Veranstaltungsserie (jährlich wiederkehrend)',
     erstellt_am  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     geloescht_am DATETIME      NULL,
     INDEX idx_geloescht (geloescht_am)

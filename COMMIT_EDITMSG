@@ -1,1 +1,8 @@
-v940: Dashboard-Bugfix + Admin-Tabellenkorrekturen
+v942 – Jährliche Veranstaltungsserien
+
+- Neue Tabelle veranstaltung_serien für wiederkehrende Veranstaltungsgruppen
+- Serien-Übersicht mit Karten (Austragungen, Jahreszeitraum)
+- Serien-Detail: "Ergebnisse nach Jahr" + "Bestleistungen" (Gesamt/M/W/AK)
+- Veranstaltung-Edit-Modal mit Serien-Dropdown
+- Serien-Badge in Veranstaltungsliste
+- API: veranstaltung-serien (CRUD + Bestleistungen-Endpoint)
