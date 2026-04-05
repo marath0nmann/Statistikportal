@@ -812,7 +812,7 @@ function timelineBadges(rek) {
         if (!_wHtml) continue; // Widget nicht sichtbar – Spalte komplett weglassen
         var colMin = col.w ? col.w : 280;
         totalMin += colMin;
-        colsHtml += '<div style="min-width:' + colMin + 'px;flex:' + (col.w ? '0 0 ' + col.w + 'px' : '1') + ';height:100%">' + _wHtml + '</div>';
+        colsHtml += '<div class="' + (col.w ? '' : 'dash-col-auto') + '" style="min-width:' + colMin + 'px;flex:' + (col.w ? '0 0 ' + col.w + 'px' : '1') + ';height:100%">' + _wHtml + '</div>';
         gtcParts.push(col.w ? col.w + 'px' : '1fr');
       }
       if (colsHtml) {

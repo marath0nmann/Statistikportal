@@ -242,6 +242,9 @@ main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
   min-width: 0 !important;
   flex: 1 !important;
 }
+.dash-row-wrap.stacked .dash-col-auto {
+  order: -1;
+}
 
 .stat-card {
   background: var(--surface); border: 1px solid var(--border);
