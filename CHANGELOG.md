@@ -1,3 +1,9 @@
+## v941 – Teilen: Link als klickbarer Markdown-Link
+
+- Beim „Veranstaltung teilen"-Dialog wird der Link im Markdown-Block jetzt als klickbarer Link formatiert (`[Name](URL)` statt reiner URL)
+
+---
+
 ## v940 – Bugfix: Dashboard-Fehler „Maximum call stack size exceeded"
 
 - Doppelte `medalBadge`-Definition in `02_app.js` entfernt (selbst-aufrufender Alias verursachte infinite Rekursion)
