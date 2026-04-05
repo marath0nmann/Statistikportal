@@ -11,13 +11,27 @@ REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 # ── Neuestes Paket aus Downloads ins Repo kopieren ──────────────────────────
 DOWNLOADS_DIR="$HOME/Downloads"
 
-# Höchste Versionsnummer finden (paket_vXXX)
-LATEST_PAKET=$(ls -d "$DOWNLOADS_DIR"/paket_v* 2>/dev/null | sort -V | tail -1)
+# Höchste Versionsnummer finden – matcht paket_vXXX und paket_vXXX.zip
+LATEST=$(ls -d "$DOWNLOADS_DIR"/paket_v* 2>/dev/null | sort -V | tail -1)
 
-if [[ -z "$LATEST_PAKET" ]]; then
-  echo "⚠️  Kein paket_vXXX-Verzeichnis in $DOWNLOADS_DIR gefunden."
-  echo "   Bitte ZIP erst entpacken oder Pfad in commit.sh anpassen."
+if [[ -z "$LATEST" ]]; then
+  echo "⚠️  Kein paket_vXXX oder paket_vXXX.zip in $DOWNLOADS_DIR gefunden."
   exit 1
+fi
+
+# Falls sort die ZIP-Datei gewählt hat: Verzeichnis ableiten und ggf. entpacken
+if [[ "$LATEST" == *.zip ]]; then
+  VER=$(basename "$LATEST" .zip)
+  PAKET_DIR="$DOWNLOADS_DIR/$VER"
+  if [[ ! -d "$PAKET_DIR" ]]; then
+    echo ""
+    echo "📦 Entpacke $(basename "$LATEST") …"
+    unzip -q -o "$LATEST" -d "$DOWNLOADS_DIR"
+    echo "   ✓ Entpackt nach $PAKET_DIR"
+  fi
+  LATEST_PAKET="$PAKET_DIR"
+else
+  LATEST_PAKET="$LATEST"
 fi
 
 echo ""
