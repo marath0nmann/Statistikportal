@@ -73,16 +73,30 @@ async function uitsFetch() {
   var urlInput = ((document.getElementById('uits-url') || {}).value || '').trim();
   if (!urlInput) { notify('Bitte uitslagen.nl-URL eingeben.', 'err'); return; }
 
-  // Event-ID aus URL extrahieren
+  // URL-Typ erkennen: evenementen.uitslagen.nl/YYYY/slug/ vs. uitslagen.nl?id=XXXXX
+  var eventId, fetchUrl;
+  var isEvenementenUrl = /evenementen\.uitslagen\.nl/i.test(urlInput);
+
+  if (isEvenementenUrl) {
+    // Pfad-basiertes Format: /2023/venloop/
+    var pathMatch = urlInput.match(/evenementen\.uitslagen\.nl\/(\d{4})\/([^\/?\s]+)/i);
+    if (!pathMatch) { notify('Ungültige evenementen.uitslagen.nl-URL.\nErwartet: evenementen.uitslagen.nl/JJJJ/event-name/', 'err'); return; }
+    var evYear = pathMatch[1];
+    var evSlug = pathMatch[2];
+    var evBaseUrl = 'https://evenementen.uitslagen.nl/' + evYear + '/' + evSlug + '/';
+    var evEventId = evSlug + '-' + evYear;
+    await uitsEvenementenFetch(evBaseUrl, evYear, evSlug, evEventId);
+    return;
+  }
+  // Klassisches Format: uitslagen.nl/uitslag?id=XXXXX
   var idMatch = urlInput.match(/[?&]id=([^&]+)/);
-  if (!idMatch) { notify('Keine Event-ID in der URL gefunden (erwartet: ?id=XXXXX).', 'err'); return; }
-  var eventId = idMatch[1];
+  if (!idMatch) { notify('Keine Event-ID in der URL gefunden.\nErwartet: uitslagen.nl/uitslag?id=XXXXX\noder: evenementen.uitslagen.nl/JJJJ/event-name/', 'err'); return; }
+  var eventId  = idMatch[1];
+  var fetchUrl = 'https://uitslagen.nl/uitslag?id=' + encodeURIComponent(eventId);
 
   var preview = document.getElementById('uits-preview');
   preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; Lade Ergebnisse&hellip;</div>';
 
-  // Proxy: PHP-Seite via mika-fetch-Proxy (wir nutzen denselben cURL-Proxy)
-  var fetchUrl = 'https://uitslagen.nl/uitslag?id=' + encodeURIComponent(eventId);
   var r = await apiGet('uits-fetch?url=' + encodeURIComponent(fetchUrl));
   if (!r || !r.ok) {
     preview.innerHTML = '<div style="background:var(--surf2);border-radius:10px;padding:16px"><strong>&#x274C; Fehler:</strong> ' + ((r && r.fehler) || 'Seite konnte nicht geladen werden') + '</div>';
@@ -153,7 +167,7 @@ function uitsParseHTML(html, eventId) {
   // Alle Ergebnis-Container (je einer pro Kategorie)
   var containers = doc.querySelectorAll('.uitslagen');
   if (!containers.length) {
-    return { eventName, eventDate, eventOrt, eventId, kategorien: [], rows: [] };
+    return { eventName: eventName, eventDate: eventDate, eventOrt: eventOrt, eventId: eventId, kategorien: [], rows: [] };
   }
 
   var rows = [];
@@ -688,4 +702,271 @@ async function bulkImportFromLA(url, kat, statusEl) {
   }
 
   await bulkFillFromImport(allResults, statusEl);
+}
+
+// ── evenementen.uitslagen.nl Importer ──────────────────────────────────────
+// Struktur: Frameset → menu.php (select on=N) → uitslag.php?on=N&p=P
+// Tabelle: table.uitslag | col[0]=Platz col[2]=Name col[3]=Verein col[5]=KatPlatz col[6]=Categ col[7]=Brutto col[8]=Netto
+
+// AK-Mapping für evenementen.uitslagen.nl Kategorie-Codes
+function uitsEvenementenAKFromCateg(categ) {
+  var c = (categ || '').trim();
+  // Geschlecht: M=Männer, V/W=Vrouwen/Frauen
+  var isM = /^M/i.test(c);
+  var isW = /^[VW]/i.test(c);
+  var g   = isM ? 'M' : isW ? 'W' : '';
+  var lc  = c.toLowerCase();
+  // Senioren
+  if (lc === 'msen' || lc === 'm_sen') return { ak: 'MHK', g: 'M' };
+  if (lc === 'wsen' || lc === 'vsen') return { ak: 'WHK', g: 'W' };
+  // Masters mit Zahl: M35, V40, W45 ...
+  var masterM = c.match(/^M(\d{2})$/i);
+  if (masterM) return { ak: 'M' + masterM[1], g: 'M' };
+  var masterW = c.match(/^[VW](\d{2})$/i);
+  if (masterW) return { ak: 'W' + masterW[1], g: 'W' };
+  // Veteranen (kein Jahrzehnt-Code → M40 als Fallback)
+  if (lc.includes('vet') && isM) return { ak: 'M40', g: 'M' };
+  if (lc.includes('vet') && isW) return { ak: 'W40', g: 'W' };
+  // Junioren
+  if ((lc.includes('jun') || lc.includes('u23')) && isM) return { ak: 'MU23', g: 'M' };
+  if ((lc.includes('jun') || lc.includes('u23')) && isW) return { ak: 'WU23', g: 'W' };
+  if (lc.includes('u20') && isM) return { ak: 'MU20', g: 'M' };
+  if (lc.includes('u20') && isW) return { ak: 'WU20', g: 'W' };
+  if (lc.includes('u18') && isM) return { ak: 'MU18', g: 'M' };
+  if (lc.includes('u18') && isW) return { ak: 'WU18', g: 'W' };
+  return { ak: '', g: g };
+}
+
+// Einzelne Tabellenzeile aus uitslag.php?on=N parsen
+function uitsEvenementenParseRow(cells, rowNr) {
+  // Spaltenstruktur: [0]=Platz [1]=StNr [2]=Name [3]=Woonplaats/Verein [4]=Land(flag) [5]=KatPlatz [6]=Categ [7]=Brutto [8]=Netto
+  if (cells.length < 8) return null;
+  var name   = (cells[2].querySelector('a') || cells[2]).textContent.trim();
+  var verein = cells[3].textContent.trim();
+  var categ  = cells[6].textContent.trim();
+  var netto  = cells[8] ? cells[8].textContent.trim() : cells[7].textContent.trim();
+  var katPlatzStr = cells[5].textContent.trim();
+  var katPlatz = parseInt(katPlatzStr, 10) || 0;  // "1e" → 1, "2e" → 2
+  if (!name || !netto || !/^\d/.test(netto)) return null;
+  var catMap = uitsEvenementenAKFromCateg(categ);
+  var ownClub = uitsIstEigenerVerein(verein);
+  return {
+    nr:        rowNr,
+    kategorie: categ,
+    platz:     katPlatz,
+    name:      name,
+    verein:    verein,
+    zeit:      netto,
+    ak:        catMap.ak,
+    geschlecht: catMap.g,
+    ownClub:   ownClub,
+  };
+}
+
+// HTML einer Ergebnisseite (uitslag.php?on=N&p=P) parsen → Array von Zeilen + hasMore
+function uitsEvenementenParsePage(html) {
+  var parser = new DOMParser();
+  var doc    = parser.parseFromString(html, 'text/html');
+  var tbl    = doc.querySelector('table.uitslag');
+  if (!tbl) return { rows: [], hasMore: false };
+  var dataRows = Array.from(tbl.querySelectorAll('tr:not(.h)')).filter(function(tr) {
+    return tr.querySelectorAll('td').length >= 8;
+  });
+  // Pagination: „>>" oder „Volgende" → more pages
+  var navText = doc.body ? doc.body.textContent : '';
+  var hasMore = /Volgende|>>/i.test(navText) && dataRows.length >= 100;
+  return { rows: dataRows, hasMore: hasMore };
+}
+
+// menu.php parsen → Array {on, text} (ohne Team-Ergebnisse und Kinder-/Bambinoläufe)
+function uitsEvenementenParseMenu(html) {
+  var parser = new DOMParser();
+  var doc    = parser.parseFromString(html, 'text/html');
+  var opts   = [];
+  doc.querySelectorAll('select option').forEach(function(opt) {
+    var val = opt.value || '';
+    var txt = opt.textContent.trim();
+    if (!val || val === 'info.php') return;
+    if (txt.toLowerCase().includes('teamuitslag')) return; // Team-Ergebnisse überspringen
+    var onMatch = val.match(/[?&]on=(\d+)/);
+    if (onMatch) opts.push({ on: onMatch[1], text: txt });
+  });
+  return opts;
+}
+
+// ── Haupt-Einstiegspunkt für evenementen.uitslagen.nl ──────────────────────
+async function uitsEvenementenFetch(baseUrl, evYear, evSlug, eventId) {
+  var preview = document.getElementById('uits-preview');
+  preview.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">&#x23F3; Lade Rennen&hellip;</div>';
+
+  // menu.php holen
+  var menuUrl = baseUrl + 'menu.php';
+  var r = await apiGet('uits-fetch?url=' + encodeURIComponent(menuUrl));
+  if (!r || !r.ok) {
+    preview.innerHTML = '<div style="background:var(--surf2);border-radius:10px;padding:16px"><strong>&#x274C; Fehler:</strong> ' + ((r && r.fehler) || 'menu.php konnte nicht geladen werden') + '</div>';
+    return;
+  }
+
+  var races = uitsEvenementenParseMenu(r.data.html || '');
+  if (!races.length) {
+    preview.innerHTML = '<div style="background:var(--surf2);border-radius:10px;padding:16px">&#x274C; Keine Rennen in der Streckenliste gefunden.</div>';
+    return;
+  }
+
+  // Veranstaltungsname aus Slug ableiten
+  var evName = evSlug.charAt(0).toUpperCase() + evSlug.slice(1).replace(/-/g, ' ') + ' ' + evYear;
+
+  // Race-Selector UI
+  var optsHtml = races.map(function(rc) {
+    return '<option value="' + rc.on + '">' + rc.text + '</option>';
+  }).join('');
+
+  preview.innerHTML =
+    '<div style="background:var(--surf2);border-radius:10px;padding:16px;margin-bottom:12px">' +
+      '<div style="font-weight:700;font-size:15px;margin-bottom:10px">&#x1F3C1; ' + evName + '</div>' +
+      '<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">' +
+        '<div>' +
+          '<label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">Strecke</label>' +
+          '<select id="uits-ev-race" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text);min-width:280px">' +
+            optsHtml +
+          '</select>' +
+        '</div>' +
+        '<button class="btn btn-primary" onclick="uitsEvenementenSelectRace()">&#x25B6; Laden</button>' +
+      '</div>' +
+      '<div id="uits-ev-progress" style="margin-top:10px;font-size:12px;color:var(--text2)"></div>' +
+    '</div>' +
+    '<div id="uits-ev-result"></div>';
+
+  // Basis-URL und Event-ID für Callback speichern
+  window._uitsEvBase    = baseUrl;
+  window._uitsEvEventId = eventId;
+  window._uitsEvName    = evName;
+  window._uitsEvRaces   = races;
+}
+
+async function uitsEvenementenSelectRace() {
+  var sel = document.getElementById('uits-ev-race');
+  if (!sel) return;
+  var onParam   = sel.value;
+  var raceName  = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent.trim() : '';
+  var baseUrl   = window._uitsEvBase;
+  var eventId   = window._uitsEvEventId;
+  var evName    = window._uitsEvName;
+  var progress  = document.getElementById('uits-ev-progress');
+  var resultDiv = document.getElementById('uits-ev-result');
+  if (!baseUrl || !onParam) return;
+
+  var btn = document.querySelector('[onclick="uitsEvenementenSelectRace()"]');
+  if (btn) btn.disabled = true;
+
+  var allRows = [];
+  var rowNr   = 0;
+  var page    = 1;
+  var MAX_PAGES = 50;
+
+  while (page <= MAX_PAGES) {
+    if (progress) progress.textContent = '&#x23F3; Lade Seite ' + page + '\u2026';
+    var pageUrl = baseUrl + 'uitslag.php?on=' + encodeURIComponent(onParam) + '&p=' + page;
+    var r = await apiGet('uits-fetch?url=' + encodeURIComponent(pageUrl));
+    if (!r || !r.ok) break;
+    var parsed = uitsEvenementenParsePage(r.data.html || '');
+    if (!parsed.rows.length) break;
+    parsed.rows.forEach(function(tr) {
+      var row = uitsEvenementenParseRow(Array.from(tr.querySelectorAll('td')), ++rowNr);
+      if (row) allRows.push(row);
+    });
+    if (!parsed.hasMore) break;
+    page++;
+  }
+
+  if (btn) btn.disabled = false;
+
+  var truncated = page > MAX_PAGES;
+  if (progress) progress.textContent = rowNr + ' Einträge geladen' + (truncated ? ' (max ' + MAX_PAGES + ' Seiten)' : '');
+
+  var parsedObj = {
+    eventName:  evName + ' \u2013 ' + raceName,
+    eventDate:  '',
+    eventOrt:   '',
+    eventId:    eventId,
+    rows:       allRows,
+  };
+  window._uitsState = parsedObj;
+
+  // Preview in das Result-Div rendern
+  // Da uitsRenderPreview in #uits-preview schreibt, müssen wir kurz umleiten
+  var origPreview = document.getElementById('uits-preview');
+  // Backup: Header behalten, Result-Div nutzen
+  if (resultDiv && origPreview) {
+    // Inline-Vorschau direkt im resultDiv aufbauen (uitsRenderPreview überschreibt uits-preview)
+    // Wir nutzen eine kleine Hilfsfunktion die das macht ohne den Race-Selector zu löschen
+    _uitsEvenementenRenderResult(parsedObj, resultDiv);
+  }
+}
+
+function _uitsEvenementenRenderResult(parsed, container) {
+  var ownRows   = parsed.rows.filter(function(r) { return r.ownClub; });
+  var allCount  = parsed.rows.length;
+  var athleten  = state.athleten  || [];
+  var disziplinen = state.disziplinen || [];
+
+  if (!ownRows.length) {
+    container.innerHTML =
+      '<div style="background:var(--surf2);border-radius:10px;padding:16px">' +
+        '<strong>&#x26A0;&#xFE0E; Kein ' + (appConfig.verein_kuerzel || appConfig.verein_name || 'Vereins') + '-Athlet gefunden</strong>' +
+        '<div style="font-size:13px;color:var(--text2);margin-top:6px">' + allCount + ' Gesamteintr\u00e4ge. Vereinsname: \u201e' + (appConfig.verein_kuerzel || appConfig.verein_name || '?') + '\u201c</div>' +
+      '</div>';
+    return;
+  }
+
+  var _kat = ((document.getElementById('uits-kat') || {}).value || '');
+
+  var headerHtml =
+    '<div style="background:var(--surf2);border-radius:10px;padding:16px;margin-bottom:12px">' +
+      '<div style="font-weight:700;font-size:15px;margin-bottom:6px">&#x1F3C1; ' + parsed.eventName + '</div>' +
+      '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text2)">' +
+        '<span>&#x1F4C5; <input type="date" id="uits-datum" value="" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"/></span>' +
+        '<span>&#x1F4CD; <input type="text" id="uits-ort" value="" placeholder="Ort" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);width:140px"/></span>' +
+        '<span>&#x1F3F7; <input type="text" id="uits-evname" value="' + parsed.eventName.replace(/"/g,'&quot;') + '" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);width:240px"/></span>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-top:6px">' + ownRows.length + ' Vereins-Starter aus ' + allCount + ' Gesamteintr\u00e4gen</div>' +
+    '</div>';
+
+  var tableHtml =
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
+    '<thead><tr style="border-bottom:2px solid var(--border);color:var(--text2)">' +
+      '<th style="padding:6px 8px;text-align:left">&#x2714;</th>' +
+      '<th style="padding:6px 8px;text-align:left">Name</th>' +
+      '<th style="padding:6px 8px;text-align:left">Athlet DB</th>' +
+      '<th style="padding:6px 8px;text-align:left">Kat</th>' +
+      '<th style="padding:6px 8px;text-align:left">AK</th>' +
+      '<th style="padding:6px 8px;text-align:left">Disziplin</th>' +
+      '<th style="padding:6px 8px;text-align:right">Platz AK</th>' +
+      '<th style="padding:6px 8px;text-align:right">Zeit</th>' +
+    '</tr></thead><tbody>';
+
+  ownRows.forEach(function(row, i) {
+    var bestMatch = uitsAutoMatch(row.name, athleten);
+    var diszMatch = uitsAutoDiszMatchKat(row.kategorie, disziplinen, _kat);
+    tableHtml +=
+      '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:6px 8px"><input type="checkbox" class="uits-chk" data-idx="' + i + '" checked/></td>' +
+        '<td style="padding:6px 8px;font-weight:600">' + row.name + '<div style="font-size:11px;color:var(--text2)">' + row.verein + '</div></td>' +
+        '<td style="padding:6px 8px"><select class="uits-athlet" data-idx="' + i + '" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:140px">' + uitsAthOptHtml(athleten, bestMatch) + '</select></td>' +
+        '<td style="padding:6px 8px;font-size:12px;color:var(--text2)">' + row.kategorie + '</td>' +
+        '<td style="padding:6px 8px"><input type="text" class="uits-ak" data-idx="' + i + '" value="' + (row.ak || '') + '" style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)"/></td>' +
+        '<td style="padding:6px 8px"><select class="uits-disz" data-idx="' + i + '" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);min-width:160px">' + uitsDiszOptHtml(disziplinen, diszMatch, _kat) + '</select></td>' +
+        '<td style="padding:6px 8px;text-align:right;color:var(--text2)">' + (row.platz || '&ndash;') + '</td>' +
+        '<td style="padding:6px 8px;text-align:right;font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:15px;color:var(--result-color)">' + row.zeit + '</td>' +
+      '</tr>';
+  });
+
+  tableHtml += '</tbody></table></div>';
+  tableHtml +=
+    '<div style="margin-top:16px;display:flex;gap:10px;align-items:center">' +
+      '<button class="btn btn-primary" onclick="uitsImport()">&#x2705; Ausgew\u00e4hlte importieren</button>' +
+      '<div id="uits-status" style="font-size:13px;color:var(--text2)"></div>' +
+    '</div>';
+
+  container.innerHTML = headerHtml + tableHtml;
 }

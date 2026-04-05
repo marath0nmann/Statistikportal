@@ -4246,7 +4246,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
 if ($res === 'uits-fetch' && $method === 'GET') {
     Auth::requireLogin();
     $url = trim($_GET['url'] ?? '');
-    if (!$url || !preg_match('/^https?:\/\/uitslagen\.nl\//i', $url))
+    if (!$url || !preg_match('/^https?:\/\/(evenementen\.)?uitslagen\.nl\//i', $url))
         jsonErr('Ungültige uitslagen.nl-URL.', 400);
 
     $ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0 Safari/537.36';

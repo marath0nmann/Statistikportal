@@ -1,3 +1,18 @@
+## v943 – evenementen.uitslagen.nl Importer
+
+- Neue URL-Erkennung: `evenementen.uitslagen.nl/JJJJ/event-slug/` wird jetzt korrekt verarbeitet
+- PHP-Proxy: Regex erweitert um `evenementen.uitslagen.nl`-Subdomain
+- JS: Vollständig neuer Importpfad für das Frameset-basierte Altsystem:
+  - Lädt `menu.php` und zeigt Strecken-Dropdown (Halbe Marathon, 10 km, 5 km etc.)
+  - Holt alle Seiten `uitslag.php?on=N&p=P` sequentiell (max. 50 Seiten / 5.000 Einträge)
+  - Fortschrittsanzeige während des Ladens
+  - Parst `table.uitslag`-Spaltenstruktur: [2]=Name, [3]=Verein, [5]=Kat-Platz, [6]=Kategorie, [8]=Nettozeit
+  - AK-Mapping für evenementen-Kategorie-Codes: Msen→MHK, Wsen→WHK, M35→M35 usw.
+  - Filterung und Preview-UI identisch zum bestehenden uitslagen.nl-Importer
+- Defekter table-basierter Fallback in `uitsParseHTML()` entfernt
+
+---
+
 ## v942 – Jährliche Veranstaltungsserien
 
 - Neue Tabelle `veranstaltung_serien`: Gruppen für jährlich wiederkehrende Veranstaltungen (Name + Kürzel)

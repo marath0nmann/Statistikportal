@@ -1,8 +1,8 @@
-v942 – Jährliche Veranstaltungsserien
+v943 – evenementen.uitslagen.nl Importer
 
-- Neue Tabelle veranstaltung_serien für wiederkehrende Veranstaltungsgruppen
-- Serien-Übersicht mit Karten (Austragungen, Jahreszeitraum)
-- Serien-Detail: "Ergebnisse nach Jahr" + "Bestleistungen" (Gesamt/M/W/AK)
-- Veranstaltung-Edit-Modal mit Serien-Dropdown
-- Serien-Badge in Veranstaltungsliste
-- API: veranstaltung-serien (CRUD + Bestleistungen-Endpoint)
+- PHP-Proxy: Regex erlaubt jetzt evenementen.uitslagen.nl-Subdomain
+- Neue Importlogik: menu.php → Strecken-Dropdown → alle Seiten laden
+- Parst table.uitslag (Spaltenindex-basiert, nicht CSS-Klassen)
+- AK-Mapping für Msen/Wsen/M35/W40 etc.
+- Preview/Import-UI identisch zum bestehenden uitslagen.nl-Importer
+- Defekten table-Fallback in uitsParseHTML() entfernt
