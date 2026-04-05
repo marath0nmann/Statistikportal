@@ -1,4 +1,5 @@
-v945 – Automatische Versionsnummerierung beim Build
+v946 – Bugfix: JS-Cache-Busting (alle ?v=NNN werden jetzt aktualisiert)
 
-- build.sh: Version aus index.html lesen, +1, paket_vXXX.zip erzeugen
-- commit.sh: macOS _1/_2-Suffix wird beim ZIP-Namen abgeschnitten
+- build.sh: sed ersetzt jetzt auch ?v=NNN in Script/CSS-Tags
+- Ursache: Browser luden seit v942 altes v941-JavaScript
+- evenementen.uitslagen.nl-Importer wirkt damit jetzt korrekt

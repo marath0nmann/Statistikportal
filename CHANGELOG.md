@@ -1,3 +1,11 @@
+## v946 – Bugfix: JS-Cache-Busting und evenementen.uitslagen.nl-Import
+
+- **Hauptursache des „Keine Ergebnisse"-Fehlers**: `build.sh` aktualisierte die Versionsnummer nur im `<span id="header-version">`, aber nicht in den `?v=NNN`-Cache-Busting-Parametern der `<script>`- und `<link>`-Tags → Browser luden seit v942 immer noch v941-JavaScript
+- `build.sh` ersetzt jetzt zusätzlich alle `?v=[0-9]+` → `?v=NEWVER` in `index.html`, sodass Browser bei jedem Deploy frische JS/CSS-Dateien laden
+- Damit lädt ab v946 der korrekte Code für `evenementen.uitslagen.nl`-Importe (v943-Fix wirkt jetzt endlich)
+
+---
+
 ## v945 – Build-Prozess: Automatische Versionsnummerierung
 
 - Neues `build.sh`: liest Version aus `index.html`, erhöht um 1, baut `paket_vXXX.zip`

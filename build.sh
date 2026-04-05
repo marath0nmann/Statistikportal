@@ -16,7 +16,9 @@ echo "🔢 Version: v${CUR_VER} → v${NEW_VER}"
 
 # ── index.html aktualisieren ────────────────────────────────────────────────
 sed -i.bak "s/v${CUR_VER}/v${NEW_VER}/g" "$REPO_DIR/htdocs/index.html"
-rm -f "$REPO_DIR/htdocs/index.html.bak"
+# Cache-Busting ?v=NNN → ?v=NEWVER (unabhängig vom alten Wert)
+sed -i.bak2 "s/?v=[0-9][0-9]*/?v=${NEW_VER}/g" "$REPO_DIR/htdocs/index.html"
+rm -f "$REPO_DIR/htdocs/index.html.bak" "$REPO_DIR/htdocs/index.html.bak2"
 echo "✓ index.html → v${NEW_VER}"
 
 # ── ZIP bauen ───────────────────────────────────────────────────────────────
