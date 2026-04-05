@@ -1,8 +1,4 @@
-v943 – evenementen.uitslagen.nl Importer
+v945 – Automatische Versionsnummerierung beim Build
 
-- PHP-Proxy: Regex erlaubt jetzt evenementen.uitslagen.nl-Subdomain
-- Neue Importlogik: menu.php → Strecken-Dropdown → alle Seiten laden
-- Parst table.uitslag (Spaltenindex-basiert, nicht CSS-Klassen)
-- AK-Mapping für Msen/Wsen/M35/W40 etc.
-- Preview/Import-UI identisch zum bestehenden uitslagen.nl-Importer
-- Defekten table-Fallback in uitsParseHTML() entfernt
+- build.sh: Version aus index.html lesen, +1, paket_vXXX.zip erzeugen
+- commit.sh: macOS _1/_2-Suffix wird beim ZIP-Namen abgeschnitten

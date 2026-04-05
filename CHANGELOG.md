@@ -1,3 +1,11 @@
+## v945 – Build-Prozess: Automatische Versionsnummerierung
+
+- Neues `build.sh`: liest Version aus `index.html`, erhöht um 1, baut `paket_vXXX.zip`
+- `commit.sh`: macOS-Duplikat-Suffix `_1`, `_2` … wird beim ZIP-Namen automatisch abgeschnitten
+- Version wird bei jedem Build automatisch hochgezählt – keine manuellen Namenskonflikte mehr
+
+---
+
 ## v943 – evenementen.uitslagen.nl Importer
 
 - Neue URL-Erkennung: `evenementen.uitslagen.nl/JJJJ/event-slug/` wird jetzt korrekt verarbeitet

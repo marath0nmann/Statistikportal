@@ -11,7 +11,7 @@ REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 # ── Neuestes Paket aus Downloads ins Repo kopieren ──────────────────────────
 DOWNLOADS_DIR="$HOME/Downloads"
 
-# Höchste Versionsnummer finden – matcht paket_vXXX und paket_vXXX.zip
+# Höchste Versionsnummer finden – matcht paket_vXXX, paket_vXXX.zip, paket_vXXX_1.zip …
 LATEST=$(ls -d "$DOWNLOADS_DIR"/paket_v* 2>/dev/null | sort -V | tail -1)
 
 if [[ -z "$LATEST" ]]; then
@@ -19,9 +19,12 @@ if [[ -z "$LATEST" ]]; then
   exit 1
 fi
 
-# Falls sort die ZIP-Datei gewählt hat: Verzeichnis ableiten und ggf. entpacken
+# Falls ZIP-Datei: Verzeichnisnamen ableiten und ggf. entpacken
 if [[ "$LATEST" == *.zip ]]; then
-  VER=$(basename "$LATEST" .zip)
+  # macOS hängt bei Duplikaten _1, _2 … an den Dateinamen – diese abschneiden
+  # paket_v943_1.zip → paket_v943   |   paket_v943.zip → paket_v943
+  ZIP_BASE=$(basename "$LATEST" .zip)                  # z.B. paket_v943_1
+  VER=$(echo "$ZIP_BASE" | sed 's/_[0-9][0-9]*$//')    # z.B. paket_v943
   PAKET_DIR="$DOWNLOADS_DIR/$VER"
   if [[ ! -d "$PAKET_DIR" ]]; then
     echo ""
