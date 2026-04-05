@@ -2109,7 +2109,7 @@ function _veranstMarkdown(v) {
     body += '\n';
   });
 
-  return header + body + '\u{1F517} ' + url;
+  return header + body + '\u{1F517} [' + (v.name || v.kuerzel) + '](' + url + ')';
 }
 
 async function shareVeranstaltung(vid) {
