@@ -1,3 +1,12 @@
+## v949 – evenementen.uitslagen.nl: Alle Strecken automatisch laden
+
+- Kein „Strecke wählen"-Modal mehr: alle Strecken werden automatisch nacheinander geladen
+- Kein Vereinsname-Filter: `evenementen.uitslagen.nl` enthält keinen Vereinsnamen → Matching ausschließlich via `uitsAutoMatch()` gegen Athleten-DB
+- Streckenname wird im Debug-Log als Kontext je Ergebnis angezeigt
+- Veranstaltungsname wird aus allen geladenen Streckennamen zusammengesetzt
+
+---
+
 ## v946 – Bugfix: JS-Cache-Busting und evenementen.uitslagen.nl-Import
 
 - **Hauptursache des „Keine Ergebnisse"-Fehlers**: `build.sh` aktualisierte die Versionsnummer nur im `<span id="header-version">`, aber nicht in den `?v=NNN`-Cache-Busting-Parametern der `<script>`- und `<link>`-Tags → Browser luden seit v942 immer noch v941-JavaScript

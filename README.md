@@ -1,5 +1,5 @@
 # Statistikportal – Leichtathletik
-## Version v941 | Stand: April 2026
+## Version v949 | Stand: April 2026
 
 Webbasiertes Statistikportal für den Leichtathletik-Bereich.  
 PHP/MariaDB · Shared Hosting (all-inkl.com) · Vanilla JS/CSS · keine externen Frameworks
@@ -31,6 +31,7 @@ PHP/MariaDB · Shared Hosting (all-inkl.com) · Vanilla JS/CSS · keine externen
   - `my.raceresult.com/…` → RaceResult (inkl. tief verschachtelter AK-Listen)
   - `*.mikatiming.com/…` → MikaTiming
   - `uitslagen.nl/uitslag?id=…` → uitslagen.nl
+  - `evenementen.uitslagen.nl/JJJJ/slug/` → evenementen.uitslagen.nl (alle Strecken automatisch)
 - Debug-Fenster für alle Import-Quellen
 
 ### Login & Sicherheit
@@ -39,6 +40,11 @@ PHP/MariaDB · Shared Hosting (all-inkl.com) · Vanilla JS/CSS · keine externen
 - E-Mail-Verifizierungscode als 2FA-Fallback (6-stellig, 5 Min.)
 - Passwort-Reset per E-Mail
 - Avatar aus Athletenprofil wird nach Login sofort angezeigt
+
+### Veranstaltungen
+- **Veranstaltungsserien**: Gruppen für jährlich wiederkehrende Veranstaltungen
+  - Bestleistungen pro Serie (Gesamt, Frauen/Männer, nach AK)
+  - Ergebnisse nach Jahr sortiert
 
 ### Admin
 - **Benutzer**: Verwaltung + Rollenzuweisung; Rollen-Manager (anlegen, bearbeiten, löschen)

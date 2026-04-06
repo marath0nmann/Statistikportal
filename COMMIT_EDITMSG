@@ -1,5 +1,4 @@
-v946 – Bugfix: JS-Cache-Busting (alle ?v=NNN werden jetzt aktualisiert)
+v949 – evenementen.uitslagen.nl: Alle Strecken automatisch laden
 
-- build.sh: sed ersetzt jetzt auch ?v=NNN in Script/CSS-Tags
-- Ursache: Browser luden seit v942 altes v941-JavaScript
-- evenementen.uitslagen.nl-Importer wirkt damit jetzt korrekt
+- Kein Strecken-Modal: alle Races werden automatisch geladen
+- Vereinsfilter entfernt: nur uitsAutoMatch() gegen Athleten-DB
