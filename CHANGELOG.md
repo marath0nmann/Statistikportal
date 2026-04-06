@@ -1,3 +1,11 @@
+## v957 – Bugfixes: Seitenlimit, URL/Quelle, Datum-Diagnose
+
+- **5000-Einträge-Limit**: `MAX_PAGES` für evenementen.uitslagen.nl von 50 → 200 (20.000 Einträge/Strecke)
+- **URL/Quelle „nicht verfügbar"**: Import-URL wird jetzt beim Start in `window._bkLastImportUrl` gesichert → auch nach Tab-Wechsel verfügbar
+- **Datum**: Erweiterte Diagnose — zeigt im Debug-Log den HTML-Textsnippet wenn kein Datum gefunden wird, damit die Quelle identifiziert werden kann; zusätzlich DD-MM-YYYY und DD.MM.YYYY Formate unterstützt
+
+---
+
 ## v956 – Eintragen: Button-UX + Melde-Vorschau + Datum-Fix
 
 ### Einlesen-Button

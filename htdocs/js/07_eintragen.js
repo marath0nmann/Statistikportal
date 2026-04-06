@@ -735,6 +735,7 @@ async function bulkImportUrl() {
   if (!urlType || !kat) return;
 
   // Einlesen-Button ausblenden, Status-Button anzeigen
+  window._bkLastImportUrl = raw; // für "Schlechten Import melden"
   var einlesenBtn = document.getElementById('bk-einlesen-btn');
   if (einlesenBtn) einlesenBtn.style.display = 'none';
   if (statusEl) {
@@ -1384,7 +1385,7 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   // Alle Strecken laden
   var allRows = [];
   var rowNr   = 0;
-  var MAX_PAGES = 50;
+  var MAX_PAGES = 200;
 
   for (var ri = 0; ri < races.length; ri++) {
     var race = races[ri];
@@ -1395,17 +1396,16 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
       var pageUrl = baseUrl + 'uitslag.php?on=' + encodeURIComponent(race.on) + '&p=' + page;
       var rPage = await apiGet('uits-fetch?url=' + encodeURIComponent(pageUrl));
       if (!rPage || !rPage.ok) { _bkDbgLine(race.text, 'S.' + page + ' Fehler: ' + (rPage && rPage.fehler || '?')); break; }
-      // Datum aus erster Seite extrahieren (falls noch nicht gesetzt)
+      // Datum aus erster Seite extrahieren
       if (ri === 0 && page === 1 && rPage.data && rPage.data.html) {
         var _pageHtml = rPage.data.html;
+        // Debug: zeige ersten 300 Zeichen des HTML für Datum-Diagnose
+        var _nlM = {januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,september:9,oktober:10,november:11,december:12};
         var _datPat = /(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/i;
         var _mDp = _pageHtml.match(_datPat);
-        if (!_mDp) {
-          // numerisch: 26-3-2023 or 26/3/2023 or 26.3.2023
-          _mDp = _pageHtml.match(/(\d{1,2})[.\/-](\d{1,2})[.\/-](20\d\d)/);
-        }
+        if (!_mDp) _mDp = _pageHtml.match(/(\d{2})-(\d{2})-(20\d\d)/);
+        if (!_mDp) _mDp = _pageHtml.match(/(\d{2})\.(\d{2})\.(20\d\d)/);
         if (_mDp) {
-          var _nlM = {januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,september:9,oktober:10,november:11,december:12};
           var _pd, _pm, _py;
           if (/[a-z]/i.test(_mDp[2]||'')) {
             _pd = parseInt(_mDp[1]); _pm = _nlM[(_mDp[2]||'').toLowerCase()]||1; _py = parseInt(_mDp[3]);
@@ -1415,7 +1415,11 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
           var _dIso = _py + '-' + String(_pm).padStart(2,'0') + '-' + String(_pd).padStart(2,'0');
           var _dEl = document.getElementById('bk-datum');
           if (_dEl) { _dEl.value = _dIso; if (typeof bkSyncDatum === 'function') bkSyncDatum(_dIso); }
-          _bkDbgLine('Datum', _dIso + ' (uit uitslag.php)');
+          _bkDbgLine('Datum', _dIso + ' (uitslag.php)');
+        } else {
+          // Kein Datum in uitslag.php → HTML-Snippet für Diagnose
+          var _snip = _pageHtml.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,300);
+          _bkDbgLine('Datum-Suche', 'kein Datum in uitslag.php. Snippet: ' + _snip);
         }
       }
       var parsed = uitsEvenementenParsePage(rPage.data.html || '');
@@ -1998,7 +2002,7 @@ async function bulkMeldeImport() {
   }
 
   // Debug-Log + Rohdaten sammeln
-  var raw = (document.getElementById('bk-paste-area') || {}).value || '[nicht verf\u00fcgbar]';
+  var raw = window._bkLastImportUrl || (document.getElementById('bk-paste-area') || {}).value || '[nicht verf\u00fcgbar]';
   var debugLog = (typeof _bkDbgLines !== 'undefined' && _bkDbgLines.length) ? _bkDbgLines.join('\n') : '(kein Debug-Log)';
   var _vEl = document.querySelector('script[src*="02_app.js"]');
   var _vm = _vEl ? (_vEl.src||'').match(/v=(\d+)/) : null;
@@ -2036,7 +2040,7 @@ async function _bulkMeldeImportSend(repo, token, vNum, wer) {
   var kommentar = (document.getElementById('bk-melde-kommentar') || {}).value || '';
   closeModal();
 
-  var raw = (document.getElementById('bk-paste-area') || {}).value || '[nicht verf\u00fcgbar]';
+  var raw = window._bkLastImportUrl || (document.getElementById('bk-paste-area') || {}).value || '[nicht verf\u00fcgbar]';
   var debugLog = (typeof _bkDbgLines !== 'undefined' && _bkDbgLines.length) ? _bkDbgLines.join('\n') : '(kein Debug-Log)';
 
   var issueBody =

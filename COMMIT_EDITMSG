@@ -1,5 +1,5 @@
-v956 – Eintragen: Button-UX, Melde-Vorschau mit Kommentar, Datum-Fix
+v957 – Seitenlimit 50→200, URL/Quelle gesichert, Datum-Diagnose
 
-- Einlesen-Button während Import ausgeblendet
-- Melden: Vorschau-Modal + Freitext-Kommentar vor Issue-Erstellung
-- Datum aus uitslag.php extrahiert statt kop.html/voet.php
+- MAX_PAGES 50→200 (5000-Limit-Bug)
+- _bkLastImportUrl global für Melde-Modal
+- Datum: DD-MM-YYYY/DD.MM.YYYY + Debug-Snippet wenn nicht gefunden
