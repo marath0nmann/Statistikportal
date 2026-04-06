@@ -1,4 +1,3 @@
-v949 – evenementen.uitslagen.nl: Alle Strecken automatisch laden
+v950 – evenementen.uitslagen.nl: Diagnose-Output für Namens-Matching
 
-- Kein Strecken-Modal: alle Races werden automatisch geladen
-- Vereinsfilter entfernt: nur uitsAutoMatch() gegen Athleten-DB
+- Debug zeigt Athleten-DB-Größe und Beispielnamen aus dem Import

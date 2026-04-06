@@ -1322,10 +1322,14 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
 
   _bkDbgHeader('evenementen.uitslagen.nl');
   _bkDbgLine('Strecken', races.length + ' geladen');
-  _bkDbgLine('Gesamt',   allRows.length + ' Eintr\u00e4ge');
+  _bkDbgLine('Gesamt',   allRows.length + ' Einträge');
 
   // Immer per Athleten-Name-Match filtern (kein Vereinsname vorhanden)
   var athleten = state.athleten || [];
+  _bkDbgLine('Athleten-DB', athleten.length + ' Athleten geladen');
+  if (allRows.length) {
+    _bkDbgLine('Beispielnamen', allRows.slice(0,5).map(function(r){return r.name;}).join(', '));
+  }
   var ownRows = allRows.filter(function(r) { return uitsAutoMatch(r.name, athleten) !== null; });
 
   _bkDbgLine('Gefunden', ownRows.length + ' Treffer in Athleten-DB');

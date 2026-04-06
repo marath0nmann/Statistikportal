@@ -1,3 +1,10 @@
+## v950 – evenementen.uitslagen.nl: Debug-Ausgabe für Namens-Matching
+
+- Debug-Log zeigt jetzt: Anzahl Athleten in DB, erste 5 geladene Namen
+- Ermöglicht Diagnose warum uitsAutoMatch() 0 Treffer liefert
+
+---
+
 ## v949 – evenementen.uitslagen.nl: Alle Strecken automatisch laden
 
 - Kein „Strecke wählen"-Modal mehr: alle Strecken werden automatisch nacheinander geladen
