@@ -1285,9 +1285,46 @@ function mikaExtractRowsForBulk(data, kat) {
 
 // ── evenementen.uitslagen.nl → Bulk ─────────────────────────────────────────
 async function bulkImportFromEvenementenUits(url, kat, statusEl) {
-  var pathMatch = url.match(/evenementen\.uitslagen\.nl(\/\d{4}\/[^\/?\s]+\/)/i);
+  var pathMatch = url.match(/evenementen\.uitslagen\.nl(\/(\.?\d{4})\/([^\/?\ s]+)\/)/i);
+  // Also handle without trailing slash
+  if (!pathMatch) pathMatch = url.match(/evenementen\.uitslagen\.nl\/(\/(\d{4})\/([^\/?\ s]+))/i);
+  if (!pathMatch) pathMatch = (function() {
+    var m = url.match(/evenementen\.uitslagen\.nl\/((\d{4})\/([^\/?\ s]+))/i);
+    if (m) return [m[0], '/' + m[1] + '/', m[2], m[3]]; return null;
+  })();
   if (!pathMatch) { if (statusEl) statusEl.textContent = '\u274c Ungültige evenementen.uitslagen.nl-URL'; return; }
-  var baseUrl = 'https://evenementen.uitslagen.nl' + pathMatch[1];
+  var baseUrl = 'https://evenementen.uitslagen.nl/' + pathMatch[2] + '/' + pathMatch[3] + '/';
+  var evYear  = pathMatch[2] || '';
+  var evSlug  = pathMatch[3] || '';
+
+  // Fallback-Eventname aus URL-Slug
+  var evName = evSlug.charAt(0).toUpperCase() + evSlug.slice(1).replace(/-/g, ' ') + (evYear ? ' ' + evYear : '');
+  var evOrt  = '';
+
+  // Frameset-Seite → Titel holen
+  var rIdx = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl));
+  if (rIdx && rIdx.ok && rIdx.data && rIdx.data.html) {
+    var idxDoc = (new DOMParser()).parseFromString(rIdx.data.html, 'text/html');
+    var pageTitle = idxDoc.title || '';
+    if (pageTitle) evName = pageTitle.replace(/^Uitslagen\s+/i, '').trim() || evName;
+  }
+
+  // kop.html → Datum + Ort
+  var rKop = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'kop.html'));
+  if (rKop && rKop.ok && rKop.data && rKop.data.html) {
+    var kopDoc = (new DOMParser()).parseFromString(rKop.data.html, 'text/html');
+    var kopText = kopDoc.body ? kopDoc.body.textContent.trim() : '';
+    var mDat = kopText.match(/(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/i);
+    if (mDat) {
+      var _mn = {januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,september:9,oktober:10,november:11,december:12};
+      var _m = _mn[(mDat[2]||'').toLowerCase()] || 1;
+      var datumIso = mDat[3] + '-' + String(_m).padStart(2,'0') + '-' + mDat[1].padStart(2,'0');
+      var datEl = document.getElementById('bk-datum');
+      if (datEl && !datEl.value) { datEl.value = datumIso; if (typeof bkSyncDatum === 'function') bkSyncDatum(datumIso); }
+    }
+    var mOrt = kopText.match(/[-\u2013]\s*([A-Z][a-zA-Z\u00e4\u00f6\u00fc\u00df\-]+(\s+[A-Z][a-zA-Z\u00e4\u00f6\u00fc]+)?)\s*[,(\d]/);
+    if (mOrt && mOrt[1]) evOrt = mOrt[1].trim();
+  }
 
   if (statusEl) statusEl.textContent = '\u23f3 Lade Strecken\u2026';
   var rMenu = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'menu.php'));
@@ -1296,7 +1333,22 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   var races = uitsEvenementenParseMenu(rMenu.data.html || '');
   if (!races.length) { if (statusEl) statusEl.textContent = '\u274c Keine Strecken gefunden'; return; }
 
-  // Alle Strecken laden (kein Modal, kein Filter)
+  // Ort-Fallback: häufigstes Großwort in Streckennamen
+  if (!evOrt) {
+    var stopWords = /^(van|der|de|het|den|een|voor|uit|met|bij|hotel|logistics|kilometer|marathon|loop|run|kids|baby|bambino|kidzbase|rabobank|scelta|mushrooms|viking|seacon|valk|halve)$/i;
+    var ortCandidates = {};
+    races.forEach(function(rc) {
+      rc.text.split(/\s+/).forEach(function(w) {
+        if (w.length >= 4 && /^[A-Z]/.test(w) && !stopWords.test(w) && !/\d/.test(w)) {
+          ortCandidates[w] = (ortCandidates[w] || 0) + 1;
+        }
+      });
+    });
+    var sortedOrt = Object.keys(ortCandidates).sort(function(a,b){ return ortCandidates[b]-ortCandidates[a]; });
+    if (sortedOrt[0]) evOrt = sortedOrt[0];
+  }
+
+  // Alle Strecken laden
   var allRows = [];
   var rowNr   = 0;
   var MAX_PAGES = 50;
@@ -1309,9 +1361,8 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
       if (statusEl) statusEl.textContent = '\u23f3 ' + race.text + ' – Seite ' + page + '\u2026';
       var pageUrl = baseUrl + 'uitslag.php?on=' + encodeURIComponent(race.on) + '&p=' + page;
       var rPage = await apiGet('uits-fetch?url=' + encodeURIComponent(pageUrl));
-      if (!rPage || !rPage.ok) { _bkDbgLine(race.text + ' S.' + page, 'Fetch-Fehler: ' + (rPage && rPage.fehler || '?')); break; }
+      if (!rPage || !rPage.ok) { _bkDbgLine(race.text, 'S.' + page + ' Fehler: ' + (rPage && rPage.fehler || '?')); break; }
       var parsed = uitsEvenementenParsePage(rPage.data.html || '');
-      _bkDbgLine(race.text + ' S.' + page, parsed.rows.length + ' Zeilen, hasMore=' + parsed.hasMore);
       if (!parsed.rows.length) break;
       parsed.rows.forEach(function(tr) {
         var row = uitsEvenementenParseRow(Array.from(tr.querySelectorAll('td')), ++rowNr);
@@ -1320,43 +1371,93 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
       if (!parsed.hasMore) break;
       page++;
     }
-    _bkDbgLine(race.text + ' gesamt', raceRows + ' valide Eintr\u00e4ge');
+    _bkDbgLine(race.text, raceRows + ' Eintr\u00e4ge');
   }
 
   _bkDbgHeader('evenementen.uitslagen.nl');
-  _bkDbgLine('Strecken', races.length + ' geladen');
-  _bkDbgLine('Gesamt',   allRows.length + ' Einträge');
+  _bkDbgLine('Event',    evName + (evOrt ? ', ' + evOrt : ''));
+  _bkDbgLine('Strecken', races.length);
+  _bkDbgLine('Gesamt',   allRows.length + ' Eintr\u00e4ge');
 
-  // Immer per Athleten-Name-Match filtern (kein Vereinsname vorhanden)
+  // Athleten-Name-Match
   var athleten = state.athleten || [];
-  _bkDbgLine('Athleten-DB', athleten.length + ' Athleten geladen');
-  if (allRows.length) {
-    _bkDbgLine('Beispielnamen', allRows.slice(0,5).map(function(r){return r.name;}).join(', '));
-  }
   var ownRows = allRows.filter(function(r) { return uitsAutoMatch(r.name, athleten) !== null; });
+  _bkDbgLine('Gefunden', ownRows.length + ' Treffer');
 
-  _bkDbgLine('Gefunden', ownRows.length + ' Treffer in Athleten-DB');
   if (ownRows.length) {
     _bkDbgSep(); _bkDbgHeader('Ergebnisse');
     ownRows.forEach(function(r, i) {
-      var mid = uitsAutoDiszMatchKat(r.kategorie, state.disziplinen || [], kat);
+      var mid = uitsEvenementenDiszFromStrecke(r.strecke, state.disziplinen || [], kat);
       var dn  = mid ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==mid;})||{}).disziplin||'?' : '(keine)';
-      _bkDbgLines.push(String(i+1).padStart(2)+'.  '+(r.name||'?').padEnd(22)+(r.ak||'').padEnd(6)+r.zeit.padEnd(10)+(r.platz?'Platz\u00a0'+r.platz:'').padEnd(9)+'\u2192 '+dn+' ['+r.strecke+']');
+      _bkDbgLines.push(String(i+1).padStart(2)+'.  '+(r.name||'?').padEnd(22)+(r.ak||'').padEnd(6)+r.zeit.padEnd(10)+(r.platz?'Platz\u00a0'+r.platz:'').padEnd(9)+'\u2192 '+dn);
     });
     _bkDbgFlush();
   }
 
-  // Veranstaltungsfelder vorausfüllen
-  var evEl = document.getElementById('bk-evname');
-  if (evEl && !evEl.value) evEl.value = races.map(function(r){return r.text;}).join(', ');
+  // Felder vorausfüllen
+  var evEl  = document.getElementById('bk-evname');
+  var ortEl = document.getElementById('bk-ort');
+  if (evEl  && !evEl.value)  evEl.value  = evName;
+  if (ortEl && !ortEl.value && evOrt) ortEl.value = evOrt;
 
   var bulkRows = ownRows.map(function(row) {
-    var mid  = uitsAutoDiszMatchKat(row.kategorie, state.disziplinen, kat);
+    var mid  = uitsEvenementenDiszFromStrecke(row.strecke, state.disziplinen, kat);
     var disz = mid ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==mid;})||{}).disziplin||'' : '';
     return { name: row.name, resultat: row.zeit, ak: row.ak, platz: row.platz, disziplin: disz, diszMid: mid };
   });
 
   await bulkFillFromImport(bulkRows, statusEl);
+}
+// ── Disziplin aus Streckenname (evenementen.uitslagen.nl) ────────────────────
+// Streckenname enthält Distanz: "halve marathon", "10 kilometer", "5 kilometer", "1 km", "500 m"
+function uitsEvenementenDiszFromStrecke(streckeName, disziplinen, kat) {
+  var sn = (streckeName || '').toLowerCase();
+  var katDisz = kat ? disziplinen.filter(function(d){ return d.tbl_key === kat; }) : disziplinen;
+  if (!katDisz.length) katDisz = disziplinen;
+  if (!katDisz.length) return null;
+
+  // Distanz in Metern aus Streckenname
+  var distM = null;
+  if (/halve?\s+marathon/i.test(sn))             distM = 21097;
+  else if (/\bmarathon\b/i.test(sn))             distM = 42195;
+  else {
+    var kmM = sn.match(/(\d+[.,]?\d*)\s*kilometer/i) || sn.match(/(\d+[.,]?\d*)\s*km\b/i);
+    if (kmM) distM = Math.round(parseFloat(kmM[1].replace(',', '.')) * 1000);
+    else {
+      var mM = sn.match(/(\d+)\s*m\b/i);
+      if (mM) distM = parseInt(mM[1]);
+    }
+  }
+  if (distM === null) return katDisz[0].mapping_id || katDisz[0].id;
+
+  // 1. Versuch: distanz-Feld (Meter) aus Disziplin-Mapping
+  var bestMid = null, bestDiff = Infinity;
+  katDisz.forEach(function(d) {
+    var dDist = parseFloat(d.distanz) || 0;
+    if (dDist > 0) {
+      var diff = Math.abs(dDist - distM);
+      if (diff < bestDiff) { bestDiff = diff; bestMid = d.mapping_id || d.id; }
+    }
+  });
+  if (bestMid && bestDiff < distM * 0.15) return bestMid;
+
+  // 2. Versuch: Keyword-Match im Disziplinnamen
+  var kwMid = null;
+  katDisz.forEach(function(d) {
+    var dn = (d.disziplin || '').toLowerCase().replace(/[\s.,]/g, '');
+    var mid = d.mapping_id || d.id;
+    if (distM === 21097 && (dn.includes('21') || dn.includes('halbmarathon') || dn.includes('halvemarathon'))) kwMid = mid;
+    else if (distM === 42195 && (dn.includes('42') || dn === 'marathon')) kwMid = mid;
+    else if (distM === 10000 && dn.includes('10') && !dn.includes('100')) kwMid = mid;
+    else if (distM === 5000  && (dn === '5km' || dn === '5000m' || dn.includes('5km'))) kwMid = mid;
+    else if (distM === 3000  && (dn === '3km' || dn === '3000m')) kwMid = mid;
+    else if (distM === 1000  && (dn === '1km' || dn === '1000m')) kwMid = mid;
+    else if (distM === 500   && (dn === '500m' || dn.includes('500'))) kwMid = mid;
+  });
+  if (kwMid) return kwMid;
+
+  // 3. Fallback: erste Disziplin der Kategorie
+  return katDisz[0].mapping_id || katDisz[0].id;
 }
 
 // ── ACN Timing importer ──────────────────────────────────────────────────────

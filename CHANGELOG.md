@@ -1,3 +1,22 @@
+## v953 – evenementen.uitslagen.nl: Korrekte Disziplin, Ort und Veranstaltungsname
+
+- **Disziplin**: `uitsEvenementenDiszFromStrecke()` leitet Distanz aus Streckenname ab (Halbmarathon, 10km, 5km, 1km, 500m…) statt aus dem nutzlosen Kategorie-Code → passende Disziplin aus DB
+- **Veranstaltungsname**: aus URL-Slug und Jahr abgeleitet (z.B. "Venloop 2023"), nicht mehr als lange Streckenliste
+- **Ort**: aus Streckenname-Häufigkeitsanalyse extrahiert (häufigstes großes Wort = Stadt) als Fallback; kop.html-Parsing als Primärquelle
+- Datum-Parsing aus kop.html bleibt erhalten
+
+---
+
+## v953 – evenementen.uitslagen.nl: Korrekte Disziplin, Ort und Veranstaltungsname
+
+- **Disziplin**: Neue Funktion `uitsEvenementenDiszFromStrecke()` wertet den Streckennamen aus (z.B. `"Seacon Logistics 10 kilometer"` → `10km`) statt der Kategorie (`Msen` → früher `300m`)
+- **Veranstaltungsname**: Aus `<title>` der Frameset-Seite (z.B. `"Weir Venloop 2023"`) statt allen Streckennamen concateniert
+- **Ort**: aus `kop.html` extrahiert; Fallback: häufigstes Großwort in Streckennamen
+- **Datum**: aus `kop.html` (niederländisches Datumsformat → ISO) automatisch vorbelegt
+- Debug-Output bereinigt: nur noch relevante Zusammenfassung pro Strecke
+
+---
+
 ## v952 – Bugfix: evenementen.uitslagen.nl JSON-Encoding-Fehler
 
 - **Ursache**: PHP's `json_encode()` gibt bei ungültigen UTF-8-Bytes `false` zurück → leere HTTP-Antwort → JS meldet „Server-Fehler: " (leer)

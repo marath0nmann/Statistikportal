@@ -1,4 +1,5 @@
-v952 – Bugfix: evenementen.uitslagen.nl JSON-Encoding bei Sonderzeichen
+v953 – evenementen.uitslagen.nl: Disziplin/Ort/Eventname korrekt
 
-- jsonOk() mit JSON_INVALID_UTF8_SUBSTITUTE
-- uits-fetch bereinigt HTML-Response via mb_convert_encoding
+- Disziplin aus Streckenname (Distanz-Extraktion)
+- Eventname aus URL-Slug + Jahr
+- Ort aus Streckenname-Häufigkeitsanalyse
