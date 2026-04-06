@@ -1,3 +1,12 @@
+## v955 – evenementen.uitslagen.nl: Datum-Feld korrekt befüllen
+
+- Bug: `!datEl.value` war immer `false`, da Datum-Feld standardmäßig den heutigen Tag enthält → Datum wurde nie überschrieben
+- Fix: Bedingung entfernt, Datum wird jetzt immer gesetzt wenn gefunden
+- Zusätzliche Datum-Quelle: `voet.php` (Footer der Seite) wird nach Datumsangabe durchsucht
+- Unterstützt nl. Format (`26 maart 2023`) und numerisch (`26.03.2023`)
+
+---
+
 ## v953 – evenementen.uitslagen.nl: Korrekte Disziplin, Ort und Veranstaltungsname
 
 - **Disziplin**: `uitsEvenementenDiszFromStrecke()` leitet Distanz aus Streckenname ab (Halbmarathon, 10km, 5km, 1km, 500m…) statt aus dem nutzlosen Kategorie-Code → passende Disziplin aus DB

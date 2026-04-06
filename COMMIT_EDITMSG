@@ -1,5 +1,4 @@
-v953 – evenementen.uitslagen.nl: Disziplin/Ort/Eventname korrekt
+v955 – evenementen.uitslagen.nl: Datum-Feld korrekt befüllen
 
-- Disziplin aus Streckenname (Distanz-Extraktion)
-- Eventname aus URL-Slug + Jahr
-- Ort aus Streckenname-Häufigkeitsanalyse
+- !datEl.value Bedingung entfernt (Feld hat immer heute als Default)
+- voet.php als zusätzliche Datum-Quelle

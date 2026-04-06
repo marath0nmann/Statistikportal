@@ -1320,10 +1320,34 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
       var _m = _mn[(mDat[2]||'').toLowerCase()] || 1;
       var datumIso = mDat[3] + '-' + String(_m).padStart(2,'0') + '-' + mDat[1].padStart(2,'0');
       var datEl = document.getElementById('bk-datum');
-      if (datEl && !datEl.value) { datEl.value = datumIso; if (typeof bkSyncDatum === 'function') bkSyncDatum(datumIso); }
+      if (datEl) { datEl.value = datumIso; if (typeof bkSyncDatum === 'function') bkSyncDatum(datumIso); }
     }
     var mOrt = kopText.match(/[-\u2013]\s*([A-Z][a-zA-Z\u00e4\u00f6\u00fc\u00df\-]+(\s+[A-Z][a-zA-Z\u00e4\u00f6\u00fc]+)?)\s*[,(\d]/);
     if (mOrt && mOrt[1]) evOrt = mOrt[1].trim();
+  }
+
+  // Datum-Fallback: voet.php (Footer enthält oft Datum)
+  if (!document.getElementById('bk-datum') || !document.getElementById('bk-datum').value || document.getElementById('bk-datum').value === new Date().toISOString().slice(0,10)) {
+    var rVoet = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'voet.php'));
+    if (rVoet && rVoet.ok && rVoet.data && rVoet.data.html) {
+      var voetDoc = (new DOMParser()).parseFromString(rVoet.data.html, 'text/html');
+      var voetText = voetDoc.body ? voetDoc.body.textContent : '';
+      var mDat2 = voetText.match(/(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/i);
+      if (!mDat2) mDat2 = voetText.match(/(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{4})/);
+      if (mDat2) {
+        var _mn2 = {januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,september:9,oktober:10,november:11,december:12};
+        var _m2, _d2, _y2;
+        if (/[a-z]/i.test(mDat2[2]||'')) {
+          _m2 = _mn2[(mDat2[2]||'').toLowerCase()] || 1; _d2 = mDat2[1]; _y2 = mDat2[3];
+        } else {
+          _d2 = mDat2[1]; _m2 = parseInt(mDat2[2]); _y2 = mDat2[3];
+        }
+        var datumIso2 = _y2 + '-' + String(_m2).padStart(2,'0') + '-' + String(_d2).padStart(2,'0');
+        var datEl2 = document.getElementById('bk-datum');
+        if (datEl2) { datEl2.value = datumIso2; if (typeof bkSyncDatum === 'function') bkSyncDatum(datumIso2); }
+        _bkDbgLine('Datum', datumIso2 + ' (aus voet.php)');
+      }
+    }
   }
 
   if (statusEl) statusEl.textContent = '\u23f3 Lade Strecken\u2026';
