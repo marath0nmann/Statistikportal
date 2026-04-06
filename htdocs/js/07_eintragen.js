@@ -1291,77 +1291,57 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
 
   if (statusEl) statusEl.textContent = '\u23f3 Lade Strecken\u2026';
   var rMenu = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'menu.php'));
-  if (!rMenu || !rMenu.ok) { if (statusEl) statusEl.textContent = '\u274c ' + (rMenu && rMenu.fehler || 'Fehler beim Laden'); return; }
+  if (!rMenu || !rMenu.ok) { if (statusEl) statusEl.textContent = '\u274c ' + (rMenu && rMenu.fehler || 'Fehler'); return; }
 
   var races = uitsEvenementenParseMenu(rMenu.data.html || '');
   if (!races.length) { if (statusEl) statusEl.textContent = '\u274c Keine Strecken gefunden'; return; }
 
-  // Strecken-Auswahl per Modal
-  var onParam = await new Promise(function(resolve) {
-    var optsHtml = races.map(function(rc) {
-      return '<option value="' + rc.on + '">' + rc.text.replace(/"/g, '&quot;') + '</option>';
-    }).join('');
-    showModal(
-      '<h2>\uD83C\uDFC1 Strecke w\u00e4hlen <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
-      '<select id="_ev-race-sel" style="width:100%;padding:8px;margin:12px 0 18px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:var(--surface);color:var(--text)">' +
-        optsHtml +
-      '</select>' +
-      '<div class="modal-actions">' +
-        '<button class="btn btn-ghost" onclick="closeModal();window._evRaceResolve(null)">Abbrechen</button>' +
-        '<button class="btn btn-primary" onclick="window._evRaceResolve(document.getElementById(\'_ev-race-sel\').value);closeModal()">\u25b6 Laden</button>' +
-      '</div>'
-    );
-    window._evRaceResolve = resolve;
-  });
-
-  if (!onParam) { if (statusEl) statusEl.textContent = ''; return; }
-
-  var raceName = (races.find(function(rc) { return rc.on === onParam; }) || {}).text || '';
-  var allRows  = [];
-  var rowNr    = 0;
-  var page     = 1;
+  // Alle Strecken laden (kein Modal, kein Filter)
+  var allRows = [];
+  var rowNr   = 0;
   var MAX_PAGES = 50;
 
-  while (page <= MAX_PAGES) {
-    if (statusEl) statusEl.textContent = '\u23f3 Seite ' + page + ' laden\u2026';
-    var pageUrl = baseUrl + 'uitslag.php?on=' + encodeURIComponent(onParam) + '&p=' + page;
-    var rPage = await apiGet('uits-fetch?url=' + encodeURIComponent(pageUrl));
-    if (!rPage || !rPage.ok) break;
-    var parsed = uitsEvenementenParsePage(rPage.data.html || '');
-    if (!parsed.rows.length) break;
-    parsed.rows.forEach(function(tr) {
-      var row = uitsEvenementenParseRow(Array.from(tr.querySelectorAll('td')), ++rowNr);
-      if (row) allRows.push(row);
-    });
-    if (!parsed.hasMore) break;
-    page++;
+  for (var ri = 0; ri < races.length; ri++) {
+    var race = races[ri];
+    var page = 1;
+    while (page <= MAX_PAGES) {
+      if (statusEl) statusEl.textContent = '\u23f3 ' + race.text + ' – Seite ' + page + '\u2026';
+      var pageUrl = baseUrl + 'uitslag.php?on=' + encodeURIComponent(race.on) + '&p=' + page;
+      var rPage = await apiGet('uits-fetch?url=' + encodeURIComponent(pageUrl));
+      if (!rPage || !rPage.ok) break;
+      var parsed = uitsEvenementenParsePage(rPage.data.html || '');
+      if (!parsed.rows.length) break;
+      parsed.rows.forEach(function(tr) {
+        var row = uitsEvenementenParseRow(Array.from(tr.querySelectorAll('td')), ++rowNr);
+        if (row) { row.strecke = race.text; allRows.push(row); }
+      });
+      if (!parsed.hasMore) break;
+      page++;
+    }
   }
 
   _bkDbgHeader('evenementen.uitslagen.nl');
-  _bkDbgLine('Strecke', raceName);
-  _bkDbgLine('Gesamt',  allRows.length + ' Eintr\u00e4ge (' + page + ' Seiten)');
+  _bkDbgLine('Strecken', races.length + ' geladen');
+  _bkDbgLine('Gesamt',   allRows.length + ' Eintr\u00e4ge');
 
-  // Vereinsfilter – Fallback auf Athleten-Name-Match
-  var ownRows = allRows.filter(function(r) { return r.ownClub; });
-  if (!ownRows.length && allRows.length) {
-    var _ath = state.athleten || [];
-    ownRows = allRows.filter(function(r) { return uitsAutoMatch(r.name, _ath) !== null; });
-    _bkDbgLine('Hinweis', 'Kein Vereinstreffer – ' + ownRows.length + ' Namens-Treffer');
-  }
-  _bkDbgLine('Gefunden', ownRows.length + ' TuS-Eintr\u00e4ge');
+  // Immer per Athleten-Name-Match filtern (kein Vereinsname vorhanden)
+  var athleten = state.athleten || [];
+  var ownRows = allRows.filter(function(r) { return uitsAutoMatch(r.name, athleten) !== null; });
+
+  _bkDbgLine('Gefunden', ownRows.length + ' Treffer in Athleten-DB');
   if (ownRows.length) {
     _bkDbgSep(); _bkDbgHeader('Ergebnisse');
     ownRows.forEach(function(r, i) {
       var mid = uitsAutoDiszMatchKat(r.kategorie, state.disziplinen || [], kat);
       var dn  = mid ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==mid;})||{}).disziplin||'?' : '(keine)';
-      _bkDbgLines.push(String(i+1).padStart(2)+'.  '+(r.name||'?').padEnd(22)+(r.ak||'').padEnd(6)+r.zeit.padEnd(10)+(r.platz?'Platz\u00a0'+r.platz:'').padEnd(9)+'\u2192 '+dn+' ['+r.kategorie+']');
+      _bkDbgLines.push(String(i+1).padStart(2)+'.  '+(r.name||'?').padEnd(22)+(r.ak||'').padEnd(6)+r.zeit.padEnd(10)+(r.platz?'Platz\u00a0'+r.platz:'').padEnd(9)+'\u2192 '+dn+' ['+r.strecke+']');
     });
     _bkDbgFlush();
   }
 
   // Veranstaltungsfelder vorausfüllen
   var evEl = document.getElementById('bk-evname');
-  if (evEl && !evEl.value) evEl.value = raceName;
+  if (evEl && !evEl.value) evEl.value = races.map(function(r){return r.text;}).join(', ');
 
   var bulkRows = ownRows.map(function(row) {
     var mid  = uitsAutoDiszMatchKat(row.kategorie, state.disziplinen, kat);
