@@ -44,7 +44,15 @@ if (!empty($_SESSION['user_id'])) {
 }
 
 function jsonOk(mixed $data): void {
-    echo json_encode(['ok' => true, 'data' => $data]);
+    $out = json_encode(['ok' => true, 'data' => $data], JSON_INVALID_UTF8_SUBSTITUTE);
+    if ($out === false) {
+        // Fallback: ungültige UTF-8-Bytes bereinigen und erneut versuchen
+        array_walk_recursive($data, function(&$v) {
+            if (is_string($v)) $v = mb_convert_encoding($v, 'UTF-8', 'UTF-8');
+        });
+        $out = json_encode(['ok' => true, 'data' => $data], JSON_INVALID_UTF8_SUBSTITUTE);
+    }
+    echo $out ?: json_encode(['ok' => false, 'fehler' => 'JSON-Encoding-Fehler']);
     exit;
 }
 function jsonErr(string $msg, int $code = 400): void {
@@ -4268,6 +4276,8 @@ if ($res === 'uits-fetch' && $method === 'GET') {
     if (!$html || $httpCode >= 400)
         jsonErr('uitslagen.nl nicht erreichbar (HTTP ' . $httpCode . ').', 502);
 
+    // Ungültige UTF-8-Bytes entfernen (Ländernamen, Sonderzeichen in Resultaten)
+    $html = mb_convert_encoding($html, 'UTF-8', 'UTF-8');
     jsonOk(['html' => $html]);
 }
 

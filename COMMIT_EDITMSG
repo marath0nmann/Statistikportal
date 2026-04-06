@@ -1,3 +1,4 @@
-v951 – evenementen.uitslagen.nl: Debug-Output pro Strecke/Seite
+v952 – Bugfix: evenementen.uitslagen.nl JSON-Encoding bei Sonderzeichen
 
-- Zeigt Zeilenanzahl, hasMore und Fehler pro Strecke+Seite
+- jsonOk() mit JSON_INVALID_UTF8_SUBSTITUTE
+- uits-fetch bereinigt HTML-Response via mb_convert_encoding

@@ -1,3 +1,12 @@
+## v952 – Bugfix: evenementen.uitslagen.nl JSON-Encoding-Fehler
+
+- **Ursache**: PHP's `json_encode()` gibt bei ungültigen UTF-8-Bytes `false` zurück → leere HTTP-Antwort → JS meldet „Server-Fehler: " (leer)
+- Betroffen: halve marathon / 10km / 5km mit internationalen Teilnehmern (tschechische, polnische Sonderzeichen in Namen)
+- **Fix 1**: `jsonOk()` nutzt jetzt `JSON_INVALID_UTF8_SUBSTITUTE` als Flag; mit mb_convert_encoding-Fallback
+- **Fix 2**: `uits-fetch`-Proxy bereinigt HTML vor der Rückgabe via `mb_convert_encoding`
+
+---
+
 ## v951 – evenementen.uitslagen.nl: Detaillierter Debug pro Strecke/Seite
 
 - Debug-Log zeigt jetzt pro Strecke und Seite: Zeilenanzahl, hasMore-Status, Fetch-Fehler
