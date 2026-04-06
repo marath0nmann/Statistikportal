@@ -3825,9 +3825,6 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
                 $vid = DB::lastInsertId();
             } else $vid = $v['id'];
         }
-        $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
-            [$vid, $aid, $disziplin, $resultat]);
-        if ($dup) { $skipped++; continue; }
         // mapping_id: vom Client bevorzugen (exakter Kategorie-Treffer)
         $midFromClient = isset($item['disziplin_mapping_id']) && is_numeric($item['disziplin_mapping_id']) ? (int)$item['disziplin_mapping_id'] : null;
         if ($midFromClient) {
@@ -3837,6 +3834,24 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         }
         $dmFmt = $dmInfo['fmt'] ?? 'min';
         [$resultat, $rnum] = normalizeResultat($resultat, $dmFmt);
+
+        // Externes Ergebnis (nicht für den Verein) → athlet_pb statt ergebnisse
+        $isExtern = !empty($item['extern']);
+        if ($isExtern) {
+            $wettkampf = trim(($evname ?: '') . ($ort ? ', ' . $ort : '') . ($datum ? ' (' . $datum . ')' : ''));
+            $dupPb = DB::fetchOne('SELECT id FROM ' . DB::tbl('athlet_pb') . ' WHERE athlet_id=? AND disziplin=? AND resultat=?',
+                [$aid, $disziplin, $resultat]);
+            if ($dupPb) { $skipped++; continue; }
+            DB::query('INSERT INTO ' . DB::tbl('athlet_pb') . ' (athlet_id, disziplin, disziplin_mapping_id, resultat, wettkampf, datum, altersklasse) VALUES (?,?,?,?,?,?,?)',
+                [$aid, $disziplin, $dmInfo ? (int)$dmInfo['id'] : null, $resultat, $wettkampf, $datum ?: null, $ak]);
+            autoMapDisziplin($disziplin);
+            $imported++;
+            continue;
+        }
+
+        $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
+            [$vid, $aid, $disziplin, $resultat]);
+        if ($dup) { $skipped++; continue; }
         DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             [$vid,$aid,$ak,$disziplin,$dmInfo ? (int)$dmInfo['id'] : null,$resultat,$rnum,$akp,$mstr,$akpm,$quelle,$user['id']]);
         autoMapDisziplin($disziplin);

@@ -1,3 +1,29 @@
+## v960 – Bulk-Eintragen: Checkbox „Nicht für Verein" → externes Ergebnis
+
+- Neue Spalte in der Bulk-Ergebnistabelle: Checkbox „Nicht für Verein"
+- Wenn angehakt → Ergebnis wird als **externes Ergebnis** (`athlet_pb`) gespeichert statt als Vereinsergebnis (`ergebnisse`)
+- Wird z.B. benötigt wenn ein Athlet bei einem anderen Verein oder privat gestartet ist
+- API `ergebnisse/bulk`: `extern: true` → `INSERT INTO athlet_pb` (Wettkampfname aus Veranstaltungsfeldern)
+- Feld `bulkFillFromImport`: `row.extern = true` setzt Checkbox automatisch
+
+---
+
+## v959 – Datum: Suche via uitslagen.nl
+
+- Datum wird jetzt über `uitslagen.nl/evenementen.php?zoek=SLUG&jaar=YEAR` gesucht
+- `uitslagen.nl`-Eventseiten enthalten immer das Datum im Format `DD-MM-YYYY`
+- Debug-Log zeigt Suchergebnis und gefundenes Datum
+
+---
+
+## v958 – Datum: Klare Fehlermeldung + Diagnose kop.html/voet.php
+
+- Wenn kein Datum gefunden: Datum-Feld wird geleert + rote Notification „Datum bitte manuell eingeben"
+- Debug-Log zeigt jetzt Inhalt von `kop.html` und `voet.php` für spätere Analyse der Datumsquelle
+- MAX_PAGES-Fix aus v957 bestätigt: Halbmarathon Venloop 2023 jetzt 7823 Einträge (vorher 5000 abgeschnitten)
+
+---
+
 ## v957 – Bugfixes: Seitenlimit, URL/Quelle, Datum-Diagnose
 
 - **5000-Einträge-Limit**: `MAX_PAGES` für evenementen.uitslagen.nl von 50 → 200 (20.000 Einträge/Strecke)

@@ -1,5 +1,4 @@
-v957 – Seitenlimit 50→200, URL/Quelle gesichert, Datum-Diagnose
+v960 – Bulk-Eintragen: Checkbox "Nicht für Verein" → externes Ergebnis (athlet_pb)
 
-- MAX_PAGES 50→200 (5000-Limit-Bug)
-- _bkLastImportUrl global für Melde-Modal
-- Datum: DD-MM-YYYY/DD.MM.YYYY + Debug-Snippet wenn nicht gefunden
+- Neue bk-extern Checkbox in jeder Bulk-Zeile
+- extern: true → INSERT INTO athlet_pb statt ergebnisse

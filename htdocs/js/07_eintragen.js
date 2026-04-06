@@ -312,6 +312,7 @@ function renderEintragen() {
               '<th class="bk-mstr-th" style="padding:8px 6px;text-align:left;font-weight:600;display:none">Meisterschaft</th>' +
               '<th class="bk-mstr-th" style="padding:8px 6px;text-align:left;font-weight:600;display:none">Platz MS</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Datum</th>' +
+              '<th style="padding:8px 6px;text-align:center;font-weight:600;font-size:11px;max-width:70px" title="Nicht für den Verein gelaufen → externes Ergebnis (athlet_pb)">Nicht für Verein</th>' +
               '<th style="padding:8px 6px;width:36px"></th>' +
             '</tr></thead>' +
             '<tbody id="bulk-rows"></tbody>' +
@@ -495,6 +496,9 @@ function bulkRowHtml(idx) {
       '<input type="number" class="bk-mstr-platz" min="1" placeholder="Platz" style="' + fld + ';width:80px">' +
     '</td>' +
     '<td style="padding:4px 6px"><input class="bk-zeilendatum" type="text" placeholder="TT.MM.JJJJ" style="' + fld + ';min-width:110px" title="Datum dieser Zeile (überschreibt globales Datum)"/></td>' +
+    '<td style="padding:4px 6px;text-align:center">' +
+      '<input type="checkbox" class="bk-extern" title="Nicht für den Verein gelaufen → wird als externes Ergebnis gespeichert" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent)"/>' +
+    '</td>' +
     '<td style="padding:4px 6px;text-align:center"><button onclick="bulkRemoveRow(' + idx + ')" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;padding:2px 4px" title="Zeile entfernen">&#x2715;</button></td>' +
   '</tr>';
 }
@@ -603,6 +607,7 @@ async function bulkSubmit() {
       altersklasse: row.querySelector('.bk-ak') ? row.querySelector('.bk-ak').value.trim() : '',
       _zeilendatum: row.querySelector('.bk-zeilendatum') ? row.querySelector('.bk-zeilendatum').value.trim() : '',
       ak_platzierung: row.querySelector('.bk-platz') && row.querySelector('.bk-platz').value ? parseInt(row.querySelector('.bk-platz').value) : null,
+      extern: !!(row.querySelector('.bk-extern') && row.querySelector('.bk-extern').checked),
     });
   }
   if (!items.length) { notify('Keine Eintr&auml;ge zum Speichern!', 'err'); return; }
@@ -1319,11 +1324,32 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
     if (pageTitle) evName = pageTitle.replace(/^Uitslagen\s+/i, '').trim() || evName;
   }
 
-  // kop.html → Datum + Ort
+  // Datum: uitslagen.nl-Suche über Slug (zuverlässigste Quelle)
+  // Event-IDs auf uitslagen.nl beginnen immer mit YYYYMMDD
+  var _rUitsDatum = await apiGet('uits-fetch?url=' + encodeURIComponent('https://uitslagen.nl/uitslag?id=' + evYear));
+  // Besser: Suche nach Slug auf der Evenementen-Übersichtsseite
+  var _uitsDatumUrl = 'https://uitslagen.nl/evenementen.php?zoek=' + encodeURIComponent(evSlug.replace(/-/g,' ')) + '&jaar=' + evYear;
+  var rUits = await apiGet('uits-fetch?url=' + encodeURIComponent(_uitsDatumUrl));
+  if (rUits && rUits.ok && rUits.data && rUits.data.html) {
+    var uitsDoc = (new DOMParser()).parseFromString(rUits.data.html, 'text/html');
+    var uitsText = uitsDoc.body ? uitsDoc.body.textContent : '';
+    _bkDbgLine('uitslagen.nl-Suche', uitsText.slice(0, 300).replace(/\s+/g,' '));
+    // Datum im Format DD-MM-YYYY oder D-M-YYYY suchen
+    var _mU = uitsText.match(/(\d{1,2})-(\d{2})-(\d{4})/);
+    if (_mU) {
+      var _dIsoU = _mU[3] + '-' + _mU[2].padStart(2,'0') + '-' + _mU[1].padStart(2,'0');
+      var _dElU = document.getElementById('bk-datum');
+      if (_dElU) { _dElU.value = _dIsoU; if (typeof bkSyncDatum === 'function') bkSyncDatum(_dIsoU); }
+      _bkDbgLine('Datum', _dIsoU + ' (uitslagen.nl)');
+    }
+  }
+
+  // kop.html → Ort (Datum ist dort leer, Ort manchmal vorhanden)
   var rKop = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'kop.html'));
   if (rKop && rKop.ok && rKop.data && rKop.data.html) {
     var kopDoc = (new DOMParser()).parseFromString(rKop.data.html, 'text/html');
     var kopText = kopDoc.body ? kopDoc.body.textContent.trim() : '';
+    _bkDbgLine('kop.html', kopText.slice(0,200) || '(leer)');
     var mDat = kopText.match(/(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/i);
     if (mDat) {
       var _mn = {januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,september:9,oktober:10,november:11,december:12};
@@ -1342,6 +1368,7 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
     if (rVoet && rVoet.ok && rVoet.data && rVoet.data.html) {
       var voetDoc = (new DOMParser()).parseFromString(rVoet.data.html, 'text/html');
       var voetText = voetDoc.body ? voetDoc.body.textContent : '';
+      _bkDbgLine('voet.php', voetText.slice(0,200) || '(leer)');
       var mDat2 = voetText.match(/(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/i);
       if (!mDat2) mDat2 = voetText.match(/(\d{1,2})[-.\/](\d{1,2})[-.\/](\d{4})/);
       if (mDat2) {
@@ -1417,9 +1444,13 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
           if (_dEl) { _dEl.value = _dIso; if (typeof bkSyncDatum === 'function') bkSyncDatum(_dIso); }
           _bkDbgLine('Datum', _dIso + ' (uitslag.php)');
         } else {
-          // Kein Datum in uitslag.php → HTML-Snippet für Diagnose
-          var _snip = _pageHtml.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,300);
-          _bkDbgLine('Datum-Suche', 'kein Datum in uitslag.php. Snippet: ' + _snip);
+          // Kein Datum in uitslag.php → Jahr aus URL, Monat/Tag manuell nötig
+          _bkDbgLine('Datum', '⚠ nicht gefunden – bitte manuell eintragen (' + evYear + ')');
+          // Datum-Feld leeren damit Nutzer es sieht
+          var _dEl2 = document.getElementById('bk-datum');
+          if (_dEl2) { _dEl2.value = ''; if (typeof bkSyncDatum === 'function') bkSyncDatum(''); }
+          // Notify
+          notify('📅 Datum nicht automatisch gefunden – bitte manuell eingeben!', 'err');
         }
       }
       var parsed = uitsEvenementenParsePage(rPage.data.html || '');
@@ -1936,6 +1967,9 @@ async function bulkFillFromImport(rows, statusEl) {
         zdEl.value = _dm ? _dm[3] + '.' + _dm[2] + '.' + _dm[1] : _rowDatum;
       }
     }
+    // Extern-Checkbox
+    var extChk = tr.querySelector('.bk-extern');
+    if (extChk && row.extern) extChk.checked = true;
   });
 
   // Zeilennummern neu durchzählen
