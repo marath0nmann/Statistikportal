@@ -1,3 +1,10 @@
+## v951 – evenementen.uitslagen.nl: Detaillierter Debug pro Strecke/Seite
+
+- Debug-Log zeigt jetzt pro Strecke und Seite: Zeilenanzahl, hasMore-Status, Fetch-Fehler
+- Ermöglicht genaue Diagnose wo Zeilen verloren gehen (hasMore-Bug, Spalten-Mismatch etc.)
+
+---
+
 ## v950 – evenementen.uitslagen.nl: Debug-Ausgabe für Namens-Matching
 
 - Debug-Log zeigt jetzt: Anzahl Athleten in DB, erste 5 geladene Namen

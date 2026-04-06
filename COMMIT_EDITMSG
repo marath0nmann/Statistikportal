@@ -1,3 +1,3 @@
-v950 – evenementen.uitslagen.nl: Diagnose-Output für Namens-Matching
+v951 – evenementen.uitslagen.nl: Debug-Output pro Strecke/Seite
 
-- Debug zeigt Athleten-DB-Größe und Beispielnamen aus dem Import
+- Zeigt Zeilenanzahl, hasMore und Fehler pro Strecke+Seite

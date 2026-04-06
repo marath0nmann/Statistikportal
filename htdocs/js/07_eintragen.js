@@ -1304,20 +1304,23 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   for (var ri = 0; ri < races.length; ri++) {
     var race = races[ri];
     var page = 1;
+    var raceRows = 0;
     while (page <= MAX_PAGES) {
       if (statusEl) statusEl.textContent = '\u23f3 ' + race.text + ' – Seite ' + page + '\u2026';
       var pageUrl = baseUrl + 'uitslag.php?on=' + encodeURIComponent(race.on) + '&p=' + page;
       var rPage = await apiGet('uits-fetch?url=' + encodeURIComponent(pageUrl));
-      if (!rPage || !rPage.ok) break;
+      if (!rPage || !rPage.ok) { _bkDbgLine(race.text + ' S.' + page, 'Fetch-Fehler: ' + (rPage && rPage.fehler || '?')); break; }
       var parsed = uitsEvenementenParsePage(rPage.data.html || '');
+      _bkDbgLine(race.text + ' S.' + page, parsed.rows.length + ' Zeilen, hasMore=' + parsed.hasMore);
       if (!parsed.rows.length) break;
       parsed.rows.forEach(function(tr) {
         var row = uitsEvenementenParseRow(Array.from(tr.querySelectorAll('td')), ++rowNr);
-        if (row) { row.strecke = race.text; allRows.push(row); }
+        if (row) { row.strecke = race.text; allRows.push(row); raceRows++; }
       });
       if (!parsed.hasMore) break;
       page++;
     }
+    _bkDbgLine(race.text + ' gesamt', raceRows + ' valide Eintr\u00e4ge');
   }
 
   _bkDbgHeader('evenementen.uitslagen.nl');
