@@ -1,3 +1,22 @@
+## v956 – Eintragen: Button-UX + Melde-Vorschau + Datum-Fix
+
+### Einlesen-Button
+- Während Import läuft: Button „Einlesen" wird ausgeblendet und Status als nicht-klickbarer Text angezeigt
+- Nach Abschluss: Button wieder sichtbar
+
+### Schlechten Import melden
+- Klick öffnet jetzt zunächst eine **Vorschau** des zu erstellenden GitHub-Issues
+- Zeigt: Issue-Titel, gemeldete Version, URL/Quelle, Debug-Log (aufklappbar)
+- **Kommentarfeld** (Freitext): „Was stimmt nicht?"
+- Erst nach Bestätigung wird das Issue tatsächlich erstellt
+
+### Datum (evenementen.uitslagen.nl)
+- Datum-Extraktion jetzt aus `uitslag.php?on=1&p=1` (erste geladene Ergebnisseite) statt nur aus `kop.html`/`voet.php`
+- Unterstützt nl. Format (`26 maart 2023`) und numerisch (`26-3-2023`, `26.3.2023`)
+- Bug: `!datEl.value`-Bedingung verhinderte Überschreiben des Default-Datums (bereits in v955 behoben)
+
+---
+
 ## v955 – evenementen.uitslagen.nl: Datum-Feld korrekt befüllen
 
 - Bug: `!datEl.value` war immer `false`, da Datum-Feld standardmäßig den heutigen Tag enthält → Datum wurde nie überschrieben

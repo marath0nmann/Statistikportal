@@ -1,4 +1,5 @@
-v955 – evenementen.uitslagen.nl: Datum-Feld korrekt befüllen
+v956 – Eintragen: Button-UX, Melde-Vorschau mit Kommentar, Datum-Fix
 
-- !datEl.value Bedingung entfernt (Feld hat immer heute als Default)
-- voet.php als zusätzliche Datum-Quelle
+- Einlesen-Button während Import ausgeblendet
+- Melden: Vorschau-Modal + Freitext-Kommentar vor Issue-Erstellung
+- Datum aus uitslag.php extrahiert statt kop.html/voet.php

@@ -734,7 +734,13 @@ async function bulkImportUrl() {
   var urlType = bulkDetectUrl(raw);
   if (!urlType || !kat) return;
 
-  if (statusEl) statusEl.textContent = '⏳ Lade…';
+  // Einlesen-Button ausblenden, Status-Button anzeigen
+  var einlesenBtn = document.getElementById('bk-einlesen-btn');
+  if (einlesenBtn) einlesenBtn.style.display = 'none';
+  if (statusEl) {
+    statusEl.style.display = 'inline-flex';
+    statusEl.textContent = '⏳ Lade…';
+  }
   var _bkQuelle = urlType === 'raceresult'     ? 'RaceResult' :
                   urlType === 'mikatiming'     ? 'MikaTiming' :
                   urlType === 'leichtathletik' ? 'leichtathletik.de' : urlType === 'acn' ? 'ACN Timing' : urlType === 'evenementen' ? 'evenementen.uitslagen.nl' : 'uitslagen.nl';
@@ -765,6 +771,9 @@ async function bulkImportUrl() {
     }
   } catch(e) {
     if (statusEl) statusEl.textContent = '❌ ' + e.message;
+  } finally {
+    // Einlesen-Button wieder einblenden
+    if (einlesenBtn) einlesenBtn.style.display = '';
   }
 }
 
@@ -1386,6 +1395,29 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
       var pageUrl = baseUrl + 'uitslag.php?on=' + encodeURIComponent(race.on) + '&p=' + page;
       var rPage = await apiGet('uits-fetch?url=' + encodeURIComponent(pageUrl));
       if (!rPage || !rPage.ok) { _bkDbgLine(race.text, 'S.' + page + ' Fehler: ' + (rPage && rPage.fehler || '?')); break; }
+      // Datum aus erster Seite extrahieren (falls noch nicht gesetzt)
+      if (ri === 0 && page === 1 && rPage.data && rPage.data.html) {
+        var _pageHtml = rPage.data.html;
+        var _datPat = /(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/i;
+        var _mDp = _pageHtml.match(_datPat);
+        if (!_mDp) {
+          // numerisch: 26-3-2023 or 26/3/2023 or 26.3.2023
+          _mDp = _pageHtml.match(/(\d{1,2})[.\/-](\d{1,2})[.\/-](20\d\d)/);
+        }
+        if (_mDp) {
+          var _nlM = {januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,september:9,oktober:10,november:11,december:12};
+          var _pd, _pm, _py;
+          if (/[a-z]/i.test(_mDp[2]||'')) {
+            _pd = parseInt(_mDp[1]); _pm = _nlM[(_mDp[2]||'').toLowerCase()]||1; _py = parseInt(_mDp[3]);
+          } else {
+            _pd = parseInt(_mDp[1]); _pm = parseInt(_mDp[2]); _py = parseInt(_mDp[3]);
+          }
+          var _dIso = _py + '-' + String(_pm).padStart(2,'0') + '-' + String(_pd).padStart(2,'0');
+          var _dEl = document.getElementById('bk-datum');
+          if (_dEl) { _dEl.value = _dIso; if (typeof bkSyncDatum === 'function') bkSyncDatum(_dIso); }
+          _bkDbgLine('Datum', _dIso + ' (uit uitslag.php)');
+        }
+      }
       var parsed = uitsEvenementenParsePage(rPage.data.html || '');
       if (!parsed.rows.length) break;
       parsed.rows.forEach(function(tr) {
@@ -1958,46 +1990,77 @@ function bulkReset() {
 }
 
 async function bulkMeldeImport() {
-  var repo = (appConfig && appConfig.github_repo) ? appConfig.github_repo.trim() : '';
-  var token = (appConfig && appConfig.github_token) ? appConfig.github_token.trim() : '';
+  var repo  = (appConfig && appConfig.github_repo)   ? appConfig.github_repo.trim()   : '';
+  var token = (appConfig && appConfig.github_token)  ? appConfig.github_token.trim()  : '';
   if (!repo || !token) {
     notify('GitHub-Einstellungen nicht konfiguriert (Admin \u2192 Darstellung).', 'err');
     return;
   }
-  // Daten sammeln
-  var raw = (document.getElementById('bk-paste-area') || {}).value || '[nicht mehr verf\u00fcgbar]';
-  var rows = [];
-  var trs = document.querySelectorAll('#bulk-rows tr');
-  trs.forEach(function(tr) {
-    var cells = tr.querySelectorAll('input, select');
-    var row = {};
-    cells.forEach(function(c) { if (c.name || c.id) row[c.name || c.id] = c.value; });
-    rows.push(row);
-  });
-  // Debug-Log sammeln
+
+  // Debug-Log + Rohdaten sammeln
+  var raw = (document.getElementById('bk-paste-area') || {}).value || '[nicht verf\u00fcgbar]';
   var debugLog = (typeof _bkDbgLines !== 'undefined' && _bkDbgLines.length) ? _bkDbgLines.join('\n') : '(kein Debug-Log)';
-  var _vEl = document.querySelector('script[src*="app.js"]');
+  var _vEl = document.querySelector('script[src*="02_app.js"]');
   var _vm = _vEl ? (_vEl.src||'').match(/v=(\d+)/) : null;
   var vNum = _vm ? _vm[1] : '?';
-  var body = {
-    title: '[Import-Fehler] v' + vNum + ' ' + new Date().toLocaleDateString('de-DE'),
-    body: '## Gemeldeter Import-Fehler\n\n' +
-          '| Feld | Wert |\n|---|---|\n' +
-          '| Gemeldet von | ' + (currentUser ? (currentUser.email||currentUser.name||'?') : '?') + ' |\n' +
-          '| Zeitstempel | ' + new Date().toISOString() + ' |\n' +
-          '| Portal-Version | v' + vNum + ' |\n\n' +
-          '### Import-Debug-Log\n```\n' + debugLog + '\n```\n\n' +
-          '### Rohtext\n```\n' + raw.slice(0,3000) + (raw.length>3000?'\n...[gek\u00fcrzt]':'') + '\n```\n\n' +
-          '### Fehlerbeschreibung\n_Bitte hier erg\u00e4nzen was falsch importiert wurde:_\n',
+  var wer = currentUser ? (currentUser.benutzername || currentUser.email || '?') : '?';
+
+  // Vorschau-Modal mit Kommentarfeld
+  showModal(
+    '<h2>&#x26A0;&#xFE0F; Schlechten Import melden <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">Das folgende GitHub-Issue wird erstellt. Bitte erg\u00e4nze einen Kommentar was falsch importiert wurde.</div>' +
+    '<div style="background:var(--surf2);border-radius:8px;padding:12px 16px;font-size:12px;margin-bottom:12px">' +
+      '<div><strong>Titel:</strong> [Import-Fehler] v' + vNum + ' &ndash; ' + new Date().toLocaleDateString('de-DE') + '</div>' +
+      '<div style="color:var(--text2);margin-top:4px"><strong>Von:</strong> ' + wer + '</div>' +
+      '<div style="color:var(--text2);margin-top:4px"><strong>URL/Quelle:</strong> ' + (raw.slice(0,120) || '&ndash;') + '</div>' +
+      '<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--text2)">Debug-Log (' + (debugLog.split('\n').length) + ' Zeilen)</summary>' +
+        '<pre style="font-size:10px;overflow:auto;max-height:150px;background:var(--surface);padding:6px;border-radius:4px;margin-top:4px;white-space:pre-wrap">' + debugLog.slice(0,2000) + '</pre>' +
+      '</details>' +
+    '</div>' +
+    '<div class="form-group full" style="margin-bottom:12px">' +
+      '<label style="font-size:13px;font-weight:600">Kommentar (was stimmt nicht?)</label>' +
+      '<textarea id="bk-melde-kommentar" rows="4" placeholder="z.B. Disziplin falsch erkannt, Athlet nicht gefunden, Zeiten fehlerhaft..." ' +
+        'style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text);resize:vertical;margin-top:4px"></textarea>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="_bulkMeldeImportSend(' + JSON.stringify(repo) + ',' + JSON.stringify(token) + ',\'' + vNum + '\',\'' + wer + '\')">' +
+        '&#x26A0;&#xFE0F; Issue erstellen' +
+      '</button>' +
+    '</div>'
+  );
+  setTimeout(function(){ var ta=document.getElementById('bk-melde-kommentar'); if(ta) ta.focus(); }, 100);
+}
+
+async function _bulkMeldeImportSend(repo, token, vNum, wer) {
+  var kommentar = (document.getElementById('bk-melde-kommentar') || {}).value || '';
+  closeModal();
+
+  var raw = (document.getElementById('bk-paste-area') || {}).value || '[nicht verf\u00fcgbar]';
+  var debugLog = (typeof _bkDbgLines !== 'undefined' && _bkDbgLines.length) ? _bkDbgLines.join('\n') : '(kein Debug-Log)';
+
+  var issueBody =
+    '## Gemeldeter Import-Fehler\n\n' +
+    '| Feld | Wert |\n|---|---|\n' +
+    '| Gemeldet von | ' + wer + ' |\n' +
+    '| Zeitstempel | ' + new Date().toISOString() + ' |\n' +
+    '| Portal-Version | v' + vNum + ' |\n\n' +
+    '### Kommentar\n' + (kommentar || '_kein Kommentar_') + '\n\n' +
+    '### Import-Debug-Log\n```\n' + debugLog + '\n```\n\n' +
+    '### Rohtext / URL\n```\n' + raw.slice(0,3000) + (raw.length>3000?'\n...[gek\u00fcrzt]':'') + '\n```\n';
+
+  var payload = {
+    title: '[Import-Fehler] v' + vNum + ' \u2013 ' + new Date().toLocaleDateString('de-DE'),
+    body: issueBody,
     labels: ['import-fehler']
   };
-  var btn = document.querySelector('#bk-post-import-actions button:last-child');
+  var btn = document.querySelector('[onclick*="bulkMeldeImport"]');
   if (btn) { btn.textContent = '\u23F3 Melde...'; btn.disabled = true; }
   try {
     var r = await fetch('https://api.github.com/repos/' + repo + '/issues', {
       method: 'POST',
       headers: { 'Authorization': 'token ' + token, 'Content-Type': 'application/json', 'Accept': 'application/vnd.github.v3+json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(payload)
     });
     var d = await r.json();
     if (r.ok && d.html_url) {
