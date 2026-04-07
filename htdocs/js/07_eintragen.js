@@ -275,6 +275,9 @@ function renderEintragen() {
           '<div class="form-group"><label>Ort *</label><input type="text" id="bk-ort" placeholder="z.B. D&uuml;sseldorf"/></div>' +
           '<div class="form-group"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. Düsseldorf Marathon"/></div>' +
           '<div class="form-group"><label>Datenquelle (URL)</label><input type="url" id="bk-quelle" placeholder="z.B. https://my.raceresult.com/..." style="font-size:12px"/></div>' +
+          '<div class="form-group"><label>Regelmäßige Veranstaltung <span style="font-size:11px;color:var(--text2);font-weight:400">(optional)</span></label>' +
+            '<select id="bk-serie" style="width:100%" onchange="bkSerieChanged(this.value)"><option value="">– keine Zuordnung –</option></select>' +
+          '</div>' +
           '<div class="form-group" style="display:flex;align-items:flex-end;gap:12px">' +
             '<div style="flex:1"><label>Kategorie</label><select id="bk-kat" style="width:100%" onchange="bkKatChanged()">' + (function(){
             var seen={}, opts='<option value="">Alle Kategorien</option>';
@@ -327,6 +330,7 @@ function renderEintragen() {
       '</div>';
 
   document.getElementById('main-content').innerHTML = tabHtml + content;
+  _bkLoadSerien();
 
   if (isBulk) {
     bulkAddRow();
@@ -410,6 +414,27 @@ function bkDiszOpts(kat) {
     opts += '<option value="' + val + '">' + label + '</option>';
   }
   return opts;
+}
+
+async function _bkLoadSerien() {
+  var sel = document.getElementById('bk-serie');
+  if (!sel) return;
+  var r = await apiGet('veranstaltung-serien');
+  if (!r || !r.ok) return;
+  var serien = r.data || [];
+  window._bkSerien = serien;
+  sel.innerHTML = '<option value="">– keine Zuordnung –</option>' +
+    serien.map(function(s) {
+      return '<option value="' + s.id + '">' + s.name + '</option>';
+    }).join('');
+}
+
+function bkSerieChanged(serieId) {
+  // Wenn Serie gewählt: Veranstaltungsname vorbelegen
+  var serien = window._bkSerien || [];
+  var s = serien.find(function(x) { return String(x.id) === String(serieId); });
+  var evEl = document.getElementById('bk-evname');
+  if (s && evEl && !evEl.value) evEl.value = s.name;
 }
 
 function bkKatChanged() {
@@ -602,6 +627,7 @@ async function bulkSubmit() {
       ort: ort, veranstaltung_name: evname,
       datenquelle: ((document.getElementById('bk-quelle') || {}).value || '') || null,
       veranstaltung_id: veranstId ? parseInt(veranstId) : null,
+      serie_id: (function(){ var s=document.getElementById('bk-serie'); return s&&s.value?parseInt(s.value):null; })(),
       athlet_id: parseInt(athlet_id) || null,
       disziplin: disziplin, disziplin_mapping_id: _diszMid || null, resultat: dbRes(resultat),
       altersklasse: row.querySelector('.bk-ak') ? row.querySelector('.bk-ak').value.trim() : '',

@@ -1,5 +1,5 @@
 # Statistikportal – Leichtathletik
-## Version v960 | Stand: April 2026
+## Version v961 | Stand: April 2026
 
 Webbasiertes Statistikportal für den Leichtathletik-Bereich.  
 PHP/MariaDB · Shared Hosting (all-inkl.com) · Vanilla JS/CSS · keine externen Frameworks
@@ -42,7 +42,7 @@ PHP/MariaDB · Shared Hosting (all-inkl.com) · Vanilla JS/CSS · keine externen
 - Avatar aus Athletenprofil wird nach Login sofort angezeigt
 
 ### Veranstaltungen
-- **Veranstaltungsserien**: Gruppen für jährlich wiederkehrende Veranstaltungen
+- **Regelmäßige Veranstaltungen**: Gruppen für jährlich wiederkehrende Veranstaltungen
   - Bestleistungen pro Serie (Gesamt, Frauen/Männer, nach AK)
   - Ergebnisse nach Jahr sortiert
 

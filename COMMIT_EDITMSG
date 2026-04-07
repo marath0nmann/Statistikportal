@@ -1,4 +1,5 @@
-v960 – Bulk-Eintragen: Checkbox "Nicht für Verein" → externes Ergebnis (athlet_pb)
+v961 – Regelmäßige Veranstaltungen: Umbenennung + Teilnahmen-Ranking + Bulk-Zuordnung
 
-- Neue bk-extern Checkbox in jeder Bulk-Zeile
-- extern: true → INSERT INTO athlet_pb statt ergebnisse
+- Alle Labels: Veranstaltungsserien → Regelmäßige Veranstaltungen
+- Neuer Tab Teilnahmen: Ranking nach Startzahl mit Balken
+- Bulk-Eintragen: Dropdown zur Serienzuordnung

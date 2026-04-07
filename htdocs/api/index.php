@@ -3547,6 +3547,25 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
         jsonOk(compact('gesamt','maenner','frauen','by_ak','fmt','sortDir'));
     }
 
+    // Teilnahmen-Ranking: ?teilnahmen=1
+    if (isset($_GET['teilnahmen'])) {
+        $ranking = DB::fetchAll(
+            "SELECT a.id AS athlet_id, a.name_nv AS athlet, a.geschlecht,
+                    COUNT(DISTINCT v.id) AS teilnahmen,
+                    MIN(v.datum) AS erstes_jahr,
+                    MAX(v.datum) AS letztes_jahr
+             FROM $eTbl e
+             JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
+             JOIN $vTbl v ON v.id=e.veranstaltung_id
+             WHERE v.serie_id=? AND e.geloescht_am IS NULL
+               AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL AND v.genehmigt=1
+             GROUP BY a.id, a.name_nv, a.geschlecht
+             ORDER BY teilnahmen DESC, a.name_nv ASC",
+            [$id]
+        );
+        jsonOk($ranking);
+    }
+
     // Disziplinen-Liste: ?disziplinen=1
     if (isset($_GET['disziplinen'])) {
         $disz_rows = DB::fetchAll(
@@ -3817,13 +3836,18 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
             $vRow = DB::fetchOne('SELECT id,ort,datum FROM ' . DB::tbl('veranstaltungen') . ' WHERE id=?', [$vid]);
             if (!$vRow) { $errors[] = 'Zeile ' . ($idx+1) . ': Veranstaltung nicht gefunden'; $skipped++; continue; }
         } else {
-            $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
+            $kuerzel  = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
+            $serieId  = isset($item['serie_id']) && is_numeric($item['serie_id']) ? (int)$item['serie_id'] : null;
             $v = DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=?', [$kuerzel]);
             if (!$v) {
-                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum) VALUES (?,?,?,?)',
-                    [$kuerzel, $evname ?: $kuerzel, $ort, $datum]);
+                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum,serie_id) VALUES (?,?,?,?,?)',
+                    [$kuerzel, $evname ?: $kuerzel, $ort, $datum, $serieId]);
                 $vid = DB::lastInsertId();
-            } else $vid = $v['id'];
+            } else {
+                $vid = $v['id'];
+                // Serie nachträglich setzen wenn noch keine zugeordnet
+                if ($serieId) DB::query('UPDATE ' . DB::tbl('veranstaltungen') . ' SET serie_id=? WHERE id=? AND serie_id IS NULL', [$serieId, $vid]);
+            }
         }
         // mapping_id: vom Client bevorzugen (exakter Kategorie-Treffer)
         $midFromClient = isset($item['disziplin_mapping_id']) && is_numeric($item['disziplin_mapping_id']) ? (int)$item['disziplin_mapping_id'] : null;

@@ -20,7 +20,7 @@ function _veranstViewToggleHtml() {
   var v = state.veranstView || 'liste';
   return '<div style="display:flex;gap:8px;margin-bottom:16px">' +
     '<button class="btn' + (v === 'liste'  ? ' btn-primary' : ' btn-ghost') + '" onclick="switchVeranstView(\'liste\')">\uD83D\uDCCD Alle Veranstaltungen</button>' +
-    '<button class="btn' + (v === 'serien' || v === 'serie-detail' ? ' btn-primary' : ' btn-ghost') + '" onclick="switchVeranstView(\'serien\')">\uD83D\uDD04 Veranstaltungsserien</button>' +
+    '<button class="btn' + (v === 'serien' || v === 'serie-detail' ? ' btn-primary' : ' btn-ghost') + '" onclick="switchVeranstView(\'serien\')">\uD83D\uDD04 Regelmäßige Veranstaltungen</button>' +
   '</div>';
 }
 
@@ -103,7 +103,7 @@ async function renderVeranstaltungenListe() {
     if (v.serie_id) {
       var _sv = serien.find(function(s){ return String(s.id) === String(v.serie_id); });
       if (_sv) {
-        serieBadge = '<span style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:2px 8px;cursor:pointer;margin-left:6px" title="Serie anzeigen" onclick="event.stopPropagation();openSerieDetail(' + _sv.id + ')">\uD83D\uDD04 ' + _sv.name + '</span>';
+        serieBadge = '<span style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:2px 8px;cursor:pointer;margin-left:6px" title="Regelmäßige Veranstaltung anzeigen" onclick="event.stopPropagation();openSerieDetail(' + _sv.id + ')">\uD83D\uDD04 ' + _sv.name + '</span>';
       }
     }
     html +=
@@ -151,12 +151,12 @@ async function renderSerienListe() {
 
   var html = _veranstViewToggleHtml();
   if (canEdit) {
-    html += '<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="showSerieCreateModal()">&#x2795; Neue Serie anlegen</button></div>';
+    html += '<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="showSerieCreateModal()">&#x2795; Neue regelmäßige Veranstaltung</button></div>';
   }
 
   if (!serien.length) {
     html += '<div class="empty"><div class="empty-icon">\uD83D\uDD04</div>' +
-      '<div class="empty-text">Noch keine Serien angelegt.<br><small style="color:var(--text2)">Lege eine Serie an und ordne ihr jährlich wiederkehrende Veranstaltungen zu.</small></div></div>';
+      '<div class="empty-text">Noch keine regelmäßigen Veranstaltungen angelegt.<br><small style="color:var(--text2)">Lege eine an und ordne wiederkehrende Veranstaltungen (z.B. jährliche Läufe) zu.</small></div></div>';
     el.innerHTML = html;
     return;
   }
@@ -241,10 +241,13 @@ async function renderSerieDetail(id) {
   html += '<div style="display:flex;gap:8px;margin-bottom:16px">' +
     '<button class="btn' + (view === 'jahre' ? ' btn-primary' : ' btn-ghost') + '" onclick="setSerieView(\'jahre\')">\uD83D\uDCC5 Ergebnisse nach Jahr</button>' +
     '<button class="btn' + (view === 'bestleistungen' ? ' btn-primary' : ' btn-ghost') + '" onclick="setSerieView(\'bestleistungen\')">\uD83C\uDFC6 Bestleistungen</button>' +
+    '<button class="btn' + (view === 'teilnahmen' ? ' btn-primary' : ' btn-ghost') + '" onclick="setSerieView(\'teilnahmen\')">\uD83D\uDCCA Anzahl Teilnahmen</button>' +
   '</div>';
 
   if (view === 'jahre') {
     html += _buildSerieJahreHtml(veranst);
+  } else if (view === 'teilnahmen') {
+    html += '<div id="serie-teilnahmen-content"><div class="loading" style="padding:32px"><div class="spinner"></div>Lade Teilnahmen&hellip;</div></div>';
   } else {
     html += _buildSerieBestleistungenShell(disziplinen, id);
   }
@@ -259,11 +262,13 @@ async function renderSerieDetail(id) {
       _highlightSerieDiszBtn(state.serieDisz, state.serieMappingId);
       _loadSerieBestleistungen(id, state.serieDisz, state.serieMappingId);
     }
+  } else if (view === 'teilnahmen') {
+    _loadSerieTeilnahmen(id);
   }
 }
 
 function _serieBackBtn() {
-  return '<button class="btn btn-ghost btn-sm" style="margin-bottom:14px" onclick="switchVeranstView(\'serien\')">&larr; Alle Serien</button> ';
+  return '<button class="btn btn-ghost btn-sm" style="margin-bottom:14px" onclick="switchVeranstView(\'serien\')">&larr; Alle regelmäßigen Veranstaltungen</button> ';
 }
 
 function setSerieView(v) {
@@ -481,7 +486,7 @@ async function _loadSerieBestleistungen(serieId, disz, mappingId) {
 // ── Modale: Serie anlegen / bearbeiten ────────────────────
 function showSerieCreateModal() {
   showModal(
-    '<h2>\uD83D\uDD04 Neue Veranstaltungsserie <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<h2>\uD83D\uDD04 Neue regelmäßige Veranstaltung <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Name *</label>' +
         '<input type="text" id="sr-name" placeholder="z.B. Stra\u00dflenlauf Oedt" autofocus/></div>' +
@@ -612,4 +617,54 @@ async function deleteVeranstaltung(id, name) {
 
 function openAthletByName(name) {
   renderPage();
+}
+
+// ── Teilnahmen-Ranking ─────────────────────────────────────────────────────
+async function _loadSerieTeilnahmen(serieId) {
+  var container = document.getElementById('serie-teilnahmen-content');
+  if (!container) return;
+  container.innerHTML = '<div class="loading" style="padding:32px"><div class="spinner"></div>Lade&hellip;</div>';
+  var r = await apiGet('veranstaltung-serien/' + serieId + '?teilnahmen=1');
+  if (!r || !r.ok) {
+    container.innerHTML = '<div style="color:var(--accent);padding:16px">Fehler: ' + (r && r.fehler || 'Unbekannt') + '</div>';
+    return;
+  }
+  var rows = r.data || [];
+  if (!rows.length) {
+    container.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Noch keine Teilnahmen erfasst</div></div>';
+    return;
+  }
+  // Maximale Teilnahmen für Balken-Berechnung
+  var maxT = rows[0].teilnahmen || 1;
+  var html = '<div class="panel" style="padding:20px 24px">';
+  html += '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:600;color:var(--text);border-bottom:2px solid var(--border);padding-bottom:6px;margin-bottom:16px">Teilnahmen-Ranking</div>';
+  html += '<div class="table-scroll"><table class="rek-table" style="width:100%">';
+  html += '<thead><tr><th style="width:40px"></th><th style="text-align:left">Athlet*in</th><th style="text-align:right;width:80px">Starts</th><th style="text-align:left;padding-left:12px">Zeitraum</th><th style="width:120px"></th></tr></thead><tbody>';
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var pct = Math.round((row.teilnahmen / maxT) * 100);
+    var isW = row.geschlecht === 'W';
+    var rankCls = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    var jahrVon = row.erstes_jahr ? row.erstes_jahr.slice(0,4) : '?';
+    var jahrBis = row.letztes_jahr ? row.letztes_jahr.slice(0,4) : '?';
+    var zeitraum = jahrVon === jahrBis ? jahrVon : jahrVon + '–' + jahrBis;
+    html += '<tr>' +
+      '<td>' + medalBadge(i + 1) + '</td>' +
+      '<td style="font-weight:600"><span class="athlet-link" data-athlet-id="' + row.athlet_id + '">' + row.athlet + '</span></td>' +
+      '<td style="text-align:right;font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:700;color:var(--primary)">' + row.teilnahmen + '</td>' +
+      '<td style="color:var(--text2);font-size:12px;padding-left:12px">' + zeitraum + '</td>' +
+      '<td style="padding-left:8px">' +
+        '<div style="height:8px;border-radius:4px;background:var(--surf2);overflow:hidden">' +
+          '<div style="height:100%;width:' + pct + '%;background:' + (isW ? 'var(--primary)' : 'var(--btn-bg,#4070c0)') + ';border-radius:4px;transition:width .3s"></div>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }
+  html += '</tbody></table></div></div>';
+  container.innerHTML = html;
+  // Athlet-Link Delegation
+  container.addEventListener('click', function(ev) {
+    var al = ev.target.closest('.athlet-link[data-athlet-id]');
+    if (al) openAthletById(parseInt(al.dataset.athletId));
+  });
 }

@@ -1,3 +1,22 @@
+## v961 – Regelmäßige Veranstaltungen + Teilnahmen-Ranking + Bulk-Zuordnung
+
+### Umbenennung
+- „Veranstaltungsserien" → **„Regelmäßige Veranstaltungen"** (alle UI-Labels, Buttons, Modals)
+
+### Neuer Tab: Anzahl Teilnahmen
+- Dritter Tab in der Detailseite einer regelmäßigen Veranstaltung
+- Ranking der Athleten nach Anzahl Teilnahmen (aus allen zugeordneten Veranstaltungen)
+- Zeigt Platzierung (Medaillen), Name, Anzahl Starts, Jahreszeitraum, farbiger Balken
+- Klick auf Athletenname → Athletenprofil
+- Neuer API-Endpunkt: `GET veranstaltung-serien/{id}?teilnahmen=1`
+
+### Bulk-Eintragen: Zuordnung zu regelmäßiger Veranstaltung
+- Neues Dropdown „Regelmäßige Veranstaltung (optional)" im Veranstaltungsformular
+- Wird per `serie_id` an die Veranstaltung beim Speichern übertragen
+- Bei neuer Veranstaltung: `serie_id` wird direkt gesetzt; bei bestehender: wird nachgetragen sofern noch leer
+
+---
+
 ## v960 – Bulk-Eintragen: Checkbox „Nicht für Verein" → externes Ergebnis
 
 - Neue Spalte in der Bulk-Ergebnistabelle: Checkbox „Nicht für Verein"
