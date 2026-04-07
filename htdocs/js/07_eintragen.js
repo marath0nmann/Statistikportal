@@ -1350,27 +1350,7 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
     if (pageTitle) evName = pageTitle.replace(/^Uitslagen\s+/i, '').trim() || evName;
   }
 
-  // Datum: uitslagen.nl-Suche über Slug (zuverlässigste Quelle)
-  // Event-IDs auf uitslagen.nl beginnen immer mit YYYYMMDD
-  var _rUitsDatum = await apiGet('uits-fetch?url=' + encodeURIComponent('https://uitslagen.nl/uitslag?id=' + evYear));
-  // Besser: Suche nach Slug auf der Evenementen-Übersichtsseite
-  var _uitsDatumUrl = 'https://uitslagen.nl/evenementen.php?zoek=' + encodeURIComponent(evSlug.replace(/-/g,' ')) + '&jaar=' + evYear;
-  var rUits = await apiGet('uits-fetch?url=' + encodeURIComponent(_uitsDatumUrl));
-  if (rUits && rUits.ok && rUits.data && rUits.data.html) {
-    var uitsDoc = (new DOMParser()).parseFromString(rUits.data.html, 'text/html');
-    var uitsText = uitsDoc.body ? uitsDoc.body.textContent : '';
-    _bkDbgLine('uitslagen.nl-Suche', uitsText.slice(0, 300).replace(/\s+/g,' '));
-    // Datum im Format DD-MM-YYYY oder D-M-YYYY suchen
-    var _mU = uitsText.match(/(\d{1,2})-(\d{2})-(\d{4})/);
-    if (_mU) {
-      var _dIsoU = _mU[3] + '-' + _mU[2].padStart(2,'0') + '-' + _mU[1].padStart(2,'0');
-      var _dElU = document.getElementById('bk-datum');
-      if (_dElU) { _dElU.value = _dIsoU; if (typeof bkSyncDatum === 'function') bkSyncDatum(_dIsoU); }
-      _bkDbgLine('Datum', _dIsoU + ' (uitslagen.nl)');
-    }
-  }
-
-  // kop.html → Ort (Datum ist dort leer, Ort manchmal vorhanden)
+  // kop.html → Ort (und Datum falls vorhanden)
   var rKop = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'kop.html'));
   if (rKop && rKop.ok && rKop.data && rKop.data.html) {
     var kopDoc = (new DOMParser()).parseFromString(rKop.data.html, 'text/html');
@@ -1414,7 +1394,11 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   }
 
   if (statusEl) statusEl.textContent = '\u23f3 Lade Strecken\u2026';
+  // menu.php (neuere Events) oder menu.html (ältere Events)
   var rMenu = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'menu.php'));
+  if (!rMenu || !rMenu.ok || !(rMenu.data && rMenu.data.html)) {
+    rMenu = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'menu.html'));
+  }
   if (!rMenu || !rMenu.ok) { if (statusEl) statusEl.textContent = '\u274c ' + (rMenu && rMenu.fehler || 'Fehler'); return; }
 
   var races = uitsEvenementenParseMenu(rMenu.data.html || '');

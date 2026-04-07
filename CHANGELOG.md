@@ -1,3 +1,10 @@
+## v962 – Bugfix: evenementen.uitslagen.nl ältere Events (menu.html + 404)
+
+- **`menu.html` Fallback**: Ältere Veranstaltungen (z.B. 2018) liefern `menu.html` statt `menu.php` → Importer versucht jetzt erst `menu.php`, dann `menu.html`
+- **Datum-Lookup entfernt**: `uitslagen.nl/evenementen.php?zoek=…` existiert nicht und gab HTTP 404 → der fehlerhafte Request wurde entfernt; Datum-Feld zeigt Notification zur manuellen Eingabe
+
+---
+
 ## v961 – Regelmäßige Veranstaltungen + Teilnahmen-Ranking + Bulk-Zuordnung
 
 ### Umbenennung

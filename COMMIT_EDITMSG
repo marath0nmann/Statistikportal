@@ -1,5 +1,4 @@
-v961 – Regelmäßige Veranstaltungen: Umbenennung + Teilnahmen-Ranking + Bulk-Zuordnung
+v962 – Bugfix: evenementen.uitslagen.nl menu.html Fallback für ältere Events
 
-- Alle Labels: Veranstaltungsserien → Regelmäßige Veranstaltungen
-- Neuer Tab Teilnahmen: Ranking nach Startzahl mit Balken
-- Bulk-Eintragen: Dropdown zur Serienzuordnung
+- Fallback menu.php → menu.html (2018er Events)
+- Entferne 404-verursachenden uitslagen.nl Datum-Lookup
