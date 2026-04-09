@@ -756,7 +756,7 @@ function _renderRegModal() {
         '</div>' +
       '</div>' +
       // Kein Nickname-Feld – E-Mail wird als Anzeigename verwendet
-      '<div class="form-group">' +
+      '<div class="form-group" style="margin-top:28px">' +
         '<label style="color:var(--text2)">Passwort <span style="font-weight:400;font-size:11px">(min. 12 Zeichen, 3 von 4 Gruppen)</span></label>' +
         '<input type="password" id="reg-pw" placeholder="" autocomplete="new-password" style="font-size:16px" oninput="regPwCheck()"/>' +
         '<div id="reg-pw-strength" class="pw-strength-wrap" style="display:none">' +

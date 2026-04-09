@@ -1,1 +1,4 @@
-v967 – Fix: CSS-Selektor für Formular-Abstand im Modal korrigiert
+v968 – Fix: Neu-Registrierung nach Konto-Löschung + UI Abstände
+
+- approved-Einträge immer bereinigen wenn kein aktives Konto vorhanden
+- E-Mail→Passwort 28px, Passwort→Wiederholen 12px

@@ -1084,9 +1084,9 @@ tr:hover td { background: var(--surf2); }
   width: auto;
   margin-top: 0;
 }
-/* Abstand zwischen E-Mail-Block und Passwort-Block */
+/* Passwort-Wiederholung: kleinerer Abstand */
 .modal .form-group + .form-group {
-  margin-top: 32px;
+  margin-top: 12px;
 }
 
 /* Input über Hint: untere Ecken eckig damit nahtloser Übergang */

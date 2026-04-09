@@ -1,3 +1,17 @@
+## v968 – Bugfix: Neu-Registrierung nach Konto-Löschung + UI
+
+### Bug: „wartet auf Admin-Freigabe" nach Konto-Löschung
+- Wurzel: `approved`-Eintrag in `registrierungen` blieb nach Admin-Genehmigung erhalten
+- v965-Fix war unvollständig: prüfte `hatKonto` ohne `geloescht_am`-Filter → funktionierte nicht bei hart-gelöschten Konten (aus Papierkorb)
+- Neue Lösung: Da kein aktives Konto mehr existiert (erste Prüfung), werden `registrierungen`-Altlasten **immer** bereinigt bevor eine neue Registrierung angelegt wird
+
+### UI: Registrierungs-Abstände
+- Abstand E-Mail → Passwort: 28px (inline style, zielgenau)
+- Abstand Passwort → Passwort wiederholen: 12px (kleiner, gehört zusammen)
+- CSS-Regel: `.modal .form-group + .form-group { margin-top: 12px }` als Default
+
+---
+
 ## v967 – Bugfix: Abstand E-Mail/Passwort wirkt jetzt
 
 - CSS-Selektor von `#modal-body .form-group + .form-group` auf `.modal .form-group + .form-group` korrigiert (Modal hat keine ID `modal-body`)
