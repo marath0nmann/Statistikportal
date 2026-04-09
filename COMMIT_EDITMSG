@@ -1,1 +1,5 @@
-v969 – Fix: Auto-Freigabe-Meldung (PHP gibt array statt string zurück)
+v970 – Auto-Rollenwechsel Leser↔Athlet bei Athleten-Zuordnung
+
+- Registrierungen + Benutzer: Athlet zuordnen → Rolle=Athlet automatisch
+- PHP: benutzer PUT passt Rolle serverseitig an
+- JS: eb-athlet onchange aktualisiert Rolle-Dropdown live

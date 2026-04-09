@@ -667,6 +667,14 @@ async function createBenutzer() {
   else notify((r && r.fehler) || 'Fehler', 'err');
 }
 
+function _ebAthletChanged(sel, origRolle) {
+  var rolleEl = document.getElementById('eb-rolle');
+  if (!rolleEl) return;
+  // Nur Leser/Athlet automatisch umstellen (admin/editor nicht anfassen)
+  if (origRolle === 'admin' || origRolle === 'editor') return;
+  rolleEl.value = sel.value ? 'athlet' : 'leser';
+}
+
 function showBenutzerEditModal(id) {
   var b = state._adminBenutzerMap[id];
   if (!b) return;
@@ -685,8 +693,8 @@ function showBenutzerEditModal(id) {
       '<div class="form-group"><label>Status</label><select id="eb-aktiv"><option value="1"' + (b.aktiv?' selected':'') + '>Aktiv</option><option value="0"' + (!b.aktiv?' selected':'') + '>Inaktiv</option></select></div>' +
       '<div class="form-group"><label>Neues Passwort (leer = unver&auml;ndert)</label><input type="password" id="eb-pw"/></div>' +
       '<div class="form-group full"><label>&#x1F3C3; Verkn&uuml;pftes Athletenprofil</label>' +
-        '<select id="eb-athlet" style="width:100%">' + athletOpts + '</select>' +
-        '<div style="font-size:11px;color:var(--text2);margin-top:4px">Wenn zugeordnet, kann sich der Athlet sp&auml;ter mit eigenen Daten anmelden.</div>' +
+        '<select id="eb-athlet" style="width:100%" onchange="_ebAthletChanged(this,\'' + b.rolle + '\')">' + athletOpts + '</select>' +
+        '<div style="font-size:11px;color:var(--text2);margin-top:4px">Wenn zugeordnet, kann sich der Athlet sp&auml;ter mit eigenen Daten anmelden. Die Rolle wird automatisch angepasst.</div>' +
       '</div>' +
     '</div>' +
     '<label style="display:flex;align-items:center;gap:8px;margin:4px 0 16px;cursor:pointer;font-size:13px">' +
@@ -1130,7 +1138,7 @@ function _regCard(reg, showActions) {
         '<span style="font-size:11px;color:var(--text2);align-self:center;white-space:nowrap">Registriert: ' + (reg.erstellt_am ? reg.erstellt_am.slice(0,10) : '–') + '</span>' +
         (showActions ?
           '<div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">' +
-            '<select id="reg-athlet-' + reg.id + '" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:var(--surface);color:var(--text)">' + athOpts + '</select>' +
+            '<select id="reg-athlet-' + reg.id + '" title="Athlet zuordnen → Rolle wird automatisch auf &lsquo;Athlet&rsquo; gesetzt" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:var(--surface);color:var(--text)">' + athOpts + '</select>' +
             '<button class="btn btn-primary btn-sm" onclick="regGenehmigen(' + reg.id + ')">✓ Genehmigen</button>' +
             '<button class="btn btn-danger btn-sm" onclick="regAblehnen(' + reg.id + ')">✗ Ablehnen</button>' +
           '</div>' : '') +

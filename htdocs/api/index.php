@@ -807,7 +807,7 @@ if ($res === 'auth') {
         DB::query(
             'INSERT INTO ' . DB::tbl('benutzer') . ' (benutzername, email, passwort, rolle, aktiv, totp_secret, totp_aktiv, totp_backup, athlet_id, email_login_bevorzugt)
              VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?)',
-            [$bname, $reg['email'], $reg['passwort_hash'], 'leser',
+            [$bname, $reg['email'], $reg['passwort_hash'], $athletId ? 'athlet' : 'leser',
              $useEmailLogin ? null : $reg['totp_secret'],
              $useEmailLogin ? 0 : 1,
              $useEmailLogin ? '[]' : '[]',
@@ -1442,6 +1442,17 @@ if ($res === 'benutzer') {
             if ($col) {
                 $felder[] = 'athlet_id=?';
                 $params[] = $body['athlet_id'] ? (int)$body['athlet_id'] : null;
+                // Rolle automatisch anpassen: athlet_id gesetzt → 'athlet', entfernt → 'leser'
+                // (nur wenn Rolle nicht bereits admin/editor und nicht explizit im Body gesetzt)
+                if (!array_key_exists('rolle', $body)) {
+                    $curRow = DB::fetchOne('SELECT rolle FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [$id]);
+                    $curRolle = $curRow['rolle'] ?? 'leser';
+                    if ($body['athlet_id'] && in_array($curRolle, ['leser','athlet'])) {
+                        $felder[] = 'rolle=?'; $params[] = 'athlet';
+                    } elseif (!$body['athlet_id'] && $curRolle === 'athlet') {
+                        $felder[] = 'rolle=?'; $params[] = 'leser';
+                    }
+                }
             }
         }
         if (array_key_exists('email_login_bevorzugt', $body)) {

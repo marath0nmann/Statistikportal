@@ -1,3 +1,15 @@
+## v970 – Auto-Rollenwechsel bei Athleten-Zuordnung
+
+- **Admin → Registrierungen**: Athlet beim Genehmigen zuordnen → Rolle wird automatisch auf „Athlet" gesetzt (statt „Leser")
+- **Admin → Benutzer**: Athleten-Dropdown im Edit-Modal ändert Rolle-Feld sofort live:
+  - Athlet ausgewählt → Rolle springt auf „Athlet"
+  - Athlet entfernt → Rolle springt auf „Leser"
+  - Admin/Editor-Rollen werden nicht automatisch geändert
+- PHP (`benutzer PUT`): wenn `athlet_id` ohne explizite `rolle` geändert wird, passt die API die Rolle serverseitig an (Leser↔Athlet)
+- Tooltip auf dem Athlet-Dropdown in der Registrierungs-Karte
+
+---
+
 ## v969 – Bugfix: Auto-Freigabe zeigt falsche Meldung
 
 - Ursache: PHP gab `jsonOk('string')` zurück statt `jsonOk(['auto_freigabe' => true])` → JS konnte `r.data.auto_freigabe` nicht lesen → zeigte immer „wartet auf Admin-Freigabe"
