@@ -1085,7 +1085,7 @@ tr:hover td { background: var(--surf2); }
   margin-top: 0;
 }
 /* Abstand zwischen E-Mail-Block und Passwort-Block */
-#modal-body .form-group + .form-group {
+.modal .form-group + .form-group {
   margin-top: 32px;
 }
 

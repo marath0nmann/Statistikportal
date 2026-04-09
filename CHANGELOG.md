@@ -1,3 +1,9 @@
+## v967 – Bugfix: Abstand E-Mail/Passwort wirkt jetzt
+
+- CSS-Selektor von `#modal-body .form-group + .form-group` auf `.modal .form-group + .form-group` korrigiert (Modal hat keine ID `modal-body`)
+
+---
+
 ## v966 – Registrierung: Mehr Abstand über Passwort-Feld
 
 - `margin-top` zwischen E-Mail- und Passwort-Block von 20px auf 32px erhöht
