@@ -731,7 +731,7 @@ if ($res === 'auth') {
                 DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE email = ?', ['approved', $email]);
                 $approvedMsg = "Hallo " . $regNow['name'] . ",\n\ndeine Registrierung wurde bestätigt! Du kannst dich jetzt einloggen.\n\n" . Settings::get('verein_name','');
                 @mail($regNow['email'], Settings::get('verein_name','') . ' – Registrierung bestätigt', $approvedMsg, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
-                jsonOk('Registrierung abgeschlossen. Du kannst dich jetzt einloggen.');
+                jsonOk(['auto_freigabe' => true]);
             }
         }
         // Admin-Benachrichtigung (nur bei manueller Freigabe)
@@ -764,7 +764,7 @@ if ($res === 'auth') {
                 DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE email = ?', ['approved', $email]);
                 $approvedMsg2 = "Hallo " . $regNow2['name'] . ",\n\ndeine Registrierung wurde bestätigt! Du kannst dich jetzt einloggen.\n\n" . Settings::get('verein_name','');
                 @mail($regNow2['email'], Settings::get('verein_name','') . ' – Registrierung bestätigt', $approvedMsg2, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
-                jsonOk('Registrierung abgeschlossen. Du kannst dich jetzt einloggen.');
+                jsonOk(['auto_freigabe' => true]);
             }
         }
         // Admin-Benachrichtigung (nur bei manueller Freigabe)

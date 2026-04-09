@@ -1,4 +1,1 @@
-v968 – Fix: Neu-Registrierung nach Konto-Löschung + UI Abstände
-
-- approved-Einträge immer bereinigen wenn kein aktives Konto vorhanden
-- E-Mail→Passwort 28px, Passwort→Wiederholen 12px
+v969 – Fix: Auto-Freigabe-Meldung (PHP gibt array statt string zurück)

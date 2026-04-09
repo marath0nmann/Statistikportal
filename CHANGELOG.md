@@ -1,3 +1,11 @@
+## v969 – Bugfix: Auto-Freigabe zeigt falsche Meldung
+
+- Ursache: PHP gab `jsonOk('string')` zurück statt `jsonOk(['auto_freigabe' => true])` → JS konnte `r.data.auto_freigabe` nicht lesen → zeigte immer „wartet auf Admin-Freigabe"
+- Fix: Beide Registration-Endpunkte (`register-totp-confirm`, `register-email-2fa`) geben bei Auto-Freigabe jetzt `{'auto_freigabe': true}` zurück
+- JS: `_regState.autoFreigabe` wird korrekt gesetzt → Modal zeigt „Sofort freigeschaltet. Jetzt einloggen."
+
+---
+
 ## v968 – Bugfix: Neu-Registrierung nach Konto-Löschung + UI
 
 ### Bug: „wartet auf Admin-Freigabe" nach Konto-Löschung
