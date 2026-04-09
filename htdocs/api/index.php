@@ -718,7 +718,23 @@ if ($res === 'auth') {
         DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET totp_aktiv = 1, totp_secret = ? WHERE email = ?',
             [$reg['totp_pending'], $email]);
 
-        // Admin-Benachrichtigung
+        $autoFreigabe = Settings::get('registrierung_auto_freigabe','0') === '1';
+        if ($autoFreigabe) {
+            $regNow = DB::fetchOne('SELECT * FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?', [$email, 'pending']);
+            if ($regNow) {
+                $bname2 = $regNow['email'];
+                DB::query(
+                    'INSERT INTO ' . DB::tbl('benutzer') . ' (benutzername, email, passwort, rolle, aktiv, totp_secret, totp_aktiv, totp_backup, email_login_bevorzugt) VALUES (?,?,?,?,1,?,?,?,?)',
+                    [$bname2, $regNow['email'], $regNow['passwort_hash'], 'leser',
+                     $regNow['totp_secret'], (int)$regNow['totp_aktiv'], '[]', 0]
+                );
+                DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE email = ?', ['approved', $email]);
+                $approvedMsg = "Hallo " . $regNow['name'] . ",\n\ndeine Registrierung wurde bestätigt! Du kannst dich jetzt einloggen.\n\n" . Settings::get('verein_name','');
+                @mail($regNow['email'], Settings::get('verein_name','') . ' – Registrierung bestätigt', $approvedMsg, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+                jsonOk('Registrierung abgeschlossen. Du kannst dich jetzt einloggen.');
+            }
+        }
+        // Admin-Benachrichtigung (nur bei manueller Freigabe)
         $admins = DB::fetchAll("SELECT email FROM " . DB::tbl('benutzer') . " WHERE rolle = 'admin' AND aktiv = 1");
         foreach ($admins as $admin) {
             $msg = "Neue Registrierungsanfrage:\n\nName: " . $reg['name'] .
@@ -736,7 +752,22 @@ if ($res === 'auth') {
         if (!$reg) jsonErr('E-Mail nicht bestätigt oder Registrierung nicht gefunden.');
         // Kein TOTP — E-Mail-Login bevorzugt
         DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET totp_aktiv = 0, email_login_bevorzugt = 1 WHERE email = ?', [$email]);
-        // Admin-Benachrichtigung
+        $autoFreigabe2 = Settings::get('registrierung_auto_freigabe','0') === '1';
+        if ($autoFreigabe2) {
+            $regNow2 = DB::fetchOne('SELECT * FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?', [$email, 'pending']);
+            if ($regNow2) {
+                $bname3 = $regNow2['email'];
+                DB::query(
+                    'INSERT INTO ' . DB::tbl('benutzer') . ' (benutzername, email, passwort, rolle, aktiv, totp_aktiv, totp_backup, email_login_bevorzugt) VALUES (?,?,?,?,1,0,?,1)',
+                    [$bname3, $regNow2['email'], $regNow2['passwort_hash'], 'leser', '[]']
+                );
+                DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE email = ?', ['approved', $email]);
+                $approvedMsg2 = "Hallo " . $regNow2['name'] . ",\n\ndeine Registrierung wurde bestätigt! Du kannst dich jetzt einloggen.\n\n" . Settings::get('verein_name','');
+                @mail($regNow2['email'], Settings::get('verein_name','') . ' – Registrierung bestätigt', $approvedMsg2, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+                jsonOk('Registrierung abgeschlossen. Du kannst dich jetzt einloggen.');
+            }
+        }
+        // Admin-Benachrichtigung (nur bei manueller Freigabe)
         $admins = DB::fetchAll("SELECT email FROM " . DB::tbl('benutzer') . " WHERE rolle = 'admin' AND aktiv = 1");
         foreach ($admins as $admin) {
             $msg = "Neue Registrierungsanfrage (E-Mail-Login):\n\nName: " . $reg['name'] . "\nE-Mail: " . $reg['email'] . "\n\nBitte in der Admin-Oberfläche freigeben.";
@@ -1218,7 +1249,7 @@ if ($res === 'einstellungen') {
                 'verein_name','verein_kuerzel','app_untertitel','logo_datei',
                 'email_domain','noreply_email',
                 'farbe_primary','farbe_accent',
-                'dashboard_timeline_limit','version_nur_admins',
+                'dashboard_timeline_limit','registrierung_auto_freigabe','version_nur_admins',
                 'adressleiste_farbe','dashboard_layout',
                 'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url','github_repo','github_token','github_token_expires',
                 'disziplin_kategorie_suffix',

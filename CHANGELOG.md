@@ -1,3 +1,15 @@
+## v964 – Admin: Registrierung – automatische Freigabe konfigurierbar
+
+- Neues Setting in Admin → Registrierungen → E-Mail-Einstellungen: **„Registrierung – Freigabe"**
+  - 🔐 Manuelle Bestätigung durch Admin (Standard, bisheriges Verhalten)
+  - ✅ Sofort aktiv nach E-Mail-Bestätigung (kein Admin-Eingriff nötig)
+- Bei Auto-Freigabe: Benutzerkonto wird direkt nach Abschluss von Schritt 3 (TOTP oder E-Mail-Code) angelegt
+- Erfolgsmeldung im Registrierungs-Modal passt sich an: „Jetzt einloggen" statt „Warte auf Admin-Freigabe"
+- Admin-Benachrichtigungs-Mail wird nur bei manueller Freigabe verschickt
+- Einstellung wird in `settings`-Tabelle als `registrierung_auto_freigabe` gespeichert
+
+---
+
 ## v963 – Konto löschen: Papierkorb + Athlet-Trennung erst bei endgültiger Löschung
 
 - **Self-Deletion**: `athlet_id` bleibt beim Löschen erhalten (nicht mehr sofort getrennt)

@@ -811,11 +811,12 @@ function _renderRegModal() {
         '<div style="font-size:48px;margin-bottom:12px">✅</div>' +
         '<div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px">Registrierung abgeschlossen!</div>' +
         '<div style="font-size:13px;color:var(--text2);line-height:1.6">' +
-          'Dein Konto wartet nun auf die Freigabe durch einen Administrator.<br>' +
-          'Du wirst per E-Mail benachrichtigt, sobald dein Konto freigeschaltet wurde.' +
+          (s.autoFreigabe
+            ? 'Dein Konto wurde sofort freigeschaltet.<br>Du kannst dich jetzt direkt einloggen.'
+            : 'Dein Konto wartet nun auf die Freigabe durch einen Administrator.<br>Du wirst per E-Mail benachrichtigt, sobald dein Konto freigeschaltet wurde.') +
         '</div>' +
       '</div>' +
-      '<button class="btn-login" style="width:100%" onclick="hideRegister();showLogin()">Zum Login</button>';
+      '<button class="btn-login" style="width:100%" onclick="hideRegister();showLogin()">' + (s.autoFreigabe ? 'Jetzt einloggen' : 'Zum Login') + '</button>';
   }
 
   showModal(
@@ -908,6 +909,7 @@ async function regStep3() {
   if (!r || !r.ok) return _regErr((r && r.fehler) || 'Ungültiger Code. Bitte erneut versuchen.');
 
   _regState.step = 4;
+  _regState.autoFreigabe = !!(r.data && r.data.auto_freigabe);
   _renderRegModal();
 }
 
@@ -916,6 +918,7 @@ async function regSkipTotp() {
   var r = await apiPost('auth/register-email-2fa', { email: _regState.email });
   if (!r || !r.ok) return _regErr((r && r.fehler) || 'Fehler.');
   _regState.step = 4;
+  _regState.autoFreigabe = !!(r.data && r.data.auto_freigabe);
   _renderRegModal();
 }
 

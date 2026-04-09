@@ -1,5 +1,5 @@
-v963 – Konto löschen: Papierkorb-Flow + athlet_id erst bei endgültiger Löschung trennen
+v964 – Admin: Registrierung auto_freigabe konfigurierbar
 
-- Self-deletion: athlet_id bleibt bis zur endgültigen Löschung
-- Papierkorb: neuer Benutzerkonten-Abschnitt mit Restore/Delete
-- Benutzer-Liste: gelöschte Konten ausgeblendet
+- Setting: sofort aktiv vs. manuell durch Admin
+- Auto-Freigabe: Benutzerkonto direkt nach Schritt 3 anlegen
+- Erfolgsmeldung im Modal dynamisch

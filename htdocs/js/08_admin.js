@@ -1027,6 +1027,24 @@ async function renderAdminRegistrierungen() {
           '<input type="text" id="cfg-noreply_email" value="' + _noreplyEmail.replace(/"/g,'&quot;') + '" placeholder="noreply@..." class="settings-input"/>' +
         '</div>' +
       '</div>' +
+      '<div class="settings-row">' +
+        '<div class="settings-row-label">' +
+          '<div style="font-weight:600">Registrierung – Freigabe</div>' +
+          '<div style="font-size:12px;color:var(--text2)">Ob neue Benutzer sofort aktiv sind oder erst vom Admin bestätigt werden müssen</div>' +
+        '</div>' +
+        '<div class="settings-row-input">' +
+          '<div style="display:flex;flex-direction:column;gap:8px">' +
+            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+              '<input type="radio" name="cfg-auto_freigabe" id="cfg-auto_freigabe_0" value="0" ' + ((appConfig && appConfig.registrierung_auto_freigabe) || '0' !== '1' ? 'checked' : '') + ' style="cursor:pointer">' +
+              '<span style="font-size:13px">🔐 Manuelle Bestätigung durch Admin (Standard)</span>' +
+            '</label>' +
+            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+              '<input type="radio" name="cfg-auto_freigabe" id="cfg-auto_freigabe_1" value="1" ' + ((appConfig && appConfig.registrierung_auto_freigabe) || '0' === '1' ? 'checked' : '') + ' style="cursor:pointer">' +
+              '<span style="font-size:13px">✅ Sofort aktiv nach E-Mail-Bestätigung</span>' +
+            '</label>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
       '<div style="padding:0 16px 16px;display:flex;justify-content:flex-end">' +
         '<button class="btn btn-primary btn-sm" onclick="saveEmailSettings()">Speichern</button>' +
       '</div>' +
@@ -1065,9 +1083,11 @@ async function saveEmailSettings() {
   var domain  = aktiv ? (document.getElementById('cfg-email_domain').value || '').trim() : '';
   var noreply = (document.getElementById('cfg-noreply_email').value || '').trim();
   // POST einstellungen erwartet Keys direkt als Body: { email_domain: '...', noreply_email: '...' }
-  var r = await apiPost('einstellungen', { email_domain: domain, noreply_email: noreply });
+  var autoFreigabe = document.querySelector('input[name="cfg-auto_freigabe"]:checked');
+  var freigabe = autoFreigabe ? autoFreigabe.value : '0';
+  var r = await apiPost('einstellungen', { email_domain: domain, noreply_email: noreply, registrierung_auto_freigabe: freigabe });
   if (r && r.ok) {
-    if (appConfig) { appConfig.email_domain = domain; appConfig.noreply_email = noreply; }
+    if (appConfig) { appConfig.email_domain = domain; appConfig.noreply_email = noreply; appConfig.registrierung_auto_freigabe = freigabe; }
     notify('E-Mail-Einstellungen gespeichert.', 'ok');
   } else { notify('\u274C ' + ((r&&r.fehler)||'Fehler beim Speichern.'), 'err'); }
 }
