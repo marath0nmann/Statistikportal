@@ -148,6 +148,8 @@ try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('veranstaltung_serien') 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS serie_id INT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS geloescht_am DATETIME NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS reset_code_hash VARCHAR(255) NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS reset_code_expires DATETIME NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athleten') . " MODIFY COLUMN geschlecht ENUM('M','W','D','') NOT NULL DEFAULT ''"); } catch (\Exception $e) {}
 // Migration: Rollen-System (rollen-Tabelle)
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rollen') . " (
@@ -775,6 +777,68 @@ if ($res === 'auth') {
                   "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
         }
         jsonOk('Registrierung abgeschlossen. Warte auf Admin-Freigabe.');
+    }
+
+    // ── Passwort vergessen – Schritt 1: Code senden ─────────────────────────
+    if ($method === 'POST' && $id === 'reset-request') {
+        $email = strtolower(trim($body['email'] ?? ''));
+        if (!$email) jsonErr('Bitte E-Mail-Adresse angeben.');
+        // Benutzer suchen (nicht gelöschte)
+        $user = DB::fetchOne('SELECT id, email FROM ' . DB::tbl('benutzer') . ' WHERE email=? AND aktiv=1 AND geloescht_am IS NULL', [$email]);
+        // Keine Info ob Account existiert (Security)
+        if ($user) {
+            $code    = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $hash    = password_hash($code, PASSWORD_DEFAULT);
+            $expires = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+            // Speichere in Benutzer-Tabelle (temp-Felder falls vorhanden, sonst prefs)
+            try {
+                DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET reset_code_hash=?, reset_code_expires=? WHERE id=?',
+                    [$hash, $expires, $user['id']]);
+            } catch (\Exception $e) {
+                // Fallback: code in prefs speichern
+                $prefs = json_decode(DB::fetchOne('SELECT prefs FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [$user['id']])['prefs'] ?? '{}', true) ?: [];
+                $prefs['_reset'] = ['h' => $hash, 'e' => $expires];
+                DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET prefs=? WHERE id=?', [json_encode($prefs), $user['id']]);
+            }
+            $msg = "Dein Code zum Zurücksetzen des Passworts lautet:\n\n    " . $code .
+                   "\n\n(gültig 15 Minuten)\n\n" . Settings::get('verein_name','');
+            @mail($user['email'], Settings::get('verein_name','') . ' – Passwort zurücksetzen', $msg,
+                  "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+        }
+        jsonOk('Falls ein Konto mit dieser E-Mail existiert, wurde ein Code gesendet.');
+    }
+
+    // ── Passwort vergessen – Schritt 2: Code prüfen + Passwort setzen ────────
+    if ($method === 'POST' && $id === 'reset-confirm') {
+        $email   = strtolower(trim($body['email'] ?? ''));
+        $code    = trim($body['code'] ?? '');
+        $newPw   = $body['passwort'] ?? '';
+        if (!$email || !$code || !$newPw) jsonErr('Alle Felder erforderlich.');
+        if (strlen($newPw) < 12) jsonErr('Passwort muss mindestens 12 Zeichen haben.');
+        $user = DB::fetchOne('SELECT id, prefs, reset_code_hash, reset_code_expires FROM ' . DB::tbl('benutzer') . ' WHERE email=? AND aktiv=1 AND geloescht_am IS NULL', [$email]);
+        if (!$user) jsonErr('Ungültiger oder abgelaufener Code.', 400);
+        // Code aus reset_code_hash oder prefs lesen
+        $storedHash    = $user['reset_code_hash'] ?? null;
+        $storedExpires = $user['reset_code_expires'] ?? null;
+        if (!$storedHash) {
+            $prefs = json_decode($user['prefs'] ?? '{}', true) ?: [];
+            $storedHash    = $prefs['_reset']['h'] ?? null;
+            $storedExpires = $prefs['_reset']['e'] ?? null;
+        }
+        if (!$storedHash || !$storedExpires) jsonErr('Kein Reset-Code angefordert.', 400);
+        if (strtotime($storedExpires) < time()) jsonErr('Code abgelaufen. Bitte erneut anfordern.', 400);
+        if (!password_verify($code, $storedHash)) jsonErr('Ungültiger Code.', 400);
+        // Passwort setzen + Code löschen
+        $hash = Auth::hashPasswort($newPw);
+        try {
+            DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET passwort=?, reset_code_hash=NULL, reset_code_expires=NULL WHERE id=?', [$hash, $user['id']]);
+        } catch (\Exception $e) {
+            // Fallback: prefs-Reset löschen
+            $prefs = json_decode($user['prefs'] ?? '{}', true) ?: [];
+            unset($prefs['_reset']);
+            DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET passwort=?, prefs=? WHERE id=?', [$hash, json_encode($prefs), $user['id']]);
+        }
+        jsonOk('Passwort wurde erfolgreich geändert.');
     }
 
     // Admin: alle Registrierungen abrufen

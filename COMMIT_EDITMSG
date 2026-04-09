@@ -1,5 +1,5 @@
-v970 – Auto-Rollenwechsel Leser↔Athlet bei Athleten-Zuordnung
+v971 – Passwort vergessen (Reset per E-Mail-Code)
 
-- Registrierungen + Benutzer: Athlet zuordnen → Rolle=Athlet automatisch
-- PHP: benutzer PUT passt Rolle serverseitig an
-- JS: eb-athlet onchange aktualisiert Rolle-Dropdown live
+- Link in Login Step 1+2
+- reset-request + reset-confirm API-Routen
+- DB-Migration: reset_code_hash, reset_code_expires

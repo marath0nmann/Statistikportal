@@ -1,3 +1,13 @@
+## v971 – Passwort vergessen
+
+- Neuer Link „Passwort vergessen?" unter dem Anmelden-Button in Schritt 1 und 2 des Login-Flows
+- **Schritt 1**: E-Mail eingeben → Code wird per Mail gesendet (gültig 15 Min.)
+- **Schritt 2**: 6-stelligen Code + neues Passwort (min. 12 Zeichen) + Wiederholung → Passwort wird gesetzt
+- Sicherheit: API verrät nicht ob ein Konto existiert (neutrale Bestätigungsmeldung)
+- DB: neue Spalten `reset_code_hash` + `reset_code_expires` in `benutzer`-Tabelle (auto-migriert)
+
+---
+
 ## v970 – Auto-Rollenwechsel bei Athleten-Zuordnung
 
 - **Admin → Registrierungen**: Athlet beim Genehmigen zuordnen → Rolle wird automatisch auf „Athlet" gesetzt (statt „Leser")

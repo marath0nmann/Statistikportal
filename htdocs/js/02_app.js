@@ -936,6 +936,83 @@ function loginBackdropClick(e) {
   }
 }
 
+
+// ── Passwort vergessen ───────────────────────────────────────
+function showPwReset(prefillEmail) {
+  showModal(
+    '<h2 style="font-size:18px;font-weight:700;margin:0 0 12px">&#x1F511; Passwort vergessen</h2>' +
+    '<p style="font-size:13px;color:var(--text2);margin:0 0 16px">Gib deine E-Mail-Adresse ein. Du erhältst einen 6-stelligen Code zum Zurücksetzen des Passworts.</p>' +
+    '<div class="form-group" style="margin-bottom:16px">' +
+      '<label style="color:var(--text2)">E-Mail-Adresse</label>' +
+      '<input type="email" id="pr-email" value="' + (prefillEmail || '').replace(/"/g,'&quot;') + '" style="font-size:15px" autocomplete="email" ' +
+             'onkeydown="if(event.key===\'Enter\')doPwResetRequest()"/>' +
+    '</div>' +
+    '<div id="pr-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;margin-bottom:12px"></div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" id="pr-btn" onclick="doPwResetRequest()">Code senden</button>' +
+    '</div>'
+  );
+  setTimeout(function(){ var el=document.getElementById('pr-email'); if(el&&!el.value) el.focus(); }, 100);
+}
+
+async function doPwResetRequest() {
+  var email = (document.getElementById('pr-email').value || '').trim().toLowerCase();
+  var errEl = document.getElementById('pr-err');
+  errEl.style.display = 'none';
+  if (!email) { errEl.textContent = 'Bitte E-Mail-Adresse eingeben.'; errEl.style.display='block'; return; }
+  var btn = document.getElementById('pr-btn');
+  btn.textContent = '...'; btn.disabled = true;
+  var r = await apiPost('auth/reset-request', { email: email });
+  btn.textContent = 'Code senden'; btn.disabled = false;
+  if (!r || !r.ok) { errEl.textContent = '❌ ' + ((r&&r.fehler)||'Fehler'); errEl.style.display='block'; return; }
+  // Code eingeben + neues Passwort
+  window._prResetEmail = email;
+  showModal(
+    '<h2 style="font-size:18px;font-weight:700;margin:0 0 12px">&#x1F511; Neues Passwort setzen</h2>' +
+    '<p style="font-size:13px;color:var(--text2);margin:0 0 16px">Falls ein Konto mit <strong>' + email + '</strong> existiert, wurde ein Code gesendet.</p>' +
+    '<div class="form-group" style="margin-bottom:12px">' +
+      '<label style="color:var(--text2)">Code aus der E-Mail</label>' +
+      '<input type="text" id="pr-code" placeholder="123456" maxlength="6" inputmode="numeric" style="font-size:18px;letter-spacing:6px;text-align:center" autocomplete="one-time-code"/>' +
+    '</div>' +
+    '<div class="form-group" style="margin-bottom:12px">' +
+      '<label style="color:var(--text2)">Neues Passwort <span style="font-size:11px;font-weight:400">(min. 12 Zeichen)</span></label>' +
+      '<input type="password" id="pr-pw" style="font-size:15px" autocomplete="new-password"/>' +
+    '</div>' +
+    '<div class="form-group" style="margin-bottom:16px">' +
+      '<label style="color:var(--text2)">Passwort wiederholen</label>' +
+      '<input type="password" id="pr-pw2" style="font-size:15px" autocomplete="new-password" ' +
+             'onkeydown="if(event.key===\'Enter\')doPwResetConfirm()"/>' +
+    '</div>' +
+    '<div id="pr-err2" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;margin-bottom:12px"></div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" id="pr-btn2" onclick="doPwResetConfirm()">Passwort ändern</button>' +
+    '</div>'
+  );
+  setTimeout(function(){ var el=document.getElementById('pr-code'); if(el) el.focus(); }, 100);
+}
+
+async function doPwResetConfirm() {
+  var email = window._prResetEmail || '';
+  var code = (document.getElementById('pr-code').value || '').trim();
+  var pw   = document.getElementById('pr-pw').value;
+  var pw2  = document.getElementById('pr-pw2').value;
+  var errEl = document.getElementById('pr-err2');
+  errEl.style.display = 'none';
+  if (!code || code.length !== 6) { errEl.textContent = 'Bitte 6-stelligen Code eingeben.'; errEl.style.display='block'; return; }
+  if (pw.length < 12) { errEl.textContent = 'Passwort muss mindestens 12 Zeichen haben.'; errEl.style.display='block'; return; }
+  if (pw !== pw2) { errEl.textContent = 'Passwörter stimmen nicht überein.'; errEl.style.display='block'; return; }
+  var btn = document.getElementById('pr-btn2');
+  btn.textContent = '...'; btn.disabled = true;
+  var r = await apiPost('auth/reset-confirm', { email: email, code: code, passwort: pw });
+  btn.textContent = 'Passwort ändern'; btn.disabled = false;
+  if (!r || !r.ok) { errEl.textContent = '❌ ' + ((r&&r.fehler)||'Fehler'); errEl.style.display='block'; return; }
+  closeModal();
+  notify('✅ Passwort erfolgreich geändert. Du kannst dich jetzt einloggen.', 'ok');
+  showLogin();
+}
+
 // ── Dreistufiger Login-State ────────────────────────────────
 var _loginState = { step: 1, ident: '', name: '', has_passkey: false };
 
@@ -1026,7 +1103,10 @@ function renderLoginStep1() {
     '</div>' +
     '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
     '<button class="btn btn-primary" style="width:100%" onclick="doLoginStep1()">Weiter &#x2192;</button>' +
-    '<button class="btn btn-ghost btn-login-cancel" style="width:100%;margin-top:8px" onclick="hideLogin()">Abbrechen</button>'
+    '<button class="btn btn-ghost btn-login-cancel" style="width:100%;margin-top:8px" onclick="hideLogin()">Abbrechen</button>' +
+    '<div style="text-align:center;margin-top:14px">' +
+      '<button onclick="showPwReset()" style="background:none;border:none;color:var(--text2);font-size:12px;cursor:pointer;text-decoration:underline;padding:0">Passwort vergessen?</button>' +
+    '</div>'
   );
   setTimeout(function(){ var el=document.getElementById('login-ident'); if(el) el.focus(); }, 100);
   // Kurze Verzögerung: erst starten wenn der Nutzer vermutlich noch tippt,
@@ -1066,7 +1146,10 @@ function renderLoginStep2() {
     '</div>' +
     '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
     '<button class="btn btn-primary" style="width:100%" onclick="doLoginStep2()">Anmelden</button>' +
-    '<button class="btn btn-ghost" style="width:100%;margin-top:4px;opacity:.7;font-size:12px" onclick="renderLoginStep1()">&#x2190; Zurück</button>'
+    '<button class="btn btn-ghost" style="width:100%;margin-top:4px;opacity:.7;font-size:12px" onclick="renderLoginStep1()">&#x2190; Zurück</button>' +
+    '<div style="text-align:center;margin-top:12px">' +
+      '<button onclick="showPwReset(_loginState.ident)" style="background:none;border:none;color:var(--text2);font-size:12px;cursor:pointer;text-decoration:underline;padding:0">Passwort vergessen?</button>' +
+    '</div>'
   );
   setTimeout(function(){ var el=document.getElementById('login-pw'); if(el) el.focus(); }, 100);
 }
