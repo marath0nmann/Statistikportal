@@ -1,3 +1,9 @@
+## v966 – Registrierung: Mehr Abstand über Passwort-Feld
+
+- `margin-top` zwischen E-Mail- und Passwort-Block von 20px auf 32px erhöht
+
+---
+
 ## v965 – Bugfixes: Registrierung nach Kontolöschung + UI
 
 ### Bug: „wartet bereits auf Admin-Freigabe"

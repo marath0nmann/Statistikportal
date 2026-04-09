@@ -1,4 +1,1 @@
-v965 – Registrierung: Bug approved-Email + Button-Höhe + Abstand E-Mail/Passwort
-
-- Fix: Email-Check ignoriert gelöschte Konten und alte approved-Einträge
-- CSS: Buttons gleich groß, mehr Abstand zwischen Feldern
+v966 – Registrierung: Abstand E-Mail/Passwort auf 32px erhöht
