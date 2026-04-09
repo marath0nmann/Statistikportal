@@ -510,7 +510,8 @@ if ($res === 'auth') {
         $user = Auth::requireLogin();
         $uid = (int)$user['id'];
         // Vom Athletenprofil trennen + geloescht_am setzen
-        DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET athlet_id = NULL, aktiv = 0, geloescht_am = NOW() WHERE id = ?', [$uid]);
+        // athlet_id bleibt erhalten bis zur endgültigen Löschung aus dem Papierkorb
+        DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET aktiv = 0, geloescht_am = NOW() WHERE id = ?', [$uid]);
         Auth::logout();
         jsonOk(['msg' => 'Konto gelöscht.']);
     }
@@ -1367,6 +1368,7 @@ if ($res === 'benutzer') {
                         (SELECT COUNT(*) FROM ' . DB::tbl('passkeys') . ' p WHERE p.user_id = b.id) AS passkey_count
                  FROM ' . DB::tbl('benutzer') . ' b
                  LEFT JOIN ' . DB::tbl('athleten') . ' a ON a.id = b.athlet_id
+                 WHERE b.geloescht_am IS NULL
                  ORDER BY b.email'
             );
         } catch (\Exception $e) {
@@ -3967,7 +3969,17 @@ if ($res === 'papierkorb') {
              FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NOT NULL
              ORDER BY geloescht_am DESC LIMIT 100"
         );
-        jsonOk(['ergebnisse' => $ergebnisse, 'athleten' => $athleten, 'veranstaltungen' => $veranst]);
+        $benutzer = DB::fetchAll(
+            "SELECT 'benutzer' AS typ, b.id,
+                    COALESCE(NULLIF(TRIM(CONCAT(COALESCE(a.vorname,''),' ',COALESCE(a.nachname,''))),''),(b.benutzername)) AS label,
+                    b.email AS detail, NULL AS resultat, b.geloescht_am,
+                    NULL AS veranstaltung
+             FROM " . DB::tbl('benutzer') . " b
+             LEFT JOIN " . DB::tbl('athleten') . " a ON a.id = b.athlet_id
+             WHERE b.geloescht_am IS NOT NULL
+             ORDER BY b.geloescht_am DESC LIMIT 100"
+        );
+        jsonOk(['ergebnisse' => $ergebnisse, 'athleten' => $athleten, 'veranstaltungen' => $veranst, 'benutzer' => $benutzer]);
     }
 
     // Wiederherstellen: POST papierkorb/{typ}/{id}
@@ -3988,6 +4000,9 @@ if ($res === 'papierkorb') {
             DB::query("UPDATE " . DB::tbl('veranstaltungen') . " SET geloescht_am=NULL WHERE id=?", [$rid]);
             // Ergebnisse der Veranstaltung ebenfalls wiederherstellen
             DB::query("UPDATE $eTbl SET geloescht_am=NULL WHERE veranstaltung_id=? AND geloescht_am IS NOT NULL", [$rid]);
+        } elseif ($rtyp === 'benutzer') {
+            // Konto reaktivieren – athlet_id bleibt erhalten
+            DB::query("UPDATE " . DB::tbl('benutzer') . " SET geloescht_am=NULL, aktiv=1 WHERE id=?", [$rid]);
         } else jsonErr('Unbekannter Typ.');
         jsonOk('Wiederhergestellt.');
     }
@@ -4005,6 +4020,9 @@ if ($res === 'papierkorb') {
             try { DB::query("DELETE FROM $eTbl WHERE geloescht_am IS NOT NULL"); } catch (\Exception $e) {}
             DB::query("DELETE FROM " . DB::tbl('athleten') . " WHERE geloescht_am IS NOT NULL");
             DB::query("DELETE FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NOT NULL");
+            // Benutzer: erst athlet_id trennen, dann löschen
+            DB::query("UPDATE " . DB::tbl('benutzer') . " SET athlet_id=NULL WHERE geloescht_am IS NOT NULL");
+            DB::query("DELETE FROM " . DB::tbl('benutzer') . " WHERE geloescht_am IS NOT NULL");
             jsonOk('Papierkorb geleert.');
         }
 
@@ -4014,6 +4032,10 @@ if ($res === 'papierkorb') {
             DB::query("DELETE FROM $eTbl WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
         } elseif ($rtyp === 'athlet') {
             DB::query("DELETE FROM " . DB::tbl('athleten') . " WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
+        } elseif ($rtyp === 'benutzer') {
+            // Erst athlet_id trennen, dann endgültig löschen
+            DB::query("UPDATE " . DB::tbl('benutzer') . " SET athlet_id=NULL WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
+            DB::query("DELETE FROM " . DB::tbl('benutzer') . " WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
         } elseif ($rtyp === 'veranstaltung') {
             // Ergebnisse aus allen Tabellen löschen (FK constraint!)
             try { DB::query("DELETE FROM " . DB::tbl('ergebnisse') . " WHERE veranstaltung_id=? AND geloescht_am IS NOT NULL", [$rid]); } catch (\Exception $e) {}

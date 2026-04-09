@@ -1,3 +1,14 @@
+## v963 – Konto löschen: Papierkorb + Athlet-Trennung erst bei endgültiger Löschung
+
+- **Self-Deletion**: `athlet_id` bleibt beim Löschen erhalten (nicht mehr sofort getrennt)
+- **Benutzer-Liste** (Admin): gelöschte Konten erscheinen nicht mehr als „Inaktiv", sondern werden ausgeblendet
+- **Papierkorb**: neuer Abschnitt „🔑 Benutzerkonten" mit gelöschten Konten
+  - Wiederherstellen: Konto reaktiviert, `athlet_id` bleibt zugeordnet
+  - Endgültig löschen: erst jetzt wird `athlet_id` getrennt, dann Konto aus DB gelöscht
+- „Alles löschen" im Papierkorb berücksichtigt jetzt auch Benutzerkonten
+
+---
+
 ## v962 – Bugfix: evenementen.uitslagen.nl ältere Events (menu.html + 404)
 
 - **`menu.html` Fallback**: Ältere Veranstaltungen (z.B. 2018) liefern `menu.html` statt `menu.php` → Importer versucht jetzt erst `menu.php`, dann `menu.html`

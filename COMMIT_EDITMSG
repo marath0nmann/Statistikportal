@@ -1,4 +1,5 @@
-v962 – Bugfix: evenementen.uitslagen.nl menu.html Fallback für ältere Events
+v963 – Konto löschen: Papierkorb-Flow + athlet_id erst bei endgültiger Löschung trennen
 
-- Fallback menu.php → menu.html (2018er Events)
-- Entferne 404-verursachenden uitslagen.nl Datum-Lookup
+- Self-deletion: athlet_id bleibt bis zur endgültigen Löschung
+- Papierkorb: neuer Benutzerkonten-Abschnitt mit Restore/Delete
+- Benutzer-Liste: gelöschte Konten ausgeblendet

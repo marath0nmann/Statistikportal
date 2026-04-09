@@ -873,7 +873,8 @@ async function renderPapierkorb() {
   var erg  = r.data.ergebnisse || [];
   var ath  = r.data.athleten || [];
   var ver  = r.data.veranstaltungen || [];
-  var total = erg.length + ath.length + ver.length;
+  var ben  = r.data.benutzer || [];
+  var total = erg.length + ath.length + ver.length + ben.length;
 
   function pkRows(items, typ) {
     var html = '';
@@ -912,9 +913,13 @@ async function renderPapierkorb() {
       '<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th>Athlet</th><th>Gelöscht am</th><th></th></tr></thead>' +
       '<tbody>' + pkRows(ath, 'athlet') + '</tbody></table></div></div>';
     if (ver.length) html +=
-      '<div class="panel"><div class="panel-header"><div class="panel-title">📅 Veranstaltungen (' + ver.length + ')</div></div>' +
+      '<div class="panel" style="margin-bottom:16px"><div class="panel-header"><div class="panel-title">📅 Veranstaltungen (' + ver.length + ')</div></div>' +
       '<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th>Veranstaltung</th><th>Gelöscht am</th><th></th></tr></thead>' +
       '<tbody>' + pkRows(ver, 'veranstaltung') + '</tbody></table></div></div>';
+    if (ben.length) html +=
+      '<div class="panel"><div class="panel-header"><div class="panel-title">🔑 Benutzerkonten (' + ben.length + ')</div></div>' +
+      '<div style="overflow-x:auto"><table class="data-table" style="width:100%"><thead><tr><th>Konto</th><th>Gelöscht am</th><th></th></tr></thead>' +
+      '<tbody>' + pkRows(ben, 'benutzer') + '</tbody></table></div></div>';
   }
   el.innerHTML = html;
 }
@@ -926,7 +931,10 @@ async function pkRestore(typ, id) {
 }
 
 async function pkDelete(typ, id) {
-  if (!confirm('Eintrag endgültig löschen? Dies kann nicht rückgängig gemacht werden.')) return;
+  var msg = typ === 'benutzer'
+    ? 'Benutzerkonto endgültig löschen?\nDas Konto wird dauerhaft gelöscht und vom Athletenprofil getrennt.'
+    : 'Eintrag endgültig löschen? Dies kann nicht rückgängig gemacht werden.';
+  if (!confirm(msg)) return;
   var r = await api('DELETE', 'papierkorb/' + typ + '/' + id);
   if (r && r.ok) { notify('Endgültig gelöscht.', 'ok'); await renderPapierkorb(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
