@@ -1007,7 +1007,7 @@ tr:hover td { background: var(--surf2); }
 /* ── E-Mail-Hint im Registrierungsformular ── */
 .reg-email-hint {
   padding: 7px 12px; border-radius: 0 0 7px 7px;
-  margin-top: -1px; margin-bottom: 0;
+  margin-top: -1px; margin-bottom: 16px;
   font-size: 12px; line-height: 1.4;
   background: var(--surf2); border: 1px solid var(--border); border-top: none;
   color: var(--text2); transition: background .2s, border-color .2s, color .2s;
@@ -1081,6 +1081,8 @@ tr:hover td { background: var(--surf2); }
 .reg-btn-row .btn-login-cancel {
   flex: 1;
   width: auto;
+  margin-top: 0;
+  padding: 13px;
 }
 
 /* Input über Hint: untere Ecken eckig damit nahtloser Übergang */
