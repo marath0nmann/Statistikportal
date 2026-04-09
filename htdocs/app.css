@@ -200,9 +200,10 @@ nav button.active {
 .btn-login:hover { background: var(--btn-bg2); }
 .btn-login-cancel {
   width: 100%; background: transparent; color: var(--text2);
-  border: 1.5px solid var(--border); border-radius: 8px; padding: 10px;
-  font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 500;
-  cursor: pointer; transition: background .15s, color .15s; margin-top: 8px;
+  border: 1.5px solid var(--border); border-radius: 8px; padding: 13px;
+  font-family: 'Barlow Condensed', sans-serif; font-size: 17px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase;
+  cursor: pointer; transition: background .15s, color .15s;
 }
 .btn-login-cancel:hover { background: var(--surf2); color: var(--text); }
 
@@ -1007,7 +1008,7 @@ tr:hover td { background: var(--surf2); }
 /* ── E-Mail-Hint im Registrierungsformular ── */
 .reg-email-hint {
   padding: 7px 12px; border-radius: 0 0 7px 7px;
-  margin-top: -1px; margin-bottom: 16px;
+  margin-top: -1px; margin-bottom: 0;
   font-size: 12px; line-height: 1.4;
   background: var(--surf2); border: 1px solid var(--border); border-top: none;
   color: var(--text2); transition: background .2s, border-color .2s, color .2s;
@@ -1075,14 +1076,17 @@ tr:hover td { background: var(--surf2); }
 
 /* ── Registrierung Buttons gleich groß ── */
 .reg-btn-row {
-  display: flex; gap: 10px; margin-top: 8px;
+  display: flex; gap: 10px; margin-top: 16px;
 }
 .reg-btn-row .btn-login,
 .reg-btn-row .btn-login-cancel {
   flex: 1;
   width: auto;
   margin-top: 0;
-  padding: 13px;
+}
+/* Abstand zwischen E-Mail-Block und Passwort-Block */
+#modal-body .form-group + .form-group {
+  margin-top: 20px;
 }
 
 /* Input über Hint: untere Ecken eckig damit nahtloser Übergang */

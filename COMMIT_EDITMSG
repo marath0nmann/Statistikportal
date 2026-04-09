@@ -1,5 +1,4 @@
-v964 – Admin: Registrierung auto_freigabe konfigurierbar
+v965 – Registrierung: Bug approved-Email + Button-Höhe + Abstand E-Mail/Passwort
 
-- Setting: sofort aktiv vs. manuell durch Admin
-- Auto-Freigabe: Benutzerkonto direkt nach Schritt 3 anlegen
-- Erfolgsmeldung im Modal dynamisch
+- Fix: Email-Check ignoriert gelöschte Konten und alte approved-Einträge
+- CSS: Buttons gleich groß, mehr Abstand zwischen Feldern

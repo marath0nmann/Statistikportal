@@ -618,12 +618,18 @@ if ($res === 'auth') {
         if (preg_match('/[^A-Za-z0-9]/', $pw)) $groups++;
         if ($groups < 3) jsonErr('Passwort muss mindestens 3 von 4 Zeichengruppen enthalten (Groß-, Kleinbuchstaben, Zahlen, Sonderzeichen).');
 
-        // Prüfen ob E-Mail schon als aktiver Benutzer vergeben
-        if (DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE email = ?', [$email]))
+        // Prüfen ob E-Mail schon als aktiver (nicht gelöschter) Benutzer vergeben
+        if (DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE email = ? AND geloescht_am IS NULL', [$email]))
             jsonErr('Diese E-Mail-Adresse ist bereits registriert.');
-        // approved-Registrierungen blockieren (Benutzer wartet auf Freigabe)
-        if (DB::fetchOne('SELECT id FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?', [$email, 'approved']))
+        // approved-Registrierungen blockieren NUR wenn noch kein Konto existiert
+        // (= wartet noch auf Admin-Freigabe, Konto noch nicht angelegt)
+        $approvedReg = DB::fetchOne('SELECT id FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?', [$email, 'approved']);
+        $hatKonto    = DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE email = ?', [$email]);
+        if ($approvedReg && !$hatKonto)
             jsonErr('Diese E-Mail-Adresse wartet bereits auf Admin-Freigabe.');
+        // Alte Registrierungseinträge bereinigen (approved wenn Konto vorhanden, pending, rejected)
+        if ($approvedReg && $hatKonto)
+            DB::query('DELETE FROM ' . DB::tbl('registrierungen') . ' WHERE email = ?', [$email]);
         // pending und rejected: werden unten gelöscht und neu angelegt
 
         $code      = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);

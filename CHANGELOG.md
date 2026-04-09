@@ -1,3 +1,16 @@
+## v965 – Bugfixes: Registrierung nach Kontolöschung + UI
+
+### Bug: „wartet bereits auf Admin-Freigabe"
+- Ursache: Eintrag in `registrierungen` mit `status='approved'` blieb nach Admin-Genehmigung erhalten → blockierte Neu-Registrierung mit gleicher E-Mail
+- Fix: Prüft nun ob tatsächlich noch *kein aktives Konto* vorhanden ist; wenn Konto bereits existiert → alter approved-Eintrag wird bereinigt
+- Zusätzlich: `benutzer`-Check prüft jetzt nur nicht-gelöschte Konten (`geloescht_am IS NULL`)
+
+### UI: Registrierungs-Modal
+- Abstand zwischen E-Mail- und Passwort-Block vergrößert
+- „Abbrechen" und „Weiter" jetzt gleiche Höhe, Schriftgröße und Stil (Barlow Condensed, Uppercase)
+
+---
+
 ## v964 – Admin: Registrierung – automatische Freigabe konfigurierbar
 
 - Neues Setting in Admin → Registrierungen → E-Mail-Einstellungen: **„Registrierung – Freigabe"**
