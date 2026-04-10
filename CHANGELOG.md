@@ -1,3 +1,13 @@
+## v975 – Neue regelmäßige Veranstaltung: Vorschlagsliste bestehender Veranstaltungen
+
+- Beim Anlegen einer neuen regelmäßigen Veranstaltung erscheint eine dynamische Vorschlagsliste
+- Beim Tippen des Namens werden passende Veranstaltungen gefiltert (Jahreszahlen und Ordinalzahlen werden ignoriert)
+- Alle gefundenen Veranstaltungen sind per Checkbox vorausgewählt
+- Beim „Anlegen" werden die ausgewählten Veranstaltungen automatisch der neuen Serie zugeordnet
+- Nur Veranstaltungen ohne bestehende Serienzuordnung erscheinen in der Liste
+
+---
+
 ## v974 – Regelmäßige Veranstaltungen: Kürzel entfernt
 
 - Kürzel-Feld aus „Neue regelmäßige Veranstaltung" und „Bearbeiten"-Modal entfernt

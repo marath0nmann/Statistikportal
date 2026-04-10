@@ -1,3 +1,5 @@
-v974 – Kürzel bei Regelmäßigen Veranstaltungen entfernt
+v975 – Neue regelmäßige Veranstaltung: Vorschlagsliste mit Auto-Zuordnung
 
-- Kein Kürzel-Feld mehr in UI; wird serverseitig auto-generiert
+- Dynamische Filterung beim Eintippen des Namens
+- Checkboxen für Auswahl, alle vorausgewählt
+- Beim Anlegen werden ausgewählte Veranstaltungen zugeordnet

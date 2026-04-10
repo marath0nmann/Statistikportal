@@ -484,28 +484,85 @@ async function _loadSerieBestleistungen(serieId, disz, mappingId) {
 }
 
 // ── Modale: Serie anlegen / bearbeiten ────────────────────
-function showSerieCreateModal() {
+async function showSerieCreateModal() {
+  // Alle Veranstaltungen ohne Serie laden für Vorschlagsliste
+  var rV = await apiGet('veranstaltungen?limit=500');
+  window._srAllVeranst = ((rV && rV.data && rV.data.veranst) || [])
+    .filter(function(v){ return !v.serie_id; })
+    .map(function(v){ return { id: v.id, name: v.name || (v.kuerzel||'').split(' ').slice(1).join(' ') || v.kuerzel || '' }; })
+    .filter(function(v){ return v.name; });
+
   showModal(
     '<h2>\uD83D\uDD04 Neue regelmäßige Veranstaltung <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
-    '<div class="form-grid">' +
-      '<div class="form-group full"><label>Name *</label>' +
-        '<input type="text" id="sr-name" placeholder="z.B. Stra\u00dflenlauf Oedt" autofocus/></div>' +
-
+    '<div class="form-group full" style="margin-bottom:16px">' +
+      '<label>Name *</label>' +
+      '<input type="text" id="sr-name" placeholder="z.B. Venloop" autofocus ' +
+             'oninput="_srFilterVeranst(this.value)"/>' +
     '</div>' +
-    '<div class="modal-actions">' +
+    '<div class="form-group full" style="margin-bottom:4px">' +
+      '<label style="font-size:12px;color:var(--text2)">Passende Veranstaltungen zuordnen <span id="sr-match-count" style="opacity:.6"></span></label>' +
+      '<div id="sr-veranst-list" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--surf2);padding:4px 0">' +
+        '<div style="padding:10px 14px;color:var(--text2);font-size:13px">Tippe oben einen Namen ein\u2026</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="modal-actions" style="margin-top:16px">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
       '<button class="btn btn-primary" onclick="saveSerieCreate()">Anlegen</button>' +
     '</div>'
   );
+}
 
+function _srNorm(s) {
+  // Jahreszahlen, Ordinalzahlen, Sonderzeichen entfernen für Vergleich
+  return (s || '').toLowerCase()
+    .replace(/\d{4}/g, '').replace(/\d+\./g, '').replace(/[^a-z\u00e4\u00f6\u00fc\u00df\s]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+
+function _srFilterVeranst(query) {
+  var list = document.getElementById('sr-veranst-list');
+  var cntEl = document.getElementById('sr-match-count');
+  if (!list) return;
+  var q = _srNorm(query);
+  var words = q.split(' ').filter(function(w){ return w.length >= 3; });
+  var all = window._srAllVeranst || [];
+  var matched = !words.length ? [] : all.filter(function(v){
+    var n = _srNorm(v.name);
+    return words.some(function(w){ return n.indexOf(w) >= 0; });
+  });
+  if (cntEl) cntEl.textContent = matched.length ? '(' + matched.length + ' gefunden)' : '';
+  if (!words.length) {
+    list.innerHTML = '<div style="padding:10px 14px;color:var(--text2);font-size:13px">Tippe oben einen Namen ein\u2026</div>';
+    return;
+  }
+  if (!matched.length) {
+    list.innerHTML = '<div style="padding:10px 14px;color:var(--text2);font-size:13px">Keine passenden Veranstaltungen gefunden</div>';
+    return;
+  }
+  list.innerHTML = matched.map(function(v){
+    return '<label style="display:flex;align-items:center;gap:10px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--border)">' +
+      '<input type="checkbox" class="sr-veranst-chk" value="' + v.id + '" checked style="width:15px;height:15px;cursor:pointer;flex-shrink:0"/>' +
+      '<span style="font-size:13px">' + v.name + '</span>' +
+    '</label>';
+  }).join('');
 }
 
 async function saveSerieCreate() {
-  var name    = (document.getElementById('sr-name')    || {}).value || '';
+  var name = (document.getElementById('sr-name') || {}).value || '';
   if (!name.trim()) { notify('Name erforderlich.', 'err'); return; }
   var r = await apiPost('veranstaltung-serien', { name: name.trim() });
-  if (r && r.ok) { closeModal(); notify('Serie angelegt.', 'ok'); switchVeranstView('serien'); }
-  else notify((r && r.fehler) || 'Fehler', 'err');
+  if (!r || !r.ok) { notify((r && r.fehler) || 'Fehler', 'err'); return; }
+  var newId = r.data && r.data.id;
+  // Ausgewählte Veranstaltungen zuordnen
+  if (newId) {
+    var chks = document.querySelectorAll('.sr-veranst-chk:checked');
+    for (var i = 0; i < chks.length; i++) {
+      await apiPut('veranstaltungen/' + chks[i].value, { serie_id: newId });
+    }
+  }
+  closeModal();
+  notify('Serie angelegt' + (newId && document.querySelectorAll ? '' : '') + '.', 'ok');
+  switchVeranstView('serien');
 }
 
 function showSerieEditModal(id, curName) {
