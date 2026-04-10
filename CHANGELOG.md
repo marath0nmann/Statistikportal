@@ -1,3 +1,9 @@
+## v985 – Rebuild: confirm()-Fix aus v984 sichergestellt
+
+- confirm() → Modal war in v984-ZIP korrekt, aber Server hatte alte Datei
+
+---
+
 ## v984 – Athletenprofil: Externes Ergebnis löschen – Modal + Listener-Loop-Fix
 
 - **Modal statt `confirm()`**: Löschen-Dialog öffnet jetzt ein sauberes Modal mit Abbrechen/Löschen-Buttons, das man normal schließen kann
