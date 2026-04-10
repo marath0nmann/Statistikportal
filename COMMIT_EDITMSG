@@ -1,4 +1,3 @@
-v973 – Login wiederhergestellt + Passwort-Reset korrekt im Login-Screen
+v974 – Kürzel bei Regelmäßigen Veranstaltungen entfernt
 
-- Restore von v970-Backup (Login-Funktionen waren in v972 gelöscht)
-- Reset-Flow als Anhang, keine Überschneidung mit Login-Code
+- Kein Kürzel-Feld mehr in UI; wird serverseitig auto-generiert

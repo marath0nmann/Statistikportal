@@ -172,11 +172,11 @@ async function renderSerienListe() {
         '<div class="panel-header" style="padding-bottom:8px">' +
           '<div>' +
             '<div class="panel-title" style="font-size:16px">' + s.name + '</div>' +
-            '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + s.kuerzel + '</div>' +
+      
           '</div>' +
           (canEdit ?
             '<div style="display:flex;gap:6px" onclick="event.stopPropagation()">' +
-              '<button class="btn btn-ghost btn-sm" onclick="showSerieEditModal(' + s.id + ',\'' + s.name.replace(/'/g,"\\'") + '\',\'' + s.kuerzel.replace(/'/g,"\\'") + '\')">&#x270F;&#xFE0F;</button>' +
+              '<button class="btn btn-ghost btn-sm" onclick="showSerieEditModal(' + s.id + ',\'' + s.name.replace(/'/g,"\\'") + '\')">&#x270F;&#xFE0F;</button>' +
               '<button class="btn btn-danger btn-sm" onclick="deleteSerieConfirm(' + s.id + ',\'' + s.name.replace(/'/g,"\\'") + '\')">&times;</button>' +
             '</div>' : '') +
         '</div>' +
@@ -227,13 +227,13 @@ async function renderSerieDetail(id) {
   html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">';
   html += '<div>';
   html += '<div style="font-size:22px;font-weight:700;line-height:1.2">' + serie.name + '</div>';
-  html += '<div style="font-size:13px;color:var(--text2);margin-top:3px">' + serie.kuerzel;
-  html += ' &middot; ' + veranst.length + ' Austragung' + (veranst.length != 1 ? 'en' : '');
+  html += '<div style="font-size:13px;color:var(--text2);margin-top:3px">';
+  html += veranst.length + ' Austragung' + (veranst.length != 1 ? 'en' : '');
   if (jahrMin) html += ' &middot; ' + (jahrMin === jahrMax ? jahrMin : jahrMin + '&ndash;' + jahrMax);
   html += '</div>';
   html += '</div>';
   if (canEdit) {
-    html += '<button class="btn btn-ghost btn-sm" onclick="showSerieEditModal(' + serie.id + ',\'' + serie.name.replace(/'/g,"\\'") + '\',\'' + serie.kuerzel.replace(/'/g,"\\'") + '\')">&#x270F;&#xFE0F; Bearbeiten</button>';
+    html += '<button class="btn btn-ghost btn-sm" onclick="showSerieEditModal(' + serie.id + ',\'' + serie.name.replace(/'/g,"\\'") + '\')">&#x270F;&#xFE0F; Bearbeiten</button>';
   }
   html += '</div></div>';
 
@@ -490,44 +490,31 @@ function showSerieCreateModal() {
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Name *</label>' +
         '<input type="text" id="sr-name" placeholder="z.B. Stra\u00dflenlauf Oedt" autofocus/></div>' +
-      '<div class="form-group full"><label>K\u00fcrzel *</label>' +
-        '<input type="text" id="sr-kuerzel" placeholder="z.B. SL-OEDT"/></div>' +
+
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
       '<button class="btn btn-primary" onclick="saveSerieCreate()">Anlegen</button>' +
     '</div>'
   );
-  var nameIn = document.getElementById('sr-name');
-  if (nameIn) nameIn.addEventListener('input', function() {
-    var kIn = document.getElementById('sr-kuerzel');
-    if (kIn && !kIn.dataset.userEdited) {
-      kIn.value = this.value.toUpperCase().replace(/[\s\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00df]/g, function(c) {
-        return { '\u00e4':'AE','\u00f6':'OE','\u00fc':'UE','\u00c4':'AE','\u00d6':'OE','\u00dc':'UE','\u00df':'SS',' ':'-' }[c] || '-';
-      }).replace(/[^A-Z0-9\-]/g,'').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,30);
-    }
-  });
-  var kIn2 = document.getElementById('sr-kuerzel');
-  if (kIn2) kIn2.addEventListener('input', function() { this.dataset.userEdited = '1'; });
+
 }
 
 async function saveSerieCreate() {
   var name    = (document.getElementById('sr-name')    || {}).value || '';
-  var kuerzel = (document.getElementById('sr-kuerzel') || {}).value || '';
-  if (!name.trim() || !kuerzel.trim()) { notify('Name und K\u00fcrzel erforderlich.', 'err'); return; }
-  var r = await apiPost('veranstaltung-serien', { name: name.trim(), kuerzel: kuerzel.trim() });
+  if (!name.trim()) { notify('Name erforderlich.', 'err'); return; }
+  var r = await apiPost('veranstaltung-serien', { name: name.trim() });
   if (r && r.ok) { closeModal(); notify('Serie angelegt.', 'ok'); switchVeranstView('serien'); }
   else notify((r && r.fehler) || 'Fehler', 'err');
 }
 
-function showSerieEditModal(id, curName, curKuerzel) {
+function showSerieEditModal(id, curName) {
   showModal(
     '<h2>&#x270F;&#xFE0F; Serie bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Name</label>' +
         '<input type="text" id="sr-name" value="' + (curName || '').replace(/"/g,'&quot;') + '"/></div>' +
-      '<div class="form-group full"><label>K\u00fcrzel</label>' +
-        '<input type="text" id="sr-kuerzel" value="' + (curKuerzel || '').replace(/"/g,'&quot;') + '"/></div>' +
+
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -538,8 +525,7 @@ function showSerieEditModal(id, curName, curKuerzel) {
 
 async function saveSerie(id) {
   var name    = (document.getElementById('sr-name')    || {}).value || '';
-  var kuerzel = (document.getElementById('sr-kuerzel') || {}).value || '';
-  var r = await apiPut('veranstaltung-serien/' + id, { name: name.trim(), kuerzel: kuerzel.trim() });
+  var r = await apiPut('veranstaltung-serien/' + id, { name: name.trim() });
   if (r && r.ok) {
     closeModal(); notify('Gespeichert.', 'ok');
     if (state.veranstView === 'serie-detail') renderSerieDetail(id);

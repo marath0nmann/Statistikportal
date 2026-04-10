@@ -1,3 +1,11 @@
+## v974 – Regelmäßige Veranstaltungen: Kürzel entfernt
+
+- Kürzel-Feld aus „Neue regelmäßige Veranstaltung" und „Bearbeiten"-Modal entfernt
+- Kürzel wird serverseitig automatisch aus dem Namen generiert (für DB-Kompatibilität intern weiter gespeichert)
+- Kürzel-Anzeige aus Kacheln und Detailseite entfernt
+
+---
+
 ## v973 – Passwort vergessen: Login wiederhergestellt + Reset-Flow korrekt
 
 - **Kritischer Bugfix**: v972 hatte versehentlich die Login-Kernfunktionen gelöscht (`_loginCard`, `renderLoginStep1/2/3`, `doLoginStep1/2`) — Wiederherstellung aus paket_v970.zip

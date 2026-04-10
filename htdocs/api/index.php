@@ -3728,12 +3728,18 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
 // POST veranstaltung-serien – neue Serie anlegen
 if ($res === 'veranstaltung-serien' && $method === 'POST') {
     Auth::requireRecht('veranstaltung_eintragen');
-    $name    = trim(sanitize($body['name']    ?? ''));
-    $kuerzel = trim(sanitize($body['kuerzel'] ?? ''));
-    if (!$name || !$kuerzel) jsonErr('Name und Kürzel erforderlich.', 400);
+    $name    = trim(sanitize($body['name'] ?? ''));
+    if (!$name) jsonErr('Name erforderlich.', 400);
+    // Kürzel automatisch aus Name generieren (nicht mehr vom User eingegeben)
+    $kuerzel = strtoupper(preg_replace('/[^A-Z0-9]+/i', '-', $name));
+    $kuerzel = trim($kuerzel, '-');
+    $kuerzel = substr($kuerzel, 0, 30);
     $sTbl = DB::tbl('veranstaltung_serien');
-    $exist = DB::fetchOne("SELECT id FROM $sTbl WHERE kuerzel=?", [$kuerzel]);
-    if ($exist) jsonErr('Kürzel bereits vergeben.', 409);
+    // Eindeutigkeit sicherstellen
+    $base = $kuerzel; $i = 2;
+    while (DB::fetchOne("SELECT id FROM $sTbl WHERE kuerzel=?", [$kuerzel])) {
+        $kuerzel = $base . '-' . $i++;
+    }
     DB::query("INSERT INTO $sTbl (name, kuerzel) VALUES (?,?)", [$name, $kuerzel]);
     $newId = DB::lastInsertId();
     jsonOk(['id' => $newId]);
@@ -3744,8 +3750,13 @@ if ($res === 'veranstaltung-serien' && $method === 'PUT' && $id) {
     Auth::requireRecht('veranstaltung_eintragen');
     $sTbl  = DB::tbl('veranstaltung_serien');
     $felder = []; $params = [];
-    if (isset($body['name']))    { $felder[] = 'name=?';    $params[] = sanitize($body['name']); }
-    if (isset($body['kuerzel'])) { $felder[] = 'kuerzel=?'; $params[] = sanitize($body['kuerzel']); }
+    if (isset($body['name'])) {
+        $felder[] = 'name=?'; $params[] = sanitize($body['name']);
+        // Kürzel automatisch mitaktualisieren
+        $autoKuerzel = strtoupper(preg_replace('/[^A-Z0-9]+/i', '-', sanitize($body['name'])));
+        $autoKuerzel = trim(substr(trim($autoKuerzel, '-'), 0, 30));
+        if ($autoKuerzel) { $felder[] = 'kuerzel=?'; $params[] = $autoKuerzel; }
+    }
     if (!$felder) jsonErr('Keine Änderungen.');
     $params[] = $id;
     DB::query("UPDATE $sTbl SET " . implode(',', $felder) . " WHERE id=?", $params);
