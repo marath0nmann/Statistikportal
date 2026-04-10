@@ -1,3 +1,19 @@
+## v980 – Regelmäßige Veranstaltungen: Detailseite ohne Tabs, alles auf einer Seite
+
+- Tab-Buttons (Ergebnisse nach Jahr / Bestleistungen / Anzahl Teilnahmen) entfernt
+- Alle drei Sektionen werden auf einmal angezeigt, von oben nach unten:
+  1. 📊 Anzahl Teilnahmen (mit Zeitstrahl)
+  2. 🏆 Bestleistungen
+  3. 📅 Ergebnisse nach Jahr
+
+---
+
+## v979 – Fix Deploy: safeTitle in v978-ZIP war korrekt, aber Server hatte alte Version
+
+- Rebuild mit identischem Fix (safeTitle HTML-Escape im Zeitstrahl-Tooltip)
+
+---
+
 ## v978 – Bugfix: Zeitstrahl-Darstellung (title-Attribut HTML-escaped)
 
 - Ursache: `fmtTime()` gibt Ergebnisse wie `1:29h` zurück — das `"` in `h"` schloss das HTML-`title`-Attribut vorzeitig, der Rest wurde als CSS-Text dargestellt

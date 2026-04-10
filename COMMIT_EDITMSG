@@ -1,3 +1,3 @@
-v978 – Bugfix: Zeitstrahl title-Attribut HTML-escaped
+v980 – Regelmäßige Veranstaltungen: Detailseite ohne Tabs
 
-- fmtTime-Output enthielt Anführungszeichen die Attribut schlossen
+- Alle 3 Sektionen auf einer Seite: Teilnahmen → Bestleistungen → Ergebnisse

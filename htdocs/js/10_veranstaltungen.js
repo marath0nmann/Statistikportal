@@ -237,35 +237,30 @@ async function renderSerieDetail(id) {
   }
   html += '</div></div>';
 
-  // Sub-Tabs
-  html += '<div style="display:flex;gap:8px;margin-bottom:16px">' +
-    '<button class="btn' + (view === 'jahre' ? ' btn-primary' : ' btn-ghost') + '" onclick="setSerieView(\'jahre\')">\uD83D\uDCC5 Ergebnisse nach Jahr</button>' +
-    '<button class="btn' + (view === 'bestleistungen' ? ' btn-primary' : ' btn-ghost') + '" onclick="setSerieView(\'bestleistungen\')">\uD83C\uDFC6 Bestleistungen</button>' +
-    '<button class="btn' + (view === 'teilnahmen' ? ' btn-primary' : ' btn-ghost') + '" onclick="setSerieView(\'teilnahmen\')">\uD83D\uDCCA Anzahl Teilnahmen</button>' +
-  '</div>';
+  // Alle Sektionen auf einer Seite: Teilnahmen → Bestleistungen → Ergebnisse nach Jahr
+  var secStyle = 'font-family:\'Barlow Condensed\',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)';
+  html += '<div style="' + secStyle + ';margin:0 0 10px">&#x1F4CA; Anzahl Teilnahmen</div>';
+  html += '<div id="serie-teilnahmen-content"><div class="loading" style="padding:24px"><div class="spinner"></div>Lade…</div></div>';
 
-  if (view === 'jahre') {
-    html += _buildSerieJahreHtml(veranst);
-  } else if (view === 'teilnahmen') {
-    html += '<div id="serie-teilnahmen-content"><div class="loading" style="padding:32px"><div class="spinner"></div>Lade Teilnahmen&hellip;</div></div>';
-  } else {
-    html += _buildSerieBestleistungenShell(disziplinen, id);
-  }
+  html += '<div style="' + secStyle + ';margin:32px 0 10px">&#x1F3C6; Bestleistungen</div>';
+  html += _buildSerieBestleistungenShell(disziplinen, id);
+
+  html += '<div style="' + secStyle + ';margin:32px 0 10px">&#x1F4C5; Ergebnisse nach Jahr</div>';
+  html += _buildSerieJahreHtml(veranst);
 
   el.innerHTML = html;
 
-  if (view === 'bestleistungen') {
-    var toLoad = state.serieDisz ? { disziplin: state.serieDisz, disziplin_mapping_id: state.serieMappingId } : disziplinen[0];
-    if (toLoad) {
-      state.serieDisz = toLoad.disziplin;
-      state.serieMappingId = toLoad.disziplin_mapping_id || null;
-      _highlightSerieDiszBtn(state.serieDisz, state.serieMappingId);
-      _loadSerieBestleistungen(id, state.serieDisz, state.serieMappingId);
-    }
-  } else if (view === 'teilnahmen') {
-    _loadSerieTeilnahmen(id);
+  // Bestleistungen laden
+  var toLoad = state.serieDisz ? { disziplin: state.serieDisz, disziplin_mapping_id: state.serieMappingId } : disziplinen[0];
+  if (toLoad) {
+    state.serieDisz = toLoad.disziplin;
+    state.serieMappingId = toLoad.disziplin_mapping_id || null;
+    _highlightSerieDiszBtn(state.serieDisz, state.serieMappingId);
+    _loadSerieBestleistungen(id, state.serieDisz, state.serieMappingId);
   }
+  _loadSerieTeilnahmen(id);
 }
+
 
 function _serieBackBtn() {
   return '<button class="btn btn-ghost btn-sm" style="margin-bottom:14px" onclick="switchVeranstView(\'serien\')">&larr; Alle regelmäßigen Veranstaltungen</button> ';
