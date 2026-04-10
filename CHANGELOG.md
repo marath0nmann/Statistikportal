@@ -1,3 +1,28 @@
+## v991 – Deploy-Fix: opcache-clear.php
+
+- `opcache-clear.php` hinzugefügt: einmalig nach dem Deploy aufrufen → leert PHP OPcache
+- Erklärt das wiederkehrende Problem, dass erst der zweite Deploy wirkt
+- **Nach dem Aufruf bitte löschen** (oder via .htaccess schützen)
+- Workflow: ZIP deployen → https://statistik.tus-oedt.de/opcache-clear.php aufrufen → fertig
+
+---
+
+## v989 – Ergebnisse: Externe Ergebnisse als Dropdown statt Checkbox
+
+- Dropdown „Externe Ergebnisse" mit drei Optionen:
+  - **Keine** (Standard) – nur Vereinsergebnisse
+  - **Mit externen** – Vereins- und externe Ergebnisse zusammen
+  - **Nur externe** – ausschließlich externe Ergebnisse
+- Dropdown erscheint als eigenes Filter-Feld (nicht mehr neben Meisterschaften)
+
+---
+
+## v988 – Rebuild (Deploy-Fix)
+
+- Identisch mit v987; zweite Version wegen konsistentem Deploy-Problem
+
+---
+
 ## v987 – Rebuild: v986-Änderungen sichergestellt
 
 - Externe Ergebnisse in Ergebnisse-Seite (war in v986-ZIP korrekt, Server veraltet)

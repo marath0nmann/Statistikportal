@@ -24,8 +24,8 @@ function _buildMstrFilterHtml() {
     '<div style="display:flex;flex-wrap:wrap;gap:6px 12px;padding:6px 0">' + boxes + '</div></div>';
 }
 
-function _ergExternToggle(checked) {
-  state.filters.extern_ein = checked;
+function _ergExternToggle(val) {
+  state.filters.extern_modus = val; // 'aus' | 'mit' | 'nur'
   state.page = 1;
   loadErgebnisseData();
 }
@@ -68,20 +68,35 @@ async function loadErgebnisseData() {
   // Meisterschafts-Checkboxen: kommagetrennte IDs
   var mstrIds = Object.keys(state.filters.meisterschaften || {});
   if (mstrIds.length) params += '&meisterschaft=' + encodeURIComponent(mstrIds.join(','));
-  var r = await apiGet(state.subTab + '?' + params);
-  if (!r || !r.ok) {
-    var el = document.getElementById('main-content');
-    if (el) el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler beim Laden der Ergebnisse:</strong><br><code>' + (r && r.fehler ? r.fehler : 'Unbekannter Fehler') + '</code></div>';
-    return;
-  }
-  var rows = r.data.rows; var total = r.data.total;
-  // Externe Ergebnisse anhängen wenn Checkbox aktiv und Recht vorhanden
   var _canSeeExtern = currentUser && currentUser.rechte && currentUser.rechte.indexOf('externe_ergebnisse_sehen') >= 0;
-  if (_canSeeExtern && state.filters.extern_ein) {
+  var _externModus = _canSeeExtern ? (state.filters.extern_modus || 'aus') : 'aus';
+  // 'nur': externe Ergebnisse direkt laden ohne Vereinsergebnisse
+  var rows, total, r;
+  if (_externModus === 'nur') {
     var rExt = await apiGet('externe-ergebnisse?' + params);
-    if (rExt && rExt.ok && rExt.data && rExt.data.rows && rExt.data.rows.length) {
-      rows = rows.concat(rExt.data.rows);
-      total += (rExt.data.total || 0);
+    if (!rExt || !rExt.ok) {
+      var el = document.getElementById('main-content');
+      if (el) el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler:</strong> ' + (rExt && rExt.fehler || 'Unbekannt') + '</div>';
+      return;
+    }
+    rows = rExt.data.rows; total = rExt.data.total;
+    // Für Dropdowns trotzdem Basisdaten laden
+    r = rExt;
+  } else {
+    r = await apiGet(state.subTab + '?' + params);
+    if (!r || !r.ok) {
+      var el = document.getElementById('main-content');
+      if (el) el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler beim Laden der Ergebnisse:</strong><br><code>' + (r && r.fehler ? r.fehler : 'Unbekannter Fehler') + '</code></div>';
+      return;
+    }
+    rows = r.data.rows; total = r.data.total;
+    // 'mit': externe Ergebnisse zusätzlich anhängen
+    if (_externModus === 'mit') {
+      var rExt2 = await apiGet('externe-ergebnisse?' + params);
+      if (rExt2 && rExt2.ok && rExt2.data && rExt2.data.rows && rExt2.data.rows.length) {
+        rows = rows.concat(rExt2.data.rows);
+        total += (rExt2.data.total || 0);
+      }
     }
   }
   var disziplinen = r.data.disziplinen || []; var aks = r.data.aks || []; var jahre = r.data.jahre || [];
@@ -123,11 +138,12 @@ async function loadErgebnisseData() {
       '<div class="fg"><label>Jahr</label><select onchange="setFilter(\'jahr\',this.value)">' + jahrOptHtml + '</select></div>' +
       _buildMstrFilterHtml() +
       ((_canSeeExtern = currentUser && currentUser.rechte && currentUser.rechte.indexOf('externe_ergebnisse_sehen') >= 0) ?
-        '<div class="fg" style="flex:0 0 auto"><label>&nbsp;</label>' +
-          '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;white-space:nowrap;padding:7px 0">' +
-            '<input type="checkbox" id="erg-extern-toggle" ' + (state.filters.extern_ein ? 'checked' : '') + ' onchange="_ergExternToggle(this.checked)">' +
-            'Externe Ergebnisse' +
-          '</label>' +
+        '<div class="fg"><label>Externe Ergebnisse</label>' +
+          '<select onchange="_ergExternToggle(this.value)">' +
+            '<option value="aus"' + (!state.filters.extern_modus || state.filters.extern_modus === 'aus' ? ' selected' : '') + '>Keine</option>' +
+            '<option value="mit"' + (state.filters.extern_modus === 'mit' ? ' selected' : '') + '>Mit externen</option>' +
+            '<option value="nur"' + (state.filters.extern_modus === 'nur' ? ' selected' : '') + '>Nur externe</option>' +
+          '</select>' +
         '</div>' : '') +
       '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">&#x21BA; Reset</button>' +
     '</div>' +
