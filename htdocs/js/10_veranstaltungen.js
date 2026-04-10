@@ -701,7 +701,7 @@ async function _loadSerieTeilnahmen(serieId) {
     return '<th style="text-align:center;width:38px;min-width:38px;font-size:11px;font-weight:600;color:var(--text2);padding:4px 2px">' + j + '</th>';
   }).join('');
 
-  html += '<div class="table-scroll"><table class="rek-table" style="width:auto;min-width:100%">';
+  html += '<div class="table-scroll" style="display:inline-block;max-width:100%"><table class="rek-table" style="width:auto">';
   html += '<thead><tr>' +
     '<th style="width:34px"></th>' +
     '<th style="text-align:left;min-width:140px">Athlet*in</th>' +

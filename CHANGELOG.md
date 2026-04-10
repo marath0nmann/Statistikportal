@@ -1,3 +1,10 @@
+## v982 – Zeitstrahl-Tabelle: Breite passt sich dem Inhalt an
+
+- Container auf `display:inline-block` gesetzt → Tabelle wächst/schrumpft mit den Spalten
+- Kein `min-width:100%` mehr → Tabelle ist genau so breit wie Athleten-Namen + Jahres-Spalten
+
+---
+
 ## v981 – Zeitstrahl: Tooltip-Text + Tabellen-Breite
 
 - **Tooltip**: `fmtTime()` gibt HTML zurück (`<span style="...">h</span>`) → erschien als Rohtag im Tooltip; eigene Klartextformatierung (`1:47min`, `1:29h`) ohne HTML-Tags
