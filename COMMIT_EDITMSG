@@ -1,5 +1,4 @@
-v971 – Passwort vergessen (Reset per E-Mail-Code)
+v972 – Passwort vergessen ohne separates Modal (Login-Screen)
 
-- Link in Login Step 1+2
-- reset-request + reset-confirm API-Routen
-- DB-Migration: reset_code_hash, reset_code_expires
+- E-Mail aus Step 2 bekannt → Code direkt senden, kein E-Mail-Modal
+- Alles rendert im Login-Screen statt showModal

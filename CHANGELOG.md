@@ -1,3 +1,12 @@
+## v972 – Passwort vergessen: kein separates Modal mehr
+
+- Reset-Flow rendert jetzt im Login-Screen selbst (identisch zu den Login-Schritten)
+- Wenn E-Mail bereits aus Schritt 2 bekannt: Code wird sofort angefordert, kein Zwischenschritt
+- Wenn E-Mail noch unbekannt (Klick in Schritt 1 ohne Eingabe): E-Mail-Feld erscheint im Login-Screen
+- Navigation: „← Zurück" bringt zurück zu Schritt 1
+
+---
+
 ## v971 – Passwort vergessen
 
 - Neuer Link „Passwort vergessen?" unter dem Anmelden-Button in Schritt 1 und 2 des Login-Flows

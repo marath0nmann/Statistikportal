@@ -938,407 +938,100 @@ function loginBackdropClick(e) {
 
 
 // ── Passwort vergessen ───────────────────────────────────────
-function showPwReset(prefillEmail) {
-  showModal(
-    '<h2 style="font-size:18px;font-weight:700;margin:0 0 12px">&#x1F511; Passwort vergessen</h2>' +
-    '<p style="font-size:13px;color:var(--text2);margin:0 0 16px">Gib deine E-Mail-Adresse ein. Du erhältst einen 6-stelligen Code zum Zurücksetzen des Passworts.</p>' +
+// Rendert im Login-Screen (kein separates Modal)
+async function showPwReset(email) {
+  if (!email) email = (document.getElementById('login-ident') ? document.getElementById('login-ident').value.trim().toLowerCase() : '') || '';
+  window._prResetEmail = email;
+  if (email) {
+    document.getElementById('login-screen').innerHTML = _loginCard(
+      '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">&#x1F511; Passwort zur\u00fccksetzen</h2>' +
+      '<p style="font-size:13px;color:var(--text2);margin:0 0 16px">Code wird an <strong>' + email + '</strong> gesendet&hellip;</p>'
+    );
+    var r = await apiPost('auth/reset-request', { email: email });
+    if (!r || !r.ok) {
+      document.getElementById('login-screen').innerHTML = _loginCard(
+        '<h2 style="font-size:20px;font-weight:700;margin:0 0 12px">&#x1F511; Fehler</h2>' +
+        '<div style="background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;margin-bottom:16px">' + ((r&&r.fehler)||'Fehler') + '</div>' +
+        '<button class="btn btn-ghost" style="width:100%" onclick="renderLoginStep1()">\u2190 Zur\u00fcck</button>'
+      );
+      return;
+    }
+    renderPwResetStep2(email);
+  } else {
+    renderPwResetStep1();
+  }
+}
+
+function renderPwResetStep1() {
+  document.getElementById('login-screen').innerHTML = _loginCard(
+    '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">&#x1F511; Passwort zur\u00fccksetzen</h2>' +
+    '<p style="font-size:13px;color:var(--text2);margin:0 0 16px">Gib deine E-Mail-Adresse ein.</p>' +
     '<div class="form-group" style="margin-bottom:16px">' +
-      '<label style="color:var(--text2)">E-Mail-Adresse</label>' +
-      '<input type="email" id="pr-email" value="' + (prefillEmail || '').replace(/"/g,'&quot;') + '" style="font-size:15px" autocomplete="email" ' +
+      '<label>E-Mail-Adresse</label>' +
+      '<input type="email" id="pr-email" style="font-size:16px" autocomplete="email" ' +
              'onkeydown="if(event.key===\'Enter\')doPwResetRequest()"/>' +
     '</div>' +
     '<div id="pr-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;margin-bottom:12px"></div>' +
-    '<div class="modal-actions">' +
-      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-      '<button class="btn btn-primary" id="pr-btn" onclick="doPwResetRequest()">Code senden</button>' +
-    '</div>'
+    '<button class="btn btn-primary" style="width:100%" onclick="doPwResetRequest()">Code senden</button>' +
+    '<button class="btn btn-ghost" style="width:100%;margin-top:8px;opacity:.7;font-size:12px" onclick="renderLoginStep1()">\u2190 Zur\u00fcck</button>'
   );
-  setTimeout(function(){ var el=document.getElementById('pr-email'); if(el&&!el.value) el.focus(); }, 100);
+  setTimeout(function(){ var el=document.getElementById('pr-email'); if(el) el.focus(); }, 100);
 }
 
 async function doPwResetRequest() {
   var email = (document.getElementById('pr-email').value || '').trim().toLowerCase();
   var errEl = document.getElementById('pr-err');
-  errEl.style.display = 'none';
-  if (!email) { errEl.textContent = 'Bitte E-Mail-Adresse eingeben.'; errEl.style.display='block'; return; }
-  var btn = document.getElementById('pr-btn');
-  btn.textContent = '...'; btn.disabled = true;
-  var r = await apiPost('auth/reset-request', { email: email });
-  btn.textContent = 'Code senden'; btn.disabled = false;
-  if (!r || !r.ok) { errEl.textContent = '❌ ' + ((r&&r.fehler)||'Fehler'); errEl.style.display='block'; return; }
-  // Code eingeben + neues Passwort
+  if (errEl) errEl.style.display = 'none';
+  if (!email) { if (errEl) { errEl.textContent = 'Bitte E-Mail eingeben.'; errEl.style.display='block'; } return; }
   window._prResetEmail = email;
-  showModal(
-    '<h2 style="font-size:18px;font-weight:700;margin:0 0 12px">&#x1F511; Neues Passwort setzen</h2>' +
-    '<p style="font-size:13px;color:var(--text2);margin:0 0 16px">Falls ein Konto mit <strong>' + email + '</strong> existiert, wurde ein Code gesendet.</p>' +
-    '<div class="form-group" style="margin-bottom:12px">' +
-      '<label style="color:var(--text2)">Code aus der E-Mail</label>' +
-      '<input type="text" id="pr-code" placeholder="123456" maxlength="6" inputmode="numeric" style="font-size:18px;letter-spacing:6px;text-align:center" autocomplete="one-time-code"/>' +
+  var r = await apiPost('auth/reset-request', { email: email });
+  if (!r || !r.ok) { if (errEl) { errEl.textContent = '\u274c ' + ((r&&r.fehler)||'Fehler'); errEl.style.display='block'; } return; }
+  renderPwResetStep2(email);
+}
+
+function renderPwResetStep2(email) {
+  document.getElementById('login-screen').innerHTML = _loginCard(
+    '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">&#x1F511; Neues Passwort</h2>' +
+    '<p style="font-size:13px;color:var(--text2);margin:0 0 16px">Code an <strong>' + email + '</strong> gesendet (15\u00a0Min. g\u00fcltig).</p>' +
+    '<div class="form-group" style="margin-bottom:16px">' +
+      '<label>Code aus der E-Mail</label>' +
+      '<input type="text" id="pr-code" placeholder="123456" maxlength="6" inputmode="numeric" ' +
+             'style="font-size:22px;letter-spacing:8px;text-align:center" autocomplete="one-time-code"/>' +
     '</div>' +
-    '<div class="form-group" style="margin-bottom:12px">' +
-      '<label style="color:var(--text2)">Neues Passwort <span style="font-size:11px;font-weight:400">(min. 12 Zeichen)</span></label>' +
+    '<div class="form-group" style="margin-top:20px;margin-bottom:10px">' +
+      '<label>Neues Passwort <span style="font-size:11px;font-weight:400">(min. 12 Zeichen)</span></label>' +
       '<input type="password" id="pr-pw" style="font-size:15px" autocomplete="new-password"/>' +
     '</div>' +
     '<div class="form-group" style="margin-bottom:16px">' +
-      '<label style="color:var(--text2)">Passwort wiederholen</label>' +
+      '<label>Passwort wiederholen</label>' +
       '<input type="password" id="pr-pw2" style="font-size:15px" autocomplete="new-password" ' +
              'onkeydown="if(event.key===\'Enter\')doPwResetConfirm()"/>' +
     '</div>' +
     '<div id="pr-err2" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;margin-bottom:12px"></div>' +
-    '<div class="modal-actions">' +
-      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-      '<button class="btn btn-primary" id="pr-btn2" onclick="doPwResetConfirm()">Passwort ändern</button>' +
-    '</div>'
+    '<button class="btn btn-primary" style="width:100%" onclick="doPwResetConfirm()">Passwort \u00e4ndern</button>' +
+    '<button class="btn btn-ghost" style="width:100%;margin-top:8px;opacity:.7;font-size:12px" onclick="renderLoginStep1()">\u2190 Zur\u00fcck</button>'
   );
   setTimeout(function(){ var el=document.getElementById('pr-code'); if(el) el.focus(); }, 100);
 }
 
 async function doPwResetConfirm() {
   var email = window._prResetEmail || '';
-  var code = (document.getElementById('pr-code').value || '').trim();
-  var pw   = document.getElementById('pr-pw').value;
-  var pw2  = document.getElementById('pr-pw2').value;
+  var code  = (document.getElementById('pr-code').value || '').trim();
+  var pw    = document.getElementById('pr-pw').value;
+  var pw2   = document.getElementById('pr-pw2').value;
   var errEl = document.getElementById('pr-err2');
   errEl.style.display = 'none';
   if (!code || code.length !== 6) { errEl.textContent = 'Bitte 6-stelligen Code eingeben.'; errEl.style.display='block'; return; }
   if (pw.length < 12) { errEl.textContent = 'Passwort muss mindestens 12 Zeichen haben.'; errEl.style.display='block'; return; }
-  if (pw !== pw2) { errEl.textContent = 'Passwörter stimmen nicht überein.'; errEl.style.display='block'; return; }
-  var btn = document.getElementById('pr-btn2');
-  btn.textContent = '...'; btn.disabled = true;
-  var r = await apiPost('auth/reset-confirm', { email: email, code: code, passwort: pw });
-  btn.textContent = 'Passwort ändern'; btn.disabled = false;
-  if (!r || !r.ok) { errEl.textContent = '❌ ' + ((r&&r.fehler)||'Fehler'); errEl.style.display='block'; return; }
-  closeModal();
-  notify('✅ Passwort erfolgreich geändert. Du kannst dich jetzt einloggen.', 'ok');
-  showLogin();
-}
-
-// ── Dreistufiger Login-State ────────────────────────────────
-var _loginState = { step: 1, ident: '', name: '', has_passkey: false };
-
-function _loginLogoHtml() {
-  return appConfig.logo_datei
-    ? '<div style="text-align:center;margin-bottom:16px"><img src="/' + appConfig.logo_datei + '" style="height:52px;object-fit:contain" onerror="this.style.display=\'none\'"/></div>'
-    : '';
-}
-
-function _loginCard(inner) {
-  return '<div class="login-card">' + _loginLogoHtml() + inner + '</div>';
-}
-
-// Schritt 1: Benutzername / E-Mail
-// ── Passkey Conditional UI ────────────────────────────────
-// Läuft still im Hintergrund auf Step-1; der Browser zeigt Passkey-Vorschläge
-// direkt im E-Mail-Feld an (autocomplete="username webauthn").
-var _conditionalPasskeyAbort = null;
-
-async function _startConditionalPasskey() {
-  _abortConditionalPasskey();
-  if (!window.PublicKeyCredential ||
-      !PublicKeyCredential.isConditionalMediationAvailable ||
-      !(await PublicKeyCredential.isConditionalMediationAvailable())) return;
-  // AbortController VOR dem Fetch anlegen, damit _abortConditionalPasskey()
-  // auch einen in-flight Request abbrechen kann
-  _conditionalPasskeyAbort = new AbortController();
-  try {
-    var optR = await api('POST', 'auth/passkey-auth-challenge-discover', {}, _conditionalPasskeyAbort.signal);
-    if (!optR || !optR.ok) { _conditionalPasskeyAbort = null; return; }
-    var opts = optR.data;
-    // Token für stateless Verify merken
-    var _discoverToken     = opts.token;
-    var _discoverTs        = opts.ts;
-    var _discoverChallenge = opts.challenge;
-    var assertion = await navigator.credentials.get({
-      signal: _conditionalPasskeyAbort.signal,
-      mediation: 'conditional',
-      publicKey: {
-        challenge:        _b64urlToBuffer(opts.challenge),
-        timeout:          opts.timeout || 60000,
-        rpId:             opts.rpId,
-        userVerification: opts.userVerification || 'preferred',
-        allowCredentials: [],
-      }
-    });
-    // Nutzer hat Passkey über Autofill ausgewählt
-    var cred = {
-      id: assertion.id, type: assertion.type,
-      response: {
-        authenticatorData: _bufferToB64url(assertion.response.authenticatorData),
-        clientDataJSON:    _bufferToB64url(assertion.response.clientDataJSON),
-        signature:         _bufferToB64url(assertion.response.signature),
-        userHandle:        assertion.response.userHandle ? _bufferToB64url(assertion.response.userHandle) : null,
-      }
-    };
-    var verR = await apiPost('auth/passkey-auth-verify', {
-      credential: cred,
-      discover_token: _discoverToken,
-      discover_ts:    _discoverTs,
-      discover_challenge: _discoverChallenge,
-    });
-    if (!verR || !verR.ok) {
-      var errEl = document.getElementById('login-err');
-      if (errEl) { errEl.textContent = '❌ Passkey-Verifizierung fehlgeschlagen.'; errEl.style.display='block'; }
-      return;
-    }
-    currentUser = { name: verR.data.name || '', email: verR.data.email || '', vorname: verR.data.vorname || '', rolle: verR.data.rolle, rechte: (verR.data.rechte || []) };
-    showApp();
-  } catch(e) {
-    // AbortError = wir haben selbst abgebrochen → still
-    // NotAllowedError = Nutzer hat abgebrochen → still
-  }
-}
-
-function _abortConditionalPasskey() {
-  if (_conditionalPasskeyAbort) { try { _conditionalPasskeyAbort.abort(); } catch(e){} _conditionalPasskeyAbort = null; }
-}
-
-function renderLoginStep1() {
-  document.getElementById('login-screen').innerHTML = _loginCard(
-    '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">&#x1F512; Anmelden</h2>' +
-    '<p style="color:var(--text2);font-size:13px;margin:0 0 20px">E-Mail-Adresse eingeben.</p>' +
-    '<div class="form-group" style="margin-bottom:16px">' +
-      '<label>E-Mail-Adresse</label>' +
-      '<input type="email" id="login-ident" autocomplete="username webauthn" style="font-size:16px"' +
-        ' onkeydown="if(event.key===\'Enter\')doLoginStep1()"/>' +
-    '</div>' +
-    '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
-    '<button class="btn btn-primary" style="width:100%" onclick="doLoginStep1()">Weiter &#x2192;</button>' +
-    '<button class="btn btn-ghost btn-login-cancel" style="width:100%;margin-top:8px" onclick="hideLogin()">Abbrechen</button>' +
-    '<div style="text-align:center;margin-top:14px">' +
-      '<button onclick="showPwReset()" style="background:none;border:none;color:var(--text2);font-size:12px;cursor:pointer;text-decoration:underline;padding:0">Passwort vergessen?</button>' +
-    '</div>'
-  );
-  setTimeout(function(){ var el=document.getElementById('login-ident'); if(el) el.focus(); }, 100);
-  // Kurze Verzögerung: erst starten wenn der Nutzer vermutlich noch tippt,
-  // nicht sofort beim Rendern (vermeidet Session-Lock-Konflikt mit schnellem Weiter-Klick)
-  setTimeout(_startConditionalPasskey, 500);
-}
-
-async function doLoginStep1() {
-  var ident = (document.getElementById('login-ident').value || '').trim();
-  var errEl = document.getElementById('login-err');
-  errEl.style.display = 'none';
-  if (!ident) { errEl.textContent = 'Bitte E-Mail-Adresse eingeben.'; errEl.style.display='block'; return; }
+  if (pw !== pw2) { errEl.textContent = 'Passw\u00f6rter stimmen nicht \u00fcberein.'; errEl.style.display='block'; return; }
   var btn = document.querySelector('#login-screen .btn-primary');
-  btn.textContent = '...'; btn.disabled = true;
-  _abortConditionalPasskey(); // Conditional UI sofort abbrechen (Session-Lock freigeben)
-  var r = await apiPost('auth/identify', { benutzername: ident });
-  btn.textContent = 'Weiter →'; btn.disabled = false;
-  if (!r || !r.ok) { errEl.textContent = '❌ ' + ((r&&r.fehler)||'Fehler'); errEl.style.display='block'; return; }
-  _loginState.ident = ident;
-  _loginState.name  = ident;
-  _loginState.has_passkey = !!(r.data && r.data.has_passkey);
-  renderLoginStep2();
-}
-// Schritt 2: Passwort (+ optionaler Passkey-Button wenn Passkey vorhanden)
-function renderLoginStep2() {
-  var passkeyHint = _loginState.has_passkey
-    ? '<button class="btn btn-ghost" style="width:100%;margin-bottom:10px;font-size:13px" onclick="doLoginPasskeyStep2()">&#x1F511; Mit Passkey anmelden</button>'
-    : '';
-  document.getElementById('login-screen').innerHTML = _loginCard(
-    '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">&#x1F512; Anmelden</h2>' +
-    '<p style="color:var(--text2);font-size:13px;margin:0 0 16px">Als <strong>' + _loginState.ident + '</strong></p>' +
-    passkeyHint +
-    '<div class="form-group" style="margin-bottom:16px">' +
-      '<label>Passwort</label>' +
-      '<input type="password" id="login-pw" autocomplete="current-password" style="font-size:16px"' +
-        ' onkeydown="if(event.key===\'Enter\')doLoginStep2()"/>' +
-    '</div>' +
-    '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
-    '<button class="btn btn-primary" style="width:100%" onclick="doLoginStep2()">Anmelden</button>' +
-    '<button class="btn btn-ghost" style="width:100%;margin-top:4px;opacity:.7;font-size:12px" onclick="renderLoginStep1()">&#x2190; Zurück</button>' +
-    '<div style="text-align:center;margin-top:12px">' +
-      '<button onclick="showPwReset(_loginState.ident)" style="background:none;border:none;color:var(--text2);font-size:12px;cursor:pointer;text-decoration:underline;padding:0">Passwort vergessen?</button>' +
-    '</div>'
-  );
-  setTimeout(function(){ var el=document.getElementById('login-pw'); if(el) el.focus(); }, 100);
-}
-
-// Passkey-Button in Step 2 (User bekannt, challenge mit allowCredentials)
-async function doLoginPasskeyStep2() {
-  var errEl = document.getElementById('login-err');
-  errEl.style.display = 'none';
-  try {
-    var optR = await apiPost('auth/passkey-auth-challenge', {});
-    if (!optR || !optR.ok) { errEl.textContent = '❌ Passkey-Challenge fehlgeschlagen.'; errEl.style.display='block'; return; }
-    var opts = optR.data;
-    var allowCreds = (opts.allowCredentials || []).map(function(c) {
-      return { type: 'public-key', id: _b64urlToBuffer(c.id) };
-    });
-    var assertion = await navigator.credentials.get({ publicKey: {
-      challenge: _b64urlToBuffer(opts.challenge), timeout: opts.timeout || 60000,
-      rpId: opts.rpId, userVerification: opts.userVerification || 'preferred',
-      allowCredentials: allowCreds,
-    }});
-    var cred = {
-      id: assertion.id, type: assertion.type,
-      response: {
-        authenticatorData: _bufferToB64url(assertion.response.authenticatorData),
-        clientDataJSON:    _bufferToB64url(assertion.response.clientDataJSON),
-        signature:         _bufferToB64url(assertion.response.signature),
-        userHandle:        assertion.response.userHandle ? _bufferToB64url(assertion.response.userHandle) : null,
-      }
-    };
-    var verR = await apiPost('auth/passkey-auth-verify', { credential: cred });
-    if (!verR || !verR.ok) { errEl.textContent = '❌ ' + ((verR&&verR.fehler)||'Passkey fehlgeschlagen.'); errEl.style.display='block'; return; }
-    currentUser = { name: verR.data.name||'', email: verR.data.email||'', vorname: verR.data.vorname||'', rolle: verR.data.rolle, rechte: (verR.data.rechte || []) };
-    showApp();
-  } catch(e) {
-    if (e && e.name !== 'NotAllowedError') { errEl.textContent = '⚠️ Passkey-Dialog fehlgeschlagen.'; errEl.style.display='block'; }
-  }
-}
-
-async function doLoginStep2() {
-  var passwort = (document.getElementById('login-pw').value || '');
-  var errEl = document.getElementById('login-err');
-  errEl.style.display = 'none';
-  if (!passwort) { errEl.textContent = 'Bitte Passwort eingeben.'; errEl.style.display='block'; return; }
-  var btn = document.querySelector('#login-screen .btn-primary');
-  btn.textContent = '...'; btn.disabled = true;
-  var r = await apiPost('auth/login', { benutzername: _loginState.ident, passwort: passwort });
-  btn.textContent = 'Weiter \u2192'; btn.disabled = false;
-  if (r && r.ok) {
-    if (r.data && r.data.totp_required) {
-      if (r.data.totp_setup) await showTotpSetup();
-      else if (r.data.email_login_bevorzugt && !r.data.has_totp && !r.data.has_passkey) {
-        // User bevorzugt E-Mail-Code → Schritt 3 mit E-Mail-Tab + sofort Code senden
-        renderLoginStep3(false, false, true); // autoSend=true
-      } else renderLoginStep3(r.data.has_totp !== false, r.data.has_passkey !== false);
-    } else {
-      currentUser = { name: r.data.name || _loginState.ident, email: r.data.email || _loginState.ident, vorname: r.data.vorname || '', rolle: r.data.rolle, rechte: (r.data.rechte || []) };
-      showApp();
-    }
-  } else {
-    errEl.textContent = '\u274C ' + ((r&&r.fehler)||'Unbekannter Fehler');
-    errEl.style.display = 'block';
-    document.getElementById('login-pw').value = '';
-    document.getElementById('login-pw').focus();
-  }
-}
-
-// Schritt 3: TOTP oder E-Mail-Code
-function renderLoginStep3(hasTotp, hasPasskey, autoSend) {
-  var methods = [];
-  if (hasTotp)    methods.push('totp');
-  if (hasPasskey) methods.push('passkey');
-  methods.push('email'); // immer verfügbar
-  _loginStep3ShowMethod(methods[0], methods, autoSend);
-}
-
-function _loginStep3ShowMethod(active, methods, autoSend) {
-  var tabs = '';
-  if (methods.indexOf('totp') >= 0)
-    tabs += '<button class="btn btn-' + (active==='totp'?'primary':'ghost') + ' btn-sm" onclick="_loginStep3ShowMethod(\'totp\',[' + methods.map(function(m){return '\''+m+'\''}).join(',') + '])">&#x1F4F1; App</button> ';
-  if (methods.indexOf('passkey') >= 0)
-    tabs += '<button class="btn btn-' + (active==='passkey'?'primary':'ghost') + ' btn-sm" onclick="_loginStep3ShowMethod(\'passkey\',[' + methods.map(function(m){return '\''+m+'\''}).join(',') + '])">&#x1F511; Passkey</button> ';
-  tabs += '<button class="btn btn-' + (active==='email'?'primary':'ghost') + ' btn-sm" onclick="_loginStep3ShowMethod(\'email\',[' + methods.map(function(m){return '\''+m+'\''}).join(',') + '])">&#x1F4E7; E-Mail</button>';
-
-  var body = '';
-  if (active === 'totp') {
-    body =
-      '<p style="color:var(--text2);font-size:13px;margin:12px 0 16px">6-stelligen Code aus der Authenticator-App eingeben. Alternativ einen 8-stelligen Backup-Code.</p>' +
-      '<div class="form-group" style="margin-bottom:16px">' +
-        '<label>Authenticator-Code</label>' +
-        '<input type="text" id="totp-code" inputmode="numeric" autocomplete="one-time-code" maxlength="9" placeholder="000 000"' +
-          ' style="letter-spacing:4px;font-size:24px;text-align:center;font-weight:700"' +
-          ' onkeydown="if(event.key===\'Enter\')doTotpVerify()"/>' +
-      '</div>' +
-      '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
-      '<button class="btn btn-primary" style="width:100%" onclick="doTotpVerify()">Best\u00e4tigen</button>';
-  } else if (active === 'passkey') {
-    body =
-      '<p style="color:var(--text2);font-size:13px;margin:12px 0 20px">Bestätige die Anmeldung mit deinem Passkey.</p>' +
-      '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
-      '<button class="btn btn-primary" style="width:100%" onclick="doPasskeyAuth()">&#x1F511; Passkey verwenden</button>';
-  } else { // email
-    if (autoSend) {
-      // Nur E-Mail möglich: Code wird automatisch gesendet
-      body =
-        '<p style="color:var(--text2);font-size:13px;margin:12px 0 8px">Wir haben dir einen 6-stelligen Code an deine hinterlegte E-Mail-Adresse gesendet.</p>' +
-        '<div id="email-code-sent" style="color:var(--green,#2e7d32);font-size:12px;margin-bottom:14px">&#x2705; Bitte prüfe dein Postfach.</div>' +
-        '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
-        '<div class="form-group" style="margin-bottom:16px">' +
-          '<label>Code aus E-Mail</label>' +
-          '<input type="text" id="email-code" inputmode="numeric" maxlength="6" placeholder="000000"' +
-            ' style="letter-spacing:6px;font-size:24px;text-align:center;font-weight:700"' +
-            ' onkeydown="if(event.key===\'Enter\')doEmailCodeVerify()"/>' +
-        '</div>' +
-        '<button class="btn btn-primary" style="width:100%" onclick="doEmailCodeVerify()">Best\u00e4tigen</button>' +
-        '<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;opacity:.6" id="email-send-btn" onclick="doEmailCodeSend()">&#x1F4E7; Code erneut senden</button>';
-    } else {
-      // Einer von mehreren 2FA-Tabs: manueller Send-Button
-      body =
-        '<p style="color:var(--text2);font-size:13px;margin:12px 0 16px">Wir senden dir einen 6-stelligen Code an deine hinterlegte E-Mail-Adresse.</p>' +
-        '<div id="email-code-sent" style="display:none;color:var(--green,#2e7d32);font-size:13px;margin-bottom:12px">&#x2705; Code gesendet! Bitte prüfe dein Postfach.</div>' +
-        '<div id="login-err" style="display:none;background:#fde8e8;color:#cc0000;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:12px"></div>' +
-        '<button class="btn btn-ghost" style="width:100%;margin-bottom:12px" id="email-send-btn" onclick="doEmailCodeSend()">&#x1F4E7; Code senden</button>' +
-        '<div class="form-group" style="margin-bottom:16px">' +
-          '<label>Code aus E-Mail</label>' +
-          '<input type="text" id="email-code" inputmode="numeric" maxlength="6" placeholder="000000"' +
-            ' style="letter-spacing:6px;font-size:24px;text-align:center;font-weight:700"' +
-            ' onkeydown="if(event.key===\'Enter\')doEmailCodeVerify()"/>' +
-        '</div>' +
-        '<button class="btn btn-primary" style="width:100%" onclick="doEmailCodeVerify()">Best\u00e4tigen</button>';
-    }
-  }
-
-  document.getElementById('login-screen').innerHTML = _loginCard(
-    '<h2 style="font-size:20px;font-weight:700;margin:0 0 6px">&#x1F512; Verifizierung</h2>' +
-    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">' + tabs + '</div>' +
-    body +
-    '<button class="btn btn-ghost" style="width:100%;margin-top:8px;opacity:.7;font-size:12px" onclick="renderLoginStep1()">&#x2190; Zur\u00fcck</button>'
-  );
-  setTimeout(function(){
-    var el = document.getElementById('totp-code') || document.getElementById('email-code');
-    if (el) el.focus();
-  }, 100);
-  // autoSend: Code sofort absenden (nur wenn einzige 2FA-Methode)
-  if (autoSend && active === 'email') {
-    setTimeout(doEmailCodeSend, 300);
-  }
-}
-
-async function doEmailCodeSend() {
-  var btn = document.getElementById('email-send-btn');
-  var errEl = document.getElementById('login-err');
   if (btn) { btn.textContent = '...'; btn.disabled = true; }
-  errEl.style.display = 'none';
-  var r = await apiPost('auth/email-code-send', {});
-  if (btn) { btn.textContent = '\uD83D\uDCE7 Code erneut senden'; btn.disabled = false; }
-  if (r && r.ok) {
-    var sentEl = document.getElementById('email-code-sent');
-    if (sentEl) sentEl.style.display = 'block';
-    var codeEl = document.getElementById('email-code');
-    if (codeEl) codeEl.focus();
-  } else {
-    errEl.textContent = '\u274C ' + ((r&&r.fehler)||'Fehler beim Senden');
-    errEl.style.display = 'block';
-  }
+  var r = await apiPost('auth/reset-confirm', { email: email, code: code, passwort: pw });
+  if (btn) { btn.textContent = 'Passwort \u00e4ndern'; btn.disabled = false; }
+  if (!r || !r.ok) { errEl.textContent = '\u274c ' + ((r&&r.fehler)||'Fehler'); errEl.style.display='block'; return; }
+  renderLoginStep1();
+  notify('\u2705 Passwort ge\u00e4ndert \u2013 jetzt einloggen.', 'ok');
 }
-
-async function doEmailCodeVerify() {
-  var code = (document.getElementById('email-code').value || '').trim();
-  var errEl = document.getElementById('login-err');
-  errEl.style.display = 'none';
-  if (!code || code.length !== 6) { errEl.textContent = 'Bitte 6-stelligen Code eingeben.'; errEl.style.display='block'; return; }
-  var btn = document.querySelector('#login-screen .btn-primary');
-  btn.textContent = '...'; btn.disabled = true;
-  var r = await apiPost('auth/email-code-verify', { code: code });
-  btn.textContent = 'Best\u00e4tigen'; btn.disabled = false;
-  if (r && r.ok) {
-    currentUser = { name: r.data.name || _loginState.ident, email: r.data.email || _loginState.ident, vorname: r.data.vorname || '', rolle: r.data.rolle, rechte: (r.data.rechte || []) };
-    showApp();
-  } else {
-    errEl.textContent = '\u274C ' + ((r&&r.fehler)||'Ung\u00fcltiger Code.');
-    errEl.style.display = 'block';
-    document.getElementById('email-code').value = '';
-    document.getElementById('email-code').focus();
-  }
-}
-
-// Legacy-Compat: doLogin() → renderLoginStep1()
-function doLogin() { renderLoginStep1(); }
-var _loginPendingName = '';
 
 // doLogin() → renderLoginStep1() (Schritt 1)
 
