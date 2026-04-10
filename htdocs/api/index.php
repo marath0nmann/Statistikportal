@@ -226,6 +226,19 @@ try {
     }
 } catch (\Exception $e) {}
 
+// Migration: externe_ergebnisse_sehen Recht zu bestehenden Admin/Editor-Rollen
+try {
+    foreach (['admin','editor'] as $_rn) {
+        $_rRow = DB::fetchOne('SELECT id, rechte FROM ' . DB::tbl('rollen') . ' WHERE name=?', [$_rn]);
+        if ($_rRow) {
+            $_rRechte = json_decode($_rRow['rechte'] ?? '[]', true) ?: [];
+            if (!in_array('externe_ergebnisse_sehen', $_rRechte)) {
+                $_rRechte[] = 'externe_ergebnisse_sehen';
+                DB::query('UPDATE ' . DB::tbl('rollen') . ' SET rechte=? WHERE id=?', [json_encode($_rRechte), $_rRow['id']]);
+            }
+        }
+    }
+} catch (\Exception $e) {}
 // Migration: methode-Spalte für login_versuche
 try { DB::query("ALTER TABLE " . DB::tbl('login_versuche') . " ADD COLUMN IF NOT EXISTS methode VARCHAR(20) NULL"); } catch (\Exception $e) {}
 
@@ -233,8 +246,8 @@ try { DB::query("ALTER TABLE " . DB::tbl('login_versuche') . " ADD COLUMN IF NOT
 try {
     if (!DB::fetchOne('SELECT id FROM ' . DB::tbl('rollen') . ' LIMIT 1')) {
         $defaultRollen = [
-            ['admin',  '["vollzugriff","benutzer_verwalten","rekorde_bearbeiten","einstellungen_aendern","alle_ergebnisse","eigene_ergebnisse","lesen","personenbezogene_daten","veranstaltung_eintragen","veranstaltung_loeschen","inaktive_athleten_sehen"]', 'Administrator', 1],
-            ['editor', '["alle_ergebnisse","lesen","personenbezogene_daten","veranstaltung_eintragen","veranstaltung_loeschen","inaktive_athleten_sehen"]', 'Editor', 1],
+            ['admin',  '["vollzugriff","benutzer_verwalten","rekorde_bearbeiten","einstellungen_aendern","alle_ergebnisse","eigene_ergebnisse","lesen","personenbezogene_daten","veranstaltung_eintragen","veranstaltung_loeschen","inaktive_athleten_sehen","externe_ergebnisse_sehen"]', 'Administrator', 1],
+            ['editor', '["alle_ergebnisse","lesen","personenbezogene_daten","veranstaltung_eintragen","veranstaltung_loeschen","inaktive_athleten_sehen","externe_ergebnisse_sehen"]', 'Editor', 1],
             ['athlet', '["eigene_ergebnisse","lesen","personenbezogene_daten"]', 'Athlet*in', 1],
             ['leser',  '["lesen","personenbezogene_daten"]', 'Leser*in', 1],
         ];
@@ -3981,6 +3994,78 @@ if ($res === 'veranstaltungen' && $method === 'DELETE' && $id) {
 }
 
 // ============================================================
+// EXTERNE ERGEBNISSE (athlet_pb) – Ergebnisse-Seite
+// ============================================================
+if ($res === 'externe-ergebnisse' && $method === 'GET' && !$id) {
+    $user = Auth::requireLogin();
+    // Recht prüfen
+    $rechte = Auth::getUserRechte();
+    if (!in_array('vollzugriff', $rechte) && !in_array('externe_ergebnisse_sehen', $rechte))
+        jsonErr('Keine Berechtigung.', 403);
+    $pbTbl = DB::tbl('athlet_pb');
+    $aTbl  = DB::tbl('athleten');
+    $vTbl  = DB::tbl('veranstaltungen');
+    $dmTbl = DB::tbl('disziplin_mapping');
+    $dkTbl = DB::tbl('disziplin_kategorien');
+    $where = ['1=1']; $params = [];
+    if (!empty($_GET['athlet']))   { $where[] = 'a.name_nv LIKE ?'; $params[] = '%'.$_GET['athlet'].'%'; }
+    if (!empty($_GET['athlet_id'])) { $where[] = 'pb.athlet_id=?'; $params[] = (int)$_GET['athlet_id']; }
+    if (!empty($_GET['disziplin_mapping_id'])) { $where[] = 'pb.disziplin_mapping_id=?'; $params[] = (int)$_GET['disziplin_mapping_id']; }
+    elseif (!empty($_GET['disziplin'])) { $where[] = 'pb.disziplin=?'; $params[] = $_GET['disziplin']; }
+    if (!empty($_GET['ak'])) { $where[] = 'pb.altersklasse=?'; $params[] = $_GET['ak']; }
+    if (!empty($_GET['jahr'])) { $where[] = 'YEAR(pb.datum)=?'; $params[] = (int)$_GET['jahr']; }
+    if (!empty($_GET['athlet'])) {} // already handled
+    $sortMap = ['datum'=>'pb.datum','athlet'=>'a.name_nv','ak'=>'pb.altersklasse','disziplin'=>'pb.disziplin','resultat'=>'pb.resultat'];
+    $sortKey = $_GET['sort'] ?? 'datum'; $sortDir = strtoupper($_GET['dir'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
+    $sortCol = $sortMap[$sortKey] ?? 'pb.datum';
+    $limit = min((int)($_GET['limit'] ?? 100), 500); $offset = (int)($_GET['offset'] ?? 0);
+    $wStr = implode(' AND ', $where);
+    $sql = "SELECT pb.id, a.name_nv AS athlet, a.id AS athlet_id, pb.altersklasse,
+                   pb.disziplin, pb.disziplin_mapping_id, pb.resultat,
+                   pb.datum, pb.wettkampf AS veranstaltung, pb.veranstaltung_id,
+                   NULL AS ort, NULL AS veranstaltung_ort, pb.wettkampf AS veranstaltung_name,
+                   NULL AS veranstaltung_quelle, NULL AS eingetragen_von, pb.datum AS erstellt_am,
+                   NULL AS ak_platzierung, NULL AS meisterschaft, NULL AS ak_platz_meisterschaft,
+                   COALESCE(dm.fmt_override, dk.fmt) AS fmt,
+                   dk.name AS kategorie_name, dk.tbl_key AS kategorie_key,
+                   1 AS extern
+            FROM $pbTbl pb
+            JOIN $aTbl a ON a.id=pb.athlet_id
+            LEFT JOIN $dmTbl dm ON dm.id=pb.disziplin_mapping_id
+            LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id
+            WHERE a.geloescht_am IS NULL AND $wStr
+            ORDER BY $sortCol $sortDir, pb.id DESC LIMIT $limit OFFSET $offset";
+    $rows  = DB::fetchAll($sql, $params);
+    $total = (int)DB::fetchOne("SELECT COUNT(*) c FROM $pbTbl pb JOIN $aTbl a ON a.id=pb.athlet_id WHERE a.geloescht_am IS NULL AND $wStr", $params)['c'];
+    $disziplinen = DB::fetchAll("SELECT DISTINCT pb.disziplin, pb.disziplin_mapping_id, dk.name AS kategorie_name FROM $pbTbl pb LEFT JOIN $dmTbl dm ON dm.id=pb.disziplin_mapping_id LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id WHERE 1=1 ORDER BY pb.disziplin");
+    $aks   = array_column(DB::fetchAll("SELECT DISTINCT pb.altersklasse FROM $pbTbl pb WHERE pb.altersklasse IS NOT NULL ORDER BY pb.altersklasse"), 'altersklasse');
+    $jahre = array_column(DB::fetchAll("SELECT DISTINCT YEAR(pb.datum) j FROM $pbTbl pb WHERE pb.datum IS NOT NULL ORDER BY j DESC"), 'j');
+    jsonOk(compact('rows','total','disziplinen','aks','jahre','kategorien') + ['kategorien'=>[]]);
+}
+
+// externe-ergebnisse DELETE
+if ($res === 'externe-ergebnisse' && $method === 'DELETE' && $id) {
+    $user = Auth::requireEditor();
+    DB::query('DELETE FROM ' . DB::tbl('athlet_pb') . ' WHERE id=?', [(int)$id]);
+    jsonOk('Gelöscht.');
+}
+
+// externe-ergebnisse PUT (edit)
+if ($res === 'externe-ergebnisse' && $method === 'PUT' && $id) {
+    $user = Auth::requireEditor();
+    $felder = []; $params = [];
+    if (isset($body['disziplin']))          { $felder[] = 'disziplin=?';          $params[] = sanitize($body['disziplin']); }
+    if (isset($body['disziplin_mapping_id'])){ $felder[] = 'disziplin_mapping_id=?'; $params[] = intOrNull($body['disziplin_mapping_id']); }
+    if (isset($body['resultat']))           { $felder[] = 'resultat=?';           $params[] = sanitize($body['resultat']); }
+    if (isset($body['altersklasse']))       { $felder[] = 'altersklasse=?';       $params[] = sanitize($body['altersklasse']) ?: null; }
+    if (isset($body['wettkampf']))          { $felder[] = 'wettkampf=?';          $params[] = sanitize($body['wettkampf']); }
+    if (isset($body['datum']))              { $felder[] = 'datum=?';              $params[] = sanitize($body['datum']) ?: null; }
+    if (!$felder) jsonErr('Keine Änderungen.');
+    $params[] = (int)$id;
+    DB::query('UPDATE ' . DB::tbl('athlet_pb') . ' SET ' . implode(',', $felder) . ' WHERE id=?', $params);
+    jsonOk('Gespeichert.');
+}
+
 // ERGEBNISSE/BULK
 // ============================================================
     // Eigenes Ergebnis (Athlet trägt für sich selbst ein → Genehmigung)
@@ -4786,7 +4871,7 @@ if ($res === 'rollen') {
     if ($method === 'POST') {
         $name   = trim($body['name'] ?? '');
         $rechte = $body['rechte'] ?? [];
-        $validRechte = ['vollzugriff','benutzer_verwalten','rekorde_bearbeiten','einstellungen_aendern','alle_ergebnisse','eigene_ergebnisse','lesen'];
+        $validRechte = ['vollzugriff','benutzer_verwalten','rekorde_bearbeiten','einstellungen_aendern','alle_ergebnisse','eigene_ergebnisse','lesen','externe_ergebnisse_sehen'];
         $rechte = array_values(array_intersect((array)$rechte, $validRechte));
         if (!$name || strlen($name) < 2) jsonErr('Name erforderlich (min. 2 Zeichen).');
         if ($id) {

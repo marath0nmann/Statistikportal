@@ -24,6 +24,12 @@ function _buildMstrFilterHtml() {
     '<div style="display:flex;flex-wrap:wrap;gap:6px 12px;padding:6px 0">' + boxes + '</div></div>';
 }
 
+function _ergExternToggle(checked) {
+  state.filters.extern_ein = checked;
+  state.page = 1;
+  loadErgebnisseData();
+}
+
 function _mstrFilterToggle(id, checked) {
   if (!state.filters.meisterschaften) state.filters.meisterschaften = {};
   if (checked) state.filters.meisterschaften[String(id)] = true;
@@ -69,6 +75,15 @@ async function loadErgebnisseData() {
     return;
   }
   var rows = r.data.rows; var total = r.data.total;
+  // Externe Ergebnisse anhängen wenn Checkbox aktiv und Recht vorhanden
+  var _canSeeExtern = currentUser && currentUser.rechte && currentUser.rechte.indexOf('externe_ergebnisse_sehen') >= 0;
+  if (_canSeeExtern && state.filters.extern_ein) {
+    var rExt = await apiGet('externe-ergebnisse?' + params);
+    if (rExt && rExt.ok && rExt.data && rExt.data.rows && rExt.data.rows.length) {
+      rows = rows.concat(rExt.data.rows);
+      total += (rExt.data.total || 0);
+    }
+  }
   var disziplinen = r.data.disziplinen || []; var aks = r.data.aks || []; var jahre = r.data.jahre || [];
   var kategorien = r.data.kategorien || [];
 
@@ -107,6 +122,13 @@ async function loadErgebnisseData() {
       '<div class="fg"><label>Altersklasse</label><select onchange="setFilter(\'ak\',this.value)">' + akOptHtml + '</select></div>' +
       '<div class="fg"><label>Jahr</label><select onchange="setFilter(\'jahr\',this.value)">' + jahrOptHtml + '</select></div>' +
       _buildMstrFilterHtml() +
+      ((_canSeeExtern = currentUser && currentUser.rechte && currentUser.rechte.indexOf('externe_ergebnisse_sehen') >= 0) ?
+        '<div class="fg" style="flex:0 0 auto"><label>&nbsp;</label>' +
+          '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;white-space:nowrap;padding:7px 0">' +
+            '<input type="checkbox" id="erg-extern-toggle" ' + (state.filters.extern_ein ? 'checked' : '') + ' onchange="_ergExternToggle(this.checked)">' +
+            'Externe Ergebnisse' +
+          '</label>' +
+        '</div>' : '') +
       '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">&#x21BA; Reset</button>' +
     '</div>' +
     '<div class="panel">' +
@@ -140,6 +162,11 @@ async function loadErgebnisseData() {
         );
       }
       if (delBtn) deleteErgebnis(delBtn.dataset.delTab, delBtn.dataset.delId);
+      // Externe Ergebnisse
+      var extEditBtn = e.target.closest('[data-ext-edit-id]');
+      var extDelBtn  = e.target.closest('[data-ext-del-id]');
+      if (extEditBtn) openEditExternErgebnis(extEditBtn.dataset);
+      if (extDelBtn)  deleteExternErgebnis(extDelBtn.dataset.extDelId);
     });
   }
 }
@@ -177,7 +204,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
     var ort = fmtVeranstName(rr);
     var cells =
       '<td class="ort-text">' + formatDate(rr.datum) + '</td>' +
-      '<td><span class="athlet-link" onclick="openAthletById(' + rr.athlet_id + ')">' + rr.athlet + '</span></td>' +
+      '<td><span class="athlet-link" onclick="openAthletById(' + rr.athlet_id + ')">' + rr.athlet + '</span>' + (rr.extern ? ' <span style="font-size:10px;color:var(--text2);background:var(--surf2);border-radius:3px;padding:1px 4px">ext.</span>' : '') + '</td>' +
       '<td>' + akBadge(rr.altersklasse) + '</td>' +
       '<td class="disziplin-text">' + (rr.disziplin_mapping_id ? ergDiszLabel(rr) : diszMitKat(rr.disziplin)) + '</td>' +
       '<td class="result">' + ergebnis + '</td>';
@@ -191,13 +218,22 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
     cells += '<td class="ort-text">' + ort + '</td>';
     if (canEdit) cells += '<td class="ort-text">' + (rr.eingetragen_von || 'Excel-Import') + '</td>';
     if (canEdit) {
-      cells +=
-        '<td style="white-space:nowrap">' +
-          '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-edit-id="' + rr.id + '" data-edit-tab="' + subTab + '" data-edit-disz="' + (rr.disziplin||'') + '" data-edit-mapping-id="' + (rr.disziplin_mapping_id||'') + '" data-edit-res="' + (rr.resultat||'') + '" data-edit-ak="' + (rr.altersklasse||'') + '" data-edit-akp="' + (rr.ak_platzierung||'') + '" data-edit-mstr="' + (rr.meisterschaft||'') + '" data-edit-mstr-platz="' + (rr.ak_platz_meisterschaft||'') + '" data-edit-fmt="' + (rr.fmt||'') + '" data-edit-athlet-id="' + (rr.athlet_id||'') + '" data-edit-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '">&#x270E;</button>' +
-          '<button class="btn btn-danger btn-sm" data-del-id="' + rr.id + '" data-del-tab="' + subTab + '">&#x2715;</button>' +
-        '</td>';
+      if (rr.extern) {
+        // Externes Ergebnis: eigene Edit/Delete Buttons
+        cells +=
+          '<td style="white-space:nowrap">' +
+            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-ext-edit-id="' + rr.id + '" data-ext-disz="' + (rr.disziplin||'').replace(/"/g,'&quot;') + '" data-ext-res="' + (rr.resultat||'') + '" data-ext-ak="' + (rr.altersklasse||'') + '" data-ext-wettkampf="' + (rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-datum="' + (rr.datum||'').slice(0,10) + '" data-ext-athlet-id="' + (rr.athlet_id||'') + '">&#x270E;</button>' +
+            '<button class="btn btn-danger btn-sm" data-ext-del-id="' + rr.id + '">&#x2715;</button>' +
+          '</td>';
+      } else {
+        cells +=
+          '<td style="white-space:nowrap">' +
+            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-edit-id="' + rr.id + '" data-edit-tab="' + subTab + '" data-edit-disz="' + (rr.disziplin||'') + '" data-edit-mapping-id="' + (rr.disziplin_mapping_id||'') + '" data-edit-res="' + (rr.resultat||'') + '" data-edit-ak="' + (rr.altersklasse||'') + '" data-edit-akp="' + (rr.ak_platzierung||'') + '" data-edit-mstr="' + (rr.meisterschaft||'') + '" data-edit-mstr-platz="' + (rr.ak_platz_meisterschaft||'') + '" data-edit-fmt="' + (rr.fmt||'') + '" data-edit-athlet-id="' + (rr.athlet_id||'') + '" data-edit-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '">&#x270E;</button>' +
+            '<button class="btn btn-danger btn-sm" data-del-id="' + rr.id + '" data-del-tab="' + subTab + '">&#x2715;</button>' +
+          '</td>';
+      }
     }
-    tbody += '<tr' + (rr.meisterschaft ? ' class="champ-row"' : '') + '>' + cells + '</tr>';
+    tbody += '<tr' + (rr.extern ? ' style="opacity:.75"' : '') + (rr.meisterschaft ? ' class="champ-row"' : '') + '>' + cells + '</tr>';
   }
   return '<table id="ergebnisse-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table>';
 }
@@ -386,4 +422,54 @@ function editKatChanged() {
     html += '<option value="' + val + '"' + (val === prevVal ? ' selected' : '') + '>' + label + '</option>';
   }
   diszSel.innerHTML = html;
+}
+
+
+// ── Externe Ergebnisse: Edit + Delete ────────────────────────────────────────
+function openEditExternErgebnis(ds) {
+  showModal(
+    '<h2>&#x270E; Externes Ergebnis bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<div class="form-grid">' +
+      '<div class="form-group"><label>Disziplin</label><input type="text" id="ext-disz" value="' + (ds.extDisz||'').replace(/"/g,'&quot;') + '"/></div>' +
+      '<div class="form-group"><label>Ergebnis</label><input type="text" id="ext-res" value="' + (ds.extRes||'') + '"/></div>' +
+      '<div class="form-group"><label>Altersklasse</label><input type="text" id="ext-ak" value="' + (ds.extAk||'') + '" placeholder="z.B. M40"/></div>' +
+      '<div class="form-group"><label>Datum</label><input type="date" id="ext-datum" value="' + (ds.extDatum||'') + '"/></div>' +
+      '<div class="form-group full"><label>Wettkampf</label><input type="text" id="ext-wettkampf" value="' + (ds.extWettkampf||'').replace(/"/g,'&quot;') + '"/></div>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="_saveExternErgebnis(' + ds.extEditId + ')">Speichern</button>' +
+    '</div>'
+  );
+}
+
+async function _saveExternErgebnis(id) {
+  var body = {
+    disziplin:  (document.getElementById('ext-disz')     || {}).value || '',
+    resultat:   (document.getElementById('ext-res')      || {}).value || '',
+    altersklasse: (document.getElementById('ext-ak')     || {}).value || null,
+    datum:      (document.getElementById('ext-datum')    || {}).value || null,
+    wettkampf:  (document.getElementById('ext-wettkampf')|| {}).value || '',
+  };
+  var r = await apiPut('externe-ergebnisse/' + id, body);
+  if (r && r.ok) { closeModal(); notify('Gespeichert.', 'ok'); loadErgebnisseData(); }
+  else notify('\u274C ' + ((r&&r.fehler)||'Fehler'), 'err');
+}
+
+function deleteExternErgebnis(id) {
+  showModal(
+    '<h2>Externes Ergebnis löschen <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<p style="font-size:14px;color:var(--text2);margin:8px 0 20px">Dieses externe Ergebnis wirklich löschen?</p>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-danger" onclick="_doDeleteExternErgebnis(' + id + ')">Löschen</button>' +
+    '</div>'
+  );
+}
+
+async function _doDeleteExternErgebnis(id) {
+  closeModal();
+  var r = await apiDel('externe-ergebnisse/' + id);
+  if (r && r.ok) { notify('Gelöscht.', 'ok'); loadErgebnisseData(); }
+  else notify('\u274C ' + ((r&&r.fehler)||'Fehler'), 'err');
 }

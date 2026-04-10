@@ -1,3 +1,22 @@
+## v986 – Ergebnisse: Externe Ergebnisse mit Rollen-Recht
+
+### Neues Rollen-Recht: `externe_ergebnisse_sehen`
+- Standardmäßig aktiv für Admin und Editor (nicht für Athlet/Leser)
+- Migration aktiviert das Recht automatisch in bestehenden Rollen
+
+### Ergebnisse-Seite
+- Neue Checkbox „Externe Ergebnisse" in der Filterbar (nur sichtbar wenn Recht vorhanden)
+- Externe Ergebnisse erscheinen leicht gedimmt mit `ext.`-Badge beim Athleten-Namen
+- Edit-Modal: Disziplin, Ergebnis, AK, Datum, Wettkampf bearbeitbar
+- Delete: sauberes Bestätigungs-Modal (kein `confirm()`)
+
+### API
+- Neuer Endpunkt `GET externe-ergebnisse` mit denselben Filtern wie reguläre Ergebnisse
+- `PUT externe-ergebnisse/{id}` – bearbeiten
+- `DELETE externe-ergebnisse/{id}` – löschen (Auth: Editor)
+
+---
+
 ## v985 – Rebuild: confirm()-Fix aus v984 sichergestellt
 
 - confirm() → Modal war in v984-ZIP korrekt, aber Server hatte alte Datei

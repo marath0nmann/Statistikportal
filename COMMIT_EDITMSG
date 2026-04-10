@@ -1,1 +1,4 @@
-v985 – Rebuild: confirm()-Fix sichergestellt
+v986 – Externe Ergebnisse in Ergebnisse-Seite mit Rollen-Recht
+
+- Recht: externe_ergebnisse_sehen (Admin+Editor default)
+- Filter-Checkbox, ext.-Badge, Edit+Delete Modal
