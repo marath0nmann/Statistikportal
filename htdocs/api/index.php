@@ -3671,6 +3671,25 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
              ORDER BY teilnahmen DESC, a.name_nv ASC",
             [$id]
         );
+        // Pro Athlet die genauen Teilnahmejahre laden (für Zeitstrahl)
+        $detail = DB::fetchAll(
+            "SELECT DISTINCT e.athlet_id, YEAR(v.datum) AS jahr
+             FROM $eTbl e
+             JOIN $vTbl v ON v.id=e.veranstaltung_id
+             WHERE v.serie_id=? AND e.geloescht_am IS NULL
+               AND v.geloescht_am IS NULL AND v.genehmigt=1
+             ORDER BY e.athlet_id, v.datum",
+            [$id]
+        );
+        // Jahre pro Athlet gruppieren
+        $jahreMap = [];
+        foreach ($detail as $row) {
+            $jahreMap[$row['athlet_id']][] = (int)$row['jahr'];
+        }
+        foreach ($ranking as &$r) {
+            $r['jahre'] = $jahreMap[$r['athlet_id']] ?? [];
+        }
+        unset($r);
         jsonOk($ranking);
     }
 

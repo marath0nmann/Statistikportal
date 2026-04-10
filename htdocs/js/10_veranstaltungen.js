@@ -666,46 +666,86 @@ function openAthletByName(name) {
 async function _loadSerieTeilnahmen(serieId) {
   var container = document.getElementById('serie-teilnahmen-content');
   if (!container) return;
-  container.innerHTML = '<div class="loading" style="padding:32px"><div class="spinner"></div>Lade&hellip;</div>';
-  var r = await apiGet('veranstaltung-serien/' + serieId + '?teilnahmen=1');
-  if (!r || !r.ok) {
-    container.innerHTML = '<div style="color:var(--accent);padding:16px">Fehler: ' + (r && r.fehler || 'Unbekannt') + '</div>';
+  container.innerHTML = '<div class="loading" style="padding:32px"><div class="spinner"></div>Lade\u2026</div>';
+
+  var rT = await apiGet('veranstaltung-serien/' + serieId + '?teilnahmen=1');
+  var rS = await apiGet('veranstaltung-serien/' + serieId);
+  if (!rT || !rT.ok) {
+    container.innerHTML = '<div style="color:var(--accent);padding:16px">Fehler: ' + (rT && rT.fehler || 'Unbekannt') + '</div>';
     return;
   }
-  var rows = r.data || [];
+  var rows = rT.data || [];
   if (!rows.length) {
-    container.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Noch keine Teilnahmen erfasst</div></div>';
+    container.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F4CA;</div><div class="empty-text">Noch keine Teilnahmen erfasst</div></div>';
     return;
   }
-  // Maximale Teilnahmen für Balken-Berechnung
+
+  // Alle Austragungsjahre chronologisch
+  var serieJahre = [];
+  if (rS && rS.ok && rS.data && rS.data.veranst) {
+    rS.data.veranst.forEach(function(v) { if (v.jahr) serieJahre.push(parseInt(v.jahr)); });
+    serieJahre.sort(function(a,b){return a-b;});
+    serieJahre = serieJahre.filter(function(v,i,a){return a.indexOf(v)===i;});
+  }
+
   var maxT = rows[0].teilnahmen || 1;
+
   var html = '<div class="panel" style="padding:20px 24px">';
   html += '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:600;color:var(--text);border-bottom:2px solid var(--border);padding-bottom:6px;margin-bottom:16px">Teilnahmen-Ranking</div>';
+
+  var tlHeader = serieJahre.map(function(j) {
+    return '<th style="text-align:center;width:38px;min-width:38px;font-size:11px;font-weight:600;color:var(--text2);padding:4px 2px">' + j + '</th>';
+  }).join('');
+
   html += '<div class="table-scroll"><table class="rek-table" style="width:100%">';
-  html += '<thead><tr><th style="width:40px"></th><th style="text-align:left">Athlet*in</th><th style="text-align:right;width:80px">Starts</th><th style="text-align:left;padding-left:12px">Zeitraum</th><th style="width:120px"></th></tr></thead><tbody>';
+  html += '<thead><tr>' +
+    '<th style="width:34px"></th>' +
+    '<th style="text-align:left;min-width:140px">Athlet*in</th>' +
+    '<th style="text-align:right;width:44px">&#x2211;</th>' +
+    tlHeader +
+    '<th style="min-width:70px;padding-left:8px"></th>' +
+    '</tr></thead><tbody>';
+
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
-    var pct = Math.round((row.teilnahmen / maxT) * 100);
     var isW = row.geschlecht === 'W';
-    var rankCls = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    var jahrVon = row.erstes_jahr ? row.erstes_jahr.slice(0,4) : '?';
-    var jahrBis = row.letztes_jahr ? row.letztes_jahr.slice(0,4) : '?';
-    var zeitraum = jahrVon === jahrBis ? jahrVon : jahrVon + '–' + jahrBis;
-    html += '<tr>' +
-      '<td>' + medalBadge(i + 1) + '</td>' +
-      '<td style="font-weight:600"><span class="athlet-link" data-athlet-id="' + row.athlet_id + '">' + row.athlet + '</span></td>' +
-      '<td style="text-align:right;font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:700;color:var(--primary)">' + row.teilnahmen + '</td>' +
-      '<td style="color:var(--text2);font-size:12px;padding-left:12px">' + zeitraum + '</td>' +
-      '<td style="padding-left:8px">' +
-        '<div style="height:8px;border-radius:4px;background:var(--surf2);overflow:hidden">' +
-          '<div style="height:100%;width:' + pct + '%;background:' + (isW ? 'var(--primary)' : 'var(--btn-bg,#4070c0)') + ';border-radius:4px;transition:width .3s"></div>' +
+    var dotColor = isW ? 'var(--primary)' : 'var(--btn-bg,#4070c0)';
+    var pct = Math.round((row.teilnahmen / maxT) * 100);
+    var jahrSet = {};
+    (row.jahre || []).forEach(function(j){ jahrSet[j] = true; });
+
+    var tlCells = serieJahre.map(function(j) {
+      var present = !!jahrSet[j];
+      return '<td style="text-align:center;padding:6px 2px">' +
+        '<div title="' + (present ? '\u2713 ' + j : '\u2013 ' + j) + '" style="width:20px;height:20px;border-radius:50%;margin:0 auto;' +
+          (present
+            ? 'background:' + dotColor + ';box-shadow:0 1px 3px rgba(0,0,0,.2)'
+            : 'background:transparent;border:1.5px solid var(--border)') +
+        '"></div></td>';
+    }).join('');
+
+    html += '<tr style="border-bottom:1px solid var(--border)">' +
+      '<td style="padding:6px 4px">' + medalBadge(i + 1) + '</td>' +
+      '<td style="font-weight:600;padding:6px 8px 6px 4px;font-size:13px"><span class="athlet-link" data-athlet-id="' + row.athlet_id + '">' + row.athlet + '</span></td>' +
+      '<td style="text-align:right;font-family:\'Barlow Condensed\',sans-serif;font-size:17px;font-weight:700;color:var(--primary);padding:6px 8px 6px 4px">' + row.teilnahmen + '</td>' +
+      tlCells +
+      '<td style="padding:6px 0 6px 8px">' +
+        '<div style="height:6px;border-radius:3px;background:var(--surf2);overflow:hidden;min-width:60px">' +
+          '<div style="height:100%;width:' + pct + '%;background:' + dotColor + ';border-radius:3px"></div>' +
         '</div>' +
       '</td>' +
-    '</tr>';
+      '</tr>';
   }
-  html += '</tbody></table></div></div>';
+
+  html += '</tbody></table></div>';
+  html += '<div style="display:flex;gap:18px;margin-top:12px;font-size:11px;color:var(--text2);align-items:center">' +
+    '<div style="display:flex;align-items:center;gap:5px"><div style="width:13px;height:13px;border-radius:50%;background:var(--primary)"></div>Frauen</div>' +
+    '<div style="display:flex;align-items:center;gap:5px"><div style="width:13px;height:13px;border-radius:50%;background:var(--btn-bg,#4070c0)"></div>M\u00e4nner</div>' +
+    '<div style="display:flex;align-items:center;gap:5px"><div style="width:13px;height:13px;border-radius:50%;border:1.5px solid var(--border)"></div>Nicht gestartet</div>' +
+  '</div>';
+  html += '</div>';
   container.innerHTML = html;
-  // Athlet-Link Delegation
+
   container.addEventListener('click', function(ev) {
     var al = ev.target.closest('.athlet-link[data-athlet-id]');
     if (al) openAthletById(parseInt(al.dataset.athletId));

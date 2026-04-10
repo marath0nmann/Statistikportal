@@ -1,5 +1,4 @@
-v975 – Neue regelmäßige Veranstaltung: Vorschlagsliste mit Auto-Zuordnung
+v976 – Teilnahmen-Zeitstrahl (Punkte pro Jahr, gefüllt/leer)
 
-- Dynamische Filterung beim Eintippen des Namens
-- Checkboxen für Auswahl, alle vorausgewählt
-- Beim Anlegen werden ausgewählte Veranstaltungen zugeordnet
+- API: jahre-Array pro Athlet
+- UI: Kreise pro Austragungsjahr in der Tabelle

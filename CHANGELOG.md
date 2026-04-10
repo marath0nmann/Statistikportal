@@ -1,3 +1,14 @@
+## v976 – Teilnahmen-Zeitstrahl
+
+- Im Tab „Anzahl Teilnahmen" erscheint jetzt rechts neben Name und Starts-Anzahl ein **Zeitstrahl** über alle Austragungsjahre der Serie
+- Gefüllter Kreis = Athlet war dabei; leerer Kreis = nicht gestartet
+- Farbe: Frauen = Primärfarbe, Männer = Sekundärfarbe
+- Tooltip bei Hover zeigt Jahr + Status
+- API `?teilnahmen=1` gibt jetzt zusätzlich `jahre`-Array pro Athlet zurück (genaue Teilnahmejahre)
+- Legende unterhalb der Tabelle
+
+---
+
 ## v975 – Neue regelmäßige Veranstaltung: Vorschlagsliste bestehender Veranstaltungen
 
 - Beim Anlegen einer neuen regelmäßigen Veranstaltung erscheint eine dynamische Vorschlagsliste
