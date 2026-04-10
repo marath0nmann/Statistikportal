@@ -1,3 +1,12 @@
+## v977 – Teilnahmen-Zeitstrahl: UI-Verbesserungen
+
+- **Einheitliche Farbe**: alle gefüllten Punkte in Primärfarbe (kein Geschlechter-Farbunterschied mehr)
+- **Fortschrittsbalken entfernt**
+- **Gleichstand**: bei identischer Startzahl erscheint kein Medaillen-Badge (zeigt klar, dass mehrere Athleten gleichauf liegen)
+- **Tooltip-Inhalt**: zeigt jetzt Disziplin + Ergebnis statt Jahreszahl; bei mehreren Starts pro Veranstaltung alle Ergebnisse mit `|` getrennt
+
+---
+
 ## v976 – Teilnahmen-Zeitstrahl
 
 - Im Tab „Anzahl Teilnahmen" erscheint jetzt rechts neben Name und Starts-Anzahl ein **Zeitstrahl** über alle Austragungsjahre der Serie

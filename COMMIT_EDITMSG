@@ -1,4 +1,1 @@
-v976 – Teilnahmen-Zeitstrahl (Punkte pro Jahr, gefüllt/leer)
-
-- API: jahre-Array pro Athlet
-- UI: Kreise pro Austragungsjahr in der Tabelle
+v977 – Zeitstrahl: einheitl. Farbe, kein Balken, Gleichstand, Ergebnis-Tooltip

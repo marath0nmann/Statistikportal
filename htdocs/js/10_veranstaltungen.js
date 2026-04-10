@@ -682,13 +682,22 @@ async function _loadSerieTeilnahmen(serieId) {
 
   // Alle Austragungsjahre chronologisch
   var serieJahre = [];
+  var ergMap = {}; // ergMap[athlet_id][jahr] = [{disziplin, resultat}, ...]
   if (rS && rS.ok && rS.data && rS.data.veranst) {
-    rS.data.veranst.forEach(function(v) { if (v.jahr) serieJahre.push(parseInt(v.jahr)); });
+    rS.data.veranst.forEach(function(v) {
+      if (v.jahr) serieJahre.push(parseInt(v.jahr));
+      (v.ergebnisse || []).forEach(function(e) {
+        if (!ergMap[e.athlet_id]) ergMap[e.athlet_id] = {};
+        if (!ergMap[e.athlet_id][v.jahr]) ergMap[e.athlet_id][v.jahr] = [];
+        ergMap[e.athlet_id][v.jahr].push({ disziplin: e.disziplin, resultat: e.resultat });
+      });
+    });
     serieJahre.sort(function(a,b){return a-b;});
     serieJahre = serieJahre.filter(function(v,i,a){return a.indexOf(v)===i;});
   }
 
-  var maxT = rows[0].teilnahmen || 1;
+  // Gleichstand ermitteln
+  var counts = rows.map(function(r){return r.teilnahmen;});
 
   var html = '<div class="panel" style="padding:20px 24px">';
   html += '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:600;color:var(--text);border-bottom:2px solid var(--border);padding-bottom:6px;margin-bottom:16px">Teilnahmen-Ranking</div>';
@@ -703,44 +712,50 @@ async function _loadSerieTeilnahmen(serieId) {
     '<th style="text-align:left;min-width:140px">Athlet*in</th>' +
     '<th style="text-align:right;width:44px">&#x2211;</th>' +
     tlHeader +
-    '<th style="min-width:70px;padding-left:8px"></th>' +
     '</tr></thead><tbody>';
 
+  var rank = 1;
   for (var i = 0; i < rows.length; i++) {
     var row = rows[i];
-    var isW = row.geschlecht === 'W';
-    var dotColor = isW ? 'var(--primary)' : 'var(--btn-bg,#4070c0)';
-    var pct = Math.round((row.teilnahmen / maxT) * 100);
+    // Gleichstand: gleiche Startzahl wie Vorgänger → kein Badge
+    if (i > 0 && rows[i].teilnahmen === rows[i-1].teilnahmen) {
+      rank = rank; // bleibt gleich, Badge leer
+    } else {
+      rank = i + 1;
+    }
+    var showBadge = (i === 0 || rows[i].teilnahmen !== rows[i-1].teilnahmen);
     var jahrSet = {};
     (row.jahre || []).forEach(function(j){ jahrSet[j] = true; });
 
+    var erId = row.athlet_id;
     var tlCells = serieJahre.map(function(j) {
       var present = !!jahrSet[j];
+      var tipText = '';
+      if (present && ergMap[erId] && ergMap[erId][j]) {
+        tipText = ergMap[erId][j].map(function(e){
+          var res = typeof fmtTime === 'function' ? fmtTime(e.resultat) : e.resultat;
+          return e.disziplin + ': ' + res;
+        }).join(' | ');
+      }
       return '<td style="text-align:center;padding:6px 2px">' +
-        '<div title="' + (present ? '\u2713 ' + j : '\u2013 ' + j) + '" style="width:20px;height:20px;border-radius:50%;margin:0 auto;' +
+        '<div title="' + (tipText || (present ? j : '\u2013')) + '" style="width:20px;height:20px;border-radius:50%;margin:0 auto;cursor:' + (present?'default':'default') + ';' +
           (present
-            ? 'background:' + dotColor + ';box-shadow:0 1px 3px rgba(0,0,0,.2)'
+            ? 'background:var(--primary);box-shadow:0 1px 3px rgba(0,0,0,.2)'
             : 'background:transparent;border:1.5px solid var(--border)') +
         '"></div></td>';
     }).join('');
 
     html += '<tr style="border-bottom:1px solid var(--border)">' +
-      '<td style="padding:6px 4px">' + medalBadge(i + 1) + '</td>' +
+      '<td style="padding:6px 4px">' + (showBadge ? medalBadge(rank) : '') + '</td>' +
       '<td style="font-weight:600;padding:6px 8px 6px 4px;font-size:13px"><span class="athlet-link" data-athlet-id="' + row.athlet_id + '">' + row.athlet + '</span></td>' +
       '<td style="text-align:right;font-family:\'Barlow Condensed\',sans-serif;font-size:17px;font-weight:700;color:var(--primary);padding:6px 8px 6px 4px">' + row.teilnahmen + '</td>' +
       tlCells +
-      '<td style="padding:6px 0 6px 8px">' +
-        '<div style="height:6px;border-radius:3px;background:var(--surf2);overflow:hidden;min-width:60px">' +
-          '<div style="height:100%;width:' + pct + '%;background:' + dotColor + ';border-radius:3px"></div>' +
-        '</div>' +
-      '</td>' +
       '</tr>';
   }
 
   html += '</tbody></table></div>';
   html += '<div style="display:flex;gap:18px;margin-top:12px;font-size:11px;color:var(--text2);align-items:center">' +
-    '<div style="display:flex;align-items:center;gap:5px"><div style="width:13px;height:13px;border-radius:50%;background:var(--primary)"></div>Frauen</div>' +
-    '<div style="display:flex;align-items:center;gap:5px"><div style="width:13px;height:13px;border-radius:50%;background:var(--btn-bg,#4070c0)"></div>M\u00e4nner</div>' +
+    '<div style="display:flex;align-items:center;gap:5px"><div style="width:13px;height:13px;border-radius:50%;background:var(--primary)"></div>Gestartet</div>' +
     '<div style="display:flex;align-items:center;gap:5px"><div style="width:13px;height:13px;border-radius:50%;border:1.5px solid var(--border)"></div>Nicht gestartet</div>' +
   '</div>';
   html += '</div>';
