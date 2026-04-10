@@ -1,3 +1,9 @@
+## v987 – Rebuild: v986-Änderungen sichergestellt
+
+- Externe Ergebnisse in Ergebnisse-Seite (war in v986-ZIP korrekt, Server veraltet)
+
+---
+
 ## v986 – Ergebnisse: Externe Ergebnisse mit Rollen-Recht
 
 ### Neues Rollen-Recht: `externe_ergebnisse_sehen`
