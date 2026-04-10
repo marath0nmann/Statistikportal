@@ -231,23 +231,21 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
       cells += '<td>' + (rr.meisterschaft ? mstrBadge(rr.meisterschaft) : '') + '</td>';
       cells += '<td class="ort-text" style="font-size:12px">' + (rr.meisterschaft && rr.ak_platz_meisterschaft ? medalBadge(rr.ak_platz_meisterschaft) : '') + '</td>';
     }
+    var _vid = rr.veranstaltung_id || null;
     var ortCell;
-    if (rr.extern) {
-      if (rr.verknuepfte_serie_id) {
-        // Verlinkt mit einer Serie → klickbarer Link
-        ortCell = '<td class="ort-text">' +
-          '<span class="athlet-link" style="font-size:12px" onclick="_openSerieFromErg(' + rr.verknuepfte_serie_id + ')" title="In Regelmäßigen Veranstaltungen öffnen">' +
-            '&#x1F517; ' + (rr.verknuepfte_veranstaltung_name || rr.veranstaltung || '') +
-          '</span>' +
-        '</td>';
-      } else {
-        // Freies Ergebnis – nicht in einer Serie
-        ortCell = '<td class="ort-text"><span style="font-size:11px;color:var(--text2);background:var(--surf2);border:1px solid var(--border);border-radius:4px;padding:1px 6px" title="Nicht mit einer regelmäßigen Veranstaltung verknüpft">frei</span>' +
-          (rr.veranstaltung ? ' <span style="font-size:12px;color:var(--text2)">' + rr.veranstaltung + '</span>' : '') +
-        '</td>';
-      }
+    if (_vid) {
+      // Alle Ergebnisse mit veranstaltung_id → Link zur Veranstaltungsseite
+      ortCell = '<td class="ort-text">' +
+        '<a href="#veranstaltung/' + _vid + '" style="color:inherit;text-decoration:none" title="Zur Veranstaltung">' +
+          ort +
+        '</a>' +
+      '</td>';
     } else {
-      ortCell = '<td class="ort-text">' + ort + '</td>';
+      // Freies externes Ergebnis ohne veranstaltung_id
+      ortCell = '<td class="ort-text">' +
+        '<span style="font-size:11px;color:var(--text2);background:var(--surf2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;margin-right:4px" title="Kein Veranstaltungsbezug">frei</span>' +
+        (rr.veranstaltung ? '<span style="color:var(--text2)">' + rr.veranstaltung + '</span>' : '') +
+      '</td>';
     }
     cells += ortCell;
     if (canEdit) cells += '<td class="ort-text">' + (rr.extern ? (rr.eingetragen_von || '–') : (rr.eingetragen_von || 'Excel-Import')) + '</td>';
@@ -256,7 +254,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
         // Externes Ergebnis: eigene Edit/Delete Buttons
         cells +=
           '<td style="white-space:nowrap">' +
-            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-ext-edit-id="' + rr.id + '" data-ext-disz="' + (rr.disziplin||'').replace(/"/g,'&quot;') + '" data-ext-res="' + (rr.resultat||'') + '" data-ext-ak="' + (rr.altersklasse||'') + '" data-ext-wettkampf="' + (rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-datum="' + (rr.datum||'').slice(0,10) + '" data-ext-athlet-id="' + (rr.athlet_id||'') + '">&#x270E;</button>' +
+            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-ext-edit-id="' + rr.id + '" data-ext-disz="' + (rr.disziplin||'').replace(/"/g,'&quot;') + '" data-ext-res="' + (rr.resultat||'') + '" data-ext-ak="' + (rr.altersklasse||'') + '" data-ext-wettkampf="' + (rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-datum="' + (rr.datum||'').slice(0,10) + '" data-ext-vid="' + (rr.veranstaltung_id||'') + '" data-ext-vname="' + (rr.verknuepfte_veranstaltung_name||rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-athlet-id="' + (rr.athlet_id||'') + '">&#x270E;</button>' +
             '<button class="btn btn-danger btn-sm" data-ext-del-id="' + rr.id + '">&#x2715;</button>' +
           '</td>';
       } else {
@@ -460,7 +458,13 @@ function editKatChanged() {
 
 
 // ── Externe Ergebnisse: Edit + Delete ────────────────────────────────────────
-function openEditExternErgebnis(ds) {
+async function openEditExternErgebnis(ds) {
+  // Veranstaltungen für Suche vorladen
+  window._extVid = ds.extVid ? parseInt(ds.extVid) : null;
+  window._extVname = ds.extVname || '';
+  var rV = await apiGet('veranstaltungen?limit=500&genehmigt=1');
+  window._extAllVeranst = (rV && rV.ok && rV.data && rV.data.veranst) ? rV.data.veranst : [];
+
   showModal(
     '<h2>&#x270E; Externes Ergebnis bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
     '<div class="form-grid">' +
@@ -469,6 +473,19 @@ function openEditExternErgebnis(ds) {
       '<div class="form-group"><label>Altersklasse</label><input type="text" id="ext-ak" value="' + (ds.extAk||'') + '" placeholder="z.B. M40"/></div>' +
       '<div class="form-group"><label>Datum</label><input type="date" id="ext-datum" value="' + (ds.extDatum||'') + '"/></div>' +
       '<div class="form-group full"><label>Wettkampf</label><input type="text" id="ext-wettkampf" value="' + (ds.extWettkampf||'').replace(/"/g,'&quot;') + '"/></div>' +
+      '<div class="form-group full">' +
+        '<label>Veranstaltung <span style="font-size:11px;font-weight:400;color:var(--text2)">(optional – für Verlinkung)</span></label>' +
+        '<div style="display:flex;gap:6px;align-items:center">' +
+          '<input type="text" id="ext-veranst-search" placeholder="Suchen…" ' +
+            'value="' + (ds.extVid ? (ds.extVname||'').replace(/"/g,'&quot;') : '') + '" ' +
+            'oninput="_extVeranstSearch(this.value)" autocomplete="off" style="flex:1"/>' +
+          '<button class="btn btn-ghost btn-sm" onclick="_extVeranstClear()" title="Zuordnung entfernen">&#x2715; Frei</button>' +
+        '</div>' +
+        '<div id="ext-veranst-results" style="margin-top:4px"></div>' +
+        '<div id="ext-veranst-current" style="font-size:12px;color:var(--text2);margin-top:4px">' +
+          (ds.extVid ? '&#x1F517; Aktuell: ' + (ds.extVname || 'Veranstaltung #' + ds.extVid) : 'Kein Veranstaltungsbezug') +
+        '</div>' +
+      '</div>' +
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -477,17 +494,65 @@ function openEditExternErgebnis(ds) {
   );
 }
 
+function _extVeranstSearch(q) {
+  var box = document.getElementById('ext-veranst-results');
+  if (!box) return;
+  if (!q || q.length < 2) { box.innerHTML = ''; return; }
+  var ql = q.toLowerCase();
+  var matches = (window._extAllVeranst || []).filter(function(v) {
+    return (v.name||v.kuerzel||'').toLowerCase().indexOf(ql) >= 0 ||
+           (v.ort||'').toLowerCase().indexOf(ql) >= 0 ||
+           (v.datum||'').indexOf(q) >= 0;
+  }).slice(0, 8);
+  if (!matches.length) { box.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:4px 0">Keine Treffer</div>'; return; }
+  box.innerHTML = '<div style="border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-top:2px">' +
+    matches.map(function(v) {
+      var label = (v.name || v.kuerzel || '') + (v.datum ? ' (' + v.datum.slice(0,4) + ')' : '');
+      return '<div class="ext-veranst-option" data-vid="' + v.id + '" data-vname="' + (label).replace(/"/g,'&quot;') + '" ' +
+        'style="padding:7px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);background:var(--surf)">' +
+        label + '</div>';
+    }).join('') +
+  '</div>';
+  box.addEventListener('click', function(ev) {
+    var opt = ev.target.closest('.ext-veranst-option');
+    if (opt) _extVeranstSelect(parseInt(opt.dataset.vid), opt.dataset.vname);
+  });
+}
+
+function _extVeranstSelect(id, name) {
+  window._extVid = id;
+  window._extVname = name;
+  var inp = document.getElementById('ext-veranst-search');
+  if (inp) inp.value = name;
+  var box = document.getElementById('ext-veranst-results');
+  if (box) box.innerHTML = '';
+  var cur = document.getElementById('ext-veranst-current');
+  if (cur) cur.innerHTML = '&#x1F517; ' + name;
+}
+
+function _extVeranstClear() {
+  window._extVid = null;
+  window._extVname = '';
+  var inp = document.getElementById('ext-veranst-search');
+  if (inp) inp.value = '';
+  var box = document.getElementById('ext-veranst-results');
+  if (box) box.innerHTML = '';
+  var cur = document.getElementById('ext-veranst-current');
+  if (cur) cur.innerHTML = 'Kein Veranstaltungsbezug';
+}
+
 async function _saveExternErgebnis(id) {
   var body = {
-    disziplin:  (document.getElementById('ext-disz')     || {}).value || '',
-    resultat:   (document.getElementById('ext-res')      || {}).value || '',
-    altersklasse: (document.getElementById('ext-ak')     || {}).value || null,
-    datum:      (document.getElementById('ext-datum')    || {}).value || null,
-    wettkampf:  (document.getElementById('ext-wettkampf')|| {}).value || '',
+    disziplin:      (document.getElementById('ext-disz')     || {}).value || '',
+    resultat:       (document.getElementById('ext-res')      || {}).value || '',
+    altersklasse:   (document.getElementById('ext-ak')       || {}).value || null,
+    datum:          (document.getElementById('ext-datum')     || {}).value || null,
+    wettkampf:      (document.getElementById('ext-wettkampf')|| {}).value || '',
+    veranstaltung_id: window._extVid || null,
   };
   var r = await apiPut('externe-ergebnisse/' + id, body);
   if (r && r.ok) { closeModal(); notify('Gespeichert.', 'ok'); loadErgebnisseData(); }
-  else notify('\u274C ' + ((r&&r.fehler)||'Fehler'), 'err');
+  else notify('❌ ' + ((r&&r.fehler)||'Fehler'), 'err');
 }
 
 function deleteExternErgebnis(id) {
@@ -508,9 +573,3 @@ async function _doDeleteExternErgebnis(id) {
   else notify('\u274C ' + ((r&&r.fehler)||'Fehler'), 'err');
 }
 
-function _openSerieFromErg(serieId) {
-  state.tab = 'veranstaltungen';
-  state.veranstView = 'serie-detail';
-  state.serieId = serieId;
-  renderPage();
-}

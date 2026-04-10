@@ -1980,7 +1980,9 @@ if (in_array($res, $ergebnisTabellen)) {
                        e.disziplin, e.disziplin_mapping_id, e.resultat,
                        $extraCols
                        e.ak_platzierung, e.meisterschaft,
+                       e.veranstaltung_id,
                        v.kuerzel AS veranstaltung, v.datum, v.ort, v.ort AS veranstaltung_ort, v.name AS veranstaltung_name, v.datenquelle AS veranstaltung_quelle,
+                       v.serie_id AS verknuepfte_serie_id, v.name AS verknuepfte_veranstaltung_name,
                        COALESCE(CONCAT(ab.vorname,' ',ab.nachname), b.benutzername) AS eingetragen_von, e.erstellt_am,
                        COALESCE(dm.fmt_override, dk.fmt) AS fmt,
                        dk.name AS kategorie_name, dk.tbl_key AS kategorie_key
@@ -4066,6 +4068,10 @@ if ($res === 'externe-ergebnisse' && $method === 'PUT' && $id) {
     if (isset($body['altersklasse']))       { $felder[] = 'altersklasse=?';       $params[] = sanitize($body['altersklasse']) ?: null; }
     if (isset($body['wettkampf']))          { $felder[] = 'wettkampf=?';          $params[] = sanitize($body['wettkampf']); }
     if (isset($body['datum']))              { $felder[] = 'datum=?';              $params[] = sanitize($body['datum']) ?: null; }
+    if (array_key_exists('veranstaltung_id', $body)) {
+        $felder[] = 'veranstaltung_id=?';
+        $params[] = $body['veranstaltung_id'] ? (int)$body['veranstaltung_id'] : null;
+    }
     if (!$felder) jsonErr('Keine Änderungen.');
     $params[] = (int)$id;
     DB::query('UPDATE ' . DB::tbl('athlet_pb') . ' SET ' . implode(',', $felder) . ' WHERE id=?', $params);

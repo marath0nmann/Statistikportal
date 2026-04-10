@@ -1,3 +1,37 @@
+## v998 – Externe Ergebnisse: Veranstaltungszuordnung im Bearbeiten-Modal
+
+- Suchfeld im Edit-Modal: Veranstaltung eintippen, Treffer auswaehlen
+- Zuordnung entfernen per Frei-Button
+- API PUT: veranstaltung_id wird gesetzt oder auf NULL gesetzt
+
+---
+
+## v998 – Externe Ergebnisse: Veranstaltungszuordnung im Bearbeiten-Modal
+
+- Neues Suchfeld im Edit-Modal: Veranstaltung tippen, Treffer auswählen
+- Zuordnung entfernen per X Frei-Button
+- Aktuell verknüpfte Veranstaltung wird angezeigt
+- API PUT externe-ergebnisse: veranstaltung_id wird gespeichert/gelöscht
+
+---
+
+## v997 – Ergebnisse: Link zur Veranstaltungsseite
+
+- Alle Ergebnisse mit veranstaltung_id verlinken direkt auf die Veranstaltungsseite (#veranstaltung/ID)
+- Betrifft Vereins- und externe Ergebnisse gleichermassen
+- Nur freie externe Ergebnisse (athlet_pb ohne veranstaltung_id) zeigen weiterhin frei-Badge
+- Kein Link mehr zur Veranstaltungsserie, sondern direkt zur Veranstaltung
+
+---
+
+## v996 – Ergebnisse: Serie-Link fuer alle Ergebnisse
+
+- Serie-Verknuepfung war bisher nur bei externen Ergebnissen sichtbar
+- Jetzt zeigt jedes Ergebnis in der Veranstaltungs-Spalte einen Link zur Serie, wenn die Veranstaltung einer regelmaessigen Veranstaltung angehoert
+- API: regulaere Ergebnisse liefern jetzt ebenfalls serie_id
+
+---
+
 ## v995 – Externe Ergebnisse: Verknuepfungs-Status in der Liste
 
 - Spalte Veranstaltung zeigt bei externen Ergebnissen:
