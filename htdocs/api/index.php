@@ -138,6 +138,7 @@ try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXIS
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS disziplin_mapping_id INT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS altersklasse VARCHAR(20) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS veranstaltung_id INT NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS erstellt_von INT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS genehmigt TINYINT(1) NOT NULL DEFAULT 1"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS datenquelle VARCHAR(1024) NULL DEFAULT NULL"); } catch (\Exception $e) {}
 // v942: Veranstaltungsserien (jährlich wiederkehrende Veranstaltungen)
@@ -2222,9 +2223,10 @@ if ($res === 'athleten') {
             $vr   = sanitize($body['verein']    ?? '');
             $ak   = sanitize($body['altersklasse'] ?? '');
             $dmId = intOrNull($body['disziplin_mapping_id'] ?? null);
+            $pbUser = Auth::requireLogin();
             DB::query(
-                'INSERT INTO ' . DB::tbl('athlet_pb') . ' (athlet_id, disziplin, resultat, wettkampf, datum, verein, altersklasse, disziplin_mapping_id) VALUES (?,?,?,?,?,?,?,?)',
-                [$athletId, $disz, $res2, $wk ?: null, $dat, $vr ?: null, $ak ?: null, $dmId]);
+                'INSERT INTO ' . DB::tbl('athlet_pb') . ' (athlet_id, disziplin, resultat, wettkampf, datum, verein, altersklasse, disziplin_mapping_id, erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)',
+                [$athletId, $disz, $res2, $wk ?: null, $dat, $vr ?: null, $ak ?: null, $dmId, $pbUser['id']]);
             jsonOk(['id' => DB::lastInsertId()]);
         }
         if ($method === 'PUT' && $pbId) {
@@ -4019,14 +4021,22 @@ if ($res === 'externe-ergebnisse' && $method === 'GET' && !$id) {
     $sql = "SELECT pb.id, a.name_nv AS athlet, a.id AS athlet_id, pb.altersklasse,
                    pb.disziplin, pb.disziplin_mapping_id, pb.resultat,
                    pb.datum, pb.wettkampf AS veranstaltung, pb.veranstaltung_id,
-                   NULL AS ort, NULL AS veranstaltung_ort, pb.wettkampf AS veranstaltung_name,
-                   NULL AS veranstaltung_quelle, NULL AS eingetragen_von, pb.datum AS erstellt_am,
+                   NULL AS ort, NULL AS veranstaltung_ort,
+                   COALESCE(v.name, pb.wettkampf) AS veranstaltung_name,
+                   NULL AS veranstaltung_quelle,
+                   v.serie_id AS verknuepfte_serie_id,
+                   v.name AS verknuepfte_veranstaltung_name,
+                   COALESCE(CONCAT(ab.vorname,' ',ab.nachname), b.benutzername) AS eingetragen_von,
+                   pb.datum AS erstellt_am,
                    NULL AS ak_platzierung, NULL AS meisterschaft, NULL AS ak_platz_meisterschaft,
                    COALESCE(dm.fmt_override, dk.fmt) AS fmt,
                    dk.name AS kategorie_name, dk.tbl_key AS kategorie_key,
                    1 AS extern
             FROM $pbTbl pb
             JOIN $aTbl a ON a.id=pb.athlet_id
+            LEFT JOIN $vTbl v ON v.id=pb.veranstaltung_id
+            LEFT JOIN " . DB::tbl('benutzer') . " b ON b.id=pb.erstellt_von
+            LEFT JOIN $aTbl ab ON ab.id=b.athlet_id
             LEFT JOIN $dmTbl dm ON dm.id=pb.disziplin_mapping_id
             LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id
             WHERE a.geloescht_am IS NULL AND $wStr
@@ -4169,8 +4179,8 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
             $dupPb = DB::fetchOne('SELECT id FROM ' . DB::tbl('athlet_pb') . ' WHERE athlet_id=? AND disziplin=? AND resultat=?',
                 [$aid, $disziplin, $resultat]);
             if ($dupPb) { $skipped++; continue; }
-            DB::query('INSERT INTO ' . DB::tbl('athlet_pb') . ' (athlet_id, disziplin, disziplin_mapping_id, resultat, wettkampf, datum, altersklasse, veranstaltung_id) VALUES (?,?,?,?,?,?,?,?)',
-                [$aid, $disziplin, $dmInfo ? (int)$dmInfo['id'] : null, $resultat, $wettkampf, $datum ?: null, $ak, $vid ?: null]);
+            DB::query('INSERT INTO ' . DB::tbl('athlet_pb') . ' (athlet_id, disziplin, disziplin_mapping_id, resultat, wettkampf, datum, altersklasse, veranstaltung_id, erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)',
+                [$aid, $disziplin, $dmInfo ? (int)$dmInfo['id'] : null, $resultat, $wettkampf, $datum ?: null, $ak, $vid ?: null, $user['id'] ?? null]);
             autoMapDisziplin($disziplin);
             $imported++;
             continue;

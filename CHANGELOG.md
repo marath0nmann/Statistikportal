@@ -1,3 +1,26 @@
+## v995 – Externe Ergebnisse: Verknuepfungs-Status in der Liste
+
+- Spalte Veranstaltung zeigt bei externen Ergebnissen:
+  - Verknuepft: Link-Icon + Name der Veranstaltung, klickbar oeffnet die Serie unter Regelmaessige Veranstaltungen
+  - Frei: Badge frei + Wettkampfname, Hinweis dass kein Serienbezug besteht
+- API: serie_id und Veranstaltungsname werden jetzt mitgeliefert
+
+---
+
+## v994 – Externe Ergebnisse: Eingetragen-von wird gespeichert
+
+- Neue Spalte `erstellt_von` in `athlet_pb` (auto-Migration)
+- Beim Eintragen via Athletenprofil oder Bulk-Import wird der eingeloggte Benutzer gesetzt
+- Spalte Eingetragen von zeigt jetzt den Namen; aeltere Eintrage ohne Zuordnung zeigen -
+
+---
+
+## v993 – Bugfix: Externe Ergebnisse zeigen "Excel-Import" unter Eingetragen von
+
+- Externe Ergebnisse haben kein `eingetragen_von`-Feld → zeigt jetzt `–` statt `Excel-Import`
+
+---
+
 ## v992 – Bugfix: Auth::getUserRechte() existiert nicht
 
 - `Auth::getUserRechte()` durch `Auth::requireRecht('externe_ergebnisse_sehen')` ersetzt

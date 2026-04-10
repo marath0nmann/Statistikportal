@@ -231,8 +231,26 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
       cells += '<td>' + (rr.meisterschaft ? mstrBadge(rr.meisterschaft) : '') + '</td>';
       cells += '<td class="ort-text" style="font-size:12px">' + (rr.meisterschaft && rr.ak_platz_meisterschaft ? medalBadge(rr.ak_platz_meisterschaft) : '') + '</td>';
     }
-    cells += '<td class="ort-text">' + ort + '</td>';
-    if (canEdit) cells += '<td class="ort-text">' + (rr.eingetragen_von || 'Excel-Import') + '</td>';
+    var ortCell;
+    if (rr.extern) {
+      if (rr.verknuepfte_serie_id) {
+        // Verlinkt mit einer Serie → klickbarer Link
+        ortCell = '<td class="ort-text">' +
+          '<span class="athlet-link" style="font-size:12px" onclick="_openSerieFromErg(' + rr.verknuepfte_serie_id + ')" title="In Regelmäßigen Veranstaltungen öffnen">' +
+            '&#x1F517; ' + (rr.verknuepfte_veranstaltung_name || rr.veranstaltung || '') +
+          '</span>' +
+        '</td>';
+      } else {
+        // Freies Ergebnis – nicht in einer Serie
+        ortCell = '<td class="ort-text"><span style="font-size:11px;color:var(--text2);background:var(--surf2);border:1px solid var(--border);border-radius:4px;padding:1px 6px" title="Nicht mit einer regelmäßigen Veranstaltung verknüpft">frei</span>' +
+          (rr.veranstaltung ? ' <span style="font-size:12px;color:var(--text2)">' + rr.veranstaltung + '</span>' : '') +
+        '</td>';
+      }
+    } else {
+      ortCell = '<td class="ort-text">' + ort + '</td>';
+    }
+    cells += ortCell;
+    if (canEdit) cells += '<td class="ort-text">' + (rr.extern ? (rr.eingetragen_von || '–') : (rr.eingetragen_von || 'Excel-Import')) + '</td>';
     if (canEdit) {
       if (rr.extern) {
         // Externes Ergebnis: eigene Edit/Delete Buttons
@@ -488,4 +506,11 @@ async function _doDeleteExternErgebnis(id) {
   var r = await apiDel('externe-ergebnisse/' + id);
   if (r && r.ok) { notify('Gelöscht.', 'ok'); loadErgebnisseData(); }
   else notify('\u274C ' + ((r&&r.fehler)||'Fehler'), 'err');
+}
+
+function _openSerieFromErg(serieId) {
+  state.tab = 'veranstaltungen';
+  state.veranstView = 'serie-detail';
+  state.serieId = serieId;
+  renderPage();
 }
