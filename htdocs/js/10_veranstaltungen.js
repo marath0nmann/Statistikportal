@@ -737,8 +737,9 @@ async function _loadSerieTeilnahmen(serieId) {
           return e.disziplin + ': ' + res;
         }).join(' | ');
       }
+      var safeTitle = (tipText || (present ? String(j) : '–')).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
       return '<td style="text-align:center;padding:6px 2px">' +
-        '<div title="' + (tipText || (present ? j : '\u2013')) + '" style="width:20px;height:20px;border-radius:50%;margin:0 auto;cursor:' + (present?'default':'default') + ';' +
+        '<div title="' + safeTitle + '" style="width:20px;height:20px;border-radius:50%;margin:0 auto;cursor:' + (present?'default':'default') + ';' +
           (present
             ? 'background:var(--primary);box-shadow:0 1px 3px rgba(0,0,0,.2)'
             : 'background:transparent;border:1.5px solid var(--border)') +

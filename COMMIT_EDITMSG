@@ -1,1 +1,3 @@
-v977 – Zeitstrahl: einheitl. Farbe, kein Balken, Gleichstand, Ergebnis-Tooltip
+v978 – Bugfix: Zeitstrahl title-Attribut HTML-escaped
+
+- fmtTime-Output enthielt Anführungszeichen die Attribut schlossen

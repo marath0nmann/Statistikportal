@@ -1,3 +1,10 @@
+## v978 – Bugfix: Zeitstrahl-Darstellung (title-Attribut HTML-escaped)
+
+- Ursache: `fmtTime()` gibt Ergebnisse wie `1:29h` zurück — das `"` in `h"` schloss das HTML-`title`-Attribut vorzeitig, der Rest wurde als CSS-Text dargestellt
+- Fix: `title`-Inhalt wird vor der Einbettung HTML-escaped (`"` → `&quot;`, `&` → `&amp;`, `<` → `&lt;`)
+
+---
+
 ## v977 – Teilnahmen-Zeitstrahl: UI-Verbesserungen
 
 - **Einheitliche Farbe**: alle gefüllten Punkte in Primärfarbe (kein Geschlechter-Farbunterschied mehr)
