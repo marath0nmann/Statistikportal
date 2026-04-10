@@ -701,7 +701,7 @@ async function _loadSerieTeilnahmen(serieId) {
     return '<th style="text-align:center;width:38px;min-width:38px;font-size:11px;font-weight:600;color:var(--text2);padding:4px 2px">' + j + '</th>';
   }).join('');
 
-  html += '<div class="table-scroll"><table class="rek-table" style="width:100%">';
+  html += '<div class="table-scroll"><table class="rek-table" style="width:auto;min-width:100%">';
   html += '<thead><tr>' +
     '<th style="width:34px"></th>' +
     '<th style="text-align:left;min-width:140px">Athlet*in</th>' +
@@ -728,8 +728,13 @@ async function _loadSerieTeilnahmen(serieId) {
       var tipText = '';
       if (present && ergMap[erId] && ergMap[erId][j]) {
         tipText = ergMap[erId][j].map(function(e){
-          var res = typeof fmtTime === 'function' ? fmtTime(e.resultat) : e.resultat;
-          return e.disziplin + ': ' + res;
+          // Ergebnis als Klartext (kein HTML) für title-Attribut
+          var raw = e.resultat || '';
+          var parts = raw.replace(/\.\d+$/, '').split(':').map(Number).filter(function(n){return !isNaN(n);});
+          while (parts.length > 2 && parts[0] === 0) parts.shift();
+          var resPlain = parts.map(function(p,i){return i===0?String(p):String(p).padStart(2,'0');}).join(':');
+          var unit = parts.length >= 3 ? 'h' : 'min';
+          return e.disziplin + ': ' + resPlain + unit;
         }).join(' | ');
       }
       var safeTitle = (tipText || (present ? String(j) : '–')).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');

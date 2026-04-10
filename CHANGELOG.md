@@ -1,3 +1,10 @@
+## v981 – Zeitstrahl: Tooltip-Text + Tabellen-Breite
+
+- **Tooltip**: `fmtTime()` gibt HTML zurück (`<span style="...">h</span>`) → erschien als Rohtag im Tooltip; eigene Klartextformatierung (`1:47min`, `1:29h`) ohne HTML-Tags
+- **Tabellen-Breite**: Tabelle passt sich jetzt an den Inhalt an (`width:auto`) statt immer 100% zu belegen → kein unnötiger Leerraum in der Mitte mehr
+
+---
+
 ## v980 – Regelmäßige Veranstaltungen: Detailseite ohne Tabs, alles auf einer Seite
 
 - Tab-Buttons (Ergebnisse nach Jahr / Bestleistungen / Anzahl Teilnahmen) entfernt
