@@ -1,3 +1,21 @@
+## v983 – Externe Ergebnisse gehören zur Veranstaltung
+
+### Datenbankstruktur
+- Neue Spalte `veranstaltung_id` in `athlet_pb` (nullable, Migration auto)
+- Beim Bulk-Import mit „Nicht für Verein"-Checkbox wird die `veranstaltung_id` automatisch gesetzt
+
+### Teilnahmen-Ranking (regelmäßige Veranstaltungen)
+- Externe Starts werden in der Zeitstrahl-Tabelle berücksichtigt
+- **Voller Kreis** = für den Verein gestartet; **Kreis mit Rand, gedimmt** = extern gestartet; **leerer Kreis** = nicht gestartet
+- Athleten mit externen UND Vereinsstarts: Gesamtsumme + `(+N ext.)` Hinweis
+- Reine Extern-Athleten tauchen ebenfalls im Ranking auf
+
+### Ergebnisse nach Jahr (regelmäßige Veranstaltungen)
+- Externe Ergebnisse erscheinen in der Jahrestabelle, markiert mit `(ext.)`
+- Vereinsrekord-Abfragen bleiben vollständig unverändert (athlet_pb ausgeschlossen)
+
+---
+
 ## v982 – Zeitstrahl-Tabelle: Breite passt sich dem Inhalt an
 
 - Container auf `display:inline-block` gesetzt → Tabelle wächst/schrumpft mit den Spalten

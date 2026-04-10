@@ -1,1 +1,6 @@
-v982 – Zeitstrahl: Tabelle passt sich Inhalt an (inline-block)
+v983 – Externe Ergebnisse mit Veranstaltung verknüpft
+
+- athlet_pb.veranstaltung_id (nullable)
+- Teilnahmen-Ranking: extern=gedimmter Kreis
+- Ergebnisse nach Jahr: ext.-Label
+- Vereinsrekorde unverändert
