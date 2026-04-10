@@ -1,6 +1,1 @@
-v983 – Externe Ergebnisse mit Veranstaltung verknüpft
-
-- athlet_pb.veranstaltung_id (nullable)
-- Teilnahmen-Ranking: extern=gedimmter Kreis
-- Ergebnisse nach Jahr: ext.-Label
-- Vereinsrekorde unverändert
+v984 – Athletenprofil: Extern löschen per Modal + Event-Listener-Loop-Fix

@@ -689,29 +689,33 @@ async function openAthletById(id) {
 
   _apRender();
 
-  // Event-Delegation im Modal
-  document.getElementById('modal-container').addEventListener('click', function(ev) {
-    var el = ev.target;
-    while (el && el.id !== 'modal-container') {
-      if (el.getAttribute && el.getAttribute('data-ap-kat') !== null) {
-        _apState.selKat = parseInt(el.getAttribute('data-ap-kat'), 10);
-        _apState.selDisz = null;
-        _apRender(); return;
+  // Event-Delegation im Modal (nur einmal registrieren)
+  var _mc1 = document.getElementById('modal-container');
+  if (_mc1 && !_mc1._apListener1) {
+    _mc1._apListener1 = true;
+    _mc1.addEventListener('click', function(ev) {
+      var el = ev.target;
+      while (el && el.id !== 'modal-container') {
+        if (el.getAttribute && el.getAttribute('data-ap-kat') !== null) {
+          _apState.selKat = parseInt(el.getAttribute('data-ap-kat'), 10);
+          _apState.selDisz = null;
+          _apRender(); return;
+        }
+        if (el.getAttribute && el.getAttribute('data-ap-disz') !== null) {
+          _apState.selDisz = el.getAttribute('data-ap-disz');
+          _apRender(); return;
+        }
+        // Externe PB Edit/Delete aus der Ergebnistabelle
+        if (el.getAttribute && el.getAttribute('data-pb-edit')) {
+          showPbModal(_apState.athletId, el.getAttribute('data-pb-edit')); return;
+        }
+        if (el.getAttribute && el.getAttribute('data-pb-del')) {
+          deletePb(_apState.athletId, el.getAttribute('data-pb-del'), el.getAttribute('data-pb-disz')); return;
+        }
+        el = el.parentNode;
       }
-      if (el.getAttribute && el.getAttribute('data-ap-disz') !== null) {
-        _apState.selDisz = el.getAttribute('data-ap-disz');
-        _apRender(); return;
-      }
-      // Externe PB Edit/Delete aus der Ergebnistabelle
-      if (el.getAttribute && el.getAttribute('data-pb-edit')) {
-        showPbModal(_apState.athletId, el.getAttribute('data-pb-edit')); return;
-      }
-      if (el.getAttribute && el.getAttribute('data-pb-del')) {
-        deletePb(_apState.athletId, el.getAttribute('data-pb-del'), el.getAttribute('data-pb-disz')); return;
-      }
-      el = el.parentNode;
-    }
-  });
+    });
+  }
 }
 
 function _apSetTab(tab) {
@@ -932,10 +936,21 @@ async function savePb(athletId, pbId) {
   _apRender();
 }
 
-async function deletePb(athletId, pbId, disz) {
-  if (!confirm('Externen PB "' + disz + '" löschen?')) return;
+function deletePb(athletId, pbId, disz) {
+  showModal(
+    '<h2>Externes Ergebnis löschen <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<p style="font-size:14px;color:var(--text2);margin:8px 0 20px">Externes Ergebnis <strong>' + (disz || '') + '</strong> wirklich löschen?</p>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-danger" onclick="_doDeletePb(' + athletId + ',' + pbId + ')">Löschen</button>' +
+    '</div>'
+  );
+}
+
+async function _doDeletePb(athletId, pbId) {
+  closeModal();
   var r = await apiDel('athleten/' + athletId + '/pb/' + pbId);
-  if (!r || !r.ok) { notify('Fehler beim Löschen.', 'error'); return; }
+  if (!r || !r.ok) { notify('Fehler beim Löschen.', 'err'); return; }
   var reloaded2 = await apiGet('athleten/' + athletId + '/pb');
   _apState.pbs = (reloaded2 && reloaded2.ok) ? (reloaded2.data || []) : _apState.pbs;
   _apRender();

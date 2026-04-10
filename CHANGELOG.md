@@ -1,3 +1,10 @@
+## v984 – Athletenprofil: Externes Ergebnis löschen – Modal + Listener-Loop-Fix
+
+- **Modal statt `confirm()`**: Löschen-Dialog öffnet jetzt ein sauberes Modal mit Abbrechen/Löschen-Buttons, das man normal schließen kann
+- **Dauerschleife behoben**: `_apRender()` registrierte bei jedem Aufruf einen neuen Click-Listener auf `#modal-container` → N Renders = N Listener. Fix: Guard `_apListener1` verhindert Mehrfachregistrierung
+
+---
+
 ## v983 – Externe Ergebnisse gehören zur Veranstaltung
 
 ### Datenbankstruktur
