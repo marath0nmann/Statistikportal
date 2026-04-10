@@ -3997,11 +3997,7 @@ if ($res === 'veranstaltungen' && $method === 'DELETE' && $id) {
 // EXTERNE ERGEBNISSE (athlet_pb) – Ergebnisse-Seite
 // ============================================================
 if ($res === 'externe-ergebnisse' && $method === 'GET' && !$id) {
-    $user = Auth::requireLogin();
-    // Recht prüfen
-    $rechte = Auth::getUserRechte();
-    if (!in_array('vollzugriff', $rechte) && !in_array('externe_ergebnisse_sehen', $rechte))
-        jsonErr('Keine Berechtigung.', 403);
+    $user = Auth::requireRecht('externe_ergebnisse_sehen');
     $pbTbl = DB::tbl('athlet_pb');
     $aTbl  = DB::tbl('athleten');
     $vTbl  = DB::tbl('veranstaltungen');

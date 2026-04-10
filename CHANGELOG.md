@@ -1,3 +1,9 @@
+## v992 – Bugfix: Auth::getUserRechte() existiert nicht
+
+- `Auth::getUserRechte()` durch `Auth::requireRecht('externe_ergebnisse_sehen')` ersetzt
+
+---
+
 ## v991 – Deploy-Fix: opcache-clear.php
 
 - `opcache-clear.php` hinzugefügt: einmalig nach dem Deploy aufrufen → leert PHP OPcache

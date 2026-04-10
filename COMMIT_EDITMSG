@@ -1,1 +1,1 @@
-v991 – opcache-clear.php für sauberes Deploy
+v992 – Bugfix: getUserRechte() → requireRecht()
