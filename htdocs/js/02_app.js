@@ -2594,6 +2594,13 @@ function navigate(tab) {
   state.page   = 1;
   state.veranstPage = 1;
   state.veranstSuche = '';
+  // Veranstaltungen-Sub-State zurücksetzen wenn der Tab direkt angesteuert wird
+  if (tab === 'veranstaltungen') {
+    state.veranstView = 'list';
+    state.serieId = null;
+    state.veranstaltungId = null;
+    state.serieView = null;
+  }
   syncHash();
   // subTab nur für Tabs mit eigenen Sub-Tabs zurücksetzen
   if (tab === 'ergebnisse') state.subTab = 'strasse';

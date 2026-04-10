@@ -1,3 +1,10 @@
+## v1002 – Bugfix: Veranstaltungen-Tab zeigt zuletzt besuchte Unterseite
+
+- Klick auf Veranstaltungen im Hauptmenu setzt jetzt veranstView, serieId und veranstaltungId zurück
+- Ergebnis: immer die Hauptliste der Veranstaltungen statt der zuletzt besuchten Detailseite
+
+---
+
 ## v1001 – Bugfix: Veranstaltungslinks funktionierten nur für die neuesten 200 Events
 
 - renderVeranstaltungDetail() lud bisher limit=200 Veranstaltungen und suchte dann nach der ID
