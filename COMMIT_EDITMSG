@@ -1,1 +1,1 @@
-v1000 – Drei Fixes: Link-Style, noClose, Server-Suche
+v1001 – Bugfix: Veranstaltungslink mit ?id= statt limit=200

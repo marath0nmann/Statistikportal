@@ -1,3 +1,12 @@
+## v1001 – Bugfix: Veranstaltungslinks funktionierten nur für die neuesten 200 Events
+
+- renderVeranstaltungDetail() lud bisher limit=200 Veranstaltungen und suchte dann nach der ID
+- Events älter als Platz 200 wurden nicht gefunden
+- Fix: API-Endpunkt ?id=N gibt direkt genau eine Veranstaltung zurück
+- API: neuer id-Filter für GET veranstaltungen
+
+---
+
 ## v1000 – Externe Ergebnisse: Drei Fixes
 
 - Verlinkung: Veranstaltungsname jetzt in Primärfarbe + unterstrichen

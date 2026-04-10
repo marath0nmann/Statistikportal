@@ -3916,7 +3916,11 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     $suche = trim($_GET['suche'] ?? '');
     $whereExtra = '';
     $searchParams = [];
-    if ($suche !== '') {
+    if (!empty($_GET['id'])) {
+        $whereExtra = ' AND v.id=?';
+        $searchParams = [(int)$_GET['id']];
+        $limit = 1;
+    } elseif ($suche !== '') {
         $s = '%' . $suche . '%';
         $whereExtra = ' AND (v.name LIKE ? OR v.kuerzel LIKE ? OR v.ort LIKE ?)';
         $searchParams = [$s, $s, $s];

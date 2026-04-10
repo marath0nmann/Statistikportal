@@ -2186,15 +2186,12 @@ async function renderVeranstaltungDetail(vid) {
   var el = document.getElementById('main-content');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
 
-  var r = await apiGet('veranstaltungen?limit=200&offset=0');
+  var r = await apiGet('veranstaltungen?id=' + vid);
   if (!r || !r.ok) {
     el.innerHTML = '<div class="panel" style="padding:32px;text-align:center;color:var(--accent)">Fehler beim Laden.</div>';
     return;
   }
-  window._lastVeranstList = r.data.veranst || [];
-  state._veranstMap = {};
-  for (var ci = 0; ci < window._lastVeranstList.length; ci++) state._veranstMap[window._lastVeranstList[ci].id] = window._lastVeranstList[ci];
-  var v = window._lastVeranstList.find(function(x) { return x.id == vid; });
+  var v = (r.data.veranst || [])[0];
   if (!v) {
     el.innerHTML = '<div class="panel" style="padding:32px;text-align:center">Veranstaltung nicht gefunden.</div>';
     return;
