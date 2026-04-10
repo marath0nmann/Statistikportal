@@ -236,7 +236,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
     if (_vid) {
       // Alle Ergebnisse mit veranstaltung_id → Link zur Veranstaltungsseite
       ortCell = '<td class="ort-text">' +
-        '<a href="#veranstaltung/' + _vid + '" style="color:inherit;text-decoration:none" title="Zur Veranstaltung">' +
+        '<a href="#veranstaltung/' + _vid + '" style="color:var(--primary);text-decoration:underline;text-underline-offset:2px" title="Zur Veranstaltung">' +
           ort +
         '</a>' +
       '</td>';
@@ -459,11 +459,8 @@ function editKatChanged() {
 
 // ── Externe Ergebnisse: Edit + Delete ────────────────────────────────────────
 async function openEditExternErgebnis(ds) {
-  // Veranstaltungen für Suche vorladen
   window._extVid = ds.extVid ? parseInt(ds.extVid) : null;
   window._extVname = ds.extVname || '';
-  var rV = await apiGet('veranstaltungen?limit=500&genehmigt=1');
-  window._extAllVeranst = (rV && rV.ok && rV.data && rV.data.veranst) ? rV.data.veranst : [];
 
   showModal(
     '<h2>&#x270E; Externes Ergebnis bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
@@ -491,32 +488,33 @@ async function openEditExternErgebnis(ds) {
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
       '<button class="btn btn-primary" onclick="_saveExternErgebnis(' + ds.extEditId + ')">Speichern</button>' +
     '</div>'
-  );
+  , false, true); // noClose=true
 }
 
+var _extSearchTimer = null;
 function _extVeranstSearch(q) {
   var box = document.getElementById('ext-veranst-results');
   if (!box) return;
   if (!q || q.length < 2) { box.innerHTML = ''; return; }
-  var ql = q.toLowerCase();
-  var matches = (window._extAllVeranst || []).filter(function(v) {
-    return (v.name||v.kuerzel||'').toLowerCase().indexOf(ql) >= 0 ||
-           (v.ort||'').toLowerCase().indexOf(ql) >= 0 ||
-           (v.datum||'').indexOf(q) >= 0;
-  }).slice(0, 8);
-  if (!matches.length) { box.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:4px 0">Keine Treffer</div>'; return; }
-  box.innerHTML = '<div style="border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-top:2px">' +
-    matches.map(function(v) {
-      var label = (v.name || v.kuerzel || '') + (v.datum ? ' (' + v.datum.slice(0,4) + ')' : '');
-      return '<div class="ext-veranst-option" data-vid="' + v.id + '" data-vname="' + (label).replace(/"/g,'&quot;') + '" ' +
-        'style="padding:7px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);background:var(--surf)">' +
-        label + '</div>';
-    }).join('') +
-  '</div>';
-  box.addEventListener('click', function(ev) {
-    var opt = ev.target.closest('.ext-veranst-option');
-    if (opt) _extVeranstSelect(parseInt(opt.dataset.vid), opt.dataset.vname);
-  });
+  clearTimeout(_extSearchTimer);
+  box.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:4px 0">Suche…</div>';
+  _extSearchTimer = setTimeout(async function() {
+    var r = await apiGet('veranstaltungen?suche=' + encodeURIComponent(q) + '&limit=200');
+    var matches = (r && r.ok && r.data && r.data.veranst) ? r.data.veranst : [];
+    if (!matches.length) { box.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:4px 0">Keine Treffer</div>'; return; }
+    box.innerHTML = '<div style="border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-top:2px;max-height:200px;overflow-y:auto">' +
+      matches.map(function(v) {
+        var label = (v.name || v.kuerzel || '') + (v.datum ? ' (' + v.datum.slice(0,4) + ')' : '');
+        return '<div class="ext-veranst-option" data-vid="' + v.id + '" data-vname="' + (label).replace(/"/g,'&quot;') + '" ' +
+          'style="padding:7px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);background:var(--surf)">' +
+          label + '</div>';
+      }).join('') +
+    '</div>';
+    box.addEventListener('click', function(ev) {
+      var opt = ev.target.closest('.ext-veranst-option');
+      if (opt) _extVeranstSelect(parseInt(opt.dataset.vid), opt.dataset.vname);
+    }, { once: true });
+  }, 300);
 }
 
 function _extVeranstSelect(id, name) {

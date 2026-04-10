@@ -1,3 +1,11 @@
+## v1000 – Externe Ergebnisse: Drei Fixes
+
+- Verlinkung: Veranstaltungsname jetzt in Primärfarbe + unterstrichen
+- Modal-Backdrop: Klick außerhalb schließt das Bearbeiten-Modal nicht mehr
+- Suche: Serverseitige Volltextsuche statt clientseitigem Filter (kein Limit mehr durch vorab geladene Liste)
+
+---
+
 ## v998 – Externe Ergebnisse: Veranstaltungszuordnung im Bearbeiten-Modal
 
 - Suchfeld im Edit-Modal: Veranstaltung eintippen, Treffer auswaehlen

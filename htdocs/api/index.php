@@ -3909,7 +3909,9 @@ if ($res === 'veranstaltungen' && $method === 'GET' && isset($_GET['pending'])) 
 if ($res === 'veranstaltungen' && $method === 'GET') {
     // Öffentlich zugänglich
     $eTbl = ergebnisTbl('strasse', $unified, $_sys);
-    $limit = min((int)($_GET['limit'] ?? 10), 50);
+    $isSearch = trim($_GET['suche'] ?? '') !== '';
+    $maxLimit = $isSearch ? 200 : 50; // Für Suche höheres Limit erlauben
+    $limit = min((int)($_GET['limit'] ?? 10), $maxLimit);
     $offset = (int)($_GET['offset'] ?? 0);
     $suche = trim($_GET['suche'] ?? '');
     $whereExtra = '';
