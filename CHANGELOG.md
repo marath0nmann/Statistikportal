@@ -1,3 +1,15 @@
+## v973 – Passwort vergessen: Login wiederhergestellt + Reset-Flow korrekt
+
+- **Kritischer Bugfix**: v972 hatte versehentlich die Login-Kernfunktionen gelöscht (`_loginCard`, `renderLoginStep1/2/3`, `doLoginStep1/2`) — Wiederherstellung aus paket_v970.zip
+- Reset-Flow neu implementiert: Anhang am Ende der Datei, kein Überschreiben des Login-Codes
+- Verhalten wie beschrieben:
+  - Klick auf „Passwort vergessen?" in Schritt 2 (E-Mail bekannt) → Code direkt senden, weiter zu Code-Eingabe
+  - Klick in Schritt 1 (kein E-Mail-Wert) → E-Mail-Eingabe im Login-Screen
+  - Alle Schritte rendern im Login-Screen (kein separates Modal)
+  - „← Zurück" bringt zu Schritt 1 zurück
+
+---
+
 ## v972 – Passwort vergessen: kein separates Modal mehr
 
 - Reset-Flow rendert jetzt im Login-Screen selbst (identisch zu den Login-Schritten)

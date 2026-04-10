@@ -1,4 +1,4 @@
-v972 – Passwort vergessen ohne separates Modal (Login-Screen)
+v973 – Login wiederhergestellt + Passwort-Reset korrekt im Login-Screen
 
-- E-Mail aus Step 2 bekannt → Code direkt senden, kein E-Mail-Modal
-- Alles rendert im Login-Screen statt showModal
+- Restore von v970-Backup (Login-Funktionen waren in v972 gelöscht)
+- Reset-Flow als Anhang, keine Überschneidung mit Login-Code
