@@ -2403,9 +2403,18 @@ function bkSyncDatum(val) {
   // AKs für alle Zeilen neu berechnen (jetzt wo Datum bekannt ist)
   var tbody = document.getElementById('bulk-rows');
   if (!tbody) return;
-  Array.from(tbody.querySelectorAll('tr')).forEach(function(tr, i) {
+  var eventJahr = _bkEventJahr();
+  Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
     var athSel = tr.querySelector('.bk-athlet');
-    if (athSel && athSel.value) bkUpdateAK(athSel, i);
+    var akInp  = tr.querySelector('.bk-ak');
+    if (!athSel || !athSel.value || !akInp) return;
+    var opt  = athSel.options[athSel.selectedIndex];
+    var g    = opt ? (opt.dataset.g    || '') : '';
+    var gebj = opt ? (opt.dataset.gebj || '') : '';
+    if (g && gebj) {
+      var ak = calcDlvAK(parseInt(gebj), g, eventJahr);
+      if (ak) akInp.value = ak;
+    }
   });
 }
 // ── RACERESULT-IMPORT ──────────────────────────────────────

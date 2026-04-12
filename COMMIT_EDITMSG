@@ -1,1 +1,1 @@
-v1021 – Fix: AK-Berechnung beim Import – bkUpdateAK überschreibt Website-AK nur wenn Datum bekannt; bkSyncDatum berechnet alle Zeilen-AKs neu wenn Datum nachträglich eingegeben wird
+v1022 – Fix: bkSyncDatum – AK-Neuberechnung nutzt jetzt tr.querySelector(".bk-ak") statt falschem Index-Mapping (verhinderte falsche AKs wie WU20 statt M45)
