@@ -24,12 +24,22 @@ async function renderVeranstaltungen() {
 // ── LISTE ──────────────────────────────────────────────────
 async function renderVeranstaltungenListe() {
   var el = document.getElementById('main-content');
-  var _vFoc = _saveFocus();
-  el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
+
+  // Shell (Serien + Suchfeld) nur einmalig rendern – nie beim Suchen ersetzen
+  var shellEl = document.getElementById('veranst-shell');
+  if (!shellEl) {
+    el.innerHTML =
+      '<div id="veranst-shell"></div>' +
+      '<div id="veranst-results"><div class="loading"><div class="spinner"></div>Laden&hellip;</div></div>';
+    shellEl = document.getElementById('veranst-shell');
+  }
+  var resultsEl = document.getElementById('veranst-results');
+  resultsEl.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
+
   var sucheParam = state.veranstSuche ? '&suche=' + encodeURIComponent(state.veranstSuche) : '';
   var r = await apiGet('veranstaltungen?limit=10&offset=' + ((state.veranstPage-1)*10) + sucheParam);
   if (!r || !r.ok) {
-    el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler:</strong> ' + (r && r.fehler ? r.fehler : 'Unbekannt') + '</div>';
+    resultsEl.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler:</strong> ' + (r && r.fehler ? r.fehler : 'Unbekannt') + '</div>';
     return;
   }
   var veranst = r.data.veranst || [];
@@ -39,6 +49,26 @@ async function renderVeranstaltungenListe() {
   window._lastSerienList  = serien;
   state._veranstMap = {};
   for (var ci = 0; ci < veranst.length; ci++) state._veranstMap[veranst[ci].id] = veranst[ci];
+
+  // Shell befüllen (nur wenn leer oder Serien sich geändert haben)
+  var serienHtml = '';
+  if (serien && serien.length) {
+    serienHtml = '<div style="margin-bottom:16px">' +
+      '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:8px">🔄 Regelmäßige Veranstaltungen</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px">';
+    for (var si = 0; si < serien.length; si++) {
+      var s = serien[si];
+      serienHtml += '<button class="btn btn-ghost btn-sm" style="font-size:13px" onclick="openSerieDetail(' + s.id + ')">' + (s.name || s.kuerzel || 'Serie') + '</button>';
+    }
+    serienHtml += '</div></div>';
+  }
+  var searchBar = '<div class="filter-bar" style="margin-bottom:16px">' +
+    '<div class="fg"><label>Suche</label><input type="search" id="veranst-suche" placeholder="Veranstaltung suchen&hellip;" value="' + (state.veranstSuche || '').replace(/"/g,'&quot;') + '" oninput="setVeranstSuche(this.value)" style="min-width:0;width:100%"/></div>' +
+  '</div>';
+  if (!shellEl.dataset.built) {
+    shellEl.innerHTML = serienHtml + searchBar;
+    shellEl.dataset.built = '1';
+  }
 
   var html = '';
   for (var vi = 0; vi < veranst.length; vi++) {
@@ -110,24 +140,7 @@ async function renderVeranstaltungenListe() {
   }
   if (!html) html = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Keine Veranstaltungen gefunden</div></div>';
 
-  var searchBar = '<div class="filter-bar" style="margin-bottom:16px">' +
-    '<div class="fg"><label>Suche</label><input type="search" id="veranst-suche" placeholder="Veranstaltung suchen&hellip;" value="' + (state.veranstSuche || '').replace(/"/g,'&quot;') + '" oninput="setVeranstSuche(this.value)" style="min-width:0;width:100%"/></div>' +
-  '</div>';
-
-  // Serien als Chips oberhalb der Liste
-  var serienHtml = '';
-  if (serien && serien.length) {
-    serienHtml = '<div style="margin-bottom:16px">' +
-      '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:8px">🔄 Regelmäßige Veranstaltungen</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px">';
-    for (var si = 0; si < serien.length; si++) {
-      var s = serien[si];
-      serienHtml += '<button class="btn btn-ghost btn-sm" style="font-size:13px" onclick="openSerieDetail(' + s.id + ')">' + (s.name || s.kuerzel || 'Serie') + '</button>';
-    }
-    serienHtml += '</div></div>';
-  }
-  el.innerHTML = serienHtml + searchBar + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
-  _restoreFocus(_vFoc);
+  resultsEl.innerHTML = html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
 }
 
 // ── SERIEN-LISTE ───────────────────────────────────────────
@@ -207,6 +220,7 @@ async function renderSerieDetail(id) {
 
   var rd = await apiGet('veranstaltung-serien/' + id + '?disziplinen=1');
   var disziplinen = (rd && rd.ok) ? (rd.data || []) : [];
+  disziplinen.sort(function(a, b) { return (b.anz_ergebnisse || 0) - (a.anz_ergebnisse || 0); });
 
   var view    = state.serieView || 'jahre';
   var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
