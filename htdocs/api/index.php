@@ -4299,8 +4299,8 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
                 v1.datum AS dat1, v1.kuerzel AS veranst1, v1.id AS vid1,
                 v2.datum AS dat2, v2.kuerzel AS veranst2, v2.id AS vid2,
                 e1.resultat_num AS rnum1, e2.resultat_num AS rnum2,
-                COALESCE(b1.name_nv, e1.import_quelle, '–') AS eingetragen_von1,
-                COALESCE(b2.name_nv, e2.import_quelle, '–') AS eingetragen_von2
+                COALESCE(NULLIF(TRIM(CONCAT(COALESCE(b1.vorname,''),' ',COALESCE(b1.nachname,''))),''), b1.benutzername, e1.import_quelle, '–') AS eingetragen_von1,
+                COALESCE(NULLIF(TRIM(CONCAT(COALESCE(b2.vorname,''),' ',COALESCE(b2.nachname,''))),''), b2.benutzername, e2.import_quelle, '–') AS eingetragen_von2
          FROM $eTbl e1
          JOIN $eTbl e2 ON e2.athlet_id=e1.athlet_id
              AND e2.disziplin=e1.disziplin

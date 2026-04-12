@@ -1,1 +1,1 @@
-v1031 – Feature: Admin Duplikate – Spalte "Eingetragen von" (Benutzername oder Import-Quelle)
+v1032 – Fix: Admin Duplikate – Spalte "Eingetragen von" nutzt jetzt korrekte benutzer-Felder (vorname+nachname statt name_nv)
