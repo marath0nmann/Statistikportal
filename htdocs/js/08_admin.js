@@ -2704,51 +2704,66 @@ async function renderAdminDuplikate() {
 
   var dups = r.data || [];
 
-  function fmtV(kuerzel, datum) {
-    var name = kuerzel ? kuerzel.split(' ').slice(1).join(' ') || kuerzel : '–';
-    return name + (datum ? ' <span style="color:var(--text2);font-size:11px">(' + formatDate(datum) + ')</span>' : '');
+  function fmtV(kuerzel) {
+    return kuerzel ? (kuerzel.split(' ').slice(1).join(' ') || kuerzel) : '–';
   }
 
-  function dupsToHtml(dups) {
-    if (!dups.length) return '<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Keine Duplikate gefunden</div></div>';
-    var rows = dups.map(function(d) {
-      var sameVeranst = d.veranst1 === d.veranst2 && d.dat1 === d.dat2;
-      return '<tr>' +
-        '<td style="padding:6px 10px;font-weight:600">' + (d.athlet||'–') + '</td>' +
-        '<td style="padding:6px 10px">' + (d.disziplin||'–') + '</td>' +
-        '<td style="padding:6px 10px;font-family:Barlow Condensed,sans-serif;font-size:15px">' + (d.res1||'–') + '</td>' +
-        '<td style="padding:6px 10px;color:var(--text2);font-size:12px">' + fmtV(d.veranst1, d.dat1) + '</td>' +
-        '<td style="padding:6px 10px;font-family:Barlow Condensed,sans-serif;font-size:15px' + (sameVeranst ? ';color:var(--accent)' : '') + '">' + (d.res2||'–') + '</td>' +
-        '<td style="padding:6px 10px;color:var(--text2);font-size:12px">' + fmtV(d.veranst2, d.dat2) + '</td>' +
-        '<td style="padding:6px 10px;white-space:nowrap">' +
-          '<button class="btn btn-ghost btn-sm" title="Ergebnis 1 in Papierkorb" onclick="dupDelete(' + d.id1 + ',this)">🗑️ #1</button> ' +
-          '<button class="btn btn-ghost btn-sm" title="Ergebnis 2 in Papierkorb" onclick="dupDelete(' + d.id2 + ',this)">🗑️ #2</button>' +
-        '</td>' +
-      '</tr>';
-    }).join('');
+  var pairsHtml = '';
+  if (!dups.length) {
+    pairsHtml = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Keine Duplikate gefunden</div></div>';
+  } else {
+    dups.forEach(function(d, i) {
+      var veranstName = fmtV(d.veranst1); // datum is identical (hard criterion)
+      var rows =
+        '<tr style="border-bottom:1px solid var(--border)">' +
+          '<td style="padding:6px 10px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700">' + (d.res1||'–') + '</td>' +
+          '<td style="padding:6px 10px">' + (d.ak1 ? '<span class="badge badge-ak">' + d.ak1 + '</span>' : '–') + '</td>' +
+          '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.vid1 !== d.vid2 ? fmtV(d.veranst1) : veranstName) + '</td>' +
+          '<td style="padding:6px 10px">' +
+            '<button class="btn btn-ghost btn-sm" title="In Papierkorb" onclick="dupDelete(' + d.id1 + ',this)">🗑️</button>' +
+          '</td>' +
+        '</tr>' +
+        '<tr>' +
+          '<td style="padding:6px 10px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700">' + (d.res2||'–') + '</td>' +
+          '<td style="padding:6px 10px">' + (d.ak2 ? '<span class="badge badge-ak">' + d.ak2 + '</span>' : '–') + '</td>' +
+          '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.vid1 !== d.vid2 ? fmtV(d.veranst2) : veranstName) + '</td>' +
+          '<td style="padding:6px 10px">' +
+            '<button class="btn btn-ghost btn-sm" title="In Papierkorb" onclick="dupDelete(' + d.id2 + ',this)">🗑️</button>' +
+          '</td>' +
+        '</tr>';
 
-    return '<div style="margin-bottom:12px;display:flex;gap:10px;align-items:center">' +
-      '<span style="color:var(--text2);font-size:13px">' + dups.length + ' Duplikat-Paare gefunden</span>' +
-      '<button class="btn btn-ghost btn-sm" onclick="renderAdminDuplikate()">↻ Neu laden</button>' +
-    '</div>' +
-    '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
-      '<thead><tr style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text2)">' +
-        '<th style="padding:6px 10px;text-align:left">Athlet</th>' +
-        '<th style="padding:6px 10px;text-align:left">Disziplin</th>' +
-        '<th style="padding:6px 10px;text-align:left">Ergebnis 1</th>' +
-        '<th style="padding:6px 10px;text-align:left">Veranstaltung 1</th>' +
-        '<th style="padding:6px 10px;text-align:left">Ergebnis 2</th>' +
-        '<th style="padding:6px 10px;text-align:left">Veranstaltung 2</th>' +
-        '<th style="padding:6px 10px;text-align:left">Aktion</th>' +
-      '</tr></thead>' +
-      '<tbody>' + rows + '</tbody>' +
-    '</table></div>';
+      pairsHtml +=
+        '<div class="panel" style="margin-bottom:12px;padding:0;overflow:hidden" id="dup-pair-' + i + '">' +
+          '<div style="padding:10px 14px;background:var(--surf2);display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+            '<span style="font-weight:700">' + (d.athlet||'–') + '</span>' +
+            '<span style="color:var(--text2);font-size:13px">' + (d.disziplin||'–') + '</span>' +
+            '<span style="font-size:12px;color:var(--text2)">📅 ' + formatDate(d.dat1) + '</span>' +
+            (d.vid1 === d.vid2 ? '<span style="font-size:12px;color:var(--text2)">🏟 ' + veranstName + '</span>' : '') +
+          '</div>' +
+          '<table style="width:100%;border-collapse:collapse">' +
+            '<thead><tr style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text2)">' +
+              '<th style="padding:6px 10px;text-align:left">Ergebnis</th>' +
+              '<th style="padding:6px 10px;text-align:left">AK</th>' +
+              '<th style="padding:6px 10px;text-align:left">Veranstaltung</th>' +
+              '<th style="padding:6px 10px;width:50px"></th>' +
+            '</tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+          '</table>' +
+        '</div>';
+    });
   }
 
   el.innerHTML = adminSubtabs() +
     '<h2 style="margin-bottom:4px">⚠️ Duplikate</h2>' +
-    '<p style="color:var(--text2);font-size:13px;margin-bottom:18px">Ergebnisse desselben Athleten in derselben Disziplin mit ähnlichem Resultat (Toleranz &plusmn;2 s/m, ohne Berücksichtigung von AK und Platzierung).</p>' +
-    '<div class="panel" style="padding:20px 24px">' + dupsToHtml(dups) + '</div>';
+    '<p style="color:var(--text2);font-size:13px;margin-bottom:18px">' +
+      'Ergebnisse desselben Athleten in derselben Disziplin am selben Datum mit ähnlichem Resultat (Toleranz &plusmn;2 s/m). ' +
+      'AK und Platzierung sind kein Kriterium.' +
+    '</p>' +
+    (dups.length ? '<div style="margin-bottom:12px;display:flex;gap:10px;align-items:center">' +
+      '<span style="color:var(--text2);font-size:13px">' + dups.length + ' Duplikat-Paar' + (dups.length===1?'':'e') + ' gefunden</span>' +
+      '<button class="btn btn-ghost btn-sm" onclick="renderAdminDuplikate()">↻ Neu laden</button>' +
+    '</div>' : '') +
+    pairsHtml;
 }
 
 async function dupDelete(id, btn) {
@@ -2756,9 +2771,8 @@ async function dupDelete(id, btn) {
   var r = await apiDel('admin/duplikate/' + id);
   if (r && r.ok) {
     notify('In Papierkorb verschoben.', 'ok');
-    // Remove the row
     var tr = btn ? btn.closest('tr') : null;
-    if (tr) tr.style.opacity = '0.3';
+    if (tr) { tr.style.opacity = '0.35'; tr.style.pointerEvents = 'none'; }
   } else {
     notify('Fehler: ' + (r&&r.fehler||'?'), 'err');
     if (btn) btn.disabled = false;

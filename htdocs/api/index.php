@@ -4292,9 +4292,10 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
         "SELECT e1.id AS id1, e2.id AS id2,
                 $nameExpr AS athlet,
                 e1.disziplin,
-                e1.resultat AS res1, e2.resultat AS res2,
-                v1.datum AS dat1, v1.kuerzel AS veranst1,
-                v2.datum AS dat2, v2.kuerzel AS veranst2,
+                e1.resultat AS res1, e1.altersklasse AS ak1,
+                e2.resultat AS res2, e2.altersklasse AS ak2,
+                v1.datum AS dat1, v1.kuerzel AS veranst1, v1.id AS vid1,
+                v2.datum AS dat2, v2.kuerzel AS veranst2, v2.id AS vid2,
                 e1.resultat_num AS rnum1, e2.resultat_num AS rnum2
          FROM $eTbl e1
          JOIN $eTbl e2 ON e2.athlet_id=e1.athlet_id
@@ -4307,6 +4308,7 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
          WHERE e1.geloescht_am IS NULL
            AND e1.resultat_num IS NOT NULL AND e2.resultat_num IS NOT NULL
            AND ABS(e1.resultat_num - e2.resultat_num) <= 2
+           AND v1.datum = v2.datum
          ORDER BY athlet, e1.disziplin, e1.resultat_num
          LIMIT 500"
     );

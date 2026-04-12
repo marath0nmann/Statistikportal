@@ -1,1 +1,1 @@
-v1029 – Feature: Admin-Tab "Duplikate" – findet Ergebnis-Duplikate (gleicher Athlet+Disziplin, Toleranz ±2s/m, ohne AK/Platzierung); einzeln oder per ↓ in Papierkorb verschieben
+v1030 – UX: Admin Duplikate – ein Panel pro Paar, Ergebnisse untereinander, AK angezeigt, Datum als hartes Kriterium (nur gleicher Tag)
