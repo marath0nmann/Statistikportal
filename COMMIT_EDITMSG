@@ -1,1 +1,1 @@
-v1023 – Fix: uits-fetch Proxy – Charset wird jetzt aus HTML-Meta erkannt (z.B. windows-1252) und korrekt zu UTF-8 konvertiert; behebt fehlende Umlaute wie ü in "Rüdiger"
+v1024 – Fix: uits-fetch Proxy – PHP-Syntaxfehler in Charset-Erkennung behoben (Anführungszeichen-Konflikt in Regex)
