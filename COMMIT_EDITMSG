@@ -1,1 +1,1 @@
-v1035 – Feature: Admin Duplikate – ✏️-Button öffnet Standard-Bearbeiten-Dialog (wie unter Ergebnisse)
+v1036 – Fix: Admin Duplikate – Edit-Route nutzt jetzt tbl_key-Fallback "strasse" statt "ergebnisse" (behob "Unbekannte Route")
