@@ -41,15 +41,19 @@ Das Skript:
 3. Baut `paket_vNNN.zip` → `/mnt/user-data/outputs/`
 
 **Namenskonvention (IMMER einhalten):**
-- ZIP-Datei heißt `paket_vNNN.zip` (z.B. `paket_v1003.zip`)
-- Der Ordner **innerhalb** der ZIP heißt ebenfalls `paket_vNNN` (z.B. `paket_v1003/`)
+- ZIP-Datei heißt `paket_vNNN.zip` (z.B. `paket_v1006.zip`)
+- Der Ordner **innerhalb** der ZIP heißt ebenfalls `paket_vNNN` (z.B. `paket_v1006/`)
 - Version wird **immer automatisch** um 1 erhöht – nie manuell setzen
-- Claude soll vor jedem Build die aktuelle Version aus `index.html` lesen und `build.sh` ausführen
 
-Vor dem Build manuell pflegen:
-- `CHANGELOG.md`: neuen Eintrag oben einfügen
-- `COMMIT_EDITMSG`: Commit-Message eintragen
-- `README.md`: Versionszeile aktualisieren
+**`build.sh` aktualisiert automatisch – kein manuelles Eingreifen:**
+- `index.html` → Versionsnummer + alle `?v=NNN` Cache-Buster
+- `README.md` → Versionsnummer + aktuelles Datum
+- `COMMIT_EDITMSG` → erste `-`-Zeile aus dem obersten CHANGELOG-Eintrag
+- `CHANGELOG.md` → Versionsnummer im obersten Eintrag (`## vCUR` → `## vNEW`)
+
+**Claude-Workflow vor jedem Build (NUR das ist manuell):**
+1. `CHANGELOG.md`: neuen Eintrag **oben** einfügen: `## vNNN\n- Beschreibung`
+2. `bash build.sh` ausführen → Rest läuft automatisch
 
 Deploy-Workflow:
 1. ZIP per FTP auf all-inkl.com hochladen und entpacken

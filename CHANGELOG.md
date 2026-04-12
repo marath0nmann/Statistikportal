@@ -1,3 +1,7 @@
+## v1006
+- Build: README.md, COMMIT_EDITMSG und CHANGELOG.md werden jetzt automatisch von build.sh aktualisiert
+- Fix: Neueste Bestleistungen – Debüt und PB korrekt aus externen Ergebnissen (athlet_pb per UNION)
+
 ## v1004
 - Fix: Neueste Bestleistungen – externe Ergebnisse (athlet_pb) werden jetzt per UNION in Phase 1 einbezogen → Debüt und PB korrekt berechnet (statt pauschal "PB")
 

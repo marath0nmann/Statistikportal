@@ -1,1 +1,1 @@
-v1002 – Bugfix: Veranstaltungen-Tab setzt Sub-State zurück
+v1006 – Build: README.md, COMMIT_EDITMSG und CHANGELOG.md werden jetzt automatisch von build.sh aktualisiert
