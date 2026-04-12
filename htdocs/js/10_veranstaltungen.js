@@ -68,9 +68,18 @@ async function renderVeranstaltungenListe() {
         var s = serien[si];
         var sLabel = s.name || s.kuerzel || 'Serie';
         var sCnt = s.anz_ergebnisse ? Number(s.anz_ergebnisse) : 0;
+        var sAustr = s.anz_austragungen ? Number(s.anz_austragungen) : 0;
+        var sJahre = (s.jahr_von && s.jahr_bis)
+          ? (s.jahr_von === s.jahr_bis ? String(s.jahr_von) : s.jahr_von + '–' + s.jahr_bis)
+          : '';
+        var sMeta = [
+          sCnt.toLocaleString('de-DE') + (sCnt === 1 ? ' Ergebnis' : ' Ergebnisse'),
+          sAustr ? sAustr + (sAustr === 1 ? ' Austragung' : ' Austragungen') : '',
+          sJahre
+        ].filter(Boolean).join(' · ');
         serienHtml += '<button class="rek-top-btn rek-top-btn--sm" onclick="openSerieDetail(' + s.id + ')">' +
           '<span class="rek-top-name">' + sLabel + '</span>' +
-          '<span class="rek-top-cnt">' + sCnt.toLocaleString('de-DE') + (sCnt === 1 ? ' Ergebnis' : ' Ergebnisse') + '</span>' +
+          '<span class="rek-top-cnt">' + sMeta + '</span>' +
         '</button>';
       }
       serienHtml += '</div>';

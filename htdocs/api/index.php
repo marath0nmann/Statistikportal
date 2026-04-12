@@ -3989,7 +3989,10 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     }
     $serien = DB::fetchAll(
         "SELECT s.id, s.name, s.kuerzel,
-                COUNT(e.id) AS anz_ergebnisse
+                COUNT(DISTINCT e.id) AS anz_ergebnisse,
+                COUNT(DISTINCT v.id) AS anz_austragungen,
+                MIN(YEAR(v.datum))   AS jahr_von,
+                MAX(YEAR(v.datum))   AS jahr_bis
          FROM " . DB::tbl('veranstaltung_serien') . " s
          LEFT JOIN " . DB::tbl('veranstaltungen') . " v ON v.serie_id=s.id AND v.geloescht_am IS NULL AND v.genehmigt=1
          LEFT JOIN $eTbl e ON e.veranstaltung_id=v.id AND e.geloescht_am IS NULL
