@@ -1,1 +1,1 @@
-v1024 – Fix: uits-fetch Proxy – PHP-Syntaxfehler in Charset-Erkennung behoben (Anführungszeichen-Konflikt in Regex)
+v1025 – Fix: uits-fetch Proxy – PHP-Parse-Fehler behoben; Charset-Erkennung jetzt via mb_detect_encoding statt fehleranfälliger Regex
