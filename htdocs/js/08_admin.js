@@ -2719,6 +2719,7 @@ async function renderAdminDuplikate() {
           '<td style="padding:6px 10px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700">' + (d.res1||'–') + '</td>' +
           '<td style="padding:6px 10px">' + (d.ak1 ? '<span class="badge badge-ak">' + d.ak1 + '</span>' : '–') + '</td>' +
           '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.vid1 !== d.vid2 ? fmtV(d.veranst1) : veranstName) + '</td>' +
+          '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.eingetragen_von1||'–') + '</td>' +
           '<td style="padding:6px 10px">' +
             '<button class="btn btn-ghost btn-sm" title="In Papierkorb" onclick="dupDelete(' + d.id1 + ',this)">🗑️</button>' +
           '</td>' +
@@ -2727,6 +2728,7 @@ async function renderAdminDuplikate() {
           '<td style="padding:6px 10px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700">' + (d.res2||'–') + '</td>' +
           '<td style="padding:6px 10px">' + (d.ak2 ? '<span class="badge badge-ak">' + d.ak2 + '</span>' : '–') + '</td>' +
           '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.vid1 !== d.vid2 ? fmtV(d.veranst2) : veranstName) + '</td>' +
+          '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.eingetragen_von2||'–') + '</td>' +
           '<td style="padding:6px 10px">' +
             '<button class="btn btn-ghost btn-sm" title="In Papierkorb" onclick="dupDelete(' + d.id2 + ',this)">🗑️</button>' +
           '</td>' +
@@ -2745,6 +2747,7 @@ async function renderAdminDuplikate() {
               '<th style="padding:6px 10px;text-align:left">Ergebnis</th>' +
               '<th style="padding:6px 10px;text-align:left">AK</th>' +
               '<th style="padding:6px 10px;text-align:left">Veranstaltung</th>' +
+              '<th style="padding:6px 10px;text-align:left">Eingetragen von</th>' +
               '<th style="padding:6px 10px;width:50px"></th>' +
             '</tr></thead>' +
             '<tbody>' + rows + '</tbody>' +

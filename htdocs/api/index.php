@@ -4288,6 +4288,8 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
     $nameExpr = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
     // Finde Duplikate: gleicher Athlet, gleiche Disziplin, ähnliches Ergebnis (Toleranz 2s/0.01m)
     // Toleranz über resultat_num (numerisch), ohne AK und Platzierung
+    $nameExprB = "CONCAT(COALESCE(b.nachname,''), IF(b.vorname IS NOT NULL AND b.vorname != '', CONCAT(', ', b.vorname), ''))";
+    $nameExprC = "CONCAT(COALESCE(cc.nachname,''), IF(cc.vorname IS NOT NULL AND cc.vorname != '', CONCAT(', ', cc.vorname), ''))";
     $dups = DB::fetchAll(
         "SELECT e1.id AS id1, e2.id AS id2,
                 $nameExpr AS athlet,
@@ -4296,7 +4298,9 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
                 e2.resultat AS res2, e2.altersklasse AS ak2,
                 v1.datum AS dat1, v1.kuerzel AS veranst1, v1.id AS vid1,
                 v2.datum AS dat2, v2.kuerzel AS veranst2, v2.id AS vid2,
-                e1.resultat_num AS rnum1, e2.resultat_num AS rnum2
+                e1.resultat_num AS rnum1, e2.resultat_num AS rnum2,
+                COALESCE(b1.name_nv, e1.import_quelle, '–') AS eingetragen_von1,
+                COALESCE(b2.name_nv, e2.import_quelle, '–') AS eingetragen_von2
          FROM $eTbl e1
          JOIN $eTbl e2 ON e2.athlet_id=e1.athlet_id
              AND e2.disziplin=e1.disziplin
@@ -4305,6 +4309,8 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
          JOIN " . DB::tbl('athleten') . " a ON a.id=e1.athlet_id
          JOIN " . DB::tbl('veranstaltungen') . " v1 ON v1.id=e1.veranstaltung_id
          JOIN " . DB::tbl('veranstaltungen') . " v2 ON v2.id=e2.veranstaltung_id
+         LEFT JOIN " . DB::tbl('benutzer') . " b1 ON b1.id=e1.erstellt_von
+         LEFT JOIN " . DB::tbl('benutzer') . " b2 ON b2.id=e2.erstellt_von
          WHERE e1.geloescht_am IS NULL
            AND e1.resultat_num IS NOT NULL AND e2.resultat_num IS NOT NULL
            AND ABS(e1.resultat_num - e2.resultat_num) <= 2
