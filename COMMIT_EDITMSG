@@ -1,1 +1,1 @@
-v1043 – Fix: Veranstaltung bearbeiten – Serien-Dropdown lädt jetzt immer ungefiltert (nicht aus gefiltertem Such-Cache)
+v1046 – Feature: MikaTiming – "Nicht für Verein"-Checkbox wird automatisch gesetzt wenn Vereinsname leer oder kein Treffer mit eigenem Verein; tatsächlicher Clubname aus HTML extrahiert

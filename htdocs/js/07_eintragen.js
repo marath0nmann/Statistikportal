@@ -1207,7 +1207,49 @@ async function bulkImportFromMika(url, kat, statusEl) {
   _bkDbgLine('Basis-URL', baseUrl);
 
   var rows = mikaExtractRowsForBulk(r.data, kat);
-  _bkDbgLine('Gefunden',  rows.length + ' TuS-Einträge');
+  _bkDbgLine('Vereins-Treffer', rows.length + ' Einträge');
+
+  // Zusätzliche Suche nach bekannten Athleten-Namen (immer, nicht nur als Fallback)
+  if (true) {
+    _bkDbgLine('Athleten-Suche', 'Suche nach bekannten Athleten-Namen…');
+    var _athleten = state.athleten || [];
+    var _activeAth = _athleten;  // alle Athleten, nicht nur aktive
+    // Einzigartige Nachnamen sammeln (aus name_nv: "Nachname, Vorname")
+    var _seenNamen = {};
+    var _nachnamen = [];
+    _activeAth.forEach(function(a) {
+      var nn = (a.name_nv||'').split(',')[0].trim();
+      if (nn && nn.length >= 3 && !_seenNamen[nn.toLowerCase()]) {
+        _seenNamen[nn.toLowerCase()] = true;
+        _nachnamen.push(nn);
+      }
+    });
+    var _idpSeen = {};
+    var _nameRows = [];
+    for (var _ni = 0; _ni < _nachnamen.length; _ni++) {
+      var _nn = _nachnamen[_ni];
+      if (statusEl) statusEl.textContent = '⏳ Suche nach ' + _nn + '… (' + (_ni+1) + '/' + _nachnamen.length + ')';
+      var _nr = await apiGet('mika-fetch?base_url=' + encodeURIComponent(baseUrl) + '&club=' + encodeURIComponent(vereinRaw) + '&name=' + encodeURIComponent(_nn));
+      if (!_nr || !_nr.ok || !_nr.data.results) continue;
+      _nr.data.results.forEach(function(res) {
+        if (_idpSeen[res.idp]) return;
+        // Nur Athleten aus der eigenen DB aufnehmen (Name-Match)
+        if (uitsAutoMatch(res.name, _athleten) !== null) {
+          _idpSeen[res.idp] = true;
+          _nameRows.push(res);
+        }
+      });
+    }
+    _bkDbgLine('Namens-Treffer', _nameRows.length + ' Athleten gefunden');
+    // Vereins-Ergebnisse mit Namens-Ergebnissen zusammenführen (dedup via idp)
+    var _clubIdps = {};
+    (r.data.results || []).forEach(function(res) { if (res.idp) _clubIdps[res.idp] = true; });
+    var _combined = (r.data.results || []).concat(
+      _nameRows.filter(function(res) { return !_clubIdps[res.idp]; })
+    );
+    rows = mikaExtractRowsForBulk({ results: _combined }, kat);
+  }
+
   if (rows.length) {
     _bkDbgSep();
     _bkDbgHeader('Ergebnisse');
@@ -1368,12 +1410,16 @@ function mikaExtractRowsForBulk(data, kat) {
   var results = data && data.results ? data.results : [];
   var disziplinen = state.disziplinen || [];
   var diszList = disziplinen.map(function(d){ return d.disziplin; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
+  var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '').trim().toLowerCase();
 
   return results.map(function(res) {
     var contestName = res.contest || res.disziplin || '';
     var disz = rrBestDisz(contestName, diszList);
     var diszObj = (kat ? disziplinen.find(function(d){return d.disziplin===disz&&d.tbl_key===kat;}) : null)
                || disziplinen.find(function(d){ return d.disziplin === disz && (!kat || (bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key) >= 0); });
+    // Extern wenn Vereinsname leer oder nicht zum eigenen Verein passt
+    var resClub = (res.club || '').trim().toLowerCase();
+    var isExtern = !resClub || (vereinRaw && resClub.indexOf(vereinRaw) === -1 && vereinRaw.indexOf(resClub) === -1);
     return {
       name:      res.name || '',
       resultat:  res.netto || res.zeit || '',
@@ -1381,6 +1427,7 @@ function mikaExtractRowsForBulk(data, kat) {
       platz:     parseInt(res.platz_ak) || 0,
       disziplin: diszObj ? diszObj.disziplin : disz,
       diszMid:   diszObj ? (diszObj.id || diszObj.mapping_id) : null,
+      extern:    isExtern,
     };
   });
 }

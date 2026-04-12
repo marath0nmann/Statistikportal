@@ -3296,12 +3296,23 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     }
     $debug['eventId'] = $eventId;
 
-    // 2. Suche mit fpid=search + event= (nötig für korrekte idp-Links)
-    $searchUrl = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
-        . '&search%5Bclub%5D=' . urlencode($club)
-        . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
-        . '&search_sort=name'
-        . ($eventId ? '&event=' . urlencode($eventId) . '&search_event=' . urlencode($eventId) : '');
+    // 2. Suche: Vereinssuche (Standard) oder Namensuche (Fallback)
+    $nameSearch = trim($_GET['name'] ?? '');
+    if ($nameSearch) {
+        // Namensuche: search[name]=Nachname
+        $searchUrl = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
+            . '&search%5Bname%5D=' . urlencode($nameSearch)
+            . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
+            . '&search_sort=name'
+            . ($eventId ? '&event=' . urlencode($eventId) . '&search_event=' . urlencode($eventId) : '');
+    } else {
+        // Vereinssuche (Standard)
+        $searchUrl = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
+            . '&search%5Bclub%5D=' . urlencode($club)
+            . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
+            . '&search_sort=name'
+            . ($eventId ? '&event=' . urlencode($eventId) . '&search_event=' . urlencode($eventId) : '');
+    }
     $searchHtml = mikaCurl($searchUrl, $cookieFile, $ua);
     $debug = ['searchUrl' => $searchUrl, 'htmlLen' => strlen($searchHtml)];
 
@@ -3352,11 +3363,16 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         $akNodes = $xpath->query('.//*[contains(@class,"age_class")]', $li);
         foreach ($akNodes as $n) { $t = trim($n->textContent); if ($t) { $ak = $t; break; } }
 
+        // Tatsächlicher Vereinsname aus Suchergebnisliste
+        $liClub = '';
+        $clubNodes = $xpath->query('.//*[contains(@class,"club") or contains(@class,"f-club") or contains(@class,"nation_team")]', $li);
+        foreach ($clubNodes as $n) { $t = trim($n->textContent); if ($t) { $liClub = $t; break; } }
+
         $results[] = [
             'name' => trim($name), 'contest' => $evId ?: 'Unbekannt',
             'netto' => '', 'ak' => $ak,
             'platz_ak' => $placeAK, 'platz_ges' => $placeGes,
-            'event_id' => $evId, 'idp' => $idp, 'club' => $club,
+            'event_id' => $evId, 'idp' => $idp, 'club' => $liClub ?: $club,
         ];
     }
     $debug['rowsFound'] = count($results);
