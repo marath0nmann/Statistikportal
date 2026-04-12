@@ -355,7 +355,7 @@ function uitsAutoMatch(name, athleten) {
     var surTok   = _toks(cp[0]||'', true);
     var firstTok = _toks((cp.slice(1).join(' '))||'', false);
     if (!surTok.length) continue;
-    if (a.aktiv === false || a.aktiv === 0) continue; // Inaktive Athleten nicht matchen
+    if ((a.aktiv === false || a.aktiv === 0) && !window._bkMatchInaktive) continue;
 
     var inTok = _toks(name, false);
     if (!inTok.length) continue;

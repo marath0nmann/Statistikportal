@@ -250,6 +250,10 @@ function renderEintragen() {
                 return opts;
               })() +
             '</select>' +
+            '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin-left:8px">' +
+              '<input type="checkbox" id="bk-match-inaktive" checked onchange="window._bkMatchInaktive=this.checked" style="width:13px;height:13px;cursor:pointer">' +
+              'Auch inaktive Athleten' +
+            '</label>' +
           '</div>' +
           '<div style="display:flex;gap:8px;margin-top:8px;align-items:center">' +
             '<button class="btn btn-primary btn-sm" id="bk-einlesen-btn" onclick="bulkEinlesen()">&#x25B6; Einlesen</button>' +
@@ -2136,6 +2140,8 @@ async function _bulkMeldeImportSend(repo, token, vNum, wer) {
     if (btn) { btn.innerHTML = '&#x26A0;&#xFE0F; Schlechten Import melden'; btn.disabled = false; }
   }
 }
+window._bkMatchInaktive = true; // Default: auch inaktive Athleten matchen
+
 function bulkEinlesen() {
   var raw = ((document.getElementById('bk-paste-area') || {}).value || '').trim();
   if (!raw) return;
