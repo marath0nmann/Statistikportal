@@ -1,1 +1,1 @@
-v1048 – Feature: MikaTiming – automatische Erkennung neuer Interface (POST, kein club-Feld); sucht pro Event-Typ (HM/10L/5L) via POST search[name]; Detail-Seiten für Zeit+AK
+v1050 – Fix: MikaTiming neues Interface – Zeit/AK/Verein direkt aus List-Item geparst; kein Detail-Seiten-Fetch mehr (JS-gerendert, war immer leer)

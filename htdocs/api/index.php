@@ -3391,10 +3391,26 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 foreach ($xp2->query('.//*[contains(@class,"place-secondary") or contains(@class,"place_age")]', $li) as $n) {
                     $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK = $t; break; }
                 }
+                // Zeit direkt aus List-Item (neue Interface hat alle Spalten inline)
+                $liNetto = '';
+                foreach (['f-time_finish_netto','f-ziel','f-net_time','f-time_netto','f-time_finish_brutto'] as $tcls) {
+                    foreach ($xp2->query('.//*[contains(@class,"' . $tcls . '")]', $li) as $tn) {
+                        $t = trim($tn->textContent);
+                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $t, $tm)) { $liNetto = $tm[1]; break 2; }
+                    }
+                }
+                // AK aus List-Item
+                $liAK = '';
+                foreach (['f-_type_age_class','f-type_age_class','f-age_class','f-ageclass','age_class'] as $acls) {
+                    foreach ($xp2->query('.//*[contains(@class,"' . $acls . '")]', $li) as $an) {
+                        $t = trim($an->textContent);
+                        if ($t && strlen($t) >= 2 && strlen($t) <= 8 && $t !== '0') { $liAK = $t; break 2; }
+                    }
+                }
                 if (!isset($allResults[$idp])) {
                     $allResults[$idp] = [
                         'name' => trim($name), 'contest' => $evId,
-                        'netto' => '', 'ak' => '',
+                        'netto' => $liNetto, 'ak' => $liAK,
                         'platz_ak' => $placeAK, 'platz_ges' => $placeGes,
                         'event_id' => $evId, 'idp' => $idp, 'club' => $liClub,
                     ];
@@ -3403,35 +3419,11 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         }
         $results = array_values($allResults);
         $debug['rowsFound'] = count($results);
+        if (!empty($results)) $debug['firstResult'] = $results[0];
 
-        // Detail-Seiten für Zeit+AK (wie bei altem Interface)
+        // contestMap setzen (kein Detail-Fetch nötig)
+        $contestMap = ['HM'=>'Halbmarathon','10L'=>'10km','5L'=>'5km'];
         foreach ($results as &$res) {
-            $detailUrl = $baseUrl . '?content=detail&fpid=search&pid=search&lang=DE'
-                . '&idp=' . urlencode($res['idp']) . '&event=' . urlencode($res['event_id']) . '&pidp=start';
-            $dHtml = mikaCurl($detailUrl, $cookieFile, $ua);
-            if (!$dHtml) continue;
-            $detailDom = new DOMDocument('1.0', 'UTF-8');
-            @$detailDom->loadHTML('<?xml encoding="UTF-8">' . $dHtml);
-            $detailXpath = new DOMXPath($detailDom);
-            foreach (['f-time_finish_netto','f-time_finish_brutto'] as $tcls) {
-                foreach ($detailXpath->query('//*[contains(@class,"'.$tcls.'")]') as $tn) {
-                    $t = trim($tn->textContent);
-                    if (preg_match('/(\d{1,2}:\d{2}:\d{2}|\d{1,2}:\d{2})/', $t, $tm)) { $res['netto'] = $tm[1]; break 2; }
-                }
-            }
-            $sex = '';
-            if (preg_match('/(Frauen|Women|weiblich|Female)/i', $dHtml)) $sex = 'W';
-            elseif (preg_match('/(Männer|Men|männlich|Male)/i', $dHtml)) $sex = 'M';
-            foreach ($detailXpath->query('//*[contains(@class,"f-_type_age_class") or contains(@class,"f-type_age_class")]') as $an) {
-                $t = trim($an->textContent);
-                if ($t && $t !== '0' && is_numeric($t)) { $res['ak'] = ($sex?:'') . $t; break; }
-            }
-            if (!$res['ak']) {
-                $evPfx = strtoupper(preg_replace('/_.*$/', '', $res['event_id']));
-                if (in_array($evPfx, ['W','F','HW'])) $res['ak'] = 'W';
-                elseif (in_array($evPfx, ['M','HM','H'])) $res['ak'] = 'M';
-            }
-            $contestMap = ['HM'=>'Halbmarathon','10L'=>'10km','5L'=>'5km'];
             if (isset($contestMap[$res['event_id']])) $res['contest'] = $contestMap[$res['event_id']];
         }
         unset($res);
