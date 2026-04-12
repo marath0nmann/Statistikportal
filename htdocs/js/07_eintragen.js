@@ -430,15 +430,69 @@ async function _bkLoadSerien() {
   sel.innerHTML = '<option value="">– keine Zuordnung –</option>' +
     serien.map(function(s) {
       return '<option value="' + s.id + '">' + s.name + '</option>';
-    }).join('');
+    }).join('') +
+    '<option value="__neu__">＋ Neue regelmäßige Veranstaltung…</option>';
 }
 
 function bkSerieChanged(serieId) {
+  if (serieId === '__neu__') {
+    // Zurück auf leer setzen und Modal öffnen
+    var sel = document.getElementById('bk-serie');
+    if (sel) sel.value = '';
+    bkNeueSerieModal();
+    return;
+  }
   // Wenn Serie gewählt: Veranstaltungsname vorbelegen
   var serien = window._bkSerien || [];
   var s = serien.find(function(x) { return String(x.id) === String(serieId); });
   var evEl = document.getElementById('bk-evname');
   if (s && evEl && !evEl.value) evEl.value = s.name;
+}
+
+async function bkNeueSerieModal() {
+  showModal(
+    '<h2>&#x1F504; Neue regelmäßige Veranstaltung <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    '<div class="form-group full" style="margin-bottom:16px">' +
+      '<label>Name *</label>' +
+      '<input type="text" id="bk-neue-serie-name" placeholder="z.B. Venloop" autofocus style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"/>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="bkNeueSerieAnlegen()">Anlegen &amp; auswählen</button>' +
+    '</div>'
+  );
+  setTimeout(function() {
+    var inp = document.getElementById('bk-neue-serie-name');
+    // Vorbelegen aus Veranstaltungsname falls vorhanden
+    var evEl = document.getElementById('bk-evname');
+    if (inp && evEl && evEl.value) inp.value = evEl.value;
+    if (inp) inp.focus();
+  }, 50);
+}
+
+async function bkNeueSerieAnlegen() {
+  var name = ((document.getElementById('bk-neue-serie-name') || {}).value || '').trim();
+  if (!name) { notify('Name erforderlich.', 'err'); return; }
+  var r = await apiPost('veranstaltung-serien', { name: name });
+  if (!r || !r.ok) { notify('Fehler: ' + (r&&r.fehler||'?'), 'err'); return; }
+  var newId = r.data && r.data.id;
+  closeModal();
+  // Zur Liste hinzufügen und auswählen
+  var sel = document.getElementById('bk-serie');
+  if (sel && newId) {
+    // __neu__ Option herausnehmen, neue Serie einfügen, __neu__ wieder ans Ende
+    var neuOpt = Array.from(sel.options).find(function(o){ return o.value === '__neu__'; });
+    var newOpt = document.createElement('option');
+    newOpt.value = newId;
+    newOpt.textContent = name;
+    if (neuOpt) sel.insertBefore(newOpt, neuOpt);
+    else sel.appendChild(newOpt);
+    sel.value = newId;
+    // _bkSerien aktualisieren
+    if (!window._bkSerien) window._bkSerien = [];
+    window._bkSerien.push({ id: newId, name: name });
+  }
+  notify('Regelmäßige Veranstaltung "' + name + '" angelegt.', 'ok');
 }
 
 function bkKatChanged() {
