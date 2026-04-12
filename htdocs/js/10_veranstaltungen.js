@@ -381,6 +381,28 @@ function _buildSerieBestleistungenShell(disziplinen, serieId) {
     html += '</div>';
   }
   html += '</div>';
+  // Schalter (identisch zu Rekorde, teilen state.rekState)
+  var rs = state.rekState || {};
+  var curYear = new Date().getFullYear();
+  html +=
+    '<div style="display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;margin-bottom:16px;padding:10px 14px;background:var(--surf2);border-radius:var(--radius)">' +
+      '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2)">' +
+        '<input type="checkbox" id="serie-merge-ak"' + (rs.mergeAK !== false ? ' checked' : '') + ' onchange="toggleSerieRekOpt(\'mergeAK\',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg);cursor:pointer">' +
+        'Jugend-AK zu MHK/WHK zusammenfassen' +
+      '</label>' +
+      '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text2)">' +
+        '<input type="checkbox" id="serie-unique"' + (rs.unique !== false ? ' checked' : '') + ' onchange="toggleSerieRekOpt(\'unique\',this.checked)" style="width:15px;height:15px;accent-color:var(--btn-bg);cursor:pointer">' +
+        'Jede*r Athlet*in nur einmal (beste Leistung)' +
+      '</label>' +
+      '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:#b03020">' +
+        '<input type="checkbox" id="serie-hl-cur"' + (rs.highlightCurYear ? ' checked' : '') + ' onchange="toggleSerieRekOpt(\'highlightCurYear\',this.checked)" style="width:15px;height:15px;accent-color:#e05040;cursor:pointer">' +
+        curYear + ' hervorheben' +
+      '</label>' +
+      '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:#205090">' +
+        '<input type="checkbox" id="serie-hl-prev"' + (rs.highlightPrevYear ? ' checked' : '') + ' onchange="toggleSerieRekOpt(\'highlightPrevYear\',this.checked)" style="width:15px;height:15px;accent-color:#4070c0;cursor:pointer">' +
+        (curYear - 1) + ' hervorheben' +
+      '</label>' +
+    '</div>';
   html += '<div id="serie-best-content"><div class="loading" style="padding:32px"><div class="spinner"></div>Lade Bestleistungen&hellip;</div></div>';
   return html;
 }
@@ -398,12 +420,28 @@ function selectSerieDisz(disz, mid, serieId) {
   _loadSerieBestleistungen(parseInt(serieId), disz, mid ? parseInt(mid) : null);
 }
 
+function toggleSerieRekOpt(key, val) {
+  if (!state.rekState) state.rekState = {};
+  state.rekState[key] = val;
+  _saveRekPrefs();
+  // Checkbox im Rekorde-Tab synchronisieren (falls sichtbar)
+  var idMap = { mergeAK: 'rek-merge-ak', unique: 'rek-unique', highlightCurYear: 'rek-hl-cur', highlightPrevYear: 'rek-hl-prev' };
+  var el = document.getElementById(idMap[key]);
+  if (el) el.checked = val;
+  // Bestleistungen neu laden
+  if (state.serieDisz) {
+    _loadSerieBestleistungen(state.serieId, state.serieDisz, state.serieMappingId);
+  }
+}
+
 async function _loadSerieBestleistungen(serieId, disz, mappingId) {
   var container = document.getElementById('serie-best-content');
   if (!container) return;
   container.innerHTML = '<div class="loading" style="padding:32px"><div class="spinner"></div>Lade&hellip;</div>';
+  var rs2 = state.rekState || {};
   var params = 'disz=' + encodeURIComponent(disz);
   if (mappingId) params += '&mapping_id=' + mappingId;
+  params += '&merge_ak=' + (rs2.mergeAK !== false ? '1' : '0');
   var r = await apiGet('veranstaltung-serien/' + serieId + '?' + params);
   if (!r || !r.ok) {
     container.innerHTML = '<div style="color:var(--accent);padding:16px">Fehler: ' + (r && r.fehler ? r.fehler : 'Unbekannt') + '</div>';
@@ -414,6 +452,7 @@ async function _loadSerieBestleistungen(serieId, disz, mappingId) {
   var TOP = 10;
 
   function pbDedup(rows) {
+    if (rs2.unique === false) return rows.slice(0, TOP);
     var seen = {}; var out = [];
     for (var i = 0; i < rows.length && out.length < TOP; i++) {
       var key = rows[i].athlet_id || rows[i].athlet;
@@ -423,7 +462,7 @@ async function _loadSerieBestleistungen(serieId, disz, mappingId) {
   }
 
   var showPace = diszKm(disz) >= 1 && fmt !== 'm' && fmt !== 's';
-  var fakeRekState = { highlightCurYear: false, highlightPrevYear: false, disz: disz, rekState: state.rekState || {} };
+  var rs2 = rs2 || state.rekState || {}; // already declared above
 
   function sectionHead(label) {
     return '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:600;color:var(--text);border-bottom:2px solid var(--border);padding-bottom:6px;margin:0 0 14px">' + label + '</div>';

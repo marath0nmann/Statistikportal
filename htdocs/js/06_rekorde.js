@@ -270,20 +270,29 @@ function _saveRekPrefs() {
   // Asynchron in DB speichern (Fehler ignorieren)
   apiPut('auth/prefs', prefs).catch(function(){});
 }
+function _syncSerieToggles() {
+  var rs = state.rekState || {};
+  var m = { mergeAK: 'serie-merge-ak', unique: 'serie-unique', highlightCurYear: 'serie-hl-cur', highlightPrevYear: 'serie-hl-prev' };
+  Object.keys(m).forEach(function(k) { var el = document.getElementById(m[k]); if (el) el.checked = !!rs[k]; });
+  if (state.serieDisz && state.serieId) _loadSerieBestleistungen(state.serieId, state.serieDisz, state.serieMappingId);
+}
 function toggleRekMergeAK(val) {
   state.rekState.mergeAK = val;
   _saveRekPrefs();
+  _syncSerieToggles();
   renderRekorde();
 }
 function toggleRekUnique(val) {
   state.rekState.unique = val;
   _saveRekPrefs();
+  _syncSerieToggles();
   renderRekorde();
 }
 function toggleRekHl(which, val) {
   if (which === 'cur')  state.rekState.highlightCurYear  = val;
   if (which === 'prev') state.rekState.highlightPrevYear = val;
   _saveRekPrefs();
+  _syncSerieToggles();
   renderRekorde();
 }
 

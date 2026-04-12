@@ -1,1 +1,1 @@
-v1012 – Fix: Disziplin-Buttons Bestleistungen – Sortierung nach Ergebnisanzahl korrigiert (Feld war "cnt" nicht "anz_ergebnisse")
+v1013 – Feature: Regelmäßige Veranstaltungen – Bestleistungen-Schalter (Jugend-AK, nur einmal, Jahres-Highlight) direkt im View; teilen state.rekState mit Bestleistungen-Tab
