@@ -4668,8 +4668,18 @@ if ($res === 'uits-fetch' && $method === 'GET') {
     if (!$html || $httpCode >= 400)
         jsonErr('uitslagen.nl nicht erreichbar (HTTP ' . $httpCode . ').', 502);
 
-    // Ungültige UTF-8-Bytes entfernen (Ländernamen, Sonderzeichen in Resultaten)
-    $html = mb_convert_encoding($html, 'UTF-8', 'UTF-8');
+    // Charset aus HTML-Meta erkennen (z.B. windows-1252 bei älteren evenementen-Seiten)
+    $srcCharset = 'UTF-8';
+    if (preg_match('/<meta[^>]+charset=["']?([\w-]+)/i', $html, $csm)) {
+        $detected = strtoupper(trim($csm[1]));
+        if ($detected && $detected !== 'UTF-8') $srcCharset = $detected;
+    }
+    if ($srcCharset !== 'UTF-8') {
+        $html = mb_convert_encoding($html, 'UTF-8', $srcCharset);
+    } else {
+        // Ungültige UTF-8-Bytes entfernen
+        $html = mb_convert_encoding($html, 'UTF-8', 'UTF-8');
+    }
     jsonOk(['html' => $html]);
 }
 
