@@ -2718,7 +2718,11 @@ async function renderAdminDuplikate() {
         '<tr style="border-bottom:1px solid var(--border)">' +
           '<td style="padding:6px 10px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700">' + (d.res1||'–') + '</td>' +
           '<td style="padding:6px 10px">' + (d.ak1 ? '<span class="badge badge-ak">' + d.ak1 + '</span>' : '–') + '</td>' +
-          '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.vid1 !== d.vid2 ? fmtV(d.veranst1) : veranstName) + '</td>' +
+          '<td style="padding:6px 10px;font-size:12px">' +
+            '<a href="#veranstaltung/' + d.vid1 + '" style="color:var(--primary)" onclick="navigate(\'veranstaltung/' + d.vid1 + '\')">' +
+              (d.vid1 !== d.vid2 ? fmtV(d.veranst1) : veranstName) +
+            '</a>' +
+          '</td>' +
           '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.eingetragen_von1||'–') + '</td>' +
           '<td style="padding:6px 10px">' +
             '<button class="btn btn-ghost btn-sm" title="In Papierkorb" onclick="dupDelete(' + d.id1 + ',this)">🗑️</button>' +
@@ -2727,7 +2731,11 @@ async function renderAdminDuplikate() {
         '<tr>' +
           '<td style="padding:6px 10px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700">' + (d.res2||'–') + '</td>' +
           '<td style="padding:6px 10px">' + (d.ak2 ? '<span class="badge badge-ak">' + d.ak2 + '</span>' : '–') + '</td>' +
-          '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.vid1 !== d.vid2 ? fmtV(d.veranst2) : veranstName) + '</td>' +
+          '<td style="padding:6px 10px;font-size:12px">' +
+            '<a href="#veranstaltung/' + d.vid2 + '" style="color:var(--primary)" onclick="navigate(\'veranstaltung/' + d.vid2 + '\')">' +
+              (d.vid1 !== d.vid2 ? fmtV(d.veranst2) : veranstName) +
+            '</a>' +
+          '</td>' +
           '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.eingetragen_von2||'–') + '</td>' +
           '<td style="padding:6px 10px">' +
             '<button class="btn btn-ghost btn-sm" title="In Papierkorb" onclick="dupDelete(' + d.id2 + ',this)">🗑️</button>' +

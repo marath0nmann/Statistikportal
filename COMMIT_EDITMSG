@@ -1,1 +1,1 @@
-v1033 – Fix: Admin Duplikate – "Eingetragen von" nutzt jetzt benutzer.benutzername + athleten.vorname/nachname via athlet_id
+v1034 – Feature: Admin Duplikate – Veranstaltungsname ist jetzt ein klickbarer Link zur Veranstaltungsseite
