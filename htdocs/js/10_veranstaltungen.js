@@ -220,7 +220,7 @@ async function renderSerieDetail(id) {
 
   var rd = await apiGet('veranstaltung-serien/' + id + '?disziplinen=1');
   var disziplinen = (rd && rd.ok) ? (rd.data || []) : [];
-  disziplinen.sort(function(a, b) { return (b.anz_ergebnisse || 0) - (a.anz_ergebnisse || 0); });
+  disziplinen.sort(function(a, b) { return (b.cnt || 0) - (a.cnt || 0); });
 
   var view    = state.serieView || 'jahre';
   var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');

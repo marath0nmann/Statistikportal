@@ -1,1 +1,1 @@
-v1011 – UX: Regelmäßige Veranstaltungen – Disziplin-Buttons bei Bestleistungen absteigend nach Ergebnisanzahl sortiert
+v1012 – Fix: Disziplin-Buttons Bestleistungen – Sortierung nach Ergebnisanzahl korrigiert (Feld war "cnt" nicht "anz_ergebnisse")
