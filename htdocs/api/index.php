@@ -3980,7 +3980,24 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
         $v['ergebnisse'] = array_merge($vereinErg, $externErg);
     }
     unset($v);
-    $serien = DB::fetchAll("SELECT id, name, kuerzel FROM " . DB::tbl('veranstaltung_serien') . " ORDER BY name");
+    // Serien mit Ergebnisanzahl, nach Suche gefiltert
+    $serienWhere = '';
+    $serienParams = [];
+    if ($suche !== '') {
+        $serienWhere = " WHERE s.name LIKE ? OR s.kuerzel LIKE ?";
+        $serienParams = ['%'.$suche.'%', '%'.$suche.'%'];
+    }
+    $serien = DB::fetchAll(
+        "SELECT s.id, s.name, s.kuerzel,
+                COUNT(e.id) AS anz_ergebnisse
+         FROM " . DB::tbl('veranstaltung_serien') . " s
+         LEFT JOIN " . DB::tbl('veranstaltungen') . " v ON v.serie_id=s.id AND v.geloescht_am IS NULL AND v.genehmigt=1
+         LEFT JOIN $eTbl e ON e.veranstaltung_id=v.id AND e.geloescht_am IS NULL
+         $serienWhere
+         GROUP BY s.id, s.name, s.kuerzel
+         ORDER BY anz_ergebnisse DESC",
+        $serienParams
+    );
     jsonOk(compact('veranst','total','serien'));
 }
 

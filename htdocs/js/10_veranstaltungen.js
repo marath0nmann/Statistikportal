@@ -50,24 +50,32 @@ async function renderVeranstaltungenListe() {
   state._veranstMap = {};
   for (var ci = 0; ci < veranst.length; ci++) state._veranstMap[veranst[ci].id] = veranst[ci];
 
-  // Shell befüllen (nur wenn leer oder Serien sich geändert haben)
-  var serienHtml = '';
-  if (serien && serien.length) {
-    serienHtml = '<div style="margin-bottom:16px">' +
-      '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:8px">🔄 Regelmäßige Veranstaltungen</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px">';
-    for (var si = 0; si < serien.length; si++) {
-      var s = serien[si];
-      serienHtml += '<button class="btn btn-ghost btn-sm" style="font-size:13px" onclick="openSerieDetail(' + s.id + ')">' + (s.name || s.kuerzel || 'Serie') + '</button>';
-    }
-    serienHtml += '</div></div>';
-  }
+  // Suchleiste (einmalig)
   var searchBar = '<div class="filter-bar" style="margin-bottom:16px">' +
     '<div class="fg"><label>Suche</label><input type="search" id="veranst-suche" placeholder="Veranstaltung suchen&hellip;" value="' + (state.veranstSuche || '').replace(/"/g,'&quot;') + '" oninput="setVeranstSuche(this.value)" style="min-width:0;width:100%"/></div>' +
   '</div>';
   if (!shellEl.dataset.built) {
-    shellEl.innerHTML = serienHtml + searchBar;
+    shellEl.innerHTML = searchBar + '<div id="veranst-serien"></div>';
     shellEl.dataset.built = '1';
+  }
+  // Serien-Buttons (nach jeder Suche neu, da gefiltert)
+  var serienEl = document.getElementById('veranst-serien');
+  if (serienEl) {
+    var serienHtml = '';
+    if (serien && serien.length) {
+      serienHtml = '<div class="rek-top-disz" style="margin-bottom:16px">';
+      for (var si = 0; si < serien.length; si++) {
+        var s = serien[si];
+        var sLabel = s.name || s.kuerzel || 'Serie';
+        var sCnt = s.anz_ergebnisse ? Number(s.anz_ergebnisse) : 0;
+        serienHtml += '<button class="rek-top-btn rek-top-btn--sm" onclick="openSerieDetail(' + s.id + ')">' +
+          '<span class="rek-top-name">' + sLabel + '</span>' +
+          '<span class="rek-top-cnt">' + sCnt.toLocaleString('de-DE') + (sCnt === 1 ? ' Ergebnis' : ' Ergebnisse') + '</span>' +
+        '</button>';
+      }
+      serienHtml += '</div>';
+    }
+    serienEl.innerHTML = serienHtml;
   }
 
   var html = '';
