@@ -1887,7 +1887,7 @@ if ($res === 'dashboard' && $method === 'GET') {
 // ============================================================
 // ERGEBNISSE
 // ============================================================
-$ergebnisTabellen = ['strasse','sprint','mittelstrecke','sprungwurf'];
+$ergebnisTabellen = ['strasse','sprint','mittelstrecke','sprungwurf','bahn','cross','halle'];
 if (in_array($res, $ergebnisTabellen)) {
     Auth::requireLogin();
     $tbl = ergebnisTbl($res, $unified, $_sys);

@@ -1,1 +1,1 @@
-v1036 – Fix: Admin Duplikate – Edit-Route nutzt jetzt tbl_key-Fallback "strasse" statt "ergebnisse" (behob "Unbekannte Route")
+v1037 – Fix: Admin Duplikate – PUT-Route erkennt jetzt auch bahn, cross, halle als gültige Kategorie-Routen
