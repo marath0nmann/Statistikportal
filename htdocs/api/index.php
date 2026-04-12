@@ -4199,6 +4199,10 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
             $dupPb = DB::fetchOne('SELECT id FROM ' . DB::tbl('athlet_pb') . ' WHERE athlet_id=? AND disziplin=? AND resultat=?',
                 [$aid, $disziplin, $resultat]);
             if ($dupPb) { $skipped++; continue; }
+            // Auch gegen interne Ergebnisse prüfen (falls bereits als Vereinsergebnis vorhanden)
+            $dupInt = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
+                [$aid, $disziplin, $resultat]);
+            if ($dupInt) { $skipped++; continue; }
             DB::query('INSERT INTO ' . DB::tbl('athlet_pb') . ' (athlet_id, disziplin, disziplin_mapping_id, resultat, wettkampf, datum, altersklasse, veranstaltung_id, erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)',
                 [$aid, $disziplin, $dmInfo ? (int)$dmInfo['id'] : null, $resultat, $wettkampf, $datum ?: null, $ak, $vid ?: null, $user['id'] ?? null]);
             autoMapDisziplin($disziplin);
@@ -4209,6 +4213,10 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
             [$vid, $aid, $disziplin, $resultat]);
         if ($dup) { $skipped++; continue; }
+        // Auch gegen externe Ergebnisse prüfen (athlet_pb)
+        $dupExt = DB::fetchOne('SELECT id FROM ' . DB::tbl('athlet_pb') . ' WHERE athlet_id=? AND disziplin=? AND resultat=? AND (veranstaltung_id=? OR veranstaltung_id IS NULL)',
+            [$aid, $disziplin, $resultat, $vid]);
+        if ($dupExt) { $skipped++; continue; }
         DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             [$vid,$aid,$ak,$disziplin,$dmInfo ? (int)$dmInfo['id'] : null,$resultat,$rnum,$akp,$mstr,$akpm,$quelle,$user['id']]);
         autoMapDisziplin($disziplin);
@@ -4271,6 +4279,48 @@ if ($res === 'gruppen') {
 // ============================================================
 // PAPIERKORB
 // ============================================================
+// ============================================================
+// ADMIN – DUPLIKATE
+// ============================================================
+if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $method === 'GET') {
+    Auth::requireAdmin();
+    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $nameExpr = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
+    // Finde Duplikate: gleicher Athlet, gleiche Disziplin, ähnliches Ergebnis (Toleranz 2s/0.01m)
+    // Toleranz über resultat_num (numerisch), ohne AK und Platzierung
+    $dups = DB::fetchAll(
+        "SELECT e1.id AS id1, e2.id AS id2,
+                $nameExpr AS athlet,
+                e1.disziplin,
+                e1.resultat AS res1, e2.resultat AS res2,
+                v1.datum AS dat1, v1.kuerzel AS veranst1,
+                v2.datum AS dat2, v2.kuerzel AS veranst2,
+                e1.resultat_num AS rnum1, e2.resultat_num AS rnum2
+         FROM $eTbl e1
+         JOIN $eTbl e2 ON e2.athlet_id=e1.athlet_id
+             AND e2.disziplin=e1.disziplin
+             AND e2.id > e1.id
+             AND e2.geloescht_am IS NULL
+         JOIN " . DB::tbl('athleten') . " a ON a.id=e1.athlet_id
+         JOIN " . DB::tbl('veranstaltungen') . " v1 ON v1.id=e1.veranstaltung_id
+         JOIN " . DB::tbl('veranstaltungen') . " v2 ON v2.id=e2.veranstaltung_id
+         WHERE e1.geloescht_am IS NULL
+           AND e1.resultat_num IS NOT NULL AND e2.resultat_num IS NOT NULL
+           AND ABS(e1.resultat_num - e2.resultat_num) <= 2
+         ORDER BY athlet, e1.disziplin, e1.resultat_num
+         LIMIT 500"
+    );
+    jsonOk($dups);
+}
+
+if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $method === 'DELETE' && !empty($parts[2])) {
+    Auth::requireAdmin();
+    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $id = (int)$parts[2];
+    DB::query("UPDATE $eTbl SET geloescht_am=NOW() WHERE id=?", [$id]);
+    jsonOk('In Papierkorb verschoben.');
+}
+
 if ($res === 'papierkorb') {
     Auth::requireAdmin();
     $eTbl = ergebnisTbl('strasse', $unified, $_sys);

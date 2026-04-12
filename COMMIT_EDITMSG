@@ -1,1 +1,1 @@
-v1027 – Fix: evenementen.uitslagen.nl – ältere Jahrgänge (2011/2012) nutzen table.u; Parser erkennt jetzt table.uitslag, table.i und table.u
+v1029 – Feature: Admin-Tab "Duplikate" – findet Ergebnis-Duplikate (gleicher Athlet+Disziplin, Toleranz ±2s/m, ohne AK/Platzierung); einzeln oder per ↓ in Papierkorb verschieben
