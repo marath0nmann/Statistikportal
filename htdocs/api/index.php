@@ -4290,10 +4290,19 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
     // Toleranz über resultat_num (numerisch), ohne AK und Platzierung
     $dups = DB::fetchAll(
         "SELECT e1.id AS id1, e2.id AS id2,
-                $nameExpr AS athlet,
+                $nameExpr AS athlet, e1.athlet_id AS athlet_id1, e2.athlet_id AS athlet_id2,
                 e1.disziplin,
                 e1.resultat AS res1, e1.altersklasse AS ak1,
+                e1.ak_platzierung AS akp1, e1.meisterschaft AS mstr1,
+                e1.ak_platz_meisterschaft AS mstr_platz1,
+                e1.disziplin_mapping_id AS mid1,
                 e2.resultat AS res2, e2.altersklasse AS ak2,
+                e2.ak_platzierung AS akp2, e2.meisterschaft AS mstr2,
+                e2.ak_platz_meisterschaft AS mstr_platz2,
+                e2.disziplin_mapping_id AS mid2,
+                COALESCE(k1.tbl_key, 'ergebnisse') AS tbl_key1,
+                COALESCE(k2.tbl_key, 'ergebnisse') AS tbl_key2,
+                COALESCE(k1.fmt, 'min') AS fmt1, COALESCE(k2.fmt, 'min') AS fmt2,
                 v1.datum AS dat1, v1.kuerzel AS veranst1, v1.id AS vid1,
                 v2.datum AS dat2, v2.kuerzel AS veranst2, v2.id AS vid2,
                 e1.resultat_num AS rnum1, e2.resultat_num AS rnum2,
@@ -4311,6 +4320,10 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
          JOIN " . DB::tbl('athleten') . " a ON a.id=e1.athlet_id
          JOIN " . DB::tbl('veranstaltungen') . " v1 ON v1.id=e1.veranstaltung_id
          JOIN " . DB::tbl('veranstaltungen') . " v2 ON v2.id=e2.veranstaltung_id
+         LEFT JOIN " . DB::tbl('disziplin_mapping') . " dm1 ON dm1.id=e1.disziplin_mapping_id
+         LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k1 ON k1.id=dm1.kategorie_id
+         LEFT JOIN " . DB::tbl('disziplin_mapping') . " dm2 ON dm2.id=e2.disziplin_mapping_id
+         LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k2 ON k2.id=dm2.kategorie_id
          LEFT JOIN " . DB::tbl('benutzer') . " b1 ON b1.id=e1.erstellt_von
          LEFT JOIN " . DB::tbl('athleten') . " a1 ON a1.id=b1.athlet_id
          LEFT JOIN " . DB::tbl('benutzer') . " b2 ON b2.id=e2.erstellt_von

@@ -2708,6 +2708,7 @@ async function renderAdminDuplikate() {
     return kuerzel ? (kuerzel.split(' ').slice(1).join(' ') || kuerzel) : '–';
   }
 
+  window._dupData = dups;
   var pairsHtml = '';
   if (!dups.length) {
     pairsHtml = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Keine Duplikate gefunden</div></div>';
@@ -2724,7 +2725,8 @@ async function renderAdminDuplikate() {
             '</a>' +
           '</td>' +
           '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.eingetragen_von1||'–') + '</td>' +
-          '<td style="padding:6px 10px">' +
+          '<td style="padding:6px 10px;white-space:nowrap">' +
+            '<button class="btn btn-ghost btn-sm" title="Bearbeiten" onclick="dupEditErgebnis(' + i + ',1)">&#x270E;</button> ' +
             '<button class="btn btn-ghost btn-sm" title="In Papierkorb" onclick="dupDelete(' + d.id1 + ',this)">🗑️</button>' +
           '</td>' +
         '</tr>' +
@@ -2737,7 +2739,8 @@ async function renderAdminDuplikate() {
             '</a>' +
           '</td>' +
           '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.eingetragen_von2||'–') + '</td>' +
-          '<td style="padding:6px 10px">' +
+          '<td style="padding:6px 10px;white-space:nowrap">' +
+            '<button class="btn btn-ghost btn-sm" title="Bearbeiten" onclick="dupEditErgebnis(' + i + ',2)">&#x270E;</button> ' +
             '<button class="btn btn-ghost btn-sm" title="In Papierkorb" onclick="dupDelete(' + d.id2 + ',this)">🗑️</button>' +
           '</td>' +
         '</tr>';
@@ -2775,6 +2778,26 @@ async function renderAdminDuplikate() {
       '<button class="btn btn-ghost btn-sm" onclick="renderAdminDuplikate()">↻ Neu laden</button>' +
     '</div>' : '') +
     pairsHtml;
+}
+
+function dupEditErgebnis(idx, which) {
+  var d = (window._dupData || [])[idx];
+  if (!d) return;
+  var n = String(which);
+  openEditErgebnis(
+    d['id'+n],
+    d['tbl_key'+n] || 'ergebnisse',
+    d.disziplin,
+    d['res'+n],
+    d['ak'+n],
+    d['akp'+n],
+    d['mstr'+n],
+    d['fmt'+n] || 'min',
+    d['athlet_id'+n],
+    d.athlet,
+    d['mid'+n] || null,
+    d['mstr_platz'+n]
+  );
 }
 
 async function dupDelete(id, btn) {
