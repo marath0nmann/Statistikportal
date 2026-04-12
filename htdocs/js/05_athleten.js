@@ -447,25 +447,30 @@ function _apRender() {
   var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : 'TuS Oedt';
   var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor' || currentUser.rolle === 'athlet');
 
+  // Interne + externe Ergebnisse zusammenführen und nach Datum sortieren (neueste zuerst)
+  var _allRows = filteredErgs.map(function(e) { return { _type: 'int', d: e }; })
+    .concat(extPbs.map(function(p) { return { _type: 'ext', d: p }; }));
+  _allRows.sort(function(a, b) {
+    var da = a.d.datum || ''; var db = b.d.datum || '';
+    return da < db ? 1 : da > db ? -1 : 0;
+  });
   var rows = '';
-  // Interne Ergebnisse
-  for (var i = 0; i < filteredErgs.length; i++) {
-    var e = filteredErgs[i];
-    var resStr = _apFmtRes(e, fmt);
-    var paceStr = (showPace && diszKm(e.disziplin) >= 1) ? fmtTime(calcPace(e.disziplin, e.resultat), 'min/km') : '';
-    var ort = fmtVeranstName(e);
-    rows += '<tr>' +
-      '<td style="padding:4px 6px">' + formatDate(e.datum) + '</td>' +
-      '<td style="padding:4px 6px">' + (e.altersklasse || '&ndash;') + '</td>' +
-      '<td style="padding:4px 6px" class="result">' + resStr + '</td>' +
-      (showPace ? '<td style="padding:4px 6px" class="ort-text">' + paceStr + '</td>' : '') +
-      '<td style="padding:4px 6px;color:var(--text2);font-size:12px">' + ort + '</td>' +
-      (hasExt ? '<td style="padding:4px 6px;font-size:11px;color:var(--text2)">' + clubName + '</td>' : '') +
-    '</tr>';
-  }
-  // Externe PBs
-  for (var j = 0; j < extPbs.length; j++) {
-    var p = extPbs[j];
+  for (var _ri = 0; _ri < _allRows.length; _ri++) {
+    if (_allRows[_ri]._type === 'int') {
+      var e = _allRows[_ri].d;
+      var resStr = _apFmtRes(e, fmt);
+      var paceStr = (showPace && diszKm(e.disziplin) >= 1) ? fmtTime(calcPace(e.disziplin, e.resultat), 'min/km') : '';
+      var ort = fmtVeranstName(e);
+      rows += '<tr>' +
+        '<td style="padding:4px 6px">' + formatDate(e.datum) + '</td>' +
+        '<td style="padding:4px 6px">' + (e.altersklasse || '&ndash;') + '</td>' +
+        '<td style="padding:4px 6px" class="result">' + resStr + '</td>' +
+        (showPace ? '<td style="padding:4px 6px" class="ort-text">' + paceStr + '</td>' : '') +
+        '<td style="padding:4px 6px;color:var(--text2);font-size:12px">' + ort + '</td>' +
+        (hasExt ? '<td style="padding:4px 6px;font-size:11px;color:var(--text2)">' + clubName + '</td>' : '') +
+      '</tr>';
+    } else {
+      var p = _allRows[_ri].d;
     var editBtns = canEdit
       ? '<span style="margin-left:6px;white-space:nowrap">' +
           '<button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:10px" data-pb-edit="' + p.id + '">✏️</button> ' +
@@ -485,7 +490,8 @@ function _apRender() {
       '<td style="padding:4px 6px;font-size:12px;color:var(--text2)">' + (p.wettkampf || '&ndash;') + editBtns + '</td>' +
       (hasExt ? '<td style="padding:4px 6px;font-size:11px;color:var(--text2)">' + (p.verein || '') + '</td>' : '') +
     '</tr>';
-  }
+    } // end else (externe PBs)
+  } // end _allRows loop
   var paceHeader = showPace ? '<th style="padding:4px 6px;text-align:left">Pace /km</th>' : '';
   var vereinHeader = hasExt ? '<th style="padding:4px 6px;text-align:left">Verein</th>' : '';
   var tableHtml = rows ?

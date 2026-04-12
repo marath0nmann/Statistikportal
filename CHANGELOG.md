@@ -1,3 +1,9 @@
+## v1004
+- Fix: Neueste Bestleistungen – externe Ergebnisse (athlet_pb) werden jetzt per UNION in Phase 1 einbezogen → Debüt und PB korrekt berechnet (statt pauschal "PB")
+
+## v1003
+- Fix: Athletenprofil – Ergebnisliste nach Datum sortiert (intern + extern gemischt, neueste zuerst)
+
 ## v1002 – Bugfix: Veranstaltungen-Tab zeigt zuletzt besuchte Unterseite
 
 - Klick auf Veranstaltungen im Hauptmenu setzt jetzt veranstView, serieId und veranstaltungId zurück

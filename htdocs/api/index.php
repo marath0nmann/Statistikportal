@@ -1646,18 +1646,46 @@ if ($res === 'dashboard' && $method === 'GET') {
 
         // merge_ak: Jugend-AKs zu MHK/WHK zusammenfassen (aus Settings)
         $mergeAKTl = ($_GET['merge_ak_tl'] ?? '1') !== '0';
-        $akExprTl  = buildAkCaseExpr($mergeAKTl);
-        $ergs = DB::fetchAll(
-            "SELECT e.resultat, $valExpr AS val_sort, v.datum, ($akExprTl) AS altersklasse,
-                    $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
-             FROM $tblN e
-             JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
-             JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
-             WHERE $ergWhere AND e.resultat IS NOT NULL AND e.resultat != ''
-               AND e.geloescht_am IS NULL
-             ORDER BY v.datum ASC, e.id ASC",
-            [$ergParam]
-        );
+        $akExprTl    = buildAkCaseExpr($mergeAKTl);
+        $akExprTlPb  = buildAkCaseExpr($mergeAKTl, 'pb');
+        $pbErgWhere  = $mappingId
+            ? "pb.disziplin_mapping_id=?"
+            : "pb.disziplin=? AND pb.disziplin_mapping_id IS NULL";
+        // valExpr für athlet_pb (alias pb statt e)
+        $pbValExpr = str_replace('e.resultat', 'pb.resultat', $valExpr);
+        $extOnly = $dInfo['ext_only'] ?? false;
+        if ($extOnly) {
+            // Nur externe Ergebnisse für diese Disziplin
+            $ergs = DB::fetchAll(
+                "SELECT pb.resultat, $pbValExpr AS val_sort, pb.datum, ($akExprTlPb) AS altersklasse,
+                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
+                 FROM " . DB::tbl('athlet_pb') . " pb
+                 JOIN " . DB::tbl('athleten') . " a ON a.id=pb.athlet_id
+                 WHERE $pbErgWhere AND pb.resultat IS NOT NULL AND pb.resultat != ''
+                   AND pb.datum IS NOT NULL
+                 ORDER BY pb.datum ASC, pb.id ASC",
+                [$ergParam]
+            );
+        } else {
+            $ergs = DB::fetchAll(
+                "SELECT e.resultat, $valExpr AS val_sort, v.datum, ($akExprTl) AS altersklasse,
+                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
+                 FROM $tblN e
+                 JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
+                 JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
+                 WHERE $ergWhere AND e.resultat IS NOT NULL AND e.resultat != ''
+                   AND e.geloescht_am IS NULL
+                 UNION ALL
+                 SELECT pb.resultat, $pbValExpr AS val_sort, pb.datum, ($akExprTlPb) AS altersklasse,
+                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
+                 FROM " . DB::tbl('athlet_pb') . " pb
+                 JOIN " . DB::tbl('athleten') . " a ON a.id=pb.athlet_id
+                 WHERE $pbErgWhere AND pb.resultat IS NOT NULL AND pb.resultat != ''
+                   AND pb.datum IS NOT NULL
+                 ORDER BY datum ASC, 1 ASC",
+                [$ergParam, $ergParam]
+            );
+        }
 
         $bestGesamt   = null;
         $bestByG      = [];
@@ -1834,40 +1862,7 @@ if ($res === 'dashboard' && $method === 'GET') {
         return $cmp !== 0 ? $cmp : ($a['priority'] - $b['priority']);
     });
 
-    // Externe PBs in die Timeline aufnehmen (nur wenn Datum gesetzt)
-    try {
-        $pbRows = DB::fetchAll(
-            "SELECT pb.disziplin, pb.resultat, pb.datum,
-                    $nameExpr AS athlet, a.id AS athlet_id,
-                    COALESCE(m.fmt_override, k.fmt, 'min') AS fmt
-             FROM " . DB::tbl('athlet_pb') . " pb
-             JOIN " . DB::tbl('athleten') . " a ON a.id = pb.athlet_id
-             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.disziplin=pb.disziplin
-             LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
-             WHERE pb.datum IS NOT NULL
-             ORDER BY pb.datum DESC"
-        );
-        foreach ($pbRows as $pb) {
-            $fmt = $pb['fmt'] ?? 'min';
-            $timelineEvents[] = [
-                'datum'     => $pb['datum'],
-                'disziplin' => $pb['disziplin'],
-                'athlet'    => $pb['athlet'],
-                'athlet_id' => $pb['athlet_id'],
-                'resultat'  => $pb['resultat'],
-                'label'     => 'PB',
-                'fmt'       => $fmt,
-                'priority'  => 1,
-                'extern'    => true,
-            ];
-        }
-    } catch (\Exception $e) { /* athlet_pb noch nicht migriert */ }
-
-    // Nochmals sortieren (PBs eingemischt)
-    usort($timelineEvents, function($a, $b) {
-        $cmp = strcmp($b['datum'], $a['datum']);
-        return $cmp !== 0 ? $cmp : ($a['priority'] - $b['priority']);
-    });
+    // (athlet_pb wird bereits per UNION in Phase 1 berücksichtigt)
     $rekordeTimeline = array_slice($timelineEvents, 0, min((int)($_GET['timeline_limit'] ?? 20), 200));
 
     // Aktuelle Ergebnisse (mit fmt-Info aus disziplin_mapping)
