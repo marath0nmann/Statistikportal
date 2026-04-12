@@ -1,1 +1,1 @@
-v1046 – Feature: MikaTiming – "Nicht für Verein"-Checkbox wird automatisch gesetzt wenn Vereinsname leer oder kein Treffer mit eigenem Verein; tatsächlicher Clubname aus HTML extrahiert
+v1047 – Perf: MikaTiming Athleten-Namenssuche – parallele Requests (5 gleichzeitig per Promise.all) statt sequentiell; ca. 5× schneller

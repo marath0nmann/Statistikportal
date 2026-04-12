@@ -1226,18 +1226,23 @@ async function bulkImportFromMika(url, kat, statusEl) {
     });
     var _idpSeen = {};
     var _nameRows = [];
-    for (var _ni = 0; _ni < _nachnamen.length; _ni++) {
-      var _nn = _nachnamen[_ni];
-      if (statusEl) statusEl.textContent = '⏳ Suche nach ' + _nn + '… (' + (_ni+1) + '/' + _nachnamen.length + ')';
-      var _nr = await apiGet('mika-fetch?base_url=' + encodeURIComponent(baseUrl) + '&club=' + encodeURIComponent(vereinRaw) + '&name=' + encodeURIComponent(_nn));
-      if (!_nr || !_nr.ok || !_nr.data.results) continue;
-      _nr.data.results.forEach(function(res) {
-        if (_idpSeen[res.idp]) return;
-        // Nur Athleten aus der eigenen DB aufnehmen (Name-Match)
-        if (uitsAutoMatch(res.name, _athleten) !== null) {
-          _idpSeen[res.idp] = true;
-          _nameRows.push(res);
-        }
+    // Parallele Requests in Batches (5 gleichzeitig) für ~5× Speedup
+    var _BATCH = 5;
+    for (var _ni = 0; _ni < _nachnamen.length; _ni += _BATCH) {
+      var _batch = _nachnamen.slice(_ni, _ni + _BATCH);
+      if (statusEl) statusEl.textContent = '⏳ Athleten-Suche ' + Math.min(_ni + _BATCH, _nachnamen.length) + '/' + _nachnamen.length + '…';
+      var _batchResults = await Promise.all(_batch.map(function(_nn) {
+        return apiGet('mika-fetch?base_url=' + encodeURIComponent(baseUrl) + '&club=' + encodeURIComponent(vereinRaw) + '&name=' + encodeURIComponent(_nn));
+      }));
+      _batchResults.forEach(function(_nr) {
+        if (!_nr || !_nr.ok || !_nr.data.results) return;
+        _nr.data.results.forEach(function(res) {
+          if (_idpSeen[res.idp]) return;
+          if (uitsAutoMatch(res.name, _athleten) !== null) {
+            _idpSeen[res.idp] = true;
+            _nameRows.push(res);
+          }
+        });
       });
     }
     _bkDbgLine('Namens-Treffer', _nameRows.length + ' Athleten gefunden');
