@@ -1,1 +1,1 @@
-v1026 – Feature: Bulk-Import – Checkbox "Auch inaktive Athleten" (default: an); steuert window._bkMatchInaktive in uitsAutoMatch
+v1027 – Fix: evenementen.uitslagen.nl – ältere Jahrgänge (2011/2012) nutzen table.u; Parser erkennt jetzt table.uitslag, table.i und table.u
