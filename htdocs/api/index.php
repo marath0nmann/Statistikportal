@@ -1652,7 +1652,7 @@ if ($res === 'dashboard' && $method === 'GET') {
             ? "pb.disziplin_mapping_id=?"
             : "pb.disziplin=? AND pb.disziplin_mapping_id IS NULL";
         // valExpr für athlet_pb (alias pb statt e)
-        $pbValExpr = str_replace('e.resultat', 'pb.resultat', $valExpr);
+        $pbValExpr = str_replace(['e.resultat_num', 'e.resultat'], ['NULL', 'pb.resultat'], $valExpr);
         $extOnly = $dInfo['ext_only'] ?? false;
         if ($extOnly) {
             // Nur externe Ergebnisse für diese Disziplin

@@ -1,4 +1,7 @@
-## v1006
+## v1007
+- Fix: Dashboard-Fehler "Unknown column pb.resultat_num" – athlet_pb hat kein resultat_num, wird jetzt als NULL behandelt
+
+## v1007
 - Build: README.md, COMMIT_EDITMSG und CHANGELOG.md werden jetzt automatisch von build.sh aktualisiert
 - Fix: Neueste Bestleistungen – Debüt und PB korrekt aus externen Ergebnissen (athlet_pb per UNION)
 
