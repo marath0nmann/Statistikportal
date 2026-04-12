@@ -3296,26 +3296,170 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     }
     $debug['eventId'] = $eventId;
 
-    // 2. Suche: Vereinssuche (Standard) oder Namensuche (Fallback)
+    // 2. Interface-Erkennung: Neu (POST, kein club-Feld) vs Alt (GET, club-Feld)
+    $isNewInterface = strpos($mainHtml, 'simple-search-name') !== false
+        || (strpos($mainHtml, 'search[club]') === false && strpos($mainHtml, 'pid=search') !== false);
     $nameSearch = trim($_GET['name'] ?? '');
-    if ($nameSearch) {
-        // Namensuche: search[name]=Nachname
-        $searchUrl = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
-            . '&search%5Bname%5D=' . urlencode($nameSearch)
-            . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
-            . '&search_sort=name'
-            . ($eventId ? '&event=' . urlencode($eventId) . '&search_event=' . urlencode($eventId) : '');
-    } else {
-        // Vereinssuche (Standard)
-        $searchUrl = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
-            . '&search%5Bclub%5D=' . urlencode($club)
-            . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
-            . '&search_sort=name'
-            . ($eventId ? '&event=' . urlencode($eventId) . '&search_event=' . urlencode($eventId) : '');
-    }
-    $searchHtml = mikaCurl($searchUrl, $cookieFile, $ua);
-    $debug = ['searchUrl' => $searchUrl, 'htmlLen' => strlen($searchHtml)];
+    $debug = ['isNewInterface' => $isNewInterface, 'nameSearch' => $nameSearch];
 
+    if ($isNewInterface) {
+        // Neue Interface: POST pro Event-Typ
+        $searchName = $nameSearch ?: $club;
+        // Event-IDs aus Hauptseite extrahieren oder Defaults
+        $eventIds = [];
+        preg_match_all('/value="([A-Z0-9]{1,5}L?)"[^>]*>[^<]+(?:km|Lauf|Marathon)/i', $mainHtml, $evm);
+        foreach ($evm[1] as $ev) $eventIds[] = $ev;
+        // Fallback auf option-Values aus select
+        preg_match_all('/<option[^>]+value="([A-Z0-9]{1,5})"/', $mainHtml, $opm);
+        foreach ($opm[1] as $ev) { if (!in_array($ev,$eventIds) && preg_match('/^[A-Z0-9]{1,5}$/',$ev)) $eventIds[] = $ev; }
+        if (empty($eventIds)) $eventIds = ['HM','10L','5L'];
+        $eventIds = array_unique(array_slice($eventIds, 0, 10));
+
+        $searchHtml = '';
+        $searchUrl = $baseUrl . '?pid=search&pidp=start';
+        $allResults = [];
+
+        function mikaPostCurl(string $url, string $postData, string $cookieFile, string $ua): string {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $postData,
+                CURLOPT_COOKIEJAR      => $cookieFile,
+                CURLOPT_COOKIEFILE     => $cookieFile,
+                CURLOPT_USERAGENT      => $ua,
+                CURLOPT_TIMEOUT        => 15,
+                CURLOPT_HTTPHEADER     => [
+                    'Accept: text/html,application/xhtml+xml',
+                    'Accept-Language: de-DE,de;q=0.9',
+                    'Content-Type: application/x-www-form-urlencoded',
+                    'Origin: ' . rtrim($url, '/'),
+                    'Referer: ' . $url,
+                ],
+            ]);
+            $r = curl_exec($ch); curl_close($ch);
+            return $r ?: '';
+        }
+
+        foreach ($eventIds as $evId) {
+            $postData = http_build_query([
+                'search[name]'      => $searchName,
+                'search[firstname]' => '',
+                'search[start_no]'  => '',
+                'search[age_class]' => '%',
+                'search[sex]'       => '%',
+                'event'             => $evId,
+            ]);
+            $html = mikaPostCurl($searchUrl, $postData, $cookieFile, $ua);
+            $debug['events'][$evId] = strlen($html);
+
+            // Parse results from POST response
+            $dom2 = new DOMDocument('1.0', 'UTF-8');
+            @$dom2->loadHTML('<?xml encoding="UTF-8">' . $html);
+            $xp2 = new DOMXPath($dom2);
+            $liNodes2 = $xp2->query('//li[contains(@class,"list-group-item") and not(contains(@class,"list-group-header")) and not(contains(@class,"list-info"))]');
+            foreach ($liNodes2 as $li) {
+                $liHtml2 = $dom2->saveHTML($li);
+                $idp = '';
+                foreach ($xp2->query('.//a[@href]', $li) as $a) {
+                    $href = $a->getAttribute('href');
+                    if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $href, $im)) { $idp = $im[1]; break; }
+                }
+                if (!$idp) continue;
+                $name = '';
+                foreach ($xp2->query('.//*[contains(@class,"name-standard") or contains(@class,"fullname")]', $li) as $n) {
+                    $t = trim($n->textContent);
+                    if ($t) { $name = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $t); break; }
+                }
+                if (!$name) {
+                    // Fallback: erster Text-Knoten mit Komma (Nachname, Vorname)
+                    foreach ($xp2->query('.//td|.//div[contains(@class,"list-field")]', $li) as $td) {
+                        $t = trim($td->textContent);
+                        if (strpos($t, ',') !== false && strlen($t) > 4 && strlen($t) < 60) { $name = $t; break; }
+                    }
+                }
+                if (!$name) continue;
+                $liClub = '';
+                foreach ($xp2->query('.//*[contains(@class,"club") or contains(@class,"f-club")]', $li) as $n) {
+                    $t = trim($n->textContent); if ($t) { $liClub = $t; break; }
+                }
+                $placeGes = ''; $placeAK = '';
+                foreach ($xp2->query('.//*[contains(@class,"place-primary") or contains(@class,"place_all")]', $li) as $n) {
+                    $t = trim($n->textContent); if (ctype_digit($t)) { $placeGes = $t; break; }
+                }
+                foreach ($xp2->query('.//*[contains(@class,"place-secondary") or contains(@class,"place_age")]', $li) as $n) {
+                    $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK = $t; break; }
+                }
+                if (!isset($allResults[$idp])) {
+                    $allResults[$idp] = [
+                        'name' => trim($name), 'contest' => $evId,
+                        'netto' => '', 'ak' => '',
+                        'platz_ak' => $placeAK, 'platz_ges' => $placeGes,
+                        'event_id' => $evId, 'idp' => $idp, 'club' => $liClub,
+                    ];
+                }
+            }
+        }
+        $results = array_values($allResults);
+        $debug['rowsFound'] = count($results);
+
+        // Detail-Seiten für Zeit+AK (wie bei altem Interface)
+        foreach ($results as &$res) {
+            $detailUrl = $baseUrl . '?content=detail&fpid=search&pid=search&lang=DE'
+                . '&idp=' . urlencode($res['idp']) . '&event=' . urlencode($res['event_id']) . '&pidp=start';
+            $dHtml = mikaCurl($detailUrl, $cookieFile, $ua);
+            if (!$dHtml) continue;
+            $detailDom = new DOMDocument('1.0', 'UTF-8');
+            @$detailDom->loadHTML('<?xml encoding="UTF-8">' . $dHtml);
+            $detailXpath = new DOMXPath($detailDom);
+            foreach (['f-time_finish_netto','f-time_finish_brutto'] as $tcls) {
+                foreach ($detailXpath->query('//*[contains(@class,"'.$tcls.'")]') as $tn) {
+                    $t = trim($tn->textContent);
+                    if (preg_match('/(\d{1,2}:\d{2}:\d{2}|\d{1,2}:\d{2})/', $t, $tm)) { $res['netto'] = $tm[1]; break 2; }
+                }
+            }
+            $sex = '';
+            if (preg_match('/(Frauen|Women|weiblich|Female)/i', $dHtml)) $sex = 'W';
+            elseif (preg_match('/(Männer|Men|männlich|Male)/i', $dHtml)) $sex = 'M';
+            foreach ($detailXpath->query('//*[contains(@class,"f-_type_age_class") or contains(@class,"f-type_age_class")]') as $an) {
+                $t = trim($an->textContent);
+                if ($t && $t !== '0' && is_numeric($t)) { $res['ak'] = ($sex?:'') . $t; break; }
+            }
+            if (!$res['ak']) {
+                $evPfx = strtoupper(preg_replace('/_.*$/', '', $res['event_id']));
+                if (in_array($evPfx, ['W','F','HW'])) $res['ak'] = 'W';
+                elseif (in_array($evPfx, ['M','HM','H'])) $res['ak'] = 'M';
+            }
+            $contestMap = ['HM'=>'Halbmarathon','10L'=>'10km','5L'=>'5km'];
+            if (isset($contestMap[$res['event_id']])) $res['contest'] = $contestMap[$res['event_id']];
+        }
+        unset($res);
+
+        @unlink($cookieFile);
+        jsonOk(['results' => $results, 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
+
+    } else {
+        // Altes Interface: GET mit search[club] oder search[name]
+        if ($nameSearch) {
+            $searchUrl = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
+                . '&search%5Bname%5D=' . urlencode($nameSearch)
+                . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
+                . '&search_sort=name'
+                . ($eventId ? '&event=' . urlencode($eventId) . '&search_event=' . urlencode($eventId) : '');
+        } else {
+            $searchUrl = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
+                . '&search%5Bclub%5D=' . urlencode($club)
+                . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
+                . '&search_sort=name'
+                . ($eventId ? '&event=' . urlencode($eventId) . '&search_event=' . urlencode($eventId) : '');
+        }
+        $searchHtml = mikaCurl($searchUrl, $cookieFile, $ua);
+        $debug['searchUrl'] = $searchUrl;
+        $debug['htmlLen'] = strlen($searchHtml);
+    }
+
+    if (!$isNewInterface) {
     // Ergebniszeilen: li mit event-Klasse + idp-Link
     $results = [];
     // DOMDocument für robustes Parsing
@@ -3464,6 +3608,8 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 
     @unlink($cookieFile);
     jsonOk(['results' => $results, 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
+
+    } // end old interface
 }
 
 if ($res === 'rr-fetch' && $method === 'GET') {

@@ -1,1 +1,1 @@
-v1047 – Perf: MikaTiming Athleten-Namenssuche – parallele Requests (5 gleichzeitig per Promise.all) statt sequentiell; ca. 5× schneller
+v1048 – Feature: MikaTiming – automatische Erkennung neuer Interface (POST, kein club-Feld); sucht pro Event-Typ (HM/10L/5L) via POST search[name]; Detail-Seiten für Zeit+AK
