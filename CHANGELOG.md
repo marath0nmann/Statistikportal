@@ -1,38 +1,41 @@
-## v1016
+## v1017
+- Fix: Top-10-Limit wiederhergestellt; bei unique=OFF können Athleten mehrfach in den Top 10 erscheinen
+
+## v1017
 - Revert: athlet_pb UNION in Serie-Bestleistungen entfernt (nur interne Ergebnisse)
 - Fix: unique=OFF zeigt jetzt alle Ergebnisse je Athlet (TOP-Limit aufgehoben, Server liefert bis 500)
 
-## v1016
+## v1017
 - Fix: Serie-Bestleistungen – externe Ergebnisse (athlet_pb mit veranstaltung_id) werden jetzt per UNION einbezogen
 - Fix: Sortierung korrekt über Subquery (sort_val als berechnete Spalte)
 
-## v1016
+## v1017
 - Fix: Reg. Veranstaltungen – Schalter jetzt unten im grauen Ergebnis-Panel (wie Bestleistungen-Tab)
 - Fix: "Jede*r Athlet*in nur einmal" wird jetzt server-seitig per unique-Param korrekt respektiert
 
-## v1016
+## v1017
 - Feature: Regelmäßige Veranstaltungen – Bestleistungen-Schalter (Jugend-AK, nur einmal, Jahres-Highlight) direkt im View; teilen state.rekState mit Bestleistungen-Tab
 
-## v1016
+## v1017
 - Fix: Disziplin-Buttons Bestleistungen – Sortierung nach Ergebnisanzahl korrigiert (Feld war "cnt" nicht "anz_ergebnisse")
 
-## v1016
+## v1017
 - UX: Regelmäßige Veranstaltungen – Disziplin-Buttons bei Bestleistungen absteigend nach Ergebnisanzahl sortiert
 
-## v1016
+## v1017
 - Fix: Veranstaltungen-Suche – Suchfeld bleibt beim Tippen im DOM (kein innerHTML-Reset), Fokus auf Mobile stabil
 
-## v1016
+## v1017
 - UX: Veranstaltungen – Button-Menü entfernt; regelmäßige Veranstaltungen erscheinen jetzt als Chips direkt oberhalb der Veranstaltungsliste
 
-## v1016
+## v1017
 - Fix: Dashboard-Widget "Mein Athletenprofil" – "Wettkampfe" → "Wettkämpfe"
 - Fix: Wettkampf-Zähler (Dashboard-Widget + Athletenprofil) zählt jetzt auch externe Ergebnisse (athlet_pb)
 
-## v1016
+## v1017
 - Fix: Dashboard-Fehler "Unknown column pb.resultat_num" – athlet_pb hat kein resultat_num, wird jetzt als NULL behandelt
 
-## v1016
+## v1017
 - Build: README.md, COMMIT_EDITMSG und CHANGELOG.md werden jetzt automatisch von build.sh aktualisiert
 - Fix: Neueste Bestleistungen – Debüt und PB korrekt aus externen Ergebnissen (athlet_pb per UNION)
 

@@ -1,1 +1,1 @@
-v1016 – Revert: athlet_pb UNION in Serie-Bestleistungen entfernt (nur interne Ergebnisse)
+v1017 – Fix: Top-10-Limit wiederhergestellt; bei unique=OFF können Athleten mehrfach in den Top 10 erscheinen
