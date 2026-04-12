@@ -518,7 +518,7 @@ async function openAthletById(id) {
   var kategorien = r.data.kategorien || [];
   var initials = ((athlet.vorname || '')[0] || '') + ((athlet.nachname || '')[0] || '');
   var totalErg = 0;
-  for (var ki = 0; ki < kategorien.length; ki++) totalErg += (kategorien[ki].ergebnisse || []).length;
+  for (var ki = 0; ki < kategorien.length; ki++) totalErg += (kategorien[ki].ergebnisse || []).length + (kategorien[ki].pbs || []).length;
 
   // Externe PBs in kategorien einbetten
   var rawPbs = r.data.pbs || [];

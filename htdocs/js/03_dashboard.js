@@ -36,7 +36,7 @@ async function _loadEigenesProfilWidget(elId, showErg) {
   // Header
   // Wettkampf-Anzahl
   var totalErg2 = 0;
-  for (var _ki=0;_ki<kategorien.length;_ki++) totalErg2 += (kategorien[_ki].ergebnisse||[]).length;
+  for (var _ki=0;_ki<kategorien.length;_ki++) totalErg2 += (kategorien[_ki].ergebnisse||[]).length + (kategorien[_ki].pbs||[]).length;
 
   // Auszeichnungen laden
   var rAusz2 = await apiGet('athleten/' + currentUser.athlet_id + '/auszeichnungen');
@@ -49,7 +49,7 @@ async function _loadEigenesProfilWidget(elId, showErg) {
           (athlet.vorname||'') + ' ' + (athlet.nachname||'') +
         '</div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center">' +
-          '<span class="badge badge-ak">' + totalErg2 + ' Wettkampf' + (totalErg2 === 1 ? '' : 'e') + '</span>' +
+          '<span class="badge badge-ak">' + totalErg2 + ' ' + (totalErg2 === 1 ? 'Wettkampf' : 'Wettkämpfe') + '</span>' +
           akBadgeHtml +
           (athlet.geburtsjahr ? '<span style="font-size:11px;color:var(--text2)">Jahrgang ' + athlet.geburtsjahr + '</span>' : '') +
         '</div>' +
