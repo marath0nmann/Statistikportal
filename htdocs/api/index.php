@@ -3391,23 +3391,51 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 foreach ($xp2->query('.//*[contains(@class,"place-secondary") or contains(@class,"place_age")]', $li) as $n) {
                     $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK = $t; break; }
                 }
-                // Zeit direkt aus List-Item (neue Interface hat alle Spalten inline)
-                $liNetto = '';
-                foreach (['f-time_finish_netto','f-ziel','f-net_time','f-time_netto','f-time_finish_brutto'] as $tcls) {
-                    foreach ($xp2->query('.//*[contains(@class,"' . $tcls . '")]', $li) as $tn) {
-                        $t = trim($tn->textContent);
-                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $t, $tm)) { $liNetto = $tm[1]; break 2; }
+                // Neue Interface: Felder via type-* Klassen + list-label extrahieren
+                // Hilfsfunktion: Wert = Gesamttext minus Label-Text
+                $liNetto = ''; $liAK = '';
+
+                // Zeit: type-time, Label "Ziel" = Nettozeit
+                foreach ($xp2->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
+                    $labelEl = $xp2->query('.//*[contains(@class,"list-label")]', $tn)->item(0);
+                    $label = $labelEl ? trim($labelEl->textContent) : '';
+                    if ($label === 'Ziel' || $label === 'Zeit' || $label === '') {
+                        $raw = trim(str_replace($label, '', $tn->textContent));
+                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) { $liNetto = $tm[1]; break; }
                     }
                 }
-                // AK aus List-Item
-                $liAK = '';
-                foreach (['f-_type_age_class','f-type_age_class','f-age_class','f-ageclass','age_class'] as $acls) {
-                    foreach ($xp2->query('.//*[contains(@class,"' . $acls . '")]', $li) as $an) {
-                        $t = trim($an->textContent);
-                        if ($t && strlen($t) >= 2 && strlen($t) <= 8 && $t !== '0') { $liAK = $t; break 2; }
+                // AK + Verein: type-field, unterschieden via list-label
+                foreach ($xp2->query('.//*[contains(@class,"type-field")]', $li) as $fn) {
+                    $labelEl = $xp2->query('.//*[contains(@class,"list-label")]', $fn)->item(0);
+                    $label = $labelEl ? trim($labelEl->textContent) : '';
+                    $raw = trim(str_replace($label, '', $fn->textContent));
+                    if ($label === 'AK' && $raw && !$liAK) $liAK = $raw;
+                    if ($label === 'Verein' && $raw && !$liClub) $liClub = $raw;
+                }
+                // Fallback: irgendein H:MM:SS im Li-HTML
+                if (!$liNetto) {
+                    $liRawHtml = strip_tags($dom2->saveHTML($li));
+                    if (preg_match_all('/(\d{1,2}:\d{2}:\d{2})/', $liRawHtml, $tms)) {
+                        foreach ($tms[1] as $tmCandidate) {
+                            // Uhrzeiten (z.B. 11:41:54) ausschließen – Laufzeiten meist < 10h
+                            list($h,$m,$s) = explode(':', $tmCandidate);
+                            if ((int)$h <= 9 && (int)$m < 60 && (int)$s < 60) {
+                                $liNetto = $tmCandidate; break;
+                            }
+                        }
                     }
                 }
                 if (!isset($allResults[$idp])) {
+                    // Debug für ersten Fund
+                    if (!isset($debug['firstLiClasses'])) {
+                        preg_match_all('/class="([^"]+)"/', $dom2->saveHTML($li), $cm2);
+                        $allCl = []; foreach ($cm2[1] as $cs) foreach (explode(' ',$cs) as $cl) if (trim($cl)) $allCl[trim($cl)]=1;
+                        $debug['firstLiClasses'] = array_keys($allCl);
+                        $debug['firstLiText'] = mb_substr(strip_tags($dom2->saveHTML($li)), 0, 300);
+                        $debug['firstLiNetto'] = $liNetto;
+                        $debug['firstLiClub'] = $liClub;
+                        $debug['firstLiAK'] = $liAK;
+                    }
                     $allResults[$idp] = [
                         'name' => trim($name), 'contest' => $evId,
                         'netto' => $liNetto, 'ak' => $liAK,

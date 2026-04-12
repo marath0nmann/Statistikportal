@@ -1,1 +1,1 @@
-v1050 – Fix: MikaTiming neues Interface – Zeit/AK/Verein direkt aus List-Item geparst; kein Detail-Seiten-Fetch mehr (JS-gerendert, war immer leer)
+v1052 – Fix: MikaTiming neues Interface – Zeit (type-time/Label "Ziel"), AK und Verein (type-field/list-label) korrekt extrahiert
