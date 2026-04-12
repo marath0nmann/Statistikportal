@@ -3720,7 +3720,16 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
             }
         }
         usort($merged, function($a, $b) {
-            return $b['teilnahmen'] <=> $a['teilnahmen'] ?: strcmp($a['athlet'], $b['athlet']);
+            // 1. Gesamt-Teilnahmen absteigend
+            $cmp = $b['teilnahmen'] <=> $a['teilnahmen'];
+            if ($cmp !== 0) return $cmp;
+            // 2. Vereins-Teilnahmen absteigend (= Gesamt minus externe)
+            $aVerein = (int)$a['teilnahmen'] - (int)($a['extern_teilnahmen'] ?? 0);
+            $bVerein = (int)$b['teilnahmen'] - (int)($b['extern_teilnahmen'] ?? 0);
+            $cmp2 = $bVerein <=> $aVerein;
+            if ($cmp2 !== 0) return $cmp2;
+            // 3. Alphabetisch
+            return strcmp($a['athlet'], $b['athlet']);
         });
         // Jahre pro Athlet (Verein + Extern)
         $detailVerein = DB::fetchAll(
