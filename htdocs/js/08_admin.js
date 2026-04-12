@@ -369,7 +369,7 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">&#x1F3A8; Darstellung</button>' +
     '<button class="subtab' + (t==='dashboard_cfg'  ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">&#x1F4CA;&#xFE0E; Dashboard</button>' +
     '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">✋ Anträge' + _adminBadge((window._adminPendingAntraege||0)+(window._adminPendingFreigabe||0)) + '</button>' +
-    '<button class="subtab' + (t==='duplikate'      ? ' active' : '') + '" onclick="navAdmin(\'duplikate\')">⚠️ Duplikate</button>' +
+    '<button class="subtab' + (t==='wartung'        ? ' active' : '') + '" onclick="navAdmin(\'wartung\')">🔧 Wartung</button>' +
     '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb' + _adminBadge(window._adminPendingPapierkorb||0) + '</button>' +
   '</div>';
 }
@@ -416,7 +416,7 @@ async function renderAdmin() {
   if (state.adminTab === 'altersklassen')  { await renderAdminAltersklassen(); return; }
   if (state.adminTab === 'meisterschaften'){ await renderAdminMeisterschaften(); return; }
   if (state.adminTab === 'antraege')        { await renderAdminAntraege(); return; }
-  if (state.adminTab === 'duplikate')      { await renderAdminDuplikate(); return; }
+  if (state.adminTab === 'wartung')        { await renderAdminWartung(); return; }
   if (state.adminTab === 'papierkorb')     { await renderPapierkorb(); return; }
   if (state.adminTab === 'darstellung')    { renderAdminDarstellung(); return; }
   if (state.adminTab === 'dashboard_cfg')  { await renderAdminDashboard(); return; }
@@ -2694,10 +2694,25 @@ function katGruppeDelete(idx) {
   _katGruppenSave();
 }
 
+// ── Admin: Wartung (Container mit Sub-Tabs) ─────────────────────────────────
+var _wartungTab = 'duplikate';
+async function renderAdminWartung(subTab) {
+  if (subTab) _wartungTab = subTab;
+  if (_wartungTab === 'verwaist') { await renderAdminVerwaist(); return; }
+  await renderAdminDuplikate();
+}
+
+function _wartungSubtabs() {
+  return '<div style="display:flex;gap:8px;margin-bottom:20px">' +
+    '<button class="btn' + (_wartungTab === 'duplikate' ? ' btn-primary' : ' btn-ghost') + '" onclick="renderAdminWartung(\'duplikate\')">⚠️ Duplikate</button>' +
+    '<button class="btn' + (_wartungTab === 'verwaist'  ? ' btn-primary' : ' btn-ghost') + '" onclick="renderAdminWartung(\'verwaist\')">🏚️ Verwaiste Veranstaltungen</button>' +
+  '</div>';
+}
+
 // ── Admin: Duplikate ──────────────────────────────────────────────────────
 async function renderAdminDuplikate() {
   var el = document.getElementById('main-content');
-  el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Lade Duplikate&hellip;</div>';
+  el.innerHTML = adminSubtabs() + _wartungSubtabs() + '<div class="loading"><div class="spinner"></div>Lade Duplikate&hellip;</div>';
 
   var r = await apiGet('admin/duplikate');
   if (!r || !r.ok) { el.innerHTML = adminSubtabs() + '<div style="color:var(--accent);padding:20px">Fehler: ' + (r&&r.fehler||'?') + '</div>'; return; }
@@ -2768,7 +2783,7 @@ async function renderAdminDuplikate() {
     });
   }
 
-  el.innerHTML = adminSubtabs() +
+  el.innerHTML = adminSubtabs() + _wartungSubtabs() +
     '<h2 style="margin-bottom:4px">⚠️ Duplikate</h2>' +
     '<p style="color:var(--text2);font-size:13px;margin-bottom:18px">' +
       'Ergebnisse desselben Athleten in derselben Disziplin am selben Datum mit ähnlichem Resultat (Toleranz &plusmn;2 s/m). ' +
@@ -2817,6 +2832,75 @@ async function dupIgnore(id1, id2, btn) {
 async function dupDelete(id, btn) {
   if (btn) btn.disabled = true;
   var r = await apiDel('admin/duplikate/' + id);
+  if (r && r.ok) {
+    notify('In Papierkorb verschoben.', 'ok');
+    var tr = btn ? btn.closest('tr') : null;
+    if (tr) { tr.style.opacity = '0.35'; tr.style.pointerEvents = 'none'; }
+  } else {
+    notify('Fehler: ' + (r&&r.fehler||'?'), 'err');
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ── Admin: Verwaiste Veranstaltungen ─────────────────────────────────────────
+async function renderAdminVerwaist() {
+  var el = document.getElementById('main-content');
+  el.innerHTML = adminSubtabs() + _wartungSubtabs() + '<div class="loading"><div class="spinner"></div>Lade verwaiste Veranstaltungen&hellip;</div>';
+
+  var r = await apiGet('admin/verwaist');
+  if (!r || !r.ok) {
+    el.innerHTML = adminSubtabs() + _wartungSubtabs() + '<div style="color:var(--accent);padding:20px">Fehler: ' + (r&&r.fehler||'?') + '</div>';
+    return;
+  }
+
+  var rows = r.data || [];
+
+  var tableHtml = '';
+  if (!rows.length) {
+    tableHtml = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Keine verwaisten Veranstaltungen gefunden</div></div>';
+  } else {
+    tableHtml =
+      '<div style="margin-bottom:12px;display:flex;gap:10px;align-items:center">' +
+        '<span style="color:var(--text2);font-size:13px">' + rows.length + ' verwaiste Veranstaltung' + (rows.length===1?'':'en') + ' gefunden</span>' +
+        '<button class="btn btn-ghost btn-sm" onclick="renderAdminVerwaist()">↻ Neu laden</button>' +
+      '</div>' +
+      '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
+        '<thead><tr style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text2)">' +
+          '<th style="padding:6px 10px;text-align:left">Veranstaltung</th>' +
+          '<th style="padding:6px 10px;text-align:left">Datum</th>' +
+          '<th style="padding:6px 10px;text-align:left">Ort</th>' +
+          '<th style="padding:6px 10px;text-align:left">Status</th>' +
+          '<th style="padding:6px 10px;width:60px"></th>' +
+        '</tr></thead><tbody>' +
+      rows.map(function(v) {
+        var name = v.name || (v.kuerzel||'').split(' ').slice(1).join(' ') || v.kuerzel || '–';
+        var status = v.genehmigt == 1
+          ? '<span style="color:#27ae60;font-size:12px">✓ Genehmigt</span>'
+          : '<span style="color:var(--accent);font-size:12px">⏳ Ausstehend</span>';
+        return '<tr style="border-bottom:1px solid var(--border)">' +
+          '<td style="padding:8px 10px;font-weight:600">' +
+            '<a href="#veranstaltung/' + v.id + '" style="color:var(--primary)" onclick="navigate(\'veranstaltung/' + v.id + '\')">' + name + '</a>' +
+          '</td>' +
+          '<td style="padding:8px 10px;color:var(--text2);font-size:13px">' + (v.datum ? formatDate(v.datum) : '–') + '</td>' +
+          '<td style="padding:8px 10px;color:var(--text2);font-size:13px">' + (v.ort||'–') + '</td>' +
+          '<td style="padding:8px 10px">' + status + '</td>' +
+          '<td style="padding:8px 10px;text-align:right">' +
+            '<button class="btn btn-ghost btn-sm" title="In Papierkorb" onclick="verwaistDelete(' + v.id + ',this)">🗑️</button>' +
+          '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+
+  el.innerHTML = adminSubtabs() + _wartungSubtabs() +
+    '<h2 style="margin-bottom:4px">🏚️ Verwaiste Veranstaltungen</h2>' +
+    '<p style="color:var(--text2);font-size:13px;margin-bottom:18px">Veranstaltungen ohne Ergebnisse (intern und extern).</p>' +
+    '<div class="panel" style="padding:20px 24px">' + tableHtml + '</div>';
+}
+
+async function verwaistDelete(id, btn) {
+  if (btn) btn.disabled = true;
+  var r = await apiDel('admin/verwaist/' + id);
   if (r && r.ok) {
     notify('In Papierkorb verschoben.', 'ok');
     var tr = btn ? btn.closest('tr') : null;

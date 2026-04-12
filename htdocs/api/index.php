@@ -4390,6 +4390,33 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
     jsonOk('In Papierkorb verschoben.');
 }
 
+// ============================================================
+// ADMIN – VERWAISTE VERANSTALTUNGEN
+// ============================================================
+if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'verwaist' && $method === 'GET') {
+    Auth::requireAdmin();
+    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $vTbl = DB::tbl('veranstaltungen');
+    $rows = DB::fetchAll(
+        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.erstellt_am
+         FROM $vTbl v
+         LEFT JOIN $eTbl e ON e.veranstaltung_id=v.id AND e.geloescht_am IS NULL
+         WHERE v.geloescht_am IS NULL
+         GROUP BY v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.erstellt_am
+         HAVING COUNT(e.id) = 0
+         ORDER BY v.datum DESC
+         LIMIT 500"
+    );
+    jsonOk($rows);
+}
+
+if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'verwaist' && $method === 'DELETE' && !empty($parts[2])) {
+    Auth::requireAdmin();
+    $id = (int)$parts[2];
+    DB::query("UPDATE " . DB::tbl('veranstaltungen') . " SET geloescht_am=NOW() WHERE id=? AND geloescht_am IS NULL", [$id]);
+    jsonOk('In Papierkorb verschoben.');
+}
+
 if ($res === 'papierkorb') {
     Auth::requireAdmin();
     $eTbl = ergebnisTbl('strasse', $unified, $_sys);

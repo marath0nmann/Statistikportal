@@ -1,1 +1,1 @@
-v1041 – Feature: Bulk-Eintragen – neue Option "＋ Neue regelmäßige Veranstaltung" im Serien-Dropdown; öffnet Modal zum Anlegen, wählt neue Serie direkt aus
+v1042 – Feature: Admin "Duplikate" → "Wartung" mit Sub-Tabs: "Duplikate" (bisheriger Inhalt) + "Verwaiste Veranstaltungen" (0 Ergebnisse, löschbar)
