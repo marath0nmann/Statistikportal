@@ -1,1 +1,1 @@
-v1037 – Fix: Admin Duplikate – PUT-Route erkennt jetzt auch bahn, cross, halle als gültige Kategorie-Routen
+v1038 – Feature: Admin Duplikate – "✅ Kein Duplikat"-Button ignoriert ein Paar dauerhaft (gespeichert in duplikate_ignoriert-Tabelle)

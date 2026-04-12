@@ -4279,6 +4279,14 @@ if ($res === 'gruppen') {
 // ============================================================
 // PAPIERKORB
 // ============================================================
+// Tabelle für ignorierte Duplikat-Paare (lazy create)
+    try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('duplikate_ignoriert') . " (
+        id1 INT NOT NULL,
+        id2 INT NOT NULL,
+        ignoriert_am DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id1, id2)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (\Exception $e) {}
+
 // ============================================================
 // ADMIN – DUPLIKATE
 // ============================================================
@@ -4328,14 +4336,30 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
          LEFT JOIN " . DB::tbl('athleten') . " a1 ON a1.id=b1.athlet_id
          LEFT JOIN " . DB::tbl('benutzer') . " b2 ON b2.id=e2.erstellt_von
          LEFT JOIN " . DB::tbl('athleten') . " a2 ON a2.id=b2.athlet_id
+         LEFT JOIN " . DB::tbl('duplikate_ignoriert') . " di
+               ON (di.id1=e1.id AND di.id2=e2.id) OR (di.id1=e2.id AND di.id2=e1.id)
          WHERE e1.geloescht_am IS NULL
            AND e1.resultat_num IS NOT NULL AND e2.resultat_num IS NOT NULL
            AND ABS(e1.resultat_num - e2.resultat_num) <= 2
            AND v1.datum = v2.datum
+           AND di.id1 IS NULL
          ORDER BY athlet, e1.disziplin, e1.resultat_num
          LIMIT 500"
     );
     jsonOk($dups);
+}
+
+if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $method === 'POST' && !empty($parts[2])) {
+    // POST admin/duplikate/ignorieren – Paar dauerhaft ignorieren
+    Auth::requireAdmin();
+    $diTbl = DB::tbl('duplikate_ignoriert');
+    $ids = array_map('intval', explode('-', $parts[2]));
+    if (count($ids) !== 2 || !$ids[0] || !$ids[1]) jsonErr('Ungültige IDs.', 400);
+    sort($ids);
+    try {
+        DB::query("INSERT IGNORE INTO $diTbl (id1, id2) VALUES (?,?)", $ids);
+    } catch (\Exception $e) { jsonErr('Fehler: ' . $e->getMessage(), 500); }
+    jsonOk('Ignoriert.');
 }
 
 if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $method === 'DELETE' && !empty($parts[2])) {

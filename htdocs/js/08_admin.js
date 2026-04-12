@@ -2752,6 +2752,7 @@ async function renderAdminDuplikate() {
             '<span style="color:var(--text2);font-size:13px">' + (d.disziplin||'–') + '</span>' +
             '<span style="font-size:12px;color:var(--text2)">📅 ' + formatDate(d.dat1) + '</span>' +
             (d.vid1 === d.vid2 ? '<span style="font-size:12px;color:var(--text2)">🏟 ' + veranstName + '</span>' : '') +
+            '<button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:12px" title="Als kein Duplikat markieren" onclick="dupIgnore(' + d.id1 + ',' + d.id2 + ',this)">✅ Kein Duplikat</button>' +
           '</div>' +
           '<table style="width:100%;border-collapse:collapse">' +
             '<thead><tr style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text2)">' +
@@ -2798,6 +2799,19 @@ function dupEditErgebnis(idx, which) {
     d['mid'+n] || null,
     d['mstr_platz'+n]
   );
+}
+
+async function dupIgnore(id1, id2, btn) {
+  if (btn) btn.disabled = true;
+  var r = await apiPost('admin/duplikate/' + Math.min(id1,id2) + '-' + Math.max(id1,id2), {});
+  if (r && r.ok) {
+    notify('Als kein Duplikat markiert.', 'ok');
+    var panel = btn ? btn.closest('.panel') : null;
+    if (panel) { panel.style.opacity = '0.3'; panel.style.pointerEvents = 'none'; }
+  } else {
+    notify('Fehler: ' + (r&&r.fehler||'?'), 'err');
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function dupDelete(id, btn) {
