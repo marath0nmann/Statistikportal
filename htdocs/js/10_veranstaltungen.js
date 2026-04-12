@@ -16,27 +16,8 @@ function setVeranstSuche(val) {
 // state.serieDisz    = aktuell gewählte Disziplin im Bestleistungen-View
 // state.serieMappingId = mapping_id der Disziplin
 
-function _veranstViewToggleHtml() {
-  var v = state.veranstView || 'liste';
-  return '<div style="display:flex;gap:8px;margin-bottom:16px">' +
-    '<button class="btn' + (v === 'liste'  ? ' btn-primary' : ' btn-ghost') + '" onclick="switchVeranstView(\'liste\')">\uD83D\uDCCD Alle Veranstaltungen</button>' +
-    '<button class="btn' + (v === 'serien' || v === 'serie-detail' ? ' btn-primary' : ' btn-ghost') + '" onclick="switchVeranstView(\'serien\')">\uD83D\uDD04 Regelmäßige Veranstaltungen</button>' +
-  '</div>';
-}
-
-function switchVeranstView(v) {
-  state.veranstView = v;
-  state.serieId = null;
-  state.serieView = 'jahre';
-  state.serieDisz = null;
-  state.serieMappingId = null;
-  renderVeranstaltungen();
-}
-
 async function renderVeranstaltungen() {
-  var view = state.veranstView || 'liste';
-  if (view === 'serien')       { await renderSerienListe(); return; }
-  if (view === 'serie-detail') { await renderSerieDetail(state.serieId); return; }
+  if ((state.veranstView || 'liste') === 'serie-detail') { await renderSerieDetail(state.serieId); return; }
   await renderVeranstaltungenListe();
 }
 
@@ -133,7 +114,19 @@ async function renderVeranstaltungenListe() {
     '<div class="fg"><label>Suche</label><input type="search" id="veranst-suche" placeholder="Veranstaltung suchen&hellip;" value="' + (state.veranstSuche || '').replace(/"/g,'&quot;') + '" oninput="setVeranstSuche(this.value)" style="min-width:0;width:100%"/></div>' +
   '</div>';
 
-  el.innerHTML = _veranstViewToggleHtml() + searchBar + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
+  // Serien als Chips oberhalb der Liste
+  var serienHtml = '';
+  if (serien && serien.length) {
+    serienHtml = '<div style="margin-bottom:16px">' +
+      '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:8px">🔄 Regelmäßige Veranstaltungen</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px">';
+    for (var si = 0; si < serien.length; si++) {
+      var s = serien[si];
+      serienHtml += '<button class="btn btn-ghost btn-sm" style="font-size:13px" onclick="openSerieDetail(' + s.id + ')">' + (s.name || s.kuerzel || 'Serie') + '</button>';
+    }
+    serienHtml += '</div></div>';
+  }
+  el.innerHTML = serienHtml + searchBar + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
   _restoreFocus(_vFoc);
 }
 
@@ -143,13 +136,13 @@ async function renderSerienListe() {
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
   var r = await apiGet('veranstaltung-serien');
   if (!r || !r.ok) {
-    el.innerHTML = _veranstViewToggleHtml() + '<div class="panel" style="padding:24px;color:var(--accent)">Fehler: ' + (r && r.fehler ? r.fehler : 'Unbekannt') + '</div>';
+    el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)">Fehler: ' + (r && r.fehler ? r.fehler : 'Unbekannt') + '</div>';
     return;
   }
   var serien = r.data || [];
   var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
 
-  var html = _veranstViewToggleHtml();
+  var html = '';
   if (canEdit) {
     html += '<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="showSerieCreateModal()">&#x2795; Neue regelmäßige Veranstaltung</button></div>';
   }
@@ -263,7 +256,7 @@ async function renderSerieDetail(id) {
 
 
 function _serieBackBtn() {
-  return '<button class="btn btn-ghost btn-sm" style="margin-bottom:14px" onclick="switchVeranstView(\'serien\')">&larr; Alle regelmäßigen Veranstaltungen</button> ';
+  return '<button class="btn btn-ghost btn-sm" style="margin-bottom:14px" onclick="navigate(\'veranstaltungen\')">&larr; Veranstaltungen</button> ';
 }
 
 function setSerieView(v) {
