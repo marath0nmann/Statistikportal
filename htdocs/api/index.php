@@ -2744,7 +2744,8 @@ if ($res === 'rekorde') {
         // Strategie: SQL liefert ALLE Ergebnisse sortiert nach Ergebnis,
         // PHP dedupliziert (erster Treffer pro athlet_id = Bestleistung).
         // Einfach, robust, ohne GROUP-BY/Subquery-Aliasing-Probleme.
-        $pbDedup = function(array $rows): array {
+        $pbDedup = function(array $rows) use ($unique): array {
+            if (!$unique) return $rows;
             $seen = []; $out = [];
             foreach ($rows as $r) {
                 $aid = $r['athlet_id'];
@@ -3588,6 +3589,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
         $disz      = $_GET['disz'];
         $mappingId = isset($_GET['mapping_id']) && is_numeric($_GET['mapping_id']) ? (int)$_GET['mapping_id'] : null;
         $mergeAK   = ($_GET['merge_ak'] ?? '1') !== '0';
+        $unique    = ($_GET['unique']    ?? '1') !== '0';
 
         // Kategorie-Meta ermitteln
         $katRow = null;
