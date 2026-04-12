@@ -3639,7 +3639,8 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
              ORDER BY _sv $sortDir", [$diszParam, $id]
         );
 
-        $pbDedup = function(array $rows): array {
+        $pbDedup = function(array $rows) use ($unique): array {
+            if (!$unique) return $rows;
             $seen = []; $out = [];
             foreach ($rows as $r) {
                 $aid = $r['athlet_id'];
