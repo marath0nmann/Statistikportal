@@ -157,7 +157,21 @@ async function renderVeranstaltungenListe() {
   }
   if (!html) html = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Keine Veranstaltungen gefunden</div></div>';
 
-  resultsEl.innerHTML = html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
+  // Massen-Zuordnung Button (Admin/Editor, nur bei aktiver Suche mit Ergebnissen)
+  var massenbtn = '';
+  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
+  if (canEdit && state.veranstSuche && veranst.length > 0) {
+    // Nur Veranstaltungen ohne Serie
+    var ohneSerieAnz = veranst.filter(function(v) { return !v.serie_id; }).length;
+    if (ohneSerieAnz > 0) {
+      massenbtn = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">' +
+        '<button class="btn btn-ghost btn-sm" onclick="showMassenSerieModal()" style="font-size:13px">' +
+          '🔄 Alle ' + ohneSerieAnz + ' Veranstaltung' + (ohneSerieAnz===1?'':'en') + ' ohne Serie zu regelmäßiger Veranstaltung hinzufügen&hellip;' +
+        '</button>' +
+      '</div>';
+    }
+  }
+  resultsEl.innerHTML = massenbtn + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
 }
 
 // ── SERIEN-LISTE ───────────────────────────────────────────
@@ -650,10 +664,12 @@ async function deleteSerieConfirm(id, name) {
 }
 
 // ── Veranstaltung-Edit (mit Serie-Zuweisung) ──────────────
-function showVeranstEditModal(id) {
+async function showVeranstEditModal(id) {
   var v = state._veranstMap && state._veranstMap[id];
   if (!v) return;
-  var serien   = window._lastSerienList || [];
+  // Serien immer ungefiltert laden (nicht aus gefiltertem Cache)
+  var _sr = await apiGet('veranstaltung-serien');
+  var serien = (_sr && _sr.ok) ? (_sr.data || []) : (window._lastSerienList || []);
   var curName  = v.name  || '';
   var curDatum = (v.datum || '').slice(0, 10);
   var curOrt   = v.ort   || '';
@@ -827,4 +843,71 @@ async function _loadSerieTeilnahmen(serieId) {
     var al = ev.target.closest('.athlet-link[data-athlet-id]');
     if (al) openAthletById(parseInt(al.dataset.athletId));
   });
+}
+
+// ── Massen-Zuordnung: Alle Veranstaltungen ohne Serie zu einer Serie hinzufügen ──
+async function showMassenSerieModal() {
+  var veranst = (window._lastVeranstList || []).filter(function(v) { return !v.serie_id; });
+  if (!veranst.length) { notify('Keine Veranstaltungen ohne Serie gefunden.', 'err'); return; }
+
+  // Serien ungefiltert laden
+  var _sr = await apiGet('veranstaltung-serien');
+  var serien = (_sr && _sr.ok) ? (_sr.data || []) : [];
+
+  var serieOpts = '<option value="">– Serie wählen –</option>' +
+    serien.map(function(s) { return '<option value="' + s.id + '">' + s.name + '</option>'; }).join('') +
+    '<option value="__neu__">＋ Neue regelmäßige Veranstaltung…</option>';
+
+  var listHtml = veranst.map(function(v) {
+    var name = v.name || (v.kuerzel||'').split(' ').slice(1).join(' ') || v.kuerzel || '?';
+    return '<li style="padding:4px 0;font-size:13px;border-bottom:1px solid var(--border)">' +
+      '<span style="font-weight:600">' + name + '</span>' +
+      ' <span style="color:var(--text2)">' + formatDate(v.datum) + (v.ort ? ' · ' + v.ort : '') + '</span>' +
+    '</li>';
+  }).join('');
+
+  showModal(
+    '<h2>🔄 Zu regelmäßiger Veranstaltung hinzufügen <button class="modal-close" onclick="closeModal()">✕</button></h2>' +
+    '<p style="font-size:13px;color:var(--text2);margin-bottom:12px">Folgende Veranstaltungen (ohne bestehende Serie-Zuordnung) werden hinzugefügt:</p>' +
+    '<ul style="list-style:none;margin:0 0 16px;padding:0;max-height:280px;overflow-y:auto">' + listHtml + '</ul>' +
+    '<div class="form-group full" style="margin-bottom:16px">' +
+      '<label>Regelmäßige Veranstaltung *</label>' +
+      '<select id="massen-serie-sel" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">' + serieOpts + '</select>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="massenSerieZuordnen()">Zuordnen</button>' +
+    '</div>',
+    true
+  );
+}
+
+async function massenSerieZuordnen() {
+  var sel = document.getElementById('massen-serie-sel');
+  var serieId = sel ? sel.value : '';
+
+  // Neue Serie anlegen falls gewünscht
+  if (serieId === '__neu__') {
+    var name = (window.prompt('Name der neuen regelmäßigen Veranstaltung:') || '').trim();
+    if (!name) return;
+    var rc = await apiPost('veranstaltung-serien', { name: name });
+    if (!rc || !rc.ok) { notify('Fehler beim Anlegen: ' + (rc&&rc.fehler||'?'), 'err'); return; }
+    serieId = rc.data && rc.data.id;
+  }
+
+  if (!serieId) { notify('Bitte eine Serie wählen.', 'err'); return; }
+
+  var veranst = (window._lastVeranstList || []).filter(function(v) { return !v.serie_id; });
+  var btn = document.querySelector('.modal-actions .btn-primary');
+  if (btn) btn.disabled = true;
+
+  var ok = 0, fail = 0;
+  for (var i = 0; i < veranst.length; i++) {
+    var r = await apiPut('veranstaltungen/' + veranst[i].id, { serie_id: parseInt(serieId) });
+    if (r && r.ok) ok++; else fail++;
+  }
+
+  closeModal();
+  notify(ok + ' Veranstaltung' + (ok===1?'':'en') + ' zugeordnet' + (fail ? ', ' + fail + ' Fehler' : '') + '.', fail ? 'err' : 'ok');
+  renderVeranstaltungen();
 }

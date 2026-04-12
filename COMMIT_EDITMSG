@@ -1,1 +1,1 @@
-v1042 – Feature: Admin "Duplikate" → "Wartung" mit Sub-Tabs: "Duplikate" (bisheriger Inhalt) + "Verwaiste Veranstaltungen" (0 Ergebnisse, löschbar)
+v1043 – Fix: Veranstaltung bearbeiten – Serien-Dropdown lädt jetzt immer ungefiltert (nicht aus gefiltertem Such-Cache)
