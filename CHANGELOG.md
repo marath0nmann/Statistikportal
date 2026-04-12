@@ -1,86 +1,89 @@
-## v1032
+## v1033
+- Fix: Admin Duplikate – "Eingetragen von" nutzt jetzt benutzer.benutzername + athleten.vorname/nachname via athlet_id
+
+## v1033
 - Fix: Admin Duplikate – Spalte "Eingetragen von" nutzt jetzt korrekte benutzer-Felder (vorname+nachname statt name_nv)
 
-## v1032
+## v1033
 - Feature: Admin Duplikate – Spalte "Eingetragen von" (Benutzername oder Import-Quelle)
 
-## v1032
+## v1033
 - UX: Admin Duplikate – ein Panel pro Paar, Ergebnisse untereinander, AK angezeigt, Datum als hartes Kriterium (nur gleicher Tag)
 
-## v1032
+## v1033
 - Feature: Admin-Tab "Duplikate" – findet Ergebnis-Duplikate (gleicher Athlet+Disziplin, Toleranz ±2s/m, ohne AK/Platzierung); einzeln oder per ↓ in Papierkorb verschieben
 
-## v1032
+## v1033
 - Fix: Bulk-Import Duplikatprüfung – externe Ergebnisse prüfen jetzt auch gegen interne (ergebnisse), interne auch gegen externe (athlet_pb)
 
-## v1032
+## v1033
 - Fix: evenementen.uitslagen.nl – ältere Jahrgänge (2011/2012) nutzen table.u; Parser erkennt jetzt table.uitslag, table.i und table.u
 
-## v1032
+## v1033
 - Feature: Bulk-Import – Checkbox "Auch inaktive Athleten" (default: an); steuert window._bkMatchInaktive in uitsAutoMatch
 
-## v1032
+## v1033
 - Fix: uits-fetch Proxy – PHP-Parse-Fehler behoben; Charset-Erkennung jetzt via mb_detect_encoding statt fehleranfälliger Regex
 
-## v1032
+## v1033
 - Fix: uits-fetch Proxy – PHP-Syntaxfehler in Charset-Erkennung behoben (Anführungszeichen-Konflikt in Regex)
 
-## v1032
+## v1033
 - Fix: uits-fetch Proxy – Charset wird jetzt aus HTML-Meta erkannt (z.B. windows-1252) und korrekt zu UTF-8 konvertiert; behebt fehlende Umlaute wie ü in "Rüdiger"
 
-## v1032
+## v1033
 - Fix: bkSyncDatum – AK-Neuberechnung nutzt jetzt tr.querySelector(".bk-ak") statt falschem Index-Mapping (verhinderte falsche AKs wie WU20 statt M45)
 
-## v1032
+## v1033
 - Fix: AK-Berechnung beim Import – bkUpdateAK überschreibt Website-AK nur wenn Datum bekannt; bkSyncDatum berechnet alle Zeilen-AKs neu wenn Datum nachträglich eingegeben wird
 
-## v1032
+## v1033
 - Fix: evenementen.uitslagen.nl – ältere Events (z.B. 2017) nutzen table.i statt table.uitslag; Parser erkennt jetzt beide Varianten
 
-## v1032
+## v1033
 - Fix: Teilnahmen-Ranking in reg. Veranstaltungen – bei gleicher Gesamtanzahl werden Vereinsteilnahmen höher gewichtet als externe
 
-## v1032
+## v1033
 - Fix: Serie-Bestleistungen – pbDedup im richtigen Endpoint mit use($unique) versehen (vorher wurde immer dedupliciert)
 
-## v1032
+## v1033
 - Fix: Top-10-Limit wiederhergestellt; bei unique=OFF können Athleten mehrfach in den Top 10 erscheinen
 
-## v1032
+## v1033
 - Revert: athlet_pb UNION in Serie-Bestleistungen entfernt (nur interne Ergebnisse)
 - Fix: unique=OFF zeigt jetzt alle Ergebnisse je Athlet (TOP-Limit aufgehoben, Server liefert bis 500)
 
-## v1032
+## v1033
 - Fix: Serie-Bestleistungen – externe Ergebnisse (athlet_pb mit veranstaltung_id) werden jetzt per UNION einbezogen
 - Fix: Sortierung korrekt über Subquery (sort_val als berechnete Spalte)
 
-## v1032
+## v1033
 - Fix: Reg. Veranstaltungen – Schalter jetzt unten im grauen Ergebnis-Panel (wie Bestleistungen-Tab)
 - Fix: "Jede*r Athlet*in nur einmal" wird jetzt server-seitig per unique-Param korrekt respektiert
 
-## v1032
+## v1033
 - Feature: Regelmäßige Veranstaltungen – Bestleistungen-Schalter (Jugend-AK, nur einmal, Jahres-Highlight) direkt im View; teilen state.rekState mit Bestleistungen-Tab
 
-## v1032
+## v1033
 - Fix: Disziplin-Buttons Bestleistungen – Sortierung nach Ergebnisanzahl korrigiert (Feld war "cnt" nicht "anz_ergebnisse")
 
-## v1032
+## v1033
 - UX: Regelmäßige Veranstaltungen – Disziplin-Buttons bei Bestleistungen absteigend nach Ergebnisanzahl sortiert
 
-## v1032
+## v1033
 - Fix: Veranstaltungen-Suche – Suchfeld bleibt beim Tippen im DOM (kein innerHTML-Reset), Fokus auf Mobile stabil
 
-## v1032
+## v1033
 - UX: Veranstaltungen – Button-Menü entfernt; regelmäßige Veranstaltungen erscheinen jetzt als Chips direkt oberhalb der Veranstaltungsliste
 
-## v1032
+## v1033
 - Fix: Dashboard-Widget "Mein Athletenprofil" – "Wettkampfe" → "Wettkämpfe"
 - Fix: Wettkampf-Zähler (Dashboard-Widget + Athletenprofil) zählt jetzt auch externe Ergebnisse (athlet_pb)
 
-## v1032
+## v1033
 - Fix: Dashboard-Fehler "Unknown column pb.resultat_num" – athlet_pb hat kein resultat_num, wird jetzt als NULL behandelt
 
-## v1032
+## v1033
 - Build: README.md, COMMIT_EDITMSG und CHANGELOG.md werden jetzt automatisch von build.sh aktualisiert
 - Fix: Neueste Bestleistungen – Debüt und PB korrekt aus externen Ergebnissen (athlet_pb per UNION)
 
