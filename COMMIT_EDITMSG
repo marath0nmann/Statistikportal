@@ -1,1 +1,1 @@
-v1019 – Fix: Teilnahmen-Ranking in reg. Veranstaltungen – bei gleicher Gesamtanzahl werden Vereinsteilnahmen höher gewichtet als externe
+v1020 – Fix: evenementen.uitslagen.nl – ältere Events (z.B. 2017) nutzen table.i statt table.uitslag; Parser erkennt jetzt beide Varianten

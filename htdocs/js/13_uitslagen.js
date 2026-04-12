@@ -767,7 +767,7 @@ function uitsEvenementenParseRow(cells, rowNr) {
 function uitsEvenementenParsePage(html) {
   var parser = new DOMParser();
   var doc    = parser.parseFromString(html, 'text/html');
-  var tbl    = doc.querySelector('table.uitslag');
+  var tbl    = doc.querySelector('table.uitslag') || doc.querySelector('table.i');
   if (!tbl) return { rows: [], hasMore: false };
   var dataRows = Array.from(tbl.querySelectorAll('tr:not(.h)')).filter(function(tr) {
     return tr.querySelectorAll('td').length >= 8;
