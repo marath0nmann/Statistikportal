@@ -428,7 +428,9 @@ async function _loadSerieBestleistungen(serieId, disz, mappingId) {
   }
   var d   = r.data;
   var fmt = d.fmt || 'min';
-  var TOP = 10;
+  // unique=ON → top 10; unique=OFF → alle vom Server gelieferten Rows zeigen
+  var rs2chk = state.rekState || {};
+  var TOP = (rs2chk.unique !== false) ? 10 : 9999;
 
   function pbDedup(rows) {
     return rows.slice(0, TOP); // dedup happens server-side based on unique param

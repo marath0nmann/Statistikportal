@@ -3629,14 +3629,14 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
         $nameExpr  = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
 
         $all_rows = DB::fetchAll(
-            "SELECT e.resultat, v.datum, $akExpr AS altersklasse,
+            "SELECT e.resultat, $sortCol AS _sv, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
              FROM $eTbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              JOIN $vTbl v ON v.id=e.veranstaltung_id
              WHERE $diszCond AND v.serie_id=? AND e.geloescht_am IS NULL
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL AND v.genehmigt=1
-             ORDER BY $sortCol $sortDir", [$diszParam, $id]
+             ORDER BY _sv $sortDir", [$diszParam, $id]
         );
 
         $pbDedup = function(array $rows): array {
@@ -3648,13 +3648,14 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
             return $out;
         };
 
-        $gesamt = array_slice($pbDedup($all_rows), 0, 50);
+        $limit  = $unique ? 50 : 500;
+        $gesamt = array_slice($pbDedup($all_rows), 0, $limit);
         $maenner = array_slice($pbDedup(array_values(array_filter($all_rows, function($r) {
             return $r['geschlecht'] === 'M';
-        }))), 0, 50);
+        }))), 0, $limit);
         $frauen = array_slice($pbDedup(array_values(array_filter($all_rows, function($r) {
             return $r['geschlecht'] === 'W';
-        }))), 0, 50);
+        }))), 0, $limit);
 
         // AK-Bestleistungen
         $aks_raw = array_unique(array_column($all_rows, 'altersklasse'));
@@ -3664,7 +3665,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
             $ak_rows = array_values(array_filter($all_rows, function($r) use ($ak_val) {
                 return (string)$r['altersklasse'] === (string)$ak_val;
             }));
-            $by_ak[$ak_val] = array_slice($pbDedup($ak_rows), 0, 50);
+            $by_ak[$ak_val] = array_slice($pbDedup($ak_rows), 0, $limit);
         }
 
         jsonOk(compact('gesamt','maenner','frauen','by_ak','fmt','sortDir'));

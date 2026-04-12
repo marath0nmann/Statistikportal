@@ -1,1 +1,1 @@
-v1014 – Fix: Reg. Veranstaltungen – Schalter jetzt unten im grauen Ergebnis-Panel (wie Bestleistungen-Tab)
+v1016 – Revert: athlet_pb UNION in Serie-Bestleistungen entfernt (nur interne Ergebnisse)
