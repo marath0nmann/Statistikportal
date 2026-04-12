@@ -535,14 +535,17 @@ function bkUpdateAK(athSel, idx) {
   var gebj = opt ? (opt.dataset.gebj || '') : '';
   var akInp = document.getElementById('bk-ak-' + idx);
   if (!akInp) return;
-  var prev = akInp.value;
-  // AK automatisch vorbelegen wenn noch kein Wert gesetzt oder Athlet gewechselt
   if (g && gebj) {
-    var eventJahr = _bkEventJahr();
-    var ak = calcDlvAK(parseInt(gebj), g, eventJahr);
-    if (ak) { akInp.value = ak; return; }
+    var datEl = document.getElementById('bk-datum');
+    var hasDatum = datEl && datEl.value;
+    if (hasDatum) {
+      // Datum bekannt → DLV-AK berechnen und setzen
+      var eventJahr = _bkEventJahr();
+      var ak = calcDlvAK(parseInt(gebj), g, eventJahr);
+      if (ak) { akInp.value = ak; return; }
+    }
+    // Kein Datum → AK nicht überschreiben (Website-AK oder manueller Wert bleibt)
   }
-  // Vorherigen Wert behalten wenn kein neuer berechnet werden konnte
 }
 
 function _bkEventJahr() {
@@ -2390,13 +2393,19 @@ function _bulkFindAthlet(name) {
   return '';
 }
 function bkSyncDatum(val) {
-  // Globales Datum auf alle Zeilen übertragen die noch keinen eigenen Wert haben
-  // oder denselben Wert wie das alte globale Datum
+  // Globales Datum auf alle Zeilen übertragen
   if (!val) return;
   var m = val.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   var formatted = m ? m[3] + '.' + m[2] + '.' + m[1] : val;
   document.querySelectorAll('#bulk-rows .bk-zeilendatum').forEach(function(el) {
     el.value = formatted;
+  });
+  // AKs für alle Zeilen neu berechnen (jetzt wo Datum bekannt ist)
+  var tbody = document.getElementById('bulk-rows');
+  if (!tbody) return;
+  Array.from(tbody.querySelectorAll('tr')).forEach(function(tr, i) {
+    var athSel = tr.querySelector('.bk-athlet');
+    if (athSel && athSel.value) bkUpdateAK(athSel, i);
   });
 }
 // ── RACERESULT-IMPORT ──────────────────────────────────────
