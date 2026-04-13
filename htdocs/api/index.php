@@ -3219,6 +3219,44 @@ if ($res === 'disziplin-mapping') {
 // ============================================================
 // AUTOCOMPLETE Athleten
 // ============================================================
+function mikaCurl(string $url, string $cookieFile, string $ua): string {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_COOKIEJAR      => $cookieFile,
+        CURLOPT_COOKIEFILE     => $cookieFile,
+        CURLOPT_USERAGENT      => $ua,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_HTTPHEADER     => ['Accept: text/html', 'Accept-Language: de-DE,de;q=0.9'],
+    ]);
+    $r = curl_exec($ch); curl_close($ch);
+    return $r ?: '';
+}
+
+function mikaPostCurl(string $url, string $postData, string $cookieFile, string $ua): string {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $postData,
+        CURLOPT_COOKIEJAR      => $cookieFile,
+        CURLOPT_COOKIEFILE     => $cookieFile,
+        CURLOPT_USERAGENT      => $ua,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_HTTPHEADER     => [
+            'Accept: text/html,application/xhtml+xml',
+            'Accept-Language: de-DE,de;q=0.9',
+            'Content-Type: application/x-www-form-urlencoded',
+            'Origin: ' . rtrim($url, '/'),
+            'Referer: ' . $url,
+        ],
+    ]);
+    $r = curl_exec($ch); curl_close($ch);
+    return $r ?: '';
+}
+
 if ($res === 'mika-fetch' && $method === 'GET') {
     Auth::requireLogin();
     $baseUrl = rtrim($_GET['base_url'] ?? '', '/') . '/';
@@ -3228,21 +3266,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 
     $ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0 Safari/537.36';
     $cookieFile = tempnam(sys_get_temp_dir(), 'mika_');
-
-    function mikaCurl(string $url, string $cookieFile, string $ua): string {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_COOKIEJAR      => $cookieFile,
-            CURLOPT_COOKIEFILE     => $cookieFile,
-            CURLOPT_USERAGENT      => $ua,
-            CURLOPT_TIMEOUT        => 15,
-            CURLOPT_HTTPHEADER     => ['Accept: text/html', 'Accept-Language: de-DE,de;q=0.9'],
-        ]);
-        $r = curl_exec($ch); curl_close($ch);
-        return $r ?: '';
-    }
 
     // 1. Hauptseite: Session-Cookie + Datum/Ort/EventName
     $mainHtml = mikaCurl($baseUrl, $cookieFile, $ua);
@@ -3318,29 +3341,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         $searchHtml = '';
         $searchUrl = $baseUrl . '?pid=search&pidp=start';
         $allResults = [];
-
-        function mikaPostCurl(string $url, string $postData, string $cookieFile, string $ua): string {
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_POST           => true,
-                CURLOPT_POSTFIELDS     => $postData,
-                CURLOPT_COOKIEJAR      => $cookieFile,
-                CURLOPT_COOKIEFILE     => $cookieFile,
-                CURLOPT_USERAGENT      => $ua,
-                CURLOPT_TIMEOUT        => 15,
-                CURLOPT_HTTPHEADER     => [
-                    'Accept: text/html,application/xhtml+xml',
-                    'Accept-Language: de-DE,de;q=0.9',
-                    'Content-Type: application/x-www-form-urlencoded',
-                    'Origin: ' . rtrim($url, '/'),
-                    'Referer: ' . $url,
-                ],
-            ]);
-            $r = curl_exec($ch); curl_close($ch);
-            return $r ?: '';
-        }
 
         foreach ($eventIds as $evId) {
             $postData = http_build_query([
