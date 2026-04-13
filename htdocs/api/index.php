@@ -3870,10 +3870,10 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
     if (isset($_GET['teilnahmen'])) {
         $pbTbl = DB::tbl('athlet_pb');
         $aTbl  = DB::tbl('athleten');
-        // Vereins-Teilnahmen
+        // Vereins-Teilnahmen (pro Jahr = eine Teilnahme, egal wie viele Distanzen)
         $vereinsRows = DB::fetchAll(
             "SELECT a.id AS athlet_id, a.name_nv AS athlet, a.geschlecht,
-                    COUNT(DISTINCT v.id) AS teilnahmen,
+                    COUNT(DISTINCT YEAR(v.datum)) AS teilnahmen,
                     MIN(v.datum) AS erstes_jahr, MAX(v.datum) AS letztes_jahr,
                     0 AS nur_extern
              FROM $eTbl e
@@ -3887,7 +3887,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
         // Externe Teilnahmen (athlet_pb mit veranstaltung_id in dieser Serie)
         $externRows = DB::fetchAll(
             "SELECT a.id AS athlet_id, a.name_nv AS athlet, a.geschlecht,
-                    COUNT(DISTINCT pb.veranstaltung_id) AS teilnahmen,
+                    COUNT(DISTINCT YEAR(v.datum)) AS teilnahmen,
                     MIN(v.datum) AS erstes_jahr, MAX(v.datum) AS letztes_jahr,
                     1 AS nur_extern
              FROM $pbTbl pb
@@ -3955,6 +3955,8 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
             ksort($jm);
             $r['jahre']       = array_keys($jm);
             $r['jahre_extern'] = array_values(array_map(function($v){return $v['extern'];}, $jm));
+            // Teilnahmen-Anzahl = Anzahl eindeutige Jahre (exakte Übereinstimmung mit Tabellenpunkten)
+            $r['teilnahmen']  = count($jm);
         }
         unset($r);
         jsonOk($merged);

@@ -275,6 +275,13 @@ async function renderSerieDetail(id) {
   }
   html += '</div></div>';
 
+
+  // URL-Teilen
+  var _serieUrl = location.origin + location.pathname + '#veranstaltungen/serie/' + id;
+  html += '<div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+    '<code style="flex:1;font-size:12px;padding:6px 10px;background:var(--surf2);border-radius:6px;border:1px solid var(--border);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:480px">' + _serieUrl + '</code>' +
+    '<button class="btn btn-ghost btn-sm" title="URL kopieren" onclick="(function(){navigator.clipboard.writeText(' + JSON.stringify(_serieUrl) + ').then(function(){notify(\'URL kopiert!\',\'ok\')})})()">&#x1F4CB; Kopieren</button>' +
+  '</div>';
   // Alle Sektionen auf einer Seite: Teilnahmen → Bestleistungen → Ergebnisse nach Jahr
   var secStyle = 'font-family:\'Barlow Condensed\',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)';
   html += '<div style="' + secStyle + ';margin:0 0 10px">&#x1F4CA; Anzahl Teilnahmen</div>';

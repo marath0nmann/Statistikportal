@@ -2415,7 +2415,7 @@ function buildNav() {
     var allowPD = _canSeePersoenlicheDaten();
     var visibleTabs = tabs.filter(function(t) {
       if (t.id === 'athleten' && !allowPD) return false;
-      return t.id === 'dashboard' || t.id === 'rekorde' || (t.id === 'athleten' && allowPD);
+      return t.id === 'dashboard' || t.id === 'rekorde' || t.id === 'veranstaltungen' || (t.id === 'athleten' && allowPD);
     });
     _renderNavTabs(visibleTabs);
     return;
@@ -2577,13 +2577,14 @@ function navigate(tab) {
   if (tab === '#/nutzung'     || tab === 'nutzung')     { renderLegalPage('nutzung'); return; }
   if (tab === '#/impressum'   || tab === 'impressum')   { renderLegalPage('impressum'); return; }
   if (tab === 'rekorde') { REK_CATS = []; state.allDisziplinen = {}; state.topDisziplinen = {}; }
-  // veranstaltung/123 -> tab=veranstaltung, veranstaltungId=123
-  if (tab.startsWith('veranstaltung/')) {
-    state.veranstaltungId = parseInt(tab.split('/')[1]) || null;
-    state.tab = 'veranstaltung';
+  // veranstaltungen/serie/123 -> Serie-Detail
+  if (tab.startsWith('veranstaltungen/serie/')) {
+    var _sid = parseInt(tab.split('/')[2]) || null;
+    if (_sid) { state.tab = 'veranstaltungen'; state.veranstView = 'serie-detail'; state.serieId = _sid; }
     syncHash(); buildNav(); renderPage();
     return;
   }
+  // veranstaltung/123 -> tab=veranstaltung, veranstaltungId=123
   if (tab.startsWith('veranstaltung/')) {
     state.veranstaltungId = parseInt(tab.split('/')[1]) || null;
     state.tab = 'veranstaltung';
@@ -2658,7 +2659,7 @@ async function renderPage() {
     return;
   }
   // Anonyme User dürfen Dashboard und Bestleistungen sehen
-  if (!currentUser && state.tab !== 'rekorde' && state.tab !== 'dashboard' && state.tab !== 'veranstaltung') {
+  if (!currentUser && state.tab !== 'rekorde' && state.tab !== 'dashboard' && state.tab !== 'veranstaltung' && state.tab !== 'veranstaltungen') {
     state.tab = 'rekorde';
     buildNav();
   }
@@ -2693,7 +2694,8 @@ async function renderPage() {
 function syncHash() {
   if (!history.replaceState) return;
   var hash = state.tab;
-  if (state.tab === 'veranstaltung' && state.veranstaltungId) hash += '/' + state.veranstaltungId;
+  if (state.tab === 'veranstaltungen' && state.veranstView === 'serie-detail' && state.serieId) hash = 'veranstaltungen/serie/' + state.serieId;
+  else if (state.tab === 'veranstaltung' && state.veranstaltungId) hash += '/' + state.veranstaltungId;
   else if (state.tab === 'admin' && state.adminTab) hash += '/' + state.adminTab;
   else if (state.tab === 'ergebnisse' && state.subTab) hash += '/' + state.subTab;
   else if (state.tab === 'rekorde'    && state.subTab) hash += '/' + state.subTab;
