@@ -3338,23 +3338,22 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         if (empty($eventIds)) $eventIds = ['HM','10L','5L'];
         $eventIds = array_unique(array_slice($eventIds, 0, 10));
 
-        $searchHtml = '';
         $searchUrl = $baseUrl . '?pid=search&pidp=start';
         $allResults = [];
 
-        foreach ($eventIds as $evId) {
-            $postData = http_build_query([
-                'search[name]'      => $searchName,
-                'search[firstname]' => '',
-                'search[start_no]'  => '',
-                'search[age_class]' => '%',
-                'search[sex]'       => '%',
-                'event'             => $evId,
-            ]);
-            $html = mikaPostCurl($searchUrl, $postData, $cookieFile, $ua);
-            $debug['events'][$evId] = strlen($html);
+        // Einmal ohne Event-Filter – gibt alle Wettbewerbe zurück (statt 3 sequenzielle POSTs)
+        $postData = http_build_query([
+            'search[name]'      => $searchName,
+            'search[firstname]' => '',
+            'search[start_no]'  => '',
+            'search[age_class]' => '%',
+            'search[sex]'       => '%',
+        ]);
+        $html = mikaPostCurl($searchUrl, $postData, $cookieFile, $ua);
+        $debug['htmlLen'] = strlen($html);
 
-            // Parse results from POST response
+        // Parse results from POST response
+
             $dom2 = new DOMDocument('1.0', 'UTF-8');
             @$dom2->loadHTML('<?xml encoding="UTF-8">' . $html);
             $xp2 = new DOMXPath($dom2);
@@ -3390,6 +3389,12 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 }
                 foreach ($xp2->query('.//*[contains(@class,"place-secondary") or contains(@class,"place_age")]', $li) as $n) {
                     $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK = $t; break; }
+                }
+                // Event-ID aus idp-Link extrahieren
+                $evId = "";
+                foreach ($xp2->query('.//a[@href]', $li) as $a) {
+                    $href = $a->getAttribute('href');
+                    if (preg_match('/[?&]event=([A-Z0-9]{1,5})/i', $href, $evm)) { $evId = $evm[1]; break; }
                 }
                 // Neue Interface: Felder via type-* Klassen + list-label extrahieren
                 // Hilfsfunktion: Wert = Gesamttext minus Label-Text
@@ -3443,8 +3448,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         'event_id' => $evId, 'idp' => $idp, 'club' => $liClub,
                     ];
                 }
-            }
-        }
+        } // end parse block
         $results = array_values($allResults);
         $debug['rowsFound'] = count($results);
         if (!empty($results)) $debug['firstResult'] = $results[0];

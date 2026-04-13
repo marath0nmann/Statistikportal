@@ -1,13 +1,16 @@
-## v1056
+## v1057
+- Perf: MikaTiming neues Interface – statt 3 sequenzielle POSTs (je Event HM/10L/5L) jetzt eine einzige POST-Anfrage ohne Event-Filter; ~3x schneller
+
+## v1057
 - Feature: Bulk-Import – Checkbox "AK nach DLV-System angleichen" (default: an); sofortiger Effekt per Klick; speichert Import-AK als Fallback
 
-## v1056
+## v1057
 - Fix: PHP Fatal Error – kaputte Regex mit gemischten Anführungszeichen in og:description-Extraktion behoben
 
-## v1056
+## v1057
 - Fix: PHP Fatal Error – mikaCurl und mikaPostCurl auf Top-Level verschoben (PHP erlaubt keine Funktionsdeklarationen in if-Blöcken)
 
-## v1056
+## v1057
 - Fix: MikaTiming – DNS/DNF überspringen (kein Resultat = nicht importieren)
 - Fix: MikaTiming – Veranstaltungsname und Ort werden jetzt aus API-Response vorbelegt
 - Fix: MikaTiming neues Interface – Ort aus og:description extrahiert
@@ -18,141 +21,141 @@
 ## v1049
 - Fix: MikaTiming neu – Zeit/Verein/AK direkt aus Listenzeilen parsen; Fallback H:MM:SS-Regex; Detail-Debug
 
-## v1056
+## v1057
 - Fix: MikaTiming neues Interface – Zeit/AK/Verein direkt aus List-Item geparst; kein Detail-Seiten-Fetch mehr (JS-gerendert, war immer leer)
 
-## v1056
+## v1057
 - Feature: MikaTiming – automatische Erkennung neuer Interface (POST, kein club-Feld); sucht pro Event-Typ (HM/10L/5L) via POST search[name]; Detail-Seiten für Zeit+AK
 
-## v1056
+## v1057
 - Perf: MikaTiming Athleten-Namenssuche – parallele Requests (5 gleichzeitig per Promise.all) statt sequentiell; ca. 5× schneller
 
-## v1056
+## v1057
 - Feature: MikaTiming – "Nicht für Verein"-Checkbox wird automatisch gesetzt wenn Vereinsname leer oder kein Treffer mit eigenem Verein; tatsächlicher Clubname aus HTML extrahiert
 
-## v1056
+## v1057
 - Feature: MikaTiming – Athleten-Namenssuche läuft jetzt IMMER (nicht nur als Fallback); Ergebnisse werden mit Vereinssuche zusammengeführt (dedup per idp); alle Athleten werden berücksichtigt (nicht nur aktive)
 
-## v1056
+## v1057
 - Feature: MikaTiming-Importer – Fallback-Suche nach bekannten Athleten-Namen wenn Vereinssuche 0 Ergebnisse liefert (wie bei uitslagen.nl)
 
-## v1056
+## v1057
 - Fix: Veranstaltung bearbeiten – Serien-Dropdown lädt jetzt immer ungefiltert (nicht aus gefiltertem Such-Cache)
 - Feature: Veranstaltungen-Suche – Button "Alle X Veranstaltungen ohne Serie zu regelmäßiger Veranstaltung hinzufügen" (Admin/Editor); Sicherheits-Modal mit Liste + Serie-Auswahl
 
-## v1056
+## v1057
 - Feature: Admin "Duplikate" → "Wartung" mit Sub-Tabs: "Duplikate" (bisheriger Inhalt) + "Verwaiste Veranstaltungen" (0 Ergebnisse, löschbar)
 
-## v1056
+## v1057
 - Feature: Bulk-Eintragen – neue Option "＋ Neue regelmäßige Veranstaltung" im Serien-Dropdown; öffnet Modal zum Anlegen, wählt neue Serie direkt aus
 
-## v1056
+## v1057
 - UX: Veranstaltungen – Serien-Buttons zeigen jetzt auch Anzahl Austragungen und Jahreszeitraum (z.B. "163 Ergebnisse · 16 Austragungen · 2009–2026")
 
-## v1056
+## v1057
 - UX: Veranstaltungen – Serien-Buttons zwischen Suche und Ergebnisliste; Optik wie Disziplin-Buttons (rek-top-btn); Ergebnisanzahl; Sortierung absteigend; Überschrift entfernt; bei Suche mitgefiltert
 
-## v1056
+## v1057
 - Feature: Admin Duplikate – "✅ Kein Duplikat"-Button ignoriert ein Paar dauerhaft (gespeichert in duplikate_ignoriert-Tabelle)
 
-## v1056
+## v1057
 - Fix: Admin Duplikate – PUT-Route erkennt jetzt auch bahn, cross, halle als gültige Kategorie-Routen
 
-## v1056
+## v1057
 - Fix: Admin Duplikate – Edit-Route nutzt jetzt tbl_key-Fallback "strasse" statt "ergebnisse" (behob "Unbekannte Route")
 
-## v1056
+## v1057
 - Feature: Admin Duplikate – ✏️-Button öffnet Standard-Bearbeiten-Dialog (wie unter Ergebnisse)
 
-## v1056
+## v1057
 - Feature: Admin Duplikate – Veranstaltungsname ist jetzt ein klickbarer Link zur Veranstaltungsseite
 
-## v1056
+## v1057
 - Fix: Admin Duplikate – "Eingetragen von" nutzt jetzt benutzer.benutzername + athleten.vorname/nachname via athlet_id
 
-## v1056
+## v1057
 - Fix: Admin Duplikate – Spalte "Eingetragen von" nutzt jetzt korrekte benutzer-Felder (vorname+nachname statt name_nv)
 
-## v1056
+## v1057
 - Feature: Admin Duplikate – Spalte "Eingetragen von" (Benutzername oder Import-Quelle)
 
-## v1056
+## v1057
 - UX: Admin Duplikate – ein Panel pro Paar, Ergebnisse untereinander, AK angezeigt, Datum als hartes Kriterium (nur gleicher Tag)
 
-## v1056
+## v1057
 - Feature: Admin-Tab "Duplikate" – findet Ergebnis-Duplikate (gleicher Athlet+Disziplin, Toleranz ±2s/m, ohne AK/Platzierung); einzeln oder per ↓ in Papierkorb verschieben
 
-## v1056
+## v1057
 - Fix: Bulk-Import Duplikatprüfung – externe Ergebnisse prüfen jetzt auch gegen interne (ergebnisse), interne auch gegen externe (athlet_pb)
 
-## v1056
+## v1057
 - Fix: evenementen.uitslagen.nl – ältere Jahrgänge (2011/2012) nutzen table.u; Parser erkennt jetzt table.uitslag, table.i und table.u
 
-## v1056
+## v1057
 - Feature: Bulk-Import – Checkbox "Auch inaktive Athleten" (default: an); steuert window._bkMatchInaktive in uitsAutoMatch
 
-## v1056
+## v1057
 - Fix: uits-fetch Proxy – PHP-Parse-Fehler behoben; Charset-Erkennung jetzt via mb_detect_encoding statt fehleranfälliger Regex
 
-## v1056
+## v1057
 - Fix: uits-fetch Proxy – PHP-Syntaxfehler in Charset-Erkennung behoben (Anführungszeichen-Konflikt in Regex)
 
-## v1056
+## v1057
 - Fix: uits-fetch Proxy – Charset wird jetzt aus HTML-Meta erkannt (z.B. windows-1252) und korrekt zu UTF-8 konvertiert; behebt fehlende Umlaute wie ü in "Rüdiger"
 
-## v1056
+## v1057
 - Fix: bkSyncDatum – AK-Neuberechnung nutzt jetzt tr.querySelector(".bk-ak") statt falschem Index-Mapping (verhinderte falsche AKs wie WU20 statt M45)
 
-## v1056
+## v1057
 - Fix: AK-Berechnung beim Import – bkUpdateAK überschreibt Website-AK nur wenn Datum bekannt; bkSyncDatum berechnet alle Zeilen-AKs neu wenn Datum nachträglich eingegeben wird
 
-## v1056
+## v1057
 - Fix: evenementen.uitslagen.nl – ältere Events (z.B. 2017) nutzen table.i statt table.uitslag; Parser erkennt jetzt beide Varianten
 
-## v1056
+## v1057
 - Fix: Teilnahmen-Ranking in reg. Veranstaltungen – bei gleicher Gesamtanzahl werden Vereinsteilnahmen höher gewichtet als externe
 
-## v1056
+## v1057
 - Fix: Serie-Bestleistungen – pbDedup im richtigen Endpoint mit use($unique) versehen (vorher wurde immer dedupliciert)
 
-## v1056
+## v1057
 - Fix: Top-10-Limit wiederhergestellt; bei unique=OFF können Athleten mehrfach in den Top 10 erscheinen
 
-## v1056
+## v1057
 - Revert: athlet_pb UNION in Serie-Bestleistungen entfernt (nur interne Ergebnisse)
 - Fix: unique=OFF zeigt jetzt alle Ergebnisse je Athlet (TOP-Limit aufgehoben, Server liefert bis 500)
 
-## v1056
+## v1057
 - Fix: Serie-Bestleistungen – externe Ergebnisse (athlet_pb mit veranstaltung_id) werden jetzt per UNION einbezogen
 - Fix: Sortierung korrekt über Subquery (sort_val als berechnete Spalte)
 
-## v1056
+## v1057
 - Fix: Reg. Veranstaltungen – Schalter jetzt unten im grauen Ergebnis-Panel (wie Bestleistungen-Tab)
 - Fix: "Jede*r Athlet*in nur einmal" wird jetzt server-seitig per unique-Param korrekt respektiert
 
-## v1056
+## v1057
 - Feature: Regelmäßige Veranstaltungen – Bestleistungen-Schalter (Jugend-AK, nur einmal, Jahres-Highlight) direkt im View; teilen state.rekState mit Bestleistungen-Tab
 
-## v1056
+## v1057
 - Fix: Disziplin-Buttons Bestleistungen – Sortierung nach Ergebnisanzahl korrigiert (Feld war "cnt" nicht "anz_ergebnisse")
 
-## v1056
+## v1057
 - UX: Regelmäßige Veranstaltungen – Disziplin-Buttons bei Bestleistungen absteigend nach Ergebnisanzahl sortiert
 
-## v1056
+## v1057
 - Fix: Veranstaltungen-Suche – Suchfeld bleibt beim Tippen im DOM (kein innerHTML-Reset), Fokus auf Mobile stabil
 
-## v1056
+## v1057
 - UX: Veranstaltungen – Button-Menü entfernt; regelmäßige Veranstaltungen erscheinen jetzt als Chips direkt oberhalb der Veranstaltungsliste
 
-## v1056
+## v1057
 - Fix: Dashboard-Widget "Mein Athletenprofil" – "Wettkampfe" → "Wettkämpfe"
 - Fix: Wettkampf-Zähler (Dashboard-Widget + Athletenprofil) zählt jetzt auch externe Ergebnisse (athlet_pb)
 
-## v1056
+## v1057
 - Fix: Dashboard-Fehler "Unknown column pb.resultat_num" – athlet_pb hat kein resultat_num, wird jetzt als NULL behandelt
 
-## v1056
+## v1057
 - Build: README.md, COMMIT_EDITMSG und CHANGELOG.md werden jetzt automatisch von build.sh aktualisiert
 - Fix: Neueste Bestleistungen – Debüt und PB korrekt aus externen Ergebnissen (athlet_pb per UNION)
 

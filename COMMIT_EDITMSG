@@ -1,1 +1,1 @@
-v1056 – Feature: Bulk-Import – Checkbox "AK nach DLV-System angleichen" (default: an); sofortiger Effekt per Klick; speichert Import-AK als Fallback
+v1057 – Perf: MikaTiming neues Interface – statt 3 sequenzielle POSTs (je Event HM/10L/5L) jetzt eine einzige POST-Anfrage ohne Event-Filter; ~3x schneller
