@@ -1,1 +1,1 @@
-v1058 – Feature: Veranstaltungen-Tab jetzt auch für Leser und nicht eingeloggte Nutzer sichtbar
+v1059 – Fix: Regelmäßige Veranstaltungen – URL-Anzeige/Kopieren-Button entfernt; stattdessen aktualisiert openSerieDetail() die Browser-URL per syncHash()
