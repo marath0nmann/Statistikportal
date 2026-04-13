@@ -3456,6 +3456,15 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         }
         unset($res);
 
+        // Ort aus og:description wenn noch nicht bekannt (neues Interface hat kein JSON-LD)
+        if (!$eventOrt && $mainHtml) {
+            if (preg_match('/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i', $mainHtml, $dm)
+                || preg_match('/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i', $mainHtml, $dm)) {
+                $desc = trim($dm[1]);
+                if ($desc && strlen($desc) < 60 && stripos($desc, 'timing') === false) $eventOrt = $desc;
+            }
+        }
+
         @unlink($cookieFile);
         jsonOk(['results' => $results, 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
 

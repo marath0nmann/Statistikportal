@@ -1,1 +1,1 @@
-v1052 – Fix: MikaTiming neues Interface – Zeit (type-time/Label "Ziel"), AK und Verein (type-field/list-label) korrekt extrahiert
+v1053 – Fix: MikaTiming – DNS/DNF überspringen (kein Resultat = nicht importieren)

@@ -1271,6 +1271,21 @@ async function bulkImportFromMika(url, kat, statusEl) {
     }
     _bkDbgFlush();
   }
+  // Veranstaltungsname und Ort aus API-Response vorbelegen
+  var _evData = r.data || {};
+  if (_evData.eventName) {
+    var evEl = document.getElementById('bk-evname');
+    if (evEl && !evEl.value) evEl.value = _evData.eventName;
+  }
+  if (_evData.eventOrt) {
+    var ortEl = document.getElementById('bk-ort');
+    if (ortEl && !ortEl.value) ortEl.value = _evData.eventOrt;
+  }
+  if (_evData.eventDate) {
+    var datEl = document.getElementById('bk-datum');
+    if (datEl && !datEl.value) datEl.value = _evData.eventDate;
+  }
+
   await bulkFillFromImport(rows, statusEl);
 }
 
@@ -1417,7 +1432,10 @@ function mikaExtractRowsForBulk(data, kat) {
   var diszList = disziplinen.map(function(d){ return d.disziplin; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
   var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '').trim().toLowerCase();
 
-  return results.map(function(res) {
+  return results.filter(function(res) {
+    // DNS / DNF: kein Resultat → nicht importieren
+    return !!(res.netto || res.zeit);
+  }).map(function(res) {
     var contestName = res.contest || res.disziplin || '';
     var disz = rrBestDisz(contestName, diszList);
     var diszObj = (kat ? disziplinen.find(function(d){return d.disziplin===disz&&d.tbl_key===kat;}) : null)
