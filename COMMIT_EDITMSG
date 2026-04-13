@@ -1,1 +1,1 @@
-v1055 – Fix: PHP Fatal Error – kaputte Regex mit gemischten Anführungszeichen in og:description-Extraktion behoben
+v1056 – Feature: Bulk-Import – Checkbox "AK nach DLV-System angleichen" (default: an); sofortiger Effekt per Klick; speichert Import-AK als Fallback

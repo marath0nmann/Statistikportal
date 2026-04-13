@@ -307,6 +307,12 @@ function renderEintragen() {
           '</select>' +
         '</div>' +
 
+        '<div style="margin-bottom:8px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">' +
+          '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer">' +
+            '<input type="checkbox" id="bk-ak-angleichen" checked onchange="bkToggleAkAngleichen(this.checked)" style="width:13px;height:13px;cursor:pointer">' +
+            'AK nach DLV-System angleichen (aus Athlet + Datum berechnen)' +
+          '</label>' +
+        '</div>' +
         '<div style="overflow-x:auto">' +
           '<table style="width:100%;border-collapse:collapse;font-size:13px" id="bulk-table">' +
             '<thead><tr style="background:var(--surf2);color:var(--text2)">' +
@@ -1271,6 +1277,10 @@ async function bulkImportFromMika(url, kat, statusEl) {
     }
     _bkDbgFlush();
   }
+  // AK angleichen wenn Checkbox aktiv
+  var akAnglEl = document.getElementById('bk-ak-angleichen');
+  if (!akAnglEl || akAnglEl.checked) bkApplyDlvAK(true);
+
   // Veranstaltungsname und Ort aus API-Response vorbelegen
   var _evData = r.data || {};
   if (_evData.eventName) {
@@ -2095,7 +2105,7 @@ async function bulkFillFromImport(rows, statusEl) {
     if (resEl && row.resultat) resEl.value = fmtRes(row.resultat);
     // AK
     var akSel = tr.querySelector('.bk-ak');
-    if (akSel && row.ak) { akSel.value = row.ak; }
+    if (akSel && row.ak) { akSel.value = row.ak; akSel.dataset.importAk = row.ak; }
     // Platz
     var platzEl = tr.querySelector('.bk-platz');
     if (platzEl && row.platz) platzEl.value = row.platz;
@@ -2522,6 +2532,34 @@ function _bulkFindAthlet(name) {
   }
   return '';
 }
+function bkToggleAkAngleichen(checked) {
+  bkApplyDlvAK(checked);
+}
+
+function bkApplyDlvAK(useCalculated) {
+  var tbody = document.getElementById('bulk-rows');
+  if (!tbody) return;
+  var eventJahr = _bkEventJahr();
+  Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
+    var athSel = tr.querySelector('.bk-athlet');
+    var akInp  = tr.querySelector('.bk-ak');
+    if (!akInp) return;
+    if (!useCalculated) {
+      // Zurück auf Import-Wert
+      akInp.value = akInp.dataset.importAk || '';
+      return;
+    }
+    if (!athSel || !athSel.value) return;
+    var opt  = athSel.options[athSel.selectedIndex];
+    var g    = opt ? (opt.dataset.g    || '') : '';
+    var gebj = opt ? (opt.dataset.gebj || '') : '';
+    if (g && gebj) {
+      var ak = calcDlvAK(parseInt(gebj), g, eventJahr);
+      if (ak) akInp.value = ak;
+    }
+  });
+}
+
 function bkSyncDatum(val) {
   // Globales Datum auf alle Zeilen übertragen
   if (!val) return;
