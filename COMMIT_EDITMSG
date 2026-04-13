@@ -1,1 +1,1 @@
-v1054 – Fix: PHP Fatal Error – mikaCurl und mikaPostCurl auf Top-Level verschoben (PHP erlaubt keine Funktionsdeklarationen in if-Blöcken)
+v1055 – Fix: PHP Fatal Error – kaputte Regex mit gemischten Anführungszeichen in og:description-Extraktion behoben
