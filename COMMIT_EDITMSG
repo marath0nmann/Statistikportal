@@ -1,1 +1,1 @@
-v1060 – Fix: MikaTiming altes Interface – Namensuche durchsucht jetzt alle Event-IDs (HM/10L/5L etc.) statt nur dem ersten; findet jetzt auch 5km-Teilnehmer
+v1061 – Fix: MikaTiming altes Interface – Detail-Fetch (Zeit/AK) läuft jetzt auch für Namens-Such-Ergebnisse (war fälschlich im else-Block eingeschlossen → netto leer → DNS-Filter)

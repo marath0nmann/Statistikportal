@@ -3612,6 +3612,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         ];
     }
     $debug['rowsFound'] = count($results);
+    } // end DOMDocument else
 
     // 3. Detailseite pro Athlet: Zeit + AK
     foreach ($results as &$res) {
@@ -3696,7 +3697,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             $debug['detailUrl'] = $detailUrl;
         }
     }
-    } // end DOMDocument else
     unset($res);
 
     @unlink($cookieFile);
