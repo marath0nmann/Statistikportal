@@ -1,1 +1,1 @@
-v1059 – Fix: Regelmäßige Veranstaltungen – URL-Anzeige/Kopieren-Button entfernt; stattdessen aktualisiert openSerieDetail() die Browser-URL per syncHash()
+v1060 – Fix: MikaTiming altes Interface – Namensuche durchsucht jetzt alle Event-IDs (HM/10L/5L etc.) statt nur dem ersten; findet jetzt auch 5km-Teilnehmer

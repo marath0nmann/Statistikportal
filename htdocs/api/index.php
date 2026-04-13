@@ -3472,28 +3472,88 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         jsonOk(['results' => $results, 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
 
     } else {
-        // Altes Interface: GET mit search[club] oder search[name]
+        // Altes Interface: GET-Suche
         if ($nameSearch) {
-            $searchUrl = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
-                . '&search%5Bname%5D=' . urlencode($nameSearch)
-                . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
-                . '&search_sort=name'
-                . ($eventId ? '&event=' . urlencode($eventId) . '&search_event=' . urlencode($eventId) : '');
+            // Namensuche: alle bekannten Event-IDs durchsuchen und mergen
+            $oldEventIds = [];
+            // Aus Hauptseite extrahieren
+            preg_match_all('/<option[^>]+value="([A-Z0-9]{1,5}L?)"[^>]*>/i', $mainHtml, $oem);
+            foreach ($oem[1] as $ev) if (!in_array($ev, $oldEventIds)) $oldEventIds[] = $ev;
+            if (empty($oldEventIds) && $eventId) $oldEventIds = [$eventId];
+            if (empty($oldEventIds)) $oldEventIds = [''];  // ohne Event-Filter als Fallback
+
+            $searchHtml = '';
+            $oldResults = [];
+            $debug['oldEventIds'] = $oldEventIds;
+            foreach ($oldEventIds as $oEvId) {
+                $url = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
+                    . '&search%5Bname%5D=' . urlencode($nameSearch)
+                    . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
+                    . '&search_sort=name'
+                    . ($oEvId ? '&event=' . urlencode($oEvId) . '&search_event=' . urlencode($oEvId) : '');
+                $html = mikaCurl($url, $cookieFile, $ua);
+                $debug['oldSearch'][$oEvId ?: 'all'] = strlen($html);
+                // Ergebnisse parsen und mit $oEvId als contest mergen
+                $domO = new DOMDocument('1.0', 'UTF-8');
+                @$domO->loadHTML('<?xml encoding="UTF-8">' . $html);
+                $xpO = new DOMXPath($domO);
+                foreach ($xpO->query('//li[contains(@class,"list-group-item") and not(contains(@class,"list-group-header")) and not(contains(@class,"list-info"))]') as $li) {
+                    $idp = '';
+                    foreach ($xpO->query('.//a[@href]', $li) as $a) {
+                        $href = $a->getAttribute('href');
+                        if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $href, $im)) { $idp = $im[1]; break; }
+                    }
+                    if (!$idp || isset($oldResults[$idp])) continue;
+                    $name = '';
+                    foreach ($xpO->query('.//*[contains(@class,"fullname")]', $li) as $n) {
+                        $t = trim($n->textContent);
+                        if ($t) { $name = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $t); break; }
+                    }
+                    if (!$name) continue;
+                    $liClub2 = '';
+                    foreach ($xpO->query('.//*[contains(@class,"club") or contains(@class,"f-club")]', $li) as $n) {
+                        $t = trim($n->textContent); if ($t) { $liClub2 = $t; break; }
+                    }
+                    $placeGes2 = ''; $placeAK2 = '';
+                    foreach ($xpO->query('.//*[contains(@class,"place-primary")]', $li) as $n) {
+                        $t = trim($n->textContent); if (ctype_digit($t)) { $placeGes2 = $t; break; }
+                    }
+                    foreach ($xpO->query('.//*[contains(@class,"place-secondary")]', $li) as $n) {
+                        $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK2 = $t; break; }
+                    }
+                    $oldResults[$idp] = [
+                        'name' => trim($name), 'contest' => $oEvId ?: 'Unbekannt',
+                        'netto' => '', 'ak' => '', 'platz_ak' => $placeAK2, 'platz_ges' => $placeGes2,
+                        'event_id' => $oEvId, 'idp' => $idp, 'club' => $liClub2,
+                    ];
+                }
+            }
+            // $searchHtml für den nachfolgenden Parser: leer lassen, direkt $results setzen
+            $searchHtml = '<html></html>';
+            // Inject results before the main parser runs (wird von if(!$isNewInterface) Block genutzt)
+            // Stattdessen: direkt zu den Detail-Fetches springen
+            // Wir überschreiben $results nach dem Haupt-Parser
+            $debug['oldNameResults'] = count($oldResults);
+            // Übergabe via global scope trick: serialize in temp var
+            $_oldNameResults = array_values($oldResults);
         } else {
             $searchUrl = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
                 . '&search%5Bclub%5D=' . urlencode($club)
                 . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
                 . '&search_sort=name'
                 . ($eventId ? '&event=' . urlencode($eventId) . '&search_event=' . urlencode($eventId) : '');
+            $searchHtml = mikaCurl($searchUrl, $cookieFile, $ua);
         }
-        $searchHtml = mikaCurl($searchUrl, $cookieFile, $ua);
-        $debug['searchUrl'] = $searchUrl;
         $debug['htmlLen'] = strlen($searchHtml);
     }
 
     if (!$isNewInterface) {
     // Ergebniszeilen: li mit event-Klasse + idp-Link
     $results = [];
+    // Wenn Namensuche multi-event vorab gesammelt: direkt übernehmen
+    if (!empty($_oldNameResults)) {
+        $results = $_oldNameResults;
+    } else {
     // DOMDocument für robustes Parsing
     $dom = new DOMDocument('1.0', 'UTF-8');
     @$dom->loadHTML('<?xml encoding="UTF-8">' . $searchHtml);
@@ -3636,6 +3696,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             $debug['detailUrl'] = $detailUrl;
         }
     }
+    } // end DOMDocument else
     unset($res);
 
     @unlink($cookieFile);
