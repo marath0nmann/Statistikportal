@@ -685,9 +685,10 @@ tr:hover td { background: var(--surf2); }
 
   /* Tabellen: auf Smartphones kritische Spalten ausblenden */
   /* Nur normale Tabellen – veranst-dash-table hat eigene Regeln */
-  table:not(.veranst-dash-table) th:nth-child(4),
-  table:not(.veranst-dash-table) td:nth-child(4) { display: none; }
-  .rek-table th:nth-child(4), .rek-table td:nth-child(4) { display: none; }
+  table:not(.veranst-dash-table):not(.serie-teilnahmen-table) th:nth-child(4),
+  table:not(.veranst-dash-table):not(.serie-teilnahmen-table) td:nth-child(4) { display: none; }
+  .rek-table:not(.serie-teilnahmen-table) th:nth-child(4),
+  .rek-table:not(.serie-teilnahmen-table) td:nth-child(4) { display: none; }
 
   /* veranst-dash-table auf Smartphone: Pace + Meisterschaft + Platz MS ausblenden */
   .veranst-dash-table .vcol-pace,

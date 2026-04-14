@@ -1,1 +1,1 @@
-v1066 – Fix: Teilnahmen-Tabelle – erstes Jahr auf Mobile nicht mehr ausgeblendet (rek-table CSS hatte nth-child(4){display:none} für Mobile); eigene Klasse serie-teilnahmen-table
+v1067 – Fix: Teilnahmen-Tabelle – erstes Jahr auf Mobile weiterhin ausgeblendet durch globale CSS-Regel table:not(.veranst-dash-table) nth-child(4); serie-teilnahmen-table jetzt auch dort ausgeschlossen
