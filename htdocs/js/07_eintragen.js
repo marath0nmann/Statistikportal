@@ -1443,8 +1443,9 @@ function mikaExtractRowsForBulk(data, kat) {
   var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '').trim().toLowerCase();
 
   return results.filter(function(res) {
-    // DNS / DNF: kein Resultat → nicht importieren
-    return !!(res.netto || res.zeit);
+    // DNS / DNF: kein IDP-Eintrag = nicht angetreten (MikaTiming zeigt DNS nicht in Suchergebnissen)
+    // Kein Zeit-Filter: Detail-Fetch kann scheitern, Ergebnis trotzdem gültig
+    return !!(res.idp || res.netto || res.zeit);
   }).map(function(res) {
     var contestName = res.contest || res.disziplin || '';
     var disz = rrBestDisz(contestName, diszList);

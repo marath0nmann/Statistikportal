@@ -3475,12 +3475,12 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         // Altes Interface: GET-Suche
         if ($nameSearch) {
             // Namensuche: alle bekannten Event-IDs durchsuchen und mergen
-            $oldEventIds = [];
-            // Aus Hauptseite extrahieren
+            // Feste Fallback-Liste gängiger Event-IDs (alte Sites rendern Optionen oft per JS)
+            $oldEventIds = ['HM','10L','5L','M','10K','5K','10KM','5KM','HLM'];
+            // Zusätzlich aus Hauptseite extrahieren
             preg_match_all('/<option[^>]+value="([A-Z0-9]{1,5}L?)"[^>]*>/i', $mainHtml, $oem);
             foreach ($oem[1] as $ev) if (!in_array($ev, $oldEventIds)) $oldEventIds[] = $ev;
-            if (empty($oldEventIds) && $eventId) $oldEventIds = [$eventId];
-            if (empty($oldEventIds)) $oldEventIds = [''];  // ohne Event-Filter als Fallback
+            if ($eventId && !in_array($eventId, $oldEventIds)) $oldEventIds[] = $eventId;
 
             $searchHtml = '';
             $oldResults = [];
@@ -3618,10 +3618,13 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     foreach ($results as &$res) {
         $idp = $res['idp']; $evId = $res['event_id'];
         // Basis-Suchparameter beibehalten für Cookie-Kontext
+        // Detail-URL: bei Namensuche ohne Club-Filter (sonst falscher Cookie-Kontext)
         $detailUrl = $baseUrl . '?content=detail&fpid=search&pid=search&lang=DE'
             . '&idp=' . urlencode($idp) . '&event=' . urlencode($evId) . '&pidp=start'
-            . '&search%5Bclub%5D=' . urlencode($club)
-            . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
+            . (!empty($_oldNameResults)
+                ? '&search%5Bname%5D=&search%5Bage_class%5D=%25&search%5Bsex%5D=%25'
+                : '&search%5Bclub%5D=' . urlencode($club) . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25%5Bnation%5D=%25'
+              )
             . '&search_sort=name&search_event=' . urlencode($evId);
         $dHtml = mikaCurl($detailUrl, $cookieFile, $ua);
         if (!$dHtml) continue;
