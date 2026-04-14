@@ -770,11 +770,13 @@ async function _loadSerieTeilnahmen(serieId) {
     return '<th style="text-align:center;width:38px;min-width:38px;font-size:11px;font-weight:600;color:var(--text2);padding:4px 2px">' + j + '</th>';
   }).join('');
 
-  var html = '<div class="table-scroll" style="overflow-x:auto;width:100%"><table class="rek-table" style="width:auto;min-width:max-content">';
+  var html = '<div class="table-scroll" style="overflow-x:auto;width:100%"><table class="serie-teilnahmen-table" style="width:auto;min-width:max-content;border-collapse:collapse;font-size:13px">';
+  var _thBase = 'padding:7px 10px;color:var(--text2);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;border-bottom:2px solid var(--border)';
+  var _tdBase = 'padding:7px 10px;border-bottom:1px solid var(--border)';
   html += '<thead><tr>' +
-    '<th style="width:34px"></th>' +
-    '<th style="text-align:left;min-width:140px">Athlet*in</th>' +
-    '<th style="text-align:right;width:44px">&#x2211;</th>' +
+    '<th style="' + _thBase + ';width:34px"></th>' +
+    '<th style="' + _thBase + ';text-align:left;min-width:140px">Athlet*in</th>' +
+    '<th style="' + _thBase + ';text-align:right;width:44px">&#x2211;</th>' +
     tlHeader +
     '</tr></thead><tbody>';
 

@@ -1,1 +1,1 @@
-v1065 – Fix: Teilnahmen-Tabelle – erstes Jahr auf Mobile nicht mehr abgeschnitten (display:inline-block → overflow-x:auto;width:100%)
+v1066 – Fix: Teilnahmen-Tabelle – erstes Jahr auf Mobile nicht mehr ausgeblendet (rek-table CSS hatte nth-child(4){display:none} für Mobile); eigene Klasse serie-teilnahmen-table
