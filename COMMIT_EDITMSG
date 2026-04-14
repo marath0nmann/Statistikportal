@@ -1,1 +1,1 @@
-v1068 – Fix: Regelmäßige Veranstaltung – Browser-Refresh auf #veranstaltungen/serie/ID öffnet jetzt korrekt die Serie-Detail-Seite (restoreFromHash kannte den Serie-Pfad nicht)
+v1070 – Fix: MikaTiming Interface-Erkennung – nur noch "simple-search-name" als Merkmal für neues Interface; zweite Bedingung entfernt die 2023er und ähnliche Sites fälschlicherweise als neu klassifizierte

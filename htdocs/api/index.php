@@ -3320,8 +3320,10 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $debug['eventId'] = $eventId;
 
     // 2. Interface-Erkennung: Neu (POST, kein club-Feld) vs Alt (GET, club-Feld)
-    $isNewInterface = strpos($mainHtml, 'simple-search-name') !== false
-        || (strpos($mainHtml, 'search[club]') === false && strpos($mainHtml, 'pid=search') !== false);
+    // Neues Interface erkennen: nur per eindeutigem Merkmal (Input-ID aus der SPA)
+    // Die zweite Bedingung (kein search[club]) war zu unzuverlässig – viele alte Sites rendern
+    // das Formular per JS und haben search[club] nicht im statischen HTML
+    $isNewInterface = strpos($mainHtml, 'simple-search-name') !== false;
     $nameSearch = trim($_GET['name'] ?? '');
     $debug = ['isNewInterface' => $isNewInterface, 'nameSearch' => $nameSearch];
 

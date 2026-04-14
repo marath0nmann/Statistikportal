@@ -2715,11 +2715,9 @@ function restoreFromHash() {
   state.tab = tab;
 
   if (tab === 'admin' && sub) {
-    var validAdmin = ['benutzer','registrierungen','disziplinen','altersklassen',
-                      'meisterschaften','darstellung','dashboard_cfg','antraege','papierkorb'];
+    var validAdmin = ['system','benutzer','registrierungen','disziplinen','altersklassen',
+                      'meisterschaften','darstellung','dashboard_cfg','antraege','papierkorb','wartung'];
     if (validAdmin.indexOf(sub) >= 0) state.adminTab = sub;
-  } else if (tab === 'veranstaltung' && sub) {
-    state.veranstaltungId = parseInt(sub) || null;
   } else if (tab === 'veranstaltung' && sub) {
     state.veranstaltungId = parseInt(sub) || null;
   } else if (tab === 'veranstaltungen' && sub === 'serie' && parts[2]) {
