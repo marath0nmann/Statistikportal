@@ -1443,9 +1443,12 @@ function mikaExtractRowsForBulk(data, kat) {
   var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '').trim().toLowerCase();
 
   return results.filter(function(res) {
-    // DNS / DNF: kein IDP-Eintrag = nicht angetreten (MikaTiming zeigt DNS nicht in Suchergebnissen)
-    // Kein Zeit-Filter: Detail-Fetch kann scheitern, Ergebnis trotzdem gültig
-    return !!(res.idp || res.netto || res.zeit);
+    // Nur Einträge mit Name behalten; DNS/DNF = kein Ergebnis → beim neuen Interface (type-time vorhanden)
+    // explizit herausfiltern wenn weder Zeit noch Name; beim alten Interface kommt Zeit per Detail-Fetch
+    if (!res.name) return false;
+    // Neues Interface: Zeit steht in Liste; wenn keine Zeit → DNS/DNF
+    if (res._fromNewInterface && !(res.netto || res.zeit)) return false;
+    return true;
   }).map(function(res) {
     var contestName = res.contest || res.disziplin || '';
     var disz = rrBestDisz(contestName, diszList);

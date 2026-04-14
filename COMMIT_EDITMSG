@@ -1,1 +1,1 @@
-v1063 – Fix: MikaTiming altes Interface – Namensuche nutzt jetzt feste Liste gängiger Event-IDs (HM/10L/5L/M/10K/5K etc.) statt nur HTML-Options die oft JS-gerendert fehlen
+v1064 – Fix: MikaTiming – DNS-Filter nutzt jetzt res.name statt res.idp/netto; neues Interface markiert Ergebnisse mit _fromNewInterface für korrekten DNS-Filter

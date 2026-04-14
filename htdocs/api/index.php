@@ -3453,10 +3453,11 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         $debug['rowsFound'] = count($results);
         if (!empty($results)) $debug['firstResult'] = $results[0];
 
-        // contestMap setzen (kein Detail-Fetch nötig)
+        // contestMap setzen + neues Interface markieren (kein Detail-Fetch nötig)
         $contestMap = ['HM'=>'Halbmarathon','10L'=>'10km','5L'=>'5km'];
         foreach ($results as &$res) {
             if (isset($contestMap[$res['event_id']])) $res['contest'] = $contestMap[$res['event_id']];
+            $res['_fromNewInterface'] = true;
         }
         unset($res);
 

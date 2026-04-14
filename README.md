@@ -1,5 +1,5 @@
 # Statistikportal – Leichtathletik
-## Version v1063 | Stand: April 2026 
+## Version v1064 | Stand: April 2026 
 
 Webbasiertes Statistikportal für den Leichtathletik-Bereich.  
 PHP/MariaDB · Shared Hosting (all-inkl.com) · Vanilla JS/CSS · keine externen Frameworks
