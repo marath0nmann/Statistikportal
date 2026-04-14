@@ -1,1 +1,1 @@
-v1064 – Fix: MikaTiming – DNS-Filter nutzt jetzt res.name statt res.idp/netto; neues Interface markiert Ergebnisse mit _fromNewInterface für korrekten DNS-Filter
+v1065 – Fix: Teilnahmen-Tabelle – erstes Jahr auf Mobile nicht mehr abgeschnitten (display:inline-block → overflow-x:auto;width:100%)
