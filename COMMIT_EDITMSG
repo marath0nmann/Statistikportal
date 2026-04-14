@@ -1,1 +1,1 @@
-v1067 – Fix: Teilnahmen-Tabelle – erstes Jahr auf Mobile weiterhin ausgeblendet durch globale CSS-Regel table:not(.veranst-dash-table) nth-child(4); serie-teilnahmen-table jetzt auch dort ausgeschlossen
+v1068 – Fix: Regelmäßige Veranstaltung – Browser-Refresh auf #veranstaltungen/serie/ID öffnet jetzt korrekt die Serie-Detail-Seite (restoreFromHash kannte den Serie-Pfad nicht)

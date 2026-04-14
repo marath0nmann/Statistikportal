@@ -2722,6 +2722,9 @@ function restoreFromHash() {
     state.veranstaltungId = parseInt(sub) || null;
   } else if (tab === 'veranstaltung' && sub) {
     state.veranstaltungId = parseInt(sub) || null;
+  } else if (tab === 'veranstaltungen' && sub === 'serie' && parts[2]) {
+    var _sid = parseInt(parts[2]) || null;
+    if (_sid) { state.veranstView = 'serie-detail'; state.serieId = _sid; }
   } else if (tab === 'ergebnisse') {
     state.subTab = sub || 'strasse';
   } else if (tab === 'rekorde' && sub) {
