@@ -1,1 +1,1 @@
-v1070 – Fix: MikaTiming Interface-Erkennung – nur noch "simple-search-name" als Merkmal für neues Interface; zweite Bedingung entfernt die 2023er und ähnliche Sites fälschlicherweise als neu klassifizierte
+v1071 – Fix: MikaTiming altes Interface – Namensuche sucht zuerst ohne Event-Filter (funktioniert für 2023 etc.); Event-ID-Loop nur als Fallback wenn kein Ergebnis (für 2016 etc.)

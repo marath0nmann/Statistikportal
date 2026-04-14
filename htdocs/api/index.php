@@ -3477,18 +3477,67 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     } else {
         // Altes Interface: GET-Suche
         if ($nameSearch) {
-            // Namensuche: alle bekannten Event-IDs durchsuchen und mergen
-            // Feste Fallback-Liste gängiger Event-IDs (alte Sites rendern Optionen oft per JS)
-            $oldEventIds = ['HM','10L','5L','M','10K','5K','10KM','5KM','HLM'];
-            // Zusätzlich aus Hauptseite extrahieren
-            preg_match_all('/<option[^>]+value="([A-Z0-9]{1,5}L?)"[^>]*>/i', $mainHtml, $oem);
-            foreach ($oem[1] as $ev) if (!in_array($ev, $oldEventIds)) $oldEventIds[] = $ev;
-            if ($eventId && !in_array($eventId, $oldEventIds)) $oldEventIds[] = $eventId;
-
-            $searchHtml = '';
+            // Namensuche: zuerst ohne Event-Filter (funktioniert für viele Sites)
+            // Nur wenn nötig: Event-ID-Loop als Fallback (für Sites wie 2016 die pro-Event suchen müssen)
             $oldResults = [];
-            $debug['oldEventIds'] = $oldEventIds;
-            foreach ($oldEventIds as $oEvId) {
+
+            // Schritt 1: Ohne Event-Filter suchen
+            $urlNoEvent = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
+                . '&search%5Bname%5D=' . urlencode($nameSearch)
+                . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
+                . '&search_sort=name';
+            $htmlNoEvent = mikaCurl($urlNoEvent, $cookieFile, $ua);
+            $debug['noEventHtmlLen'] = strlen($htmlNoEvent);
+
+            // Parse results from no-event search
+            $domNE = new DOMDocument('1.0', 'UTF-8');
+            @$domNE->loadHTML('<?xml encoding="UTF-8">' . $htmlNoEvent);
+            $xpNE = new DOMXPath($domNE);
+            foreach ($xpNE->query('//li[contains(@class,"list-group-item") and not(contains(@class,"list-group-header")) and not(contains(@class,"list-info"))]') as $li) {
+                $idp = '';
+                foreach ($xpNE->query('.//a[@href]', $li) as $a) {
+                    $href = $a->getAttribute('href');
+                    if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $href, $im)) { $idp = $im[1]; break; }
+                }
+                if (!$idp) continue;
+                $evIdFromLink = '';
+                foreach ($xpNE->query('.//a[@href]', $li) as $a) {
+                    $href = $a->getAttribute('href');
+                    if (preg_match('/[?&]event=([A-Z0-9]{1,10})/i', $href, $em)) { $evIdFromLink = $em[1]; break; }
+                }
+                $name = '';
+                foreach ($xpNE->query('.//*[contains(@class,"fullname")]', $li) as $n) {
+                    $t = trim($n->textContent);
+                    if ($t) { $name = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $t); break; }
+                }
+                if (!$name) continue;
+                $liClub2 = '';
+                foreach ($xpNE->query('.//*[contains(@class,"club") or contains(@class,"f-club")]', $li) as $n) {
+                    $t = trim($n->textContent); if ($t) { $liClub2 = $t; break; }
+                }
+                $placeGes2 = ''; $placeAK2 = '';
+                foreach ($xpNE->query('.//*[contains(@class,"place-primary")]', $li) as $n) {
+                    $t = trim($n->textContent); if (ctype_digit($t)) { $placeGes2 = $t; break; }
+                }
+                foreach ($xpNE->query('.//*[contains(@class,"place-secondary")]', $li) as $n) {
+                    $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK2 = $t; break; }
+                }
+                $oldResults[$idp] = [
+                    'name' => trim($name), 'contest' => $evIdFromLink ?: 'Unbekannt',
+                    'netto' => '', 'ak' => '', 'platz_ak' => $placeAK2, 'platz_ges' => $placeGes2,
+                    'event_id' => $evIdFromLink, 'idp' => $idp, 'club' => $liClub2,
+                ];
+            }
+            $debug['noEventResults'] = count($oldResults);
+
+            // Schritt 2: Falls keine Ergebnisse → Event-ID-Loop als Fallback (z.B. für 2016er Sites)
+            if (empty($oldResults)) {
+                $oldEventIds = ['HM','10L','5L','M','10K','5K','10KM','5KM','HLM'];
+                preg_match_all('/<option[^>]+value="([A-Z0-9]{1,5}L?)"[^>]*>/i', $mainHtml, $oem);
+                foreach ($oem[1] as $ev) if (!in_array($ev, $oldEventIds)) $oldEventIds[] = $ev;
+                if ($eventId && !in_array($eventId, $oldEventIds)) $oldEventIds[] = $eventId;
+                $debug['oldEventIds'] = $oldEventIds;
+                foreach ($oldEventIds as $oEvId) {
                 $url = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
                     . '&search%5Bname%5D=' . urlencode($nameSearch)
                     . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
@@ -3530,7 +3579,8 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         'event_id' => $oEvId, 'idp' => $idp, 'club' => $liClub2,
                     ];
                 }
-            }
+                } // end foreach $oldEventIds
+            } // end if(empty($oldResults)) — Event-ID-Loop Fallback
             // $searchHtml für den nachfolgenden Parser: leer lassen, direkt $results setzen
             $searchHtml = '<html></html>';
             // Inject results before the main parser runs (wird von if(!$isNewInterface) Block genutzt)
