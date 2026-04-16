@@ -473,7 +473,7 @@ async function _loadSerieBestleistungen(serieId, disz, mappingId) {
   }
 
   var shtml = sectionHead('Gesamt');
-  shtml += '<div class="panel" style="overflow:hidden;margin-bottom:28px">' + buildRekTable(pbDedup(d.gesamt || []), fmt, false, showPace, 'Athlet*in', disz) + '</div>';
+  shtml += '<div class="panel" style="overflow-x:auto;margin-bottom:28px">' + buildRekTable(pbDedup(d.gesamt || []), fmt, false, showPace, 'Athlet*in', disz) + '</div>';
 
   shtml += sectionHead('Frauen / M&auml;nner');
   shtml +=
