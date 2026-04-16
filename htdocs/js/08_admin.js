@@ -545,45 +545,54 @@ async function _ladeRollenManager() {
   // Globale Map für rolleLabel()
   window._rollenMap = {};
   rollen.forEach(function(ro) { window._rollenMap[ro.name] = ro; });
-  var html = '<table style="width:100%;font-size:13px;border-collapse:collapse;table-layout:fixed">' +
-    '<colgroup><col style="width:110px"><col style="width:130px"><col><col style="width:80px"></colgroup>' +
-    '<thead><tr style="border-bottom:2px solid var(--border)">' +
-    '<th style="text-align:left;padding:6px 10px">Rolle</th>' +
-    '<th style="text-align:left;padding:6px 10px">Bezeichnung</th>' +
-    '<th style="text-align:left;padding:6px 10px">Rechte</th>' +
-    '<th></th>' +
-    '</tr></thead><tbody>';
+  function _rolleCard(name, lockIcon, labelDisp, pubIcon, rechteLabels, actionHtml, dimmed) {
+    var rechteTags = rechteLabels
+      ? rechteLabels.split(', ').map(function(l) {
+          return '<span style="display:inline-block;background:var(--surface2,rgba(255,255,255,.07));' +
+            'border:1px solid var(--border);border-radius:4px;font-size:11px;padding:1px 6px;margin:2px 2px 2px 0;' +
+            'white-space:normal;word-break:break-word;line-height:1.4">' + l + '</span>';
+        }).join('')
+      : '<span style="opacity:.4">–</span>';
+    return '<div style="border-bottom:1px solid var(--border);padding:10px 10px;' + (dimmed ? 'opacity:.7;' : '') + '">' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+        '<div style="min-width:0">' +
+          '<div style="font-weight:700;font-size:13px;margin-bottom:2px">' + name + lockIcon + '</div>' +
+          '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">' + labelDisp + pubIcon + '</div>' +
+          '<div style="line-height:1.6">' + rechteTags + '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:4px;flex-shrink:0;align-self:flex-start">' + actionHtml + '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  var html = '<div>';
+  // Header-Zeile (nur auf größeren Screens sinnvoll → als Tabellenkopf-Optik)
+  html += '<div style="display:flex;padding:6px 10px;border-bottom:2px solid var(--border);font-size:11px;' +
+    'font-weight:700;text-transform:uppercase;letter-spacing:.5px;opacity:.6">' +
+    '<span style="flex:1">Rolle / Bezeichnung / Rechte</span></div>';
+
   rollen.forEach(function(rolle) {
     var rechteLabels = (rolle.rechte || []).map(function(k) {
       var r2 = _RECHTE_LISTE.find(function(x){ return x.key===k; });
       return r2 ? r2.label : k;
     }).join(', ');
-    // Systemrollen (admin/athlet/leser): Name editierbar, Rechte gesperrt, nicht löschbar
     var sysRolle = (rolle.name === 'admin' || rolle.name === 'athlet' || rolle.name === 'leser' || rolle.name === 'nicht-eingeloggt');
     var lockIcon = sysRolle ? ' <span title="Systemrolle: Name änderbar, Rechte gesperrt" style="font-size:11px;opacity:.5">🔐</span>' : '';
     var labelDisp = (rolle.label && rolle.label !== rolle.name) ? rolle.label : '<span style="opacity:.4;font-style:italic">—</span>';
     var pubIcon = rolle.oeffentlich ? '<span title="Öffentlich sichtbar" style="font-size:11px;margin-left:4px">👁️</span>' : '<span title="Nicht öffentlich" style="font-size:11px;margin-left:4px;opacity:.4">🙈</span>';
-    html += '<tr style="border-bottom:1px solid var(--border)">' +
-      '<td style="padding:8px 10px;font-weight:600">' + rolle.name + lockIcon + '</td>' +
-      '<td style="padding:8px 10px;font-size:13px">' + labelDisp + pubIcon + '</td>' +
-      '<td style="padding:8px 10px;color:var(--text2);font-size:12px;word-break:break-word;white-space:normal">' + (rechteLabels || '–') + '</td>' +
-      '<td style="padding:8px 6px;white-space:nowrap;text-align:right">' +
-        '<div style="display:flex;gap:4px;justify-content:flex-end">' +
-          '<button class="btn btn-ghost btn-sm" onclick="showRolleEditModal(' + rolle.id + ')" title="Bearbeiten">✏️</button>' +
-          (!sysRolle ? '<button class="btn btn-danger btn-sm" onclick="deleteRolle(' + rolle.id + ',\'' + rolle.name + '\')" title="Löschen">✕</button>' : '') +
-        '</div>' +
-      '</td>' +
-    '</tr>';
+    var actionHtml =
+      '<button class="btn btn-ghost btn-sm" onclick="showRolleEditModal(' + rolle.id + ')" title="Bearbeiten">✏️</button>' +
+      (!sysRolle ? '<button class="btn btn-danger btn-sm" onclick="deleteRolle(' + rolle.id + ',\'' + rolle.name + '\')" title="Löschen">✕</button>' : '');
+    html += _rolleCard(rolle.name, lockIcon, labelDisp, pubIcon, rechteLabels, actionHtml, false);
   });
-  // Pseudo-Rolle "Nicht eingeloggt" (nicht in DB, nicht editierbar)
-  html += '<tr style="border-bottom:1px solid var(--border);opacity:.7">' +
-    '<td style="padding:8px 10px;font-weight:600">nicht-eingeloggt' +
-    ' <span title="Systemrolle: nicht editierbar" style="font-size:11px;opacity:.5">🔐</span></td>' +
-    '<td style="padding:8px 10px;font-size:13px">Nicht eingeloggt <span style="font-size:10px;color:var(--text2)">(Gäste)</span></td>' +
-    '<td style="padding:8px 10px;color:var(--text2);font-size:12px">–</td>' +
-    '<td></td>' +
-  '</tr>';
-  html += '</tbody></table>';
+  // Pseudo-Rolle "Nicht eingeloggt"
+  html += _rolleCard(
+    'nicht-eingeloggt',
+    ' <span title="Systemrolle: nicht editierbar" style="font-size:11px;opacity:.5">🔐</span>',
+    'Nicht eingeloggt <span style="font-size:10px;color:var(--text2)">(Gäste)</span>',
+    '', '', '', true
+  );
+  html += '</div>';
   wrap.innerHTML = html;
 }
 

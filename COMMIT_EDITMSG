@@ -1,1 +1,1 @@
-v1072 – Feature: TOTP-Setup – kopierbarer Secret-String mit „📋 Kopieren"-Button neben dem QR-Code (Registrierung, Admin-Setup, Profil-Modal); Hilfsfunktionen `_totpSecretHtml()` und `_copyTotpSecret()` zentralisieren die Darstellung
+v1073 – Fix: Admin → Rollen & Rechte – responsives Card-Layout statt starrer Tabelle; Rechte als einzelne Tags dargestellt; kein horizontaler Überlauf mehr auf iPhone
