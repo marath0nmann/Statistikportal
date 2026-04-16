@@ -1,1 +1,1 @@
-v1078 – Fix: Bestleistungen/AK-Tabellen Mobile – eigentliche Ursache: display:block-Regel hat rek-tables zerstoert; Regel auf Admin-Tabellen eingeschraenkt
+v1079 – Fix: rek-table Mobile – rek-name-cell div fuer zuverlässige Namenstruncation; max-width:140px; Ergebnis rechtsbündig

@@ -695,17 +695,11 @@ tr:hover td { background: var(--surf2); }
      mit Pace:  Badge|Name|Erg.|~~Pace~~|AK|~~Datum~~ → 4 Sp. */
   .rek-table:not(.serie-teilnahmen-table) th:last-child,
   .rek-table:not(.serie-teilnahmen-table) td:last-child { display: none; }
-  /* rek-table: table-layout:fixed + definierte Spaltenbreiten damit overflow:hidden
-     auf td korrekt funktioniert (WebKit/Safari-Anforderung) */
-  .rek-table:not(.serie-teilnahmen-table) { table-layout: fixed; }
-  .rek-table:not(.serie-teilnahmen-table) td:nth-child(1) { width: 38px; }
-  .rek-table:not(.serie-teilnahmen-table) td.result      { width: 72px; }
-  /* Langen Athletennamen abschneiden – funktioniert mit table-layout:fixed */
-  .rek-table:not(.serie-teilnahmen-table) td:nth-child(2) {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  /* Athletenname auf Mobile auf max. 140px begrenzen;
+     .rek-name-cell ist ein Block-div – overflow:hidden wirkt zuverlässig ohne table-layout:fixed */
+  .rek-name-cell { max-width: 140px; }
+  /* Ergebnis-Spalte: kein Umbruch, rechtsbündig */
+  .rek-table td.result { white-space: nowrap; text-align: right; }
   /* veranst-dash-table auf Smartphone: Pace + Meisterschaft + Platz MS ausblenden */
   .veranst-dash-table .vcol-pace,
   .veranst-dash-table th:nth-child(5),
@@ -800,6 +794,12 @@ tr:hover td { background: var(--surf2); }
   font-weight: 600; text-transform: uppercase; border-bottom: 2px solid var(--border); }
 .rek-table tr:last-child td { border-bottom: none; }
 .rek-table tr:hover td { background: var(--surf2); }
+/* Athletenname-Zelle: Block damit overflow/ellipsis zuverlässig funktionieren */
+.rek-name-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .rek-top-disz { display: flex; gap: 10px; flex-wrap: wrap; padding: 10px 0 16px; }
 .rek-top-btn {
   display: flex; flex-direction: column; align-items: flex-start;
