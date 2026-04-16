@@ -891,13 +891,46 @@ async function regStep2() {
   _renderRegModal();
 }
 
+// Rendert den TOTP-Secret-Block mit kopierbarem String (QR + manueller Eingabe)
+function _totpSecretHtml(secret, inputId) {
+  return '<div style="display:flex;align-items:center;gap:6px;margin:8px 0 0;justify-content:center;flex-wrap:wrap">' +
+    '<code id="' + inputId + '" style="font-size:11px;letter-spacing:1px;font-weight:700;background:rgba(0,0,0,.25);' +
+      'padding:5px 10px;border-radius:6px;word-break:break-all;flex:1;min-width:0;text-align:left">' + secret + '</code>' +
+    '<button type="button" onclick="_copyTotpSecret(\'' + inputId + '\',this)" ' +
+      'style="flex-shrink:0;font-size:11px;padding:5px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.25);' +
+      'background:rgba(255,255,255,.1);color:inherit;cursor:pointer;white-space:nowrap">📋 Kopieren</button>' +
+  '</div>';
+}
+function _copyTotpSecret(id, btn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent.trim()).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = '✅ Kopiert!';
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+  }).catch(function() {
+    // Fallback für ältere Browser
+    var ta = document.createElement('textarea');
+    ta.value = el.textContent.trim();
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    var orig = btn.textContent;
+    btn.textContent = '✅ Kopiert!';
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+  });
+}
+
 async function _regLoadTotp() {
   var r = await apiPost('auth/register-totp-init', { email: _regState.email });
   if (!r || !r.ok) return;
   _regState.totpSecret = r.data.secret;
   var wrap = document.getElementById('reg-qr-wrap');
-  if (wrap) wrap.innerHTML = '<img src="' + r.data.qr_url + '" style="width:160px;height:160px;border-radius:10px;border:1px solid rgba(255,255,255,.2)"/>' +
-    '<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:8px;word-break:break-all">' + r.data.secret + '</div>';
+  if (wrap) wrap.innerHTML =
+    '<img src="' + r.data.qr_url + '" style="width:160px;height:160px;border-radius:10px;border:1px solid rgba(255,255,255,.2)"/>' +
+    '<p style="font-size:11px;color:rgba(255,255,255,.5);margin:10px 0 2px">Oder Secret manuell kopieren:</p>' +
+    _totpSecretHtml(r.data.secret, 'reg-totp-secret');
 }
 
 async function regStep3() {
@@ -1388,8 +1421,8 @@ async function showTotpSetup() {
   var d = r.data;
   document.getElementById('totp-setup-body').innerHTML =
     '<img src="' + d.qr_url + '" style="width:180px;height:180px;border-radius:12px;margin-bottom:12px;border:1px solid var(--border)"/>' +
-    '<p style="font-size:11px;color:var(--text2);margin:0 0 4px">Oder manuell eingeben:</p>' +
-    '<code style="font-size:12px;letter-spacing:1px;font-weight:700;background:var(--surface2);padding:6px 12px;border-radius:6px;display:inline-block;margin-bottom:16px;word-break:break-all">' + d.secret + '</code>' +
+    '<p style="font-size:11px;color:var(--text2);margin:0 0 4px">Oder Secret manuell kopieren:</p>' +
+    _totpSecretHtml(d.secret, 'totp-setup-secret') +
     '<div class="form-group" style="text-align:left;margin-bottom:12px"><label>Code aus der App</label>' +
     '<input type="text" id="totp-setup-code" inputmode="numeric" maxlength="9" placeholder="000 000"' +
     ' style="letter-spacing:4px;font-size:22px;text-align:center;font-weight:700"' +
@@ -1763,8 +1796,8 @@ async function showTotpSetupInProfile() {
     '<p style="color:var(--text2);font-size:13px;margin:0 0 16px">Scanne den QR-Code mit einer Authenticator-App (z.B. Google/Microsoft Authenticator).</p>' +
     '<div style="text-align:center;margin-bottom:16px">' +
       '<img src="' + d.qr_url + '" style="width:180px;height:180px;border-radius:12px;border:1px solid var(--border)"/>' +
-      '<p style="font-size:11px;color:var(--text2);margin:8px 0 4px">Oder manuell eingeben:</p>' +
-      '<code style="font-size:12px;font-weight:700;background:var(--surf2);padding:6px 12px;border-radius:6px;display:inline-block;word-break:break-all">' + d.secret + '</code>' +
+      '<p style="font-size:11px;color:var(--text2);margin:8px 0 4px">Oder Secret manuell kopieren:</p>' +
+      _totpSecretHtml(d.secret, 'totp-profil-secret') +
     '</div>' +
     '<div class="form-group" style="margin-bottom:12px"><label>Code aus der App bestätigen</label>' +
       '<input type="text" id="totp-profil-code" inputmode="numeric" maxlength="9" placeholder="000 000"' +

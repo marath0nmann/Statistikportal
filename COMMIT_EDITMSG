@@ -1,1 +1,1 @@
-v1071 – Fix: MikaTiming altes Interface – Namensuche sucht zuerst ohne Event-Filter (funktioniert für 2023 etc.); Event-ID-Loop nur als Fallback wenn kein Ergebnis (für 2016 etc.)
+v1072 – Feature: TOTP-Setup – kopierbarer Secret-String mit „📋 Kopieren"-Button neben dem QR-Code (Registrierung, Admin-Setup, Profil-Modal); Hilfsfunktionen `_totpSecretHtml()` und `_copyTotpSecret()` zentralisieren die Darstellung
