@@ -687,6 +687,7 @@ tr:hover td { background: var(--surf2); }
   /* Nur normale Tabellen – veranst-dash-table hat eigene Regeln */
   table:not(.veranst-dash-table):not(.serie-teilnahmen-table) th:nth-child(4),
   table:not(.veranst-dash-table):not(.serie-teilnahmen-table) td:nth-child(4) { display: none; }
+  /* rek-table: Spalte 4 (AK oder Pace) ausblenden */
   .rek-table:not(.serie-teilnahmen-table) th:nth-child(4),
   .rek-table:not(.serie-teilnahmen-table) td:nth-child(4) { display: none; }
   /* rek-table: letzte Spalte (Datum) ausblenden –
@@ -694,14 +695,17 @@ tr:hover td { background: var(--surf2); }
      mit Pace:  Badge|Name|Erg.|~~Pace~~|AK|~~Datum~~ → 4 Sp. */
   .rek-table:not(.serie-teilnahmen-table) th:last-child,
   .rek-table:not(.serie-teilnahmen-table) td:last-child { display: none; }
-  /* Langen Athletennamen auf Mobile abschneiden */
-  .rek-table td:nth-child(2) {
-    max-width: 130px;
+  /* rek-table: table-layout:fixed + definierte Spaltenbreiten damit overflow:hidden
+     auf td korrekt funktioniert (WebKit/Safari-Anforderung) */
+  .rek-table:not(.serie-teilnahmen-table) { table-layout: fixed; }
+  .rek-table:not(.serie-teilnahmen-table) td:nth-child(1) { width: 38px; }
+  .rek-table:not(.serie-teilnahmen-table) td.result      { width: 72px; }
+  /* Langen Athletennamen abschneiden – funktioniert mit table-layout:fixed */
+  .rek-table:not(.serie-teilnahmen-table) td:nth-child(2) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-
   /* veranst-dash-table auf Smartphone: Pace + Meisterschaft + Platz MS ausblenden */
   .veranst-dash-table .vcol-pace,
   .veranst-dash-table th:nth-child(5),
@@ -787,7 +791,7 @@ tr:hover td { background: var(--surf2); }
 }
 
 .rek-ak-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
-.rek-ak-card { background: #fff; border-radius: 10px; border: 1px solid var(--border); overflow-x: auto; }
+.rek-ak-card { background: #fff; border-radius: 10px; border: 1px solid var(--border); overflow: hidden; }
 .rek-ak-header { background: var(--btn-bg); color: var(--on-btn); font-weight: 600; font-size: 13px;
   padding: 8px 14px; letter-spacing: .04em; }
 .rek-table { width: 100%; border-collapse: collapse; font-size: 13px; }

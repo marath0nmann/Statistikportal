@@ -1,1 +1,1 @@
-v1076 – Fix: Bestleistungen & Regelmäßige Veranstaltungen – Mobile-Layout: Datum-Spalte (letzte Spalte) auf Smartphones ausgeblendet; Athletennamen auf max-width:130px mit Ellipsis begrenzt; overflow:hidden auf rek-Panels und rek-ak-card durch overflow-x:auto ersetzt
+v1077 – Fix: rek-table Mobile – table-layout:fixed + feste Spaltenbreiten (Badge 38px, Ergebnis 72px); damit funktioniert overflow:hidden/ellipsis auf td in WebKit/Safari korrekt; Floating-Zeilen-Problem in AK-Karten behoben; rek-ak-card overflow:hidden wiederhergestellt
