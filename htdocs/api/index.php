@@ -955,9 +955,11 @@ if ($res === 'upload' && $id === 'logo') {
             $alt = __DIR__ . '/../uploads/logo.' . $e;
             if (file_exists($alt)) @unlink($alt);
         }
-        // favicon.ico ebenfalls löschen
-        $fav = __DIR__ . '/../favicon.ico';
-        if (file_exists($fav)) @unlink($fav);
+        // favicon.ico, favicon.svg, apple-touch-icon.png ebenfalls löschen
+        foreach (['favicon.ico', 'favicon.svg', 'apple-touch-icon.png'] as $fn) {
+            $f = __DIR__ . '/../' . $fn;
+            if (file_exists($f)) @unlink($f);
+        }
         Settings::set('logo_datei', '');
         jsonOk('Logo gelöscht.');
     }
@@ -997,31 +999,52 @@ if ($res === 'upload' && $id === 'logo') {
     $pfad = 'uploads/logo.' . $ext;
     Settings::set('logo_datei', $pfad);
 
-    // Favicon aus Logo generieren (16×16 + 32×32 + 48×48)
-    if ($ext !== 'svg' && function_exists('imagecreatefromstring')) {
+    // Favicons aus Logo generieren
+    $htdocsRoot = __DIR__ . '/..';
+    if ($ext === 'svg') {
+        // SVG: direkt als favicon.svg kopieren (Browser nutzen es nativ)
+        @copy($ziel, $htdocsRoot . '/favicon.svg');
+        // favicon.ico + apple-touch-icon aus SVG können wir serverseitig nicht ohne
+        // externe Bibliothek rastern → vorhandene Dateien löschen damit kein Mismatch
+        @unlink($htdocsRoot . '/favicon.ico');
+        @unlink($htdocsRoot . '/apple-touch-icon.png');
+    } elseif (function_exists('imagecreatefromstring')) {
         $src = @imagecreatefromstring(file_get_contents($ziel));
         if ($src) {
-            $icoImages = [];
-            foreach ([16, 32, 48] as $sz) {
+            $ow = imagesx($src); $oh = imagesy($src);
+            // Quadratisch zuschneiden (zentriert)
+            $side = min($ow, $oh);
+            $sx = (int)(($ow - $side) / 2);
+            $sy = (int)(($oh - $side) / 2);
+
+            // Hilfsfunktion: skaliertes Bild erzeugen
+            $makeScaled = function(int $sz) use ($src, $ow, $oh, $side, $sx, $sy) {
                 $dst = imagecreatetruecolor($sz, $sz);
                 imagealphablending($dst, false);
                 imagesavealpha($dst, true);
                 $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
                 imagefill($dst, 0, 0, $transparent);
-                $ow = imagesx($src); $oh = imagesy($src);
-                // Quadratisch zuschneiden (zentriert)
-                $side = min($ow, $oh);
-                $sx = (int)(($ow - $side) / 2);
-                $sy = (int)(($oh - $side) / 2);
                 imagecopyresampled($dst, $src, 0, 0, $sx, $sy, $sz, $sz, $side, $side);
-                $icoImages[] = $dst;
-            }
+                return $dst;
+            };
+
+            // favicon.ico (16, 32, 48 px)
+            $icoImages = [];
+            foreach ([16, 32, 48] as $sz) $icoImages[] = $makeScaled($sz);
             $icoData = generateIco($icoImages);
             foreach ($icoImages as $img) imagedestroy($img);
+            @file_put_contents($htdocsRoot . '/favicon.ico', $icoData);
+
+            // apple-touch-icon.png (180 px) – für Safari Favoriten / Homescreen
+            $icon180 = $makeScaled(180);
+            ob_start(); imagepng($icon180); $pngData = ob_get_clean();
+            imagedestroy($icon180);
+            @file_put_contents($htdocsRoot . '/apple-touch-icon.png', $pngData);
+
+            // favicon.svg löschen falls vorher ein SVG-Logo aktiv war
+            @unlink($htdocsRoot . '/favicon.svg');
+
             imagedestroy($src);
-            // favicon.ico im htdocs-Root speichern
-            $faviconPath = __DIR__ . '/../favicon.ico';
-            @file_put_contents($faviconPath, $icoData);
         }
     }
 
