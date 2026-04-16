@@ -1,1 +1,1 @@
-v1077 – Fix: rek-table Mobile – table-layout:fixed + feste Spaltenbreiten (Badge 38px, Ergebnis 72px); damit funktioniert overflow:hidden/ellipsis auf td in WebKit/Safari korrekt; Floating-Zeilen-Problem in AK-Karten behoben; rek-ak-card overflow:hidden wiederhergestellt
+v1078 – Fix: Bestleistungen/AK-Tabellen Mobile – eigentliche Ursache: display:block-Regel hat rek-tables zerstoert; Regel auf Admin-Tabellen eingeschraenkt

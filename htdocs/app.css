@@ -1286,8 +1286,8 @@ tr:hover td { background: var(--surf2); }
   #main-content .data-table td,
   #main-content .data-table th { padding: 8px 10px; font-size: 12px; }
 
-  /* Anträge-Tabelle */
-  #main-content table { display: block; overflow-x: auto; width: 100%; }
+  /* Anträge-Tabelle – rek-table und veranst-dash-table ausschließen (eigene Responsive-Logik) */
+  #main-content table:not(.rek-table):not(.veranst-dash-table):not(.serie-teilnahmen-table) { display: block; overflow-x: auto; width: 100%; }
 
   /* Buttons in Zeilen nicht umbrechen */
   .data-table .btn-sm { font-size: 11px; padding: 3px 7px; }
