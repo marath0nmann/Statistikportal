@@ -28,11 +28,6 @@ includes/             → PHP-Bibliotheken (außerhalb Web-Root)
   settings.php        → Vereinseinstellungen
   config.sample.php   → Konfigurationsvorlage (→ config.php)
 build.sh              → Versionszähler + ZIP-Build
-login-portal/         → Zentrales Login-Portal (optional)
-  htdocs/index.html   → SPA (Login, Registrierung, Passwort-Reset, App-Auswahl)
-  htdocs/api/index.php → Auth-API (nutzt gleiche DB + Session)
-  includes/           → Shared PHP-Klassen (werden von build.sh kopiert)
-  README.md           → Setup-Anleitung
 CHANGELOG.md          → Versionshistorie
 ```
 

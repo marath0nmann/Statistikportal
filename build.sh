@@ -44,18 +44,6 @@ sed -i.bak "s/^## v${CUR_VER}\b/## v${NEW_VER}/" "$REPO_DIR/CHANGELOG.md"
 rm -f "$REPO_DIR/CHANGELOG.md.bak"
 echo "✓ CHANGELOG.md → v${NEW_VER}"
 
-# ── Login-Portal: Shared PHP-Dateien kopieren ───────────────────────────────
-if [ -d "$REPO_DIR/login-portal" ]; then
-  LP_INC="$REPO_DIR/login-portal/includes"
-  mkdir -p "$LP_INC"
-  for f in auth.php db.php settings.php totp.php passkey.php; do
-    if [ -f "$REPO_DIR/includes/$f" ]; then
-      cp "$REPO_DIR/includes/$f" "$LP_INC/$f"
-    fi
-  done
-  echo "✓ Login-Portal includes synchronisiert"
-fi
-
 # ── ZIP bauen ───────────────────────────────────────────────────────────────
 TMP="$REPO_DIR/../${PKG}"
 rm -rf "$TMP"
