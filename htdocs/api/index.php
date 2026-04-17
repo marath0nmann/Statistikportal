@@ -1297,7 +1297,7 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     ];
     try { $stats['benutzer'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('benutzer') . " WHERE aktiv=1 AND geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
     try { $r2 = DB::fetchOne("SELECT MIN(erstellt_am) AS d FROM " . DB::tbl('benutzer')); $stats['aeltesterBenutzer'] = $r2['d'] ?? null; $stats['portalSeit'] = $r2['d'] ?? null; } catch(\Exception $e) {}
-    try { $nr = DB::fetchOne("SELECT benutzername, vorname, nachname, erstellt_am FROM " . DB::tbl('benutzer') . " WHERE aktiv=1 AND geloescht_am IS NULL ORDER BY erstellt_am DESC LIMIT 1"); $stats['neusterBenutzer'] = $nr ? (trim(($nr['vorname']??'').' '.($nr['nachname']??'')) ?: $nr['benutzername']) : null; $stats['neusterBenutzerDatum'] = $nr['erstellt_am'] ?? null; } catch(\Exception $e) {}
+    try { $nr = DB::fetchOne("SELECT benutzername, email, erstellt_am FROM " . DB::tbl('benutzer') . " WHERE aktiv=1 AND geloescht_am IS NULL ORDER BY erstellt_am DESC LIMIT 1"); $stats['neusterBenutzer'] = $nr ? ($nr['benutzername'] ?: $nr['email']) : null; $stats['neusterBenutzerDatum'] = $nr['erstellt_am'] ?? null; } catch(\Exception $e) {}
     try { $stats['athleten'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athleten') . " WHERE geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
     try { $stats['athletenAktiv'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athleten') . " WHERE aktiv=1 AND geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
     try { $stats['ergebnisse'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}

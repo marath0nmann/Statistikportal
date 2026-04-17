@@ -1,1 +1,1 @@
-v1079 – Fix: rek-table Mobile – rek-name-cell div fuer zuverlässige Namenstruncation; max-width:140px; Ergebnis rechtsbündig
+v1080 – Fix: Admin → System – Neuester Benutzer wurde nie angezeigt; Ursache: SQL-Query selektierte nicht-existente Spalten `vorname`/`nachname` → stiller try/catch-Fehler → immer null; Query auf vorhandene Spalten `benutzername`/`email` korrigiert
