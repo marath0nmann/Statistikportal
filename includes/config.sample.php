@@ -14,3 +14,9 @@ define('TABLE_PREFIX', '');
 // ── Session ──────────────────────────────────────────────────
 define('SESSION_NAME',     'stat_session');
 define('SESSION_LIFETIME', 86400 * 30); // 30 Tage
+
+// ── Cross-Domain Login (optional) ────────────────────────────
+// Leer lassen = Standalone-Betrieb (Cookie nur für diese Domain)
+// '.tus-oedt.de' = Session-Cookie gilt für alle Subdomains
+//   → login.tus-oedt.de, statistik.tus-oedt.de, training.tus-oedt.de
+define('COOKIE_DOMAIN', '');

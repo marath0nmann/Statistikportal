@@ -642,6 +642,13 @@ async function setupCreateTables() {
 
 // ── LOGIN / LOGOUT ──────────────────────────────────────────
 function showLogin() {
+  // Login-Portal-Redirect: wenn aktiviert und URL gesetzt → dorthin umleiten
+  if (window.appConfig && appConfig.login_portal_aktiv === '1' && appConfig.login_portal_url) {
+    var portalUrl = appConfig.login_portal_url.replace(/\/+$/, '');
+    var redirect = encodeURIComponent(window.location.origin + window.location.pathname);
+    window.location.href = portalUrl + '?redirect=' + redirect;
+    return;
+  }
   var scr = document.getElementById('login-screen');
   scr.style.display = 'flex';
   _loginState = { step: 1, ident: '', name: '', has_passkey: false };

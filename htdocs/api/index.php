@@ -537,6 +537,15 @@ if ($res === 'auth') {
         Auth::logout();
         jsonOk('Abgemeldet.');
     }
+    // --- SSO-Status: Session-Check für Login-Portal-Redirect ---
+    if ($method === 'GET' && $id === 'sso-status') {
+        $user = Auth::check();
+        if ($user) {
+            jsonOk(['eingeloggt' => true, 'name' => $user['name'], 'rolle' => $user['rolle']]);
+        } else {
+            jsonOk(['eingeloggt' => false]);
+        }
+    }
     // --- Session prüfen ---
     if ($method === 'GET' && $id === 'me') {
         if (Auth::check()) {
@@ -1361,6 +1370,7 @@ if ($res === 'einstellungen') {
                 'kategoriegruppen',
                 'meisterschaften_liste',
                 'top_disziplinen',
+                'login_portal_aktiv','login_portal_url','login_portal_apps',
             ];
             $save = [];
             foreach ($erlaubt as $k) {

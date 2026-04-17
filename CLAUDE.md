@@ -28,6 +28,11 @@ includes/             → PHP-Bibliotheken (außerhalb Web-Root)
   settings.php        → Vereinseinstellungen
   config.sample.php   → Konfigurationsvorlage (→ config.php)
 build.sh              → Versionszähler + ZIP-Build
+login-portal/         → Zentrales Login-Portal (optional)
+  htdocs/index.html   → SPA (Login, Registrierung, Passwort-Reset, App-Auswahl)
+  htdocs/api/index.php → Auth-API (nutzt gleiche DB + Session)
+  includes/           → Shared PHP-Klassen (werden von build.sh kopiert)
+  README.md           → Setup-Anleitung
 CHANGELOG.md          → Versionshistorie
 ```
 
@@ -140,3 +145,24 @@ system, benutzer, registrierungen, disziplinen, altersklassen, meisterschaften, 
 - Prio 1: Geschlecht-Bestleistung
 - Prio 2: Altersklassen-Bestleistung
 - Prio 3: Persönliche Bestleistung pro Athlet
+
+## Login-Portal (Cross-Domain SSO)
+
+**Architektur:** Shared-Session via `COOKIE_DOMAIN` (z.B. `.tus-oedt.de`)
+
+**Einstellungen:**
+- `login_portal_aktiv` (`0`/`1`) — Redirect zum Login-Portal ein/aus
+- `login_portal_url` — URL des Login-Portals (z.B. `https://login.tus-oedt.de`)
+- `login_portal_apps` — JSON-Array der registrierten Apps
+
+**Voraussetzungen:**
+- Gleiche DB, gleicher `TABLE_PREFIX`, gleicher `SESSION_NAME`
+- `COOKIE_DOMAIN` in beiden `config.php` identisch (z.B. `.tus-oedt.de`)
+- Shared PHP-Klassen (`auth.php`, `db.php`, etc.) im Login-Portal `includes/`
+
+**Flow:**
+1. App-Frontend: `auth/me` → 401 + `login_portal_aktiv=1` → Redirect zu Login-Portal
+2. Login-Portal: Login → Session-Cookie mit `domain=.tus-oedt.de`
+3. Redirect zurück zur App → `auth/me` erkennt Session
+
+**Standalone-Modus:** `login_portal_aktiv=0` (Default) → Statistikportal nutzt eigenen Login wie bisher. Keine Änderung am Verhalten.

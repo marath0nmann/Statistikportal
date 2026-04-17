@@ -1869,6 +1869,18 @@ async function renderAdminDarstellung() {
       '</div>' +
     '</div>' +
 
+    // ── Login-Portal ──
+    '<div class="panel" style="padding:20px;margin-bottom:16px">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">&#x1F511; Zentrales Login-Portal</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Wenn aktiviert, werden Logins \u00fcber ein zentrales Portal abgewickelt (z.\u202fB. login.tus-oedt.de). Das Statistikportal leitet dann zum Login-Portal weiter. Voraussetzung: gleiche Datenbank und COOKIE_DOMAIN in der config.php beider Instanzen.</div>' +
+      row('Login-Portal aktivieren', 'Logins auf das zentrale Portal umleiten',
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
+        '<input type="checkbox" id="cfg-login_portal_aktiv" ' + (cfgVal('login_portal_aktiv','0') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer"/>' +
+        '<span style="font-size:13px;color:var(--text2)">Aktiv</span>' +
+        '</label>') +
+      row('Login-Portal URL', 'Vollst\u00e4ndige URL inkl. https://', textIn('cfg-login_portal_url', cfgVal('login_portal_url',''), 'https://login.tus-oedt.de')) +
+    '</div>' +
+
     '<div style="padding-bottom:8px">' +
       '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-bottom:8px">' +
         '<div class="panel" style="padding:20px;margin-bottom:16px">' +
@@ -1981,6 +1993,7 @@ async function saveAllSettings() {
     'footer_datenschutz_url','footer_nutzung_url','footer_impressum_url',
     'github_repo','github_token','github_token_expires',
     'wartung_nachricht',
+    'login_portal_url',
   ];
   var payload = {};
   for (var i = 0; i < keys.length; i++) {
@@ -1988,7 +2001,7 @@ async function saveAllSettings() {
     if (el) payload[keys[i]] = el.value;
   }
   // Checkboxen separat (checked → '1', unchecked → '0')
-  var cbKeys = ['version_nur_admins', 'wartung_aktiv'];
+  var cbKeys = ['version_nur_admins', 'wartung_aktiv', 'login_portal_aktiv'];
 
   for (var j = 0; j < cbKeys.length; j++) {
     var cb = document.getElementById('cfg-' + cbKeys[j]);
