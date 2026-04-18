@@ -1,4 +1,7 @@
 ## vCUR
+- Fix: Format min_h – Zeitstrings wie "3:40,37" wurden falsch als "0:03,00" angezeigt; parseFloat brach am ':' ab; fmtTime erkennt jetzt isTimeString und parst M:SS,cc und H:MM:SS,cc korrekt
+
+## vCUR
 - UX: Admin → Disziplinen – Kategorien als klickbare Liste; Detailansicht mit Toggle Disziplinen/Einstellungen; Kategorie-Einstellungen inline bearbeitbar; Disziplin-Tabelle nach Kategorie gefiltert; Spalte "Quelle/Format" → "Format", immer sichtbar, normale Schriftart; Kategorie-Auswahl ohne Seiten-Reload (nur Teilaktualisierung der betroffenen Bereiche)
 
 ## v1082

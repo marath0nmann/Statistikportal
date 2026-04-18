@@ -84,17 +84,26 @@ function fmtTime(t, unit) {
 
   // Minuten mit Hundertstel, z.B. 2730.99s -> "45:30,99 min"
   if (unit === 'min_h') {
-    var num = parseFloat(String(t).replace(',', '.'));
-    if (isNaN(num)) return String(t) + '<span style="font-size:.75em;opacity:.7;margin-left:1px">min</span>';
-    var totalSecs = Math.floor(num);
-    var h2 = Math.floor(totalSecs / 3600);
-    var m2 = Math.floor((totalSecs % 3600) / 60);
-    var s2 = totalSecs % 60;
-    var cent2 = Math.round((num - totalSecs) * 100);
+    var cent2, secInt2, totalMins2;
+    if (isTimeString) {
+      // "M:SS.cc" oder "H:MM:SS.cc" – parseFloat würde am ':' abbrechen
+      var _tp = str.replace(',', '.').split(':');
+      var _secRaw = parseFloat(_tp[_tp.length - 1]) || 0;
+      secInt2   = Math.floor(_secRaw);
+      cent2     = Math.round((_secRaw - secInt2) * 100);
+      totalMins2 = _tp.length >= 3
+        ? (parseInt(_tp[0], 10) || 0) * 60 + (parseInt(_tp[1], 10) || 0)
+        : (parseInt(_tp[0], 10) || 0);
+    } else {
+      var num2 = parseFloat(str.replace(',', '.'));
+      if (isNaN(num2)) return str + '<span style="font-size:.75em;opacity:.7;margin-left:1px">min</span>';
+      var totalSecs2 = Math.floor(num2);
+      cent2      = Math.round((num2 - totalSecs2) * 100);
+      secInt2    = totalSecs2 % 60;
+      totalMins2 = Math.floor(totalSecs2 / 60);
+    }
     var centStr2 = String(cent2).padStart(2, '0');
-    var timeParts2 = h2 > 0 ? [h2, m2, s2] : [m2, s2];
-    var timeStr2 = timeParts2.map(function(p, i) { return i === 0 ? String(p) : String(p).padStart(2, '0'); }).join(':');
-    return timeStr2 + ',' + centStr2 + '<span style="font-size:.75em;opacity:.7;margin-left:1px">min</span>';
+    return totalMins2 + ':' + String(secInt2).padStart(2, '0') + ',' + centStr2 + '<span style="font-size:.75em;opacity:.7;margin-left:1px">min</span>';
   }
 
   // Sprint-Modus: Sekunden mit Hundertstel, z.B. "10.45" -> "10,45s"
