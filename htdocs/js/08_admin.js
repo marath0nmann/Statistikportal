@@ -2171,6 +2171,120 @@ function mstrEditSave(idx) {
   _mstrSave(function() { closeModal(); });
 }
 
+function _buildDiszKatListHtml(kategorien) {
+  var html = '';
+  for (var i = 0; i < kategorien.length; i++) {
+    var k = kategorien[i];
+    var isSel = k.id == window._selKatId;
+    html +=
+      '<div class="user-row" style="gap:10px;cursor:pointer' + (isSel ? ';outline:2px solid var(--accent);border-radius:8px;background:var(--primary-faint,var(--surf2))' : '') + '" onclick="selectDiszKat(' + k.id + ')">' +
+        '<div style="flex:1;font-weight:600;font-size:14px">' + k.name + '</div>' +
+        '<span class="badge" style="background:var(--surf2);color:var(--text2);font-size:11px">' + k.fmt + '</span>' +
+        '<span class="badge badge-aktiv">' + k.disz_anzahl + ' Disziplinen</span>' +
+      '</div>';
+  }
+  return html;
+}
+
+function _buildDiszDetailHtml(kategorien, disziplinen) {
+  var selKat = null;
+  for (var _ki = 0; _ki < kategorien.length; _ki++) {
+    if (kategorien[_ki].id == window._selKatId) { selKat = kategorien[_ki]; break; }
+  }
+  if (!selKat) {
+    return '<div class="panel" style="display:flex;align-items:center;justify-content:center;min-height:220px;color:var(--text2)">' +
+      '<div style="text-align:center"><div style="font-size:32px;margin-bottom:8px">&#x1F3F7;&#xFE0F;</div><div>Kategorie aus der Liste ausw&auml;hlen</div></div>' +
+    '</div>';
+  }
+  var isEinst = window._diszDetailView === 'einstellungen';
+  var viewToggle =
+    '<div style="display:flex;gap:6px">' +
+      '<button class="btn btn-sm ' + (!isEinst ? 'btn-primary' : 'btn-ghost') + '" onclick="window._diszDetailView=\'disziplinen\';_renderDiszDetail()">&#x1F4CB; Disziplinen</button>' +
+      '<button class="btn btn-sm ' + (isEinst ? 'btn-primary' : 'btn-ghost') + '" onclick="window._diszDetailView=\'einstellungen\';_renderDiszDetail()">&#x2699;&#xFE0E; Einstellungen</button>' +
+    '</div>';
+  var panelBody;
+  if (isEinst) {
+    var _fmt = selKat.fmt || 'min';
+    var _dir = selKat.sort_dir || 'ASC';
+    var _canDel = selKat.disz_anzahl === 0 || selKat.disz_anzahl === '0';
+    var _fmtOpts = [['min','Zeit (min)'],['min_h','Zeit (min) mit Hundertstel'],['s','Zeit (s)'],['m','Weite (m)']];
+    var _fmtSel = '<select id="ik-fmt" style="width:100%">';
+    _fmtOpts.forEach(function(o) { _fmtSel += '<option value="' + o[0] + '"' + (_fmt === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; });
+    _fmtSel += '</select>';
+    panelBody =
+      '<div class="settings-panel-body">' +
+        '<div class="form-grid">' +
+          '<div class="form-group full"><label>Name</label><input type="text" id="ik-name" value="' + selKat.name.replace(/"/g,'&quot;') + '"/></div>' +
+          '<div class="form-group"><label>Ergebnisformat</label>' + _fmtSel + '</div>' +
+          '<div class="form-group"><label>Sortierung</label><select id="ik-dir" style="width:100%">' +
+            '<option value="ASC"' + (_dir === 'ASC' ? ' selected' : '') + '>Aufsteigend (Zeit)</option>' +
+            '<option value="DESC"' + (_dir === 'DESC' ? ' selected' : '') + '>Absteigend (Weite)</option>' +
+          '</select></div>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:8px">' +
+          '<button class="btn btn-primary btn-sm" onclick="updateKatInline(' + selKat.id + ')">&#x1F4BE; Speichern</button>' +
+          (_canDel ? '<button class="btn btn-danger btn-sm" data-kid="' + selKat.id + '" data-kname="' + selKat.name.replace(/"/g,'&quot;') + '" onclick="deleteKat(parseInt(this.dataset.kid),this.dataset.kname)">&#x1F5D1;&#xFE0E; L&ouml;schen</button>' : '') +
+        '</div>' +
+      '</div>';
+  } else {
+    var filteredDisz = disziplinen.filter(function(d) { return d.kategorie_id == selKat.id; });
+    var mapRows = '';
+    for (var i = 0; i < filteredDisz.length; i++) {
+      var d = filteredDisz[i];
+      var fmtValue = d.fmt_override || d.kat_fmt || selKat.fmt || '';
+      var selHtml = '<select class="disz-map-sel" data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" onchange="setDiszMapping(this)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface)">';
+      selHtml += '<option value="">– keine –</option>';
+      for (var j = 0; j < kategorien.length; j++) {
+        selHtml += '<option value="' + kategorien[j].id + '"' + (d.kategorie_id == kategorien[j].id ? ' selected' : '') + '>' + kategorien[j].name + '</option>';
+      }
+      selHtml += '</select>';
+      var editBtn = '<button class="btn btn-ghost btn-sm" style="margin-left:6px" ' +
+        'data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" ' +
+        'data-fmt="' + (d.fmt_override||'').replace(/"/g,'&quot;') + '" ' +
+        'data-katfmt="' + (d.kat_fmt||'').replace(/"/g,'&quot;') + '" ' +
+        'data-mappingid="' + (d.id||'') + '" ' +
+        'data-katsuffix="' + (d.kat_suffix_override||'') + '" ' +
+        'data-hofexclude="' + (d.hof_exclude == 1 ? '1' : '0') + '" ' +
+        'data-distanz="' + (d.distanz != null ? d.distanz : '') + '" ' +
+        'onclick="showDiszEditModal(this)">&#x270F;&#xFE0E;</button>';
+      var anz = d.ergebnis_anzahl || 0;
+      var anzBadge = '<span class="badge" style="background:' + (anz > 0 ? 'var(--surf2);color:var(--text2)' : 'var(--green);color:#fff') + ';font-size:11px">' + anz + '</span>';
+      var delBtn = anz === 0
+        ? '<button class="btn btn-danger btn-sm" title="Disziplin l\u00f6schen" data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" onclick="deleteDisziplin(this.dataset.disz)">&#x2715;</button>'
+        : '<button class="btn btn-ghost btn-sm" disabled title="' + anz + ' Ergebnis(se) vorhanden">&#x1F512;</button>';
+      mapRows +=
+        '<tr>' +
+          '<td style="font-weight:600">' + (function(d) {
+            var showSuffix;
+            var override = d.kat_suffix_override || '';
+            if (override === 'ja')   showSuffix = true;
+            else if (override === 'nein') showSuffix = false;
+            else showSuffix = (appConfig.disziplin_kategorie_suffix || '1') === '1';
+            if (showSuffix && d.kategorie_name) {
+              return d.disziplin + ' <span style="font-size:0.85em;opacity:0.6">(' + d.kategorie_name + ')</span>';
+            }
+            return d.disziplin;
+          })(d) + '</td>' +
+          '<td style="font-size:13px;color:var(--text2)">' + fmtValue + '</td>' +
+          '<td>' + selHtml + '</td>' +
+          '<td style="text-align:right;padding-right:12px">' + anzBadge + '</td>' +
+          '<td style="white-space:nowrap;display:flex;gap:4px">' + editBtn + delBtn + '</td>' +
+        '</tr>';
+    }
+    panelBody = filteredDisz.length
+      ? '<div class="table-scroll"><table><thead><tr><th>Disziplin</th><th>Format</th><th>Kategorie</th><th style="text-align:right">Ergebnisse</th><th></th></tr></thead><tbody>' + mapRows + '</tbody></table></div>'
+      : '<div style="padding:20px;color:var(--text2);font-size:13px">Keine Disziplinen in dieser Kategorie.</div>';
+    panelBody += '<div style="padding:12px 20px"><button class="btn btn-primary btn-sm" onclick="showNeueDiszModal(' + selKat.id + ')">+ Neue Disziplin</button></div>';
+  }
+  return '<div class="panel"><div class="panel-header"><div class="panel-title">' + selKat.name + '</div>' + viewToggle + '</div>' + panelBody + '</div>';
+}
+
+function _renderDiszDetail() {
+  var el = document.getElementById('diszkat-detail-wrap');
+  if (!el || !window._adminDiszKategorien) { renderAdminDisziplinen(); return; }
+  el.innerHTML = _buildDiszDetailHtml(window._adminDiszKategorien, window._adminDiszMappings || []);
+}
+
 function selectDiszKat(id) {
   if (window._selKatId == id) {
     window._selKatId = null;
@@ -2178,7 +2292,11 @@ function selectDiszKat(id) {
     window._selKatId = id;
     window._diszDetailView = 'disziplinen';
   }
-  renderAdminDisziplinen();
+  var listEl = document.getElementById('diszkat-list-body');
+  if (listEl && window._adminDiszKategorien) {
+    listEl.innerHTML = _buildDiszKatListHtml(window._adminDiszKategorien);
+  }
+  _renderDiszDetail();
 }
 
 async function updateKatInline(id) {
@@ -2226,120 +2344,13 @@ async function renderAdminDisziplinen() {
   }
   var kategorien = rKat.data;
   var disziplinen = rMap.data;
+  window._adminDiszKategorien = kategorien;
+  window._adminDiszMappings   = disziplinen;
 
   var subTabs = adminSubtabs();
 
-  // Selection state
   if (window._selKatId === undefined) window._selKatId = null;
   if (window._diszDetailView === undefined) window._diszDetailView = 'disziplinen';
-  var selKat = null;
-  for (var _ki = 0; _ki < kategorien.length; _ki++) {
-    if (kategorien[_ki].id == window._selKatId) { selKat = kategorien[_ki]; break; }
-  }
-
-  // Kategorien-Liste (klickbar)
-  var katRows = '';
-  for (var i = 0; i < kategorien.length; i++) {
-    var k = kategorien[i];
-    var isSel = selKat && k.id == selKat.id;
-    katRows +=
-      '<div class="user-row" style="gap:10px;cursor:pointer' + (isSel ? ';outline:2px solid var(--accent);border-radius:8px;background:var(--primary-faint,var(--surf2))' : '') + '" onclick="selectDiszKat(' + k.id + ')">' +
-        '<div style="flex:1;font-weight:600;font-size:14px">' + k.name + '</div>' +
-        '<span class="badge" style="background:var(--surf2);color:var(--text2);font-size:11px">' + k.fmt + '</span>' +
-        '<span class="badge badge-aktiv">' + k.disz_anzahl + ' Disziplinen</span>' +
-      '</div>';
-  }
-
-  // Detail-Panel (rechts)
-  var detailPanel;
-  if (!selKat) {
-    detailPanel =
-      '<div class="panel" style="display:flex;align-items:center;justify-content:center;min-height:220px;color:var(--text2)">' +
-        '<div style="text-align:center"><div style="font-size:32px;margin-bottom:8px">&#x1F3F7;&#xFE0F;</div><div>Kategorie aus der Liste ausw&auml;hlen</div></div>' +
-      '</div>';
-  } else {
-    var isEinst = window._diszDetailView === 'einstellungen';
-    var viewToggle =
-      '<div style="display:flex;gap:6px">' +
-        '<button class="btn btn-sm ' + (!isEinst ? 'btn-primary' : 'btn-ghost') + '" onclick="window._diszDetailView=\'disziplinen\';renderAdminDisziplinen()">&#x1F4CB; Disziplinen</button>' +
-        '<button class="btn btn-sm ' + (isEinst ? 'btn-primary' : 'btn-ghost') + '" onclick="window._diszDetailView=\'einstellungen\';renderAdminDisziplinen()">&#x2699;&#xFE0E; Einstellungen</button>' +
-      '</div>';
-    var panelBody;
-    if (isEinst) {
-      var _fmt = selKat.fmt || 'min';
-      var _dir = selKat.sort_dir || 'ASC';
-      var _canDel = selKat.disz_anzahl === 0 || selKat.disz_anzahl === '0';
-      var _fmtOpts = [['min','Zeit (min)'],['min_h','Zeit (min) mit Hundertstel'],['s','Zeit (s)'],['m','Weite (m)']];
-      var _fmtSel = '<select id="ik-fmt" style="width:100%">';
-      _fmtOpts.forEach(function(o) { _fmtSel += '<option value="' + o[0] + '"' + (_fmt === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; });
-      _fmtSel += '</select>';
-      panelBody =
-        '<div class="settings-panel-body">' +
-          '<div class="form-grid">' +
-            '<div class="form-group full"><label>Name</label><input type="text" id="ik-name" value="' + selKat.name.replace(/"/g,'&quot;') + '"/></div>' +
-            '<div class="form-group"><label>Ergebnisformat</label>' + _fmtSel + '</div>' +
-            '<div class="form-group"><label>Sortierung</label><select id="ik-dir" style="width:100%">' +
-              '<option value="ASC"' + (_dir === 'ASC' ? ' selected' : '') + '>Aufsteigend (Zeit)</option>' +
-              '<option value="DESC"' + (_dir === 'DESC' ? ' selected' : '') + '>Absteigend (Weite)</option>' +
-            '</select></div>' +
-          '</div>' +
-          '<div style="display:flex;gap:8px;margin-top:8px">' +
-            '<button class="btn btn-primary btn-sm" onclick="updateKatInline(' + selKat.id + ')">&#x1F4BE; Speichern</button>' +
-            (_canDel ? '<button class="btn btn-danger btn-sm" data-kid="' + selKat.id + '" data-kname="' + selKat.name.replace(/"/g,'&quot;') + '" onclick="deleteKat(parseInt(this.dataset.kid),this.dataset.kname)">&#x1F5D1;&#xFE0E; L&ouml;schen</button>' : '') +
-          '</div>' +
-        '</div>';
-    } else {
-      var filteredDisz = disziplinen.filter(function(d) { return d.kategorie_id == selKat.id; });
-      var mapRows = '';
-      for (var i = 0; i < filteredDisz.length; i++) {
-        var d = filteredDisz[i];
-        var fmtValue = d.fmt_override || d.kat_fmt || selKat.fmt || '';
-        var selHtml = '<select class="disz-map-sel" data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" onchange="setDiszMapping(this)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface)">';
-        selHtml += '<option value="">– keine –</option>';
-        for (var j = 0; j < kategorien.length; j++) {
-          selHtml += '<option value="' + kategorien[j].id + '"' + (d.kategorie_id == kategorien[j].id ? ' selected' : '') + '>' + kategorien[j].name + '</option>';
-        }
-        selHtml += '</select>';
-        var editBtn = '<button class="btn btn-ghost btn-sm" style="margin-left:6px" ' +
-          'data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" ' +
-          'data-fmt="' + (d.fmt_override||'').replace(/"/g,'&quot;') + '" ' +
-          'data-katfmt="' + (d.kat_fmt||'').replace(/"/g,'&quot;') + '" ' +
-          'data-mappingid="' + (d.id||'') + '" ' +
-          'data-katsuffix="' + (d.kat_suffix_override||'') + '" ' +
-          'data-hofexclude="' + (d.hof_exclude == 1 ? '1' : '0') + '" ' +
-          'data-distanz="' + (d.distanz != null ? d.distanz : '') + '" ' +
-          'onclick="showDiszEditModal(this)">&#x270F;&#xFE0E;</button>';
-        var anz = d.ergebnis_anzahl || 0;
-        var anzBadge = '<span class="badge" style="background:' + (anz > 0 ? 'var(--surf2);color:var(--text2)' : 'var(--green);color:#fff') + ';font-size:11px">' + anz + '</span>';
-        var delBtn = anz === 0
-          ? '<button class="btn btn-danger btn-sm" title="Disziplin l\u00f6schen" data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" onclick="deleteDisziplin(this.dataset.disz)">&#x2715;</button>'
-          : '<button class="btn btn-ghost btn-sm" disabled title="' + anz + ' Ergebnis(se) vorhanden">&#x1F512;</button>';
-        mapRows +=
-          '<tr>' +
-            '<td style="font-weight:600">' + (function(d) {
-              var showSuffix;
-              var override = d.kat_suffix_override || '';
-              if (override === 'ja')   showSuffix = true;
-              else if (override === 'nein') showSuffix = false;
-              else showSuffix = (appConfig.disziplin_kategorie_suffix || '1') === '1';
-              if (showSuffix && d.kategorie_name) {
-                return d.disziplin + ' <span style="font-size:0.85em;opacity:0.6">(' + d.kategorie_name + ')</span>';
-              }
-              return d.disziplin;
-            })(d) + '</td>' +
-            '<td style="font-size:13px;color:var(--text2)">' + fmtValue + '</td>' +
-            '<td>' + selHtml + '</td>' +
-            '<td style="text-align:right;padding-right:12px">' + anzBadge + '</td>' +
-            '<td style="white-space:nowrap;display:flex;gap:4px">' + editBtn + delBtn + '</td>' +
-          '</tr>';
-      }
-      panelBody = filteredDisz.length
-        ? '<div class="table-scroll"><table><thead><tr><th>Disziplin</th><th>Format</th><th>Kategorie</th><th style="text-align:right">Ergebnisse</th><th></th></tr></thead><tbody>' + mapRows + '</tbody></table></div>'
-        : '<div style="padding:20px;color:var(--text2);font-size:13px">Keine Disziplinen in dieser Kategorie.</div>';
-      panelBody += '<div style="padding:12px 20px"><button class="btn btn-primary btn-sm" onclick="showNeueDiszModal(' + selKat.id + ')">+ Neue Disziplin</button></div>';
-    }
-    detailPanel = '<div class="panel"><div class="panel-header"><div class="panel-title">' + selKat.name + '</div>' + viewToggle + '</div>' + panelBody + '</div>';
-  }
 
   // Kategorie-Gruppen Panel aufbauen
   var _rEin = await apiGet('einstellungen');
@@ -2383,9 +2394,9 @@ async function renderAdminDisziplinen() {
         '<div class="panel-header"><div class="panel-title">&#x1F3F7;&#xFE0F; Kategorien</div>' +
           '<button class="btn btn-primary btn-sm" onclick="showNeueKatModal()">+ Neue Kategorie</button>' +
         '</div>' +
-        katRows +
+        '<div id="diszkat-list-body">' + _buildDiszKatListHtml(kategorien) + '</div>' +
       '</div>' +
-      detailPanel +
+      '<div id="diszkat-detail-wrap">' + _buildDiszDetailHtml(kategorien, disziplinen) + '</div>' +
     '</div>' +
     katGruppenPanel;
 

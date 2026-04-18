@@ -1,5 +1,5 @@
 ## vCUR
-- UX: Admin → Disziplinen – Kategorien als klickbare Liste; Detailansicht mit Toggle Disziplinen/Einstellungen; Kategorie-Einstellungen inline bearbeitbar; Disziplin-Tabelle nach Kategorie gefiltert; Spalte "Quelle/Format" → "Format", immer sichtbar, normale Schriftart
+- UX: Admin → Disziplinen – Kategorien als klickbare Liste; Detailansicht mit Toggle Disziplinen/Einstellungen; Kategorie-Einstellungen inline bearbeitbar; Disziplin-Tabelle nach Kategorie gefiltert; Spalte "Quelle/Format" → "Format", immer sichtbar, normale Schriftart; Kategorie-Auswahl ohne Seiten-Reload (nur Teilaktualisierung der betroffenen Bereiche)
 
 ## v1082
 - Feature: Ergebnisformat 'min_h' – Zeit (min) mit Hundertstel-Sekunden, z.B. 45:30,99 min; fmtTime/fmtValNum in 09_utils.js erweitert; Admin-Dropdowns ergänzt; alle Aufrufstellen aktualisiert
