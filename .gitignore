@@ -9,6 +9,9 @@ includes/config.php
 htdocs/uploads/*
 !htdocs/uploads/.gitkeep
 
+# Build-Artefakt (lokale Referenz, nicht versioniert)
+COMMIT_EDITMSG
+
 # Editor / IDE
 .vscode/
 .idea/

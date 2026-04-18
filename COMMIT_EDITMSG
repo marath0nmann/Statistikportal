@@ -1,1 +1,0 @@
-v1086 – Fix: Format min_h – Zeitstrings wie "3:40,37" wurden falsch als "0:03,00" angezeigt; parseFloat brach am ':' ab; fmtTime erkennt jetzt isTimeString und parst M:SS,cc und H:MM:SS,cc korrekt
