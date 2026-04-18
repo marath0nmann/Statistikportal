@@ -82,6 +82,21 @@ function fmtTime(t, unit) {
   // egal was unit sagt. Verhindert falsche 's'-Interpretation bei Bahnzeiten.
   var isTimeString = str.indexOf(':') >= 0;
 
+  // Minuten mit Hundertstel, z.B. 2730.99s -> "45:30,99 min"
+  if (unit === 'min_h') {
+    var num = parseFloat(String(t).replace(',', '.'));
+    if (isNaN(num)) return String(t) + '<span style="font-size:.75em;opacity:.7;margin-left:1px">min</span>';
+    var totalSecs = Math.floor(num);
+    var h2 = Math.floor(totalSecs / 3600);
+    var m2 = Math.floor((totalSecs % 3600) / 60);
+    var s2 = totalSecs % 60;
+    var cent2 = Math.round((num - totalSecs) * 100);
+    var centStr2 = String(cent2).padStart(2, '0');
+    var timeParts2 = h2 > 0 ? [h2, m2, s2] : [m2, s2];
+    var timeStr2 = timeParts2.map(function(p, i) { return i === 0 ? String(p) : String(p).padStart(2, '0'); }).join(':');
+    return timeStr2 + ',' + centStr2 + '<span style="font-size:.75em;opacity:.7;margin-left:1px">min</span>';
+  }
+
   // Sprint-Modus: Sekunden mit Hundertstel, z.B. "10.45" -> "10,45s"
   // Aber NUR wenn es kein HH:MM:SS-String ist
   if (unit === 's' && !isTimeString) {
@@ -132,6 +147,16 @@ function fmtValNum(val, fmt) {
     var sInt = Math.floor(val);
     var cent = Math.round((val - sInt) * 100);
     return sInt + ',' + String(cent).padStart(2, '0') + '<span style="font-size:.75em;opacity:.7;margin-left:1px">s</span>';
+  }
+  if (fmt === 'min_h') {
+    var totalSecs = Math.floor(val);
+    var h3 = Math.floor(totalSecs / 3600);
+    var m3 = Math.floor((totalSecs % 3600) / 60);
+    var s3 = totalSecs % 60;
+    var cent3 = Math.round((val - totalSecs) * 100);
+    var parts3 = h3 > 0 ? [h3, m3, s3] : [m3, s3];
+    var result3 = parts3.map(function(p, i) { return i === 0 ? String(p) : String(p).padStart(2, '0'); }).join(':');
+    return result3 + ',' + String(cent3).padStart(2, '0') + '<span style="font-size:.75em;opacity:.7;margin-left:1px">min</span>';
   }
   // Zeitformat (Sekunden → h:mm:ss oder m:ss)
   var secs = Math.round(val);

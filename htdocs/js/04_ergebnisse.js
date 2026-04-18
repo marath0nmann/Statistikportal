@@ -216,7 +216,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
   var tbody = '';
   for (var i = 0; i < rows.length; i++) {
     var rr = rows[i];
-    var ergebnis = (rr.fmt || (subTab === 'sprungwurf' ? 'm' : '')) === 'm' ? fmtMeter(rr.resultat) : fmtTime(rr.resultat, (rr.fmt === 's' || (!rr.fmt && subTab === 'sprint')) ? 's' : undefined);
+    var ergebnis = (rr.fmt || (subTab === 'sprungwurf' ? 'm' : '')) === 'm' ? fmtMeter(rr.resultat) : fmtTime(rr.resultat, (rr.fmt === 's' || (!rr.fmt && subTab === 'sprint')) ? 's' : (rr.fmt === 'min_h' ? 'min_h' : undefined));
     var ort = fmtVeranstName(rr);
     var cells =
       '<td class="ort-text">' + formatDate(rr.datum) + '</td>' +

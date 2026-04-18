@@ -227,7 +227,7 @@ function timelineBadges(rek) {
   var fmt = rek.fmt || '';
   var _fmtV = function(v) {
     if (v === null || v === undefined) return '';
-    return fmtValNum(v, fmt === 's' ? 's' : (fmt === 'm' ? 'm' : 'min'));
+    return fmtValNum(v, fmt === 's' ? 's' : (fmt === 'm' ? 'm' : (fmt === 'min_h' ? 'min_h' : 'min')));
   };
   var vcFmt = _fmtV(rek.vorher_club);
   var vpFmt = _fmtV(rek.vorher_pers);
@@ -264,7 +264,7 @@ function timelineBadges(rek) {
   for (var i = 0; i < timelineMax; i++) {
     var rek = rekordeTimeline[i];
     var fmt = rek.fmt || '';
-    var res = fmt === 'm' ? fmtMeter(rek.resultat) : fmtTime(rek.resultat, fmt === 's' ? 's' : undefined);
+    var res = fmt === 'm' ? fmtMeter(rek.resultat) : fmtTime(rek.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
     var lbl = rek.label || '';
     var athletName = rek.athlet || '';
     var badgesHtml = timelineBadges(rek);
@@ -317,7 +317,7 @@ function timelineBadges(rek) {
       for (var ei2 = 0; ei2 < ergs.length; ei2++) {
         var e2 = ergs[ei2];
         var vfmt = e2.fmt || '';
-        var vres = vfmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, vfmt === 's' ? 's' : undefined);
+        var vres = vfmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, vfmt === 's' ? 's' : (vfmt === 'min_h' ? 'min_h' : undefined));
         var _vPace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
         var vShowPace = _vPace && _vPace !== '00:00' && vfmt !== 'm' && vfmt !== 's';
         vrows +=
@@ -466,7 +466,7 @@ function timelineBadges(rek) {
           var fLbl  = filtItems[fi].label;
           var fRek  = filtItems[fi].rek;
           var fFmt  = fItem.fmt || '';
-          var fRes  = fFmt === 'm' ? fmtMeter(fItem.resultat) : fmtTime(fItem.resultat, fFmt === 's' ? 's' : undefined);
+          var fRes  = fFmt === 'm' ? fmtMeter(fItem.resultat) : fmtTime(fItem.resultat, fFmt === 's' ? 's' : (fFmt === 'min_h' ? 'min_h' : undefined));
           var fLblCls = (fLbl.indexOf('Gesamtbestleistung') >= 0 || fLbl.indexOf('Erste Gesamtleistung') >= 0 || fLbl === 'Bestleistung Männer' || fLbl === 'Bestleistung Frauen') ? 'badge badge-gold' :
                         (fLbl === 'PB' || fLbl === 'Debüt') ? 'badge badge-pb' : 'badge badge-silver';
           var fBadgesHtml = timelineBadges(Object.assign({}, fRek, {
@@ -567,7 +567,7 @@ function timelineBadges(rek) {
             for (var vei2 = 0; vei2 < vergs.length; vei2++) {
               var ve2 = vergs[vei2];
               var vvfmt = ve2.fmt || '';
-              var vvres = vvfmt === 'm' ? fmtMeter(ve2.resultat) : fmtTime(ve2.resultat, vvfmt === 's' ? 's' : undefined);
+              var vvres = vvfmt === 'm' ? fmtMeter(ve2.resultat) : fmtTime(ve2.resultat, vvfmt === 's' ? 's' : (vvfmt === 'min_h' ? 'min_h' : undefined));
               var vvpace = diszKm(ve2.disziplin) >= 1 ? calcPace(ve2.disziplin, ve2.resultat) : '';
               var vvShowPace = vvpace && vvpace !== '00:00' && vvfmt !== 'm' && vvfmt !== 's';
               var vvCells = { athlet: '<td><span class="athlet-link" onclick="openAthletById('+ve2.athlet_id+')">'+ve2.athlet+'</span></td>', ak: '<td>'+akBadge(ve2.altersklasse)+'</td>', result: '<td class="result">'+vvres+'</td>', pace: '<td class="ort-text">'+(vvShowPace?fmtTime(vvpace,'min/km'):'')+'</td>', platz: '<td>'+medalBadge(ve2.ak_platzierung)+'</td>', ms: '<td>'+mstrBadge(ve2.meisterschaft)+'</td>' };

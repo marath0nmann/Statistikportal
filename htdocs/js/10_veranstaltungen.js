@@ -111,7 +111,7 @@ async function renderVeranstaltungenListe() {
       for (var ei2 = 0; ei2 < ergs.length; ei2++) {
         var e2 = ergs[ei2];
         var fmt = e2.fmt || '';
-        var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : undefined);
+        var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
         var _ePace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
         var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
         rows +=
@@ -337,7 +337,7 @@ function _buildSerieJahreHtml(veranst) {
       for (var ei2 = 0; ei2 < ergs.length; ei2++) {
         var e2 = ergs[ei2];
         var fmt = e2.fmt || '';
-        var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : undefined);
+        var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
         var _ePace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
         var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
         rows +=

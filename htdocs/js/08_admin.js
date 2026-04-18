@@ -2421,7 +2421,7 @@ function showNeueKatModal() {
     '<div class="form-grid">' +
       '<div class="form-group"><label>Name *</label><input type="text" id="nk-name" placeholder="z.B. Mehrkampf"/></div>' +
       '<div class="form-group"><label>Schlüssel * <span style="font-size:11px;color:var(--text2)">(a-z, 0-9, _)</span></label><input type="text" id="nk-key" placeholder="z.B. mehrkampf"/></div>' +
-      '<div class="form-group"><label>Ergebnisformat</label><select id="nk-fmt"><option value="min">Zeit (min)</option><option value="s">Zeit (s / Sekunden)</option><option value="m">Weite (m)</option></select></div>' +
+      '<div class="form-group"><label>Ergebnisformat</label><select id="nk-fmt"><option value="min">Zeit (min)</option><option value="min_h">Zeit (min) mit Hundertstel</option><option value="s">Zeit (s / Sekunden)</option><option value="m">Weite (m)</option></select></div>' +
       '<div class="form-group"><label>Sortierung</label><select id="nk-dir"><option value="ASC">Aufsteigend (Zeit)</option><option value="DESC">Absteigend (Weite)</option></select></div>' +
       '<div class="form-group"><label>Reihenfolge</label><input type="number" id="nk-ord" value="99" min="1"/></div>' +
     '</div>' +
@@ -2453,6 +2453,7 @@ function showKatEditModal(btn) {
       '<div class="form-group full"><label>Name *</label><input type="text" id="ek-name" value="' + name + '"/></div>' +
       '<div class="form-group"><label>Ergebnisformat</label><select id="ek-fmt">' +
         '<option value="min"' + (fmt==='min'?' selected':'') + '>Zeit (min)</option>' +
+        '<option value="min_h"' + (fmt==='min_h'?' selected':'') + '>Zeit (min) mit Hundertstel</option>' +
         '<option value="s"' + (fmt==='s'?' selected':'') + '>Zeit (s)</option>' +
         '<option value="m"' + (fmt==='m'?' selected':'') + '>Weite (m)</option>' +
       '</select></div>' +
@@ -2491,10 +2492,11 @@ function showDiszEditModal(btn) {
   var hofExclude = btn.dataset.hofexclude === '1';
   var distanzVal = btn.dataset.distanz !== undefined && btn.dataset.distanz !== '' ? btn.dataset.distanz : '';
   var fmtOpts = [
-    { v:'',    label:'Standard (Kategorie: ' + (katfmt||'–') + ')' },
-    { v:'min', label:'Zeit (min) – z.B. 45:30 min' },
-    { v:'s',   label:'Zeit (s) – z.B. 10,45s' },
-    { v:'m',   label:'Weite (m) – z.B. 7.85m' },
+    { v:'',      label:'Standard (Kategorie: ' + (katfmt||'–') + ')' },
+    { v:'min',   label:'Zeit (min) – z.B. 45:30 min' },
+    { v:'min_h', label:'Zeit (min) mit Hundertstel – z.B. 45:30,99 min' },
+    { v:'s',     label:'Zeit (s) – z.B. 10,45s' },
+    { v:'m',     label:'Weite (m) – z.B. 7.85m' },
   ];
   var fmtSel = '<select id="de-fmt" style="width:100%">';
   for (var i = 0; i < fmtOpts.length; i++) {
@@ -2581,6 +2583,7 @@ async function showNeueDiszModal() {
     '<select id="nd-fmt" style="width:100%">' +
       '<option value="">Standard (aus Kategorie)</option>' +
       '<option value="min">Zeit (min) – z.B. 45:30 min</option>' +
+      '<option value="min_h">Zeit (min) mit Hundertstel – z.B. 45:30,99 min</option>' +
       '<option value="s">Zeit (s) – z.B. 10,45s</option>' +
       '<option value="m">Weite (m) – z.B. 7.85m</option>' +
     '</select>';
