@@ -329,7 +329,8 @@ function _apFmtRes(e, fallbackFmt) {
   var f = e.fmt || fallbackFmt || 'min';
   if (f === 'm') return fmtMeter(e.resultat);
   var isTStr = e.resultat && e.resultat.indexOf(':') >= 0;
-  return fmtTime(e.resultat, (f === 's' && !isTStr) ? 's' : undefined);
+  var unit = (f === 's' && !isTStr) ? 's' : (f === 'min_h' ? 'min_h' : undefined);
+  return fmtTime(e.resultat, unit);
 }
 
 function _apDiszSortKey(name) {

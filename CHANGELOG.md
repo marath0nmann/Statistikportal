@@ -1,4 +1,7 @@
 ## vCUR
+- Fix: Athletenprofil – Ergebnisformat 'min_h' wurde ignoriert; _apFmtRes übergab fmtTime kein unit-Argument → Anzeige immer als 'min' statt mit Hundertstel
+
+## vCUR
 - Fix: Format min_h – Zeitstrings wie "3:40,37" wurden falsch als "0:03,00" angezeigt; parseFloat brach am ':' ab; fmtTime erkennt jetzt isTimeString und parst M:SS,cc und H:MM:SS,cc korrekt
 
 ## vCUR
