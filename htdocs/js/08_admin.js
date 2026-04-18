@@ -361,8 +361,7 @@ function adminSubtabs() {
   var t = state.adminTab || 'system';
   return '<div class="subtabs" style="margin-bottom:20px">' +
     '<button class="subtab' + (t==='system'         ? ' active' : '') + '" onclick="navAdmin(\'system\')">&#x1F5A5;&#xFE0E; System</button>' +
-    '<button class="subtab' + (t==='benutzer'       ? ' active' : '') + '" onclick="navAdmin(\'benutzer\')">&#x1F465; Benutzer</button>' +
-    '<button class="subtab' + (t==='registrierungen'? ' active' : '') + '" onclick="navAdmin(\'registrierungen\')">📝 Registrierungen' + _adminBadge(window._adminPendingRegs||0) + '</button>' +
+    '<button class="subtab' + (t==='benutzer'       ? ' active' : '') + '" onclick="navAdmin(\'benutzer\')">&#x1F465; Benutzer' + _adminBadge(window._adminPendingRegs||0) + '</button>' +
     '<button class="subtab' + (t==='disziplinen'    ? ' active' : '') + '" onclick="navAdmin(\'disziplinen\')">&#x1F3F7;&#xFE0F; Disziplinen</button>' +
     '<button class="subtab' + (t==='altersklassen'  ? ' active' : '') + '" onclick="navAdmin(\'altersklassen\')">&#x1F464; Altersklassen</button>' +
     '<button class="subtab' + (t==='meisterschaften'? ' active' : '') + '" onclick="navAdmin(\'meisterschaften\')">&#x1F3C5; Meisterschaften</button>' +
@@ -420,7 +419,6 @@ async function renderAdmin() {
   if (state.adminTab === 'papierkorb')     { await renderPapierkorb(); return; }
   if (state.adminTab === 'darstellung')    { renderAdminDarstellung(); return; }
   if (state.adminTab === 'dashboard_cfg')  { await renderAdminDashboard(); return; }
-  if (state.adminTab === 'registrierungen'){ await renderAdminRegistrierungen(); return; }
   var r = await apiGet('benutzer');
   if (!r || !r.ok) return;
   var benutzer = r.data.benutzer || r.data; // Rückwärtskompatibel
@@ -432,6 +430,18 @@ async function renderAdmin() {
   try {
     var _onR = await apiGet('auth/online-status');
     if (_onR && _onR.ok && _onR.data) _onlineUserIds = _onR.data.user_ids || [];
+  } catch(e) {}
+
+  // Ausstehende Registrierungen laden
+  var _pendingRegs = [];
+  try {
+    var _regR = await apiGet('auth/registrierungen');
+    if (_regR && _regR.ok) {
+      var _regData = Array.isArray(_regR.data) ? { registrierungen: _regR.data, zugeordnete_athleten: [] } : _regR.data;
+      var _allRegs = _regData.registrierungen || _regR.data || [];
+      window._zugeordneteAthleten = _regData.zugeordnete_athleten || [];
+      _pendingRegs = _allRegs.filter(function(x) { return x.status === 'pending'; });
+    }
   } catch(e) {}
   var tbody = '';
   for (var i = 0; i < benutzer.length; i++) {
@@ -514,7 +524,22 @@ async function renderAdmin() {
         '<button class="btn btn-primary btn-sm" onclick="showNeueRolleModal()">+ Neue Rolle</button>' +
       '</div>' +
       '<div id="rollen-manager-wrap"><div class="loading"><div class="spinner"></div></div></div>' +
-    '</div>';
+    '</div>' +
+    (function() {
+      var regHtml = '<div class="panel" style="margin-top:20px">' +
+        '<div class="panel-header"><div class="panel-title">📝 Ausstehende Registrierungen' + (_pendingRegs.length ? ' (' + _pendingRegs.length + ')' : '') + '</div></div>';
+      if (!_pendingRegs.length) {
+        regHtml += '<div style="padding:20px;color:var(--text2);font-size:13px">Keine ausstehenden Registrierungen.</div>';
+      } else {
+        regHtml += '<div style="padding:16px;display:flex;flex-direction:column;gap:10px">';
+        for (var _ri = 0; _ri < _pendingRegs.length; _ri++) {
+          regHtml += _regCard(_pendingRegs[_ri], true);
+        }
+        regHtml += '</div>';
+      }
+      regHtml += '</div>';
+      return regHtml;
+    })();
   _ladeRollenManager();
 }
 
@@ -994,122 +1019,7 @@ function saveDarstellungSettings(obj) {
   try { localStorage.setItem('tus_darstellung', JSON.stringify(obj)); } catch(e) {}
 }
 
-async function renderAdminRegistrierungen() {
-  var el = document.getElementById('main-content');
-  el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
 
-  // Athleten laden falls noch nicht vorhanden
-  if (!state._adminAthleten || !state._adminAthleten.length) {
-    var ra = await apiGet('athleten?limit=9999');
-    if (ra && ra.ok) state._adminAthleten = ra.data.athleten || ra.data || [];
-  }
-
-  var r = await apiGet('auth/registrierungen');
-  if (!r || !r.ok) { el.innerHTML += '<div style="color:var(--accent)">Fehler beim Laden.</div>'; return; }
-
-  // API gibt {registrierungen: [], zugeordnete_athleten: []} zurück
-  var _regData = Array.isArray(r.data) ? { registrierungen: r.data, zugeordnete_athleten: [] } : r.data;
-  var regs = _regData.registrierungen || r.data || [];
-  var _zugeordnet = _regData.zugeordnete_athleten || [];
-  window._zugeordneteAthleten = _zugeordnet; // für _regCard zugänglich
-  var pending = regs.filter(function(x) { return x.status === 'pending'; });
-  var other   = regs.filter(function(x) { return x.status !== 'pending'; });
-
-  var _emailDomain  = (appConfig && appConfig.email_domain)  || '';
-  var _noreplyEmail = (appConfig && appConfig.noreply_email) || '';
-  var _domainEnabled = !!_emailDomain;
-  var emailSettingsHtml =
-    '<div class="panel" style="margin-bottom:20px">' +
-    '<div class="panel-header"><div class="panel-title">📧 E-Mail-Einstellungen</div></div>' +
-    '<div class="settings-panel-body">' +
-      '<div class="settings-row">' +
-        '<div class="settings-row-label">' +
-          '<div style="font-weight:600">Zugelassene E-Mail-Domain</div>' +
-          '<div style="font-size:12px;color:var(--text2)">Nur Adressen mit dieser Domain dürfen sich registrieren</div>' +
-        '</div>' +
-        '<div class="settings-row-input" style="display:flex;align-items:center;gap:10px">' +
-          '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex-shrink:0">' +
-            '<input type="checkbox" id="cfg-email_domain_aktiv" ' + (_domainEnabled ? 'checked' : '') + ' style="width:16px;height:16px;cursor:pointer"' +
-              ' onchange="document.getElementById(\'cfg-email_domain\').disabled=!this.checked">' +
-            '<span style="font-size:12px;color:var(--text2)">Aktiv</span>' +
-          '</label>' +
-          '<input type="text" id="cfg-email_domain" value="' + _emailDomain.replace(/"/g,'&quot;') + '" placeholder="meinverein.de"' +
-            ' class="settings-input"' + (_domainEnabled ? '' : ' disabled') + '/>' +
-        '</div>' +
-      '</div>' +
-      '<div class="settings-row">' +
-        '<div class="settings-row-label">' +
-          '<div style="font-weight:600">Absender-E-Mail</div>' +
-          '<div style="font-size:12px;color:var(--text2)">Von-Adresse f\u00fcr System-Mails</div>' +
-        '</div>' +
-        '<div class="settings-row-input">' +
-          '<input type="text" id="cfg-noreply_email" value="' + _noreplyEmail.replace(/"/g,'&quot;') + '" placeholder="noreply@..." class="settings-input"/>' +
-        '</div>' +
-      '</div>' +
-      '<div class="settings-row">' +
-        '<div class="settings-row-label">' +
-          '<div style="font-weight:600">Registrierung – Freigabe</div>' +
-          '<div style="font-size:12px;color:var(--text2)">Ob neue Benutzer sofort aktiv sind oder erst vom Admin bestätigt werden müssen</div>' +
-        '</div>' +
-        '<div class="settings-row-input">' +
-          '<div style="display:flex;flex-direction:column;gap:8px">' +
-            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
-              '<input type="radio" name="cfg-auto_freigabe" id="cfg-auto_freigabe_0" value="0" ' + ((appConfig && appConfig.registrierung_auto_freigabe) || '0' !== '1' ? 'checked' : '') + ' style="cursor:pointer">' +
-              '<span style="font-size:13px">🔐 Manuelle Bestätigung durch Admin (Standard)</span>' +
-            '</label>' +
-            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
-              '<input type="radio" name="cfg-auto_freigabe" id="cfg-auto_freigabe_1" value="1" ' + ((appConfig && appConfig.registrierung_auto_freigabe) || '0' === '1' ? 'checked' : '') + ' style="cursor:pointer">' +
-              '<span style="font-size:13px">✅ Sofort aktiv nach E-Mail-Bestätigung</span>' +
-            '</label>' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div style="padding:0 16px 16px;display:flex;justify-content:flex-end">' +
-        '<button class="btn btn-primary btn-sm" onclick="saveEmailSettings()">Speichern</button>' +
-      '</div>' +
-    '</div>' +
-    '</div>';
-
-  var html = '';
-
-  if (!regs.length) {
-    html += '<div class="empty"><div class="empty-icon">📝</div><div class="empty-text">Keine offenen Registrierungen</div></div>';
-  } else {
-    if (pending.length) {
-      html += '<div class="panel" style="margin-bottom:20px">' +
-        '<div class="panel-header"><div class="panel-title">⏳ Ausstehend (' + pending.length + ')</div></div>' +
-        '<div style="padding:16px;display:flex;flex-direction:column;gap:10px">';
-      for (var i = 0; i < pending.length; i++) {
-        html += _regCard(pending[i], true);
-      }
-      html += '</div></div>';
-    }
-    if (other.length) {
-      html += '<div class="panel">' +
-        '<div class="panel-header"><div class="panel-title">✅ Bearbeitet (' + other.length + ')</div></div>' +
-        '<div style="padding:16px;display:flex;flex-direction:column;gap:10px">';
-      for (var i = 0; i < other.length; i++) {
-        html += _regCard(other[i], false);
-      }
-      html += '</div></div>';
-    }
-  }
-  el.innerHTML = adminSubtabs() + emailSettingsHtml + html;
-}
-
-async function saveEmailSettings() {
-  var aktiv   = document.getElementById('cfg-email_domain_aktiv').checked;
-  var domain  = aktiv ? (document.getElementById('cfg-email_domain').value || '').trim() : '';
-  var noreply = (document.getElementById('cfg-noreply_email').value || '').trim();
-  // POST einstellungen erwartet Keys direkt als Body: { email_domain: '...', noreply_email: '...' }
-  var autoFreigabe = document.querySelector('input[name="cfg-auto_freigabe"]:checked');
-  var freigabe = autoFreigabe ? autoFreigabe.value : '0';
-  var r = await apiPost('einstellungen', { email_domain: domain, noreply_email: noreply, registrierung_auto_freigabe: freigabe });
-  if (r && r.ok) {
-    if (appConfig) { appConfig.email_domain = domain; appConfig.noreply_email = noreply; appConfig.registrierung_auto_freigabe = freigabe; }
-    notify('E-Mail-Einstellungen gespeichert.', 'ok');
-  } else { notify('\u274C ' + ((r&&r.fehler)||'Fehler beim Speichern.'), 'err'); }
-}
 
 function _regCard(reg, showActions) {
   var _bs = 'display:inline-flex;align-items:center;line-height:1;';
@@ -1162,7 +1072,7 @@ async function regGenehmigen(regId) {
   var athEl = document.getElementById('reg-athlet-' + regId);
   var athletId = athEl ? (athEl.value || null) : null;
   var r = await apiPost('auth/registrierungen/' + regId + '/genehmigen', { athlet_id: athletId });
-  if (r && r.ok) { notify('Registrierung genehmigt.', 'ok'); await renderAdminRegistrierungen(); }
+  if (r && r.ok) { notify('Registrierung genehmigt.', 'ok'); await renderAdmin(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
 }
 
@@ -1179,7 +1089,7 @@ async function regAblehnen(regId) {
 async function _doRegAblehnen(regId) {
   closeModal();
   var r = await apiPost('auth/registrierungen/' + regId + '/ablehnen', {});
-  if (r && r.ok) { notify('Abgelehnt.', 'ok'); await renderAdminRegistrierungen(); }
+  if (r && r.ok) { notify('Abgelehnt.', 'ok'); await renderAdmin(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
 }
 // ── ADMIN: DASHBOARD-LAYOUT ─────────────────────────────────────────────────
@@ -1816,6 +1726,55 @@ async function renderAdminDarstellung() {
       '</div>' +
     '</div>' +
 
+    // ── E-Mail ──
+    '<div class="panel">' +
+    '<div class="panel-header"><div class="panel-title">📧 E-Mail-Einstellungen</div></div>' +
+    '<div class="settings-panel-body">' +
+      '<div class="settings-row">' +
+        '<div class="settings-row-label">' +
+          '<div style="font-weight:600">Zugelassene E-Mail-Domain</div>' +
+          '<div style="font-size:12px;color:var(--text2)">Nur Adressen mit dieser Domain dürfen sich registrieren</div>' +
+        '</div>' +
+        '<div class="settings-row-input" style="display:flex;align-items:center;gap:10px">' +
+          '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex-shrink:0">' +
+            '<input type="checkbox" id="cfg-email_domain_aktiv" ' + (cfgVal('email_domain','') ? 'checked' : '') + ' style="width:16px;height:16px;cursor:pointer"' +
+              ' onchange="document.getElementById(\'cfg-email_domain\').disabled=!this.checked">' +
+            '<span style="font-size:12px;color:var(--text2)">Aktiv</span>' +
+          '</label>' +
+          '<input type="text" id="cfg-email_domain" value="' + (cfgVal('email_domain','')).replace(/"/g,'&quot;') + '" placeholder="meinverein.de"' +
+            ' class="settings-input"' + (cfgVal('email_domain','') ? '' : ' disabled') + '/>' +
+        '</div>' +
+      '</div>' +
+      '<div class="settings-row">' +
+        '<div class="settings-row-label">' +
+          '<div style="font-weight:600">Absender-E-Mail</div>' +
+          '<div style="font-size:12px;color:var(--text2)">Von-Adresse für System-Mails</div>' +
+        '</div>' +
+        '<div class="settings-row-input">' +
+          '<input type="text" id="cfg-noreply_email" value="' + (cfgVal('noreply_email','')).replace(/"/g,'&quot;') + '" placeholder="noreply@..." class="settings-input"/>' +
+        '</div>' +
+      '</div>' +
+      '<div class="settings-row">' +
+        '<div class="settings-row-label">' +
+          '<div style="font-weight:600">Registrierung – Freigabe</div>' +
+          '<div style="font-size:12px;color:var(--text2)">Ob neue Benutzer sofort aktiv sind oder erst vom Admin bestätigt werden müssen</div>' +
+        '</div>' +
+        '<div class="settings-row-input">' +
+          '<div style="display:flex;flex-direction:column;gap:8px">' +
+            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+              '<input type="radio" name="cfg-auto_freigabe" id="cfg-auto_freigabe_0" value="0" ' + (cfgVal('registrierung_auto_freigabe','0') !== '1' ? 'checked' : '') + ' style="cursor:pointer">' +
+              '<span style="font-size:13px">🔐 Manuelle Bestätigung durch Admin (Standard)</span>' +
+            '</label>' +
+            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+              '<input type="radio" name="cfg-auto_freigabe" id="cfg-auto_freigabe_1" value="1" ' + (cfgVal('registrierung_auto_freigabe','0') === '1' ? 'checked' : '') + ' style="cursor:pointer">' +
+              '<span style="font-size:13px">✅ Sofort aktiv nach E-Mail-Bestätigung</span>' +
+            '</label>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '</div>' +
+
     // ── Farben ──
     '<div class="panel">' +
       '<div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">' +
@@ -2007,6 +1966,14 @@ async function saveAllSettings() {
     var cb = document.getElementById('cfg-' + cbKeys[j]);
     if (cb) payload[cbKeys[j]] = cb.checked ? '1' : '0';
   }
+
+  // E-Mail-Domain: leer wenn Checkbox deaktiviert
+  var emailDomainAktiv = document.getElementById('cfg-email_domain_aktiv');
+  if (emailDomainAktiv && !emailDomainAktiv.checked) payload['email_domain'] = '';
+
+  // Registrierung Auto-Freigabe (Radio)
+  var autoFreigabe = document.querySelector('input[name="cfg-auto_freigabe"]:checked');
+  if (autoFreigabe) payload['registrierung_auto_freigabe'] = autoFreigabe.value;
 
   // Farbvalidierung
   var farbFehler = [
