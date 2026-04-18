@@ -1,4 +1,5 @@
 ## vCUR
+- UX: Admin → Benutzer – Spalte "Registriert am" in Benutzerverwaltung hinzugefügt
 - UX: Admin – Registrierungen-Tab entfernt; E-Mail-Einstellungen → Darstellung; ausstehende Registrierungen (inkl. Genehmigen/Ablehnen) → Benutzer-Tab; Badge-Zähler am Benutzer-Button
 - Fix: Athletenprofil – Ergebnisformat 'min_h' wurde ignoriert; _apFmtRes übergab fmtTime kein unit-Argument → Anzeige immer als 'min' statt mit Hundertstel
 

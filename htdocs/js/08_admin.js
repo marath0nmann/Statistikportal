@@ -490,6 +490,9 @@ async function renderAdmin() {
       '<td style="padding:8px 10px;font-size:11px;color:var(--text2);white-space:nowrap">' +
         (b.letzter_login ? formatDate(b.letzter_login.slice(0,10)) : 'Noch nie') +
       '</td>' +
+      '<td style="padding:8px 10px;font-size:11px;color:var(--text2);white-space:nowrap">' +
+        (b.erstellt_am ? formatDate(b.erstellt_am.slice(0,10)) : '–') +
+      '</td>' +
       '<td style="padding:8px 8px;text-align:right">' +
         '<div style="display:flex;gap:4px;justify-content:flex-end">' +
           '<button class="btn btn-ghost btn-sm" onclick="showBenutzerEditModal(' + b.id + ')" title="Bearbeiten">\u270f\ufe0f</button>' +
@@ -504,7 +507,7 @@ async function renderAdmin() {
     '<div class="panel" style="margin-bottom:20px">' +
       '<div class="panel-header"><div class="panel-title">&#x1F465; Benutzerverwaltung</div><button class="btn btn-primary btn-sm" onclick="showNeuerBenutzerModal()">+ Neuer Benutzer</button></div>' +
       '<div class="table-scroll"><table style="width:100%;border-collapse:collapse;table-layout:fixed">' +
-        '<colgroup><col style="width:44px"><col><col style="width:150px"><col style="width:100px"><col style="width:80px"><col style="width:160px"><col style="width:105px"><col style="width:78px"></colgroup>' +
+        '<colgroup><col style="width:44px"><col><col style="width:150px"><col style="width:100px"><col style="width:80px"><col style="width:160px"><col style="width:105px"><col style="width:105px"><col style="width:78px"></colgroup>' +
         '<thead><tr style="border-bottom:2px solid var(--border)">' +
           '<th style="padding:8px 10px"></th>' +
           _bSortTh('Benutzer','name') +
@@ -513,6 +516,7 @@ async function renderAdmin() {
           _bSortTh('Status','status') +
           '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">2FA</th>' +
           _bSortTh('Letzter Login','login') +
+          '<th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Registriert am</th>' +
           '<th></th>' +
         '</tr></thead>' +
         '<tbody id="benutzer-tbody">' + tbody + '</tbody>' +
