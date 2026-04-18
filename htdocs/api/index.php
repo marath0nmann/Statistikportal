@@ -745,6 +745,7 @@ if ($res === 'auth') {
             [$reg['totp_pending'], $email]);
 
         $autoFreigabe = Settings::get('registrierung_auto_freigabe','0') === '1';
+        $admins = DB::fetchAll("SELECT email FROM " . DB::tbl('benutzer') . " WHERE rolle = 'admin' AND aktiv = 1");
         if ($autoFreigabe) {
             $regNow = DB::fetchOne('SELECT * FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?', [$email, 'pending']);
             if ($regNow) {
@@ -757,15 +758,17 @@ if ($res === 'auth') {
                 DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE email = ?', ['approved', $email]);
                 $approvedMsg = "Hallo " . $regNow['name'] . ",\n\ndeine Registrierung wurde bestätigt! Du kannst dich jetzt einloggen.\n\n" . Settings::get('verein_name','');
                 @mail($regNow['email'], Settings::get('verein_name','') . ' – Registrierung bestätigt', $approvedMsg, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+                foreach ($admins as $admin) {
+                    $msg = "Neue Registrierung (automatisch freigegeben):\n\nE-Mail: " . $reg['email'] . "\n\n" . Settings::get('verein_name','');
+                    @mail($admin['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Neue Registrierung: ' . $reg['email'], $msg,
+                          "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+                }
                 jsonOk(['auto_freigabe' => true]);
             }
         }
-        // Admin-Benachrichtigung (nur bei manueller Freigabe)
-        $admins = DB::fetchAll("SELECT email FROM " . DB::tbl('benutzer') . " WHERE rolle = 'admin' AND aktiv = 1");
         foreach ($admins as $admin) {
-            $msg = "Neue Registrierungsanfrage:\n\nName: " . $reg['name'] .
-                   "\nE-Mail: " . $reg['email'] . "\n\nBitte in der Admin-Oberfläche freigeben.";
-            @mail($admin['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Neue Registrierung: ' . $reg['name'], $msg,
+            $msg = "Neue Registrierungsanfrage:\n\nE-Mail: " . $reg['email'] . "\n\nBitte in der Admin-Oberfläche unter Benutzer freigeben.";
+            @mail($admin['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Neue Registrierung: ' . $reg['email'], $msg,
                   "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
         }
         jsonOk('Registrierung abgeschlossen. Warte auf Admin-Freigabe.');
@@ -779,6 +782,7 @@ if ($res === 'auth') {
         // Kein TOTP — E-Mail-Login bevorzugt
         DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET totp_aktiv = 0, email_login_bevorzugt = 1 WHERE email = ?', [$email]);
         $autoFreigabe2 = Settings::get('registrierung_auto_freigabe','0') === '1';
+        $admins2 = DB::fetchAll("SELECT email FROM " . DB::tbl('benutzer') . " WHERE rolle = 'admin' AND aktiv = 1");
         if ($autoFreigabe2) {
             $regNow2 = DB::fetchOne('SELECT * FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?', [$email, 'pending']);
             if ($regNow2) {
@@ -790,14 +794,17 @@ if ($res === 'auth') {
                 DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE email = ?', ['approved', $email]);
                 $approvedMsg2 = "Hallo " . $regNow2['name'] . ",\n\ndeine Registrierung wurde bestätigt! Du kannst dich jetzt einloggen.\n\n" . Settings::get('verein_name','');
                 @mail($regNow2['email'], Settings::get('verein_name','') . ' – Registrierung bestätigt', $approvedMsg2, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+                foreach ($admins2 as $admin) {
+                    $msg = "Neue Registrierung (automatisch freigegeben):\n\nE-Mail: " . $reg['email'] . "\n\n" . Settings::get('verein_name','');
+                    @mail($admin['email'], Settings::get('verein_name','') . ' – Neue Registrierung: ' . $reg['email'], $msg,
+                          "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+                }
                 jsonOk(['auto_freigabe' => true]);
             }
         }
-        // Admin-Benachrichtigung (nur bei manueller Freigabe)
-        $admins = DB::fetchAll("SELECT email FROM " . DB::tbl('benutzer') . " WHERE rolle = 'admin' AND aktiv = 1");
-        foreach ($admins as $admin) {
-            $msg = "Neue Registrierungsanfrage (E-Mail-Login):\n\nName: " . $reg['name'] . "\nE-Mail: " . $reg['email'] . "\n\nBitte in der Admin-Oberfläche freigeben.";
-            @mail($admin['email'], Settings::get('verein_name','') . ' – Neue Registrierung: ' . $reg['name'], $msg,
+        foreach ($admins2 as $admin) {
+            $msg = "Neue Registrierungsanfrage (E-Mail-Login):\n\nE-Mail: " . $reg['email'] . "\n\nBitte in der Admin-Oberfläche unter Benutzer freigeben.";
+            @mail($admin['email'], Settings::get('verein_name','') . ' – Neue Registrierung: ' . $reg['email'], $msg,
                   "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
         }
         jsonOk('Registrierung abgeschlossen. Warte auf Admin-Freigabe.');
