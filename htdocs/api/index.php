@@ -3259,6 +3259,26 @@ if ($res === 'disziplin-mapping') {
 // ============================================================
 // AUTOCOMPLETE Athleten
 // ============================================================
+function mikaAjaxCurl(string $url, string $baseUrl, string $cookieFile, string $ua): string {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_COOKIEJAR      => $cookieFile,
+        CURLOPT_COOKIEFILE     => $cookieFile,
+        CURLOPT_USERAGENT      => $ua,
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_HTTPHEADER     => [
+            'Accept: application/json, text/javascript, */*; q=0.01',
+            'Accept-Language: de-DE,de;q=0.9',
+            'X-Requested-With: XMLHttpRequest',
+            'Referer: ' . $baseUrl,
+        ],
+    ]);
+    $r = curl_exec($ch); curl_close($ch);
+    return $r ?: '';
+}
+
 function mikaCurl(string $url, string $cookieFile, string $ua): string {
     $ch = curl_init($url);
     curl_setopt_array($ch, [
@@ -3359,15 +3379,101 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     }
     $debug['eventId'] = $eventId;
 
-    // 2. Interface-Erkennung: Neu (POST, kein club-Feld) vs Alt (GET, club-Feld)
-    // Neues Interface erkennen: nur per eindeutigem Merkmal (Input-ID aus der SPA)
-    // Die zweite Bedingung (kein search[club]) war zu unzuverlässig – viele alte Sites rendern
-    // das Formular per JS und haben search[club] nicht im statischen HTML
-    $isNewInterface = strpos($mainHtml, 'simple-search-name') !== false;
+    // 2. Interface-Erkennung: v2-JSON-API (SearchProvider.js) | v1-POST (simple-search-name) | alt (GET)
+    $isV2Interface  = strpos($mainHtml, 'SearchProvider.js') !== false;
+    $isNewInterface = !$isV2Interface && strpos($mainHtml, 'simple-search-name') !== false;
     $nameSearch = trim($_GET['name'] ?? '');
-    $debug = ['isNewInterface' => $isNewInterface, 'nameSearch' => $nameSearch];
+    $debug = ['isV2Interface' => $isV2Interface, 'isNewInterface' => $isNewInterface, 'nameSearch' => $nameSearch];
 
-    if ($isNewInterface) {
+    if ($isV2Interface) {
+        // V2-Interface: JSON-API via content=ajax2&func=getList + X-Requested-With Header
+        $searchName = $nameSearch ?: $club;
+
+        // Event-IDs aus getSearchFields ermitteln
+        $sfUrl  = $baseUrl . '?content=ajax2&func=getSearchFields'
+                . '&options%5Bb%5D%5Bsearch%5D%5Bevent%5D=HM'
+                . '&options%5Blang%5D=DE&options%5Bpid%5D=start';
+        $sfJson = mikaAjaxCurl($sfUrl, $baseUrl, $cookieFile, $ua);
+        $sfData = $sfJson ? @json_decode($sfJson, true) : null;
+        $eventIds = [];
+        if ($sfData && isset($sfData['branches']['search']['fields']['event']['data'])) {
+            foreach ($sfData['branches']['search']['fields']['event']['data'] as $ev) {
+                $evVal = is_array($ev['v']) ? $ev['v'][0] : $ev['v'];
+                if ($evVal && $evVal !== '%') $eventIds[] = $evVal;
+            }
+        }
+        if (empty($eventIds)) $eventIds = ['HM', '10L', '5L'];
+        $debug['v2EventIds'] = $eventIds;
+
+        $allResults = [];
+        foreach ($eventIds as $evId) {
+            $listUrl = $baseUrl . '?content=ajax2&func=getList'
+                . '&options%5Bb%5D%5Bsearch%5D%5Bevent%5D=' . urlencode($evId)
+                . '&options%5Bb%5D%5Bsearch%5D%5Bage_class%5D=%25'
+                . '&options%5Bb%5D%5Bsearch%5D%5Bsex%5D=%25'
+                . '&options%5Bb%5D%5Bsearch%5D%5Bname%5D=' . urlencode($searchName)
+                . '&options%5Blang%5D=DE&options%5Bpid%5D=start';
+            $listJson = mikaAjaxCurl($listUrl, $baseUrl, $cookieFile, $ua);
+            $debug['v2_' . $evId . '_len'] = strlen($listJson);
+            if (!$listJson) continue;
+            $listData = @json_decode($listJson, true);
+            if (!$listData) continue;
+
+            // Daten aus branches.list.data extrahieren
+            $rows = $listData['branches']['list']['data'] ?? ($listData['list']['data'] ?? ($listData['data'] ?? []));
+            $header = $listData['branches']['list']['header'] ?? ($listData['list']['header'] ?? []);
+            $debug['v2_' . $evId . '_rows'] = count($rows);
+
+            // Header-Index-Mapping: Spaltennamen → Positionen
+            $hIdx = [];
+            foreach ($header as $hi => $hCol) {
+                $hName = is_array($hCol) ? ($hCol['name'] ?? $hCol[0] ?? '') : $hCol;
+                $hIdx[strtolower($hName)] = $hi;
+            }
+
+            foreach ($rows as $row) {
+                // Unterstütze sowohl Array- als auch Objekt-Rows
+                $getCol = function($keys) use ($row, $hIdx) {
+                    foreach ((array)$keys as $k) {
+                        if (isset($row[$k])) return trim(strip_tags((string)$row[$k]));
+                        if (isset($hIdx[$k]) && isset($row[$hIdx[$k]])) return trim(strip_tags((string)$row[$hIdx[$k]]));
+                    }
+                    return '';
+                };
+                $name = $getCol(['name','fullname','n','Name']);
+                if (!$name) {
+                    // Fallback: erstes String-Feld mit Komma (Nachname, Vorname)
+                    foreach ($row as $v) {
+                        $vs = trim(strip_tags((string)$v));
+                        if (strpos($vs, ',') !== false && strlen($vs) > 4 && strlen($vs) < 60) { $name = $vs; break; }
+                    }
+                }
+                if (!$name) continue;
+                $netto   = $getCol(['netto','time','result','t','zeit','finish_netto']);
+                $ak      = $getCol(['age_class','ak','class','category','AK']);
+                $platzAk = $getCol(['place_age','place_ak','platz_ak','rank_ak','place_category']);
+                $platzGs = $getCol(['place_all','place_ges','platz_ges','rank']);
+                $liClub  = $getCol(['club','verein','team']);
+                $idp     = $getCol(['idp','id','ID']);
+                if (!$idp) $idp = $evId . '_' . md5($name);
+                if (isset($allResults[$idp])) continue;
+                $allResults[$idp] = [
+                    'name' => $name, 'contest' => $evId,
+                    'netto' => $netto, 'ak' => $ak,
+                    'platz_ak' => $platzAk, 'platz_ges' => $platzGs,
+                    'event_id' => $evId, 'idp' => $idp, 'club' => $liClub,
+                    '_fromV2' => true,
+                ];
+            }
+        }
+
+        $results = array_values($allResults);
+        $debug['v2RowsTotal'] = count($results);
+        if (!empty($results)) $debug['firstResult'] = $results[0];
+        @unlink($cookieFile);
+        jsonOk(['results' => $results, 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
+
+    } elseif ($isNewInterface) {
         // Neue Interface: POST pro Event-Typ
         $searchName = $nameSearch ?: $club;
         // Event-IDs aus Hauptseite extrahieren oder Defaults
