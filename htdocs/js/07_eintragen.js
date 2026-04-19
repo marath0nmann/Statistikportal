@@ -1874,8 +1874,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
       if (akPlatzIdx < 0) {
         function _toSec(t) {
           if (!t) return 999999;
-          // Nur den Zeitteil extrahieren (vor HTML/Leerzeichen: '0:14:43<br/>...' -> '0:14:43')
-          var s = t.toString().replace(/<.*$/,'').trim();
+          var s = t.toString().replace(/<[^>]*>/g,'').trim();
           var p = s.split(':').map(Number);
           if (p.length===3 && !isNaN(p[2])) return p[0]*3600+p[1]*60+p[2];
           if (p.length===2 && !isNaN(p[1])) return p[0]*60+p[1];
@@ -1925,8 +1924,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
       if (akRaw === 'J' || akRaw === 'B' || akRaw === 'P' || akRaw === 'K') continue;
       var rankRaw= (row[0] || '').replace(/\.$/, '').trim();
       var netHtml = (race.nettoIdx >= 0 && race.nettoIdx < row.length) ? (row[race.nettoIdx] || '') : '';
-      var netM   = netHtml.toString().match(/^([^<]+)/);
-      var zeit   = netM ? netM[1].trim() : '';
+      var zeit   = netHtml.toString().replace(/<[^>]*>/g, '').trim();
       if (!zeit || !zeit.match(/\d+:\d+/)) continue;
       var key = name + '|' + zeit + '|' + race.id;
       if (seen[key]) continue;
@@ -1940,7 +1938,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         // Rang aus vorberechneter Map: 'AK|sek' -> rank
         function _toSec2(t) {
           if (!t) return 999999;
-          var s = t.toString().replace(/<.*$/,'').trim();
+          var s = t.toString().replace(/<[^>]*>/g,'').trim();
           var p = s.split(':').map(Number);
           if (p.length===3 && !isNaN(p[2])) return p[0]*3600+p[1]*60+p[2];
           if (p.length===2 && !isNaN(p[1])) return p[0]*60+p[1];
