@@ -1880,7 +1880,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         function _toSec(t) {
           if (!t) return 999999;
           var s = t.toString().replace(/<[^>]*>/g,'').trim();
-          var p = s.split(':').map(Number);
+          var p = s.split(':').map(function(x){return parseInt(x,10);});
           if (p.length===3 && !isNaN(p[2])) return p[0]*3600+p[1]*60+p[2];
           if (p.length===2 && !isNaN(p[1])) return p[0]*60+p[1];
           return 999999;
@@ -1945,7 +1945,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         function _toSec2(t) {
           if (!t) return 999999;
           var s = t.toString().replace(/<[^>]*>/g,'').trim();
-          var p = s.split(':').map(Number);
+          var p = s.split(':').map(function(x){return parseInt(x,10);});
           if (p.length===3 && !isNaN(p[2])) return p[0]*3600+p[1]*60+p[2];
           if (p.length===2 && !isNaN(p[1])) return p[0]*60+p[1];
           return 999999;

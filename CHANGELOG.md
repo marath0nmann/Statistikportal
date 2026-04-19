@@ -1,5 +1,5 @@
 ## vCUR
-- Fix: ACN-Importer – LIVE-Strecken lieferten 0 Zeilen: Name/Geschlecht/AK-Spalten werden jetzt dynamisch über `#NAME`/`#GENDER`/`#CAT` ermittelt statt hardcodiert (row[2]/[3]/[8]); Zeitextraktion robuster gegen `<b>Zeit</b>`-Format
+- Fix: ACN-Importer – LIVE-Strecken lieferten 0 Zeilen und keine AK-Platzierung: Spalten (#NAME/#GENDER/#CAT) dynamisch per Spaltenname statt hardcodiertem Index; `parseInt` statt `Number` beim Zeit-Parsen (ignoriert trailing `km/h`-Anteil); `replace(/<[^>]*>/g,'')` statt `replace(/<.*$/,'')` für in HTML eingewickelte Zeiten
 - Feature: Alle Admins werden per E-Mail benachrichtigt sobald sich ein neuer User registriert (beide 2FA-Wege, auch bei Auto-Freigabe)
 - UX: Admin → Benutzer – Spalte "Registriert am" in Benutzerverwaltung hinzugefügt
 - UX: Admin – Registrierungen-Tab entfernt; E-Mail-Einstellungen → Darstellung; ausstehende Registrierungen (inkl. Genehmigen/Ablehnen) → Benutzer-Tab; Badge-Zähler am Benutzer-Button
