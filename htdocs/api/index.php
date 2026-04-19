@@ -3405,6 +3405,12 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         if (empty($eventIds)) $eventIds = ['HM', '10L', '5L'];
         $debug['v2EventIds'] = $eventIds;
 
+        // Such-Session initialisieren: pid=search GET-Aufruf (wie der Browser es tut, bevor getList klappt)
+        $searchPageUrl = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start';
+        mikaCurl($searchPageUrl, $cookieFile, $ua);
+
+        $searchReferer = $searchPageUrl . '&search%5Bname%5D=' . urlencode($searchName) . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25';
+
         $allResults = [];
         foreach ($eventIds as $evId) {
             $listUrl = $baseUrl . '?content=ajax2&func=getList'
@@ -3413,7 +3419,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 . '&options%5Bb%5D%5Bsearch%5D%5Bsex%5D=%25'
                 . '&options%5Bb%5D%5Bsearch%5D%5Bname%5D=' . urlencode($searchName)
                 . '&options%5Blang%5D=DE&options%5Bpid%5D=start';
-            $listJson = mikaAjaxCurl($listUrl, $baseUrl, $cookieFile, $ua);
+            $listJson = mikaAjaxCurl($listUrl, $searchReferer, $cookieFile, $ua);
             $debug['v2_' . $evId . '_len'] = strlen($listJson);
             if (!$listJson) continue;
             $listData = @json_decode($listJson, true);
