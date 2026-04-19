@@ -1212,7 +1212,7 @@ async function bulkImportFromMika(url, kat, statusEl) {
   _bkDbgLine('Verein',    vereinRaw);
   _bkDbgLine('Basis-URL', baseUrl);
 
-  if (r.debug) _bkDbgLine('API-Debug', JSON.stringify(r.debug).slice(0,300));
+  if (r.data && r.data.debug) _bkDbgLine('API-Debug', JSON.stringify(r.data.debug).slice(0,300));
   var rows = mikaExtractRowsForBulk(r.data, kat);
   _bkDbgLine('Vereins-Treffer', rows.length + ' Einträge');
 
@@ -1242,7 +1242,17 @@ async function bulkImportFromMika(url, kat, statusEl) {
         return apiGet('mika-fetch?base_url=' + encodeURIComponent(baseUrl) + '&club=' + encodeURIComponent(vereinRaw) + '&name=' + encodeURIComponent(_nn));
       }));
       _batchResults.forEach(function(_nr) {
-        if (!_nr || !_nr.ok || !_nr.data.results) return;
+        if (!_nr || !_nr.ok || !_nr.data.results) {
+          if (_nr && _nr.data && _nr.data.debug && !_bkDbgLines._namDebugShown) {
+            _bkDbgLine('Name-API-Debug', JSON.stringify(_nr.data.debug).slice(0,300));
+            _bkDbgLines._namDebugShown = true;
+          }
+          return;
+        }
+        if (!_bkDbgLines._namDebugShown && _nr.data.debug) {
+          _bkDbgLine('Name-API-Debug', JSON.stringify(_nr.data.debug).slice(0,300));
+          _bkDbgLines._namDebugShown = true;
+        }
         _nr.data.results.forEach(function(res) {
           if (_idpSeen[res.idp]) return;
           if (uitsAutoMatch(res.name, _athleten) !== null) {
