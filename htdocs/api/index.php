@@ -3259,11 +3259,13 @@ if ($res === 'disziplin-mapping') {
 // ============================================================
 // AUTOCOMPLETE Athleten
 // ============================================================
-function mikaAjaxCurl(string $url, string $baseUrl, string $cookieFile, string $ua): string {
+function mikaAjaxCurl(string $url, string $referer, string $cookieFile, string $ua, array &$debugOut = []): string {
     $ch = curl_init($url);
+    $origin = preg_replace('#(https?://[^/]+).*#', '$1', $referer);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_ENCODING       => '',           // gzip/deflate automatisch dekomprimieren
         CURLOPT_COOKIEJAR      => $cookieFile,
         CURLOPT_COOKIEFILE     => $cookieFile,
         CURLOPT_USERAGENT      => $ua,
@@ -3272,10 +3274,15 @@ function mikaAjaxCurl(string $url, string $baseUrl, string $cookieFile, string $
             'Accept: application/json, text/javascript, */*; q=0.01',
             'Accept-Language: de-DE,de;q=0.9',
             'X-Requested-With: XMLHttpRequest',
-            'Referer: ' . $baseUrl,
+            'Origin: ' . $origin,
+            'Referer: ' . $referer,
         ],
     ]);
-    $r = curl_exec($ch); curl_close($ch);
+    $r    = curl_exec($ch);
+    $info = curl_getinfo($ch);
+    curl_close($ch);
+    $debugOut['http_status'] = $info['http_code'];
+    $debugOut['response_len'] = strlen($r ?: '');
     return $r ?: '';
 }
 
@@ -3419,8 +3426,10 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 . '&options%5Bb%5D%5Bsearch%5D%5Bsex%5D=%25'
                 . '&options%5Bb%5D%5Bsearch%5D%5Bname%5D=' . urlencode($searchName)
                 . '&options%5Blang%5D=DE&options%5Bpid%5D=start';
-            $listJson = mikaAjaxCurl($listUrl, $searchReferer, $cookieFile, $ua);
+            $curlDbg = [];
+            $listJson = mikaAjaxCurl($listUrl, $searchReferer, $cookieFile, $ua, $curlDbg);
             $debug['v2_' . $evId . '_len'] = strlen($listJson);
+            if ($evId === $eventIds[0]) $debug['v2_curl_first'] = $curlDbg + ['url' => substr($listUrl, -80)];
             if (!$listJson) continue;
             $listData = @json_decode($listJson, true);
             if (!$listData) continue;
