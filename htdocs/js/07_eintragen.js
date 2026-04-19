@@ -1816,19 +1816,24 @@ async function bulkImportFromAcn(url, kat, statusEl) {
 
       // Teamresultaten: werden durch leere Nettozeit unten erkannt (kein separater RowAction-Check)
 
-      // Netto-Spaltenindex und AK-Platzierungs-Index
+      // Spaltenindizes dynamisch ermitteln
       var nettoIdx = -1;
       var akPlatzIdx = -1;
+      var nameIdx   = 2; // Fallback: historische Position
+      var genderIdx = 3;
+      var akIdx     = 8;
       for (var ci2 = 0; ci2 < cols.length; ci2++) {
+        var cName2 = (cols[ci2].Name || '');
         var dn2 = (cols[ci2].DisplayName || '').toLowerCase();
         var gd2 = (cols[ci2].GroupDisplayName || '').toLowerCase();
-        if (dn2.indexOf('netto') >= 0 || (cols[ci2].Name||'').toLowerCase().indexOf('netto') >= 0) {
-          nettoIdx = cols[ci2].FieldIdx !== undefined ? cols[ci2].FieldIdx : ci2;
-        }
+        var fi2 = cols[ci2].FieldIdx !== undefined ? cols[ci2].FieldIdx : ci2;
+        if (dn2.indexOf('netto') >= 0 || cName2.toLowerCase().indexOf('netto') >= 0) nettoIdx = fi2;
         // AK-Platzierung: Spalte 'Pos' in Gruppe 'Categorie'
-        if (dn2 === 'pos' && gd2.indexOf('categ') >= 0) {
-          akPlatzIdx = cols[ci2].FieldIdx !== undefined ? cols[ci2].FieldIdx : ci2;
-        }
+        if (dn2 === 'pos' && gd2.indexOf('categ') >= 0) akPlatzIdx = fi2;
+        // Name, Geschlecht, AK-Kategorie (Spaltenname kann Präfix haben wie sH_#GENDER)
+        if (cName2.indexOf('#NAME')   >= 0) nameIdx   = fi2;
+        if (cName2.indexOf('#GENDER') >= 0) genderIdx = fi2;
+        if (cName2.indexOf('#CAT')    >= 0) akIdx     = fi2;
       }
       if (nettoIdx < 0) {
         var sample = rows[0] || [];
@@ -1884,7 +1889,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         var _akGroups = {};
         for (var _ri = 0; _ri < rows.length; _ri++) {
           var _row = rows[_ri];
-          var _ak = (_row[8] || '').trim();
+          var _ak = (_row[akIdx] || '').trim();
           if (!_ak || _ak === '-') continue;
           var _net = (nettoIdx >= 0 && nettoIdx < _row.length) ? (_row[nettoIdx] || '').toString() : '';
           var _sec = _toSec(_net);
@@ -1902,7 +1907,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         });
         _bkDbgLine(id + ' AK-Rang', Object.keys(_akGroups).length + ' AK-Gruppen berechnet');
       }
-      return { id: id, rows: rows, nettoIdx: nettoIdx, akPlatzIdx: akPlatzIdx, akRankMap: akRankMap, diszHint: diszHint };
+      return { id: id, rows: rows, nettoIdx: nettoIdx, akPlatzIdx: akPlatzIdx, akRankMap: akRankMap, diszHint: diszHint, nameIdx: nameIdx, genderIdx: genderIdx, akIdx: akIdx };
     } catch(e) {
       _bkDbgLine(id + ' Fehler', e.message);
       return null;
@@ -1917,15 +1922,16 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     if (!race) continue;
     for (var ri = 0; ri < race.rows.length; ri++) {
       var row    = race.rows[ri];
-      var name   = acnParseName(row[2] || '');
+      var name   = acnParseName(row[race.nameIdx] || '');
       if (!name) continue;
-      var gender = row[3] || '';
-      var akRaw  = row[8] || '';
+      var gender = (row[race.genderIdx] || '').toString().replace(/<[^>]*>/g,'').trim();
+      var akRaw  = (row[race.akIdx] || '').toString().replace(/<[^>]*>/g,'').trim();
       if (akRaw === 'J' || akRaw === 'B' || akRaw === 'P' || akRaw === 'K') continue;
       var rankRaw= (row[0] || '').replace(/\.$/, '').trim();
       var netHtml = (race.nettoIdx >= 0 && race.nettoIdx < row.length) ? (row[race.nettoIdx] || '') : '';
-      var zeit   = netHtml.toString().replace(/<[^>]*>/g, '').trim();
-      if (!zeit || !zeit.match(/\d+:\d+/)) continue;
+      var ztM = netHtml.toString().replace(/<[^>]*>/g,' ').match(/\d+:\d+:\d+|\d+:\d+/);
+      var zeit = ztM ? ztM[0] : '';
+      if (!zeit) continue;
       var key = name + '|' + zeit + '|' + race.id;
       if (seen[key]) continue;
       seen[key] = true;
@@ -1944,7 +1950,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
           if (p.length===2 && !isNaN(p[1])) return p[0]*60+p[1];
           return 999999;
         }
-        var _akRaw = (row[8] || '').trim();
+        var _akRaw = (row[race.akIdx] || '').toString().replace(/<[^>]*>/g,'').trim();
         var _netRaw = (race.nettoIdx >= 0 && race.nettoIdx < row.length) ? (row[race.nettoIdx] || '').toString() : '';
         var _sec2 = _toSec2(_netRaw);
         var _rk = race.akRankMap[_akRaw + '|' + _sec2];
