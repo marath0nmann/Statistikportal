@@ -1,4 +1,5 @@
 ## vCUR
+- Fix: ACN-Importer – Strecke wurde übersprungen wenn Siegerzeit HTML-Tags enthielt (z.B. LIVE-Läufe); HTML-Stripping vor Regex-Match ergänzt
 - Feature: Alle Admins werden per E-Mail benachrichtigt sobald sich ein neuer User registriert (beide 2FA-Wege, auch bei Auto-Freigabe)
 - UX: Admin → Benutzer – Spalte "Registriert am" in Benutzerverwaltung hinzugefügt
 - UX: Admin – Registrierungen-Tab entfernt; E-Mail-Einstellungen → Darstellung; ausstehende Registrierungen (inkl. Genehmigen/Ablehnen) → Benutzer-Tab; Badge-Zähler am Benutzer-Button

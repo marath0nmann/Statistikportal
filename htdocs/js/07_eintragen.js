@@ -1856,8 +1856,9 @@ async function bulkImportFromAcn(url, kat, statusEl) {
 
       // Kein Split -> aus Siegerzeit ableiten
       if (!diszHint) {
-        var tm2 = sampleNet.match(/^(\d+):(\d+)/);
-        if (!tm2) { _bkDbgLine(id, 'Uebersprungen (keine Siegerzeit)'); return null; }
+        var cleanNet = sampleNet.replace(/<[^>]*>/g, '').trim();
+        var tm2 = cleanNet.match(/^(\d+):(\d+)/);
+        if (!tm2) { _bkDbgLine(id, 'Uebersprungen (keine Siegerzeit: ' + cleanNet.slice(0,20) + ')'); return null; }
         var totalMin = parseInt(tm2[1]) * 60 + parseInt(tm2[2]);
         if (totalMin < 5) { _bkDbgLine(id, 'Uebersprungen (Kids Run, ' + sampleNet.slice(0,8) + ')'); return null; }
         if      (totalMin < 20) diszHint = '5km';
