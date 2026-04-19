@@ -1212,6 +1212,7 @@ async function bulkImportFromMika(url, kat, statusEl) {
   _bkDbgLine('Verein',    vereinRaw);
   _bkDbgLine('Basis-URL', baseUrl);
 
+  if (r.debug) _bkDbgLine('API-Debug', JSON.stringify(r.debug).slice(0,300));
   var rows = mikaExtractRowsForBulk(r.data, kat);
   _bkDbgLine('Vereins-Treffer', rows.length + ' Einträge');
 
