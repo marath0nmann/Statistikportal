@@ -3331,6 +3331,57 @@ function mikaPostCurl(string $url, string $postData, string $cookieFile, string 
     return $r ?: '';
 }
 
+/**
+ * Führt mehrere POST-Requests parallel aus (curl_multi).
+ * Liefert [key => responseHtml, ...] in Eingabe-Reihenfolge.
+ *
+ * WICHTIG: Teilt NICHT den Cookie-File zwischen parallelen Requests (curl kann nicht gleichzeitig
+ * in denselben Jar schreiben). Jeder Request bekommt eine Kopie als read-only, Session bleibt
+ * über den initialen mainHtml-Aufruf gesetzt, was für r.mikatiming.com ausreicht.
+ * Verwendet in v1104 für parallele Event-Suchen (HM/10L/5L/BL/KL/JL1) statt sequenzieller foreach.
+ */
+function mikaPostCurlMulti(string $url, array $postBodies, string $cookieFile, string $ua): array {
+    if (empty($postBodies)) return [];
+    $mh = curl_multi_init();
+    $handles = [];
+    $headers = [
+        'Accept: text/html,application/xhtml+xml',
+        'Accept-Language: de-DE,de;q=0.9',
+        'Content-Type: application/x-www-form-urlencoded',
+        'Origin: ' . rtrim($url, '/'),
+        'Referer: ' . $url,
+    ];
+    foreach ($postBodies as $key => $body) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $body,
+            CURLOPT_COOKIEFILE     => $cookieFile, // read-only (kein JAR, sonst Race-Condition)
+            CURLOPT_USERAGENT      => $ua,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_HTTPHEADER     => $headers,
+        ]);
+        curl_multi_add_handle($mh, $ch);
+        $handles[$key] = $ch;
+    }
+    // Alle parallel ausführen
+    $running = null;
+    do {
+        curl_multi_exec($mh, $running);
+        if ($running) curl_multi_select($mh, 2.0);
+    } while ($running > 0);
+    $out = [];
+    foreach ($handles as $key => $ch) {
+        $out[$key] = (string)(curl_multi_getcontent($ch) ?: '');
+        curl_multi_remove_handle($mh, $ch);
+        curl_close($ch);
+    }
+    curl_multi_close($mh);
+    return $out;
+}
+
 if ($res === 'mika-fetch' && $method === 'GET') {
     Auth::requireLogin();
     $baseUrl = rtrim($_GET['base_url'] ?? '', '/') . '/';
@@ -3557,8 +3608,10 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         //   lang=DE, startpage=start_responsive, startpage_type=search, event=<EVID>
         // Ohne diese Felder kommt HTTP 200 mit leerem Ergebnis-Gerüst zurück.
         // Im Browser via DevTools verifiziert (2026/Apfelblütenlauf).
+        // v1104: Alle Event-POSTs parallel ausführen (curl_multi) statt sequenziell.
+        //        Reduziert Namens-Suche-Zeit von ~6×RTT auf 1×RTT (~6× schneller).
+        $postBodiesByEvent = [];
         foreach ($eventIds as $_evLoop) {
-            // Basis-Formulardaten (versteckte Felder + event-Root-Feld)
             $postFields = [
                 'lang'               => 'DE',
                 'startpage'          => 'start_responsive',
@@ -3572,8 +3625,11 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             if (!$nameSearch && $club !== '') {
                 $postFields['search[club]'] = $club;
             }
-            $postData = http_build_query($postFields);
-            $html = mikaPostCurl($searchUrl, $postData, $cookieFile, $ua);
+            $postBodiesByEvent[$_evLoop] = http_build_query($postFields);
+        }
+        $htmlByEvent = mikaPostCurlMulti($searchUrl, $postBodiesByEvent, $cookieFile, $ua);
+
+        foreach ($htmlByEvent as $_evLoop => $html) {
             $debug['newIf_' . $_evLoop . '_len'] = strlen($html);
             if (!$html) continue;
 
