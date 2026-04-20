@@ -3427,15 +3427,25 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 
         $allResults = [];
         foreach ($eventIds as $evId) {
-            // SearchProvider.js uses POST with options[string], options[pid], options[event]
+            // SearchProvider.js uses POST with options[string], options[pid], options[event] + full b-tree
             $listBaseUrl = $baseUrl . '?content=ajax2&func=getList';
             $postBody = http_build_query([
                 'options' => [
                     'string'  => $searchName,
                     'pid'     => 'search',
+                    'fpid'    => 'search',
+                    'pidp'    => 'start',
                     'event'   => $evId,
                     'b'       => [
-                        'search' => ['event' => $evId, 'age_class' => '%', 'sex' => '%', 'name' => $searchName],
+                        'search' => [
+                            'event'     => $evId,
+                            'age_class' => '%',
+                            'sex'       => '%',
+                            'nation'    => '%',
+                            'name'      => $searchName,
+                            'firstname' => '',
+                            'start_no'  => '',
+                        ],
                         'lists'  => ['event' => $evId],
                     ],
                     'lang'    => 'DE',
@@ -3499,11 +3509,17 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 
         $results = array_values($allResults);
         $debug['v2RowsTotal'] = count($results);
-        if (!empty($results)) $debug['firstResult'] = $results[0];
-        @unlink($cookieFile);
-        jsonOk(['results' => $results, 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
+        if (!empty($results)) {
+            $debug['firstResult'] = $results[0];
+            @unlink($cookieFile);
+            jsonOk(['results' => $results, 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
+        }
+        // V2 lieferte 0 Treffer → Fallback auf POST-basiertes Interface (zuverlässig für moderne Sites)
+        $debug['v2_fallback'] = 'v2_empty_trying_new_interface';
+        $isNewInterface = true;
+    }
 
-    } elseif ($isNewInterface) {
+    if ($isNewInterface) {
         // Neue Interface: POST pro Event-Typ
         $searchName = $nameSearch ?: $club;
         // Event-IDs aus Hauptseite extrahieren oder Defaults

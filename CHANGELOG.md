@@ -1,4 +1,7 @@
 ## vCUR
+- Fix: MikaTiming-Importer – v2-SPA-Interface (SearchProvider.js) lieferte dauerhaft 0 Ergebnisse (HTTP 200, response_len 0), da der Server den JSON-POST ohne Grund still mit leerem Body beantwortet; **automatischer Fallback auf den POST-basierten newInterface-Pfad** eingebaut, wenn v2 keine Treffer liefert; v2-POST-Body zusätzlich um `fpid=search`, `pidp=start`, `nation=%`, `firstname=''`, `start_no=''` ergänzt (näher am echten Browser-Request) — damit greift der Importer wieder für Apfelblütenlauf 2026 und andere neue r.mikatiming.com-Sites
+
+## vCUR
 - Fix: MikaTiming-Importer – v2-SPA-Interface: `getList` per POST statt GET (gemäß SearchProvider.js); Parameter-Format angepasst (`options[string]`, `options[b][lists]`, `options[b][search]` kombiniert); lieferte zuvor 0 Ergebnisse (HTTP 200, leerer Body)
 - Fix: ACN-Importer – LIVE-Strecken lieferten 0 Zeilen und keine AK-Platzierung: Spalten (#NAME/#GENDER/#CAT) dynamisch per Spaltenname statt hardcodiertem Index; `parseInt` statt `Number` beim Zeit-Parsen (ignoriert trailing `km/h`-Anteil); `replace(/<[^>]*>/g,'')` statt `replace(/<.*$/,'')` für in HTML eingewickelte Zeiten
 - Feature: Alle Admins werden per E-Mail benachrichtigt sobald sich ein neuer User registriert (beide 2FA-Wege, auch bei Auto-Freigabe)
