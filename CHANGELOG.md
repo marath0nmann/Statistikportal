@@ -1,4 +1,10 @@
 ## vCUR
+- Fix: MikaTiming-Importer – **Ursache der seit Wochen leeren Responses live im Browser identifiziert**: der mika:timing-Server (r.mikatiming.com) liefert nur dann echte Ergebnisdaten, wenn ALLE versteckten Form-Felder im POST mitgeschickt werden (`lang=DE`, `startpage=start_responsive`, `startpage_type=search`, `event=<EVID>`). Alle bisherigen Code-Pfade (v1095-v1102) haben diese Felder gar nicht gesendet und bekamen HTTP 200 mit einem leeren HTML-Gerüst zurück — die `<li class="list-active">`-Zeilen waren leer, weil das Framework sie nicht befüllte ohne die vollständigen Context-Felder; **newInterface-POST** entsprechend umgebaut (pro Event ein POST mit korrekter Form-Struktur); **v2-JSON-API-Pfad** (der seit v1095 dauerhaft 0 Byte lieferte) deaktiviert — `SearchProvider.js` war kein v2-Marker, sondern nur das Autosuggest-Script; Interface-Erkennung umgebaut (newInterface ist wieder der Haupt-Pfad, oldInterface als Fallback); Name-Parser um `.type-fullname` erweitert; im Browser gegen Apfelblütenlauf 2026 verifiziert (Goraus/Daams HM, Wender 10L etc.)
+
+## vCUR
+- Diagnose+Fix: MikaTiming – Debug-Limit im Frontend von 300 auf 3000 Zeichen erhöht (v2_fallback und newInterface-Durchlauf wurden abgeschnitten und waren daher nicht sichtbar); Backend-Debug erweitert um `mainHtmlLen`, `mainHtmlHead`, `htmlHead` (erste 300 Byte der Server-Response); **2. Fallback newInterface → oldInterface** eingebaut, wenn auch der POST-Pfad 0 Treffer liefert (damit greift am Ende immer irgendein Pfad)
+
+## vCUR
 - Fix: MikaTiming-Importer – v2-SPA-Interface (SearchProvider.js) lieferte dauerhaft 0 Ergebnisse (HTTP 200, response_len 0), da der Server den JSON-POST ohne Grund still mit leerem Body beantwortet; **automatischer Fallback auf den POST-basierten newInterface-Pfad** eingebaut, wenn v2 keine Treffer liefert; v2-POST-Body zusätzlich um `fpid=search`, `pidp=start`, `nation=%`, `firstname=''`, `start_no=''` ergänzt (näher am echten Browser-Request) — damit greift der Importer wieder für Apfelblütenlauf 2026 und andere neue r.mikatiming.com-Sites
 
 ## vCUR

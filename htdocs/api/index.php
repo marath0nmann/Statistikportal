@@ -3393,13 +3393,29 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     }
     $debug['eventId'] = $eventId;
 
-    // 2. Interface-Erkennung: v2-JSON-API (SearchProvider.js) | v1-POST (simple-search-name) | alt (GET)
-    $isV2Interface  = strpos($mainHtml, 'SearchProvider.js') !== false;
-    $isNewInterface = !$isV2Interface && strpos($mainHtml, 'simple-search-name') !== false;
+    // 2. Interface-Erkennung: alle r.mikatiming.com-Sites nutzen den Form-POST-Pfad
+    //    (historisch v2-JSON-API probiert, aber die antwortet seit Jahren still mit 0 Byte)
+    //    → Priorisiere den bewährten POST-Pfad. v2 nur als letzter Fallback.
+    $hasSearchProvider = strpos($mainHtml, 'SearchProvider.js') !== false;
+    $hasSimpleSearchName = strpos($mainHtml, 'simple-search-name') !== false;
+    $hasSearchForm = strpos($mainHtml, 'name="search[name]"') !== false || strpos($mainHtml, "name='search[name]'") !== false;
+    // newInterface ist der default, wenn die Seite irgendeinen Marker hat, der auf klassischen Form-POST zeigt
+    $isNewInterface = $hasSimpleSearchName || $hasSearchForm || $hasSearchProvider;
+    // v2 nur als Ausweich-Fallback, wenn newInterface leer liefert
+    $isV2Interface = $hasSearchProvider;
     $nameSearch = trim($_GET['name'] ?? '');
-    $debug = ['isV2Interface' => $isV2Interface, 'isNewInterface' => $isNewInterface, 'nameSearch' => $nameSearch];
+    $debug = [
+        'hasSearchProvider' => $hasSearchProvider,
+        'hasSimpleSearchName' => $hasSimpleSearchName,
+        'hasSearchForm' => $hasSearchForm,
+        'isNewInterface' => $isNewInterface,
+        'isV2Interface_fallback' => $isV2Interface,
+        'nameSearch' => $nameSearch,
+        'mainHtmlLen' => strlen($mainHtml),
+        'mainHtmlHead' => substr($mainHtml, 0, 200),
+    ];
 
-    if ($isV2Interface) {
+    if (false /* v2-JSON-API seit v1095 nie funktioniert (Server liefert HTTP 200 mit 0 Byte) - deaktiviert in v1103; newInterface-POST ist zuverlässig */) {
         // V2-Interface: JSON-API via content=ajax2&func=getList + X-Requested-With Header
         $searchName = $nameSearch ?: $club;
 
@@ -3524,27 +3540,42 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         $searchName = $nameSearch ?: $club;
         // Event-IDs aus Hauptseite extrahieren oder Defaults
         $eventIds = [];
-        preg_match_all('/value="([A-Z0-9]{1,5}L?)"[^>]*>[^<]+(?:km|Lauf|Marathon)/i', $mainHtml, $evm);
+        preg_match_all('/value="([A-Z0-9]{1,5}L?[0-9]?)"[^>]*>[^<]+(?:km|Lauf|Marathon)/i', $mainHtml, $evm);
         foreach ($evm[1] as $ev) $eventIds[] = $ev;
-        // Fallback auf option-Values aus select
-        preg_match_all('/<option[^>]+value="([A-Z0-9]{1,5})"/', $mainHtml, $opm);
-        foreach ($opm[1] as $ev) { if (!in_array($ev,$eventIds) && preg_match('/^[A-Z0-9]{1,5}$/',$ev)) $eventIds[] = $ev; }
+        // Fallback auf option-Values aus select (event-Select hat die Wettbewerbe: HM/10L/5L/BL/KL/JL1 etc.)
+        preg_match_all('/<option[^>]+value="([A-Z0-9]{1,6})"/', $mainHtml, $opm);
+        foreach ($opm[1] as $ev) { if (!in_array($ev,$eventIds) && preg_match('/^[A-Z0-9]{1,6}$/',$ev)) $eventIds[] = $ev; }
         if (empty($eventIds)) $eventIds = ['HM','10L','5L'];
         $eventIds = array_unique(array_slice($eventIds, 0, 10));
+        $debug['newIf_eventIds'] = $eventIds;
 
         $searchUrl = $baseUrl . '?pid=search&pidp=start';
         $allResults = [];
 
-        // Einmal ohne Event-Filter – gibt alle Wettbewerbe zurück (statt 3 sequenzielle POSTs)
-        $postData = http_build_query([
-            'search[name]'      => $searchName,
-            'search[firstname]' => '',
-            'search[start_no]'  => '',
-            'search[age_class]' => '%',
-            'search[sex]'       => '%',
-        ]);
-        $html = mikaPostCurl($searchUrl, $postData, $cookieFile, $ua);
-        $debug['htmlLen'] = strlen($html);
+        // WICHTIG (v1103): Der MikaTiming-Server liefert nur dann echte Ergebnisse
+        // wenn ALLE versteckten Form-Felder mitgeschickt werden:
+        //   lang=DE, startpage=start_responsive, startpage_type=search, event=<EVID>
+        // Ohne diese Felder kommt HTTP 200 mit leerem Ergebnis-Gerüst zurück.
+        // Im Browser via DevTools verifiziert (2026/Apfelblütenlauf).
+        foreach ($eventIds as $_evLoop) {
+            // Basis-Formulardaten (versteckte Felder + event-Root-Feld)
+            $postFields = [
+                'lang'               => 'DE',
+                'startpage'          => 'start_responsive',
+                'startpage_type'     => 'search',
+                'event'              => $_evLoop,
+                'search[name]'       => $nameSearch ?: '',
+                'search[firstname]'  => '',
+                'search[start_no]'   => '',
+            ];
+            // Club-Suche: wenn kein Namens-Query aktiv, stattdessen nach Verein filtern
+            if (!$nameSearch && $club !== '') {
+                $postFields['search[club]'] = $club;
+            }
+            $postData = http_build_query($postFields);
+            $html = mikaPostCurl($searchUrl, $postData, $cookieFile, $ua);
+            $debug['newIf_' . $_evLoop . '_len'] = strlen($html);
+            if (!$html) continue;
 
         // Parse results from POST response
 
@@ -3561,7 +3592,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 }
                 if (!$idp) continue;
                 $name = '';
-                foreach ($xp2->query('.//*[contains(@class,"name-standard") or contains(@class,"fullname")]', $li) as $n) {
+                foreach ($xp2->query('.//*[contains(@class,"type-fullname") or contains(@class,"name-standard") or contains(@class,"fullname")]', $li) as $n) {
                     $t = trim($n->textContent);
                     if ($t) { $name = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $t); break; }
                 }
@@ -3642,7 +3673,8 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         'event_id' => $evId, 'idp' => $idp, 'club' => $liClub,
                     ];
                 }
-        } // end parse block
+        } // end parse block per LI
+        } // end foreach ($eventIds as $_evLoop)
         $results = array_values($allResults);
         $debug['rowsFound'] = count($results);
         if (!empty($results)) $debug['firstResult'] = $results[0];
@@ -3663,10 +3695,17 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 if ($desc && strlen($desc) < 60 && stripos($desc, 'timing') === false) $eventOrt = $desc;
             }
         }
-        @unlink($cookieFile);
-        jsonOk(['results' => $results, 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
+        // Wenn newInterface auch 0 Treffer lieferte → 2. Fallback auf oldInterface (GET-basiert)
+        if (empty($results)) {
+            $debug['newInterface_fallback'] = 'empty_trying_old_interface';
+            $isNewInterface = false;
+        } else {
+            @unlink($cookieFile);
+            jsonOk(['results' => $results, 'eventName' => $eventName, 'eventDate' => $eventDate, 'eventOrt' => $eventOrt, 'debug' => $debug]);
+        }
+    }
 
-    } else {
+    if (!$isNewInterface) {
         // Altes Interface: GET-Suche
         if ($nameSearch) {
             // Namensuche: zuerst ohne Event-Filter (funktioniert für viele Sites)
