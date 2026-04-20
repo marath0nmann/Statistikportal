@@ -3259,25 +3259,32 @@ if ($res === 'disziplin-mapping') {
 // ============================================================
 // AUTOCOMPLETE Athleten
 // ============================================================
-function mikaAjaxCurl(string $url, string $referer, string $cookieFile, string $ua, array &$debugOut = []): string {
+function mikaAjaxCurl(string $url, string $referer, string $cookieFile, string $ua, array &$debugOut = [], string $postBody = ''): string {
     $ch = curl_init($url);
     $origin = preg_replace('#(https?://[^/]+).*#', '$1', $referer);
-    curl_setopt_array($ch, [
+    $headers = [
+        'Accept: application/json, text/javascript, */*; q=0.01',
+        'Accept-Language: de-DE,de;q=0.9',
+        'X-Requested-With: XMLHttpRequest',
+        'Origin: ' . $origin,
+        'Referer: ' . $referer,
+    ];
+    $opts = [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_ENCODING       => '',           // gzip/deflate automatisch dekomprimieren
+        CURLOPT_ENCODING       => '',
         CURLOPT_COOKIEJAR      => $cookieFile,
         CURLOPT_COOKIEFILE     => $cookieFile,
         CURLOPT_USERAGENT      => $ua,
         CURLOPT_TIMEOUT        => 15,
-        CURLOPT_HTTPHEADER     => [
-            'Accept: application/json, text/javascript, */*; q=0.01',
-            'Accept-Language: de-DE,de;q=0.9',
-            'X-Requested-With: XMLHttpRequest',
-            'Origin: ' . $origin,
-            'Referer: ' . $referer,
-        ],
-    ]);
+    ];
+    if ($postBody !== '') {
+        $opts[CURLOPT_POST]       = true;
+        $opts[CURLOPT_POSTFIELDS] = $postBody;
+        $headers[] = 'Content-Type: application/x-www-form-urlencoded; charset=UTF-8';
+    }
+    $opts[CURLOPT_HTTPHEADER] = $headers;
+    curl_setopt_array($ch, $opts);
     $r    = curl_exec($ch);
     $info = curl_getinfo($ch);
     curl_close($ch);
@@ -3420,16 +3427,24 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 
         $allResults = [];
         foreach ($eventIds as $evId) {
-            $listUrl = $baseUrl . '?content=ajax2&func=getList'
-                . '&options%5Bb%5D%5Bsearch%5D%5Bevent%5D=' . urlencode($evId)
-                . '&options%5Bb%5D%5Bsearch%5D%5Bage_class%5D=%25'
-                . '&options%5Bb%5D%5Bsearch%5D%5Bsex%5D=%25'
-                . '&options%5Bb%5D%5Bsearch%5D%5Bname%5D=' . urlencode($searchName)
-                . '&options%5Blang%5D=DE&options%5Bpid%5D=start';
+            // SearchProvider.js uses POST with options[string], options[pid], options[event]
+            $listBaseUrl = $baseUrl . '?content=ajax2&func=getList';
+            $postBody = http_build_query([
+                'options' => [
+                    'string'  => $searchName,
+                    'pid'     => 'search',
+                    'event'   => $evId,
+                    'b'       => [
+                        'search' => ['event' => $evId, 'age_class' => '%', 'sex' => '%', 'name' => $searchName],
+                        'lists'  => ['event' => $evId],
+                    ],
+                    'lang'    => 'DE',
+                ],
+            ]);
             $curlDbg = [];
-            $listJson = mikaAjaxCurl($listUrl, $searchReferer, $cookieFile, $ua, $curlDbg);
+            $listJson = mikaAjaxCurl($listBaseUrl, $searchReferer, $cookieFile, $ua, $curlDbg, $postBody);
             $debug['v2_' . $evId . '_len'] = strlen($listJson);
-            if ($evId === $eventIds[0]) $debug['v2_curl_first'] = $curlDbg + ['url' => substr($listUrl, -80)];
+            if ($evId === $eventIds[0]) $debug['v2_curl_first'] = $curlDbg + ['postBodyLen' => strlen($postBody), 'postBodySample' => substr($postBody, 0, 120)];
             if (!$listJson) continue;
             $listData = @json_decode($listJson, true);
             if (!$listData) continue;
