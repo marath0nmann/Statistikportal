@@ -3409,15 +3409,42 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             if (preg_match('/"startDate"\s*:\s*"(\d{4}-\d{2}-\d{2})/i', $mainHtml, $dm)) $eventDate = $dm[1];
             elseif (preg_match('/datePublished.*?(\d{4}-\d{2}-\d{2})/i', $mainHtml, $dm)) $eventDate = $dm[1];
             elseif (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $mainHtml, $dm)) $eventDate = $dm[3].'-'.$dm[2].'-'.$dm[1];
+            // v1105: Deutsches Textformat "19. April 2026" (mika:timing Seitenheader)
+            elseif (preg_match('/(\d{1,2})\.\s*(Januar|Februar|M[aä]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/ui', $mainHtml, $dm)) {
+                $monate = ['januar'=>'01','februar'=>'02','märz'=>'03','maerz'=>'03','april'=>'04','mai'=>'05','juni'=>'06','juli'=>'07','august'=>'08','september'=>'09','oktober'=>'10','november'=>'11','dezember'=>'12'];
+                $mKey = mb_strtolower($dm[2], 'UTF-8');
+                if (isset($monate[$mKey])) $eventDate = $dm[3] . '-' . $monate[$mKey] . '-' . str_pad($dm[1], 2, '0', STR_PAD_LEFT);
+            }
         }
         // Ort aus JSON-LD, meta oder Seitentext
         if (preg_match('/"addressLocality"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
         elseif (preg_match('/"location"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
         // Aus Event-Namen: Stadt erkennen (auch GROSSBUCHSTABEN → Title Case)
         if (!$eventOrt && $eventName) {
-            if (preg_match('/\b(M[uü]nchen|Berlin|Hamburg|Frankfurt|K[oö]ln|Stuttgart|D[uü]sseldorf|Leipzig|Dresden|Hannover|Bremen|M[uü]nster|Dortmund|Essen|Duisburg|Bochum|Wuppertal|Bonn|Gelsenkirchen|Aachen|Bielefeld|Mannheim|Augsburg|Wiesbaden|M[oö]nchengladbach|Braunschweig|Kiel|Halle|Magdeburg|Erfurt|Rostock|Mainz|L[uü]beck|Osnabr[uü]ck|Oldenburg|Freiburg|Heidelberg|Darmstadt|Regensburg|W[uü]rzburg|Ingolstadt|Ulm|Heilbronn|Pforzheim|Oberhausen|Hagen|Hamm|M[uü]lheim|Saarbr[uü]cken|Potsdam|G[oö]ttingen|Kassel|Paderborn|Trier|Jena|Gera|Cottbus|Schwerin|Viersen|Krefeld|Kleve|Moers|Neuss|Solingen|Leverkusen|Remscheid|Rees|Viersen)\b/ui', $eventName, $om)) {
+            if (preg_match('/\b(M[uü]nchen|Berlin|Hamburg|Frankfurt|K[oö]ln|Stuttgart|D[uü]sseldorf|Leipzig|Dresden|Hannover|Bremen|M[uü]nster|Dortmund|Essen|Duisburg|Bochum|Wuppertal|Bonn|Gelsenkirchen|Aachen|Bielefeld|Mannheim|Augsburg|Wiesbaden|M[oö]nchengladbach|Braunschweig|Kiel|Halle|Magdeburg|Erfurt|Rostock|Mainz|L[uü]beck|Osnabr[uü]ck|Oldenburg|Freiburg|Heidelberg|Darmstadt|Regensburg|W[uü]rzburg|Ingolstadt|Ulm|Heilbronn|Pforzheim|Oberhausen|Hagen|Hamm|M[uü]lheim|Saarbr[uü]cken|Potsdam|G[oö]ttingen|Kassel|Paderborn|Trier|Jena|Gera|Cottbus|Schwerin|Viersen|Krefeld|Kleve|Moers|Neuss|Solingen|Leverkusen|Remscheid|Rees|Viersen|T[oö]nisvorst|Oedt|Kempen|Grefrath|Willich|Meerbusch|Erkelenz|Mettmann|Nettetal|Geldern|Goch|Xanten|Wesel|Emmerich|Bocholt|Dorsten|Gladbeck|Marl|Recklinghausen|Herne|Witten|Iserlohn|Hamm)\b/ui', $eventName, $om)) {
                 $eventOrt = $om[1];
             }
+        }
+        // v1105: Ort aus Subdomain ableiten, wenn nicht anders gefunden (Heuristik)
+        //        z.B. apfelbluetenlauf.r.mikatiming.com → nur wenn Name eindeutig eine Stadt benennt
+        //        (kein Fallback für Event-Namen wie "apfelbluetenlauf", nur wenn Subdomain Stadt ist)
+        if (!$eventOrt && preg_match('#https?://([a-z0-9_-]+)\.r\.mikatiming\.(?:com|de|net)#i', $baseUrl, $sm)) {
+            $subdomain = strtolower($sm[1]);
+            // Bekannte Mapping-Tabelle Event-Subdomain → Austragungsort (nur wenn absolut eindeutig)
+            $knownHosts = [
+                'apfelbluetenlauf' => 'Tönisvorst',
+                'berliner-halbmarathon' => 'Berlin',
+                'berlinmarathon' => 'Berlin',
+                'berlinerhm' => 'Berlin',
+                'vienna' => 'Wien',
+                'linzmarathon' => 'Linz',
+                'boston' => 'Boston',
+                'koelnmarathon' => 'Köln',
+                'frankfurtmarathon' => 'Frankfurt',
+                'hamburg-marathon' => 'Hamburg',
+                'muenchenmarathon' => 'München',
+            ];
+            if (isset($knownHosts[$subdomain])) $eventOrt = $knownHosts[$subdomain];
         }
         // Ort normalisieren: MÜNCHEN → München (Title Case)
         if ($eventOrt) {
@@ -4164,7 +4191,13 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && !$id) {
         "SELECT s.id, s.name, s.kuerzel,
                 COUNT(v.id) AS anz_veranstaltungen,
                 MIN(YEAR(v.datum)) AS jahr_von,
-                MAX(YEAR(v.datum)) AS jahr_bis
+                MAX(YEAR(v.datum)) AS jahr_bis,
+                (SELECT v2.ort FROM $vTbl v2
+                   WHERE v2.serie_id = s.id AND v2.geloescht_am IS NULL AND v2.ort IS NOT NULL AND v2.ort <> ''
+                   ORDER BY v2.datum DESC LIMIT 1) AS ort_letzte,
+                (SELECT v3.name FROM $vTbl v3
+                   WHERE v3.serie_id = s.id AND v3.geloescht_am IS NULL
+                   ORDER BY v3.datum DESC LIMIT 1) AS name_letzte
          FROM $sTbl s
          LEFT JOIN $vTbl v ON v.serie_id = s.id AND v.geloescht_am IS NULL
          GROUP BY s.id, s.name, s.kuerzel

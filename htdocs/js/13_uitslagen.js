@@ -321,20 +321,29 @@ function uitsRenderPreview(parsed) {
 
 // ── Auto-Match Athlet ────────────────────────────────────────────
 function _normUmlauts(s) {
-  // Umlaute normalisieren: ß/ss, ae/ä, oe/ö, ue/ü und umgekehrt
-  return s
-    .replace(/ß/g, 'ss').replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
-    .replace(/Ä/g, 'ae').replace(/Ö/g, 'oe').replace(/Ü/g, 'ue')
-    .replace(/\xe9|\xe8|\xea/g, 'e').replace(/\xe0|\xe2/g, 'a').replace(/\xfc/g, 'ue');
+  // v1105: Umlaute + Accents (é/è/à/ô/ñ/ç etc.) robust normalisieren via NFD
+  //        Beispiel: "André" ↔ "Andre", "Günther" ↔ "Guenther"
+  return (s||'')
+    .replace(/ß/g,'ss').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
+    .replace(/Ä/g,'Ae').replace(/Ö/g,'Oe').replace(/Ü/g,'Ue')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/ø/g,'o').replace(/Ø/g,'O').replace(/æ/g,'ae').replace(/Æ/g,'Ae')
+    .replace(/œ/g,'oe').replace(/Œ/g,'Oe').replace(/ð/g,'d').replace(/Ð/g,'D')
+    .replace(/þ/g,'th').replace(/Þ/g,'Th');
 }
 var _PREPS = {von:1,van:1,'de':1,der:1,den:1,des:1,ter:1,ten:1,zum:1,zur:1,im:1,am:1,an:1,'in':1,zu:1,the:1,of:1,le:1,la:1,les:1,du:1,di:1,del:1,della:1,und:1,en:1,'do':1,'da':1,dos:1,das:1};
 function uitsAutoMatch(name, athleten) {
   if (!name || !athleten.length) return null;
 
   function _un(s) {
+    // v1105: Umlaute + Accents (é/è/ê/à/ô/ñ/ç etc.) robust normalisieren via NFD
+    //        Beispiel: "André" ↔ "Andre", "Güldenpfennig" ↔ "Gueldenpfennig"
     return (s||'').toLowerCase()
+      // Deutsche Umlaute zu ae/oe/ue expandieren (NFD würde nur ä→a machen)
       .replace(/ß/g,'ss').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
-      .replace(/Ä/g,'ae').replace(/Ö/g,'oe').replace(/Ü/g,'ue')
+      // Alle anderen diakritischen Zeichen per NFD entfernen (é→e, ñ→n, ç→c, ø→o etc.)
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/ø/g,'o').replace(/æ/g,'ae').replace(/œ/g,'oe').replace(/ð/g,'d').replace(/þ/g,'th')
       .replace(/[-]/g,' ').trim();
   }
   function _toks(s, noPreps) {

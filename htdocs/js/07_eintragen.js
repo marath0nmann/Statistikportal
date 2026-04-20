@@ -440,6 +440,83 @@ async function _bkLoadSerien() {
     '<option value="__neu__">＋ Neue regelmäßige Veranstaltung…</option>';
 }
 
+/**
+ * v1105: Passende regelmäßige Veranstaltung zum Event-Namen finden.
+ * Tokenisiert Name + Kürzel der Serien, matcht mit dem importierten Event-Namen.
+ * Rückgabe: bestes Serie-Objekt (mit id, name, kuerzel, ort_letzte) oder null.
+ *
+ * Beispiele die matchen:
+ *   "Apfelblütenlauf 2026"         → Serie "Apfelblütenlauf"
+ *   "Venloop 2025 - 10 km"          → Serie "Venloop"
+ *   "Düsseldorf Marathon"           → Serie "Düsseldorf Marathon" oder "Marathon"
+ *   "40. Berliner Halbmarathon"    → Serie "Berliner Halbmarathon"
+ */
+function _bkMatchSerie(eventName) {
+  if (!eventName) return null;
+  var serien = window._bkSerien || [];
+  if (!serien.length) return null;
+
+  // Normalizer: lowercase, Umlaute/Accents entfernen, Jahr/Zahlen weg, Sonderzeichen weg
+  function norm(s) {
+    return (s||'').toLowerCase()
+      .replace(/ß/g,'ss').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[.,:;!?()\/|&-]/g,' ')
+      .replace(/\s+/g,' ').trim();
+  }
+  function tokens(s) {
+    return norm(s).split(/\s+/).filter(function(t){
+      // Stopwords raus: Jahre (4-stellig), reine Zahlen, triviale Wörter
+      if (/^\d{4}$/.test(t)) return false;
+      if (/^\d+$/.test(t)) return false;
+      if (/^(der|die|das|am|in|im|zu|auf|von|vom|und|oder|km|mi|m|lauf|laufen|run)$/.test(t)) return false;
+      return t.length >= 3;
+    });
+  }
+
+  var evTok = tokens(eventName);
+  if (!evTok.length) return null;
+
+  var best = null;
+  var bestScore = 0;
+
+  serien.forEach(function(s) {
+    // Matchen gegen Serie-Name UND Kürzel (beides zählt)
+    var sTokSet = {};
+    tokens(s.name).forEach(function(t){ sTokSet[t] = 1; });
+    if (s.kuerzel) tokens(s.kuerzel).forEach(function(t){ sTokSet[t] = 1; });
+    var sTok = Object.keys(sTokSet);
+    if (!sTok.length) return;
+
+    // Score: wieviele Event-Tokens sind in Serie-Tokens (Substring-Match für Toleranz)
+    var hits = 0;
+    evTok.forEach(function(et) {
+      var matched = sTok.some(function(st) {
+        if (st === et) return true;
+        // Substring in beide Richtungen, ab 5 Zeichen (vermeidet falsche Mini-Matches)
+        if (et.length >= 5 && st.indexOf(et) === 0) return true;
+        if (st.length >= 5 && et.indexOf(st) === 0) return true;
+        return false;
+      });
+      if (matched) hits++;
+    });
+
+    // Score normalisieren: relativer Anteil der Serien-Tokens getroffen
+    // (verhindert dass eine sehr generische Serie wie "Marathon" fälschlich alle matcht)
+    var coverage = hits / sTok.length; // wieviel der Serie wurde getroffen
+    var evCoverage = hits / evTok.length; // wieviel vom Event wurde als Serie erkannt
+    // Kombinierter Score: beide müssen halbwegs gut sein
+    var score = (coverage + evCoverage) / 2;
+
+    // Mindestanforderung: mindestens 1 Token-Hit und Score ≥ 0.5
+    if (hits >= 1 && score > bestScore && score >= 0.5) {
+      bestScore = score;
+      best = s;
+    }
+  });
+  return best;
+}
+
 function bkSerieChanged(serieId) {
   if (serieId === '__neu__') {
     // Zurück auf leer setzen und Modal öffnen
@@ -1294,9 +1371,10 @@ async function bulkImportFromMika(url, kat, statusEl) {
 
   // Veranstaltungsname und Ort aus API-Response vorbelegen
   var _evData = r.data || {};
-  if (_evData.eventName) {
+  var _mikaEvName = _evData.eventName || '';
+  if (_mikaEvName) {
     var evEl = document.getElementById('bk-evname');
-    if (evEl && !evEl.value) evEl.value = _evData.eventName;
+    if (evEl && !evEl.value) evEl.value = _mikaEvName;
   }
   if (_evData.eventOrt) {
     var ortEl = document.getElementById('bk-ort');
@@ -1305,6 +1383,26 @@ async function bulkImportFromMika(url, kat, statusEl) {
   if (_evData.eventDate) {
     var datEl = document.getElementById('bk-datum');
     if (datEl && !datEl.value) datEl.value = _evData.eventDate;
+  }
+
+  // v1105: Regelmäßige Veranstaltung automatisch erkennen & vorauswählen
+  //        Nutzt Event-Name → Fuzzy-Match gegen gespeicherte Serien → setzt Dropdown
+  //        Zusätzlich Ort aus letzter Austragung der Serie ableiten (falls Mika keinen lieferte)
+  if (_mikaEvName) {
+    var _matchedSerie = _bkMatchSerie(_mikaEvName);
+    if (_matchedSerie) {
+      var _serieSel = document.getElementById('bk-serie');
+      if (_serieSel) _serieSel.value = String(_matchedSerie.id);
+      _bkDbgLine('Serie', _matchedSerie.name + ' (auto-erkannt)');
+      // Ort aus letzter Austragung ableiten, wenn MikaTiming keinen lieferte
+      if (!_evData.eventOrt && _matchedSerie.ort_letzte) {
+        var _ortEl2 = document.getElementById('bk-ort');
+        if (_ortEl2 && !_ortEl2.value) {
+          _ortEl2.value = _matchedSerie.ort_letzte;
+          _bkDbgLine('Ort', _matchedSerie.ort_letzte + ' (aus letzter Austragung)');
+        }
+      }
+    }
   }
 
   await bulkFillFromImport(rows, statusEl);
@@ -2527,8 +2625,10 @@ function _bulkMatchDisz(line, diszList) {
 function _bulkFindAthlet(name) {
   if (!name || !state.athleten) return '';
   var norm = function(s) {
-    return s.toLowerCase()
+    // v1105: Umlaute + diakritische Zeichen (é/à/ñ etc.) via NFD entfernen
+    return (s||'').toLowerCase()
       .replace(/ß/g,'ss').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
       .replace(/[^a-z0-9\s]/g,'').replace(/\s+/g,' ').trim();
   };
   var nN = norm(name);

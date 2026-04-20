@@ -1,4 +1,12 @@
 ## vCUR
+- Feature+Fix: MikaTiming-Importer – mehrere kleinere Verbesserungen für die Übernahme von Meta-Daten:
+  - **Datum-Parser** erweitert um deutsches Textformat „19. April 2026" (mika:timing-Seitenheader). Vorher wurde das Datum auf solchen Seiten nicht erkannt, weil nur Digital-Formate `DD.MM.YYYY` / `YYYY-MM-DD` geprüft wurden.
+  - **Ort-Erkennung**: Städteliste um niederrheinische Orte erweitert (Tönisvorst, Oedt, Kempen, Grefrath, Willich, Meerbusch, Erkelenz, Mettmann, Nettetal, Geldern, Goch, Xanten, Wesel, Emmerich, Bocholt, Dorsten, Gladbeck, Marl, Recklinghausen, Herne, Witten, Iserlohn, Hamm); zusätzlich Fallback per **Subdomain→Stadt-Mapping** (`apfelbluetenlauf.r.mikatiming.com` → Tönisvorst, `vienna` → Wien, `linzmarathon` → Linz, `boston` → Boston etc.) für Fälle, in denen der Event-Name die Stadt nicht enthält.
+  - **Accent-Toleranz** beim Athleten-Matching (`uitsAutoMatch`, `_normUmlauts`, `_bulkFindAthlet`, `_normN` in `05_athleten.js`): via NFD-Unicode-Normalisierung werden Akzente wie é/è/à/ô/ñ/ç entfernt; damit matcht „Leichsenring, Andre" auch den Datenbankeintrag „Leichsenring, André". Gleiches gilt für François/Francois, Rüdiger/Ruediger, Søren/Soren etc.
+  - **Regelmäßige Veranstaltung automatisch vorausgewählt**: Neue Frontend-Funktion `_bkMatchSerie()` vergleicht den importierten Event-Namen token-weise gegen die gespeicherten Serien. Ein Treffer setzt das Serien-Dropdown automatisch und leitet den **Ort aus der letzten Austragung** der Serie ab, wenn MikaTiming keinen Ort geliefert hat. Scoring bestraft generische Matches (z.B. „Marathon"), sodass passgenaue Serien bevorzugt werden.
+  - **Backend**: `GET veranstaltung-serien` liefert zusätzlich `ort_letzte` und `name_letzte` für Ort-Ableitung und UI-Anzeigen.
+
+## vCUR
 - Perf: MikaTiming-Importer – **parallele Event-POSTs via `curl_multi_exec`** statt sequenzieller `foreach`-Schleife; pro Athleten-/Vereins-Suche werden die 6 Event-Anfragen (HM/10L/5L/BL/KL/JL1) jetzt gleichzeitig ausgeführt statt nacheinander; reduziert Wartezeit von ~6×RTT auf ~1×RTT pro API-Call (~6× schneller); Namens-Suche in großen Vereinen (50+ Athleten) damit wieder in akzeptabler Zeit; neue Helper-Funktion `mikaPostCurlMulti()` kapselt die Parallelisierung (read-only Cookie-Jar gegen Race-Condition)
 
 ## vCUR
