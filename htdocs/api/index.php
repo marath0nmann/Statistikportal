@@ -5429,20 +5429,51 @@ if ($res === 'uits-fetch' && $method === 'GET') {
         jsonErr('Ungültige uitslagen.nl-URL.', 400);
 
     $ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0 Safari/537.36';
+    $cookieFile = tempnam(sys_get_temp_dir(), 'uits_cookie_');
+
+    // Basis-URL der evenementen-Seite ableiten (z.B. https://evenementen.uitslagen.nl/2026/enschedemarathon/)
+    // und zuerst laden, damit der Server eine Session-Cookie setzt.
+    // Ohne diese Session gibt evenementen.uitslagen.nl für Unterseiten (menu.php, uitslag.php)
+    // nur eine abgespeckte Antwort zurück, die keine <option>-Elemente enthält.
+    if (preg_match('#^(https?://evenementen\.uitslagen\.nl/\d{4}/[^/]+/)#i', $url, $bm)) {
+        $basePreFetch = $bm[1];
+        if ($basePreFetch !== $url) {
+            $chPre = curl_init($basePreFetch);
+            curl_setopt_array($chPre, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_USERAGENT      => $ua,
+                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_COOKIEJAR      => $cookieFile,
+                CURLOPT_COOKIEFILE     => $cookieFile,
+                CURLOPT_HTTPHEADER     => [
+                    'Accept: text/html,application/xhtml+xml',
+                    'Accept-Language: nl-NL,nl;q=0.9',
+                ],
+            ]);
+            curl_exec($chPre);
+            curl_close($chPre);
+        }
+    }
+
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_USERAGENT      => $ua,
         CURLOPT_TIMEOUT        => 15,
+        CURLOPT_COOKIEJAR      => $cookieFile,
+        CURLOPT_COOKIEFILE     => $cookieFile,
         CURLOPT_HTTPHEADER     => [
             'Accept: text/html,application/xhtml+xml',
             'Accept-Language: nl-NL,nl;q=0.9,de;q=0.8',
+            'Referer: ' . (isset($bm[1]) ? $bm[1] : $url),
         ],
     ]);
-    $html = curl_exec($ch);
+    $html     = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+    @unlink($cookieFile);
 
     if (!$html || $httpCode >= 400)
         jsonErr('uitslagen.nl nicht erreichbar (HTTP ' . $httpCode . ').', 502);
@@ -5454,7 +5485,7 @@ if ($res === 'uits-fetch' && $method === 'GET') {
     } else {
         $html = mb_convert_encoding($html, 'UTF-8', 'UTF-8');
     }
-        jsonOk(['html' => $html]);
+    jsonOk(['html' => $html]);
 }
 
 if ($res === 'la-fetch' && $method === 'GET') {

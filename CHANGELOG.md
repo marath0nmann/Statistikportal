@@ -1,4 +1,7 @@
 ## vCUR
+- Fix: `evenementen.uitslagen.nl` – "❌ Keine Strecken gefunden": `uits-fetch`-Endpunkt fetcht Unterseiten (`menu.php`, `uitslag.php`) ohne Session-Cookie; der Server liefert ohne Session eine abgespeckte Antwort ohne `<option>`-Elemente, `uitsEvenementenParseMenu()` liefert daher immer `[]`; Fix: `uits-fetch` führt jetzt zuerst einen Pre-Fetch der Basis-URL durch (`evenementen.uitslagen.nl/JJJJ/slug/`), speichert den Session-Cookie in einem temporären Cookie-Jar, und fetcht dann die eigentliche Unterseite mit diesem Cookie + Referer-Header; `@unlink` bereinigt den Temp-Jar; Debug-Zeile für `menu.php`-Ergebnis hinzugefügt
+
+## vCUR
 - Fix: `evenementen.uitslagen.nl`-Importer – Datum und Ort wurden nicht erkannt: Ort aus URL-Slug (enschedemarathon → Enschede), Datum 3-stufiger Fallback (kop.html/kop.php → voet.php → details.php erster Läufer "Gelopen op"), Auto-Serie auch im evenementen-Pfad aktiv, Stopword-Liste um Sponsor-Namen erweitert
 
 ## vCUR

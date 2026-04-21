@@ -1686,6 +1686,7 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   if (!rMenu || !rMenu.ok) { if (statusEl) statusEl.textContent = '\u274c ' + (rMenu && rMenu.fehler || 'Fehler'); return; }
 
   var races = uitsEvenementenParseMenu(rMenu.data.html || '');
+  _bkDbgLine('menu.php', races.length + ' Strecken gefunden | HTML-Len: ' + (rMenu.data.html||'').length);
   if (!races.length) { if (statusEl) statusEl.textContent = '\u274c Keine Strecken gefunden'; return; }
 
   // Ort-Fallback: häufigstes Großwort in Streckennamen (Sponsor-Namen herausfiltern)
