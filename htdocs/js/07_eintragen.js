@@ -1604,26 +1604,50 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
     if (pageTitle) evName = pageTitle.replace(/^Uitslagen\s+/i, '').trim() || evName;
   }
 
-  // kop.html → Ort (und Datum falls vorhanden)
+  // Ort-Versuch 1: direkt aus URL-Slug ableiten
+  // "enschedemarathon" → strip bekannte Suffixe → "enschede" → "Enschede"
+  var slugOrt = (function(slug) {
+    var s = slug.toLowerCase()
+      .replace(/[-_]/g, '')
+      .replace(/(marathon|halve|loop|run|race|sprint|event|challenge|cup|triathlon|duathlon|city|classic|trail|night|half|relay|team|walk|walk|lauf|km\d+|\d+km)$/g, '')
+      .replace(/(marathon|halve|loop|run|race|sprint|event|challenge|cup|classic|night|relay|team|walk|lauf)$/g, '')
+      .trim();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+  })(evSlug);
+  if (slugOrt && slugOrt.length >= 3) {
+    evOrt = slugOrt;
+    _bkDbgLine('Ort', evOrt + ' (aus URL-Slug)');
+  }
+
+  // kop.html → Ort und Datum (ältere Events) — zusätzlich kop.php versuchen
   var rKop = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'kop.html'));
+  var _kopTried = ['kop.html'];
+  // kop.html oft leer auf neueren Sites → kop.php probieren
+  if (!rKop || !rKop.ok || !(rKop.data && rKop.data.html && rKop.data.html.length > 200)) {
+    rKop = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'kop.php'));
+    _kopTried.push('kop.php');
+  }
   if (rKop && rKop.ok && rKop.data && rKop.data.html) {
     var kopDoc = (new DOMParser()).parseFromString(rKop.data.html, 'text/html');
     var kopText = kopDoc.body ? kopDoc.body.textContent.trim() : '';
-    _bkDbgLine('kop.html', kopText.slice(0,200) || '(leer)');
+    _bkDbgLine(_kopTried[_kopTried.length-1], kopText.slice(0,200) || '(leer)');
     var mDat = kopText.match(/(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/i);
     if (mDat) {
       var _mn = {januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,september:9,oktober:10,november:11,december:12};
       var _m = _mn[(mDat[2]||'').toLowerCase()] || 1;
-      var datumIso = mDat[3] + '-' + String(_m).padStart(2,'0') + '-' + mDat[1].padStart(2,'0');
+      var datumIso = mDat[3] + '-' + String(_m).padStart(2,'0') + '-' + String(parseInt(mDat[1])).padStart(2,'0');
       var datEl = document.getElementById('bk-datum');
       if (datEl) { datEl.value = datumIso; if (typeof bkSyncDatum === 'function') bkSyncDatum(datumIso); }
+      _bkDbgLine('Datum', datumIso + ' (aus ' + _kopTried[_kopTried.length-1] + ')');
     }
-    var mOrt = kopText.match(/[-\u2013]\s*([A-Z][a-zA-Z\u00e4\u00f6\u00fc\u00df\-]+(\s+[A-Z][a-zA-Z\u00e4\u00f6\u00fc]+)?)\s*[,(\d]/);
-    if (mOrt && mOrt[1]) evOrt = mOrt[1].trim();
+    // Ort aus kop-Text überschreibt Slug-Ort wenn explizit genannt
+    var mOrt = kopText.match(/[-\u2013]\s*([A-Z][a-zA-Z\u00c0-\u00ff\-]+(\s+[A-Z][a-zA-Z\u00c0-\u00ff]+)?)\s*[,(\d]/);
+    if (mOrt && mOrt[1] && mOrt[1].length >= 3) { evOrt = mOrt[1].trim(); _bkDbgLine('Ort', evOrt + ' (aus kop)'); }
   }
 
-  // Datum-Fallback: voet.php (Footer enthält oft Datum)
-  if (!document.getElementById('bk-datum') || !document.getElementById('bk-datum').value || document.getElementById('bk-datum').value === new Date().toISOString().slice(0,10)) {
+  // Datum-Fallback: voet.php (Footer enthält manchmal Datum)
+  var _datumGefunden = !!(document.getElementById('bk-datum') && document.getElementById('bk-datum').value && document.getElementById('bk-datum').value !== new Date().toISOString().slice(0,10));
+  if (!_datumGefunden) {
     var rVoet = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'voet.php'));
     if (rVoet && rVoet.ok && rVoet.data && rVoet.data.html) {
       var voetDoc = (new DOMParser()).parseFromString(rVoet.data.html, 'text/html');
@@ -1639,13 +1663,19 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
         } else {
           _d2 = mDat2[1]; _m2 = parseInt(mDat2[2]); _y2 = mDat2[3];
         }
-        var datumIso2 = _y2 + '-' + String(_m2).padStart(2,'0') + '-' + String(_d2).padStart(2,'0');
+        var datumIso2 = _y2 + '-' + String(_m2).padStart(2,'0') + '-' + String(parseInt(_d2)).padStart(2,'0');
         var datEl2 = document.getElementById('bk-datum');
         if (datEl2) { datEl2.value = datumIso2; if (typeof bkSyncDatum === 'function') bkSyncDatum(datumIso2); }
         _bkDbgLine('Datum', datumIso2 + ' (aus voet.php)');
+        _datumGefunden = true;
       }
     }
   }
+
+  // Datum-Fallback 2: details.php des ersten Läufers (enthält "Gelopen op DD-MM-JJJJ")
+  // Wird nach dem Menu-Load ausgeführt (braucht erste StNr aus uitslag.php?on=1)
+  window._evenementenDatumNochNötig = !_datumGefunden;
+  window._evenementenBaseUrl = baseUrl;
 
   if (statusEl) statusEl.textContent = '\u23f3 Lade Strecken\u2026';
   // menu.php (neuere Events) oder menu.html (ältere Events)
@@ -1658,9 +1688,9 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   var races = uitsEvenementenParseMenu(rMenu.data.html || '');
   if (!races.length) { if (statusEl) statusEl.textContent = '\u274c Keine Strecken gefunden'; return; }
 
-  // Ort-Fallback: häufigstes Großwort in Streckennamen
+  // Ort-Fallback: häufigstes Großwort in Streckennamen (Sponsor-Namen herausfiltern)
   if (!evOrt) {
-    var stopWords = /^(van|der|de|het|den|een|voor|uit|met|bij|hotel|logistics|kilometer|marathon|loop|run|kids|baby|bambino|kidzbase|rabobank|scelta|mushrooms|viking|seacon|valk|halve)$/i;
+    var stopWords = /^(van|der|de|het|den|een|voor|uit|met|bij|hotel|logistics|kilometer|marathon|halve|loop|run|kids|baby|bambino|kidzbase|rabobank|scelta|mushrooms|viking|seacon|valk|elektramat|forvis|mazars|rosen|siebert|wassink|johnson|controls|univé|univé|enschede)$/i;
     var ortCandidates = {};
     races.forEach(function(rc) {
       rc.text.split(/\s+/).forEach(function(w) {
@@ -1671,6 +1701,21 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
     });
     var sortedOrt = Object.keys(ortCandidates).sort(function(a,b){ return ortCandidates[b]-ortCandidates[a]; });
     if (sortedOrt[0]) evOrt = sortedOrt[0];
+  }
+
+  // Ort-Fallback: Auto-Serie-Match → ort_letzte aus letzter Austragung (v1105)
+  var _evNameForSerie = evName;
+  if (typeof _bkMatchSerie === 'function') {
+    var _matchedSerieEv = _bkMatchSerie(_evNameForSerie);
+    if (_matchedSerieEv) {
+      var _serieSel2 = document.getElementById('bk-serie');
+      if (_serieSel2) _serieSel2.value = String(_matchedSerieEv.id);
+      _bkDbgLine('Serie', _matchedSerieEv.name + ' (auto-erkannt)');
+      if (!evOrt && _matchedSerieEv.ort_letzte) {
+        evOrt = _matchedSerieEv.ort_letzte;
+        _bkDbgLine('Ort', evOrt + ' (aus letzter Austragung der Serie)');
+      }
+    }
   }
 
   // Alle Strecken laden
@@ -1687,11 +1732,12 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
       var pageUrl = baseUrl + 'uitslag.php?on=' + encodeURIComponent(race.on) + '&p=' + page;
       var rPage = await apiGet('uits-fetch?url=' + encodeURIComponent(pageUrl));
       if (!rPage || !rPage.ok) { _bkDbgLine(race.text, 'S.' + page + ' Fehler: ' + (rPage && rPage.fehler || '?')); break; }
-      // Datum aus erster Seite extrahieren
-      if (ri === 0 && page === 1 && rPage.data && rPage.data.html) {
+      // Datum-Fallback 3: details.php des ersten Läufers nach erster Seite
+      if (ri === 0 && page === 1 && window._evenementenDatumNochNötig && rPage.data && rPage.data.html) {
+        var _pageDoc = new DOMParser().parseFromString(rPage.data.html, 'text/html');
         var _pageHtml = rPage.data.html;
-        // Debug: zeige ersten 300 Zeichen des HTML für Datum-Diagnose
-        var _nlM = {januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,september:9,oktober:10,november:11,december:12};
+        // Direkt im HTML nach Datum suchen
+        var _nlMp = {januari:1,februari:2,maart:3,april:4,mei:5,juni:6,juli:7,augustus:8,september:9,oktober:10,november:11,december:12};
         var _datPat = /(\d{1,2})\s+(januari|februari|maart|april|mei|juni|juli|augustus|september|oktober|november|december)\s+(\d{4})/i;
         var _mDp = _pageHtml.match(_datPat);
         if (!_mDp) _mDp = _pageHtml.match(/(\d{2})-(\d{2})-(20\d\d)/);
@@ -1699,7 +1745,7 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
         if (_mDp) {
           var _pd, _pm, _py;
           if (/[a-z]/i.test(_mDp[2]||'')) {
-            _pd = parseInt(_mDp[1]); _pm = _nlM[(_mDp[2]||'').toLowerCase()]||1; _py = parseInt(_mDp[3]);
+            _pd = parseInt(_mDp[1]); _pm = _nlMp[(_mDp[2]||'').toLowerCase()]||1; _py = parseInt(_mDp[3]);
           } else {
             _pd = parseInt(_mDp[1]); _pm = parseInt(_mDp[2]); _py = parseInt(_mDp[3]);
           }
@@ -1707,14 +1753,41 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
           var _dEl = document.getElementById('bk-datum');
           if (_dEl) { _dEl.value = _dIso; if (typeof bkSyncDatum === 'function') bkSyncDatum(_dIso); }
           _bkDbgLine('Datum', _dIso + ' (uitslag.php)');
+          window._evenementenDatumNochNötig = false;
         } else {
-          // Kein Datum in uitslag.php → Jahr aus URL, Monat/Tag manuell nötig
-          _bkDbgLine('Datum', '⚠ nicht gefunden – bitte manuell eintragen (' + evYear + ')');
-          // Datum-Feld leeren damit Nutzer es sieht
-          var _dEl2 = document.getElementById('bk-datum');
-          if (_dEl2) { _dEl2.value = ''; if (typeof bkSyncDatum === 'function') bkSyncDatum(''); }
-          // Notify
-          notify('📅 Datum nicht automatisch gefunden – bitte manuell eingeben!', 'err');
+          // details.php des ersten Läufers holen → "Gelopen op DD-MM-JJJJ"
+          var _firstStNrEl = _pageDoc.querySelector('tr:nth-child(2) td:nth-child(2)');
+          var _firstStNr = _firstStNrEl ? _firstStNrEl.textContent.trim() : '';
+          if (_firstStNr) {
+            var _rDet = await apiGet('uits-fetch?url=' + encodeURIComponent(window._evenementenBaseUrl + 'details.php?s=' + encodeURIComponent(_firstStNr) + '&t=nr'));
+            if (_rDet && _rDet.ok && _rDet.data && _rDet.data.html) {
+              var _detTxt = _rDet.data.html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ');
+              // "Gelopen op 12-04-2026" oder "12 april 2026"
+              var _mDet = _detTxt.match(/Gelopen op\s+(\d{1,2})-(\d{1,2})-(\d{4})/i) ||
+                          _detTxt.match(/(\d{1,2})-(\d{2})-(20\d\d)/) ||
+                          _detTxt.match(_datPat);
+              if (_mDet) {
+                var _dpd, _dpm, _dpy;
+                if (/[a-z]/i.test(_mDet[2]||'')) {
+                  _dpd = parseInt(_mDet[1]); _dpm = _nlMp[(_mDet[2]||'').toLowerCase()]||1; _dpy = parseInt(_mDet[3]);
+                } else {
+                  _dpd = parseInt(_mDet[1]); _dpm = parseInt(_mDet[2]); _dpy = parseInt(_mDet[3]);
+                }
+                var _detIso = _dpy + '-' + String(_dpm).padStart(2,'0') + '-' + String(_dpd).padStart(2,'0');
+                var _dEl2 = document.getElementById('bk-datum');
+                if (_dEl2) { _dEl2.value = _detIso; if (typeof bkSyncDatum === 'function') bkSyncDatum(_detIso); }
+                _bkDbgLine('Datum', _detIso + ' (details.php)');
+                window._evenementenDatumNochNötig = false;
+              }
+            }
+          }
+          // Immer noch nicht gefunden → Warning
+          if (window._evenementenDatumNochNötig) {
+            _bkDbgLine('Datum', '⚠ nicht gefunden – bitte manuell eingeben (' + evYear + ')');
+            var _dEl3 = document.getElementById('bk-datum');
+            if (_dEl3) { _dEl3.value = ''; if (typeof bkSyncDatum === 'function') bkSyncDatum(''); }
+            notify('📅 Datum nicht automatisch gefunden – bitte manuell eingeben!', 'err');
+          }
         }
       }
       var parsed = uitsEvenementenParsePage(rPage.data.html || '');

@@ -1,4 +1,7 @@
 ## vCUR
+- Fix: `evenementen.uitslagen.nl`-Importer – Datum und Ort wurden nicht erkannt: Ort aus URL-Slug (enschedemarathon → Enschede), Datum 3-stufiger Fallback (kop.html/kop.php → voet.php → details.php erster Läufer "Gelopen op"), Auto-Serie auch im evenementen-Pfad aktiv, Stopword-Liste um Sponsor-Namen erweitert
+
+## vCUR
 - Feature+Fix: MikaTiming-Importer – mehrere kleinere Verbesserungen für die Übernahme von Meta-Daten:
   - **Datum-Parser** erweitert um deutsches Textformat „19. April 2026" (mika:timing-Seitenheader). Vorher wurde das Datum auf solchen Seiten nicht erkannt, weil nur Digital-Formate `DD.MM.YYYY` / `YYYY-MM-DD` geprüft wurden.
   - **Ort-Erkennung**: Städteliste um niederrheinische Orte erweitert (Tönisvorst, Oedt, Kempen, Grefrath, Willich, Meerbusch, Erkelenz, Mettmann, Nettetal, Geldern, Goch, Xanten, Wesel, Emmerich, Bocholt, Dorsten, Gladbeck, Marl, Recklinghausen, Herne, Witten, Iserlohn, Hamm); zusätzlich Fallback per **Subdomain→Stadt-Mapping** (`apfelbluetenlauf.r.mikatiming.com` → Tönisvorst, `vienna` → Wien, `linzmarathon` → Linz, `boston` → Boston etc.) für Fälle, in denen der Event-Name die Stadt nicht enthält.
