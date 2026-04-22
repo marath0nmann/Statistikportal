@@ -787,16 +787,22 @@ function uitsEvenementenParsePage(html) {
   return { rows: dataRows, hasMore: hasMore };
 }
 
-// menu.php parsen → Array {on, text} (ohne Team-Ergebnisse und Kinder-/Bambinoläufe)
+// zoek.html (statisch, kommt immer via Proxy) + menu.php parsen
+// Liefert Array {catg, text} für uitslag.php?catg=X oder {on, text} für ?on=N (Fallback)
 function uitsEvenementenParseMenu(html) {
   var parser = new DOMParser();
   var doc    = parser.parseFromString(html, 'text/html');
   var opts   = [];
+  var skipTxt = /teamuitslag|bedrijf|clubchallenge|kidzbase/i;
   doc.querySelectorAll('select option').forEach(function(opt) {
     var val = opt.value || '';
     var txt = opt.textContent.trim();
-    if (!val || val === 'info.php') return;
-    if (txt.toLowerCase().includes('teamuitslag')) return; // Team-Ergebnisse überspringen
+    if (!val || val === 'info.php' || val === 'nk.php') return;
+    if (skipTxt.test(txt) || skipTxt.test(val)) return;
+    // Format 1: catg=1-Msen (zoek.html)
+    var catgMatch = val.match(/[?&]?catg=([^&\s]+)/);
+    if (catgMatch) { opts.push({ catg: catgMatch[1], text: txt }); return; }
+    // Format 2: on=N (menu.php)
     var onMatch = val.match(/[?&]on=(\d+)/);
     if (onMatch) opts.push({ on: onMatch[1], text: txt });
   });
