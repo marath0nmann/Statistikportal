@@ -1,4 +1,7 @@
 ## vCUR
+- Fix: `evenementen.uitslagen.nl` – 0 Strecken trotz 6446 Byte `zoek.html`-Response: `uitsEvenementenParseMenu` suchte nach `catg=` im Option-Value, aber `zoek.html` enthält `<select name="catg">` mit **rohen Kategorie-Codes** als Values (`1-Msen`, `2-M40`, `10-Vsen` etc.) ohne Prefix; Parser erkennt jetzt `select[name="catg"]` als primäre Quelle und matched Raw-Codes via `/^\d+-[A-Za-z]/.test(val)`; Suchfeld-Werte (`naam`, `wnpl`, `vern`, `land`, `gesl`) werden übersprungen; alle 59 Kategorien für Venloop 2025 gefunden (live getestet)
+
+## vCUR
 - Fix (Versuch): `evenementen.uitslagen.nl` TLS-Fingerprinting – PHP-curl sendet HTTP/2 (`CURL_HTTP_VERSION_2_0`, ändert ALPN-Extension im TLS-Handshake → anderer JA3-Hash); wenn curl-Response >50 KB ohne `<option>`-Elemente (= SPA-Shell erkannt), Fallback auf PHP-Streams (`file_get_contents` mit SSL-Context) — PHP-Streams nutzen OpenSSL-Wrapper mit anderem JA3 als libcurl; wenn Streams echte Daten liefern (<50 KB mit `<option>` oder `<tr>`), werden diese statt der curl-Antwort verwendet
 
 ## vCUR

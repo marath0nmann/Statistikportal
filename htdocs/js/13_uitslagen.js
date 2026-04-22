@@ -794,18 +794,40 @@ function uitsEvenementenParseMenu(html) {
   var doc    = parser.parseFromString(html, 'text/html');
   var opts   = [];
   var skipTxt = /teamuitslag|bedrijf|clubchallenge|kidzbase/i;
-  doc.querySelectorAll('select option').forEach(function(opt) {
-    var val = opt.value || '';
-    var txt = opt.textContent.trim();
-    if (!val || val === 'info.php' || val === 'nk.php') return;
-    if (skipTxt.test(txt) || skipTxt.test(val)) return;
-    // Format 1: catg=1-Msen (zoek.html)
-    var catgMatch = val.match(/[?&]?catg=([^&\s]+)/);
-    if (catgMatch) { opts.push({ catg: catgMatch[1], text: txt }); return; }
-    // Format 2: on=N (menu.php)
-    var onMatch = val.match(/[?&]on=(\d+)/);
-    if (onMatch) opts.push({ on: onMatch[1], text: txt });
-  });
+  // Suchfeld-Werte in zoek.html überspringen (Name/Wohnort/Verein/Land-Dropdowns)
+  var skipVal = /^(naam|wnpl|vern|land|gesl|all|alle|%|)$/i;
+
+  // Welcher Select enthält die Kategorien? Suche nach name="catg" oder größtem Select
+  var catgSelect = doc.querySelector('select[name="catg"]');
+  var sourceSelect = catgSelect || null;
+
+  if (catgSelect) {
+    // zoek.html: select name=catg, values sind reine catg-Codes (z.B. "1-Msen", "2-M40")
+    catgSelect.querySelectorAll('option').forEach(function(opt) {
+      var val = opt.value || '';
+      var txt = opt.textContent.trim();
+      if (!val || skipVal.test(val) || skipTxt.test(txt)) return;
+      // Catg-Code: Zahl-Buchstaben-Muster wie "1-Msen", "2-M40", "10-Vsen"
+      if (/^\d+-[A-Za-z]/.test(val)) opts.push({ catg: val, text: txt });
+    });
+  }
+
+  if (!opts.length) {
+    // Fallback: alle selects durchsuchen nach on=N oder catg=X im value-Attribut
+    doc.querySelectorAll('select option').forEach(function(opt) {
+      var val = opt.value || '';
+      var txt = opt.textContent.trim();
+      if (!val || val === 'info.php' || val === 'nk.php') return;
+      if (skipTxt.test(txt) || skipTxt.test(val)) return;
+      // Format 1: catg=1-Msen (URL-Param im value)
+      var catgMatch = val.match(/[?&]?catg=([^&\s]+)/);
+      if (catgMatch) { opts.push({ catg: catgMatch[1], text: txt }); return; }
+      // Format 2: on=N (menu.php)
+      var onMatch = val.match(/[?&]on=(\d+)/);
+      if (onMatch) opts.push({ on: onMatch[1], text: txt });
+    });
+  }
+
   return opts;
 }
 
