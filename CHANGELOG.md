@@ -1,4 +1,7 @@
 ## vCUR
+- Fix: Paste-Parser – Inline-Format `Name Disziplin AK Platz Zeit Event Datum` (z.B. "Frank Pesch Marathon M50 127 3:57:16 Enschede Marathon 12.04.2026") wurde zwar als 1 Ergebnis eingelesen, aber Name enthielt Disziplin/AK/Platz, AK/Platz/Datum wurden falsch oder gar nicht extrahiert; Parser erkennt jetzt: AK (`M50`, `W65` etc.) per Inline-Regex in `beforeTime`, Platz als Zahl zwischen AK und Zeit, Disziplin als letztes Wort vor AK via Disziplin-Liste, Datum per `DD.MM.JJJJ`-Regex in `afterTime` (statt erste Zahl in afterTime als Platz zu werten)
+
+## vCUR
 - Fix: `evenementen.uitslagen.nl` – 0 Strecken trotz 6446 Byte `zoek.html`-Response: `uitsEvenementenParseMenu` suchte nach `catg=` im Option-Value, aber `zoek.html` enthält `<select name="catg">` mit **rohen Kategorie-Codes** als Values (`1-Msen`, `2-M40`, `10-Vsen` etc.) ohne Prefix; Parser erkennt jetzt `select[name="catg"]` als primäre Quelle und matched Raw-Codes via `/^\d+-[A-Za-z]/.test(val)`; Suchfeld-Werte (`naam`, `wnpl`, `vern`, `land`, `gesl`) werden übersprungen; alle 59 Kategorien für Venloop 2025 gefunden (live getestet)
 
 ## vCUR
