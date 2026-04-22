@@ -1,4 +1,7 @@
 ## vCUR
+- Fix (Versuch): `evenementen.uitslagen.nl` TLS-Fingerprinting – PHP-curl sendet HTTP/2 (`CURL_HTTP_VERSION_2_0`, ändert ALPN-Extension im TLS-Handshake → anderer JA3-Hash); wenn curl-Response >50 KB ohne `<option>`-Elemente (= SPA-Shell erkannt), Fallback auf PHP-Streams (`file_get_contents` mit SSL-Context) — PHP-Streams nutzen OpenSSL-Wrapper mit anderem JA3 als libcurl; wenn Streams echte Daten liefern (<50 KB mit `<option>` oder `<tr>`), werden diese statt der curl-Antwort verwendet
+
+## vCUR
 - Fix: `evenementen.uitslagen.nl` – keine manuelle Konsolen-Eingabe mehr nötig. Ursache: Server nutzt TLS-Fingerprinting (JA3), liefert `menu.php` und `menu.html` via PHP-Proxy als SPA-Shell (67 KB, 0 `<option>`-Elemente). **Lösung**: `zoek.html` ist eine vollständig statische HTML-Datei ohne JavaScript — sie enthält alle Kategorien mit `catg`-Parametern (Format `1-Msen`, `2-M40`, `3-Vsen` etc.) und kommt unverändert durch den Proxy. Der Importer nutzt jetzt `zoek.html` als primäre Strecken-Quelle, fällt erst danach auf `menu.php` / `menu.html` zurück. Die Seiten-URLs werden je nach Quelle korrekt gebaut (`uitslag.php?catg=X` oder `?on=N`). `uitsEvenementenParseMenu` unterstützt jetzt beide Formate. Browser-Extraktor-Modal (v1108–v1110) entfernt. Live getestet: Enschede Marathon 2026 + Venloop 2025 liefern korrekte Strecken.
 
 ## vCUR

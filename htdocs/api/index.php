@@ -5473,6 +5473,7 @@ if ($res === 'uits-fetch' && $method === 'GET') {
         CURLOPT_TIMEOUT        => 15,
         CURLOPT_COOKIEJAR      => $cookieFile,
         CURLOPT_COOKIEFILE     => $cookieFile,
+        CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_2_0, // HTTP/2 ändert ALPN im TLS-Handshake → anderer JA3
         CURLOPT_HTTPHEADER     => [
             'Accept: text/html,application/xhtml+xml',
             'Accept-Language: nl-NL,nl;q=0.9,de;q=0.8',
@@ -5483,6 +5484,37 @@ if ($res === 'uits-fetch' && $method === 'GET') {
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     @unlink($cookieFile);
+
+    // Fallback: Wenn curl SPA-Shell bekommt (>50KB ohne <option>-Elemente),
+    // PHP-Streams versuchen — hat anderen TLS-JA3-Fingerprint als libcurl
+    if ($html && strlen($html) > 50000 && strpos($html, '<option') === false) {
+        $ctx = stream_context_create([
+            'ssl' => [
+                'verify_peer'       => true,
+                'verify_peer_name'  => true,
+                'allow_self_signed' => false,
+                'disable_compression' => true,
+                'SNI_enabled'       => true,
+                'ciphers'           => 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384',
+            ],
+            'http' => [
+                'user_agent'      => $ua,
+                'follow_location' => true,
+                'max_redirects'   => 5,
+                'timeout'         => 15,
+                'header'          => [
+                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language: nl-NL,nl;q=0.9,de;q=0.8',
+                    'Referer: ' . (isset($bm[1]) ? $bm[1] : $url),
+                    'Connection: keep-alive',
+                ],
+            ],
+        ]);
+        $htmlStream = @file_get_contents($url, false, $ctx);
+        if ($htmlStream && strlen($htmlStream) < 50000 && (strpos($htmlStream, '<option') !== false || strpos($htmlStream, '<tr') !== false)) {
+            $html = $htmlStream; // Stream-Fallback hat echte Daten geliefert
+        }
+    }
 
     if (!$html || $httpCode >= 400)
         jsonErr('uitslagen.nl nicht erreichbar (HTTP ' . $httpCode . ').', 502);
