@@ -1687,6 +1687,143 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
 
   var races = uitsEvenementenParseMenu(rMenu.data.html || '');
   _bkDbgLine('menu.php', races.length + ' Strecken gefunden | HTML-Len: ' + (rMenu.data.html||'').length);
+
+  // SPA-Shell-Erkennung: menu.php liefert >10000 Byte ohne <option>-Elemente
+  // → Server unterscheidet Browser vs. PHP-Proxy via TLS-Fingerprinting (JA3)
+  // → Lösung: Browser holt Daten direkt und sendet sie via uits-receive an unsere API
+  if (!races.length && (rMenu.data.html||'').length > 5000) {
+    if (statusEl) statusEl.textContent = '⏳ Browser-Extraktion nötig…';
+
+    // 1. Einmal-Token generieren
+    var _tokR = await apiGet('uits-token');
+    if (!_tokR || !_tokR.ok) { if (statusEl) statusEl.textContent = '❌ Token-Fehler'; return; }
+    var _token = _tokR.data.token;
+    var _apiBase = (window.location.origin || 'https://statistik.tus-oedt.de');
+    var _receiveUrl = _apiBase + '/api/index.php?res=uits-receive&token=' + _token;
+
+    // 2. Extraktor-Skript generieren (läuft auf evenementen.uitslagen.nl)
+    var _script = '(async()=>{\n' +
+      'var base="' + baseUrl + '";\n' +
+      'var mHtml=await fetch(base+"menu.php").then(r=>r.text());\n' +
+      'var mDoc=new DOMParser().parseFromString(mHtml,"text/html");\n' +
+      'var races=[];\n' +
+      'mDoc.querySelectorAll("select option").forEach(function(opt){\n' +
+      '  var val=opt.value||"",txt=opt.textContent.trim();\n' +
+      '  var m=val.match(/on=(\\d+)/);\n' +
+      '  if(m&&val.includes("uitslag")&&!txt.toLowerCase().includes("teamuitslag"))races.push({on:m[1],text:txt});\n' +
+      '});\n' +
+      'console.log("Strecken:",races.length);\n' +
+      'var allRows=[];\n' +
+      'for(var ri=0;ri<races.length;ri++){\n' +
+      '  var race=races[ri];\n' +
+      '  for(var page=1;page<=50;page++){\n' +
+      '    var html=await fetch(base+"uitslag.php?on="+race.on+"&p="+page).then(r=>r.text());\n' +
+      '    var doc=new DOMParser().parseFromString(html,"text/html");\n' +
+      '    var tables=Array.from(doc.querySelectorAll("table"));\n' +
+      '    var tbl=tables.reduce(function(b,t){return t.querySelectorAll("tr").length>(b?b.querySelectorAll("tr").length:0)?t:b;},null);\n' +
+      '    if(!tbl)break;\n' +
+      '    var rows=Array.from(tbl.querySelectorAll("tr")).filter(function(tr){return tr.querySelectorAll("td").length>=8;});\n' +
+      '    if(!rows.length)break;\n' +
+      '    rows.forEach(function(tr){\n' +
+      '      var tds=Array.from(tr.querySelectorAll("td"));\n' +
+      '      var name=(tds[2].querySelector("a")||tds[2]).textContent.trim();\n' +
+      '      if(!name||name.match(/^\\d+$/)||name==="Naam")return;\n' +
+      '      var verein=tds[3].textContent.trim();\n' +
+      '      var categ=tds[6].textContent.trim();\n' +
+      '      var netto=(tds[8]||tds[7]).textContent.trim();\n' +
+      '      if(!netto||!/^\\d/.test(netto))return;\n' +
+      '      var platz=parseInt((tds[5].textContent||"0").trim())||0;\n' +
+      '      allRows.push({name:name,verein:verein,categ:categ,netto:netto,platz:platz,strecke:race.text});\n' +
+      '    });\n' +
+      '    if(!/Volgende|>>/.test(html)||rows.length<100)break;\n' +
+      '  }\n' +
+      '}\n' +
+      'console.log("Zeilen:",allRows.length);\n' +
+      'var payload=JSON.stringify({rows:allRows,races:races,evTitle:document.title});\n' +
+      'var r=await fetch("' + _receiveUrl + '",{method:"POST",headers:{"Content-Type":"application/json"},body:payload});\n' +
+      'var j=await r.json();\n' +
+      'console.log("Gesendet:",j);\n' +
+      'alert("✅ "+allRows.length+" Zeilen übertragen!");\n' +
+      '})()';
+
+    // 3. Modal mit Kopier-Skript anzeigen
+    showModal(
+      '<h2>🔧 Browser-Extraktion erforderlich' +
+        '<button class="modal-close" onclick="closeModal()">✕</button></h2>' +
+      '<p style="margin:0 0 10px;color:var(--text2);font-size:13px">' +
+        'evenementen.uitslagen.nl liefert dem Server keine Ergebnisse (TLS-Fingerprinting).<br>' +
+        'Bitte öffne <strong>' + baseUrl + '</strong> in einem <em>neuen Tab</em>,<br>' +
+        'öffne dort die Browser-Konsole (<kbd>F12</kbd> → Konsole) und führe dieses Skript aus:' +
+      '</p>' +
+      '<textarea id="uits-extract-script" readonly style="width:100%;height:120px;font-family:monospace;font-size:11px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;resize:none">' +
+        _script.replace(/</g,'&lt;').replace(/>/g,'&gt;') +
+      '</textarea>' +
+      '<div style="margin:8px 0;display:flex;gap:8px">' +
+        '<button class="btn btn-primary" onclick="(function(){var el=document.getElementById(\'uits-extract-script\');el.select();document.execCommand(\'copy\');notify(\'Skript kopiert!\',\'ok\')})()">📋 Kopieren</button>' +
+        '<span id="uits-wait-status" style="line-height:32px;font-size:13px;color:var(--text2)">⏳ Warte auf Übertragung…</span>' +
+      '</div>' +
+      '<p style="font-size:12px;color:var(--text2);margin:0">Nach dem Ausführen erscheint ein Alert – dann wird der Import automatisch fortgesetzt.</p>',
+      true, true // wide, noClose
+    );
+
+    // 4. Polling bis Daten ankommen (max 5 Minuten)
+    var _pollData = null;
+    for (var _pi = 0; _pi < 150; _pi++) {
+      await new Promise(function(res) { setTimeout(res, 2000); });
+      var _pollR = await apiGet('uits-receive?token=' + _token);
+      if (_pollR && _pollR.ok && _pollR.data && _pollR.data.ready) {
+        _pollData = _pollR.data.data;
+        break;
+      }
+      var _ws = document.getElementById('uits-wait-status');
+      if (_ws) _ws.textContent = '⏳ Warte auf Übertragung… (' + Math.round((_pi + 1) * 2) + 's)';
+    }
+    closeModal();
+    if (!_pollData || !_pollData.rows || !_pollData.rows.length) {
+      if (statusEl) statusEl.textContent = '❌ Timeout – keine Daten empfangen';
+      return;
+    }
+
+    // 5. Empfangene Rohdaten wie reguläre Ergebnisse verarbeiten
+    _bkDbgLine('Browser-Extraktion', _pollData.rows.length + ' Zeilen empfangen');
+    races = (_pollData.races || []).map(function(rc) { return { on: rc.on, text: rc.text }; });
+    // Wenn evName aus Browser-Titel besser ist:
+    if (_pollData.evTitle) evName = _pollData.evTitle.replace(/^Uitslagen\s+/i, '').trim() || evName;
+
+    // Ergebnisse direkt verarbeiten (kein weiterer Page-Loop nötig)
+    var _allRowsDirect = _pollData.rows;
+    var athleten = state.athleten || [];
+    var ownRowsDirect = _allRowsDirect.filter(function(r) { return uitsAutoMatch(r.name, athleten) !== null; });
+    _bkDbgHeader('evenementen.uitslagen.nl');
+    _bkDbgLine('Event', evName + (evOrt ? ', ' + evOrt : ''));
+    _bkDbgLine('Gesamt', _allRowsDirect.length + ' Einträge');
+    _bkDbgLine('Gefunden', ownRowsDirect.length + ' Treffer');
+    if (ownRowsDirect.length) {
+      _bkDbgSep(); _bkDbgHeader('Ergebnisse');
+      ownRowsDirect.forEach(function(r, i) {
+        var mid = uitsEvenementenDiszFromStrecke(r.strecke, state.disziplinen || [], kat);
+        var dn = mid ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==mid;})||{}).disziplin||'?' : '(keine)';
+        _bkDbgLines.push(String(i+1).padStart(2)+'.  '+(r.name||'?').padEnd(22)+(r.categ||'').padEnd(6)+r.netto.padEnd(10)+(r.platz?'Platz\u00a0'+r.platz:'').padEnd(9)+'\u2192 '+dn);
+      });
+      _bkDbgFlush();
+    }
+    var evEl2 = document.getElementById('bk-evname');
+    var ortEl2 = document.getElementById('bk-ort');
+    if (evEl2 && !evEl2.value) evEl2.value = evName;
+    if (ortEl2 && !ortEl2.value && evOrt) ortEl2.value = evOrt;
+    if (typeof _bkMatchSerie === 'function') {
+      var _ms2 = _bkMatchSerie(evName);
+      if (_ms2) { var _ss2=document.getElementById('bk-serie'); if(_ss2) _ss2.value=String(_ms2.id); if(!evOrt&&_ms2.ort_letzte){ortEl2&&(ortEl2.value=_ms2.ort_letzte);} }
+    }
+    var bulkRowsDirect = ownRowsDirect.map(function(row) {
+      var mid = uitsEvenementenDiszFromStrecke(row.strecke, state.disziplinen, kat);
+      var disz = mid ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==mid;})||{}).disziplin||'' : '';
+      return { name: row.name, resultat: row.netto, ak: uitsEvenementenAKFromCateg(row.categ).ak, platz: row.platz, disziplin: disz, diszMid: mid };
+    });
+    await bulkFillFromImport(bulkRowsDirect, statusEl);
+    return; // fertig
+  }
+
   if (!races.length) { if (statusEl) statusEl.textContent = '\u274c Keine Strecken gefunden'; return; }
 
   // Ort-Fallback: häufigstes Großwort in Streckennamen (Sponsor-Namen herausfiltern)

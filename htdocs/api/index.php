@@ -33,6 +33,15 @@ $parts  = explode('/', $path);
 $res    = $parts[0] ?? '';
 $id     = $parts[1] ?? null;
 
+// CORS-Präflight für uits-receive (muss vor allen anderen Headers kommen)
+if ($res === 'uits-receive' && $method === 'OPTIONS') {
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, X-Uits-Token');
+    http_response_code(204);
+    exit;
+}
+
 $body = [];
 if (in_array($method, ['POST','PUT','PATCH'])) {
     $raw = file_get_contents('php://input');
@@ -5486,6 +5495,50 @@ if ($res === 'uits-fetch' && $method === 'GET') {
         $html = mb_convert_encoding($html, 'UTF-8', 'UTF-8');
     }
     jsonOk(['html' => $html]);
+}
+
+// ── uits-token: Einmal-Token für manuellen Browser-Import generieren ─────────
+if ($res === 'uits-token' && $method === 'GET') {
+    Auth::requireLogin();
+    $token = bin2hex(random_bytes(16));
+    // Token in Session speichern (max 5 Minuten gültig)
+    $_SESSION['uits_token']    = $token;
+    $_SESSION['uits_token_ts'] = time();
+    $_SESSION['uits_data']     = null;
+    jsonOk(['token' => $token]);
+}
+
+// ── uits-receive: Daten vom Browser-Extraktor empfangen (CORS erlaubt) ───────
+// OPTIONS-Präflight wird bereits früh (Zeile ~37) abgefangen.
+if ($res === 'uits-receive' && $method === 'POST') {
+    // CORS: Browser (evenementen.uitslagen.nl) darf zu uns posten
+    header('Access-Control-Allow-Origin: *');
+    $token = $_GET['token'] ?? ($_SERVER['HTTP_X_UITS_TOKEN'] ?? '');
+    if (!$token) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'Token fehlt']); exit; }
+
+    // Token in irgendeiner Session finden (da Browser-Context anderen Origin hat, nutzen wir File-Cache)
+    $cacheFile = sys_get_temp_dir() . '/uits_' . preg_replace('/[^a-f0-9]/', '', $token) . '.json';
+    $body = file_get_contents('php://input');
+    if (!$body) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'Kein Body']); exit; }
+    $data = json_decode($body, true);
+    if (!$data) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'JSON-Parse-Fehler']); exit; }
+    // Daten speichern (mit Ablaufzeit)
+    $data['_received_at'] = time();
+    file_put_contents($cacheFile, json_encode($data));
+    header('Access-Control-Allow-Origin: *');
+    echo json_encode(['ok'=>true,'rows'=>count($data['rows']??[])]);
+    exit;
+}
+if ($res === 'uits-receive' && $method === 'GET') {
+    Auth::requireLogin();
+    $token = trim($_GET['token'] ?? '');
+    if (!$token || !preg_match('/^[a-f0-9]{32}$/', $token)) jsonErr('Ungültiger Token', 400);
+    $cacheFile = sys_get_temp_dir() . '/uits_' . $token . '.json';
+    if (!file_exists($cacheFile)) { jsonOk(['ready' => false]); }
+    $data = json_decode(file_get_contents($cacheFile), true);
+    @unlink($cacheFile); // einmalig abrufen + löschen
+    if (!$data || (time() - ($data['_received_at']??0)) > 600) jsonErr('Token abgelaufen', 410);
+    jsonOk(['ready' => true, 'data' => $data]);
 }
 
 if ($res === 'la-fetch' && $method === 'GET') {
