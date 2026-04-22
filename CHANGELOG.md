@@ -1,4 +1,7 @@
 ## vCUR
+- Refactoring: `debounce(fn, delay)` und `normalizeUmlauts(s)` als Utilities in `09_utils.js` zentralisiert; tote `_normUmlauts`-Funktion (13_uitslagen.js) entfernt; `_un` (uitsAutoMatch), `_normN` (05_athleten.js) und `setVeranstSuche` (10_veranstaltungen.js) vereinfacht
+
+## vCUR
 - Admin-Dashboard: "Ergebnisse/Veranstaltungen pro Tag" → "pro Jahr" (API + Label)
 
 ## vCUR

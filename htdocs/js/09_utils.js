@@ -12,6 +12,27 @@ function _restoreFocus(saved) {
   try { if (saved.s !== null) el.setSelectionRange(saved.s, saved.e); } catch(e) {}
 }
 
+function debounce(fn, delay) {
+  var timer = null;
+  return function() {
+    var args = arguments;
+    clearTimeout(timer);
+    timer = setTimeout(function() { fn.apply(null, args); }, delay || 300);
+  };
+}
+
+function normalizeUmlauts(s) {
+  return (s||'')
+    .replace(/ß/g,'ss').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
+    .replace(/Ä/g,'Ae').replace(/Ö/g,'Oe').replace(/Ü/g,'Ue')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/ø/g,'o').replace(/Ø/g,'O')
+    .replace(/æ/g,'ae').replace(/Æ/g,'Ae')
+    .replace(/œ/g,'oe').replace(/Œ/g,'Oe')
+    .replace(/ð/g,'d').replace(/Ð/g,'D')
+    .replace(/þ/g,'th').replace(/Þ/g,'Th');
+}
+
 function setSubTab(t) { state.subTab = t; state.page = 1; state.filters = {}; state.diszFilter = null; syncHash(); renderPage(); }
 function setDiszFilter(d) { state.diszFilter = d; state.page = 1; loadErgebnisseData(); }
 function setDiszTabFilter(cat, disz) { state.subTab = cat; state.diszFilter = disz; state.page = 1; state.filters = {}; syncHash(); loadErgebnisseData(); }

@@ -1,14 +1,10 @@
 // ── VERANSTALTUNGEN ────────────────────────────────────────
 
-var _veranstSucheTimer = null;
-function setVeranstSuche(val) {
-  clearTimeout(_veranstSucheTimer);
-  _veranstSucheTimer = setTimeout(function() {
-    state.veranstSuche = val.trim();
-    state.veranstPage = 1;
-    renderVeranstaltungen();
-  }, 300);
-}
+var setVeranstSuche = debounce(function(val) {
+  state.veranstSuche = (val||'').trim();
+  state.veranstPage = 1;
+  renderVeranstaltungen();
+}, 300);
 
 // state.veranstView  = 'liste' | 'serien' | 'serie-detail'
 // state.serieId      = ID der aktuell angezeigten Serie
