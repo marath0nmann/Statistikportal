@@ -1,4 +1,7 @@
 ## vCUR
+- Admin-Dashboard: "Ergebnisse/Veranstaltungen pro Tag" → "pro Jahr" (API + Label)
+
+## vCUR
 - Fix: Paste-Parser – kompletter Umbau auf token-basierten Ansatz: Name/Disziplin/AK/Platz/Datum werden unabhängig von Reihenfolge erkannt; Schlüssel-Token: Zeit = Ankerpunkt; `beforeZeit` enthält Name+Disz+AK+Platz, `afterZeit` enthält Datum+Einheit+Kontext; PB/SB/NB-Labels werden ignoriert; AK-Regex auf echte Altersklassen-Codes beschränkt (M50/W65/MÜ40/Msen/MHK etc.) damit Namen wie "Wender" nicht fälschlich als AK erkannt werden; "Frank Pesch Marathon M50 127 3:57:16 Enschede Marathon 12.04.2026" → name=Frank Pesch, disz=Marathon, ak=M50, platz=127, datum=2026-04-12 ✅
 
 ## vCUR

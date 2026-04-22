@@ -79,10 +79,10 @@ async function renderAdminSystem() {
   var rightRows =
     shead('Ergebnisse & Veranstaltungen') +
     srow('Anzahl Ergebnisse', (s.ergebnisse||0).toLocaleString('de-DE')) +
-    srow('Ergebnisse pro Tag', s.ergebnisseProTag || 0) +
+    srow('Ergebnisse pro Jahr', s.ergebnisseProJahr || 0) +
     srow('Erstes Ergebnis', fmtDateOnly(s.erstesErgebnisDatum)) +
     srow('Anzahl Veranstaltungen', s.veranstaltungen || 0) +
-    srow('Veranstaltungen pro Tag', s.veranstaltungenProTag || 0) +
+    srow('Veranstaltungen pro Jahr', s.veranstaltungenProJahr || 0) +
     shead('Athleten & Daten') +
     srow('Anzahl Athleten', s.athleten || 0) +
     srow('Davon aktiv', s.athletenAktiv || 0) +

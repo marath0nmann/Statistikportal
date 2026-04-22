@@ -1316,7 +1316,7 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     $stats = [
         'benutzer'=>0,'aeltesterBenutzer'=>null,'neusterBenutzer'=>null,'neusterBenutzerDatum'=>null,
         'athleten'=>0,'athletenAktiv'=>0,'ergebnisse'=>0,'erstesErgebnisDatum'=>null,
-        'ergebnisseProTag'=>0,'veranstaltungen'=>0,'veranstaltungenProTag'=>0,
+        'ergebnisseProJahr'=>0,'veranstaltungen'=>0,'veranstaltungenProJahr'=>0,
         'externePBs'=>0,'importiert'=>0,'disziplinen'=>0,'portalSeit'=>null,
         'antraege'=>0,'registrierungen'=>0,'papierkorb'=>0
     ];
@@ -1327,9 +1327,9 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     try { $stats['athletenAktiv'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athleten') . " WHERE aktiv=1 AND geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
     try { $stats['ergebnisse'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
     try { $ed = DB::fetchOne("SELECT MIN(v.datum) AS d FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id WHERE e.geloescht_am IS NULL"); $stats['erstesErgebnisDatum'] = $ed['d'] ?? null; } catch(\Exception $e) {}
-    if ($stats['erstesErgebnisDatum'] && $stats['ergebnisse']) { $days = max(1,(int)((time()-strtotime($stats['erstesErgebnisDatum']))/86400)); $stats['ergebnisseProTag'] = round($stats['ergebnisse']/$days,2); }
+    if ($stats['erstesErgebnisDatum'] && $stats['ergebnisse']) { $years = max(1,(time()-strtotime($stats['erstesErgebnisDatum']))/31557600); $stats['ergebnisseProJahr'] = round($stats['ergebnisse']/$years,1); }
     try { $stats['veranstaltungen'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
-    if ($stats['erstesErgebnisDatum'] && $stats['veranstaltungen']) { $days2 = max(1,(int)((time()-strtotime($stats['erstesErgebnisDatum']))/86400)); $stats['veranstaltungenProTag'] = round($stats['veranstaltungen']/$days2,2); }
+    if ($stats['erstesErgebnisDatum'] && $stats['veranstaltungen']) { $years2 = max(1,(time()-strtotime($stats['erstesErgebnisDatum']))/31557600); $stats['veranstaltungenProJahr'] = round($stats['veranstaltungen']/$years2,1); }
     try { $stats['externePBs'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athlet_pb'))['c'] ?? 0); } catch(\Exception $e) {}
     try { $stats['importiert'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE import_quelle IS NOT NULL AND geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
     try { $stats['disziplinen'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('disziplin_mapping'))['c'] ?? 0); } catch(\Exception $e) {}
