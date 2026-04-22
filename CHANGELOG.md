@@ -1,4 +1,7 @@
 ## vCUR
+- Fix: Paste-Parser – kompletter Umbau auf token-basierten Ansatz: Name/Disziplin/AK/Platz/Datum werden unabhängig von Reihenfolge erkannt; Schlüssel-Token: Zeit = Ankerpunkt; `beforeZeit` enthält Name+Disz+AK+Platz, `afterZeit` enthält Datum+Einheit+Kontext; PB/SB/NB-Labels werden ignoriert; AK-Regex auf echte Altersklassen-Codes beschränkt (M50/W65/MÜ40/Msen/MHK etc.) damit Namen wie "Wender" nicht fälschlich als AK erkannt werden; "Frank Pesch Marathon M50 127 3:57:16 Enschede Marathon 12.04.2026" → name=Frank Pesch, disz=Marathon, ak=M50, platz=127, datum=2026-04-12 ✅
+
+## vCUR
 - Fix: Paste-Parser – Inline-Format `Name Disziplin AK Platz Zeit Event Datum` (z.B. "Frank Pesch Marathon M50 127 3:57:16 Enschede Marathon 12.04.2026") wurde zwar als 1 Ergebnis eingelesen, aber Name enthielt Disziplin/AK/Platz, AK/Platz/Datum wurden falsch oder gar nicht extrahiert; Parser erkennt jetzt: AK (`M50`, `W65` etc.) per Inline-Regex in `beforeTime`, Platz als Zahl zwischen AK und Zeit, Disziplin als letztes Wort vor AK via Disziplin-Liste, Datum per `DD.MM.JJJJ`-Regex in `afterTime` (statt erste Zahl in afterTime als Platz zu werten)
 
 ## vCUR

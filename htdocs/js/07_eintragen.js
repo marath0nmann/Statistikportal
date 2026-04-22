@@ -2582,56 +2582,86 @@ function bulkParsePaste() {
     // Ergebnis-Zeile: enthält Zeitformat
     var mRes = line.match(reResult);
     if (mRes) {
-      // Alles vor dem Zeitwert = Name (+ evtl. Disziplin/AK/Platz inline)
-      var timeStr   = mRes[1];
-      var beforeTime = line.slice(0, line.indexOf(timeStr)).trim();
-      var afterTime  = line.slice(line.indexOf(timeStr) + timeStr.length).trim();
+      // Token-basierter Parser: erkennt Name/Disziplin/AK/Platz/Datum/Zeit unabhängig von Reihenfolge
+      var timeStr  = mRes[1];
+      var zeitIdx  = line.indexOf(mRes[0]);
+      var beforeZeit = line.slice(0, zeitIdx).trim();
+      var afterZeit  = line.slice(zeitIdx + mRes[0].length).trim();
+      var reAKPat  = /^[MW]\d{2}$|^[MW][\u00dc\u00fc]\d{2}$|^[MW](?:sen|jun|HK|u\d{2}|U\d{2})$/i;
+      var reAKFull = /\b([MW]\d{2}|[MW][\u00dc\u00fc]\d{2}|[MW](?:sen|jun|HK|u\d{2}|U\d{2}))\b/i;
+      var normS    = function(s){ return (s||'').replace(/[.,*×x]/g,'').replace(/\s+/g,' ').trim().toLowerCase(); };
 
-      // Datum aus afterTime extrahieren (12.04.2026 oder 12.04.26)
-      var lineAK = curAK, linePlatz = null, lineDatum = curDate, lineDiszStr = '';
-      var mAfterDate = afterTime.match(/\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b/);
-      if (mAfterDate) {
-        var ay = parseInt(mAfterDate[3]); if (ay < 100) ay += 2000;
-        lineDatum = ay + '-' + mAfterDate[2].padStart(2,'0') + '-' + mAfterDate[1].padStart(2,'0');
-        // Datum aus afterTime entfernen für Platz-Erkennung
-        afterTime = afterTime.replace(mAfterDate[0], '').trim();
+      // 1. Einheit direkt nach Zeit (h/min/s) aus afterZeit
+      afterZeit = afterZeit.replace(/^\s*(h|min|sek|s)\b\.?\s*/i, '');
+
+      // 2. Datum aus afterZeit
+      var lineDatum = curDate;
+      var mDat = afterZeit.match(/\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b/);
+      if (mDat) {
+        var _y = parseInt(mDat[3]); if (_y < 100) _y += 2000;
+        lineDatum = _y + '-' + mDat[2].padStart(2,'0') + '-' + String(parseInt(mDat[1])).padStart(2,'0');
+        afterZeit = afterZeit.replace(mDat[0], '').trim();
       }
 
-      // Platz aus afterTime (wenn kein Datum drin war, nimmt erste Zahl)
-      var afterClean = afterTime.replace(/[🥇🥈🥉]/g, '').trim();
-      var mPlatzAfter = afterClean.match(/\b(\d+)\b/);
-      var platz = mPlatzAfter ? parseInt(mPlatzAfter[1]) : null;
+      // 3. PB/SB/NB-Labels und Emojis aus afterZeit
+      afterZeit = afterZeit.replace(/\b(PB|SB|NB|WR|CR)\b/gi, '').replace(/[🥇🥈🥉🏅]/g, '').replace(/\s+/g, ' ').trim();
 
-      // Einheit aus afterTime (min, s etc.) → Format
-      var unitRaw = afterTime.toLowerCase();
+      // 4. Platz aus afterZeit: trailing Zahl (mit opt. Punkt) ODER "Platz N"
+      var linePlatz = null;
+      var mPlatzKw = afterZeit.match(/\bPlatz\s+(\d{1,4})\b/i);
+      var mPlatzTrail = afterZeit.match(/(?:^|\s)(\d{1,4})\.?\s*$/);
+      if (mPlatzKw) linePlatz = parseInt(mPlatzKw[1]);
+      else if (mPlatzTrail) linePlatz = parseInt(mPlatzTrail[1]);
 
-      // Inline AK aus beforeTime extrahieren: M50, W65, MHK etc.
-      // (steht oft als letztes oder vorletztes Token vor Platz-Zahl)
-      var reAKInline = /\b([MW][A-Za-z0-9]{1,4})\b/;
-      var mAKBefore = beforeTime.match(new RegExp('\\b([MW][A-Za-z0-9]{1,4})\\b'));
-      if (mAKBefore && /^[MW]\d{2}$|^[MW][A-Z]{1,3}$|^[MW]HK$/.test(mAKBefore[1])) {
-        lineAK = mAKBefore[1];
-        // Platz: Zahl zwischen AK und Zeit (inline: "M50 127 3:57:16")
-        var afterAK = beforeTime.slice(beforeTime.indexOf(mAKBefore[1]) + mAKBefore[1].length).trim();
-        var mPlatzInline = afterAK.match(/^\s*(\d+)\s*$/);
-        if (mPlatzInline) linePlatz = parseInt(mPlatzInline[1]);
-        // Disziplin: Text zwischen Name-Ende und AK
-        var beforeAK = beforeTime.slice(0, beforeTime.indexOf(mAKBefore[1])).trim();
-        // Letzten Teil von beforeAK als Disziplin-Kandidat prüfen
-        var diszCandidate = '';
-        var words = beforeAK.split(/\s+/);
-        // Prüfe ob letzte(s) Wort(e) einer bekannten Disziplin entsprechen
-        for (var wi = words.length; wi >= 1; wi--) {
-          var candidate = words.slice(words.length - wi).join(' ');
-          var matched = _bulkMatchDisz(candidate, diszList);
-          if (matched) { lineDiszStr = matched; beforeAK = words.slice(0, words.length - wi).join(' '); break; }
+      // 5. beforeZeit aufräumen: Einheit am Ende
+      beforeZeit = beforeZeit.replace(/\s+(h|min|sek|s)\s*$/i, '').trim();
+
+      // 6. Token-Satz für Klassifizierung:
+      //    Falls beforeZeit kurz/leer → Zeit stand am Anfang, afterZeit enthält den Rest
+      var tokenStr = beforeZeit.length >= 2 ? beforeZeit : afterZeit;
+
+      // 7. AK
+      var lineAK = curAK;
+      var mAK = tokenStr.match(reAKFull);
+      if (mAK && reAKPat.test(mAK[1]) && !/^\d+$/.test(mAK[1])) {
+        lineAK = mAK[1];
+        tokenStr = tokenStr.replace(mAK[0], ' ').replace(/\s+/g, ' ').trim();
+      }
+
+      // 8. Platz aus tokenStr (Zahl allein, falls noch nicht aus afterZeit)
+      if (linePlatz === null) {
+        var tWords = tokenStr.split(/\s+/);
+        for (var ti = tWords.length - 1; ti >= 0; ti--) {
+          if (/^\d{1,4}\.?$/.test(tWords[ti])) {
+            linePlatz = parseInt(tWords[ti]);
+            tWords.splice(ti, 1);
+            tokenStr = tWords.join(' ').trim();
+            break;
+          }
         }
-        beforeTime = beforeAK; // Name = alles vor Disziplin/AK
+      } else {
+        // Platz-Zahl aus tokenStr entfernen (damit sie nicht im Namen landet)
+        tokenStr = tokenStr.replace(new RegExp('(?:^|\\s)' + linePlatz + '\\.?(?=\\s|$)'), ' ').replace(/\s+/g, ' ').trim();
       }
-      var linePlatzFinal = linePlatz !== null ? linePlatz : platz;
 
-      // Name: letztes Wort entfernen wenn es "min", "s", "m" ist
-      var namePart = beforeTime.replace(/\s+(min|sek|s|m|h)\s*$/, '').trim();
+      // 9. Disziplin: letzte 1-4 Wörter von tokenStr prüfen
+      var lineDiszStr = '';
+      var toks = tokenStr.split(/\s+/).filter(Boolean);
+      for (var wi = Math.min(toks.length, 4); wi >= 1; wi--) {
+        var cand = toks.slice(toks.length - wi).join(' ');
+        var n = normS(cand);
+        for (var di = 0; di < diszList.length; di++) {
+          if (normS(diszList[di]) === n) { lineDiszStr = diszList[di]; toks = toks.slice(0, toks.length - wi); break; }
+        }
+        if (lineDiszStr) break;
+      }
+
+      // 10. Name = verbleibende Tokens
+      var namePart = toks.join(' ').trim();
+      if (!namePart && beforeZeit.length < 2) {
+        // Letzter Versuch: Event-Kontext aus afterZeit nach Datum/Platz entfernen
+        // (passiert wenn Zeit am Anfang und Kontext nach Zeit nicht strukturiert)
+      }
 
       if (namePart) {
         parsed.push({
@@ -2639,7 +2669,7 @@ function bulkParsePaste() {
           disz:     lineDiszStr || curDisz,
           resultat: timeStr,
           ak:       lineAK,
-          platz:    linePlatzFinal,
+          platz:    linePlatz,
           datum:    lineDatum,
         });
       }
