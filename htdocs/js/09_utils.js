@@ -12,6 +12,17 @@ function _restoreFocus(saved) {
   try { if (saved.s !== null) el.setSelectionRange(saved.s, saved.e); } catch(e) {}
 }
 
+function buildSelectOptions(items, emptyLabel, getVal, getLabel, isSelected) {
+  var html = '<option value="">' + (emptyLabel || '') + '</option>';
+  for (var _i = 0; _i < items.length; _i++) {
+    var _item = items[_i];
+    var _v = getVal ? getVal(_item) : String(_item);
+    var _l = getLabel ? getLabel(_item) : String(_item);
+    html += '<option value="' + _v + '"' + (isSelected(_item, _v) ? ' selected' : '') + '>' + _l + '</option>';
+  }
+  return html;
+}
+
 function debounce(fn, delay) {
   var timer = null;
   return function() {

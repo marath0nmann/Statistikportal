@@ -1,5 +1,5 @@
 ## vCUR
-- Refactoring: `debounce(fn, delay)` und `normalizeUmlauts(s)` als Utilities in `09_utils.js` zentralisiert; tote `_normUmlauts`-Funktion (13_uitslagen.js) entfernt; `_un` (uitsAutoMatch), `_normN` (05_athleten.js) und `setVeranstSuche` (10_veranstaltungen.js) vereinfacht
+- Refactoring: `buildSelectOptions`, `debounce`, `normalizeUmlauts` als Utilities in `09_utils.js` zentralisiert; alle Select-Optionen-Loops in 04_ergebnisse, 10_veranstaltungen, 13_uitslagen auf Helper umgestellt; tote `_normUmlauts`-Funktion entfernt; `_un`, `_normN`, `setVeranstSuche` vereinfacht
 
 ## vCUR
 - Admin-Dashboard: "Ergebnisse/Veranstaltungen pro Tag" → "pro Jahr" (API + Label)

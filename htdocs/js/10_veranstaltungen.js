@@ -671,10 +671,10 @@ async function showVeranstEditModal(id) {
   var curOrt   = v.ort   || '';
   var curSerie = v.serie_id || '';
 
-  var serieOptHtml = '<option value="">&#8212; Keine Serie &#8212;</option>';
-  for (var i = 0; i < serien.length; i++) {
-    serieOptHtml += '<option value="' + serien[i].id + '"' + (String(serien[i].id) === String(curSerie) ? ' selected' : '') + '>' + serien[i].name + '</option>';
-  }
+  var serieOptHtml = buildSelectOptions(serien, '&#8212; Keine Serie &#8212;',
+    function(s) { return s.id; },
+    function(s) { return s.name; },
+    function(s) { return String(s.id) === String(curSerie); });
 
   showModal(
     '<h2>&#x270F;&#xFE0F; Veranstaltung bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +

@@ -102,27 +102,20 @@ async function loadErgebnisseData() {
   var disziplinen = r.data.disziplinen || []; var aks = r.data.aks || []; var jahre = r.data.jahre || [];
   var kategorien = r.data.kategorien || [];
 
-  var diszOptHtml = '<option value="">Alle</option>';
-  for (var i = 0; i < disziplinen.length; i++) {
-    var _d = disziplinen[i];
-    var _dVal  = _d.disziplin_mapping_id ? String(_d.disziplin_mapping_id) : _d.disziplin;
-    var _dLabel = _d.disziplin + (_d.kategorie_name ? ' (' + _d.kategorie_name + ')' : '');
-    var _sel = (state.filters.disziplin_mapping_id === _dVal || state.filters.disziplin === _d.disziplin) ? ' selected' : '';
-    diszOptHtml += '<option value="' + _dVal + '"' + _sel + '>' + _dLabel + '</option>';
-  }
-  var akOptHtml = '<option value="">Alle AK</option>';
-  for (var i = 0; i < aks.length; i++) {
-    akOptHtml += '<option value="' + aks[i] + '"' + (state.filters.ak === aks[i] ? ' selected' : '') + '>' + aks[i] + '</option>';
-  }
-  var jahrOptHtml = '<option value="">Alle Jahre</option>';
-  for (var i = 0; i < jahre.length; i++) {
-    jahrOptHtml += '<option value="' + jahre[i] + '"' + (state.filters.jahr == jahre[i] ? ' selected' : '') + '>' + jahre[i] + '</option>';
-  }
-
-  var katOptHtml = '<option value="">Alle Kategorien</option>';
-  for (var ki = 0; ki < kategorien.length; ki++) {
-    katOptHtml += '<option value="' + kategorien[ki].tbl_key + '"' + (state.filters.kategorie === kategorien[ki].tbl_key ? ' selected' : '') + '>' + kategorien[ki].name + '</option>';
-  }
+  var diszOptHtml = buildSelectOptions(disziplinen, 'Alle',
+    function(d) { return d.disziplin_mapping_id ? String(d.disziplin_mapping_id) : d.disziplin; },
+    function(d) { return d.disziplin + (d.kategorie_name ? ' (' + d.kategorie_name + ')' : ''); },
+    function(d, v) { return state.filters.disziplin_mapping_id === v || state.filters.disziplin === d.disziplin; });
+  var akOptHtml = buildSelectOptions(aks, 'Alle AK',
+    null, null,
+    function(ak) { return state.filters.ak === ak; });
+  var jahrOptHtml = buildSelectOptions(jahre, 'Alle Jahre',
+    null, null,
+    function(j) { return state.filters.jahr == j; });
+  var katOptHtml = buildSelectOptions(kategorien, 'Alle Kategorien',
+    function(k) { return k.tbl_key; },
+    function(k) { return k.name; },
+    function(k) { return state.filters.kategorie === k.tbl_key; });
 
   var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
   var totalPages = Math.ceil(total / state.limit);

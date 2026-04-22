@@ -359,11 +359,10 @@ function uitsAutoMatch(name, athleten) {
   return null;
 }
 function uitsAthOptHtml(athleten, selectedId) {
-  var html = '<option value="">– Athlet wählen –</option>';
-  athleten.forEach(function(a) {
-    html += '<option value="' + a.id + '"' + (a.id == selectedId ? ' selected' : '') + '>' + a.name_nv + '</option>';
-  });
-  return html;
+  return buildSelectOptions(athleten, '– Athlet wählen –',
+    function(a) { return a.id; },
+    function(a) { return a.name_nv; },
+    function(a) { return a.id == selectedId; });
 }
 
 // ── Auto-Match Disziplin mit Kategorie-Vorauswahl ─────────────────
