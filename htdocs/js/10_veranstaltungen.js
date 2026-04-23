@@ -17,6 +17,51 @@ async function renderVeranstaltungen() {
   await renderVeranstaltungenListe();
 }
 
+function _buildVeranstErgTable(ergebnisse) {
+  if (!ergebnisse || !ergebnisse.length) {
+    return '<div class="empty" style="padding:16px">Keine Ergebnisse</div>';
+  }
+  var byDisz = {}; var diszOrder = [];
+  for (var ei = 0; ei < ergebnisse.length; ei++) {
+    var e = ergebnisse[ei];
+    var _dk = ergDiszKey(e);
+    if (!byDisz[_dk]) { byDisz[_dk] = []; diszOrder.push(_dk); }
+    byDisz[_dk].push(e);
+  }
+  var hasMstr = ergebnisse.some(function(e) { return !!e.meisterschaft; });
+  sortDisziplinen(diszOrder);
+  var rows = '';
+  for (var di = 0; di < diszOrder.length; di++) {
+    var _dKey = diszOrder[di];
+    var _df = byDisz[_dKey][0];
+    var diszLabel = _df ? ergDiszLabel(_df) : _dKey;
+    var ergs = byDisz[_dKey];
+    rows += '<tr class="disz-header-row"><td colspan="' + (hasMstr ? '7' : '5') + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszLabel + '</td></tr>';
+    for (var ei2 = 0; ei2 < ergs.length; ei2++) {
+      var e2 = ergs[ei2];
+      var fmt = e2.fmt || '';
+      var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
+      var _ePace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
+      var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
+      rows +=
+        '<tr>' +
+          '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span>' + (e2.extern ? ' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>' : '') + '</td>' +
+          '<td>' + akBadge(e2.altersklasse) + '</td>' +
+          '<td class="result">' + res + '</td>' +
+          '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +
+          '<td>' + medalBadge(e2.ak_platzierung) + '</td>' +
+          (hasMstr ? '<td>' + mstrBadge(e2.meisterschaft) + '</td>' : '') +
+          (hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? medalBadge(e2.ak_platz_meisterschaft) : '') + '</td>' : '') +
+        '</tr>';
+    }
+  }
+  return '<div class="table-scroll"><table class="veranst-dash-table">' +
+    '<colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' + (hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') + '</colgroup>' +
+    '<thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th>' + (hasMstr ? '<th>Meisterschaft</th><th>Pl. MS</th>' : '') + '</tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+    '</table></div>';
+}
+
 // ── LISTE ──────────────────────────────────────────────────
 async function renderVeranstaltungenListe() {
   var el = document.getElementById('main-content');
@@ -87,42 +132,6 @@ async function renderVeranstaltungenListe() {
   for (var vi = 0; vi < veranst.length; vi++) {
     var v = veranst[vi];
     var name = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel || '';
-    var rows = '';
-    var byDisz = {}; var diszOrder = [];
-    for (var ei = 0; ei < v.ergebnisse.length; ei++) {
-      var e = v.ergebnisse[ei];
-      var _dk = ergDiszKey(e);
-      if (!byDisz[_dk]) { byDisz[_dk] = []; diszOrder.push(_dk); }
-      byDisz[_dk].push(e);
-    }
-    var _hasMstr = v.ergebnisse.some(function(e3){ return !!e3.meisterschaft; });
-    var _colspan = _hasMstr ? '7' : '5';
-    sortDisziplinen(diszOrder);
-    for (var di = 0; di < diszOrder.length; di++) {
-      var _dKey = diszOrder[di];
-      var _diszFirstErg = byDisz[_dKey][0];
-      var disz = _diszFirstErg ? ergDiszLabel(_diszFirstErg) : _dKey;
-      var ergs = byDisz[_dKey];
-      rows += '<tr class="disz-header-row"><td colspan="' + _colspan + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + disz + '</td></tr>';
-      for (var ei2 = 0; ei2 < ergs.length; ei2++) {
-        var e2 = ergs[ei2];
-        var fmt = e2.fmt || '';
-        var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
-        var _ePace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
-        var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
-        rows +=
-          '<tr>' +
-            '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span>' + (e2.extern ? ' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>' : '') + '</td>' +
-            '<td>' + akBadge(e2.altersklasse) + '</td>' +
-            '<td class="result">' + res + '</td>' +
-            '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +
-            '<td>' + medalBadge(e2.ak_platzierung) + '</td>' +
-            (_hasMstr ? '<td>' + mstrBadge(e2.meisterschaft) + '</td>' : '') +
-            (_hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? medalBadge(e2.ak_platz_meisterschaft) : '') + '</td>' : '') +
-          '</tr>';
-      }
-    }
-    // Serie-Badge
     var serieBadge = '';
     if (v.serie_id) {
       var _sv = serien.find(function(s){ return String(s.id) === String(v.serie_id); });
@@ -147,8 +156,7 @@ async function renderVeranstaltungenListe() {
               '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&times;</button>' : '') +
           '</div>' +
         '</div>' +
-        (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' + (_hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') + '</colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th>' + (_hasMstr ? '<th>Meisterschaft</th><th>Pl. MS</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' :
-                '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
+        _buildVeranstErgTable(v.ergebnisse) +
       '</div>';
   }
   if (!html) html = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Keine Veranstaltungen gefunden</div></div>';
@@ -314,40 +322,6 @@ function _buildSerieJahreHtml(veranst) {
   for (var vi = 0; vi < veranst.length; vi++) {
     var v = veranst[vi];
     var name = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel || '';
-    var rows = '';
-    var byDisz = {}; var diszOrder = [];
-    for (var ei = 0; ei < v.ergebnisse.length; ei++) {
-      var e = v.ergebnisse[ei];
-      var _dk = ergDiszKey(e);
-      if (!byDisz[_dk]) { byDisz[_dk] = []; diszOrder.push(_dk); }
-      byDisz[_dk].push(e);
-    }
-    var _hasMstr = v.ergebnisse.some(function(e3){ return !!e3.meisterschaft; });
-    sortDisziplinen(diszOrder);
-    for (var di = 0; di < diszOrder.length; di++) {
-      var _dKey = diszOrder[di];
-      var _df = byDisz[_dKey][0];
-      var diszLabel = _df ? ergDiszLabel(_df) : _dKey;
-      var ergs = byDisz[_dKey];
-      rows += '<tr class="disz-header-row"><td colspan="' + (_hasMstr ? '7' : '5') + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszLabel + '</td></tr>';
-      for (var ei2 = 0; ei2 < ergs.length; ei2++) {
-        var e2 = ergs[ei2];
-        var fmt = e2.fmt || '';
-        var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
-        var _ePace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
-        var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
-        rows +=
-          '<tr>' +
-            '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span>' + (e2.extern ? ' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>' : '') + '</td>' +
-            '<td>' + akBadge(e2.altersklasse) + '</td>' +
-            '<td class="result">' + res + '</td>' +
-            '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +
-            '<td>' + medalBadge(e2.ak_platzierung) + '</td>' +
-            (_hasMstr ? '<td>' + mstrBadge(e2.meisterschaft) + '</td>' : '') +
-            (_hasMstr ? '<td class="ort-text" style="font-size:12px">' + (e2.meisterschaft && e2.ak_platz_meisterschaft ? medalBadge(e2.ak_platz_meisterschaft) : '') + '</td>' : '') +
-          '</tr>';
-      }
-    }
     html +=
       '<div class="panel" style="margin-bottom:16px">' +
         '<div class="panel-header">' +
@@ -362,11 +336,7 @@ function _buildSerieJahreHtml(veranst) {
             (v.datenquelle ? '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" class="btn btn-ghost btn-sm" title="Ergebnisquelle">\uD83C\uDF10</a>' : '') +
           '</div>' +
         '</div>' +
-        (rows ?
-          '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' + (_hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') + '</colgroup>' +
-          '<thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th>' + (_hasMstr ? '<th>Meisterschaft</th><th>Pl. MS</th>' : '') + '</tr></thead>' +
-          '<tbody>' + rows + '</tbody></table></div>' :
-          '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
+        _buildVeranstErgTable(v.ergebnisse) +
       '</div>';
   }
   return html;

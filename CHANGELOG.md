@@ -1,5 +1,5 @@
 ## vCUR
-- Refactoring: `buildSelectOptions`, `debounce`, `normalizeUmlauts` als Utilities in `09_utils.js` zentralisiert; alle Select-Optionen-Loops in 04_ergebnisse, 10_veranstaltungen, 13_uitslagen auf Helper umgestellt; tote `_normUmlauts`-Funktion entfernt; `_un`, `_normN`, `setVeranstSuche` vereinfacht
+- Refactoring: `_buildVeranstErgTable` extrahiert – identischer Veranstaltungs-Tabellen-Render-Block aus `renderVeranstaltungenListe` und `_buildSerieJahreHtml` in einen Helper zusammengeführt (~70 duplizierte Zeilen → 1 Aufruf je Stelle); `buildSelectOptions`, `debounce`, `normalizeUmlauts` als Utilities in `09_utils.js` zentralisiert
 
 ## vCUR
 - Admin-Dashboard: "Ergebnisse/Veranstaltungen pro Tag" → "pro Jahr" (API + Label)
