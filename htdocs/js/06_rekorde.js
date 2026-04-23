@@ -318,7 +318,12 @@ function buildRekTable(rows, fmt, compact, showPace, athletLabel, disz) {
     if (rs2.highlightPrevYear && rowYear === curYear2 - 1) rowCls = ' hl-prev-year';
     html += '<tr class="' + rowCls.trim() + '">';
     html += '<td>' + medalBadge(i + 1) + '</td>';
-    var athletInner = r.athlet_id ? '<span class="athlet-link" data-athlet-id="' + r.athlet_id + '">' + (r.athlet || '&ndash;') + '</span>' : (r.athlet || '&ndash;');
+    var _fullName = r.athlet || '';
+    var _dispName = shortenName(_fullName, compact ? 20 : 25);
+    var _titleAttr = _dispName !== _fullName ? ' title="' + _fullName.replace(/"/g, '&quot;') + '"' : '';
+    var athletInner = r.athlet_id
+      ? '<span class="athlet-link" data-athlet-id="' + r.athlet_id + '"' + _titleAttr + '>' + (_dispName || '&ndash;') + '</span>'
+      : '<span' + _titleAttr + '>' + (_dispName || '&ndash;') + '</span>';
     html += '<td style="font-weight:600"><div class="rek-name-cell">' + athletInner + '</div></td>';
     html += '<td class="result">' + result + '</td>';
     if (showPace) html += '<td class="ort-text">' + (diszKm(_disz) >= 1 && calcPace(_disz, r.resultat) ? fmtTime(calcPace(_disz, r.resultat), 'min/km') : '&ndash;') + '</td>';

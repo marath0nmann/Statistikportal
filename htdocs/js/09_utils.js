@@ -336,3 +336,25 @@ function dbRes(v) {
   if (v === null || v === undefined) return '';
   return String(v).replace(',', '.');
 }
+
+// Kürzt lange Namen für beengte Tabellenspalten (Format "Nachname, Vorname").
+// Bindestrich-Nachnamen: zweiter Teil → Initial (z.B. "Kattendahl-Biedemann" → "Kattendahl-B."),
+// danach ggf. Vorname ebenfalls auf Initial kürzen.
+function shortenName(name, maxLen) {
+  maxLen = maxLen || 20;
+  if (!name || name.length <= maxLen) return name;
+  var comma = name.indexOf(', ');
+  if (comma < 0) return name.slice(0, maxLen - 1) + '…';
+  var ln = name.slice(0, comma);
+  var fn = name.slice(comma + 2);
+  if (ln.indexOf('-') >= 0) {
+    var parts = ln.split('-');
+    var lnShort = parts[0] + '-' + parts.slice(1).map(function(p) { return p.charAt(0) + '.'; }).join('');
+    var c1 = lnShort + ', ' + fn;
+    if (c1.length <= maxLen) return c1;
+    return lnShort + ', ' + fn.charAt(0) + '.';
+  }
+  var c2 = ln + ', ' + fn.charAt(0) + '.';
+  if (c2.length <= maxLen) return c2;
+  return ln.slice(0, maxLen - 1) + '…';
+}
