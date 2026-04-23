@@ -162,6 +162,11 @@ function fmtTime(t, unit) {
   } else {
     parts = str.split(':').map(function(p) { return parseInt(p, 10); });
     while (parts.length > 2 && parts[0] === 0) parts.shift();
+    // "64:30" (MM≥60) → "1:04:30"
+    if (parts.length === 2 && parts[0] >= 60) {
+      var hh = Math.floor(parts[0] / 60);
+      parts = [hh, parts[0] % 60, parts[1]];
+    }
   }
   var result = parts.map(function(p, i) {
     return i === 0 ? String(p) : String(p).padStart(2, '0');

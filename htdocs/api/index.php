@@ -1464,7 +1464,26 @@ function migrateResultatNum(): void {
         DB::query("UPDATE $tbl SET resultat = CONCAT(LPAD(SUBSTRING_INDEX(resultat,':',1),2,'0'), SUBSTRING(resultat, LOCATE(':',resultat))) WHERE resultat_num IS NOT NULL AND resultat REGEXP '^[0-9]:[0-9]{2}:' LIMIT 500");
     } catch (Exception $e) { /* ignorieren */ }
 }
+// Einmalig: MM:SS-Zeiten mit MM≥60 → H:MM:SS normalisieren (z.B. "64:30" → "01:04:30")
+function migrateNormalizeOverflowTimes(): void {
+    try {
+        $tables = [DB::tbl('ergebnisse'), DB::tbl('athlet_pb')];
+        foreach ($tables as $tbl) {
+            DB::query(
+                "UPDATE $tbl SET resultat = CONCAT(
+                    LPAD(CAST(SUBSTRING_INDEX(resultat,':',1) AS UNSIGNED) DIV 60, 2, '0'), ':',
+                    LPAD(CAST(SUBSTRING_INDEX(resultat,':',1) AS UNSIGNED) MOD 60, 2, '0'), ':',
+                    LPAD(CAST(SUBSTRING_INDEX(resultat,':',-1) AS UNSIGNED), 2, '0')
+                 )
+                 WHERE resultat REGEXP '^[0-9]{2,3}:[0-9]{2}$'
+                   AND CAST(SUBSTRING_INDEX(resultat,':',1) AS UNSIGNED) >= 60
+                 LIMIT 500"
+            );
+        }
+    } catch (Exception $e) { /* ignorieren */ }
+}
 migrateResultatNum();
+migrateNormalizeOverflowTimes();
 
 // Hilfsfunktion: Zeit-String normalisieren und resultat_num berechnen
 // "4:28:29" → "04:28:29", gibt [normalisiert, sekunden] zurück
@@ -1480,8 +1499,13 @@ function normalizeResultat(string $r, string $fmt = 'min'): array {
         $norm = sprintf('%02d:%02d:%02d', $h, $min, $sec);
         return [$norm, $h*3600 + $min*60 + $sec];
     }
-    if (preg_match('/^(\d{1,2}):(\d{2})$/', $r, $m)) {
+    if (preg_match('/^(\d{1,3}):(\d{2})$/', $r, $m)) {
         $min = (int)$m[1]; $sec = (int)$m[2];
+        if ($min >= 60) {
+            $h = intdiv($min, 60); $min = $min % 60;
+            $norm = sprintf('%02d:%02d:%02d', $h, $min, $sec);
+            return [$norm, $h*3600 + $min*60 + $sec];
+        }
         $norm = sprintf('%02d:%02d', $min, $sec);
         return [$norm, $min*60 + $sec];
     }

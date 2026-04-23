@@ -1,4 +1,7 @@
 ## vCUR
+- Fix: Zeitanzeige normalisiert – "64:30" (MM≥60) wird als "1:04:30" dargestellt (`fmtTime`); `normalizeResultat` speichert künftige Importe direkt korrekt; DB-Migration normalisiert bestehende Einträge in `ergebnisse` + `athlet_pb`
+
+## vCUR
 - Refactoring: `_buildVeranstErgTable` extrahiert – identischer Veranstaltungs-Tabellen-Render-Block aus `renderVeranstaltungenListe` und `_buildSerieJahreHtml` in einen Helper zusammengeführt (~70 duplizierte Zeilen → 1 Aufruf je Stelle); `buildSelectOptions`, `debounce`, `normalizeUmlauts` als Utilities in `09_utils.js` zentralisiert
 
 ## vCUR
