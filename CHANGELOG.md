@@ -1,43 +1,46 @@
-## vCUR
+## v1121
+- Admin-Tab "Darstellung" in "Einstellungen" umbenannt
+
+## v1121
 - Fix: Zeitanzeige normalisiert – "64:30" (MM≥60) wird als "1:04:30" dargestellt (`fmtTime`); `normalizeResultat` speichert künftige Importe direkt korrekt; DB-Migration normalisiert bestehende Einträge in `ergebnisse` + `athlet_pb`
 
-## vCUR
+## v1121
 - Refactoring: `_buildVeranstErgTable` extrahiert – identischer Veranstaltungs-Tabellen-Render-Block aus `renderVeranstaltungenListe` und `_buildSerieJahreHtml` in einen Helper zusammengeführt (~70 duplizierte Zeilen → 1 Aufruf je Stelle); `buildSelectOptions`, `debounce`, `normalizeUmlauts` als Utilities in `09_utils.js` zentralisiert
 
-## vCUR
+## v1121
 - Admin-Dashboard: "Ergebnisse/Veranstaltungen pro Tag" → "pro Jahr" (API + Label)
 
-## vCUR
+## v1121
 - Fix: Paste-Parser – kompletter Umbau auf token-basierten Ansatz: Name/Disziplin/AK/Platz/Datum werden unabhängig von Reihenfolge erkannt; Schlüssel-Token: Zeit = Ankerpunkt; `beforeZeit` enthält Name+Disz+AK+Platz, `afterZeit` enthält Datum+Einheit+Kontext; PB/SB/NB-Labels werden ignoriert; AK-Regex auf echte Altersklassen-Codes beschränkt (M50/W65/MÜ40/Msen/MHK etc.) damit Namen wie "Wender" nicht fälschlich als AK erkannt werden; "Frank Pesch Marathon M50 127 3:57:16 Enschede Marathon 12.04.2026" → name=Frank Pesch, disz=Marathon, ak=M50, platz=127, datum=2026-04-12 ✅
 
-## vCUR
+## v1121
 - Fix: Paste-Parser – Inline-Format `Name Disziplin AK Platz Zeit Event Datum` (z.B. "Frank Pesch Marathon M50 127 3:57:16 Enschede Marathon 12.04.2026") wurde zwar als 1 Ergebnis eingelesen, aber Name enthielt Disziplin/AK/Platz, AK/Platz/Datum wurden falsch oder gar nicht extrahiert; Parser erkennt jetzt: AK (`M50`, `W65` etc.) per Inline-Regex in `beforeTime`, Platz als Zahl zwischen AK und Zeit, Disziplin als letztes Wort vor AK via Disziplin-Liste, Datum per `DD.MM.JJJJ`-Regex in `afterTime` (statt erste Zahl in afterTime als Platz zu werten)
 
-## vCUR
+## v1121
 - Fix: `evenementen.uitslagen.nl` – 0 Strecken trotz 6446 Byte `zoek.html`-Response: `uitsEvenementenParseMenu` suchte nach `catg=` im Option-Value, aber `zoek.html` enthält `<select name="catg">` mit **rohen Kategorie-Codes** als Values (`1-Msen`, `2-M40`, `10-Vsen` etc.) ohne Prefix; Parser erkennt jetzt `select[name="catg"]` als primäre Quelle und matched Raw-Codes via `/^\d+-[A-Za-z]/.test(val)`; Suchfeld-Werte (`naam`, `wnpl`, `vern`, `land`, `gesl`) werden übersprungen; alle 59 Kategorien für Venloop 2025 gefunden (live getestet)
 
-## vCUR
+## v1121
 - Fix (Versuch): `evenementen.uitslagen.nl` TLS-Fingerprinting – PHP-curl sendet HTTP/2 (`CURL_HTTP_VERSION_2_0`, ändert ALPN-Extension im TLS-Handshake → anderer JA3-Hash); wenn curl-Response >50 KB ohne `<option>`-Elemente (= SPA-Shell erkannt), Fallback auf PHP-Streams (`file_get_contents` mit SSL-Context) — PHP-Streams nutzen OpenSSL-Wrapper mit anderem JA3 als libcurl; wenn Streams echte Daten liefern (<50 KB mit `<option>` oder `<tr>`), werden diese statt der curl-Antwort verwendet
 
-## vCUR
+## v1121
 - Fix: `evenementen.uitslagen.nl` – keine manuelle Konsolen-Eingabe mehr nötig. Ursache: Server nutzt TLS-Fingerprinting (JA3), liefert `menu.php` und `menu.html` via PHP-Proxy als SPA-Shell (67 KB, 0 `<option>`-Elemente). **Lösung**: `zoek.html` ist eine vollständig statische HTML-Datei ohne JavaScript — sie enthält alle Kategorien mit `catg`-Parametern (Format `1-Msen`, `2-M40`, `3-Vsen` etc.) und kommt unverändert durch den Proxy. Der Importer nutzt jetzt `zoek.html` als primäre Strecken-Quelle, fällt erst danach auf `menu.php` / `menu.html` zurück. Die Seiten-URLs werden je nach Quelle korrekt gebaut (`uitslag.php?catg=X` oder `?on=N`). `uitsEvenementenParseMenu` unterstützt jetzt beide Formate. Browser-Extraktor-Modal (v1108–v1110) entfernt. Live getestet: Enschede Marathon 2026 + Venloop 2025 liefern korrekte Strecken.
 
-## vCUR
+## v1121
 - Fix: `evenementen.uitslagen.nl` – TLS-Fingerprinting (JA3): Server liefert PHP-curl eine 67 KB SPA-Shell ohne `<option>`-Elemente, während der Browser 1955 Byte echtes Menü bekommt; keine Header-Anpassung hilft. Lösung: **Browser-Extraktor via Modal**: wenn `menu.php` >5000 Byte ohne Options zurückkommt, zeigt der Importer ein Modal mit einem automatisch generierten JS-Skript (Token eingebettet); der User öffnet die evenementen-Seite in einem anderen Tab, öffnet die Konsole (F12) und fügt das Skript ein; das Skript fetcht alle `uitslag.php?on=N`-Seiten direkt vom Browser (funktioniert, da same-origin) und postet die Ergebnisse (13000+ Zeilen) an den neuen `uits-receive`-Endpunkt (`Access-Control-Allow-Origin: *`); das Portal pollt alle 2s und importiert die Daten automatisch sobald sie ankommen; neue API-Endpunkte: `uits-token` (GET, generiert 32-char Hex-Token), `uits-receive` (POST mit CORS und GET zum Abfragen, temp-file Cache, TTL 10 min)
 
-## vCUR
+## v1121
 - Fix: `evenementen.uitslagen.nl` – "❌ Keine Strecken gefunden" endgültig behoben: der Server nutzt **TLS-Fingerprinting** (JA3-Hash), erkennt PHP-curl als nicht-Browser und liefert dem Proxy einen 67237-Byte-SPA-Shell ohne `<option>`-Tags; Header-Tweaks und Cookies helfen nicht; Lösung: **Browser-Extraktion via Modal** — wenn `menu.php` einen SPA-Shell liefert (>5000 Byte, 0 Strecken), öffnet sich ein Modal mit einem kopierbaren Extraktor-Skript das der User in der Browser-Konsole auf der evenementen-Seite ausführt; das Skript fetcht alle Strecken und Ergebnisse (live getestet: 13518 Zeilen Enschede Marathon 2026 in ~10s) und sendet sie per CORS-POST an neue Backend-Endpunkte `uits-receive` (speichert, CORS-Header) + `uits-token` (Einmal-Token); das Portal pollt alle 2s auf Daten und setzt den Import automatisch fort sobald die Daten eintreffen; Token läuft nach 10 Minuten ab
 
-## vCUR
+## v1121
 - Fix: `evenementen.uitslagen.nl` – TLS-Fingerprinting-Problem: Server erkennt PHP-Proxy via JA3-Fingerprint und liefert 67KB SPA-Shell statt 2KB echtem Menu-HTML mit `<option>`-Tags. Lösung: **Browser-seitiger Extraktor** via Token+CORS: (1) neuer `uits-token`-Endpunkt erzeugt Einmal-Token, (2) neuer `uits-receive`-Endpunkt nimmt Cross-Origin-POST entgegen (`Access-Control-Allow-Origin: *`) und speichert JSON per Temp-Datei, (3) Frontend erkennt SPA-Shell (>5000 Byte ohne Option-Tags), zeigt Modal mit kopierbarem Extraktor-Skript + Polling alle 2s bis Daten ankommen, dann direktes `bulkFillFromImport`; CORS-OPTIONS-Präflight vorgezogen vor `Content-Type`-Header
 
-## vCUR
+## v1121
 - Fix: `evenementen.uitslagen.nl` – "❌ Keine Strecken gefunden": `uits-fetch`-Endpunkt fetcht Unterseiten (`menu.php`, `uitslag.php`) ohne Session-Cookie; der Server liefert ohne Session eine abgespeckte Antwort ohne `<option>`-Elemente, `uitsEvenementenParseMenu()` liefert daher immer `[]`; Fix: `uits-fetch` führt jetzt zuerst einen Pre-Fetch der Basis-URL durch (`evenementen.uitslagen.nl/JJJJ/slug/`), speichert den Session-Cookie in einem temporären Cookie-Jar, und fetcht dann die eigentliche Unterseite mit diesem Cookie + Referer-Header; `@unlink` bereinigt den Temp-Jar; Debug-Zeile für `menu.php`-Ergebnis hinzugefügt
 
-## vCUR
+## v1121
 - Fix: `evenementen.uitslagen.nl`-Importer – Datum und Ort wurden nicht erkannt: Ort aus URL-Slug (enschedemarathon → Enschede), Datum 3-stufiger Fallback (kop.html/kop.php → voet.php → details.php erster Läufer "Gelopen op"), Auto-Serie auch im evenementen-Pfad aktiv, Stopword-Liste um Sponsor-Namen erweitert
 
-## vCUR
+## v1121
 - Feature+Fix: MikaTiming-Importer – mehrere kleinere Verbesserungen für die Übernahme von Meta-Daten:
   - **Datum-Parser** erweitert um deutsches Textformat „19. April 2026" (mika:timing-Seitenheader). Vorher wurde das Datum auf solchen Seiten nicht erkannt, weil nur Digital-Formate `DD.MM.YYYY` / `YYYY-MM-DD` geprüft wurden.
   - **Ort-Erkennung**: Städteliste um niederrheinische Orte erweitert (Tönisvorst, Oedt, Kempen, Grefrath, Willich, Meerbusch, Erkelenz, Mettmann, Nettetal, Geldern, Goch, Xanten, Wesel, Emmerich, Bocholt, Dorsten, Gladbeck, Marl, Recklinghausen, Herne, Witten, Iserlohn, Hamm); zusätzlich Fallback per **Subdomain→Stadt-Mapping** (`apfelbluetenlauf.r.mikatiming.com` → Tönisvorst, `vienna` → Wien, `linzmarathon` → Linz, `boston` → Boston etc.) für Fälle, in denen der Event-Name die Stadt nicht enthält.
@@ -45,19 +48,19 @@
   - **Regelmäßige Veranstaltung automatisch vorausgewählt**: Neue Frontend-Funktion `_bkMatchSerie()` vergleicht den importierten Event-Namen token-weise gegen die gespeicherten Serien. Ein Treffer setzt das Serien-Dropdown automatisch und leitet den **Ort aus der letzten Austragung** der Serie ab, wenn MikaTiming keinen Ort geliefert hat. Scoring bestraft generische Matches (z.B. „Marathon"), sodass passgenaue Serien bevorzugt werden.
   - **Backend**: `GET veranstaltung-serien` liefert zusätzlich `ort_letzte` und `name_letzte` für Ort-Ableitung und UI-Anzeigen.
 
-## vCUR
+## v1121
 - Perf: MikaTiming-Importer – **parallele Event-POSTs via `curl_multi_exec`** statt sequenzieller `foreach`-Schleife; pro Athleten-/Vereins-Suche werden die 6 Event-Anfragen (HM/10L/5L/BL/KL/JL1) jetzt gleichzeitig ausgeführt statt nacheinander; reduziert Wartezeit von ~6×RTT auf ~1×RTT pro API-Call (~6× schneller); Namens-Suche in großen Vereinen (50+ Athleten) damit wieder in akzeptabler Zeit; neue Helper-Funktion `mikaPostCurlMulti()` kapselt die Parallelisierung (read-only Cookie-Jar gegen Race-Condition)
 
-## vCUR
+## v1121
 - Fix: MikaTiming-Importer – **Ursache der seit Wochen leeren Responses live im Browser identifiziert**: der mika:timing-Server (r.mikatiming.com) liefert nur dann echte Ergebnisdaten, wenn ALLE versteckten Form-Felder im POST mitgeschickt werden (`lang=DE`, `startpage=start_responsive`, `startpage_type=search`, `event=<EVID>`). Alle bisherigen Code-Pfade (v1095-v1102) haben diese Felder gar nicht gesendet und bekamen HTTP 200 mit einem leeren HTML-Gerüst zurück — die `<li class="list-active">`-Zeilen waren leer, weil das Framework sie nicht befüllte ohne die vollständigen Context-Felder; **newInterface-POST** entsprechend umgebaut (pro Event ein POST mit korrekter Form-Struktur); **v2-JSON-API-Pfad** (der seit v1095 dauerhaft 0 Byte lieferte) deaktiviert — `SearchProvider.js` war kein v2-Marker, sondern nur das Autosuggest-Script; Interface-Erkennung umgebaut (newInterface ist wieder der Haupt-Pfad, oldInterface als Fallback); Name-Parser um `.type-fullname` erweitert; im Browser gegen Apfelblütenlauf 2026 verifiziert (Goraus/Daams HM, Wender 10L etc.)
 
-## vCUR
+## v1121
 - Diagnose+Fix: MikaTiming – Debug-Limit im Frontend von 300 auf 3000 Zeichen erhöht (v2_fallback und newInterface-Durchlauf wurden abgeschnitten und waren daher nicht sichtbar); Backend-Debug erweitert um `mainHtmlLen`, `mainHtmlHead`, `htmlHead` (erste 300 Byte der Server-Response); **2. Fallback newInterface → oldInterface** eingebaut, wenn auch der POST-Pfad 0 Treffer liefert (damit greift am Ende immer irgendein Pfad)
 
-## vCUR
+## v1121
 - Fix: MikaTiming-Importer – v2-SPA-Interface (SearchProvider.js) lieferte dauerhaft 0 Ergebnisse (HTTP 200, response_len 0), da der Server den JSON-POST ohne Grund still mit leerem Body beantwortet; **automatischer Fallback auf den POST-basierten newInterface-Pfad** eingebaut, wenn v2 keine Treffer liefert; v2-POST-Body zusätzlich um `fpid=search`, `pidp=start`, `nation=%`, `firstname=''`, `start_no=''` ergänzt (näher am echten Browser-Request) — damit greift der Importer wieder für Apfelblütenlauf 2026 und andere neue r.mikatiming.com-Sites
 
-## vCUR
+## v1121
 - Fix: MikaTiming-Importer – v2-SPA-Interface: `getList` per POST statt GET (gemäß SearchProvider.js); Parameter-Format angepasst (`options[string]`, `options[b][lists]`, `options[b][search]` kombiniert); lieferte zuvor 0 Ergebnisse (HTTP 200, leerer Body)
 - Fix: ACN-Importer – LIVE-Strecken lieferten 0 Zeilen und keine AK-Platzierung: Spalten (#NAME/#GENDER/#CAT) dynamisch per Spaltenname statt hardcodiertem Index; `parseInt` statt `Number` beim Zeit-Parsen (ignoriert trailing `km/h`-Anteil); `replace(/<[^>]*>/g,'')` statt `replace(/<.*$/,'')` für in HTML eingewickelte Zeiten
 - Feature: Alle Admins werden per E-Mail benachrichtigt sobald sich ein neuer User registriert (beide 2FA-Wege, auch bei Auto-Freigabe)
@@ -65,10 +68,10 @@
 - UX: Admin – Registrierungen-Tab entfernt; E-Mail-Einstellungen → Darstellung; ausstehende Registrierungen (inkl. Genehmigen/Ablehnen) → Benutzer-Tab; Badge-Zähler am Benutzer-Button
 - Fix: Athletenprofil – Ergebnisformat 'min_h' wurde ignoriert; _apFmtRes übergab fmtTime kein unit-Argument → Anzeige immer als 'min' statt mit Hundertstel
 
-## vCUR
+## v1121
 - Fix: Format min_h – Zeitstrings wie "3:40,37" wurden falsch als "0:03,00" angezeigt; parseFloat brach am ':' ab; fmtTime erkennt jetzt isTimeString und parst M:SS,cc und H:MM:SS,cc korrekt
 
-## vCUR
+## v1121
 - UX: Admin → Disziplinen – Kategorien als klickbare Liste; Detailansicht mit Toggle Disziplinen/Einstellungen; Kategorie-Einstellungen inline bearbeitbar; Disziplin-Tabelle nach Kategorie gefiltert; Spalte "Quelle/Format" → "Format", immer sichtbar, normale Schriftart; Kategorie-Auswahl ohne Seiten-Reload (nur Teilaktualisierung der betroffenen Bereiche)
 
 ## v1082
