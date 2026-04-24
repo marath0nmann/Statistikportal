@@ -2381,7 +2381,7 @@ async function bulkMeldeImport() {
   var repo  = (appConfig && appConfig.github_repo)   ? appConfig.github_repo.trim()   : '';
   var token = (appConfig && appConfig.github_token)  ? appConfig.github_token.trim()  : '';
   if (!repo || !token) {
-    notify('GitHub-Einstellungen nicht konfiguriert (Admin \u2192 Darstellung).', 'err');
+    notify('GitHub-Einstellungen nicht konfiguriert (Admin \u2192 Einstellungen).', 'err');
     return;
   }
 
