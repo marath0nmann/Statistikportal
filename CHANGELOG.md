@@ -1,3 +1,6 @@
+## vCUR
+- Fix: Login-Portal – Admin-UI zum Verwalten registrierter Apps (login_portal_apps); ohne eingetragene App schlug isValidRedirect immer fehl und zeigte "Direkter Zugriff nicht erlaubt"
+
 ## v1121
 - Admin-Tab "Darstellung" in "Einstellungen" umbenannt
 

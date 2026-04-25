@@ -1679,6 +1679,20 @@ async function renderAdminDarstellung() {
       '<input type="text" id="' + id + '" value="' + (val||'') + '" maxlength="7" class="settings-input" style="width:100px;font-family:monospace" oninput="if(this.value.match(/^#[0-9a-fA-F]{6}$/))document.getElementById(\'' + id + '-picker\').value=this.value"/>' +
     '</div>';
   }
+  function renderPortalAppRows() {
+    var apps = [];
+    try { apps = JSON.parse(cfgVal('login_portal_apps','[]')); } catch(e) {}
+    if (!apps.length) return '';
+    return apps.map(function(a) {
+      return '<div class="portal-app-row" style="display:flex;gap:6px;align-items:center;margin-bottom:8px">' +
+        '<input type="text" placeholder="Name" value="' + (a.name||'').replace(/"/g,'&quot;') + '" data-pa="name" class="settings-input" style="flex:1;min-width:0"/>' +
+        '<input type="text" placeholder="https://..." value="' + (a.url||'').replace(/"/g,'&quot;') + '" data-pa="url" class="settings-input" style="flex:2;min-width:0"/>' +
+        '<input type="text" placeholder="📊" value="' + (a.icon||'').replace(/"/g,'&quot;') + '" data-pa="icon" class="settings-input" style="width:44px;text-align:center"/>' +
+        '<input type="color" value="' + (a.farbe||'#5b6cf8') + '" data-pa="farbe" title="Farbe" style="width:38px;height:34px;border:none;background:none;cursor:pointer;padding:0"/>' +
+        '<button class="btn" style="padding:4px 8px;font-size:16px;line-height:1" onclick="this.closest(\'.portal-app-row\').remove()">&#x00D7;</button>' +
+      '</div>';
+    }).join('');
+  }
 
   el.innerHTML = adminSubtabs() +
     '<div style="max-width:680px;display:flex;flex-direction:column;gap:20px">' +
@@ -1842,6 +1856,12 @@ async function renderAdminDarstellung() {
         '<span style="font-size:13px;color:var(--text2)">Aktiv</span>' +
         '</label>') +
       row('Login-Portal URL', 'Vollst\u00e4ndige URL inkl. https://', textIn('cfg-login_portal_url', cfgVal('login_portal_url',''), 'https://login.tus-oedt.de')) +
+      '<div style="margin-top:14px">' +
+        '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Registrierte Anwendungen</div>' +
+        '<div style="font-size:11px;color:var(--text2);margin-bottom:10px">Diese Apps d\u00fcrfen das Login-Portal als Redirect-Ziel nutzen. Mindestens diese App muss eingetragen sein.</div>' +
+        '<div id="portal-apps-list">' + renderPortalAppRows() + '</div>' +
+        '<button class="btn" style="margin-top:8px;font-size:12px" onclick="addPortalAppRow()">+ App hinzuf\u00fcgen</button>' +
+      '</div>' +
     '</div>' +
 
     '<div style="padding-bottom:8px">' +
@@ -1868,6 +1888,21 @@ async function saveWartungAktiv(checked) {
   } else {
     notify((r && r.fehler) || 'Fehler beim Speichern.', 'err');
   }
+}
+
+function addPortalAppRow() {
+  var list = document.getElementById('portal-apps-list');
+  if (!list) return;
+  var row = document.createElement('div');
+  row.className = 'portal-app-row';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:8px';
+  row.innerHTML =
+    '<input type="text" placeholder="Name" data-pa="name" class="settings-input" style="flex:1;min-width:0"/>' +
+    '<input type="text" placeholder="https://..." data-pa="url" class="settings-input" style="flex:2;min-width:0"/>' +
+    '<input type="text" placeholder="📊" data-pa="icon" class="settings-input" style="width:44px;text-align:center"/>' +
+    '<input type="color" value="#5b6cf8" data-pa="farbe" title="Farbe" style="width:38px;height:34px;border:none;background:none;cursor:pointer;padding:0"/>' +
+    '<button class="btn" style="padding:4px 8px;font-size:16px;line-height:1" onclick="this.closest(\'.portal-app-row\').remove()">&#x00D7;</button>';
+  list.appendChild(row);
 }
 
 function previewLogo(input) {
@@ -1970,6 +2005,25 @@ async function saveAllSettings() {
     var cb = document.getElementById('cfg-' + cbKeys[j]);
     if (cb) payload[cbKeys[j]] = cb.checked ? '1' : '0';
   }
+
+  // Login-Portal Apps aus den Zeilen sammeln
+  var appRows = document.querySelectorAll('#portal-apps-list .portal-app-row');
+  var portalApps = [];
+  for (var k = 0; k < appRows.length; k++) {
+    var nameEl = appRows[k].querySelector('[data-pa="name"]');
+    var urlEl  = appRows[k].querySelector('[data-pa="url"]');
+    var iconEl = appRows[k].querySelector('[data-pa="icon"]');
+    var farbeEl= appRows[k].querySelector('[data-pa="farbe"]');
+    var urlVal = (urlEl && urlEl.value.trim()) || '';
+    if (!urlVal) continue;
+    portalApps.push({
+      name:  (nameEl && nameEl.value.trim()) || '',
+      url:   urlVal,
+      icon:  (iconEl && iconEl.value.trim()) || '📊',
+      farbe: (farbeEl && farbeEl.value) || '#5b6cf8'
+    });
+  }
+  payload['login_portal_apps'] = JSON.stringify(portalApps);
 
   // E-Mail-Domain: leer wenn Checkbox deaktiviert
   var emailDomainAktiv = document.getElementById('cfg-email_domain_aktiv');
