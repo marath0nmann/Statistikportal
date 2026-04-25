@@ -108,14 +108,16 @@ async function renderVeranstaltungenListe() {
       for (var si = 0; si < serien.length; si++) {
         var s = serien[si];
         var sLabel = s.name || s.kuerzel || 'Serie';
-        var sCnt = s.anz_ergebnisse ? Number(s.anz_ergebnisse) : 0;
-        var sAustr = s.anz_austragungen ? Number(s.anz_austragungen) : 0;
+        var sCnt    = s.anz_ergebnisse   ? Number(s.anz_ergebnisse)   : 0;
+        var sAthlet = s.anz_athleten     ? Number(s.anz_athleten)     : 0;
+        var sAustr  = s.anz_austragungen ? Number(s.anz_austragungen) : 0;
         var sJahre = (s.jahr_von && s.jahr_bis)
           ? (s.jahr_von === s.jahr_bis ? String(s.jahr_von) : s.jahr_von + '–' + s.jahr_bis)
           : '';
         var sMeta = [
-          sCnt.toLocaleString('de-DE') + (sCnt === 1 ? ' Ergebnis' : ' Ergebnisse'),
-          sAustr ? sAustr + (sAustr === 1 ? ' Austragung' : ' Austragungen') : '',
+          sCnt   ? sCnt.toLocaleString('de-DE') + (sCnt === 1 ? ' Ergebnis' : ' Ergebnisse') : '',
+          sAthlet ? sAthlet + (sAthlet === 1 ? ' Athlet' : ' Athleten') : '',
+          sAustr  ? sAustr  + (sAustr  === 1 ? ' Austragung' : ' Austragungen') : '',
           sJahre
         ].filter(Boolean).join(' · ');
         serienHtml += '<button class="rek-top-btn rek-top-btn--sm" onclick="openSerieDetail(' + s.id + ')">' +

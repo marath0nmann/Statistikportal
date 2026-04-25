@@ -1,5 +1,5 @@
 ## vCUR
-- Regelmäßige Veranstaltungen: Ergebniszeile zeigt "X Teilnehmer*innen" als Label statt Zahl in der Σ-Spalte
+- Regelmäßige Veranstaltungen: Serien-Buttons zeigen Ergebnisse (inkl. extern), Athletenanzahl, Austragungen und Jahresbereich
 
 ## v1121
 - Admin-Tab "Darstellung" in "Einstellungen" umbenannt
