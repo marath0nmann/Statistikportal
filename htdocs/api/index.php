@@ -928,15 +928,29 @@ if ($res === 'auth') {
         $bname = $reg['email'];
         // email_login_bevorzugt: kein TOTP wenn User E-Mail-Code gewählt hat
         $useEmailLogin = !empty($reg['email_login_bevorzugt']);
-        DB::query(
-            'INSERT INTO ' . DB::tbl('benutzer') . ' (benutzername, email, passwort, rolle, aktiv, totp_secret, totp_aktiv, totp_backup, athlet_id, email_login_bevorzugt)
-             VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?)',
-            [$bname, $reg['email'], $reg['passwort_hash'], $athletId ? 'athlet' : 'leser',
-             $useEmailLogin ? null : $reg['totp_secret'],
-             $useEmailLogin ? 0 : 1,
-             $useEmailLogin ? '[]' : '[]',
-             $athletId, $useEmailLogin ? 1 : 0]
-        );
+        // Prüfen ob ein soft-gelöschter Account mit dieser E-Mail existiert
+        $existingDeleted = DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE email = ? AND geloescht_am IS NOT NULL', [$reg['email']]);
+        if ($existingDeleted) {
+            DB::query(
+                'UPDATE ' . DB::tbl('benutzer') . ' SET benutzername=?, passwort=?, rolle=?, aktiv=1, geloescht_am=NULL, totp_secret=?, totp_aktiv=?, totp_backup=?, athlet_id=?, email_login_bevorzugt=? WHERE id=?',
+                [$bname, $reg['passwort_hash'], $athletId ? 'athlet' : 'leser',
+                 $useEmailLogin ? null : $reg['totp_secret'],
+                 $useEmailLogin ? 0 : 1,
+                 '[]',
+                 $athletId, $useEmailLogin ? 1 : 0,
+                 $existingDeleted['id']]
+            );
+        } else {
+            DB::query(
+                'INSERT INTO ' . DB::tbl('benutzer') . ' (benutzername, email, passwort, rolle, aktiv, totp_secret, totp_aktiv, totp_backup, athlet_id, email_login_bevorzugt)
+                 VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?)',
+                [$bname, $reg['email'], $reg['passwort_hash'], $athletId ? 'athlet' : 'leser',
+                 $useEmailLogin ? null : $reg['totp_secret'],
+                 $useEmailLogin ? 0 : 1,
+                 $useEmailLogin ? '[]' : '[]',
+                 $athletId, $useEmailLogin ? 1 : 0]
+            );
+        }
         DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE id = ?', ['approved', $regId]);
 
         // Benachrichtigungs-Mail

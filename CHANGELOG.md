@@ -1,4 +1,6 @@
 ## vCUR
+- Fix: Registrierung mit E-Mail eines soft-gelöschten Accounts schlug beim Genehmigen mit Duplicate-Entry-Fehler fehl – UPDATE statt INSERT für wiederbelebte Accounts
+
 - Feature: Admin kann Passkeys und TOTP einzelner Benutzer zurücksetzen (Benutzer bearbeiten → 2FA-Sektion)
 - Fix: Passkey löschen zeigt jetzt die genaue Fehlermeldung vom Server
 - Fix: Passkey-Sperre im Profil greift nicht mehr wenn passkey_rp_id gesetzt ist
