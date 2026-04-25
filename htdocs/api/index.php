@@ -527,7 +527,11 @@ if ($res === 'auth') {
     if ($method === 'DELETE' && $id === 'passkeys' && !empty($parts[2])) {
         $user = Auth::requireLogin();
         $pkId = (int)$parts[2];
-        if (!Passkey::delete($pkId, $user['id'])) jsonErr('Nicht gefunden oder keine Berechtigung.', 404);
+        if (!Passkey::delete($pkId, $user['id'])) {
+            $pk = DB::fetchOne('SELECT user_id FROM ' . DB::tbl('passkeys') . ' WHERE id = ?', [$pkId]);
+            if (!$pk) jsonErr('Passkey #' . $pkId . ' nicht in der Datenbank gefunden.', 404);
+            jsonErr('Passkey gehört User #' . $pk['user_id'] . ', eingeloggt als User #' . $user['id'] . '.', 403);
+        }
         jsonOk(null);
     }
     // --- Logout ---
