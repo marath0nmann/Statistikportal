@@ -831,8 +831,7 @@ async function _loadSerieTeilnahmen(serieId) {
   }).join('');
   html += '</tbody><tfoot><tr style="border-top:2px solid var(--border)">' +
     '<td></td>' +
-    '<td style="padding:6px 8px 6px 4px;font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">Teilnehmer*innen</td>' +
-    '<td style="text-align:right;font-family:\'Barlow Condensed\',sans-serif;font-size:17px;font-weight:700;color:var(--primary);padding:6px 8px 6px 4px">' + gesamtTeilnehmer + '</td>' +
+    '<td colspan="2" style="padding:6px 8px 6px 4px;font-family:\'Barlow Condensed\',sans-serif;font-size:17px;font-weight:700;color:var(--primary);white-space:nowrap">' + gesamtTeilnehmer + ' Teilnehmer*innen</td>' +
     perJahrCells +
     '</tr></tfoot></table></div>';
   html += '<div style="display:flex;gap:18px;margin-top:10px;font-size:11px;color:var(--text2);align-items:center">' +

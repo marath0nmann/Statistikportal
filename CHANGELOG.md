@@ -1,5 +1,5 @@
 ## vCUR
-- Regelmäßige Veranstaltungen: Teilnahmen-Panel nur so breit wie der Tabelleninhalt
+- Regelmäßige Veranstaltungen: Ergebniszeile zeigt "X Teilnehmer*innen" als Label statt Zahl in der Σ-Spalte
 
 ## v1121
 - Admin-Tab "Darstellung" in "Einstellungen" umbenannt
