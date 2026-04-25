@@ -646,11 +646,13 @@ if ($res === 'auth') {
         jsonErr('Registrierung läuft über das Login-Portal (' . $portalUrl . '). Bitte dort registrieren.', 400);
     }
 
-    // Login-Portal aktiv → Passkey-Verwaltung muss auf dem Login-Portal erfolgen,
+    // Login-Portal aktiv ohne shared RP-ID → Passkey-Verwaltung muss auf dem Login-Portal erfolgen,
     // da rpId an dessen Domain gebunden ist. Hier registrierte Passkeys wären dort unbrauchbar.
+    // Ausnahme: passkey_rp_id gesetzt → beide Portale nutzen dieselbe rpId, Registrierung hier OK.
     if (in_array($id, ['passkey-reg-challenge', 'passkey-reg-verify'])
         && Settings::get('login_portal_aktiv') === '1'
-        && Settings::get('login_portal_url')) {
+        && Settings::get('login_portal_url')
+        && !Settings::get('passkey_rp_id', '')) {
         $portalUrl = rtrim(Settings::get('login_portal_url'), '/');
         jsonErr('Passkey-Verwaltung läuft über das Login-Portal (' . $portalUrl . '). Bitte dort einrichten.', 400);
     }

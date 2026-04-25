@@ -82,8 +82,8 @@ async function renderPasskeySection(containerId) {
   var el = document.getElementById(containerId);
   if (!el) return;
 
-  // Passkeys sind an die Domain des Login-Portals gebunden – Verwaltung dort
-  if (window.appConfig && appConfig.login_portal_aktiv === '1' && appConfig.login_portal_url) {
+  // Passkeys sind an die rpId gebunden – ohne shared RP-ID muss die Verwaltung im Login-Portal erfolgen
+  if (window.appConfig && appConfig.login_portal_aktiv === '1' && appConfig.login_portal_url && !appConfig.passkey_rp_id) {
     var portalUrl = appConfig.login_portal_url.replace(/\/+$/, '');
     el.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px 0">' +
       '&#x2139;&#xFE0E; Passkeys werden im <a href="' + portalUrl + '" target="_blank" rel="noopener" style="color:var(--primary)">' +
