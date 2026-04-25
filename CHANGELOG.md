@@ -1,5 +1,5 @@
 ## vCUR
-- Regelmäßige Veranstaltungen: Serien-Buttons zeigen Ergebnisse (inkl. extern), Athletenanzahl, Austragungen und Jahresbereich
+- Fix: Serien-Buttons – SQL-Fehler bei anz_athleten (korrelierte UNION-Unterabfrage) behoben
 
 ## v1121
 - Admin-Tab "Darstellung" in "Einstellungen" umbenannt

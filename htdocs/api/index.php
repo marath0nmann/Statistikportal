@@ -4675,15 +4675,18 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
                  JOIN $vTbl2 vpi ON vpi.id=pi.veranstaltung_id
                  WHERE vpi.serie_id=s.id AND vpi.geloescht_am IS NULL AND vpi.genehmigt=1 AND pi.veranstaltung_id IS NOT NULL)
                 AS anz_ergebnisse,
-                (SELECT COUNT(DISTINCT u.aid) FROM (
-                  SELECT ei2.athlet_id AS aid FROM $eTbl ei2
-                  JOIN $vTbl2 vi2 ON vi2.id=ei2.veranstaltung_id
-                  WHERE vi2.serie_id=s.id AND vi2.geloescht_am IS NULL AND vi2.genehmigt=1 AND ei2.geloescht_am IS NULL
-                  UNION
-                  SELECT pi2.athlet_id AS aid FROM $pbTbl2 pi2
-                  JOIN $vTbl2 vpi2 ON vpi2.id=pi2.veranstaltung_id
-                  WHERE vpi2.serie_id=s.id AND vpi2.geloescht_am IS NULL AND vpi2.genehmigt=1 AND pi2.veranstaltung_id IS NOT NULL
-                ) u) AS anz_athleten,
+                (SELECT COUNT(DISTINCT ei2.athlet_id) FROM $eTbl ei2
+                 JOIN $vTbl2 vi2 ON vi2.id=ei2.veranstaltung_id
+                 WHERE vi2.serie_id=s.id AND vi2.geloescht_am IS NULL AND vi2.genehmigt=1 AND ei2.geloescht_am IS NULL)
+                +
+                (SELECT COUNT(DISTINCT pi2.athlet_id) FROM $pbTbl2 pi2
+                 JOIN $vTbl2 vpi2 ON vpi2.id=pi2.veranstaltung_id
+                 WHERE vpi2.serie_id=s.id AND vpi2.geloescht_am IS NULL AND vpi2.genehmigt=1 AND pi2.veranstaltung_id IS NOT NULL
+                 AND pi2.athlet_id NOT IN (
+                   SELECT ei3.athlet_id FROM $eTbl ei3
+                   JOIN $vTbl2 vi3 ON vi3.id=ei3.veranstaltung_id
+                   WHERE vi3.serie_id=s.id AND vi3.geloescht_am IS NULL AND vi3.genehmigt=1 AND ei3.geloescht_am IS NULL
+                 )) AS anz_athleten,
                 COUNT(DISTINCT v.id) AS anz_austragungen,
                 MIN(YEAR(v.datum))   AS jahr_von,
                 MAX(YEAR(v.datum))   AS jahr_bis
