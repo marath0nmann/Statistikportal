@@ -8,10 +8,9 @@ class Passkey {
 
     // ── RP-Konfiguration aus Umgebung ──────────────────────────
     public static function getRpId(): string {
-        // Konfigurierbares shared-rpId (z.B. "tus-oedt.de" für alle Subdomains)
-        $configured = Settings::get('passkey_rp_id', '');
-        if ($configured !== '') return trim($configured);
-        // Fallback: effektive Domain des aktuellen Hosts
+        if (defined('PASSKEY_RP_ID') && PASSKEY_RP_ID !== '') {
+            return PASSKEY_RP_ID;
+        }
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         return preg_replace('/:\d+$/', '', $host);
     }
