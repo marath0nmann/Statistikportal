@@ -26,6 +26,7 @@ class Auth {
     public static function startSession(): void {
         if (session_status() === PHP_SESSION_NONE) {
             session_name(SESSION_NAME);
+            ini_set('session.gc_maxlifetime', SESSION_LIFETIME);
             $cookieParams = [
                 'lifetime' => SESSION_LIFETIME,
                 'path'     => '/',
