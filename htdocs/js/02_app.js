@@ -742,6 +742,14 @@ function regPwCheck() {
 }
 
 function showRegister() {
+  // Login-Portal-Redirect: wenn aktiviert und URL gesetzt → dorthin umleiten
+  if (window.appConfig && appConfig.login_portal_aktiv === '1' && appConfig.login_portal_url) {
+    var portalUrl = appConfig.login_portal_url.replace(/\/+$/, '');
+    var redirect = encodeURIComponent(window.location.origin + window.location.pathname);
+    window.location.href = portalUrl + '?register=1&redirect=' + redirect;
+    return;
+  }
+  // Fallback: inline Registrierung (kein Login-Portal konfiguriert)
   hideLogin();
   _regState = { step: 1, email: '', name: '', pw: '', totpSecret: '', totpDone: false };
   _renderRegModal();

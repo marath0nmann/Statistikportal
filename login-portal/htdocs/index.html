@@ -685,11 +685,44 @@ body::before {
     }
   }
 
+  // ── Redirect-Validierung ───────────────────────────────
+  function isValidRedirect(url) {
+    if (!url) return false;
+    try {
+      var u = new URL(url);
+      for (var i = 0; i < apps.length; i++) {
+        try {
+          var a = new URL(apps[i].url);
+          if (u.origin === a.origin) return true;
+        } catch(e) {}
+      }
+    } catch(e) {}
+    return false;
+  }
+
+  function screenDirectAccessDenied() {
+    var appLinks = '';
+    for (var i = 0; i < apps.length; i++) {
+      var a = apps[i];
+      appLinks += '<a class="app-card" href="' + esc(a.url) + '">' +
+        '<div class="app-icon" style="background:' + esc(a.farbe || 'var(--primary)') + ';color:#fff">' + esc(a.icon || '📊') + '</div>' +
+        '<div class="app-card-text">' +
+          '<div class="app-card-name">' + esc(a.name) + '</div>' +
+          (a.beschreibung ? '<div class="app-card-desc">' + esc(a.beschreibung) + '</div>' : '') +
+        '</div>' +
+        '<span style="color:var(--text2)">&#x2192;</span>' +
+      '</a>';
+    }
+    h(logoHtml() +
+      '<div class="msg-error" style="display:block">Direkter Zugriff nicht erlaubt.<br>Bitte öffne eine der registrierten Anwendungen.</div>' +
+      (appLinks ? '<div class="app-grid" style="margin-top:24px">' + appLinks + '</div>' : '')
+    );
+  }
+
   // ── Login Success ──────────────────────────────────────
   function loginSuccess(data) {
     currentUser = data;
-    if (redirectUrl) {
-      // Direkt zur anfragenden App weiterleiten
+    if (isValidRedirect(redirectUrl)) {
       window.location.href = redirectUrl;
       return;
     }
@@ -947,14 +980,21 @@ body::before {
     var mr = await api('GET', 'auth/me', null);
     if (mr && mr.ok) {
       currentUser = mr.data;
-      if (redirectUrl) {
-        // Bereits eingeloggt → direkt weiterleiten
+      if (isValidRedirect(redirectUrl)) {
         window.location.href = redirectUrl;
         return;
       }
       screenAppSelector();
     } else {
-      screenLogin();
+      if (!isValidRedirect(redirectUrl)) {
+        screenDirectAccessDenied();
+        return;
+      }
+      if (params.get('register') === '1') {
+        screenRegister();
+      } else {
+        screenLogin();
+      }
     }
   }
 
