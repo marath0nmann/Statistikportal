@@ -74,7 +74,8 @@ async function passkeyRegister(keyName) {
 // ── Passkey löschen ───────────────────────────────────────────
 async function passkeyDelete(id) {
   var r = await apiDel('auth/passkeys/' + id);
-  return r && r.ok;
+  if (r && r.ok) return { ok: true };
+  return { ok: false, fehler: (r && r.fehler) || 'Unbekannter Fehler' };
 }
 
 // ── Passkey-Verwaltungs-UI im Profil ─────────────────────────
@@ -167,11 +168,11 @@ async function passkeyRegisterAndRefresh(containerId) {
 
 async function passkeyDeleteAndRefresh(id, containerId) {
   if (!confirm('Passkey wirklich löschen?')) return;
-  var ok = await passkeyDelete(id);
-  if (ok) {
+  var result = await passkeyDelete(id);
+  if (result.ok) {
     notify('Passkey gelöscht.', 'ok');
     await renderPasskeySection(containerId);
   } else {
-    notify('Fehler beim Löschen.', 'err');
+    notify('Fehler beim Löschen: ' + result.fehler, 'err');
   }
 }

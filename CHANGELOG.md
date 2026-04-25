@@ -1,4 +1,5 @@
 ## vCUR
+- Fix: Passkey löschen zeigt jetzt die genaue Fehlermeldung vom Server
 - Fix: Passkey-Sperre im Profil greift nicht mehr wenn passkey_rp_id gesetzt ist
 - Feature: Passkey RP-ID konfigurierbar (Admin → System → Login-Portal) – ermöglicht portalübergreifende Passkeys via gemeinsamer Parent-Domain (z. B. tus-oedt.de)
 
