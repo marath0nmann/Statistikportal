@@ -1,5 +1,5 @@
 ## vCUR
-- Regelmäßige Veranstaltungen: Info-Block zeigt Ergebnisanzahl (inkl. extern), Teilnehmerzahl und Jahresbereich; Teilnahmen-Tabelle im Panel-Design wie Bestleistungen
+- Regelmäßige Veranstaltungen: Teilnahmen-Panel nur so breit wie der Tabelleninhalt
 
 ## v1121
 - Admin-Tab "Darstellung" in "Einstellungen" umbenannt

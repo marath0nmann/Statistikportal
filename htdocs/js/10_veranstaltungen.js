@@ -299,7 +299,7 @@ async function renderSerieDetail(id) {
 
   var secStyle = 'font-family:\'Barlow Condensed\',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)';
   html += '<div style="' + secStyle + ';margin:0 0 10px">&#x1F4CA; Anzahl Teilnahmen</div>';
-  html += '<div class="panel" style="padding:20px 24px"><div id="serie-teilnahmen-content"><div class="loading" style="padding:8px"><div class="spinner"></div>Lade…</div></div></div>';
+  html += '<div class="panel" style="padding:20px 24px;display:inline-block;width:auto;max-width:100%"><div id="serie-teilnahmen-content"><div class="loading" style="padding:8px"><div class="spinner"></div>Lade…</div></div></div>';
 
   html += '<div style="' + secStyle + ';margin:32px 0 10px">&#x1F3C6; Bestleistungen</div>';
   html += _buildSerieBestleistungenShell(disziplinen, id);
