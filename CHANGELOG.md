@@ -1,5 +1,5 @@
 ## vCUR
-- Fix: Session-Lifetime – gc_maxlifetime auf SESSION_LIFETIME gesetzt, damit Server-Session und Cookie-Laufzeit übereinstimmen (verhindert unerwartetes Ausloggen)
+- Fix: Login-Portal – Passkey-Registrierung im Profil gesperrt wenn Login-Portal aktiv (rpId-Konflikt); Profil zeigt Hinweis mit Link zum Login-Portal
 
 ## v1129
 - Fix: Serien-Buttons – SQL-Fehler bei anz_athleten (korrelierte UNION-Unterabfrage) behoben
