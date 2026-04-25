@@ -527,11 +527,7 @@ if ($res === 'auth') {
     if ($method === 'DELETE' && $id === 'passkeys' && !empty($parts[2])) {
         $user = Auth::requireLogin();
         $pkId = (int)$parts[2];
-        if (!Passkey::delete($pkId, $user['id'])) {
-            $pk = DB::fetchOne('SELECT user_id FROM ' . DB::tbl('passkeys') . ' WHERE id = ?', [$pkId]);
-            if (!$pk) jsonErr('Passkey #' . $pkId . ' nicht in der Datenbank gefunden.', 404);
-            jsonErr('Passkey gehört User #' . $pk['user_id'] . ', eingeloggt als User #' . $user['id'] . '.', 403);
-        }
+        if (!Passkey::delete($pkId, $user['id'])) jsonErr('Nicht gefunden oder keine Berechtigung.', 404);
         jsonOk(null);
     }
     // --- Logout ---
@@ -1640,10 +1636,33 @@ if ($res === 'benutzer') {
         DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET ' . implode(',', $felder) . ' WHERE id=?', $params);
         jsonOk('Gespeichert.');
     }
-    if ($method === 'DELETE' && $id) {
+    if ($method === 'DELETE' && $id && empty($parts[2])) {
         if ((int)$id === (int)$user['id']) jsonErr('Eigenen Account nicht löschbar.');
         DB::query('DELETE FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [$id]);
         jsonOk('Gelöscht.');
+    }
+    // ── Admin: Passkeys eines Users ──
+    if ($method === 'GET' && $id && ($parts[2] ?? '') === 'passkeys') {
+        $pks = DB::fetchAll(
+            'SELECT id, name, aaguid, letzter_login, erstellt_am FROM ' . DB::tbl('passkeys') .
+            ' WHERE user_id = ? ORDER BY erstellt_am DESC',
+            [(int)$id]
+        );
+        jsonOk($pks);
+    }
+    if ($method === 'DELETE' && $id && ($parts[2] ?? '') === 'passkeys' && !empty($parts[3])) {
+        $pkId = (int)$parts[3];
+        $n = DB::query('DELETE FROM ' . DB::tbl('passkeys') . ' WHERE id = ? AND user_id = ?', [$pkId, (int)$id]);
+        if (!$n) jsonErr('Passkey nicht gefunden.', 404);
+        jsonOk(null);
+    }
+    // ── Admin: TOTP eines Users zurücksetzen ──
+    if ($method === 'DELETE' && $id && ($parts[2] ?? '') === 'totp') {
+        DB::query(
+            'UPDATE ' . DB::tbl('benutzer') . ' SET totp_secret = NULL, totp_aktiv = 0, totp_pending = NULL, totp_backup = NULL WHERE id = ?',
+            [(int)$id]
+        );
+        jsonOk('TOTP zurückgesetzt.');
     }
 }
 

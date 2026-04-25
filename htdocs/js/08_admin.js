@@ -740,8 +740,57 @@ function showBenutzerEditModal(id) {
     '<label style="display:flex;align-items:center;gap:8px;margin:4px 0 16px;cursor:pointer;font-size:13px">' +
       '<input type="checkbox" id="eb-email-login" ' + (b.email_login_bevorzugt ? 'checked' : '') + ' style="width:15px;height:15px"> ' +
       '&#x1F4E7; Anmeldung per E-Mail-Code (statt TOTP / Passkey)</label>' +
-    '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button><button class="btn btn-primary" onclick="updateBenutzer(' + b.id + ')">Speichern</button></div>'
+    '<div style="border-top:1px solid var(--border);margin:16px 0 12px"></div>' +
+    '<div style="font-size:13px;font-weight:700;margin-bottom:10px">&#x1F512; 2-Faktor-Authentifizierung</div>' +
+    '<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">' +
+      '<div style="flex:1;min-width:200px">' +
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">TOTP (Authenticator-App)</div>' +
+        '<div style="font-size:13px;margin-bottom:8px">' + (b.totp_aktiv ? '&#x2705; Aktiv' : '<span style="color:var(--text2)">Nicht aktiv</span>') + '</div>' +
+        (b.totp_aktiv ? '<button class="btn btn-sm" style="color:#cc0000;border-color:#cc0000" onclick="adminResetTotp(' + b.id + ')">TOTP zurücksetzen</button>' : '') +
+      '</div>' +
+      '<div style="flex:2;min-width:220px">' +
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Passkeys</div>' +
+        '<div id="eb-passkeys-list"><span style="color:var(--text2);font-size:12px">&#x23F3; Lade&hellip;</span></div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="border-top:1px solid var(--border);margin:16px 0 0"></div>' +
+    '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button><button class="btn btn-primary" onclick="updateBenutzer(' + b.id + ')">Speichern</button></div>',
+    true
   );
+  _loadAdminPasskeys(b.id);
+}
+
+async function _loadAdminPasskeys(userId) {
+  var el = document.getElementById('eb-passkeys-list');
+  if (!el) return;
+  var r = await apiGet('benutzer/' + userId + '/passkeys');
+  var pks = (r && r.ok && r.data) ? r.data : [];
+  if (!pks.length) {
+    el.innerHTML = '<span style="color:var(--text2);font-size:12px;font-style:italic">Keine Passkeys registriert.</span>';
+    return;
+  }
+  el.innerHTML = pks.map(function(pk) {
+    var datum = pk.letzter_login ? new Date(pk.letzter_login).toLocaleDateString('de-DE') : '–';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">' +
+      '<span>&#x1F511;</span>' +
+      '<div style="flex:1;font-size:12px"><strong>' + pk.name + '</strong><br><span style="color:var(--text2)">Zuletzt: ' + datum + '</span></div>' +
+      '<button class="btn btn-danger btn-sm" onclick="adminDeletePasskey(' + userId + ',' + pk.id + ')">&#x2715;</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function adminDeletePasskey(userId, pkId) {
+  if (!confirm('Passkey wirklich löschen?')) return;
+  var r = await apiDel('benutzer/' + userId + '/passkeys/' + pkId);
+  if (r && r.ok) { notify('Passkey gelöscht.', 'ok'); _loadAdminPasskeys(userId); }
+  else notify((r && r.fehler) || 'Fehler', 'err');
+}
+
+async function adminResetTotp(userId) {
+  if (!confirm('TOTP für diesen Benutzer wirklich zurücksetzen?')) return;
+  var r = await apiDel('benutzer/' + userId + '/totp');
+  if (r && r.ok) { notify('TOTP zurückgesetzt.', 'ok'); closeModal(); await renderAdmin(); }
+  else notify((r && r.fehler) || 'Fehler', 'err');
 }
 
 async function updateBenutzer(id) {
