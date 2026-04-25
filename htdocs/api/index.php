@@ -1652,8 +1652,8 @@ if ($res === 'benutzer') {
     }
     if ($method === 'DELETE' && $id && ($parts[2] ?? '') === 'passkeys' && !empty($parts[3])) {
         $pkId = (int)$parts[3];
-        $n = DB::query('DELETE FROM ' . DB::tbl('passkeys') . ' WHERE id = ? AND user_id = ?', [$pkId, (int)$id]);
-        if (!$n) jsonErr('Passkey nicht gefunden.', 404);
+        $stmt = DB::query('DELETE FROM ' . DB::tbl('passkeys') . ' WHERE id = ? AND user_id = ?', [$pkId, (int)$id]);
+        if (!$stmt->rowCount()) jsonErr('Passkey nicht gefunden.', 404);
         jsonOk(null);
     }
     // ── Admin: TOTP eines Users zurücksetzen ──

@@ -395,8 +395,8 @@ class Passkey {
 
     // ── Passkey löschen ────────────────────────────────────────
     public static function delete(int $passkeyId, int $userId): bool {
-        $r = DB::query('DELETE FROM ' . DB::tbl('passkeys') . ' WHERE id = ? AND user_id = ?', [$passkeyId, $userId]);
-        return $r > 0;
+        $stmt = DB::query('DELETE FROM ' . DB::tbl('passkeys') . ' WHERE id = ? AND user_id = ?', [$passkeyId, $userId]);
+        return $stmt->rowCount() > 0;
     }
 
     // ══════════════════════════════════════════════════════════
