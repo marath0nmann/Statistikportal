@@ -637,6 +637,15 @@ if ($res === 'auth') {
     }
 
     // ── REGISTRIERUNG ────────────────────────────────────────
+    // Login-Portal aktiv → Registrierung wird dort verwaltet; direkte API-Aufrufe blocken
+    if (in_array($id, ['register-start','register-resend','register-verify-email',
+                        'register-totp-init','register-totp-confirm','register-email-2fa'])
+        && Settings::get('login_portal_aktiv') === '1'
+        && Settings::get('login_portal_url')) {
+        $portalUrl = rtrim(Settings::get('login_portal_url'), '/');
+        jsonErr('Registrierung läuft über das Login-Portal (' . $portalUrl . '). Bitte dort registrieren.', 400);
+    }
+
     // Schritt 1: Registrierung starten, E-Mail-Bestätigungscode senden
     if ($method === 'POST' && $id === 'register-start') {
         $email    = strtolower(trim($body['email']    ?? ''));
