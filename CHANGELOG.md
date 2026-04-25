@@ -1,5 +1,5 @@
 ## vCUR
-- Regelmäßige Veranstaltungen: Teilnehmeranzahl (gesamt + pro Jahr) als Ergebniszeile in der Tabelle; Gesamtanzahl unterhalb der Tabelle entfernt
+- Regelmäßige Veranstaltungen: Info-Block zeigt Ergebnisanzahl (inkl. extern), Teilnehmerzahl und Jahresbereich; Teilnahmen-Tabelle im Panel-Design wie Bestleistungen
 
 ## v1121
 - Admin-Tab "Darstellung" in "Einstellungen" umbenannt

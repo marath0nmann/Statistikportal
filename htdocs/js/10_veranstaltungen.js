@@ -265,14 +265,31 @@ async function renderSerieDetail(id) {
   var jahrMin = jahre.length ? Math.min.apply(null, jahre) : null;
   var jahrMax = jahre.length ? Math.max.apply(null, jahre) : null;
 
+  var gesamtErg = 0, externErg = 0;
+  var athletenSet = {};
+  veranst.forEach(function(v) {
+    (v.ergebnisse || []).forEach(function(e) {
+      gesamtErg++;
+      if (e.extern) externErg++;
+      if (e.athlet_id) athletenSet[e.athlet_id] = 1;
+    });
+  });
+  var uniqueAthlets = Object.keys(athletenSet).length;
+
   var html = _serieBackBtn();
   html += '<div class="panel" style="margin-bottom:16px;padding:18px 22px">';
   html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">';
   html += '<div>';
   html += '<div style="font-size:22px;font-weight:700;line-height:1.2">' + serie.name + '</div>';
   html += '<div style="font-size:13px;color:var(--text2);margin-top:3px">';
+  if (gesamtErg) {
+    html += gesamtErg + ' Ergebnis' + (gesamtErg !== 1 ? 'se' : '');
+    if (externErg) html += ' (davon ' + externErg + ' nicht f&uuml;r den Verein)';
+    html += ' von ' + uniqueAthlets + ' Teilnehmer*' + (uniqueAthlets !== 1 ? 'innen' : 'in');
+    html += ' in ';
+  }
   html += veranst.length + ' Austragung' + (veranst.length != 1 ? 'en' : '');
-  if (jahrMin) html += ' &middot; ' + (jahrMin === jahrMax ? jahrMin : jahrMin + '&ndash;' + jahrMax);
+  if (jahrMin) html += ' (' + (jahrMin === jahrMax ? jahrMin : jahrMin + '&ndash;' + jahrMax) + ')';
   html += '</div>';
   html += '</div>';
   if (canEdit) {
@@ -282,7 +299,7 @@ async function renderSerieDetail(id) {
 
   var secStyle = 'font-family:\'Barlow Condensed\',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)';
   html += '<div style="' + secStyle + ';margin:0 0 10px">&#x1F4CA; Anzahl Teilnahmen</div>';
-  html += '<div id="serie-teilnahmen-content"><div class="loading" style="padding:24px"><div class="spinner"></div>Lade…</div></div>';
+  html += '<div class="panel" style="padding:20px 24px"><div id="serie-teilnahmen-content"><div class="loading" style="padding:8px"><div class="spinner"></div>Lade…</div></div></div>';
 
   html += '<div style="' + secStyle + ';margin:32px 0 10px">&#x1F3C6; Bestleistungen</div>';
   html += _buildSerieBestleistungenShell(disziplinen, id);
