@@ -1,5 +1,5 @@
 ## vCUR
-- Regelmäßige Veranstaltungen: Anzahl Teilnahmen zeigt jetzt Gesamtteilnehmerzahl und Teilnehmer pro Jahr
+- Regelmäßige Veranstaltungen: Teilnehmeranzahl (gesamt + pro Jahr) als Ergebniszeile in der Tabelle; Gesamtanzahl unterhalb der Tabelle entfernt
 
 ## v1121
 - Admin-Tab "Darstellung" in "Einstellungen" umbenannt

@@ -741,19 +741,11 @@ async function _loadSerieTeilnahmen(serieId) {
     });
   });
 
-  var summaryHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:14px;padding:10px 14px;background:var(--surf2);border-radius:8px;font-size:13px">';
-  summaryHtml += '<div><span style="color:var(--text2)">Gesamt:</span> <strong>' + gesamtTeilnehmer + ' Teilnehmer*in' + (gesamtTeilnehmer !== 1 ? 'nen' : '') + '</strong></div>';
-  serieJahre.forEach(function(j) {
-    var n = perJahrMap[j] || 0;
-    summaryHtml += '<div style="color:var(--text2)">' + j + ': <strong style="color:var(--text)">' + n + '</strong></div>';
-  });
-  summaryHtml += '</div>';
-
   var tlHeader = serieJahre.map(function(j) {
     return '<th style="text-align:center;width:38px;min-width:38px;font-size:11px;font-weight:600;color:var(--text2);padding:4px 2px">' + j + '</th>';
   }).join('');
 
-  var html = summaryHtml + '<div class="table-scroll" style="overflow-x:auto;width:100%"><table class="serie-teilnahmen-table" style="width:auto;min-width:max-content;border-collapse:collapse;font-size:13px">';
+  var html = '<div class="table-scroll" style="overflow-x:auto;width:100%"><table class="serie-teilnahmen-table" style="width:auto;min-width:max-content;border-collapse:collapse;font-size:13px">';
   var _thBase = 'padding:7px 10px;color:var(--text2);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;border-bottom:2px solid var(--border)';
   var _tdBase = 'padding:7px 10px;border-bottom:1px solid var(--border)';
   html += '<thead><tr>' +
@@ -816,7 +808,16 @@ async function _loadSerieTeilnahmen(serieId) {
       '</tr>';
   }
 
-  html += '</tbody></table></div>';
+  var perJahrCells = serieJahre.map(function(j) {
+    var n = perJahrMap[j] || 0;
+    return '<td style="text-align:center;padding:6px 2px;font-family:\'Barlow Condensed\',sans-serif;font-size:17px;font-weight:700;color:var(--primary)">' + (n || '–') + '</td>';
+  }).join('');
+  html += '</tbody><tfoot><tr style="border-top:2px solid var(--border)">' +
+    '<td></td>' +
+    '<td style="padding:6px 8px 6px 4px;font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap">Teilnehmer*innen</td>' +
+    '<td style="text-align:right;font-family:\'Barlow Condensed\',sans-serif;font-size:17px;font-weight:700;color:var(--primary);padding:6px 8px 6px 4px">' + gesamtTeilnehmer + '</td>' +
+    perJahrCells +
+    '</tr></tfoot></table></div>';
   html += '<div style="display:flex;gap:18px;margin-top:10px;font-size:11px;color:var(--text2);align-items:center">' +
     '<div style="display:flex;align-items:center;gap:5px"><div style="width:13px;height:13px;border-radius:50%;background:var(--primary)"></div>Für den Verein gestartet</div>' +
     '<div style="display:flex;align-items:center;gap:5px"><div style="width:13px;height:13px;border-radius:50%;border:2px solid var(--primary);opacity:.6"></div>Extern gestartet</div>' +
