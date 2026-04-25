@@ -1,5 +1,5 @@
 ## vCUR
-- Fix: Login-Portal – Passkey-Registrierung im Profil gesperrt wenn Login-Portal aktiv (rpId-Konflikt); Profil zeigt Hinweis mit Link zum Login-Portal
+- Feature: Passkey RP-ID konfigurierbar (Admin → System → Login-Portal) – ermöglicht portalübergreifende Passkeys via gemeinsamer Parent-Domain (z. B. tus-oedt.de)
 
 ## v1129
 - Fix: Serien-Buttons – SQL-Fehler bei anz_athleten (korrelierte UNION-Unterabfrage) behoben

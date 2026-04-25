@@ -1404,7 +1404,7 @@ if ($res === 'einstellungen') {
                 'kategoriegruppen',
                 'meisterschaften_liste',
                 'top_disziplinen',
-                'login_portal_aktiv','login_portal_url','login_portal_apps',
+                'login_portal_aktiv','login_portal_url','login_portal_apps','passkey_rp_id',
             ];
             $save = [];
             foreach ($erlaubt as $k) {

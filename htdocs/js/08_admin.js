@@ -1856,6 +1856,7 @@ async function renderAdminDarstellung() {
         '<span style="font-size:13px;color:var(--text2)">Aktiv</span>' +
         '</label>') +
       row('Login-Portal URL', 'Vollst\u00e4ndige URL inkl. https://', textIn('cfg-login_portal_url', cfgVal('login_portal_url',''), 'https://login.tus-oedt.de')) +
+      row('Passkey RP-ID', 'Gemeinsame Domain f\u00fcr Passkeys (z.\u202fB. tus-oedt.de). Leer = automatisch (Hostname des jeweiligen Portals). Muss in beiden Portalen identisch gesetzt sein.', textIn('cfg-passkey_rp_id', cfgVal('passkey_rp_id',''), 'tus-oedt.de')) +
       '<div style="margin-top:14px">' +
         '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Registrierte Anwendungen</div>' +
         '<div style="font-size:11px;color:var(--text2);margin-bottom:10px">Diese Apps d\u00fcrfen das Login-Portal als Redirect-Ziel nutzen. Mindestens diese App muss eingetragen sein.</div>' +
@@ -1992,6 +1993,7 @@ async function saveAllSettings() {
     'github_repo','github_token','github_token_expires',
     'wartung_nachricht',
     'login_portal_url',
+    'passkey_rp_id',
   ];
   var payload = {};
   for (var i = 0; i < keys.length; i++) {

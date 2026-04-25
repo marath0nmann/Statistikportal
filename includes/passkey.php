@@ -8,7 +8,10 @@ class Passkey {
 
     // ── RP-Konfiguration aus Umgebung ──────────────────────────
     public static function getRpId(): string {
-        // rpId = effektive Domain ohne Port und Protokoll
+        // Konfigurierbares shared-rpId (z.B. "tus-oedt.de" für alle Subdomains)
+        $configured = Settings::get('passkey_rp_id', '');
+        if ($configured !== '') return trim($configured);
+        // Fallback: effektive Domain des aktuellen Hosts
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         return preg_replace('/:\d+$/', '', $host);
     }
@@ -21,6 +24,14 @@ class Passkey {
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
         $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
         return $scheme . '://' . $host;
+    }
+
+    // Prüft ob origin zur rpId passt (erlaubt Subdomains bei shared rpId)
+    // Spec: origin's effective domain must equal or be a subdomain of rpId
+    public static function isValidOriginForRpId(string $origin, string $rpId): bool {
+        $host = parse_url($origin, PHP_URL_HOST) ?? '';
+        $host = preg_replace('/:\d+$/', '', $host);
+        return $host === $rpId || str_ends_with($host, '.' . $rpId);
     }
 
     // ── Tabelle anlegen (Auto-Migration) ───────────────────────
@@ -102,9 +113,9 @@ class Passkey {
             if (!hash_equals($expectedChallenge, $gotChallenge))
                 throw new Exception('Challenge stimmt nicht überein.');
 
-            // origin prüfen
-            if (($clientData['origin'] ?? '') !== self::getOrigin())
-                throw new Exception('Origin stimmt nicht: ' . ($clientData['origin'] ?? '') . ' vs ' . self::getOrigin());
+            // origin prüfen (erlaubt alle Subdomains der rpId bei shared-Domain-Konfiguration)
+            if (!self::isValidOriginForRpId($clientData['origin'] ?? '', self::getRpId()))
+                throw new Exception('Origin stimmt nicht: ' . ($clientData['origin'] ?? '') . ' vs rpId ' . self::getRpId());
 
             // attestationObject dekodieren
             $attObj = self::cborDecode(self::base64urlDecode($credential['response']['attestationObject'] ?? ''));
@@ -232,7 +243,7 @@ class Passkey {
 
             $gotChallenge = self::base64urlDecode($clientData['challenge'] ?? '');
             if (!hash_equals($expectedChallenge, $gotChallenge)) throw new Exception('Challenge stimmt nicht.');
-            if (($clientData['origin'] ?? '') !== self::getOrigin()) throw new Exception('Origin stimmt nicht.');
+            if (!self::isValidOriginForRpId($clientData['origin'] ?? '', self::getRpId())) throw new Exception('Origin stimmt nicht.');
 
             $authData = self::base64urlDecode($credential['response']['authenticatorData'] ?? '');
             if (strlen($authData) < 37) throw new Exception('authenticatorData zu kurz.');
@@ -309,7 +320,7 @@ class Passkey {
             if (!hash_equals($expectedChallenge, $gotChallenge))
                 throw new Exception('Challenge stimmt nicht.');
 
-            if (($clientData['origin'] ?? '') !== self::getOrigin())
+            if (!self::isValidOriginForRpId($clientData['origin'] ?? '', self::getRpId()))
                 throw new Exception('Origin stimmt nicht.');
 
             // authenticatorData
