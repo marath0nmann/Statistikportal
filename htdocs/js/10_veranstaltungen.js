@@ -732,11 +732,28 @@ async function _loadSerieTeilnahmen(serieId) {
 
   var maxT = rows[0].teilnahmen || 1;
 
+  // Gesamtteilnehmer + Teilnehmer pro Jahr
+  var gesamtTeilnehmer = rows.length;
+  var perJahrMap = {};
+  rows.forEach(function(row) {
+    (row.jahre || []).forEach(function(j) {
+      if (j) perJahrMap[j] = (perJahrMap[j] || 0) + 1;
+    });
+  });
+
+  var summaryHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:14px;padding:10px 14px;background:var(--surf2);border-radius:8px;font-size:13px">';
+  summaryHtml += '<div><span style="color:var(--text2)">Gesamt:</span> <strong>' + gesamtTeilnehmer + ' Teilnehmer*in' + (gesamtTeilnehmer !== 1 ? 'nen' : '') + '</strong></div>';
+  serieJahre.forEach(function(j) {
+    var n = perJahrMap[j] || 0;
+    summaryHtml += '<div style="color:var(--text2)">' + j + ': <strong style="color:var(--text)">' + n + '</strong></div>';
+  });
+  summaryHtml += '</div>';
+
   var tlHeader = serieJahre.map(function(j) {
     return '<th style="text-align:center;width:38px;min-width:38px;font-size:11px;font-weight:600;color:var(--text2);padding:4px 2px">' + j + '</th>';
   }).join('');
 
-  var html = '<div class="table-scroll" style="overflow-x:auto;width:100%"><table class="serie-teilnahmen-table" style="width:auto;min-width:max-content;border-collapse:collapse;font-size:13px">';
+  var html = summaryHtml + '<div class="table-scroll" style="overflow-x:auto;width:100%"><table class="serie-teilnahmen-table" style="width:auto;min-width:max-content;border-collapse:collapse;font-size:13px">';
   var _thBase = 'padding:7px 10px;color:var(--text2);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;border-bottom:2px solid var(--border)';
   var _tdBase = 'padding:7px 10px;border-bottom:1px solid var(--border)';
   html += '<thead><tr>' +
