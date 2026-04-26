@@ -5,6 +5,8 @@
 - Feature: Bulk-Eintragen – Athlet und Disziplin als Suchfelder mit Live-Filterung (wie Veranstaltungssuche), kein statisches Dropdown mehr
 - Feature: Bulk-Eintragen – "Regelmäßige Veranstaltung" ebenfalls als Suchfeld (inkl. "＋ Neue anlegen" im Dropdown)
 - Feature: Bulk-Eintragen – Checkbox "Nicht für Verein" ersetzt durch Vereinsname-Textfeld (vorausgefüllt mit eigenem Verein; leer oder anderer Verein → externes Ergebnis mit Vereinszuordnung)
+- UX: Bulk-Eintragen – "Regelmäßige Veranstaltung" steht jetzt über "Datum"; Auswahl belegt Ort (immer) und Veranstaltungsname (wenn leer) automatisch vor
+- UX: Bulk-Eintragen – Importkategorie-Auswahl synchronisiert sofort das Kategorie-Feld
 
 ## vCUR
 - Fix: Registrierung mit E-Mail eines soft-gelöschten Accounts schlug beim Genehmigen mit Duplicate-Entry-Fehler fehl – UPDATE statt INSERT für wiederbelebte Accounts

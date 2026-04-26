@@ -275,14 +275,14 @@ function renderEintragen() {
           '<button id="bk-toggle-best" class="btn btn-ghost btn-sm" onclick="bkToggleVeranst(\'best\')">&#x1F4C5; Bestehende w&auml;hlen</button>' +
         '</div>' +
         '<div id="bk-neu-form" class="form-grid" style="margin-bottom:16px">' +
-          '<div class="form-group"><label>Datum *</label><input type="date" id="bk-datum" value="' + today + '" onchange="bkSyncDatum(this.value)"/></div>' +
-          '<div class="form-group"><label>Ort *</label><input type="text" id="bk-ort" placeholder="z.B. D&uuml;sseldorf"/></div>' +
-          '<div class="form-group"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. Düsseldorf Marathon"/></div>' +
-          '<div class="form-group"><label>Datenquelle (URL)</label><input type="url" id="bk-quelle" placeholder="z.B. https://my.raceresult.com/..." style="font-size:12px"/></div>' +
           '<div class="form-group"><label>Regelmäßige Veranstaltung <span style="font-size:11px;color:var(--text2);font-weight:400">(optional)</span></label>' +
             '<input type="text" id="bk-serie-search" placeholder="Serie suchen…" autocomplete="off" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box"' +
               ' oninput="bkSerieSearch(this.value)" onfocus="bkSerieSearch(this.value)" onblur="setTimeout(bkSerieHideDropdown,200)">' +
           '</div>' +
+          '<div class="form-group"><label>Datum *</label><input type="date" id="bk-datum" value="' + today + '" onchange="bkSyncDatum(this.value)"/></div>' +
+          '<div class="form-group"><label>Ort *</label><input type="text" id="bk-ort" placeholder="z.B. D&uuml;sseldorf"/></div>' +
+          '<div class="form-group"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. Düsseldorf Marathon"/></div>' +
+          '<div class="form-group"><label>Datenquelle (URL)</label><input type="url" id="bk-quelle" placeholder="z.B. https://my.raceresult.com/..." style="font-size:12px"/></div>' +
           '<div class="form-group" style="display:flex;align-items:flex-end;gap:12px">' +
             '<div style="flex:1"><label>Kategorie</label><select id="bk-kat" style="width:100%" onchange="bkKatChanged()">' + (function(){
             var seen={}, opts='<option value="">Alle Kategorien</option>';
@@ -678,7 +678,8 @@ function bkSerieSelectIdx(i) {
   _bkSelectedSerie = s;
   var inp = document.getElementById('bk-serie-search');
   if (inp) inp.value = s.name;
-  // Veranstaltungsname vorbelegen wenn noch leer
+  var ortEl = document.getElementById('bk-ort');
+  if (ortEl && s.ort_letzte) ortEl.value = s.ort_letzte;
   var evEl = document.getElementById('bk-evname');
   if (evEl && !evEl.value) evEl.value = s.name;
   bkSerieHideDropdown();
@@ -1141,7 +1142,9 @@ function bulkPasteInput() {
 }
 
 function bulkImportKatChanged() {
-  // kein separater Import-Button mehr — bulkEinlesen() übernimmt alles
+  var kat = (document.getElementById('bk-import-kat') || {}).value || '';
+  var katEl = document.getElementById('bk-kat');
+  if (katEl && kat) { katEl.value = kat; bkKatChanged(); }
 }
 
 async function bulkImportUrl() {
