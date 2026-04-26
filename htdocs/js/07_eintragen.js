@@ -436,6 +436,140 @@ function bkVeranstHideDropdown() {
   var drop = document.getElementById('bk-veranst-dropdown');
   if (drop) drop.style.display = 'none';
 }
+
+// ── Row-Dropdown (Athlet / Disziplin) ────────────────────────
+var _bkRowDropType = null;
+var _bkRowDropTr   = null;
+var _bkRowDropResults = [];
+
+function _bkRowGetOrCreateDropdown() {
+  var drop = document.getElementById('bk-row-dropdown');
+  if (!drop) {
+    drop = document.createElement('div');
+    drop.id = 'bk-row-dropdown';
+    drop.style.cssText = 'display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:9999;max-height:280px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.22)';
+    document.body.appendChild(drop);
+  }
+  return drop;
+}
+
+function _bkRowShowDrop(inp, items, renderFn) {
+  var drop = _bkRowGetOrCreateDropdown();
+  _bkRowDropResults = items;
+  if (!items.length) {
+    drop.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:var(--text2)">Keine Treffer</div>';
+  } else {
+    drop.innerHTML = items.map(function(item, i) {
+      return '<div style="padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border)"' +
+        ' onmousedown="bkRowSelectItem(' + i + ')"' +
+        ' onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+        renderFn(item) + '</div>';
+    }).join('');
+  }
+  var rect = inp.getBoundingClientRect();
+  drop.style.left  = rect.left + 'px';
+  drop.style.top   = (rect.bottom + 2) + 'px';
+  drop.style.width = rect.width + 'px';
+  drop.style.display = '';
+}
+
+function bkRowSelectItem(i) {
+  var item = _bkRowDropResults[i];
+  if (!item) return;
+  if (_bkRowDropType === 'athlet') _bkRowAthletSelect(item);
+  else _bkRowDiszSelect(item);
+  bkRowHideDropdown();
+}
+
+function bkRowHideDropdown() {
+  var drop = document.getElementById('bk-row-dropdown');
+  if (drop) drop.style.display = 'none';
+}
+
+function bkRowAthletSearch(inp) {
+  var tr = inp.closest('tr');
+  _bkRowDropTr   = tr;
+  _bkRowDropType = 'athlet';
+  var q = inp.value.toLowerCase().trim();
+  var list = state.athleten || [];
+  var filtered = (q ? list.filter(function(a) { return a.name_nv.toLowerCase().indexOf(q) >= 0; }) : list).slice(0, 25);
+  _bkRowShowDrop(inp, filtered, function(a) {
+    var info = (a.geschlecht || '') + (a.geburtsjahr ? (a.geschlecht ? ', ' : '') + a.geburtsjahr : '');
+    return (a.name_nv || '').replace(/&/g,'&amp;').replace(/</g,'&lt;') + (info ? ' <span style="color:var(--text2);font-size:11px">(' + info + ')</span>' : '');
+  });
+}
+
+function _bkRowAthletSelect(a) {
+  var tr = _bkRowDropTr;
+  if (!tr) return;
+  var hidden = tr.querySelector('.bk-athlet');
+  var search = tr.querySelector('.bk-athlet-search');
+  if (hidden) {
+    hidden.value = a.id;
+    hidden.dataset.g    = a.geschlecht     || '';
+    hidden.dataset.gebj = a.geburtsjahr ? String(a.geburtsjahr) : '';
+  }
+  if (search) search.value = a.name_nv || '';
+  var rowId = tr.id;
+  var idx = rowId ? parseInt(rowId.replace('bkrow-', '')) : -1;
+  if (idx >= 0 && hidden) bkUpdateAK(hidden, idx);
+}
+
+function bkAthletSetById(tr, id) {
+  if (!tr || !id) return;
+  var a = (state.athleten || []).find(function(x) { return String(x.id) === String(id); });
+  var hidden = tr.querySelector('.bk-athlet');
+  var search = tr.querySelector('.bk-athlet-search');
+  if (!hidden) return;
+  hidden.value = id;
+  if (a) {
+    hidden.dataset.g    = a.geschlecht || '';
+    hidden.dataset.gebj = a.geburtsjahr ? String(a.geburtsjahr) : '';
+    if (search) search.value = a.name_nv || '';
+  }
+  var idx = tr.id ? parseInt(tr.id.replace('bkrow-', '')) : -1;
+  if (idx >= 0) bkUpdateAK(hidden, idx);
+}
+
+function bkRowDiszSearch(inp) {
+  var tr = inp.closest('tr');
+  _bkRowDropTr   = tr;
+  _bkRowDropType = 'disz';
+  var q   = inp.value.toLowerCase().trim();
+  var kat = (document.getElementById('bk-kat') || {}).value || '';
+  var erlaubt = kat ? bkKatMitGruppen(kat) : null;
+  var list = (state.disziplinen || []).filter(function(item) {
+    if (erlaubt && item.tbl_key && erlaubt.indexOf(item.tbl_key) < 0) return false;
+    if (q && item.disziplin.toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  }).slice(0, 30);
+  _bkRowShowDrop(inp, list, function(item) {
+    return (item.disziplin || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  });
+}
+
+function _bkRowDiszSelect(item) {
+  var tr = _bkRowDropTr;
+  if (!tr) return;
+  var mid = item.id || item.mapping_id || '';
+  var val = mid || item.disziplin;
+  var sel = tr.querySelector('.bk-disz');
+  var inp = tr.querySelector('.bk-disz-search');
+  if (sel) {
+    sel.value = String(val);
+    if (mid) sel.setAttribute('data-mid', String(mid));
+  }
+  if (inp) inp.value = item.disziplin || '';
+}
+
+function bkSyncDiszDisplay(tr) {
+  var sel = tr && tr.querySelector('.bk-disz');
+  var inp = tr && tr.querySelector('.bk-disz-search');
+  if (!sel || !inp) return;
+  var opt = sel.options[sel.selectedIndex];
+  inp.value = (opt && opt.value) ? opt.text : '';
+}
+
 // Gibt alle tbl_keys zurück die für eine gewählte Kategorie angezeigt werden sollen
 // inkl. Gruppen-Partner aus appConfig.kategoriegruppen
 function bkKatMitGruppen(kat) {
@@ -639,6 +773,7 @@ function bkKatChanged() {
     var _restored = false;
     if (prevMid) { for (var i = 0; i < sel.options.length; i++) { if (String(sel.options[i].value) === String(prevMid)) { sel.value = sel.options[i].value; _restored = true; break; } } }
     if (!_restored && prev) { for (var i = 0; i < sel.options.length; i++) { if (sel.options[i].value === prev) { sel.value = prev; break; } } }
+    bkSyncDiszDisplay(sel.closest('tr'));
   });
 }
 
@@ -691,18 +826,20 @@ function calcPace(disz, resultat) {
 }
 
 function bulkRowHtml(idx) {
-  var athOptHtml = '<option value="">&#x2013; w&auml;hlen &#x2013;</option>';
-  for (var i = 0; i < state.athleten.length; i++) {
-    var a = state.athleten[i];
-    var g = a.geschlecht || '';
-    var gebj = a.geburtsjahr ? String(a.geburtsjahr) : '';
-    athOptHtml += '<option value="' + a.id + '" data-g="' + g + '" data-gebj="' + gebj + '">' + a.name_nv + '</option>';
-  }
   var fld = 'box-sizing:border-box;height:34px;padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;background:var(--surf2);color:var(--text);font-family:Barlow,sans-serif;font-size:13px;outline:none;width:100%';
+  var kat = (document.getElementById('bk-kat')||{}).value||'';
   return '<tr id="bkrow-' + idx + '" style="border-bottom:1px solid var(--border)">' +
     '<td style="padding:6px;color:var(--text2);font-size:12px">' + (idx+1) + '</td>' +
-    '<td style="padding:4px 6px"><select class="bk-athlet" onchange="bkUpdateAK(this,' + idx + ')" style="' + fld + '">' + athOptHtml + '</select></td>' +
-    '<td style="padding:4px 6px"><select class="bk-disz" style="' + fld + '">' + bkDiszOpts((document.getElementById('bk-kat')||{}).value||'') + '</select></td>' +
+    '<td style="padding:4px 6px">' +
+      '<input type="hidden" class="bk-athlet">' +
+      '<input type="text" class="bk-athlet-search" placeholder="Athlet suchen…" autocomplete="off" style="' + fld + '"' +
+        ' oninput="bkRowAthletSearch(this)" onfocus="bkRowAthletSearch(this)" onblur="setTimeout(bkRowHideDropdown,200)">' +
+    '</td>' +
+    '<td style="padding:4px 6px">' +
+      '<select class="bk-disz" style="display:none">' + bkDiszOpts(kat) + '</select>' +
+      '<input type="text" class="bk-disz-search" placeholder="Disziplin suchen…" autocomplete="off" style="' + fld + '"' +
+        ' oninput="bkRowDiszSearch(this)" onfocus="bkRowDiszSearch(this)" onblur="setTimeout(bkRowHideDropdown,200)">' +
+    '</td>' +
     '<td style="padding:4px 6px"><input class="bk-res" type="text" placeholder="00:45:00" style="' + fld + '"/></td>' +
     '<td style="padding:4px 6px"><input type="text" class="bk-ak" id="bk-ak-' + idx + '" placeholder="z.B. M45" maxlength="8" style="' + fld + '"/></td>' +
     '<td style="padding:4px 6px"><input class="bk-platz" type="number" placeholder="1" min="1" style="' + fld + '"/></td>' +
@@ -721,10 +858,9 @@ function bulkRowHtml(idx) {
 }
 
 var _bulkRowCount = 0;
-function bkUpdateAK(athSel, idx) {
-  var opt = athSel.options[athSel.selectedIndex];
-  var g    = opt ? (opt.dataset.g    || '') : '';
-  var gebj = opt ? (opt.dataset.gebj || '') : '';
+function bkUpdateAK(athHidden, idx) {
+  var g    = athHidden ? (athHidden.dataset.g    || '') : '';
+  var gebj = athHidden ? (athHidden.dataset.gebj || '') : '';
   var akInp = document.getElementById('bk-ak-' + idx);
   if (!akInp) return;
   if (g && gebj) {
@@ -2297,15 +2433,10 @@ async function bulkFillFromImport(rows, statusEl) {
     if (!tr) return;
 
     // Athlet per Name matchen: 1. uitsAutoMatch, 2. nameMap aus Dialog
-    var athSel = tr.querySelector('.bk-athlet');
-    if (athSel && row.name) {
+    if (row.name) {
       var matched = uitsAutoMatch(row.name, state.athleten || []);
       if (!matched && _bnadNameMap[row.name]) matched = String(_bnadNameMap[row.name]);
-      if (matched) {
-        athSel.value = matched;
-        var idx = _bulkRowCount - 1;
-        bkUpdateAK(athSel, idx);
-      }
+      if (matched) bkAthletSetById(tr, matched);
     }
     // Disziplin setzen
     var diszSel = tr.querySelector('.bk-disz');
@@ -2342,6 +2473,7 @@ async function bulkFillFromImport(rows, statusEl) {
           }
         }
       }
+      bkSyncDiszDisplay(tr);
     }
     // Ergebnis
     var resEl = tr.querySelector('.bk-res');
@@ -2750,17 +2882,15 @@ function bulkParsePaste() {
       }
     }
 
-    // Athlet-Select
-    var athSel = tbody.querySelectorAll('.bk-athlet')[idx];
-    if (athSel) {
-      // Name normalisieren und matchen
-      var athId = _bulkFindAthlet(p.athlet);
-      if (athId) { athSel.value = athId; }
-    }
+    // Athlet
+    var _pasteRow = document.getElementById('bkrow-' + (_bulkRowCount - parsed.length + idx));
+    if (!_pasteRow) _pasteRow = tbody.querySelectorAll('tr')[idx];
+    var athId = _bulkFindAthlet(p.athlet);
+    if (athId && _pasteRow) bkAthletSetById(_pasteRow, athId);
 
-    // Disziplin-Select
+    // Disziplin
     var diszSel = tbody.querySelectorAll('.bk-disz')[idx];
-    if (diszSel && p.disz) diszSel.value = p.disz;
+    if (diszSel && p.disz) { diszSel.value = p.disz; if (_pasteRow) bkSyncDiszDisplay(_pasteRow); }
 
     // Ergebnis
     var resEl = tbody.querySelectorAll('.bk-res')[idx];
@@ -2860,9 +2990,8 @@ function bkApplyDlvAK(useCalculated) {
       return;
     }
     if (!athSel || !athSel.value) return;
-    var opt  = athSel.options[athSel.selectedIndex];
-    var g    = opt ? (opt.dataset.g    || '') : '';
-    var gebj = opt ? (opt.dataset.gebj || '') : '';
+    var g    = athSel.dataset.g    || '';
+    var gebj = athSel.dataset.gebj || '';
     if (g && gebj) {
       var ak = calcDlvAK(parseInt(gebj), g, eventJahr);
       if (ak) akInp.value = ak;
@@ -2886,9 +3015,8 @@ function bkSyncDatum(val) {
     var athSel = tr.querySelector('.bk-athlet');
     var akInp  = tr.querySelector('.bk-ak');
     if (!athSel || !athSel.value || !akInp) return;
-    var opt  = athSel.options[athSel.selectedIndex];
-    var g    = opt ? (opt.dataset.g    || '') : '';
-    var gebj = opt ? (opt.dataset.gebj || '') : '';
+    var g    = athSel.dataset.g    || '';
+    var gebj = athSel.dataset.gebj || '';
     if (g && gebj) {
       var ak = calcDlvAK(parseInt(gebj), g, eventJahr);
       if (ak) akInp.value = ak;
