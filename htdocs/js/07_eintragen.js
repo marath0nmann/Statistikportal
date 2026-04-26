@@ -302,9 +302,12 @@ function renderEintragen() {
         '</div>' +
         '<div id="bk-best-form" style="display:none;margin-bottom:16px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Veranstaltung *</label>' +
-          '<select id="bk-veranst-sel" style="width:100%;max-width:500px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text)">' +
-            '<option value="">&#x2013; laden&hellip;</option>' +
-          '</select>' +
+          '<div style="position:relative;max-width:500px">' +
+            '<input id="bk-veranst-search" type="text" placeholder="Name, Kürzel oder Ort suchen…" autocomplete="off"' +
+              ' style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box"' +
+              ' oninput="bkVeranstSearch(this.value)" onfocus="bkVeranstSearch(this.value)" onblur="setTimeout(bkVeranstHideDropdown,200)">' +
+            '<div id="bk-veranst-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:200;max-height:260px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.18);margin-top:2px"></div>' +
+          '</div>' +
         '</div>' +
 
         '<div style="margin-bottom:8px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">' +
@@ -344,8 +347,7 @@ function renderEintragen() {
 
   if (isBulk) {
     bulkAddRow();
-    bkLoadVeranstOptions();
-
+    _bkSelectedVeranst = null;
   }
 }
 
@@ -371,19 +373,52 @@ function bkToggleVeranst(modus) {
   }
 }
 
-async function bkLoadVeranstOptions() {
-  var sel = document.getElementById('bk-veranst-sel');
-  if (!sel) return;
-  var r = await apiGet('veranstaltungen?limit=50&offset=0');
-  if (!r || !r.ok || !r.data.veranst) return;
-  var opts = '<option value="">&#x2013; w&auml;hlen &#x2013;</option>';
-  var list = r.data.veranst;
-  for (var i = 0; i < list.length; i++) {
-    var v = list[i];
-    var label = (v.name || v.kuerzel) + ' (' + formatDate(v.datum) + (v.ort ? ', ' + v.ort : '') + ')';
-    opts += '<option value="' + v.id + '" data-datum="' + v.datum + '" data-ort="' + (v.ort||'') + '" data-kuerzel="' + v.kuerzel + '">' + label + '</option>';
-  }
-  sel.innerHTML = opts;
+var _bkSelectedVeranst = null;
+var _bkVeranstSearchTimer = null;
+
+function bkVeranstSearch(val) {
+  clearTimeout(_bkVeranstSearchTimer);
+  _bkVeranstSearchTimer = setTimeout(async function() {
+    var inp = document.getElementById('bk-veranst-search');
+    var drop = document.getElementById('bk-veranst-dropdown');
+    if (!drop) return;
+    var q = val.trim();
+    // Wenn der Nutzer tippt, bestehende Auswahl aufheben
+    if (_bkSelectedVeranst && inp && inp.value !== _bkVeranstLabel(_bkSelectedVeranst)) {
+      _bkSelectedVeranst = null;
+    }
+    var url = q ? 'veranstaltungen?limit=20&suche=' + encodeURIComponent(q) : 'veranstaltungen?limit=20';
+    var r = await apiGet(url);
+    var list = (r && r.ok && r.data.veranst) ? r.data.veranst : [];
+    if (!list.length) {
+      drop.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:var(--text2)">Keine Veranstaltung gefunden</div>';
+    } else {
+      drop.innerHTML = list.map(function(v) {
+        var label = _bkVeranstLabel(v);
+        return '<div style="padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border)" ' +
+          'onmousedown="bkVeranstSelect(' + JSON.stringify(v) + ')" ' +
+          'onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+          label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+      }).join('');
+    }
+    drop.style.display = '';
+  }, 250);
+}
+
+function _bkVeranstLabel(v) {
+  return (v.name || v.kuerzel) + ' (' + formatDate(v.datum) + (v.ort ? ', ' + v.ort : '') + ')';
+}
+
+function bkVeranstSelect(v) {
+  _bkSelectedVeranst = v;
+  var inp = document.getElementById('bk-veranst-search');
+  if (inp) inp.value = _bkVeranstLabel(v);
+  bkVeranstHideDropdown();
+}
+
+function bkVeranstHideDropdown() {
+  var drop = document.getElementById('bk-veranst-dropdown');
+  if (drop) drop.style.display = 'none';
 }
 // Gibt alle tbl_keys zurück die für eine gewählte Kategorie angezeigt werden sollen
 // inkl. Gruppen-Partner aus appConfig.kategoriegruppen
@@ -692,12 +727,7 @@ function bkUpdateAK(athSel, idx) {
 function _bkEventJahr() {
   // Datum aus "neue Veranstaltung"-Formular oder heutigem Jahr
   if (_bkVeranstModus === 'best') {
-    var sel = document.getElementById('bk-veranst-sel');
-    if (sel && sel.value) {
-      var opt = sel.options[sel.selectedIndex];
-      var d = opt && opt.dataset.datum;
-      if (d) return parseInt(d.substring(0, 4));
-    }
+    if (_bkSelectedVeranst && _bkSelectedVeranst.datum) return parseInt(_bkSelectedVeranst.datum.substring(0, 4));
   }
   var datEl = document.getElementById('bk-datum');
   if (datEl && datEl.value) return parseInt(datEl.value.substring(0, 4));
@@ -730,13 +760,11 @@ async function bulkSubmit() {
   var datum, ort, evname, veranstId;
 
   if (_bkVeranstModus === 'best') {
-    var sel = document.getElementById('bk-veranst-sel');
-    if (!sel || !sel.value) { notify('Bitte eine Veranstaltung w&auml;hlen!', 'err'); return; }
-    veranstId = sel.value;
-    var opt = sel.options[sel.selectedIndex];
-    datum  = opt.dataset.datum  || '';
-    ort    = opt.dataset.ort    || '';
-    evname = opt.dataset.kuerzel || '';
+    if (!_bkSelectedVeranst) { notify('Bitte eine Veranstaltung w&auml;hlen!', 'err'); return; }
+    veranstId = _bkSelectedVeranst.id;
+    datum  = _bkSelectedVeranst.datum   || '';
+    ort    = _bkSelectedVeranst.ort     || '';
+    evname = _bkSelectedVeranst.kuerzel || '';
   } else {
     var _globalDatum = (document.getElementById('bk-datum') || {}).value;
     datum  = _globalDatum;
