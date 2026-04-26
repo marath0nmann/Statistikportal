@@ -962,6 +962,14 @@ if ($res === 'auth') {
         jsonOk(['benutzername' => $bname]);
     }
 
+    // Admin: Registrierung löschen
+    if ($method === 'DELETE' && count($parts) === 3) {
+        Auth::requireAdmin();
+        $regId = (int)($parts[2] ?? 0);
+        DB::query('DELETE FROM ' . DB::tbl('registrierungen') . ' WHERE id = ?', [$regId]);
+        jsonOk('Gelöscht.');
+    }
+
     // Admin: Registrierung ablehnen
     if ($method === 'POST' && ($parts[3] ?? '') === 'ablehnen') {
         Auth::requireAdmin();

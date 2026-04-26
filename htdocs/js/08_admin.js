@@ -434,11 +434,12 @@ async function renderAdmin() {
 
   // Ausstehende Registrierungen laden
   var _pendingRegs = [];
+  var _allRegs = [];
   try {
     var _regR = await apiGet('auth/registrierungen');
     if (_regR && _regR.ok) {
       var _regData = Array.isArray(_regR.data) ? { registrierungen: _regR.data, zugeordnete_athleten: [] } : _regR.data;
-      var _allRegs = _regData.registrierungen || _regR.data || [];
+      _allRegs = _regData.registrierungen || _regR.data || [];
       window._zugeordneteAthleten = _regData.zugeordnete_athleten || [];
       _pendingRegs = _allRegs.filter(function(x) { return x.status === 'pending'; });
     }
@@ -530,6 +531,7 @@ async function renderAdmin() {
       '<div id="rollen-manager-wrap"><div class="loading"><div class="spinner"></div></div></div>' +
     '</div>' +
     (function() {
+      var _otherRegs = _allRegs.filter(function(x) { return x.status !== 'pending'; });
       var regHtml = '<div class="panel" style="margin-top:20px">' +
         '<div class="panel-header"><div class="panel-title">📝 Ausstehende Registrierungen' + (_pendingRegs.length ? ' (' + _pendingRegs.length + ')' : '') + '</div></div>';
       if (!_pendingRegs.length) {
@@ -540,6 +542,15 @@ async function renderAdmin() {
           regHtml += _regCard(_pendingRegs[_ri], true);
         }
         regHtml += '</div>';
+      }
+      if (_otherRegs.length) {
+        regHtml += '<div style="border-top:1px solid var(--border);padding:10px 16px 4px">' +
+          '<div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">Abgeschlossene / abgelehnte Einträge</div>' +
+          '<div style="display:flex;flex-direction:column;gap:8px">';
+        for (var _ri2 = 0; _ri2 < _otherRegs.length; _ri2++) {
+          regHtml += _regCard(_otherRegs[_ri2], false);
+        }
+        regHtml += '</div></div>';
       }
       regHtml += '</div>';
       return regHtml;
@@ -1115,7 +1126,10 @@ function _regCard(reg, showActions) {
             '<select id="reg-athlet-' + reg.id + '" title="Athlet zuordnen → Rolle wird automatisch auf &lsquo;Athlet&rsquo; gesetzt" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;background:var(--surface);color:var(--text)">' + athOpts + '</select>' +
             '<button class="btn btn-primary btn-sm" onclick="regGenehmigen(' + reg.id + ')">✓ Genehmigen</button>' +
             '<button class="btn btn-danger btn-sm" onclick="regAblehnen(' + reg.id + ')">✗ Ablehnen</button>' +
-          '</div>' : '') +
+          '</div>' :
+          '<div style="margin-left:auto;flex-shrink:0">' +
+            '<button class="btn btn-ghost btn-sm" onclick="regLoeschen(' + reg.id + ',\'' + reg.email.replace(/'/g,'\\\'') + '\')" title="Eintrag l\xf6schen">✕</button>' +
+          '</div>') +
       '</div>' +
     '</div>' +
   '</div>';
@@ -1143,6 +1157,23 @@ async function _doRegAblehnen(regId) {
   closeModal();
   var r = await apiPost('auth/registrierungen/' + regId + '/ablehnen', {});
   if (r && r.ok) { notify('Abgelehnt.', 'ok'); await renderAdmin(); }
+  else notify((r && r.fehler) || 'Fehler', 'err');
+}
+
+async function regLoeschen(regId, email) {
+  showModal(
+    '<h2>Registrierungseintrag löschen <button class="modal-close" onclick="closeModal()">✕</button></h2>' +
+    '<p style="font-size:13px;color:var(--text2)">Eintrag für <strong>' + email + '</strong> endgültig löschen?</p>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-danger" onclick="_doRegLoeschen(' + regId + ')">Löschen</button>' +
+    '</div>'
+  );
+}
+async function _doRegLoeschen(regId) {
+  closeModal();
+  var r = await apiDel('auth/registrierungen/' + regId);
+  if (r && r.ok) { notify('Eintrag gelöscht.', 'ok'); await renderAdmin(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
 }
 // ── ADMIN: DASHBOARD-LAYOUT ─────────────────────────────────────────────────
