@@ -285,8 +285,7 @@ function renderEintragen() {
           '<div class="form-group"><label>Ort *</label><input type="text" id="bk-ort" placeholder="z.B. D&uuml;sseldorf"/></div>' +
           '<div class="form-group"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. Düsseldorf Marathon"/></div>' +
           '<div class="form-group"><label>Datenquelle (URL)</label><input type="url" id="bk-quelle" placeholder="z.B. https://my.raceresult.com/..." style="font-size:12px"/></div>' +
-          '<div class="form-group" style="display:flex;align-items:flex-end;gap:12px">' +
-            '<div style="flex:1"><label>Kategorie</label><select id="bk-kat" style="width:100%" onchange="bkKatChanged()">' + (function(){
+          '<div class="form-group"><label>Kategorie</label><select id="bk-kat" style="width:100%" onchange="bkKatChanged()">' + (function(){
             var seen={}, opts='<option value="">Alle Kategorien</option>';
             var disz=state.disziplinen||[];
             var kats=[];
@@ -294,11 +293,8 @@ function renderEintragen() {
             for(var ki=0;ki<kats.length;ki++){opts+='<option value="'+kats[ki].key+'">'+kats[ki].name+'</option>';}
             return opts;
           })() + '</select></div>' +
-            '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;white-space:nowrap;padding-bottom:2px">' +
-              '<input type="checkbox" id="bk-mstr-toggle" onchange="importToggleMstr(\'bk\',this.checked,document.getElementById(\'bk-mstr-global\').value)" style="width:15px;height:15px;accent-color:var(--btn-bg)">' +
-              'Meisterschaft' +
-            '</label>' +
-            '<select id="bk-mstr-global" onchange="if(document.getElementById(\'bk-mstr-toggle\').checked)importToggleMstr(\'bk\',true,this.value)" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text)">' +
+          '<div class="form-group"><label>Meisterschaft <span style="font-size:11px;color:var(--text2);font-weight:400">(optional)</span></label>' +
+            '<select id="bk-mstr-global" style="width:100%" onchange="importToggleMstr(\'bk\',!!this.value,this.value)">' +
               mstrOptions(0) +
             '</select>' +
           '</div>' +
