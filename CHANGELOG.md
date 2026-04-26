@@ -1,5 +1,6 @@
 ## vCUR
-- Debug: MikaTiming-Import – Such-Übersicht pro Nachname (raw/matched), vollständiger Roh-Treffer-Dump (nicht mehr auf 30 limitiert) – um nachzuvollziehen ob z.B. "Daams" überhaupt Treffer brachte
+- Fix: MikaTiming-Import – gematchte Athleten ohne Zeit nicht mehr aus den Einträgen geworfen ("Keine TuS-Einträge gefunden" trotz Match) – Filter `_fromNewInterface && !netto` entfernt, User kann Zeit manuell ergänzen
+- Debug: MikaTiming-Import – neue Pipeline-Zeile zeigt club/nameMatches/combined → rows Zählung; bei verlorenen Matches automatischer Roh-Daten-Dump
 - UX: Bulk-Import – Veranstaltungsname wird automatisch bereinigt: trailing Jahreszahl + freistehender Ortsname werden entfernt – auch bei Auswahl einer regelmäßigen Veranstaltung
 - Perf: MikaTiming-Import – Old-Interface-Fallback (Event-ID-Loop + Detailseiten) jetzt parallel via curl_multi statt sequenziell (~10–26× schneller)
 - Fix: MikaTiming – Garbage-Event-IDs (25/50/100/ASC/DESC/name/club) werden nicht mehr als Event-IDs gesucht

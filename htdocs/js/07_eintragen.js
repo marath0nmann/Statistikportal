@@ -1643,6 +1643,20 @@ async function bulkImportFromMika(url, kat, statusEl) {
       _nameRows.filter(function(res) { return !_clubIdps[res.idp]; })
     );
     rows = mikaExtractRowsForBulk({ results: _combined }, kat);
+    // Debug: Diagnose warum rows leer sein könnte trotz Matches
+    _bkDbgLine('Pipeline', 'club=' + (r.data.results||[]).length + ' nameMatches=' + _nameRows.length + ' combined=' + _combined.length + ' → rows=' + rows.length);
+    if (_nameRows.length > 0 && rows.length === 0) {
+      _bkDbgLines.push('  ⚠ Matches gingen beim Filter verloren – Roh-Daten der ersten 3:');
+      for (var _ci = 0; _ci < Math.min(_nameRows.length, 3); _ci++) {
+        var _nr2 = _nameRows[_ci];
+        _bkDbgLines.push('    [' + _ci + '] ' + JSON.stringify({
+          name: _nr2.name, netto: _nr2.netto, ak: _nr2.ak,
+          event_id: _nr2.event_id, contest: _nr2.contest,
+          club: _nr2.club, _fromNewInterface: _nr2._fromNewInterface
+        }).slice(0,300));
+      }
+      _bkDbgFlush();
+    }
   }
 
   if (rows.length) {
@@ -1847,11 +1861,10 @@ function mikaExtractRowsForBulk(data, kat) {
   var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '').trim().toLowerCase();
 
   return results.filter(function(res) {
-    // Nur Einträge mit Name behalten; DNS/DNF = kein Ergebnis → beim neuen Interface (type-time vorhanden)
-    // explizit herausfiltern wenn weder Zeit noch Name; beim alten Interface kommt Zeit per Detail-Fetch
+    // Nur Einträge mit Name behalten. Auch ohne Zeit zulassen (User kann manuell ergänzen);
+    // früher hatten wir hier "_fromNewInterface && !netto → raus", was bei Hamburg-2019-artigen
+    // Sites zu "Keine TuS-Einträge gefunden" führte, obwohl Athleten gematcht wurden.
     if (!res.name) return false;
-    // Neues Interface: Zeit steht in Liste; wenn keine Zeit → DNS/DNF
-    if (res._fromNewInterface && !(res.netto || res.zeit)) return false;
     return true;
   }).map(function(res) {
     var contestName = res.contest || res.disziplin || '';
