@@ -1075,6 +1075,21 @@ function _bkDbgLine(label, val) {
   _bkDbgLines.push((label + ':').padEnd(16, ' ') + (val !== undefined ? val : ''));
   _bkDbgFlush();
 }
+// Bereinigt Veranstaltungsnamen: entfernt trailing Jahr und ggf. freistehenden Ortsname davor
+function _cleanEventName(name) {
+  if (!name) return name;
+  name = name.trim();
+  var m = name.match(/^(.*?)\s+(\d{4})$/);
+  if (!m) return name;
+  var withoutYear = m[1].trim();
+  // Freistehenden Ortsnamen (einzelnes Wort, Großbuchstabe, nur Buchstaben) direkt vor dem Jahr entfernen
+  var cityM = withoutYear.match(/^([\s\S]*\S)\s+([A-ZÄÖÜ][a-zA-ZäöüÄÖÜß\-]*[a-zäöüß])$/);
+  if (cityM && cityM[1].length > 0 && !/\s/.test(cityM[2])) {
+    return cityM[1].trim();
+  }
+  return withoutYear;
+}
+
 function _bkDbgHeader(title) {
   var s = '\u2500\u2500 ' + title + ' ';
   while (s.length < 52) { s += '\u2500'; }
@@ -1253,7 +1268,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
     var evEl  = document.getElementById('bk-evname');
     if (pd.date     && datEl) { datEl.value = pd.date; bkSyncDatum(pd.date); }
     if (pd.location && ortEl && !ortEl.value) ortEl.value = pd.location;
-    if (eventName   && evEl  && !evEl.value)  evEl.value  = eventName;
+    if (eventName   && evEl  && !evEl.value)  evEl.value  = _cleanEventName(eventName);
     _bkDbgLine('Datum', pd.date     || '\u2013');
     _bkDbgLine('Ort',   pd.location || '\u2013');
   }
@@ -1618,7 +1633,7 @@ async function bulkImportFromMika(url, kat, statusEl) {
   var _mikaEvName = _evData.eventName || '';
   if (_mikaEvName) {
     var evEl = document.getElementById('bk-evname');
-    if (evEl && !evEl.value) evEl.value = _mikaEvName;
+    if (evEl && !evEl.value) evEl.value = _cleanEventName(_mikaEvName);
   }
   if (_evData.eventOrt) {
     var ortEl = document.getElementById('bk-ort');
@@ -1698,7 +1713,7 @@ async function bulkImportFromUits(url, kat, statusEl) {
   }
   if (parsed.eventName) {
     var evEl = document.getElementById('bk-evname');
-    if (evEl && !evEl.value) evEl.value = parsed.eventName;
+    if (evEl && !evEl.value) evEl.value = _cleanEventName(parsed.eventName);
   }
 
   var ownRows = parsed.rows.filter(function(row) { return row.ownClub; });
@@ -2075,7 +2090,7 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   // Felder vorausfüllen
   var evEl  = document.getElementById('bk-evname');
   var ortEl = document.getElementById('bk-ort');
-  if (evEl  && !evEl.value)  evEl.value  = evName;
+  if (evEl  && !evEl.value)  evEl.value  = _cleanEventName(evName);
   if (ortEl && !ortEl.value && evOrt) ortEl.value = evOrt;
 
   var bulkRows = ownRows.map(function(row) {
@@ -2176,7 +2191,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         if (evName) {
           _bkDbgLine('Veranstaltung', evName);
           var evnEl = document.getElementById('bk-evname');
-          if (evnEl && !evnEl.value) evnEl.value = evName;
+          if (evnEl && !evnEl.value) evnEl.value = _cleanEventName(evName);
         }
       }
     } catch(e) { _bkDbgLine('Event-Name Fehler', e.message); }
@@ -2921,7 +2936,7 @@ function bulkParsePaste() {
   }
 
   // Veranstaltungsfelder befüllen wenn erkannt
-  if (evName) { var ef = document.getElementById('bk-evname'); if (ef) ef.value = evName; }
+  if (evName) { var ef = document.getElementById('bk-evname'); if (ef) ef.value = _cleanEventName(evName); }
   if (evOrt)  { var of = document.getElementById('bk-ort');    if (of) of.value = evOrt; }
 
   // Vorhandene Zeilen leeren, dann neue anlegen
@@ -4159,7 +4174,7 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
       '</div></details>' +
     '<div style="background:var(--surf2);border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end">' +
       '<div style="flex:1;min-width:200px"><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Veranstaltungsname</div>' +
-        '<input id="rr-evname" type="text" value="' + eventName + '" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:100%"/></div>' +
+        '<input id="rr-evname" type="text" value="' + _cleanEventName(eventName) + '" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:16px;background:var(--surface);color:var(--text);width:100%"/></div>' +
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Datum</div>' +
         '<input id="rr-datum" type="text" value="' + (guessDate ? guessDate.split('-').reverse().join('.') : '') + '" placeholder="TT.MM.JJJJ" onchange="_rrRefreshAKPlatz()" style="padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:13px;background:var(--surface);color:var(--text);width:120px"/></div>' +
       '<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Ort</div>' +

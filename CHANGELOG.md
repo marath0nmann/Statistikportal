@@ -1,4 +1,5 @@
 ## vCUR
+- UX: Bulk-Import – Veranstaltungsname wird automatisch bereinigt: trailing Jahreszahl + freistehender Ortsname (z.B. "Hamburg 2019") werden entfernt
 - Perf: MikaTiming-Import – Old-Interface-Fallback (Event-ID-Loop + Detailseiten) jetzt parallel via curl_multi statt sequenziell (~10–26× schneller)
 - Fix: MikaTiming – Garbage-Event-IDs (25/50/100/ASC/DESC/name/club) werden nicht mehr als Event-IDs gesucht
 - Fix: MikaTiming – Standard-Event-IDs (HM/M/10L/5L/10K/5K) immer im New-Interface-Batch enthalten (vorher fehlte z.B. HM beim Hamburg Marathon 2019)
