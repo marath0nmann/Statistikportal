@@ -3438,6 +3438,38 @@ function mikaPostCurl(string $url, string $postData, string $cookieFile, string 
  * über den initialen mainHtml-Aufruf gesetzt, was für r.mikatiming.com ausreicht.
  * Verwendet in v1104 für parallele Event-Suchen (HM/10L/5L/BL/KL/JL1) statt sequenzieller foreach.
  */
+function mikaGetCurlMulti(array $urls, string $cookieFile, string $ua): array {
+    if (empty($urls)) return [];
+    $mh = curl_multi_init();
+    $handles = [];
+    foreach ($urls as $key => $url) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_COOKIEFILE     => $cookieFile,
+            CURLOPT_USERAGENT      => $ua,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_HTTPHEADER     => ['Accept: text/html', 'Accept-Language: de-DE,de;q=0.9'],
+        ]);
+        curl_multi_add_handle($mh, $ch);
+        $handles[$key] = $ch;
+    }
+    $running = null;
+    do {
+        curl_multi_exec($mh, $running);
+        if ($running) curl_multi_select($mh, 2.0);
+    } while ($running > 0);
+    $out = [];
+    foreach ($handles as $key => $ch) {
+        $out[$key] = (string)(curl_multi_getcontent($ch) ?: '');
+        curl_multi_remove_handle($mh, $ch);
+        curl_close($ch);
+    }
+    curl_multi_close($mh);
+    return $out;
+}
+
 function mikaPostCurlMulti(string $url, array $postBodies, string $cookieFile, string $ua): array {
     if (empty($postBodies)) return [];
     $mh = curl_multi_init();
@@ -3716,13 +3748,16 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         $searchName = $nameSearch ?: $club;
         // Event-IDs aus Hauptseite extrahieren oder Defaults
         $eventIds = [];
-        preg_match_all('/value="([A-Z0-9]{1,5}L?[0-9]?)"[^>]*>[^<]+(?:km|Lauf|Marathon)/i', $mainHtml, $evm);
+        preg_match_all('/value="([A-Z][A-Z0-9]{0,5})"[^>]*>[^<]+(?:km|Lauf|Marathon)/i', $mainHtml, $evm);
         foreach ($evm[1] as $ev) $eventIds[] = $ev;
-        // Fallback auf option-Values aus select (event-Select hat die Wettbewerbe: HM/10L/5L/BL/KL/JL1 etc.)
-        preg_match_all('/<option[^>]+value="([A-Z0-9]{1,6})"/', $mainHtml, $opm);
-        foreach ($opm[1] as $ev) { if (!in_array($ev,$eventIds) && preg_match('/^[A-Z0-9]{1,6}$/',$ev)) $eventIds[] = $ev; }
+        // option-Values aus select: nur Werte die mit einem Buchstaben beginnen (kein 25/50/100/ASC/DESC etc.)
+        preg_match_all('/<option[^>]+value="([A-Z][A-Z0-9]{0,5})"/', $mainHtml, $opm);
+        $badOpts = ['ASC','DESC','NAME','CLUB','ALL','YES','NO','DE','EN'];
+        foreach ($opm[1] as $ev) { if (!in_array($ev,$eventIds) && !in_array(strtoupper($ev),$badOpts)) $eventIds[] = $ev; }
+        // Häufige Standard-Event-IDs immer mit einschließen (z.B. HM bei Hamburg Marathon 2019)
+        foreach (['HM','M','10L','5L','10K','5K'] as $_std) { if (!in_array($_std,$eventIds)) $eventIds[] = $_std; }
         if (empty($eventIds)) $eventIds = ['HM','10L','5L'];
-        $eventIds = array_unique(array_slice($eventIds, 0, 10));
+        $eventIds = array_unique(array_slice($eventIds, 0, 16));
         $debug['newIf_eventIds'] = $eventIds;
 
         $searchUrl = $baseUrl . '?pid=search&pidp=start';
@@ -3943,55 +3978,61 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             $debug['noEventResults'] = count($oldResults);
 
             // Schritt 2: Falls keine Ergebnisse → Event-ID-Loop als Fallback (z.B. für 2016er Sites)
+            // v1150: Parallel via curl_multi statt sequenziell (vorher ~26×RTT, jetzt ~1×RTT)
             if (empty($oldResults)) {
                 $oldEventIds = ['HM','10L','5L','M','10K','5K','10KM','5KM','HLM'];
-                preg_match_all('/<option[^>]+value="([A-Z0-9]{1,5}L?)"[^>]*>/i', $mainHtml, $oem);
-                foreach ($oem[1] as $ev) if (!in_array($ev, $oldEventIds)) $oldEventIds[] = $ev;
+                preg_match_all('/<option[^>]+value="([A-Z][A-Z0-9]{0,5})"[^>]*>/i', $mainHtml, $oem);
+                $badOpts2 = ['ASC','DESC','NAME','CLUB','ALL','YES','NO','DE','EN'];
+                foreach ($oem[1] as $ev) if (!in_array($ev, $oldEventIds) && !in_array(strtoupper($ev),$badOpts2)) $oldEventIds[] = $ev;
                 if ($eventId && !in_array($eventId, $oldEventIds)) $oldEventIds[] = $eventId;
                 $debug['oldEventIds'] = $oldEventIds;
+                // Alle URLs bauen und parallel abrufen
+                $oldSearchUrls = [];
                 foreach ($oldEventIds as $oEvId) {
-                $url = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
-                    . '&search%5Bname%5D=' . urlencode($nameSearch)
-                    . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
-                    . '&search_sort=name'
-                    . ($oEvId ? '&event=' . urlencode($oEvId) . '&search_event=' . urlencode($oEvId) : '');
-                $html = mikaCurl($url, $cookieFile, $ua);
-                $debug['oldSearch'][$oEvId ?: 'all'] = strlen($html);
-                // Ergebnisse parsen und mit $oEvId als contest mergen
-                $domO = new DOMDocument('1.0', 'UTF-8');
-                @$domO->loadHTML('<?xml encoding="UTF-8">' . $html);
-                $xpO = new DOMXPath($domO);
-                foreach ($xpO->query('//li[contains(@class,"list-group-item") and not(contains(@class,"list-group-header")) and not(contains(@class,"list-info"))]') as $li) {
-                    $idp = '';
-                    foreach ($xpO->query('.//a[@href]', $li) as $a) {
-                        $href = $a->getAttribute('href');
-                        if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $href, $im)) { $idp = $im[1]; break; }
-                    }
-                    if (!$idp || isset($oldResults[$idp])) continue;
-                    $name = '';
-                    foreach ($xpO->query('.//*[contains(@class,"fullname")]', $li) as $n) {
-                        $t = trim($n->textContent);
-                        if ($t) { $name = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $t); break; }
-                    }
-                    if (!$name) continue;
-                    $liClub2 = '';
-                    foreach ($xpO->query('.//*[contains(@class,"club") or contains(@class,"f-club")]', $li) as $n) {
-                        $t = trim($n->textContent); if ($t) { $liClub2 = $t; break; }
-                    }
-                    $placeGes2 = ''; $placeAK2 = '';
-                    foreach ($xpO->query('.//*[contains(@class,"place-primary")]', $li) as $n) {
-                        $t = trim($n->textContent); if (ctype_digit($t)) { $placeGes2 = $t; break; }
-                    }
-                    foreach ($xpO->query('.//*[contains(@class,"place-secondary")]', $li) as $n) {
-                        $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK2 = $t; break; }
-                    }
-                    $oldResults[$idp] = [
-                        'name' => trim($name), 'contest' => $oEvId ?: 'Unbekannt',
-                        'netto' => '', 'ak' => '', 'platz_ak' => $placeAK2, 'platz_ges' => $placeGes2,
-                        'event_id' => $oEvId, 'idp' => $idp, 'club' => $liClub2,
-                    ];
+                    $oldSearchUrls[$oEvId] = $baseUrl . '?pid=search&fpid=search&lang=DE&pidp=start'
+                        . '&search%5Bname%5D=' . urlencode($nameSearch)
+                        . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25&search%5Bnation%5D=%25'
+                        . '&search_sort=name'
+                        . '&event=' . urlencode($oEvId) . '&search_event=' . urlencode($oEvId);
                 }
-                } // end foreach $oldEventIds
+                $oldSearchHtmls = mikaGetCurlMulti($oldSearchUrls, $cookieFile, $ua);
+                foreach ($oldSearchHtmls as $oEvId => $html) {
+                    $debug['oldSearch'][$oEvId] = strlen($html);
+                    if (!$html) continue;
+                    $domO = new DOMDocument('1.0', 'UTF-8');
+                    @$domO->loadHTML('<?xml encoding="UTF-8">' . $html);
+                    $xpO = new DOMXPath($domO);
+                    foreach ($xpO->query('//li[contains(@class,"list-group-item") and not(contains(@class,"list-group-header")) and not(contains(@class,"list-info"))]') as $li) {
+                        $idp = '';
+                        foreach ($xpO->query('.//a[@href]', $li) as $a) {
+                            $href = $a->getAttribute('href');
+                            if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $href, $im)) { $idp = $im[1]; break; }
+                        }
+                        if (!$idp || isset($oldResults[$idp])) continue;
+                        $name = '';
+                        foreach ($xpO->query('.//*[contains(@class,"fullname")]', $li) as $n) {
+                            $t = trim($n->textContent);
+                            if ($t) { $name = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $t); break; }
+                        }
+                        if (!$name) continue;
+                        $liClub2 = '';
+                        foreach ($xpO->query('.//*[contains(@class,"club") or contains(@class,"f-club")]', $li) as $n) {
+                            $t = trim($n->textContent); if ($t) { $liClub2 = $t; break; }
+                        }
+                        $placeGes2 = ''; $placeAK2 = '';
+                        foreach ($xpO->query('.//*[contains(@class,"place-primary")]', $li) as $n) {
+                            $t = trim($n->textContent); if (ctype_digit($t)) { $placeGes2 = $t; break; }
+                        }
+                        foreach ($xpO->query('.//*[contains(@class,"place-secondary")]', $li) as $n) {
+                            $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK2 = $t; break; }
+                        }
+                        $oldResults[$idp] = [
+                            'name' => trim($name), 'contest' => $oEvId,
+                            'netto' => '', 'ak' => '', 'platz_ak' => $placeAK2, 'platz_ges' => $placeGes2,
+                            'event_id' => $oEvId, 'idp' => $idp, 'club' => $liClub2,
+                        ];
+                    }
+                }
             } // end if(empty($oldResults)) — Event-ID-Loop Fallback
             // $searchHtml für den nachfolgenden Parser: leer lassen, direkt $results setzen
             $searchHtml = '<html></html>';
@@ -4079,72 +4120,63 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $debug['rowsFound'] = count($results);
     } // end DOMDocument else
 
-    // 3. Detailseite pro Athlet: Zeit + AK
-    foreach ($results as &$res) {
+    // 3. Detailseite pro Athlet: Zeit + AK – parallel via curl_multi
+    $detailUrls = [];
+    foreach ($results as $ri => $res) {
         $idp = $res['idp']; $evId = $res['event_id'];
-        // Basis-Suchparameter beibehalten für Cookie-Kontext
-        // Detail-URL: bei Namensuche ohne Club-Filter (sonst falscher Cookie-Kontext)
-        $detailUrl = $baseUrl . '?content=detail&fpid=search&pid=search&lang=DE'
+        $detailUrls[$ri] = $baseUrl . '?content=detail&fpid=search&pid=search&lang=DE'
             . '&idp=' . urlencode($idp) . '&event=' . urlencode($evId) . '&pidp=start'
             . (!empty($_oldNameResults)
                 ? '&search%5Bname%5D=&search%5Bage_class%5D=%25&search%5Bsex%5D=%25'
                 : '&search%5Bclub%5D=' . urlencode($club) . '&search%5Bage_class%5D=%25&search%5Bsex%5D=%25%5Bnation%5D=%25'
               )
             . '&search_sort=name&search_event=' . urlencode($evId);
-        $dHtml = mikaCurl($detailUrl, $cookieFile, $ua);
-        if (!$dHtml) continue;
+    }
+    $detailHtmls = mikaGetCurlMulti($detailUrls, $cookieFile, $ua);
 
-        // Zeit + Details aus DOM des Detail-HTML
-        // DOMDocument für Detailseite
+    foreach ($results as $ri => &$res) {
+        $dHtml = $detailHtmls[$ri] ?? '';
+        if (!$dHtml) continue;
+        $evId = $res['event_id'];
+
         $detailDom = new DOMDocument('1.0', 'UTF-8');
         @$detailDom->loadHTML('<?xml encoding="UTF-8">' . $dHtml);
         $detailXpath = new DOMXPath($detailDom);
 
-        // Zeit: f-time_finish_netto — nur reines Zeit-Pattern extrahieren
         foreach (['f-time_finish_netto', 'f-time_finish_brutto'] as $tcls) {
             $tNodes = $detailXpath->query('//*[contains(@class,"' . $tcls . '")]');
             foreach ($tNodes as $tn) {
                 $t = trim($tn->textContent);
-                // Nur Zeit-Pattern: H:MM:SS oder H:MM
                 if (preg_match('/\b(\d{1,2}:\d{2}:\d{2}|\d{1,2}:\d{2})\b/', $t, $tm)) {
                     $res['netto'] = $tm[1]; break 2;
                 }
             }
         }
 
-        // AK: aus Suchliste (z.B. "AK40") oder Detail f-_type_age_class
-        // Geschlecht aus Detail-HTML ableiten: "Männer" / "Frauen" in Überschriften
         $sex = '';
         if (preg_match('/\b(Frauen|Women|weiblich|Female)\b/i', $dHtml)) $sex = 'W';
         elseif (preg_match('/\b(Männer|Men|männlich|Male)\b/i', $dHtml)) $sex = 'M';
-        // AK-Zahl aus f-_type_age_class
         $akNum = '';
         $akNodes = $detailXpath->query('//*[contains(@class,"f-_type_age_class") or contains(@class,"f-type_age_class")]');
         foreach ($akNodes as $an) { $t = trim($an->textContent); if ($t && $t !== '0' && is_numeric($t)) { $akNum = $t; break; } }
-        // AK aufbauen: M40, W45 etc.
         if ($akNum) {
             $res['ak'] = ($sex ?: '') . $akNum;
         } elseif ($res['ak']) {
-            // Suchliste lieferte z.B. "AK40" → Prefix aus $sex oder weglassen
             if (preg_match('/^AK(\d+)$/i', $res['ak'], $akm)) {
                 $res['ak'] = ($sex ?: '') . $akm[1];
             }
         }
-        // Fallback: kein Geschlecht gefunden → AK-Prefix aus Event-Kontext
-        // M_ = Männer, W_ oder F_ = Frauen
         if ($res['ak'] && !preg_match('/^[MW]/', $res['ak'])) {
             $evPfx = strtoupper(preg_replace('/_.*$/', '', $evId));
             if (in_array($evPfx, ['W','F','HW'])) $res['ak'] = 'W' . ltrim($res['ak'], 'AK');
             elseif (in_array($evPfx, ['M','HM','H'])) $res['ak'] = 'M' . ltrim($res['ak'], 'AK');
         }
 
-        // Platz AK aus f-place_age
         if (!$res['platz_ak']) {
             $pakNodes = $detailXpath->query('//*[contains(@class,"f-place_age")]');
             foreach ($pakNodes as $pn) { $t = trim($pn->textContent); if (ctype_digit($t)) { $res['platz_ak'] = $t; break; } }
         }
 
-        // Wettbewerbsname: "Gesamt" Abschnitt überspringen, contest aus Event-Prefix
         $contestPfx = strtoupper(preg_replace('/_.*$/', '', $evId));
         $contestMap = ['M'=>'Marathon','HM'=>'Halbmarathon','10K'=>'10km','5K'=>'5km','H'=>'Halbmarathon'];
         if (isset($contestMap[$contestPfx])) $res['contest'] = $contestMap[$contestPfx];
@@ -4158,11 +4190,10 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 if ($t && strlen($t) < 30 && strpos($c,'f-') !== false)
                     $sample[] = $c . ': ' . $t;
             }
-            // Auch roh: f-time im HTML?
             $debug['detailHasTime'] = strpos($dHtml, 'f-time_finish_netto') !== false;
             $debug['detailLen'] = strlen($dHtml);
             $debug['detailFields'] = array_slice($sample, 0, 15);
-            $debug['detailUrl'] = $detailUrl;
+            $debug['detailUrl'] = $detailUrls[$ri];
         }
     }
     unset($res);
