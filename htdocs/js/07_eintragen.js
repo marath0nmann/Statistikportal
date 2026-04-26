@@ -375,6 +375,7 @@ function bkToggleVeranst(modus) {
 
 var _bkSelectedVeranst = null;
 var _bkVeranstSearchTimer = null;
+var _bkVeranstResults = [];
 
 function bkVeranstSearch(val) {
   clearTimeout(_bkVeranstSearchTimer);
@@ -383,20 +384,19 @@ function bkVeranstSearch(val) {
     var drop = document.getElementById('bk-veranst-dropdown');
     if (!drop) return;
     var q = val.trim();
-    // Wenn der Nutzer tippt, bestehende Auswahl aufheben
     if (_bkSelectedVeranst && inp && inp.value !== _bkVeranstLabel(_bkSelectedVeranst)) {
       _bkSelectedVeranst = null;
     }
     var url = q ? 'veranstaltungen?limit=20&suche=' + encodeURIComponent(q) : 'veranstaltungen?limit=20';
     var r = await apiGet(url);
-    var list = (r && r.ok && r.data.veranst) ? r.data.veranst : [];
-    if (!list.length) {
+    _bkVeranstResults = (r && r.ok && r.data.veranst) ? r.data.veranst : [];
+    if (!_bkVeranstResults.length) {
       drop.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:var(--text2)">Keine Veranstaltung gefunden</div>';
     } else {
-      drop.innerHTML = list.map(function(v) {
+      drop.innerHTML = _bkVeranstResults.map(function(v, i) {
         var label = _bkVeranstLabel(v);
         return '<div style="padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border)" ' +
-          'onmousedown="bkVeranstSelect(' + JSON.stringify(v) + ')" ' +
+          'onmousedown="bkVeranstSelect(' + i + ')" ' +
           'onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
           label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
       }).join('');
@@ -409,7 +409,9 @@ function _bkVeranstLabel(v) {
   return (v.name || v.kuerzel) + ' (' + formatDate(v.datum) + (v.ort ? ', ' + v.ort : '') + ')';
 }
 
-function bkVeranstSelect(v) {
+function bkVeranstSelect(idx) {
+  var v = _bkVeranstResults[idx];
+  if (!v) return;
   _bkSelectedVeranst = v;
   var inp = document.getElementById('bk-veranst-search');
   if (inp) inp.value = _bkVeranstLabel(v);
