@@ -680,7 +680,7 @@ function bkSerieSelectIdx(i) {
   var ortEl = document.getElementById('bk-ort');
   if (ortEl && s.ort_letzte) ortEl.value = s.ort_letzte;
   var evEl = document.getElementById('bk-evname');
-  if (evEl && !evEl.value) evEl.value = s.name;
+  if (evEl && !evEl.value) evEl.value = _cleanEventName(s.name);
   bkSerieHideDropdown();
 }
 
