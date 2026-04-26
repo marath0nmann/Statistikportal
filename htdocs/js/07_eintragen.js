@@ -280,7 +280,8 @@ function renderEintragen() {
           '<div class="form-group"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. Düsseldorf Marathon"/></div>' +
           '<div class="form-group"><label>Datenquelle (URL)</label><input type="url" id="bk-quelle" placeholder="z.B. https://my.raceresult.com/..." style="font-size:12px"/></div>' +
           '<div class="form-group"><label>Regelmäßige Veranstaltung <span style="font-size:11px;color:var(--text2);font-weight:400">(optional)</span></label>' +
-            '<select id="bk-serie" style="width:100%" onchange="bkSerieChanged(this.value)"><option value="">– keine Zuordnung –</option></select>' +
+            '<input type="text" id="bk-serie-search" placeholder="Serie suchen…" autocomplete="off" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box"' +
+              ' oninput="bkSerieSearch(this.value)" onfocus="bkSerieSearch(this.value)" onblur="setTimeout(bkSerieHideDropdown,200)">' +
           '</div>' +
           '<div class="form-group" style="display:flex;align-items:flex-end;gap:12px">' +
             '<div style="flex:1"><label>Kategorie</label><select id="bk-kat" style="width:100%" onchange="bkKatChanged()">' + (function(){
@@ -612,17 +613,100 @@ function bkDiszOpts(kat) {
 }
 
 async function _bkLoadSerien() {
-  var sel = document.getElementById('bk-serie');
-  if (!sel) return;
   var r = await apiGet('veranstaltung-serien');
   if (!r || !r.ok) return;
-  var serien = r.data || [];
-  window._bkSerien = serien;
-  sel.innerHTML = '<option value="">– keine Zuordnung –</option>' +
-    serien.map(function(s) {
-      return '<option value="' + s.id + '">' + s.name + '</option>';
-    }).join('') +
-    '<option value="__neu__">＋ Neue regelmäßige Veranstaltung…</option>';
+  window._bkSerien = r.data || [];
+}
+
+var _bkSelectedSerie = null;
+var _bkSerieSearchTimer = null;
+
+function bkSerieSearch(val) {
+  clearTimeout(_bkSerieSearchTimer);
+  _bkSerieSearchTimer = setTimeout(function() {
+    var inp = document.getElementById('bk-serie-search');
+    if (!inp) return;
+    var drop = _bkSerieGetOrCreateDropdown();
+    var q = (val || '').toLowerCase().trim();
+    if (_bkSelectedSerie && inp.value !== _bkSelectedSerie.name) _bkSelectedSerie = null;
+    var serien = window._bkSerien || [];
+    var filtered = q ? serien.filter(function(s) { return s.name.toLowerCase().indexOf(q) >= 0; }) : serien;
+    filtered = filtered.slice(0, 25);
+    var html = '';
+    if (!q) {
+      html += '<div style="padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border);color:var(--text2)"' +
+        ' onmousedown="bkSerieSelectNone()"' +
+        ' onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+        '– keine Zuordnung –</div>';
+    }
+    html += filtered.map(function(s, i) {
+      return '<div style="padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border)"' +
+        ' onmousedown="bkSerieSelectIdx(' + i + ')"' +
+        ' onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+        (s.name || '').replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>';
+    }).join('');
+    html += '<div style="padding:8px 12px;font-size:13px;cursor:pointer;color:var(--accent)"' +
+      ' onmousedown="bkSerieNeu()"' +
+      ' onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+      '＋ Neue regelmäßige Veranstaltung…</div>';
+    drop.innerHTML = html;
+    // filtered für bkSerieSelectIdx merken
+    drop._filteredSerien = filtered;
+    var rect = inp.getBoundingClientRect();
+    drop.style.left  = rect.left + 'px';
+    drop.style.top   = (rect.bottom + 2) + 'px';
+    drop.style.width = rect.width + 'px';
+    drop.style.display = '';
+  }, 150);
+}
+
+function _bkSerieGetOrCreateDropdown() {
+  var drop = document.getElementById('bk-serie-dropdown');
+  if (!drop) {
+    drop = document.createElement('div');
+    drop.id = 'bk-serie-dropdown';
+    drop.style.cssText = 'display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:9999;max-height:280px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.22)';
+    document.body.appendChild(drop);
+  }
+  return drop;
+}
+
+function bkSerieSelectIdx(i) {
+  var drop = document.getElementById('bk-serie-dropdown');
+  var s = drop && drop._filteredSerien && drop._filteredSerien[i];
+  if (!s) return;
+  _bkSelectedSerie = s;
+  var inp = document.getElementById('bk-serie-search');
+  if (inp) inp.value = s.name;
+  // Veranstaltungsname vorbelegen wenn noch leer
+  var evEl = document.getElementById('bk-evname');
+  if (evEl && !evEl.value) evEl.value = s.name;
+  bkSerieHideDropdown();
+}
+
+function bkSerieSelectNone() {
+  _bkSelectedSerie = null;
+  var inp = document.getElementById('bk-serie-search');
+  if (inp) inp.value = '';
+  bkSerieHideDropdown();
+}
+
+function bkSerieNeu() {
+  bkSerieHideDropdown();
+  bkNeueSerieModal();
+}
+
+function bkSerieSetById(id) {
+  var s = (window._bkSerien || []).find(function(x) { return String(x.id) === String(id); });
+  if (!s) return;
+  _bkSelectedSerie = s;
+  var inp = document.getElementById('bk-serie-search');
+  if (inp) inp.value = s.name;
+}
+
+function bkSerieHideDropdown() {
+  var drop = document.getElementById('bk-serie-dropdown');
+  if (drop) drop.style.display = 'none';
 }
 
 /**
@@ -702,20 +786,6 @@ function _bkMatchSerie(eventName) {
   return best;
 }
 
-function bkSerieChanged(serieId) {
-  if (serieId === '__neu__') {
-    // Zurück auf leer setzen und Modal öffnen
-    var sel = document.getElementById('bk-serie');
-    if (sel) sel.value = '';
-    bkNeueSerieModal();
-    return;
-  }
-  // Wenn Serie gewählt: Veranstaltungsname vorbelegen
-  var serien = window._bkSerien || [];
-  var s = serien.find(function(x) { return String(x.id) === String(serieId); });
-  var evEl = document.getElementById('bk-evname');
-  if (s && evEl && !evEl.value) evEl.value = s.name;
-}
 
 async function bkNeueSerieModal() {
   showModal(
@@ -746,19 +816,10 @@ async function bkNeueSerieAnlegen() {
   var newId = r.data && r.data.id;
   closeModal();
   // Zur Liste hinzufügen und auswählen
-  var sel = document.getElementById('bk-serie');
-  if (sel && newId) {
-    // __neu__ Option herausnehmen, neue Serie einfügen, __neu__ wieder ans Ende
-    var neuOpt = Array.from(sel.options).find(function(o){ return o.value === '__neu__'; });
-    var newOpt = document.createElement('option');
-    newOpt.value = newId;
-    newOpt.textContent = name;
-    if (neuOpt) sel.insertBefore(newOpt, neuOpt);
-    else sel.appendChild(newOpt);
-    sel.value = newId;
-    // _bkSerien aktualisieren
+  if (newId) {
     if (!window._bkSerien) window._bkSerien = [];
     window._bkSerien.push({ id: newId, name: name });
+    bkSerieSetById(newId);
   }
   notify('Regelmäßige Veranstaltung "' + name + '" angelegt.', 'ok');
 }
@@ -951,7 +1012,7 @@ async function bulkSubmit() {
       ort: ort, veranstaltung_name: evname,
       datenquelle: ((document.getElementById('bk-quelle') || {}).value || '') || null,
       veranstaltung_id: veranstId ? parseInt(veranstId) : null,
-      serie_id: (function(){ var s=document.getElementById('bk-serie'); return s&&s.value?parseInt(s.value):null; })(),
+      serie_id: _bkSelectedSerie ? parseInt(_bkSelectedSerie.id) : null,
       athlet_id: parseInt(athlet_id) || null,
       disziplin: disziplin, disziplin_mapping_id: _diszMid || null, resultat: dbRes(resultat),
       altersklasse: row.querySelector('.bk-ak') ? row.querySelector('.bk-ak').value.trim() : '',
@@ -1571,8 +1632,7 @@ async function bulkImportFromMika(url, kat, statusEl) {
   if (_mikaEvName) {
     var _matchedSerie = _bkMatchSerie(_mikaEvName);
     if (_matchedSerie) {
-      var _serieSel = document.getElementById('bk-serie');
-      if (_serieSel) _serieSel.value = String(_matchedSerie.id);
+      bkSerieSetById(_matchedSerie.id);
       _bkDbgLine('Serie', _matchedSerie.name + ' (auto-erkannt)');
       // Ort aus letzter Austragung ableiten, wenn MikaTiming keinen lieferte
       if (!_evData.eventOrt && _matchedSerie.ort_letzte) {
@@ -1894,8 +1954,7 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   if (typeof _bkMatchSerie === 'function') {
     var _matchedSerieEv = _bkMatchSerie(_evNameForSerie);
     if (_matchedSerieEv) {
-      var _serieSel2 = document.getElementById('bk-serie');
-      if (_serieSel2) _serieSel2.value = String(_matchedSerieEv.id);
+      bkSerieSetById(_matchedSerieEv.id);
       _bkDbgLine('Serie', _matchedSerieEv.name + ' (auto-erkannt)');
       if (!evOrt && _matchedSerieEv.ort_letzte) {
         evOrt = _matchedSerieEv.ort_letzte;
