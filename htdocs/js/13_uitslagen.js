@@ -332,10 +332,11 @@ function uitsAutoMatch(name, athleten) {
     return noPreps ? t.filter(function(x){return !_PREPS[x];}) : t;
   }
   function _tokEq(a,b) {
-    var an=_un(a), bn=_un(b);
-    if (an===bn) return true;
-    var sh=an.length<bn.length?an:bn, lo=an.length<bn.length?bn:an;
-    return sh.length>=5 && lo.indexOf(sh)===0 && sh.length>=lo.length*0.8;
+    // Strikt: exakter Match nach Umlaut-/Akzent-Normalisierung.
+    // Frühere 80%-Präfix-Regel matchte fälschlich "Andrea" mit "Andreas" und "Kraus" mit "Krause".
+    // Compound-Namen (Hans-Peter) werden bereits via _un (Bindestrich→Leerzeichen) +
+    // _toks (Tokenize) korrekt zerlegt; jedes Teil-Token muss exakt matchen.
+    return _un(a) === _un(b);
   }
 
   for (var i=0; i<athleten.length; i++) {

@@ -3536,6 +3536,14 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         }
         // Datum aus Meta og:description, datePublished oder structured data
         if (!$eventDate) {
+            // Hamburg-style: "date":"2019-04-28T09:27:25+00:00" (häufigstes Datum = Renntag)
+            if (preg_match_all('/"date"\s*:\s*"(\d{4}-\d{2}-\d{2})/i', $mainHtml, $dms) && !empty($dms[1])) {
+                $cnts = array_count_values($dms[1]);
+                arsort($cnts);
+                $eventDate = array_key_first($cnts);
+            }
+        }
+        if (!$eventDate) {
             if (preg_match('/"startDate"\s*:\s*"(\d{4}-\d{2}-\d{2})/i', $mainHtml, $dm)) $eventDate = $dm[1];
             elseif (preg_match('/datePublished.*?(\d{4}-\d{2}-\d{2})/i', $mainHtml, $dm)) $eventDate = $dm[1];
             elseif (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $mainHtml, $dm)) $eventDate = $dm[3].'-'.$dm[2].'-'.$dm[1];
@@ -3600,6 +3608,38 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         elseif (preg_match('/<option[^>]+value="([A-Z][A-Z0-9_]{3,})"/', $mainHtml, $em)) $eventId = $em[1];
     }
     $debug['eventId'] = $eventId;
+
+    // Dynamische contestMap aus Option-Werten + Heuristik:
+    //   <option value="HML">Marathon</option>           → HML→Marathon (Klartext)
+    //   <option value="HML">Runner</option> + Title "Marathon" → HML→Marathon (Heuristik)
+    $dynContest = [];
+    if ($mainHtml) {
+        // a) direkte Klartext-Optionen mit Disziplin-Wort
+        preg_match_all('/<option\s+value="([A-Z][A-Z0-9]{0,5})"[^>]*>([^<]+)</', $mainHtml, $opAll);
+        for ($i = 0; $i < count($opAll[1]); $i++) {
+            $val = $opAll[1][$i];
+            $txt = trim($opAll[2][$i]);
+            if (isset($dynContest[$val])) continue;
+            if (preg_match('/Halbmarathon|Half\s*Marathon|Halve/i', $txt))      $dynContest[$val] = 'Halbmarathon';
+            elseif (preg_match('/Marathon/i', $txt))                            $dynContest[$val] = 'Marathon';
+            elseif (preg_match('/(\d+)\s*[Kk][Mm]/', $txt, $kmm))               $dynContest[$val] = $kmm[1] . 'km';
+            elseif (preg_match('/Staffel|Relay/i', $txt))                       $dynContest[$val] = 'Staffel';
+            elseif (preg_match('/Wheelchair|Rollstuhl/i', $txt))                $dynContest[$val] = 'Rollstuhl';
+            elseif (preg_match('/Handbike|Handbiker/i', $txt))                  $dynContest[$val] = 'Handbike';
+        }
+        // b) Heuristik aus dem Titel: bei "Marathon"-Title alle nicht-zugeordneten "Runner"/"Läufer"-Codes
+        //    nach Mustern auflösen: HM*=Halbmarathon, M oder *ML=Marathon, sofern Titel "Marathon" enthält
+        $titleHasMarathon = $eventName && stripos($eventName, 'marathon') !== false;
+        if ($titleHasMarathon) {
+            foreach ($opAll[1] as $val) {
+                if (isset($dynContest[$val])) continue;
+                // Hamburg-Konvention: HHML/HM = Halbmarathon, HML/M/MAR = Marathon
+                if (preg_match('/^HHM?L?$|^HM$/i', $val))     $dynContest[$val] = 'Halbmarathon';
+                elseif (preg_match('/^HML$|^M$|^MAR$/i', $val)) $dynContest[$val] = 'Marathon';
+            }
+        }
+    }
+    $debug['dynContest'] = $dynContest;
 
     // 2. Interface-Erkennung: alle r.mikatiming.com-Sites nutzen den Form-POST-Pfad
     //    (historisch v2-JSON-API probiert, aber die antwortet seit Jahren still mit 0 Byte)
@@ -3896,7 +3936,8 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         if (!empty($results)) $debug['firstResult'] = $results[0];
 
         // contestMap setzen + neues Interface markieren (kein Detail-Fetch nötig)
-        $contestMap = ['HM'=>'Halbmarathon','10L'=>'10km','5L'=>'5km'];
+        // Dynamische Map (aus Hauptseiten-Optionen) hat Vorrang vor Default-Defaults.
+        $contestMap = array_merge(['HM'=>'Halbmarathon','10L'=>'10km','5L'=>'5km'], $dynContest);
         foreach ($results as &$res) {
             if (isset($contestMap[$res['event_id']])) $res['contest'] = $contestMap[$res['event_id']];
             $res['_fromNewInterface'] = true;
@@ -3961,8 +4002,20 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 }
                 if (!$name) continue;
                 $liClub2 = '';
+                // Variante A: legacy class "club" / "f-club"
                 foreach ($xpNE->query('.//*[contains(@class,"club") or contains(@class,"f-club")]', $li) as $n) {
                     $t = trim($n->textContent); if ($t) { $liClub2 = $t; break; }
+                }
+                // Variante B: Hamburg-style "type-field" mit Label "Verein" / "Verein/Team" / "Team"
+                if (!$liClub2) {
+                    foreach ($xpNE->query('.//*[contains(@class,"type-field")]', $li) as $fn) {
+                        $labelEl = $xpNE->query('.//*[contains(@class,"list-label")]', $fn)->item(0);
+                        $label = $labelEl ? trim($labelEl->textContent) : '';
+                        if (preg_match('/^(Verein|Team|Verein\/Team|Club)/i', $label)) {
+                            $val = trim(str_replace($label, '', $fn->textContent));
+                            if ($val) { $liClub2 = $val; break; }
+                        }
+                    }
                 }
                 $placeGes2 = ''; $placeAK2 = '';
                 foreach ($xpNE->query('.//*[contains(@class,"place-primary")]', $li) as $n) {
@@ -3971,9 +4024,32 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 foreach ($xpNE->query('.//*[contains(@class,"place-secondary")]', $li) as $n) {
                     $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK2 = $t; break; }
                 }
+                // Hamburg-style: Zeit aus type-time Label "Finish" / "Ziel" / "Zeit"
+                $liNetto2 = '';
+                foreach ($xpNE->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
+                    $labelEl = $xpNE->query('.//*[contains(@class,"list-label")]', $tn)->item(0);
+                    $label = $labelEl ? trim($labelEl->textContent) : '';
+                    if (preg_match('/^(Finish|Ziel|Zeit|Netto)/i', $label) || $label === '') {
+                        $raw = trim(str_replace($label, '', $tn->textContent));
+                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) { $liNetto2 = $tm[1]; break; }
+                    }
+                }
+                if (!$liNetto2) {
+                    foreach ($xpNE->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
+                        $raw = $tn->textContent;
+                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) { $liNetto2 = $tm[1]; break; }
+                    }
+                }
+                // AK aus type-age_class (z.B. "M / W 40 1975-1979" → "M40")
+                $liAK2 = '';
+                foreach ($xpNE->query('.//*[contains(@class,"type-age_class") or contains(@class,"age_class")]', $li) as $an) {
+                    $raw = $an->textContent;
+                    // Geschlecht + Zahl extrahieren: "M / W 40 1975-1979" → "M40"; "W45" bleibt "W45"
+                    if (preg_match('/\b([MW])[^A-Z]*?(\d{2})\b/', $raw, $am)) { $liAK2 = $am[1] . $am[2]; break; }
+                }
                 $oldResults[$idp] = [
                     'name' => trim($name), 'contest' => $evIdFromLink ?: 'Unbekannt',
-                    'netto' => '', 'ak' => '', 'platz_ak' => $placeAK2, 'platz_ges' => $placeGes2,
+                    'netto' => $liNetto2, 'ak' => $liAK2, 'platz_ak' => $placeAK2, 'platz_ges' => $placeGes2,
                     'event_id' => $evIdFromLink, 'idp' => $idp, 'club' => $liClub2,
                 ];
             }
@@ -4130,8 +4206,10 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     } // end DOMDocument else
 
     // 3. Detailseite pro Athlet: Zeit + AK – parallel via curl_multi
+    //    v1157: skip Detail-Fetch wenn netto+ak schon aus Suchliste extrahiert (Hamburg-style)
     $detailUrls = [];
     foreach ($results as $ri => $res) {
+        if (!empty($res['netto']) && !empty($res['ak'])) continue; // bereits vollständig
         $idp = $res['idp']; $evId = $res['event_id'];
         $detailUrls[$ri] = $baseUrl . '?content=detail&fpid=search&pid=search&lang=DE'
             . '&idp=' . urlencode($idp) . '&event=' . urlencode($evId) . '&pidp=start'
@@ -4186,9 +4264,14 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             foreach ($pakNodes as $pn) { $t = trim($pn->textContent); if (ctype_digit($t)) { $res['platz_ak'] = $t; break; } }
         }
 
+        // Dynamische contestMap (aus Optionen + Heuristik) hat Vorrang vor Defaults
         $contestPfx = strtoupper(preg_replace('/_.*$/', '', $evId));
-        $contestMap = ['M'=>'Marathon','HM'=>'Halbmarathon','10K'=>'10km','5K'=>'5km','H'=>'Halbmarathon'];
-        if (isset($contestMap[$contestPfx])) $res['contest'] = $contestMap[$contestPfx];
+        $contestMap = array_merge(
+            ['M'=>'Marathon','HM'=>'Halbmarathon','10K'=>'10km','5K'=>'5km','H'=>'Halbmarathon'],
+            $dynContest ?? []
+        );
+        if (isset($contestMap[$evId])) $res['contest'] = $contestMap[$evId];
+        elseif (isset($contestMap[$contestPfx])) $res['contest'] = $contestMap[$contestPfx];
 
         if (!isset($debug['detailSample'])) {
             $sample = [];
