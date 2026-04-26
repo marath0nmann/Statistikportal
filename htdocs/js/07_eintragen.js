@@ -282,9 +282,6 @@ function renderEintragen() {
           '</div>' +
           '<div class="form-grid">' +
           '<div class="form-group"><label>Datum *</label><input type="date" id="bk-datum" value="' + today + '" onchange="bkSyncDatum(this.value)"/></div>' +
-          '<div class="form-group"><label>Ort *</label><input type="text" id="bk-ort" placeholder="z.B. D&uuml;sseldorf"/></div>' +
-          '<div class="form-group"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. Düsseldorf Marathon"/></div>' +
-          '<div class="form-group"><label>Datenquelle (URL)</label><input type="url" id="bk-quelle" placeholder="z.B. https://my.raceresult.com/..." style="font-size:12px"/></div>' +
           '<div class="form-group"><label>Kategorie</label><select id="bk-kat" style="width:100%" onchange="bkKatChanged()">' + (function(){
             var seen={}, opts='<option value="">Alle Kategorien</option>';
             var disz=state.disziplinen||[];
@@ -293,11 +290,14 @@ function renderEintragen() {
             for(var ki=0;ki<kats.length;ki++){opts+='<option value="'+kats[ki].key+'">'+kats[ki].name+'</option>';}
             return opts;
           })() + '</select></div>' +
-          '<div class="form-group"><label>Meisterschaft <span style="font-size:11px;color:var(--text2);font-weight:400">(optional)</span></label>' +
+          '<div class="form-group"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. Düsseldorf Marathon"/></div>' +
+          '<div class="form-group"><label>Ort *</label><input type="text" id="bk-ort" placeholder="z.B. D&uuml;sseldorf"/></div>' +
+          '<div class="form-group"><label>Meisterschaft</label>' +
             '<select id="bk-mstr-global" style="width:100%" onchange="importToggleMstr(\'bk\',!!this.value,this.value)">' +
               mstrOptions(0) +
             '</select>' +
           '</div>' +
+          '<div class="form-group"><label>Datenquelle (URL)</label><input type="url" id="bk-quelle" placeholder="z.B. https://my.raceresult.com/..." style="font-size:12px"/></div>' +
           '</div>' +
         '</div>' +
         '<div id="bk-best-form" style="display:none;margin-bottom:16px">' +
