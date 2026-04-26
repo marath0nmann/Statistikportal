@@ -1569,15 +1569,20 @@ async function bulkImportFromMika(url, kat, statusEl) {
     });
     var _idpSeen = {};
     var _nameRows = [];
+    var _allMikaResults = []; // Debug: alle Treffer (auch nicht-gematchte)
+    var _searchedNames = [];  // Debug: alle gesuchten Nachnamen
     // Parallele Requests in Batches (5 gleichzeitig) für ~5× Speedup
     var _BATCH = 5;
     for (var _ni = 0; _ni < _nachnamen.length; _ni += _BATCH) {
       var _batch = _nachnamen.slice(_ni, _ni + _BATCH);
       if (statusEl) statusEl.textContent = '⏳ Athleten-Suche ' + Math.min(_ni + _BATCH, _nachnamen.length) + '/' + _nachnamen.length + '…';
       var _batchResults = await Promise.all(_batch.map(function(_nn) {
-        return apiGet('mika-fetch?base_url=' + encodeURIComponent(baseUrl) + '&club=' + encodeURIComponent(vereinRaw) + '&name=' + encodeURIComponent(_nn));
+        _searchedNames.push(_nn);
+        return apiGet('mika-fetch?base_url=' + encodeURIComponent(baseUrl) + '&club=' + encodeURIComponent(vereinRaw) + '&name=' + encodeURIComponent(_nn))
+          .then(function(_r) { return { name: _nn, r: _r }; });
       }));
-      _batchResults.forEach(function(_nr) {
+      _batchResults.forEach(function(_wrap) {
+        var _nn = _wrap.name; var _nr = _wrap.r;
         if (!_nr || !_nr.ok || !_nr.data.results) {
           if (_nr && _nr.data && _nr.data.debug && !_bkDbgLines._namDebugShown) {
             _bkDbgLine('Name-API-Debug', JSON.stringify(_nr.data.debug).slice(0,3000));
@@ -1585,6 +1590,10 @@ async function bulkImportFromMika(url, kat, statusEl) {
           }
           return;
         }
+        // Debug: alle MikaTiming-Treffer sammeln (mit Such-Name)
+        (_nr.data.results || []).forEach(function(res) {
+          _allMikaResults.push({ q: _nn, name: res.name, idp: res.idp });
+        });
         if (!_bkDbgLines._namDebugShown && _nr.data.debug) {
           _bkDbgLine('Name-API-Debug', JSON.stringify(_nr.data.debug).slice(0,3000));
           _bkDbgLines._namDebugShown = true;
@@ -1599,6 +1608,19 @@ async function bulkImportFromMika(url, kat, statusEl) {
       });
     }
     _bkDbgLine('Namens-Treffer', _nameRows.length + ' Athleten gefunden');
+    // Debug: zeige alle gesuchten Nachnamen (gekürzt) und alle rohen MikaTiming-Treffer
+    _bkDbgLine('Gesuchte Namen', _searchedNames.length + ': ' + _searchedNames.join(', ').slice(0,500));
+    if (_allMikaResults.length) {
+      _bkDbgLine('Mika-Roh-Treffer', _allMikaResults.length + ' (alle gefundenen Namen):');
+      var _dbgMax = Math.min(_allMikaResults.length, 30);
+      for (var _ari = 0; _ari < _dbgMax; _ari++) {
+        var _mr = _allMikaResults[_ari];
+        var _matchInfo = uitsAutoMatch(_mr.name, _athleten);
+        _bkDbgLines.push('  q="' + _mr.q + '" → ' + _mr.name + (_matchInfo ? ' ✓ matched id=' + _matchInfo : ' ✗ no match'));
+      }
+    } else {
+      _bkDbgLine('Mika-Roh-Treffer', '0 (KEIN einziger Name brachte Treffer von MikaTiming)');
+    }
     // Vereins-Ergebnisse mit Namens-Ergebnissen zusammenführen (dedup via idp)
     var _clubIdps = {};
     (r.data.results || []).forEach(function(res) { if (res.idp) _clubIdps[res.idp] = true; });

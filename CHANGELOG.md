@@ -1,4 +1,5 @@
 ## vCUR
+- Debug: MikaTiming-Import – zeigt jetzt alle gesuchten Nachnamen, alle rohen Mika-Treffer mit Match-Status sowie rohe idp-Vorkommen pro Antwort (zum Aufspüren warum z.B. Patrick Daams nicht zugeordnet wird)
 - UX: Bulk-Import – Veranstaltungsname wird automatisch bereinigt: trailing Jahreszahl + freistehender Ortsname werden entfernt – auch bei Auswahl einer regelmäßigen Veranstaltung
 - Perf: MikaTiming-Import – Old-Interface-Fallback (Event-ID-Loop + Detailseiten) jetzt parallel via curl_multi statt sequenziell (~10–26× schneller)
 - Fix: MikaTiming – Garbage-Event-IDs (25/50/100/ASC/DESC/name/club) werden nicht mehr als Event-IDs gesucht

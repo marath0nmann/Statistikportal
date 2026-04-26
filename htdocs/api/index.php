@@ -3935,6 +3935,8 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 . '&search_sort=name';
             $htmlNoEvent = mikaCurl($urlNoEvent, $cookieFile, $ua);
             $debug['noEventHtmlLen'] = strlen($htmlNoEvent);
+            // Schnell-Zähler: rohe idp-Vorkommen im HTML (Sanity-Check für Parser)
+            $debug['noEventIdpRaw'] = preg_match_all('/[?&]idp=[A-Z0-9]{8,}/i', $htmlNoEvent);
 
             // Parse results from no-event search
             $domNE = new DOMDocument('1.0', 'UTF-8');
@@ -3976,6 +3978,13 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 ];
             }
             $debug['noEventResults'] = count($oldResults);
+            // Wenn rohe idp-Treffer im HTML existieren aber Parser nichts fand → erste li dumpen
+            if (count($oldResults) === 0 && ($debug['noEventIdpRaw'] ?? 0) > 0) {
+                if (preg_match('/<li[^>]*class="[^"]*list-group-item[^"]*row[^"]*"[^>]*>.*?<\/li>/s', $htmlNoEvent, $sm)) {
+                    $debug['noEventFirstLiSample'] = mb_substr(strip_tags($sm[0]), 0, 300);
+                    $debug['noEventFirstLiHtmlLen'] = strlen($sm[0]);
+                }
+            }
 
             // Schritt 2: Falls keine Ergebnisse → Event-ID-Loop als Fallback (z.B. für 2016er Sites)
             // v1150: Parallel via curl_multi statt sequenziell (vorher ~26×RTT, jetzt ~1×RTT)
