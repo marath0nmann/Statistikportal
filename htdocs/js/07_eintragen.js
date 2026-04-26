@@ -1608,19 +1608,34 @@ async function bulkImportFromMika(url, kat, statusEl) {
       });
     }
     _bkDbgLine('Namens-Treffer', _nameRows.length + ' Athleten gefunden');
-    // Debug: zeige alle gesuchten Nachnamen (gekürzt) und alle rohen MikaTiming-Treffer
-    _bkDbgLine('Gesuchte Namen', _searchedNames.length + ': ' + _searchedNames.join(', ').slice(0,500));
+    // Debug: Per-Query-Übersicht (welche Such-Namen brachten wie viele Roh-/Match-Treffer)
+    var _byQuery = {};
+    _searchedNames.forEach(function(n) { _byQuery[n] = { raw: 0, matched: 0, nonEmpty: false }; });
+    _allMikaResults.forEach(function(m) {
+      if (!_byQuery[m.q]) _byQuery[m.q] = { raw: 0, matched: 0, nonEmpty: false };
+      _byQuery[m.q].raw++;
+      _byQuery[m.q].nonEmpty = true;
+      if (uitsAutoMatch(m.name, _athleten)) _byQuery[m.q].matched++;
+    });
+    _bkDbgLine('Such-Übersicht', _searchedNames.length + ' Namen gesucht, ' + _allMikaResults.length + ' Roh-Treffer total');
+    // Liste nur Queries mit Treffern (die uns interessieren)
+    var _queriesWithHits = _searchedNames.filter(function(n) { return _byQuery[n] && _byQuery[n].nonEmpty; });
+    _bkDbgLines.push('  ' + _queriesWithHits.length + ' Namen mit Treffer:');
+    _queriesWithHits.forEach(function(n) {
+      var s = _byQuery[n];
+      _bkDbgLines.push('    ' + n.padEnd(22,' ') + ' raw=' + String(s.raw).padStart(3) + ' matched=' + s.matched);
+    });
+    var _queriesNoHits = _searchedNames.filter(function(n) { return !(_byQuery[n] && _byQuery[n].nonEmpty); });
+    _bkDbgLines.push('  ' + _queriesNoHits.length + ' Namen OHNE Treffer (erste 30): ' + _queriesNoHits.slice(0,30).join(', '));
+    // Detail-Dump aller Roh-Treffer (alle, nicht nur 30)
     if (_allMikaResults.length) {
-      _bkDbgLine('Mika-Roh-Treffer', _allMikaResults.length + ' (alle gefundenen Namen):');
-      var _dbgMax = Math.min(_allMikaResults.length, 30);
-      for (var _ari = 0; _ari < _dbgMax; _ari++) {
-        var _mr = _allMikaResults[_ari];
+      _bkDbgLines.push('  -- Alle Roh-Treffer mit Match-Status --');
+      _allMikaResults.forEach(function(_mr) {
         var _matchInfo = uitsAutoMatch(_mr.name, _athleten);
-        _bkDbgLines.push('  q="' + _mr.q + '" → ' + _mr.name + (_matchInfo ? ' ✓ matched id=' + _matchInfo : ' ✗ no match'));
-      }
-    } else {
-      _bkDbgLine('Mika-Roh-Treffer', '0 (KEIN einziger Name brachte Treffer von MikaTiming)');
+        _bkDbgLines.push('    q="' + _mr.q + '" → ' + _mr.name + (_matchInfo ? ' ✓ id=' + _matchInfo : ' ✗'));
+      });
     }
+    _bkDbgFlush();
     // Vereins-Ergebnisse mit Namens-Ergebnissen zusammenführen (dedup via idp)
     var _clubIdps = {};
     (r.data.results || []).forEach(function(res) { if (res.idp) _clubIdps[res.idp] = true; });
