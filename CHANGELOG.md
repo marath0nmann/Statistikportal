@@ -1,6 +1,7 @@
 ## vCUR
 - Feature: Bulk-Eintragen – "Bestehende Veranstaltung wählen" jetzt als Suchfeld mit Live-Filterung über alle Veranstaltungen (statt statischer Liste der letzten 50)
 - Fix: Klick auf Veranstaltung im Dropdown wurde nicht übernommen (JSON.stringify-Anführungszeichen brachen das onmousedown-Attribut)
+- Fix: Dropdown wurde von übergeordnetem overflow-Container abgeschnitten – jetzt position:fixed im Body mit getBoundingClientRect-Positionierung
 
 ## vCUR
 - Fix: Registrierung mit E-Mail eines soft-gelöschten Accounts schlug beim Genehmigen mit Duplicate-Entry-Fehler fehl – UPDATE statt INSERT für wiederbelebte Accounts

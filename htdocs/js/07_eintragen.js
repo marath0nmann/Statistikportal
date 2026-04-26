@@ -302,11 +302,10 @@ function renderEintragen() {
         '</div>' +
         '<div id="bk-best-form" style="display:none;margin-bottom:16px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Veranstaltung *</label>' +
-          '<div style="position:relative;max-width:500px">' +
+          '<div style="max-width:500px">' +
             '<input id="bk-veranst-search" type="text" placeholder="Name, Kürzel oder Ort suchen…" autocomplete="off"' +
               ' style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box"' +
               ' oninput="bkVeranstSearch(this.value)" onfocus="bkVeranstSearch(this.value)" onblur="setTimeout(bkVeranstHideDropdown,200)">' +
-            '<div id="bk-veranst-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:200;max-height:260px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.18);margin-top:2px"></div>' +
           '</div>' +
         '</div>' +
 
@@ -377,14 +376,25 @@ var _bkSelectedVeranst = null;
 var _bkVeranstSearchTimer = null;
 var _bkVeranstResults = [];
 
+function _bkVeranstGetOrCreateDropdown() {
+  var drop = document.getElementById('bk-veranst-dropdown');
+  if (!drop) {
+    drop = document.createElement('div');
+    drop.id = 'bk-veranst-dropdown';
+    drop.style.cssText = 'display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:9999;max-height:320px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.22)';
+    document.body.appendChild(drop);
+  }
+  return drop;
+}
+
 function bkVeranstSearch(val) {
   clearTimeout(_bkVeranstSearchTimer);
   _bkVeranstSearchTimer = setTimeout(async function() {
     var inp = document.getElementById('bk-veranst-search');
-    var drop = document.getElementById('bk-veranst-dropdown');
-    if (!drop) return;
+    if (!inp) return;
+    var drop = _bkVeranstGetOrCreateDropdown();
     var q = val.trim();
-    if (_bkSelectedVeranst && inp && inp.value !== _bkVeranstLabel(_bkSelectedVeranst)) {
+    if (_bkSelectedVeranst && inp.value !== _bkVeranstLabel(_bkSelectedVeranst)) {
       _bkSelectedVeranst = null;
     }
     var url = q ? 'veranstaltungen?limit=20&suche=' + encodeURIComponent(q) : 'veranstaltungen?limit=20';
@@ -401,6 +411,10 @@ function bkVeranstSearch(val) {
           label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
       }).join('');
     }
+    var rect = inp.getBoundingClientRect();
+    drop.style.left  = rect.left + 'px';
+    drop.style.top   = (rect.bottom + 2) + 'px';
+    drop.style.width = rect.width + 'px';
     drop.style.display = '';
   }, 250);
 }
