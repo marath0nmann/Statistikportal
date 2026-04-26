@@ -118,7 +118,7 @@ async function renderAdminSystem() {
       '<td style="padding:6px 10px;font-size:12px;white-space:nowrap">' +
         '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+(ok?'#27ae60':failRed)+';margin-right:5px"></span>' +
         '<span style="color:'+(ok?'inherit':failRed)+';font-weight:'+(ok?'400':'700')+'">' + (ok?'Erfolg':'Fehlschlag') + '</span>' +
-        (l.methode ? ' <span style="font-size:10px;opacity:.7;margin-left:4px">' + {'password':'&#x1F511;','email':'&#x1F4E7;','passkey':'&#x1F5DD;\uFE0F'}[l.methode] + ' ' + l.methode + '</span>' : '') +
+        (l.methode ? ' <span style="font-size:10px;opacity:.7;margin-left:4px">' + ({'password':'&#x1F511;','email':'&#x1F4E7;','passkey':'&#x1F5DD;\uFE0F','totp':'&#x1F4F1;'}[l.methode] || '') + ' ' + l.methode + '</span>' : '') +
       '</td>' +
       '<td style="padding:6px 10px;font-size:11px;color:var(--text2)">' + (geoStr||'\u2013') + '</td>' +
       '<td style="padding:6px 10px;font-size:11px;font-family:monospace;color:var(--text2)">' + (l.ip||'\u2013') + '</td>' +

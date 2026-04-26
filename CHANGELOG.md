@@ -1,4 +1,5 @@
 ## vCUR
+- Fix: Admin → System → Letzte Logins – "undefined totp" behoben (TOTP fehlte in der Emoji-Map)
 - Feature: Bulk-Eintragen – "Bestehende Veranstaltung wählen" jetzt als Suchfeld mit Live-Filterung über alle Veranstaltungen (statt statischer Liste der letzten 50)
 - Fix: Klick auf Veranstaltung im Dropdown wurde nicht übernommen (JSON.stringify-Anführungszeichen brachen das onmousedown-Attribut)
 - Fix: Dropdown wurde von übergeordnetem overflow-Container abgeschnitten – jetzt position:fixed im Body mit getBoundingClientRect-Positionierung
