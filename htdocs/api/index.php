@@ -4965,6 +4965,7 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         [$resultat, $rnum] = normalizeResultat($resultat, $dmFmt);
 
         // Externes Ergebnis (nicht für den Verein) → athlet_pb statt ergebnisse
+        $verein    = sanitize($item['verein'] ?? '');
         $isExtern = !empty($item['extern']);
         if ($isExtern) {
             $wettkampf = trim(($evname ?: '') . ($ort ? ', ' . $ort : '') . ($datum ? ' (' . $datum . ')' : ''));
@@ -4975,8 +4976,8 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
             $dupInt = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
                 [$aid, $disziplin, $resultat]);
             if ($dupInt) { $skipped++; continue; }
-            DB::query('INSERT INTO ' . DB::tbl('athlet_pb') . ' (athlet_id, disziplin, disziplin_mapping_id, resultat, wettkampf, datum, altersklasse, veranstaltung_id, erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)',
-                [$aid, $disziplin, $dmInfo ? (int)$dmInfo['id'] : null, $resultat, $wettkampf, $datum ?: null, $ak, $vid ?: null, $user['id'] ?? null]);
+            DB::query('INSERT INTO ' . DB::tbl('athlet_pb') . ' (athlet_id, disziplin, disziplin_mapping_id, resultat, wettkampf, datum, altersklasse, verein, veranstaltung_id, erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                [$aid, $disziplin, $dmInfo ? (int)$dmInfo['id'] : null, $resultat, $wettkampf, $datum ?: null, $ak, $verein ?: null, $vid ?: null, $user['id'] ?? null]);
             autoMapDisziplin($disziplin);
             $imported++;
             continue;

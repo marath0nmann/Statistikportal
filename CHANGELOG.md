@@ -4,6 +4,7 @@
 - Fix: Dropdown wurde von übergeordnetem overflow-Container abgeschnitten – jetzt position:fixed im Body mit getBoundingClientRect-Positionierung
 - Feature: Bulk-Eintragen – Athlet und Disziplin als Suchfelder mit Live-Filterung (wie Veranstaltungssuche), kein statisches Dropdown mehr
 - Feature: Bulk-Eintragen – "Regelmäßige Veranstaltung" ebenfalls als Suchfeld (inkl. "＋ Neue anlegen" im Dropdown)
+- Feature: Bulk-Eintragen – Checkbox "Nicht für Verein" ersetzt durch Vereinsname-Textfeld (vorausgefüllt mit eigenem Verein; leer oder anderer Verein → externes Ergebnis mit Vereinszuordnung)
 
 ## vCUR
 - Fix: Registrierung mit E-Mail eines soft-gelöschten Accounts schlug beim Genehmigen mit Duplicate-Entry-Fehler fehl – UPDATE statt INSERT für wiederbelebte Accounts

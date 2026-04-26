@@ -328,7 +328,7 @@ function renderEintragen() {
               '<th class="bk-mstr-th" style="padding:8px 6px;text-align:left;font-weight:600;display:none">Meisterschaft</th>' +
               '<th class="bk-mstr-th" style="padding:8px 6px;text-align:left;font-weight:600;display:none">Platz MS</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Datum</th>' +
-              '<th style="padding:8px 6px;text-align:center;font-weight:600;font-size:11px;max-width:70px" title="Nicht für den Verein gelaufen → externes Ergebnis (athlet_pb)">Nicht für Verein</th>' +
+              '<th style="padding:8px 6px;text-align:left;font-weight:600;font-size:11px" title="Vereinsname: leer oder anderer Verein → externes Ergebnis (athlet_pb)">Verein</th>' +
               '<th style="padding:8px 6px;width:36px"></th>' +
             '</tr></thead>' +
             '<tbody id="bulk-rows"></tbody>' +
@@ -911,8 +911,8 @@ function bulkRowHtml(idx) {
       '<input type="number" class="bk-mstr-platz" min="1" placeholder="Platz" style="' + fld + ';width:80px">' +
     '</td>' +
     '<td style="padding:4px 6px"><input class="bk-zeilendatum" type="text" placeholder="TT.MM.JJJJ" style="' + fld + ';min-width:110px" title="Datum dieser Zeile (überschreibt globales Datum)"/></td>' +
-    '<td style="padding:4px 6px;text-align:center">' +
-      '<input type="checkbox" class="bk-extern" title="Nicht für den Verein gelaufen → wird als externes Ergebnis gespeichert" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent)"/>' +
+    '<td style="padding:4px 6px">' +
+      '<input type="text" class="bk-verein" value="' + ((appConfig && appConfig.verein_name) || '').replace(/"/g, '&quot;') + '" title="Vereinsname: leer oder anderer Verein → externes Ergebnis" style="' + fld + ';min-width:100px"/>' +
     '</td>' +
     '<td style="padding:4px 6px;text-align:center"><button onclick="bulkRemoveRow(' + idx + ')" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;padding:2px 4px" title="Zeile entfernen">&#x2715;</button></td>' +
   '</tr>';
@@ -1018,7 +1018,8 @@ async function bulkSubmit() {
       altersklasse: row.querySelector('.bk-ak') ? row.querySelector('.bk-ak').value.trim() : '',
       _zeilendatum: row.querySelector('.bk-zeilendatum') ? row.querySelector('.bk-zeilendatum').value.trim() : '',
       ak_platzierung: row.querySelector('.bk-platz') && row.querySelector('.bk-platz').value ? parseInt(row.querySelector('.bk-platz').value) : null,
-      extern: !!(row.querySelector('.bk-extern') && row.querySelector('.bk-extern').checked),
+      verein: (function(){ var v = row.querySelector('.bk-verein'); return v ? v.value.trim() : ''; })(),
+      extern: (function(){ var v = row.querySelector('.bk-verein'); var val = v ? v.value.trim() : ''; var club = (appConfig && appConfig.verein_name) || ''; return !val || val.toLowerCase() !== club.toLowerCase(); })(),
     });
   }
   if (!items.length) { notify('Keine Eintr&auml;ge zum Speichern!', 'err'); return; }
@@ -2553,8 +2554,8 @@ async function bulkFillFromImport(rows, statusEl) {
       }
     }
     // Extern-Checkbox
-    var extChk = tr.querySelector('.bk-extern');
-    if (extChk && row.extern) extChk.checked = true;
+    var vereinInp = tr.querySelector('.bk-verein');
+    if (vereinInp && row.extern) vereinInp.value = row.verein || '';
   });
 
   // Zeilennummern neu durchzählen
