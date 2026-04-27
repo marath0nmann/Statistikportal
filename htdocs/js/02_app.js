@@ -2454,6 +2454,7 @@ function _canSeePersoenlicheDaten() {
 function buildNav() {
   var tabs = [
     { id: 'dashboard',       icon: '📊️', label: 'Dashboard' },
+    { id: 'vereinsrekorde',  icon: '🥇️', label: 'Vereinsrekorde' },
     { id: 'rekorde',         icon: '🏆️', label: 'Bestleistungen' },
     { id: 'veranstaltungen', icon: '📍️', label: 'Veranstaltungen' },
     { id: 'ergebnisse',      icon: '📋️', label: 'Ergebnisse' },
@@ -2463,7 +2464,7 @@ function buildNav() {
     var allowPD = _canSeePersoenlicheDaten();
     var visibleTabs = tabs.filter(function(t) {
       if (t.id === 'athleten' && !allowPD) return false;
-      return t.id === 'dashboard' || t.id === 'rekorde' || t.id === 'veranstaltungen' || (t.id === 'athleten' && allowPD);
+      return t.id === 'dashboard' || t.id === 'vereinsrekorde' || t.id === 'rekorde' || t.id === 'veranstaltungen' || (t.id === 'athleten' && allowPD);
     });
     _renderNavTabs(visibleTabs);
     return;
@@ -2625,6 +2626,7 @@ function navigate(tab) {
   if (tab === '#/nutzung'     || tab === 'nutzung')     { renderLegalPage('nutzung'); return; }
   if (tab === '#/impressum'   || tab === 'impressum')   { renderLegalPage('impressum'); return; }
   if (tab === 'rekorde') { REK_CATS = []; state.allDisziplinen = {}; state.topDisziplinen = {}; }
+  if (tab === 'vereinsrekorde') { /* kein Cache zu leeren */ }
   // veranstaltungen/serie/123 -> Serie-Detail
   if (tab.startsWith('veranstaltungen/serie/')) {
     var _sid = parseInt(tab.split('/')[2]) || null;
@@ -2706,15 +2708,16 @@ async function renderPage() {
       '</div>';
     return;
   }
-  // Anonyme User dürfen Dashboard und Bestleistungen sehen
-  if (!currentUser && state.tab !== 'rekorde' && state.tab !== 'dashboard' && state.tab !== 'veranstaltung' && state.tab !== 'veranstaltungen') {
+  // Anonyme User dürfen Dashboard, Vereinsrekorde und Bestleistungen sehen
+  if (!currentUser && state.tab !== 'rekorde' && state.tab !== 'vereinsrekorde' && state.tab !== 'dashboard' && state.tab !== 'veranstaltung' && state.tab !== 'veranstaltungen') {
     state.tab = 'rekorde';
     buildNav();
   }
   var el = document.getElementById('main-content');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
   try {
-    if (state.tab === 'dashboard')       { await renderDashboard(); }
+    if (state.tab === 'dashboard')           { await renderDashboard(); }
+    else if (state.tab === 'vereinsrekorde') { await renderVereinsrekorde(); }
     else if (state.tab === 'veranstaltungen') { await renderVeranstaltungen(); }
     else if (state.tab === 'ergebnisse') { await renderErgebnisse(); }
     else if (state.tab === 'athleten')   { await renderAthleten(); }
@@ -2757,7 +2760,7 @@ function restoreFromHash() {
   var parts  = hash.split('/');
   var tab    = parts[0].toLowerCase();
   var sub    = parts[1] ? parts[1].toLowerCase() : '';
-  var validTabs = ['dashboard','veranstaltungen','ergebnisse','athleten','rekorde','eintragen','admin','konto','veranstaltung'];
+  var validTabs = ['dashboard','vereinsrekorde','veranstaltungen','ergebnisse','athleten','rekorde','eintragen','admin','konto','veranstaltung'];
   if (validTabs.indexOf(tab) < 0) return;
 
   state.tab = tab;

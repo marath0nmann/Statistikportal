@@ -2940,6 +2940,79 @@ if ($res === 'rekorde') {
 }
 
 // ============================================================
+// VEREINSREKORDE
+// ============================================================
+if ($res === 'vereinsrekorde') {
+    if ($method !== 'GET') jsonErr('Nur GET erlaubt.', 405);
+
+    $favJson    = Settings::get('top_disziplinen', '');
+    $favListRaw = $favJson ? (json_decode($favJson, true) ?: []) : [];
+    $favList    = array_values(array_filter(array_map('intval', $favListRaw), function($v){ return $v > 0; }));
+    if (!$favList) jsonOk([]);
+
+    $tblCheck = DB::fetchOne("SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='ergebnisse'");
+    $unified  = $tblCheck && (int)$tblCheck['c'] > 0;
+    $tbl      = $unified ? 'ergebnisse' : 'ergebnisse_strasse';
+
+    $placeholders = implode(',', array_fill(0, count($favList), '?'));
+    $mappingRows  = [];
+    try {
+        $rows = DB::fetchAll(
+            "SELECT m.id AS mapping_id, m.disziplin, k.tbl_key, k.sort_dir, k.fmt
+             FROM " . DB::tbl('disziplin_mapping') . " m
+             JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
+             WHERE m.id IN ($placeholders)", $favList);
+        foreach ($rows as $r) $mappingRows[(int)$r['mapping_id']] = $r;
+    } catch (Exception $e) {}
+
+    $nameExpr = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
+
+    $getBest = function(int $mid, string $dir, string $fmt, string $geschlecht) use ($tbl, $unified, $nameExpr): ?array {
+        if ($fmt === 'm') {
+            $sortCol = "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))";
+        } else {
+            $sortCol = $unified
+                ? "COALESCE(e.resultat_num,
+                    CASE WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}'
+                         THEN TIME_TO_SEC(e.resultat)
+                         WHEN e.resultat REGEXP '^[0-9]+:[0-9]'
+                         THEN TIME_TO_SEC(CONCAT('00:',REPLACE(REPLACE(e.resultat,',','.'),';','.')))
+                         ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END)"
+                : "LPAD(e.resultat, 10, '0')";
+        }
+        $row = DB::fetchOne(
+            "SELECT e.resultat, v.datum, v.id AS veranstaltung_id,
+                    v.name AS veranstaltungsname, v.ort AS veranstaltungsort,
+                    $nameExpr AS athlet, a.id AS athlet_id
+             FROM $tbl e
+             JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
+             JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
+             WHERE e.disziplin_mapping_id=? AND e.geloescht_am IS NULL
+               AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
+               AND a.geschlecht = ?
+             ORDER BY $sortCol $dir LIMIT 1", [$mid, $geschlecht]);
+        return $row ?: null;
+    };
+
+    $result = [];
+    foreach ($favList as $mid) {
+        if (!isset($mappingRows[$mid])) continue;
+        $info   = $mappingRows[$mid];
+        $dir    = $info['sort_dir'] ?? 'ASC';
+        $fmt    = $info['fmt']      ?? 'min';
+        $result[] = [
+            'disziplin'  => $info['disziplin'],
+            'mapping_id' => $mid,
+            'kat'        => $info['tbl_key'],
+            'fmt'        => $fmt,
+            'maenner'    => $getBest($mid, $dir, $fmt, 'M'),
+            'frauen'     => $getBest($mid, $dir, $fmt, 'W'),
+        ];
+    }
+    jsonOk($result);
+}
+
+// ============================================================
 // DISZIPLIN-KATEGORIEN (Admin)
 // ============================================================
 if ($res === 'kategorien') {

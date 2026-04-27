@@ -364,4 +364,66 @@ function setRekView(v) {
   renderRekorde();
 }
 
+// ── VEREINSREKORDE ─────────────────────────────────────────
+
+async function renderVereinsrekorde() {
+  var el = document.getElementById('main-content');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div>Lade Vereinsrekorde&hellip;</div>';
+
+  var r = await apiGet('vereinsrekorde');
+  if (!r || !r.ok) {
+    el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)">Fehler beim Laden der Vereinsrekorde.</div>';
+    return;
+  }
+  var items = r.data || [];
+  if (!items.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">&#x2B50;</div><div class="empty-text">Keine favorisierten Disziplinen konfiguriert.<br><span style="font-size:13px;color:var(--text2)">Favoriten k&ouml;nnen im Admin-Bereich unter &bdquo;Disziplinen&ldquo; gesetzt werden.</span></div></div>';
+    return;
+  }
+
+  function cell(entry, fmt) {
+    if (!entry) return '<td colspan="4" style="color:var(--text3);text-align:center">&ndash;</td>';
+    var result = fmt === 'm' ? fmtMeter(entry.resultat) : fmtTime(entry.resultat, fmt);
+    var athlet = entry.athlet_id
+      ? '<span class="athlet-link" data-athlet-id="' + entry.athlet_id + '">' + (entry.athlet || '&ndash;') + '</span>'
+      : (entry.athlet || '&ndash;');
+    var veranst = entry.veranstaltung_id
+      ? '<a href="javascript:void(0)" onclick="navigate(\'veranstaltung/' + entry.veranstaltung_id + '\')" style="color:var(--link,var(--primary));text-decoration:none">' + (entry.veranstaltungsname || entry.veranstaltungsort || 'Veranstaltung') + '</a>'
+      : (entry.veranstaltungsname || entry.veranstaltungsort || '&ndash;');
+    return '<td style="font-weight:600">' + athlet + '</td>' +
+           '<td class="result">' + result + '</td>' +
+           '<td class="ort-text">' + formatDate(entry.datum) + '</td>' +
+           '<td class="ort-text" style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + veranst + '</td>';
+  }
+
+  var html = '<div class="panel" style="overflow-x:auto">' +
+    '<h2 style="font-family:\'Barlow Condensed\',sans-serif;font-size:22px;font-weight:700;margin:0 0 18px">Vereinsrekorde</h2>' +
+    '<table class="rek-table" style="width:100%">' +
+    '<thead><tr>' +
+      '<th style="min-width:120px">Disziplin</th>' +
+      '<th colspan="4" style="text-align:center;background:rgba(var(--primary-rgb,80,120,200),.08);border-bottom:2px solid var(--primary)">' +
+        '<span style="color:var(--primary);font-weight:700">&#9792; Frauen</span></th>' +
+      '<th colspan="4" style="text-align:center;border-bottom:2px solid var(--border)">' +
+        '<span style="font-weight:700">&#9794; M&auml;nner</span></th>' +
+    '</tr>' +
+    '<tr style="font-size:11px;color:var(--text2)">' +
+      '<th></th>' +
+      '<th>Athletin</th><th>Ergebnis</th><th>Datum</th><th>Veranstaltung</th>' +
+      '<th>Athlet</th><th>Ergebnis</th><th>Datum</th><th>Veranstaltung</th>' +
+    '</tr></thead>' +
+    '<tbody>';
+
+  for (var i = 0; i < items.length; i++) {
+    var d = items[i];
+    html += '<tr onclick="navigateToDisz(\'' + d.disziplin.replace(/'/g, "\\'") + '\',' + d.mapping_id + ')" style="cursor:pointer">' +
+      '<td style="font-weight:700;white-space:nowrap">' + d.disziplin + '</td>' +
+      cell(d.frauen, d.fmt) +
+      cell(d.maenner, d.fmt) +
+    '</tr>';
+  }
+
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+
 // ── EINTRAGEN ──────────────────────────────────────────────

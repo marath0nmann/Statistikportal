@@ -1,4 +1,5 @@
 ## vCUR
+- Neue Seite „Vereinsrekorde": zeigt die Bestleistung (Männer/Frauen) aller favorisierten Disziplinen mit Athlet, Ergebnis, Datum und Veranstaltungslink
 - Admin → Disziplinen: Favorit-Stern direkt in Tabelle integriert; separates Favoriten-Panel entfernt
 - Admin → Disziplinen: Sortierung nach Ergebnisanzahl absteigend
 - Admin → Disziplinkategorien: Sortierung nach Disziplinenanzahl absteigend
