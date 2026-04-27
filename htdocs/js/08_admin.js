@@ -2279,9 +2279,10 @@ function mstrEditSave(idx) {
 }
 
 function _buildDiszKatListHtml(kategorien) {
+  var sorted = kategorien.slice().sort(function(a,b){ return (b.disz_anzahl||0)-(a.disz_anzahl||0) || a.name.localeCompare(b.name); });
   var html = '';
-  for (var i = 0; i < kategorien.length; i++) {
-    var k = kategorien[i];
+  for (var i = 0; i < sorted.length; i++) {
+    var k = sorted[i];
     var isSel = k.id == window._selKatId;
     html +=
       '<div class="user-row" style="gap:10px;cursor:pointer' + (isSel ? ';outline:2px solid var(--accent);border-radius:8px;background:var(--primary-faint,var(--surf2))' : '') + '" onclick="selectDiszKat(' + k.id + ')">' +

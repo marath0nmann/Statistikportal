@@ -3006,17 +3006,6 @@ if ($res === 'kategorien') {
     if ($method === 'DELETE' && $id) {
         $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM " . DB::tbl('disziplin_mapping') . " WHERE kategorie_id=?", [$id])['c'];
         if ($cnt > 0) jsonErr('Kategorie hat noch ' . $cnt . ' zugeordnete Disziplinen. Bitte zuerst umordnen.', 409);
-        // Systemkategorien nur sperren wenn ihre Legacy-Tabelle noch Daten enthält
-        $kat = DB::fetchOne("SELECT tbl_key FROM " . DB::tbl('disziplin_kategorien') . " WHERE id=?", [$id]);
-        $sysTbls = ['strasse'=>'ergebnisse_strasse','sprint'=>'ergebnisse_sprint',
-                    'mittelstrecke'=>'ergebnisse_mittelstrecke','sprungwurf'=>'ergebnisse_sprungwurf'];
-        if ($kat && isset($sysTbls[$kat['tbl_key']])) {
-            $legacyTbl = DB::tbl($sysTbls[$kat['tbl_key']]);
-            try {
-                $legacyCnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $legacyTbl WHERE geloescht_am IS NULL")['c'];
-                if ($legacyCnt > 0) jsonErr('Legacy-Tabelle enthält noch ' . $legacyCnt . ' Einträge. Bitte zuerst migrieren.', 409);
-            } catch (Exception $e) { /* Tabelle existiert nicht → OK */ }
-        }
         DB::query("DELETE FROM " . DB::tbl('disziplin_kategorien') . " WHERE id=?", [$id]);
         jsonOk(null);
     }
