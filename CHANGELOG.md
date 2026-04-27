@@ -1,4 +1,5 @@
 ## vCUR
+- Dashboard: „Bestleistung Männer/Frauen" und „Gesamtbestleistung [Männer/Frauen]" → „Vereinsrekord ♂/♀" in Timeline-Badges und Hall of Fame
 - Athletenprofil-Modal: „Wettkämpfe" → „Ergebnisse" (mit korrekter Einzahl)
 - Dashboard-Widget „mein Athletenprofil": „Wettkämpfe" → „Ergebnisse" (mit korrekter Einzahl)
 - Dashboard: „Neueste Bestleistungen" zeigt nur noch Vereinsergebnisse (keine externen); „Gesamtbestleistung" → „Vereinsrekord"
