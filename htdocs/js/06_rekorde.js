@@ -416,14 +416,20 @@ async function renderVereinsrekorde() {
     groups[groupIndex[key]].items.push(d);
   }
 
+  // Einzelne Tabelle → colgroup sorgt für gleiche Spaltenbreiten über alle Kategorien
+  var COLGROUP =
+    '<colgroup>' +
+      '<col class="vr-col-disz">' +
+      '<col class="vr-name"><col class="vr-result"><col class="vr-date"><col class="vr-event">' +
+      '<col class="vr-name"><col class="vr-result"><col class="vr-date"><col class="vr-event">' +
+    '</colgroup>';
+
   var THEAD =
     '<thead>' +
       '<tr>' +
         '<th class="vr-col-disz"></th>' +
-        '<th colspan="4" class="vr-group-head vr-group-w">' +
-          '<span style="color:var(--primary);font-weight:700">&#9792;&nbsp;Frauen</span></th>' +
-        '<th colspan="4" class="vr-group-head vr-group-m">' +
-          '<span style="font-weight:700">&#9794;&nbsp;M&auml;nner</span></th>' +
+        '<th colspan="4" class="vr-group-head">&nbsp;&#9792;&nbsp;Frauen</th>' +
+        '<th colspan="4" class="vr-group-head">&nbsp;&#9794;&nbsp;M&auml;nner</th>' +
       '</tr>' +
       '<tr class="vr-subhead">' +
         '<th class="vr-col-disz">Disziplin</th>' +
@@ -432,25 +438,26 @@ async function renderVereinsrekorde() {
       '</tr>' +
     '</thead>';
 
-  var html = '';
+  var tbody = '';
   for (var gi = 0; gi < groups.length; gi++) {
     var g = groups[gi];
-    html += rekSectionHead(g.kat_name);
-    html += '<div class="panel" style="overflow-x:auto;margin-bottom:28px">' +
-      '<table class="rek-table vr-table">' + THEAD + '<tbody>';
+    // Kategorie-Trennzeile
+    tbody += '<tr class="vr-cat-sep"><td colspan="9">' + g.kat_name + '</td></tr>';
     for (var ii = 0; ii < g.items.length; ii++) {
       var d = g.items[ii];
       var diszEsc = d.disziplin.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      html += '<tr class="vr-row" onclick="navigateToDisz(\'' + diszEsc + '\',' + d.mapping_id + ')" style="cursor:pointer">' +
+      tbody += '<tr class="vr-row" onclick="navigateToDisz(\'' + diszEsc + '\',' + d.mapping_id + ')" style="cursor:pointer">' +
         '<td class="vr-col-disz" style="font-weight:700;white-space:nowrap">' + d.disziplin + '</td>' +
         vrCell(d.frauen, d.fmt) +
         vrCell(d.maenner, d.fmt) +
       '</tr>';
     }
-    html += '</tbody></table></div>';
   }
 
-  el.innerHTML = html;
+  el.innerHTML =
+    '<div class="panel" style="overflow-x:auto">' +
+      '<table class="rek-table vr-table">' + COLGROUP + THEAD + '<tbody>' + tbody + '</tbody></table>' +
+    '</div>';
 }
 
 // ── EINTRAGEN ──────────────────────────────────────────────

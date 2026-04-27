@@ -1,5 +1,5 @@
 ## vCUR
-- Vereinsrekorde: Tabelle optisch an „Bestleistungen" angeglichen (rek-table), Disziplinen nach Kategorie geclustert und nach Distanz/alphabetisch sortiert; eigene Responsive-Regeln für Mobile
+- Vereinsrekorde: kein Farbhintergrund im Tabellenkopf; Kategorien nach Ergebnisanzahl absteigend sortiert; eine einzige Tabelle mit colgroup für einheitliche Spaltenbreiten über alle Kategorien
 - Admin → Disziplinen: Favorit-Stern direkt in Tabelle integriert; separates Favoriten-Panel entfernt
 - Admin → Disziplinen: Sortierung nach Ergebnisanzahl absteigend
 - Admin → Disziplinkategorien: Sortierung nach Disziplinenanzahl absteigend

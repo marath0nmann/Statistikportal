@@ -839,19 +839,30 @@ tr:hover td { background: var(--surf2); }
 
 /* ── VEREINSREKORDE ── */
 .vr-table .vr-group-head {
-  text-align: center; text-transform: none; font-size: 13px; border-bottom: 2px solid var(--border);
+  text-align: center; text-transform: none; font-size: 13px;
+  border-bottom: 2px solid var(--border); font-weight: 600;
 }
-.vr-table .vr-group-w { background: rgba(0,0,0,.03); border-bottom-color: var(--primary); }
 .vr-table .vr-subhead th { font-size: 11px; color: var(--text2); border-bottom: 1px solid var(--border); }
-.vr-table .vr-col-disz { white-space: nowrap; min-width: 110px; }
-.vr-table .vr-name     { min-width: 120px; }
-.vr-table .vr-result   { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; min-width: 72px; }
-.vr-table .vr-date     { white-space: nowrap; min-width: 80px; }
-.vr-table .vr-event    { min-width: 120px; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Spaltenbreiten über colgroup */
+.vr-table col.vr-col-disz { width: 11%; }
+.vr-table col.vr-name     { width: 14%; }
+.vr-table col.vr-result   { width:  8%; }
+.vr-table col.vr-date     { width:  8%; }
+.vr-table col.vr-event    { width: 15%; }
+/* Zellen */
+.vr-table .vr-col-disz { white-space: nowrap; }
+.vr-table .vr-result   { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.vr-table .vr-date     { white-space: nowrap; }
+.vr-table .vr-event    { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Trennlinie zwischen Frauen- und Männer-Block */
 .vr-table td:nth-child(5), .vr-table th:nth-child(5) { border-right: 2px solid var(--border); }
-
-[data-theme="dark"] .vr-table .vr-group-w { background: rgba(255,255,255,.04); }
+/* Kategorie-Trennzeile */
+.vr-table tr.vr-cat-sep td {
+  font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700;
+  color: var(--text); background: var(--surf2);
+  padding: 6px 10px; border-bottom: 1px solid var(--border);
+  letter-spacing: .03em;
+}
 
 @media (max-width: 700px) {
   .vr-table .vr-date, .vr-table th.vr-date  { display: none; }

@@ -2995,27 +2995,35 @@ if ($res === 'vereinsrekorde') {
         return $row ?: null;
     };
 
+    // Ergebnisanzahl pro mapping_id und Summe pro Kategorie vorberechnen
+    $katCounts = []; // tbl_key -> total count
     $result = [];
     foreach ($favList as $mid) {
         if (!isset($mappingRows[$mid])) continue;
         $info   = $mappingRows[$mid];
         $dir    = $info['sort_dir'] ?? 'ASC';
         $fmt    = $info['fmt']      ?? 'min';
+        $cnt    = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin_mapping_id=? AND geloescht_am IS NULL", [$mid]);
+        $n      = $cnt ? (int)$cnt['c'] : 0;
+        $key    = $info['tbl_key'];
+        $katCounts[$key] = ($katCounts[$key] ?? 0) + $n;
         $result[] = [
-            'disziplin'  => $info['disziplin'],
-            'mapping_id' => $mid,
-            'kat'        => $info['tbl_key'],
-            'kat_name'   => $info['kat_name'],
-            'kat_ord'    => (int)($info['reihenfolge'] ?? 99),
-            'fmt'        => $fmt,
-            'maenner'    => $getBest($mid, $dir, $fmt, 'M'),
-            'frauen'     => $getBest($mid, $dir, $fmt, 'W'),
+            'disziplin'    => $info['disziplin'],
+            'mapping_id'   => $mid,
+            'kat'          => $key,
+            'kat_name'     => $info['kat_name'],
+            'result_count' => $n,
+            'fmt'          => $fmt,
+            'maenner'      => $getBest($mid, $dir, $fmt, 'M'),
+            'frauen'       => $getBest($mid, $dir, $fmt, 'W'),
         ];
     }
 
-    // Sort: by category order, then by distance (diszSortKey), then alphabetically
-    usort($result, function($a, $b) {
-        if ($a['kat_ord'] !== $b['kat_ord']) return $a['kat_ord'] - $b['kat_ord'];
+    // Sort: by category result count desc, then by distance (diszSortKey), then alphabetically
+    usort($result, function($a, $b) use ($katCounts) {
+        $ca = $katCounts[$a['kat']] ?? 0;
+        $cb = $katCounts[$b['kat']] ?? 0;
+        if ($ca !== $cb) return $cb - $ca;
         $ka = diszSortKey($a['disziplin']);
         $kb = diszSortKey($b['disziplin']);
         if ($ka !== $kb) return $ka <=> $kb;
