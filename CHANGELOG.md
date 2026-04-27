@@ -1,5 +1,8 @@
-## v1162
+## vCUR
+- Athletenprofil-Modal: „Wettkämpfe" → „Ergebnisse" (mit korrekter Einzahl)
 - Dashboard-Widget „mein Athletenprofil": „Wettkämpfe" → „Ergebnisse" (mit korrekter Einzahl)
+
+## v1162
 
 ## v1162
 - Dashboard: Badge-Vorgängerwerte mit „war" kennzeichnen (war 2:37:42h)

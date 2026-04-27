@@ -582,7 +582,7 @@ async function openAthletById(id) {
         '<div style="font-size:20px;font-weight:700">' + (athlet.vorname || '') + ' ' + (athlet.nachname || '') + '</div>' +
         (gruppenTags && _canSeePersoenlicheDaten() ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">' + gruppenTags + '</div>' : '') +
         '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">' +
-          '<span class="badge badge-ak">' + totalErg + ' ' + (totalErg === 1 ? 'Wettkampf' : 'Wettkämpfe') + '</span>' +
+          '<span class="badge badge-ak">' + totalErg + ' ' + (totalErg === 1 ? 'Ergebnis' : 'Ergebnisse') + '</span>' +
           (athlet.geschlecht ? '<span class="badge" style="background:var(--surf2);color:var(--text)">' + (athlet.geschlecht === 'M' ? '♂ Männlich' : athlet.geschlecht === 'W' ? '♀ Weiblich' : '⚧ Divers') + '</span>' : '') +
           (_canSeePersoenlicheDaten() && athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jahrgang ' + athlet.geburtsjahr + '</span>' : '') +
           (function(){ var _ak = (athlet.geschlecht && athlet.geburtsjahr) ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : ''; return _ak ? akBadge(_ak) : ''; })() +
