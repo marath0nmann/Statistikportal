@@ -2957,11 +2957,13 @@ if ($res === 'kategorien') {
             reihenfolge INT NOT NULL DEFAULT 99,
             erstellt_am DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-        DB::query("INSERT IGNORE INTO " . DB::tbl('disziplin_kategorien') . " (name,tbl_key,fmt,sort_dir,reihenfolge) VALUES
-            ('Straße','strasse','min','ASC',1),
-            ('Sprint','sprint','s','ASC',2),
-            ('Mittelstrecke','mittelstrecke','min','ASC',3),
-            ('Sprung & Wurf','sprungwurf','m','DESC',4)");
+        if (DB::fetchOne("SELECT COUNT(*) AS c FROM " . DB::tbl('disziplin_kategorien'))['c'] == 0) {
+            DB::query("INSERT INTO " . DB::tbl('disziplin_kategorien') . " (name,tbl_key,fmt,sort_dir,reihenfolge) VALUES
+                ('Straße','strasse','min','ASC',1),
+                ('Sprint','sprint','s','ASC',2),
+                ('Mittelstrecke','mittelstrecke','min','ASC',3),
+                ('Sprung & Wurf','sprungwurf','m','DESC',4)");
+        }
         // disz_anzahl = Anzahl gemappter Disziplinen pro Kategorie (aus einheitlicher Tabelle)
         $rows = DB::fetchAll(
             "SELECT k.*, COUNT(m.id) AS disz_anzahl
@@ -3029,11 +3031,13 @@ if ($res === 'disziplin-mapping') {
             reihenfolge INT NOT NULL DEFAULT 99,
             erstellt_am DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-        DB::query("INSERT IGNORE INTO " . DB::tbl('disziplin_kategorien') . " (name,tbl_key,fmt,sort_dir,reihenfolge) VALUES
-            ('Straße','strasse','min','ASC',1),
-            ('Sprint','sprint','s','ASC',2),
-            ('Mittelstrecke','mittelstrecke','min','ASC',3),
-            ('Sprung & Wurf','sprungwurf','m','DESC',4)");
+        if (DB::fetchOne("SELECT COUNT(*) AS c FROM " . DB::tbl('disziplin_kategorien'))['c'] == 0) {
+            DB::query("INSERT INTO " . DB::tbl('disziplin_kategorien') . " (name,tbl_key,fmt,sort_dir,reihenfolge) VALUES
+                ('Straße','strasse','min','ASC',1),
+                ('Sprint','sprint','s','ASC',2),
+                ('Mittelstrecke','mittelstrecke','min','ASC',3),
+                ('Sprung & Wurf','sprungwurf','m','DESC',4)");
+        }
         DB::query("CREATE TABLE IF NOT EXISTS disziplin_mapping (
             id INT AUTO_INCREMENT PRIMARY KEY,
             disziplin VARCHAR(60) NOT NULL,
