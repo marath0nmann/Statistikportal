@@ -1,5 +1,5 @@
 ## vCUR
-- Vereinsrekorde: kein Farbhintergrund im Tabellenkopf; Kategorien nach Ergebnisanzahl absteigend sortiert; eine einzige Tabelle mit colgroup für einheitliche Spaltenbreiten über alle Kategorien
+- Vereinsrekorde: table-layout:fixed für exakt gleiche Frauen/Männer-Breite und Veranstaltungsname-Kürzung per ellipsis
 - Dashboard: „Bestleistung Männer/Frauen" und „Gesamtbestleistung [Männer/Frauen]" → „Vereinsrekord ♂/♀" in Timeline-Badges und Hall of Fame
 - Admin → Disziplinen: Favorit-Stern direkt in Tabelle integriert; separates Favoriten-Panel entfernt
 - Admin → Disziplinen: Sortierung nach Ergebnisanzahl absteigend

@@ -838,22 +838,24 @@ tr:hover td { background: var(--surf2); }
 }
 
 /* ── VEREINSREKORDE ── */
+/* table-layout:fixed ist Pflicht: erzwingt colgroup-Breiten und erlaubt text-overflow auf td */
+.vr-table { table-layout: fixed; }
 .vr-table .vr-group-head {
   text-align: center; text-transform: none; font-size: 13px;
   border-bottom: 2px solid var(--border); font-weight: 600;
 }
 .vr-table .vr-subhead th { font-size: 11px; color: var(--text2); border-bottom: 1px solid var(--border); }
-/* Spaltenbreiten über colgroup */
-.vr-table col.vr-col-disz { width: 11%; }
-.vr-table col.vr-name     { width: 14%; }
-.vr-table col.vr-result   { width:  8%; }
-.vr-table col.vr-date     { width:  8%; }
-.vr-table col.vr-event    { width: 15%; }
+/* Spaltenbreiten: 10% Disziplin + je 45% Frauen/Männer = 100% exakt */
+.vr-table col.vr-col-disz { width: 10%; }
+.vr-table col.vr-name     { width: 13%; }
+.vr-table col.vr-result   { width:  7%; }
+.vr-table col.vr-date     { width:  7%; }
+.vr-table col.vr-event    { width: 18%; }
 /* Zellen */
-.vr-table .vr-col-disz { white-space: nowrap; }
+.vr-table .vr-col-disz { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vr-table .vr-result   { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 .vr-table .vr-date     { white-space: nowrap; }
-.vr-table .vr-event    { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vr-table .vr-event    { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Trennlinie zwischen Frauen- und Männer-Block */
 .vr-table td:nth-child(5), .vr-table th:nth-child(5) { border-right: 2px solid var(--border); }
 /* Kategorie-Trennzeile */
