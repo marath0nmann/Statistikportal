@@ -49,7 +49,7 @@ async function _loadEigenesProfilWidget(elId, showErg) {
           (athlet.vorname||'') + ' ' + (athlet.nachname||'') +
         '</div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center">' +
-          '<span class="badge badge-ak">' + totalErg2 + ' ' + (totalErg2 === 1 ? 'Wettkampf' : 'Wettkämpfe') + '</span>' +
+          '<span class="badge badge-ak">' + totalErg2 + ' ' + (totalErg2 === 1 ? 'Ergebnis' : 'Ergebnisse') + '</span>' +
           akBadgeHtml +
           (athlet.geburtsjahr ? '<span style="font-size:11px;color:var(--text2)">Jahrgang ' + athlet.geburtsjahr + '</span>' : '') +
         '</div>' +
