@@ -1,5 +1,5 @@
 ## vCUR
-- Vereinsrekorde: table-layout:fixed für exakt gleiche Frauen/Männer-Breite und Veranstaltungsname-Kürzung per ellipsis
+- Vereinsrekorde: Ergebnisformat verwendet jetzt COALESCE(fmt_override, kat.fmt) – disziplinspezifische Formate (z. B. min_h) werden korrekt dargestellt
 - Dashboard: „Bestleistung Männer/Frauen" und „Gesamtbestleistung [Männer/Frauen]" → „Vereinsrekord ♂/♀" in Timeline-Badges und Hall of Fame
 - Admin → Disziplinen: Favorit-Stern direkt in Tabelle integriert; separates Favoriten-Panel entfernt
 - Admin → Disziplinen: Sortierung nach Ergebnisanzahl absteigend

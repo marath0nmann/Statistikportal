@@ -2959,7 +2959,7 @@ if ($res === 'vereinsrekorde') {
     try {
         $rows = DB::fetchAll(
             "SELECT m.id AS mapping_id, m.disziplin, k.tbl_key, k.name AS kat_name,
-                    k.sort_dir, k.fmt, k.reihenfolge
+                    k.sort_dir, COALESCE(m.fmt_override, k.fmt) AS fmt, k.reihenfolge
              FROM " . DB::tbl('disziplin_mapping') . " m
              JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
              WHERE m.id IN ($placeholders)", $favList);
