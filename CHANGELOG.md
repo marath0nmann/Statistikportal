@@ -1,3 +1,6 @@
+## vCUR
+- Dashboard: Badge-Vorgängerwerte mit „war" kennzeichnen (war 2:37:42h)
+
 ## v1160
 - Dashboard: „Neueste Bestleistungen" zeigt nur noch Vereinsergebnisse (keine externen); „Gesamtbestleistung" → „Vereinsrekord"
 - Dashboard: „Letzte Veranstaltungen" kennzeichnet externe Ergebnisse mit (ext.); Zusammenfassung mit korrekter Einzahl/Mehrzahl und Extern-Anteil
