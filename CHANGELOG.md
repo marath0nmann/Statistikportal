@@ -1,4 +1,7 @@
 ## vCUR
+- Dashboard: „Neueste Bestleistungen" zeigt nur noch Vereinsergebnisse (keine externen); „Gesamtbestleistung" → „Vereinsrekord"
+- Dashboard: „Letzte Veranstaltungen" kennzeichnet externe Ergebnisse mit (ext.); Zusammenfassung mit korrekter Einzahl/Mehrzahl und Extern-Anteil
+- Config: Hook für automatisches Merge nach main + Versionsnummer-Erhöhung nach jedem Push
 - Fix: Auto-Match (uitsAutoMatch) – strikter Vergleich nach Umlaut-/Akzent-Normalisierung; frühere 80%-Präfix-Regel matchte fälschlich "Andrea" mit "Andreas" und "Kraus" mit "Krause" und führte zu falschen Treffern bei Bulk-Importen (MikaTiming, uitsslagen.nl, RaceResult)
 - Fix: MikaTiming – Datum aus Hamburg-style JSON `"date":"YYYY-MM-DD..."` extrahiert (häufigstes Datum = Renntag) wenn weder Title noch JSON-LD ein Datum liefern
 - Fix: MikaTiming – Disziplin-Map jetzt dynamisch aus `<option>`-Texten der Hauptseite + Heuristik (HML/M→Marathon, HHML/HM→Halbmarathon bei Marathon-Title, *km, Staffel, Rollstuhl, Handbike)
