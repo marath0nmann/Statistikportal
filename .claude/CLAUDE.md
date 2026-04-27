@@ -23,14 +23,11 @@ Kopiere `includes/config.sample.php` nach `includes/config.php` und trage DB-Zug
 
 ## Commit & Deployment
 
-Claude Code arbeitet direkt im GitHub-Repo. Auf Anweisung des Benutzers:
+**Workflow: Nach jeder Änderung sofort commit + push (kein Warten auf Bestätigung).**
+Der PostToolUse-Hook übernimmt automatisch Merge nach main + Versions-Bump.
 
-1. Version erhöhen (aktuelle Version in dieser Datei nachführen)
-2. `htdocs/index.html`: alle `v\d+`-Vorkommen und `?v=\d+`-Cache-Buster ersetzen
-3. `COMMIT_EDITMSG`: Commit-Message eintragen (Format: `vXXX: Kurzbeschreibung`)
-4. `CHANGELOG.md`: neuen Eintrag oben einfügen (Format: `## vXXX – Titel\n\n- Punkt\n\n---`)
-5. `README.md`: Versionszeile aktualisieren (`## Version vXXX | Stand: Monat Jahr`)
-6. `git add` relevante Dateien, `git commit`, `git push`
+1. `CHANGELOG.md`: neue Bullet-Zeile oben in `## vCUR` einfügen
+2. geänderte Dateien `git add`, `git commit`, `git push -u origin <branch>`
 
 GitHub Actions deployed automatisch per FTP nach all-inkl.com (`/html/statistik/`).
 
