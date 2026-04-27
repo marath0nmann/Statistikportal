@@ -5066,7 +5066,7 @@ if ($res === 'externe-ergebnisse' && $method === 'GET' && !$id) {
     $wStr = implode(' AND ', $where);
     $sql = "SELECT pb.id, a.name_nv AS athlet, a.id AS athlet_id, pb.altersklasse,
                    pb.disziplin, pb.disziplin_mapping_id, pb.resultat,
-                   pb.datum, pb.wettkampf AS veranstaltung, pb.veranstaltung_id,
+                   pb.datum, pb.wettkampf AS veranstaltung, pb.veranstaltung_id, pb.verein,
                    NULL AS ort, NULL AS veranstaltung_ort,
                    COALESCE(v.name, pb.wettkampf) AS veranstaltung_name,
                    NULL AS veranstaltung_quelle,
@@ -5110,11 +5110,18 @@ if ($res === 'externe-ergebnisse' && $method === 'PUT' && $id) {
     if (isset($body['disziplin_mapping_id'])){ $felder[] = 'disziplin_mapping_id=?'; $params[] = intOrNull($body['disziplin_mapping_id']); }
     if (isset($body['resultat']))           { $felder[] = 'resultat=?';           $params[] = sanitize($body['resultat']); }
     if (isset($body['altersklasse']))       { $felder[] = 'altersklasse=?';       $params[] = sanitize($body['altersklasse']) ?: null; }
-    if (isset($body['wettkampf']))          { $felder[] = 'wettkampf=?';          $params[] = sanitize($body['wettkampf']); }
+    if (isset($body['wettkampf']))          { $felder[] = 'wettkampf=?';          $params[] = sanitize($body['wettkampf']) ?: null; }
     if (isset($body['datum']))              { $felder[] = 'datum=?';              $params[] = sanitize($body['datum']) ?: null; }
+    if (isset($body['verein']))             { $felder[] = 'verein=?';             $params[] = sanitize($body['verein']) ?: null; }
     if (array_key_exists('veranstaltung_id', $body)) {
+        $vid = $body['veranstaltung_id'] ? (int)$body['veranstaltung_id'] : null;
         $felder[] = 'veranstaltung_id=?';
-        $params[] = $body['veranstaltung_id'] ? (int)$body['veranstaltung_id'] : null;
+        $params[] = $vid;
+        // wettkampf mit Veranstaltungsname synchronisieren, wenn veranstaltung_id gesetzt
+        if ($vid && !isset($body['wettkampf'])) {
+            $vRow = DB::fetchOne('SELECT name FROM ' . DB::tbl('veranstaltungen') . ' WHERE id=?', [$vid]);
+            if ($vRow) { $felder[] = 'wettkampf=?'; $params[] = $vRow['name']; }
+        }
     }
     if (!$felder) jsonErr('Keine Änderungen.');
     $params[] = (int)$id;

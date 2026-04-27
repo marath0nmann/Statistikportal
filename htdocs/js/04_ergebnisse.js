@@ -247,7 +247,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
         // Externes Ergebnis: eigene Edit/Delete Buttons
         cells +=
           '<td style="white-space:nowrap">' +
-            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-ext-edit-id="' + rr.id + '" data-ext-disz="' + (rr.disziplin||'').replace(/"/g,'&quot;') + '" data-ext-res="' + (rr.resultat||'') + '" data-ext-ak="' + (rr.altersklasse||'') + '" data-ext-wettkampf="' + (rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-datum="' + (rr.datum||'').slice(0,10) + '" data-ext-vid="' + (rr.veranstaltung_id||'') + '" data-ext-vname="' + (rr.verknuepfte_veranstaltung_name||rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-athlet-id="' + (rr.athlet_id||'') + '">&#x270E;</button>' +
+            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-ext-edit-id="' + rr.id + '" data-ext-disz="' + (rr.disziplin||'').replace(/"/g,'&quot;') + '" data-ext-res="' + (rr.resultat||'') + '" data-ext-ak="' + (rr.altersklasse||'') + '" data-ext-wettkampf="' + (rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-datum="' + (rr.datum||'').slice(0,10) + '" data-ext-vid="' + (rr.veranstaltung_id||'') + '" data-ext-vname="' + (rr.verknuepfte_veranstaltung_name||rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-verein="' + (rr.verein||'').replace(/"/g,'&quot;') + '" data-ext-athlet-id="' + (rr.athlet_id||'') + '">&#x270E;</button>' +
             '<button class="btn btn-danger btn-sm" data-ext-del-id="' + rr.id + '">&#x2715;</button>' +
           '</td>';
       } else {
@@ -454,6 +454,8 @@ function editKatChanged() {
 async function openEditExternErgebnis(ds) {
   window._extVid = ds.extVid ? parseInt(ds.extVid) : null;
   window._extVname = ds.extVname || '';
+  // Suchfeld vorbelegen: bei gesetzter vid den Namen, sonst den wettkampf-Freitext
+  var searchPrefill = ds.extVid ? (ds.extVname||'') : (ds.extWettkampf||'');
 
   showModal(
     '<h2>&#x270E; Externes Ergebnis bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
@@ -462,18 +464,18 @@ async function openEditExternErgebnis(ds) {
       '<div class="form-group"><label>Ergebnis</label><input type="text" id="ext-res" value="' + (ds.extRes||'') + '"/></div>' +
       '<div class="form-group"><label>Altersklasse</label><input type="text" id="ext-ak" value="' + (ds.extAk||'') + '" placeholder="z.B. M40"/></div>' +
       '<div class="form-group"><label>Datum</label><input type="date" id="ext-datum" value="' + (ds.extDatum||'') + '"/></div>' +
-      '<div class="form-group full"><label>Wettkampf</label><input type="text" id="ext-wettkampf" value="' + (ds.extWettkampf||'').replace(/"/g,'&quot;') + '"/></div>' +
+      '<div class="form-group full"><label>Verein</label><input type="text" id="ext-verein" value="' + (ds.extVerein||'').replace(/"/g,'&quot;') + '" placeholder="z.B. SV Musterstadt"/></div>' +
       '<div class="form-group full">' +
-        '<label>Veranstaltung <span style="font-size:11px;font-weight:400;color:var(--text2)">(optional – für Verlinkung)</span></label>' +
+        '<label>Veranstaltung</label>' +
         '<div style="display:flex;gap:6px;align-items:center">' +
-          '<input type="text" id="ext-veranst-search" placeholder="Suchen…" ' +
-            'value="' + (ds.extVid ? (ds.extVname||'').replace(/"/g,'&quot;') : '') + '" ' +
+          '<input type="text" id="ext-veranst-search" placeholder="Name suchen…" ' +
+            'value="' + searchPrefill.replace(/"/g,'&quot;') + '" ' +
             'oninput="_extVeranstSearch(this.value)" autocomplete="off" style="flex:1"/>' +
-          '<button class="btn btn-ghost btn-sm" onclick="_extVeranstClear()" title="Zuordnung entfernen">&#x2715; Frei</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="_extVeranstClear()" title="Veranstaltungsbezug entfernen">&#x2715;</button>' +
         '</div>' +
         '<div id="ext-veranst-results" style="margin-top:4px"></div>' +
         '<div id="ext-veranst-current" style="font-size:12px;color:var(--text2);margin-top:4px">' +
-          (ds.extVid ? '&#x1F517; Aktuell: ' + (ds.extVname || 'Veranstaltung #' + ds.extVid) : 'Kein Veranstaltungsbezug') +
+          (ds.extVid ? '&#x1F517; ' + (ds.extVname || 'Veranstaltung #' + ds.extVid) : '<span style="color:var(--text3)">Kein Veranstaltungsbezug</span>') +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -534,12 +536,14 @@ function _extVeranstClear() {
 
 async function _saveExternErgebnis(id) {
   var body = {
-    disziplin:      (document.getElementById('ext-disz')     || {}).value || '',
-    resultat:       (document.getElementById('ext-res')      || {}).value || '',
-    altersklasse:   (document.getElementById('ext-ak')       || {}).value || null,
-    datum:          (document.getElementById('ext-datum')     || {}).value || null,
-    wettkampf:      (document.getElementById('ext-wettkampf')|| {}).value || '',
+    disziplin:        (document.getElementById('ext-disz')   || {}).value || '',
+    resultat:         (document.getElementById('ext-res')    || {}).value || '',
+    altersklasse:     (document.getElementById('ext-ak')     || {}).value || null,
+    datum:            (document.getElementById('ext-datum')  || {}).value || null,
+    verein:           (document.getElementById('ext-verein') || {}).value || null,
     veranstaltung_id: window._extVid || null,
+    // wettkampf aus dem Veranstaltungsnamen ableiten (API synchronisiert bei gesetzter vid automatisch)
+    wettkampf:        window._extVid ? null : ((document.getElementById('ext-veranst-search') || {}).value || null),
   };
   var r = await apiPut('externe-ergebnisse/' + id, body);
   if (r && r.ok) { closeModal(); notify('Gespeichert.', 'ok'); loadErgebnisseData(); }

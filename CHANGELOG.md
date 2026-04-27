@@ -1,4 +1,7 @@
 ## vCUR
+- Externe Ergebnisse: Vereinsname (verein) jetzt im Edit-Modal pflegbar und wird korrekt gespeichert
+- Externe Ergebnisse: Wettkampf-Freitext entfernt – Veranstaltungsbezug erfolgt ausschließlich über Veranstaltungssuche; API synchronisiert wettkampf-Feld automatisch
+- Externe Ergebnisse: API GET gibt jetzt pb.verein zurück; API PUT unterstützt verein-Update
 - Fix: Admin → Wartung → Verwaiste Veranstaltungen: Veranstaltungen mit ausschließlich externen Ergebnissen (athlet_pb) werden nicht mehr als verwaist angezeigt
 - Vereinsrekorde: Ergebnisformat verwendet jetzt COALESCE(fmt_override, kat.fmt) – disziplinspezifische Formate (z. B. min_h) werden korrekt dargestellt
 - Vereinsrekorde: table-layout:fixed für exakt gleiche Frauen/Männer-Breite und Veranstaltungsname-Kürzung per ellipsis
