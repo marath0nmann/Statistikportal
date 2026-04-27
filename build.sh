@@ -44,6 +44,10 @@ sed -i.bak "s/^## v${CUR_VER}\b/## v${NEW_VER}/" "$REPO_DIR/CHANGELOG.md"
 rm -f "$REPO_DIR/CHANGELOG.md.bak"
 echo "✓ CHANGELOG.md → v${NEW_VER}"
 
+# ── Git: vom Build geänderte Dateien stagen ─────────────────────────────────
+git -C "$REPO_DIR" add htdocs/index.html README.md CHANGELOG.md COMMIT_EDITMSG 2>/dev/null || true
+echo "✓ git add: index.html, README.md, CHANGELOG.md, COMMIT_EDITMSG"
+
 # ── ZIP bauen ───────────────────────────────────────────────────────────────
 TMP="$REPO_DIR/../${PKG}"
 rm -rf "$TMP"
