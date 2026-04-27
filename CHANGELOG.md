@@ -1,4 +1,5 @@
 ## vCUR
+- Athletenprofil-Modal: „Wettkämpfe" → „Ergebnisse" (mit korrekter Einzahl)
 - Dashboard-Widget „mein Athletenprofil": „Wettkämpfe" → „Ergebnisse" (mit korrekter Einzahl)
 - Dashboard: „Neueste Bestleistungen" zeigt nur noch Vereinsergebnisse (keine externen); „Gesamtbestleistung" → „Vereinsrekord"
 - Dashboard: „Letzte Veranstaltungen" kennzeichnet externe Ergebnisse mit (ext.); Zusammenfassung mit korrekter Einzahl/Mehrzahl und Extern-Anteil
