@@ -2334,7 +2334,7 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
         '</div>' +
       '</div>';
   } else {
-    var filteredDisz = disziplinen.filter(function(d) { return d.kategorie_id == selKat.id; });
+    var filteredDisz = disziplinen.filter(function(d) { return d.kategorie_id == selKat.id; }).sort(function(a,b){ return (b.ergebnis_anzahl||0)-(a.ergebnis_anzahl||0) || a.disziplin.localeCompare(b.disziplin); });
     var mapRows = '';
     for (var i = 0; i < filteredDisz.length; i++) {
       var d = filteredDisz[i];

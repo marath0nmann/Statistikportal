@@ -1,5 +1,6 @@
 ## vCUR
 - Admin → Disziplinen: Favorit-Stern direkt in Tabelle integriert; separates Favoriten-Panel entfernt
+- Admin → Disziplinen: Sortierung nach Ergebnisanzahl absteigend
 
 ## v1163
 - Athletenprofil-Modal: „Wettkämpfe" → „Ergebnisse" (mit korrekter Einzahl)
