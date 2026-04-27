@@ -238,12 +238,12 @@ function timelineBadges(rek) {
   var html = '';
   if (lc) {
     var isGold = lc === 'Vereinsrekord' || lc.indexOf('Gesamt') >= 0 || lc.indexOf('Männer') >= 0 || lc.indexOf('Frauen') >= 0 || lc.indexOf('Ergebnis M') >= 0 || lc.indexOf('Ergebnis W') >= 0;
-    var vcSuffix = (!rek.extern && vcFmt) ? ' <span style="opacity:.75;font-weight:400">(' + vcFmt + ')</span>' : '';
+    var vcSuffix = (!rek.extern && vcFmt) ? ' <span style="opacity:.75;font-weight:400">(war ' + vcFmt + ')</span>' : '';
     html += '<span class="badge ' + (isGold ? 'badge-gold' : 'badge-silver') + '">' + lc + vcSuffix + '</span> ';
   }
   if (lp) {
     // PB-Badge: Vorgaenger zeigen, ausser er wird schon im Club-Badge angezeigt (bothSame + lc vorhanden)
-    var vpSuffix = (!rek.extern && vpFmt) ? ' <span style="opacity:.75;font-weight:400">(' + vpFmt + ')</span>' : '';
+    var vpSuffix = (!rek.extern && vpFmt) ? ' <span style="opacity:.75;font-weight:400">(war ' + vpFmt + ')</span>' : '';
     html += '<span class="badge badge-pb">' + lp + vpSuffix + '</span>';
   }
   // Fallback für ältere Daten ohne label_club/label_pers
@@ -252,7 +252,7 @@ function timelineBadges(rek) {
     var cls = (lbl === 'Vereinsrekord' || lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0 || lbl === 'Bestleistung Männer' || lbl === 'Bestleistung Frauen') ? 'badge-gold'
             : (lbl === 'PB' || lbl === 'Débüt') ? 'badge-pb' : 'badge-silver';
     var fallbackV = _fmtV(rek.vorher_val);
-    var fbSuffix = (!rek.extern && fallbackV) ? ' <span style="opacity:.75;font-weight:400">(' + fallbackV + ')</span>' : '';
+    var fbSuffix = (!rek.extern && fallbackV) ? ' <span style="opacity:.75;font-weight:400">(war ' + fallbackV + ')</span>' : '';
     html += '<span class="badge ' + cls + '">' + lbl + fbSuffix + '</span>';
   }
   return html.trim();
