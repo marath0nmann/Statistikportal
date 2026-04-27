@@ -1585,17 +1585,17 @@ async function bulkImportFromMika(url, kat, statusEl) {
         var _nn = _wrap.name; var _nr = _wrap.r;
         if (!_nr || !_nr.ok || !_nr.data.results) {
           if (_nr && _nr.data && _nr.data.debug && !_bkDbgLines._namDebugShown) {
-            _bkDbgLine('Name-API-Debug', JSON.stringify(_nr.data.debug).slice(0,3000));
+            var _d = _nr.data.debug;
+            _bkDbgLine('Name-API-Debug', ['noEventResults','noEventIdpRaw','noEventFirstLiSample','detailHasTime','detailLen'].filter(function(k){return _d[k]!==undefined;}).map(function(k){return k+'='+JSON.stringify(_d[k]).slice(0,120);}).join(' | '));
             _bkDbgLines._namDebugShown = true;
           }
           return;
         }
-        // Debug: alle MikaTiming-Treffer sammeln (mit Such-Name)
-        (_nr.data.results || []).forEach(function(res) {
-          _allMikaResults.push({ q: _nn, name: res.name, idp: res.idp });
-        });
+        // Debug: Roh-Treffer zählen
+        _allMikaResults.push.apply(_allMikaResults, (_nr.data.results || []).map(function(res) { return { q: _nn, name: res.name }; }));
         if (!_bkDbgLines._namDebugShown && _nr.data.debug) {
-          _bkDbgLine('Name-API-Debug', JSON.stringify(_nr.data.debug).slice(0,3000));
+          var _d = _nr.data.debug;
+          _bkDbgLine('Name-API-Debug', ['noEventResults','noEventIdpRaw','noEventFirstLiSample','detailHasTime','detailLen'].filter(function(k){return _d[k]!==undefined;}).map(function(k){return k+'='+JSON.stringify(_d[k]).slice(0,120);}).join(' | '));
           _bkDbgLines._namDebugShown = true;
         }
         _nr.data.results.forEach(function(res) {
@@ -1607,34 +1607,7 @@ async function bulkImportFromMika(url, kat, statusEl) {
         });
       });
     }
-    _bkDbgLine('Namens-Treffer', _nameRows.length + ' Athleten gefunden');
-    // Debug: Per-Query-Übersicht (welche Such-Namen brachten wie viele Roh-/Match-Treffer)
-    var _byQuery = {};
-    _searchedNames.forEach(function(n) { _byQuery[n] = { raw: 0, matched: 0, nonEmpty: false }; });
-    _allMikaResults.forEach(function(m) {
-      if (!_byQuery[m.q]) _byQuery[m.q] = { raw: 0, matched: 0, nonEmpty: false };
-      _byQuery[m.q].raw++;
-      _byQuery[m.q].nonEmpty = true;
-      if (uitsAutoMatch(m.name, _athleten)) _byQuery[m.q].matched++;
-    });
-    _bkDbgLine('Such-Übersicht', _searchedNames.length + ' Namen gesucht, ' + _allMikaResults.length + ' Roh-Treffer total');
-    // Liste nur Queries mit Treffern (die uns interessieren)
-    var _queriesWithHits = _searchedNames.filter(function(n) { return _byQuery[n] && _byQuery[n].nonEmpty; });
-    _bkDbgLines.push('  ' + _queriesWithHits.length + ' Namen mit Treffer:');
-    _queriesWithHits.forEach(function(n) {
-      var s = _byQuery[n];
-      _bkDbgLines.push('    ' + n.padEnd(22,' ') + ' raw=' + String(s.raw).padStart(3) + ' matched=' + s.matched);
-    });
-    var _queriesNoHits = _searchedNames.filter(function(n) { return !(_byQuery[n] && _byQuery[n].nonEmpty); });
-    _bkDbgLines.push('  ' + _queriesNoHits.length + ' Namen OHNE Treffer (erste 30): ' + _queriesNoHits.slice(0,30).join(', '));
-    // Detail-Dump aller Roh-Treffer (alle, nicht nur 30)
-    if (_allMikaResults.length) {
-      _bkDbgLines.push('  -- Alle Roh-Treffer mit Match-Status --');
-      _allMikaResults.forEach(function(_mr) {
-        var _matchInfo = uitsAutoMatch(_mr.name, _athleten);
-        _bkDbgLines.push('    q="' + _mr.q + '" → ' + _mr.name + (_matchInfo ? ' ✓ id=' + _matchInfo : ' ✗'));
-      });
-    }
+    _bkDbgLine('Namens-Treffer', _nameRows.length + ' Athleten gefunden (' + _searchedNames.length + ' Namen gesucht, ' + _allMikaResults.length + ' Roh-Treffer)');
     _bkDbgFlush();
     // Vereins-Ergebnisse mit Namens-Ergebnissen zusammenführen (dedup via idp)
     var _clubIdps = {};
@@ -1645,18 +1618,6 @@ async function bulkImportFromMika(url, kat, statusEl) {
     rows = mikaExtractRowsForBulk({ results: _combined }, kat);
     // Debug: Diagnose warum rows leer sein könnte trotz Matches
     _bkDbgLine('Pipeline', 'club=' + (r.data.results||[]).length + ' nameMatches=' + _nameRows.length + ' combined=' + _combined.length + ' → rows=' + rows.length);
-    if (_nameRows.length > 0 && rows.length === 0) {
-      _bkDbgLines.push('  ⚠ Matches gingen beim Filter verloren – Roh-Daten der ersten 3:');
-      for (var _ci = 0; _ci < Math.min(_nameRows.length, 3); _ci++) {
-        var _nr2 = _nameRows[_ci];
-        _bkDbgLines.push('    [' + _ci + '] ' + JSON.stringify({
-          name: _nr2.name, netto: _nr2.netto, ak: _nr2.ak,
-          event_id: _nr2.event_id, contest: _nr2.contest,
-          club: _nr2.club, _fromNewInterface: _nr2._fromNewInterface
-        }).slice(0,300));
-      }
-      _bkDbgFlush();
-    }
   }
 
   if (rows.length) {

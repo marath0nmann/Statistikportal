@@ -4045,9 +4045,33 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 $liAK2 = '';
                 foreach ($xpNE->query('.//*[contains(@class,"type-age_class") or contains(@class,"age_class")]', $li) as $an) {
                     $raw = $an->textContent;
-                    // Geschlecht + Zahl extrahieren: "M / W 40 1975-1979" → "M40"; "W45" bleibt "W45"
-                    if (preg_match('/\b([MW])[^A-Z]*?(\d{2})\b/', $raw, $am)) { $liAK2 = $am[1] . $am[2]; break; }
+                    // Hamburg-Format "M / W 40 ..." → erste Variante nehmen (M oder W)
+                    if (preg_match('/\b([MW])\s*\/\s*[MW]\s+(\d{2})\b/', $raw, $am)) { $liAK2 = $am[1] . $am[2]; break; }
+                    if (preg_match('/\b([MW])(\d{2})\b/', $raw, $am)) { $liAK2 = $am[1] . $am[2]; break; }
                 }
+
+                // Regex-Fallback auf rohem li-HTML (robuster als XPath bei unbekannten Strukturen)
+                $liRawHtml = $domNE->saveHTML($li);
+                $liPlainText = preg_replace('/\s+/', ' ', strip_tags($liRawHtml));
+                // Zeit: erstes HH:MM:SS-Muster im Plaintext
+                if (!$liNetto2 && preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $liPlainText, $tm)) {
+                    $liNetto2 = $tm[1];
+                }
+                // Club: Text direkt nach "Verein|Team|Club"-Label bis zum nächsten Tag
+                if (!$liClub2 && preg_match('/(?:Verein|Verein\/Team|Team|Club)[^<]*<\/[^>]+>\s*([^<]{2,60?}?)\s*</i', $liRawHtml, $cm)) {
+                    $c = trim(strip_tags($cm[1]));
+                    if (strlen($c) >= 2) $liClub2 = $c;
+                }
+                // AK: "M / W 40" oder "W45"
+                if (!$liAK2) {
+                    if (preg_match('/\b([MW])\s*\/\s*[MW]\s+(\d{2})\b/', $liPlainText, $am)) $liAK2 = $am[1] . $am[2];
+                    elseif (preg_match('/\b([MW])(\d{2})\b/', $liPlainText, $am)) $liAK2 = $am[1] . $am[2];
+                }
+                // Debug: erste li Plaintext-Probe (immer, nicht nur wenn leer)
+                if (!isset($debug['noEventFirstLiSample'])) {
+                    $debug['noEventFirstLiSample'] = mb_substr($liPlainText, 0, 400);
+                }
+
                 $oldResults[$idp] = [
                     'name' => trim($name), 'contest' => $evIdFromLink ?: 'Unbekannt',
                     'netto' => $liNetto2, 'ak' => $liAK2, 'platz_ak' => $placeAK2, 'platz_ges' => $placeGes2,
@@ -4240,6 +4264,21 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 }
             }
         }
+        // Fallback: type-time mit "Finish/Ziel/Netto"-Label (Hamburg-style Detailseite)
+        if (empty($res['netto'])) {
+            foreach ($detailXpath->query('//*[contains(@class,"type-time")]') as $tn) {
+                $lbl = $detailXpath->query('.//*[contains(@class,"list-label")]', $tn)->item(0);
+                $lblTxt = $lbl ? trim($lbl->textContent) : '';
+                if (preg_match('/^(Finish|Ziel|Zeit|Netto)/i', $lblTxt) || $lblTxt === '') {
+                    $t = trim(str_replace($lblTxt, '', $tn->textContent));
+                    if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $t, $tm)) { $res['netto'] = $tm[1]; break; }
+                }
+            }
+        }
+        // Fallback: erstes HH:MM:SS-Muster im gesamten Detail-HTML
+        if (empty($res['netto']) && preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', strip_tags($dHtml), $tm)) {
+            $res['netto'] = $tm[1];
+        }
 
         $sex = '';
         if (preg_match('/\b(Frauen|Women|weiblich|Female)\b/i', $dHtml)) $sex = 'W';
@@ -4252,6 +4291,14 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         } elseif ($res['ak']) {
             if (preg_match('/^AK(\d+)$/i', $res['ak'], $akm)) {
                 $res['ak'] = ($sex ?: '') . $akm[1];
+            }
+        }
+        // AK Fallback: type-age_class im Detail (Hamburg-style "M / W 40 1975-1979")
+        if (empty($res['ak'])) {
+            foreach ($detailXpath->query('//*[contains(@class,"type-age_class") or contains(@class,"age_class")]') as $an) {
+                $raw = trim($an->textContent);
+                if (preg_match('/\b([MW])\s*\/\s*[MW]\s+(\d{2})\b/', $raw, $am)) { $res['ak'] = $am[1] . $am[2]; break; }
+                if (preg_match('/\b([MW])(\d{2})\b/', $raw, $am)) { $res['ak'] = $am[1] . $am[2]; break; }
             }
         }
         if ($res['ak'] && !preg_match('/^[MW]/', $res['ak'])) {

@@ -14,10 +14,10 @@
 - Fix: Auto-Match (uitsAutoMatch) – strikter Vergleich nach Umlaut-/Akzent-Normalisierung; frühere 80%-Präfix-Regel matchte fälschlich "Andrea" mit "Andreas" und "Kraus" mit "Krause" und führte zu falschen Treffern bei Bulk-Importen (MikaTiming, uitsslagen.nl, RaceResult)
 - Fix: MikaTiming – Datum aus Hamburg-style JSON `"date":"YYYY-MM-DD..."` extrahiert (häufigstes Datum = Renntag) wenn weder Title noch JSON-LD ein Datum liefern
 - Fix: MikaTiming – Disziplin-Map jetzt dynamisch aus `<option>`-Texten der Hauptseite + Heuristik (HML/M→Marathon, HHML/HM→Halbmarathon bei Marathon-Title, *km, Staffel, Rollstuhl, Handbike)
-- Fix: MikaTiming – Verein, Zeit (Finish/Ziel/Zeit/Netto) und AK ("M / W 40" → "M40") werden jetzt direkt aus der Suchliste extrahiert (Hamburg-style HTML mit `type-field`/`type-time`/`type-age_class` + Labels)
+- Fix: MikaTiming – Zeit/Verein/AK jetzt mit Regex-Fallback direkt auf rohem li-HTML (bypasses DOMDocument-XPath bei Hamburg-style `type-time`/`type-field`/`type-age_class`); gleicher Fallback auf Detailseite
 - Perf: MikaTiming – Detail-Fetch wird übersprungen wenn netto+ak bereits aus Suchliste vorhanden (spart bei Hamburg-style Sites N parallele HTTP-Requests)
-- Fix: MikaTiming-Import – gematchte Athleten ohne Zeit nicht mehr aus den Einträgen geworfen ("Keine TuS-Einträge gefunden" trotz Match) – Filter `_fromNewInterface && !netto` entfernt, User kann Zeit manuell ergänzen
-- Debug: MikaTiming-Import – neue Pipeline-Zeile zeigt club/nameMatches/combined → rows Zählung; bei verlorenen Matches automatischer Roh-Daten-Dump
+- Fix: MikaTiming-Import – gematchte Athleten ohne Zeit nicht mehr aus den Einträgen geworfen ("Keine TuS-Einträge gefunden" trotz Match)
+- UX: MikaTiming-Import – Debug-Ausgabe verschlankt (keine Per-Query-Tabelle und kein Roh-Dump mehr)
 - UX: Bulk-Import – Veranstaltungsname wird automatisch bereinigt: trailing Jahreszahl + freistehender Ortsname werden entfernt – auch bei Auswahl einer regelmäßigen Veranstaltung
 - Perf: MikaTiming-Import – Old-Interface-Fallback (Event-ID-Loop + Detailseiten) jetzt parallel via curl_multi statt sequenziell (~10–26× schneller)
 - Fix: MikaTiming – Garbage-Event-IDs (25/50/100/ASC/DESC/name/club) werden nicht mehr als Event-IDs gesucht
