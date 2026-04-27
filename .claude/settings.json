@@ -3,5 +3,21 @@
     "allow": [
       "Edit(.claude/CLAUDE.md)"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git push *)",
+            "command": "BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if [ -n \"$BRANCH\" ] && [ \"$BRANCH\" != \"main\" ] && [ \"$BRANCH\" != \"HEAD\" ]; then git fetch origin main 2>/dev/null; git checkout main 2>/dev/null; git merge --ff-only \"$BRANCH\" 2>/dev/null && git push origin main 2>/dev/null; git checkout \"$BRANCH\" 2>/dev/null; fi; true",
+            "timeout": 60,
+            "statusMessage": "Merging to main..."
+          }
+        ]
+      }
+    ]
   }
 }
