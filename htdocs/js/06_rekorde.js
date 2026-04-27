@@ -381,48 +381,75 @@ async function renderVereinsrekorde() {
     return;
   }
 
-  function cell(entry, fmt) {
-    if (!entry) return '<td colspan="4" style="color:var(--text3);text-align:center">&ndash;</td>';
+  // Hilfsfunktion: 4 Zellen für eine Bestleistung (Frau oder Mann)
+  function vrCell(entry, fmt, label) {
+    if (!entry) {
+      return '<td class="vr-name"></td>' +
+             '<td class="result vr-result" style="color:var(--text3)">–</td>' +
+             '<td class="ort-text vr-date"></td>' +
+             '<td class="ort-text vr-event"></td>';
+    }
     var result = fmt === 'm' ? fmtMeter(entry.resultat) : fmtTime(entry.resultat, fmt);
     var athlet = entry.athlet_id
-      ? '<span class="athlet-link" data-athlet-id="' + entry.athlet_id + '">' + (entry.athlet || '&ndash;') + '</span>'
-      : (entry.athlet || '&ndash;');
+      ? '<span class="athlet-link" data-athlet-id="' + entry.athlet_id + '">' + (entry.athlet || '–') + '</span>'
+      : (entry.athlet || '–');
+    var eventLabel = entry.veranstaltungsname || entry.veranstaltungsort || 'Veranstaltung';
     var veranst = entry.veranstaltung_id
-      ? '<a href="javascript:void(0)" onclick="navigate(\'veranstaltung/' + entry.veranstaltung_id + '\')" style="color:var(--link,var(--primary));text-decoration:none">' + (entry.veranstaltungsname || entry.veranstaltungsort || 'Veranstaltung') + '</a>'
-      : (entry.veranstaltungsname || entry.veranstaltungsort || '&ndash;');
-    return '<td style="font-weight:600">' + athlet + '</td>' +
-           '<td class="result">' + result + '</td>' +
-           '<td class="ort-text">' + formatDate(entry.datum) + '</td>' +
-           '<td class="ort-text" style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + veranst + '</td>';
+      ? '<a href="javascript:void(0)" onclick="event.stopPropagation();navigate(\'veranstaltung/' + entry.veranstaltung_id + '\')" style="color:var(--primary);text-decoration:none">' + eventLabel + '</a>'
+      : eventLabel;
+    return '<td class="vr-name" style="font-weight:600">' + athlet + '</td>' +
+           '<td class="result vr-result">' + result + '</td>' +
+           '<td class="ort-text vr-date">' + formatDate(entry.datum) + '</td>' +
+           '<td class="ort-text vr-event">' + veranst + '</td>';
   }
 
-  var html = '<div class="panel" style="overflow-x:auto">' +
-    '<h2 style="font-family:\'Barlow Condensed\',sans-serif;font-size:22px;font-weight:700;margin:0 0 18px">Vereinsrekorde</h2>' +
-    '<table class="rek-table" style="width:100%">' +
-    '<thead><tr>' +
-      '<th style="min-width:120px">Disziplin</th>' +
-      '<th colspan="4" style="text-align:center;background:rgba(var(--primary-rgb,80,120,200),.08);border-bottom:2px solid var(--primary)">' +
-        '<span style="color:var(--primary);font-weight:700">&#9792; Frauen</span></th>' +
-      '<th colspan="4" style="text-align:center;border-bottom:2px solid var(--border)">' +
-        '<span style="font-weight:700">&#9794; M&auml;nner</span></th>' +
-    '</tr>' +
-    '<tr style="font-size:11px;color:var(--text2)">' +
-      '<th></th>' +
-      '<th>Athletin</th><th>Ergebnis</th><th>Datum</th><th>Veranstaltung</th>' +
-      '<th>Athlet</th><th>Ergebnis</th><th>Datum</th><th>Veranstaltung</th>' +
-    '</tr></thead>' +
-    '<tbody>';
-
+  // Disziplinen nach Kategorie gruppieren (Reihenfolge aus API bleibt erhalten)
+  var groups = [];
+  var groupIndex = {};
   for (var i = 0; i < items.length; i++) {
     var d = items[i];
-    html += '<tr onclick="navigateToDisz(\'' + d.disziplin.replace(/'/g, "\\'") + '\',' + d.mapping_id + ')" style="cursor:pointer">' +
-      '<td style="font-weight:700;white-space:nowrap">' + d.disziplin + '</td>' +
-      cell(d.frauen, d.fmt) +
-      cell(d.maenner, d.fmt) +
-    '</tr>';
+    var key = d.kat || '';
+    if (groupIndex[key] === undefined) {
+      groupIndex[key] = groups.length;
+      groups.push({ kat: key, kat_name: d.kat_name || key, items: [] });
+    }
+    groups[groupIndex[key]].items.push(d);
   }
 
-  html += '</tbody></table></div>';
+  var THEAD =
+    '<thead>' +
+      '<tr>' +
+        '<th class="vr-col-disz"></th>' +
+        '<th colspan="4" class="vr-group-head vr-group-w">' +
+          '<span style="color:var(--primary);font-weight:700">&#9792;&nbsp;Frauen</span></th>' +
+        '<th colspan="4" class="vr-group-head vr-group-m">' +
+          '<span style="font-weight:700">&#9794;&nbsp;M&auml;nner</span></th>' +
+      '</tr>' +
+      '<tr class="vr-subhead">' +
+        '<th class="vr-col-disz">Disziplin</th>' +
+        '<th class="vr-name">Athletin</th><th class="vr-result">Ergebnis</th><th class="vr-date">Datum</th><th class="vr-event">Veranstaltung</th>' +
+        '<th class="vr-name">Athlet</th><th class="vr-result">Ergebnis</th><th class="vr-date">Datum</th><th class="vr-event">Veranstaltung</th>' +
+      '</tr>' +
+    '</thead>';
+
+  var html = '';
+  for (var gi = 0; gi < groups.length; gi++) {
+    var g = groups[gi];
+    html += rekSectionHead(g.kat_name);
+    html += '<div class="panel" style="overflow-x:auto;margin-bottom:28px">' +
+      '<table class="rek-table vr-table">' + THEAD + '<tbody>';
+    for (var ii = 0; ii < g.items.length; ii++) {
+      var d = g.items[ii];
+      var diszEsc = d.disziplin.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      html += '<tr class="vr-row" onclick="navigateToDisz(\'' + diszEsc + '\',' + d.mapping_id + ')" style="cursor:pointer">' +
+        '<td class="vr-col-disz" style="font-weight:700;white-space:nowrap">' + d.disziplin + '</td>' +
+        vrCell(d.frauen, d.fmt) +
+        vrCell(d.maenner, d.fmt) +
+      '</tr>';
+    }
+    html += '</tbody></table></div>';
+  }
+
   el.innerHTML = html;
 }
 

@@ -2958,7 +2958,8 @@ if ($res === 'vereinsrekorde') {
     $mappingRows  = [];
     try {
         $rows = DB::fetchAll(
-            "SELECT m.id AS mapping_id, m.disziplin, k.tbl_key, k.sort_dir, k.fmt
+            "SELECT m.id AS mapping_id, m.disziplin, k.tbl_key, k.name AS kat_name,
+                    k.sort_dir, k.fmt, k.reihenfolge
              FROM " . DB::tbl('disziplin_mapping') . " m
              JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
              WHERE m.id IN ($placeholders)", $favList);
@@ -3004,11 +3005,23 @@ if ($res === 'vereinsrekorde') {
             'disziplin'  => $info['disziplin'],
             'mapping_id' => $mid,
             'kat'        => $info['tbl_key'],
+            'kat_name'   => $info['kat_name'],
+            'kat_ord'    => (int)($info['reihenfolge'] ?? 99),
             'fmt'        => $fmt,
             'maenner'    => $getBest($mid, $dir, $fmt, 'M'),
             'frauen'     => $getBest($mid, $dir, $fmt, 'W'),
         ];
     }
+
+    // Sort: by category order, then by distance (diszSortKey), then alphabetically
+    usort($result, function($a, $b) {
+        if ($a['kat_ord'] !== $b['kat_ord']) return $a['kat_ord'] - $b['kat_ord'];
+        $ka = diszSortKey($a['disziplin']);
+        $kb = diszSortKey($b['disziplin']);
+        if ($ka !== $kb) return $ka <=> $kb;
+        return strcmp($a['disziplin'], $b['disziplin']);
+    });
+
     jsonOk($result);
 }
 

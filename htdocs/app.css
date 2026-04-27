@@ -688,13 +688,13 @@ tr:hover td { background: var(--surf2); }
   table:not(.veranst-dash-table):not(.serie-teilnahmen-table) th:nth-child(4),
   table:not(.veranst-dash-table):not(.serie-teilnahmen-table) td:nth-child(4) { display: none; }
   /* rek-table: Spalte 4 (AK oder Pace) ausblenden */
-  .rek-table:not(.serie-teilnahmen-table) th:nth-child(4),
-  .rek-table:not(.serie-teilnahmen-table) td:nth-child(4) { display: none; }
+  .rek-table:not(.serie-teilnahmen-table):not(.vr-table) th:nth-child(4),
+  .rek-table:not(.serie-teilnahmen-table):not(.vr-table) td:nth-child(4) { display: none; }
   /* rek-table: letzte Spalte (Datum) ausblenden –
      ohne Pace: Badge|Name|Erg.|~~AK~~|~~Datum~~ → 3 Sp.
      mit Pace:  Badge|Name|Erg.|~~Pace~~|AK|~~Datum~~ → 4 Sp. */
-  .rek-table:not(.serie-teilnahmen-table) th:last-child,
-  .rek-table:not(.serie-teilnahmen-table) td:last-child { display: none; }
+  .rek-table:not(.serie-teilnahmen-table):not(.vr-table) th:last-child,
+  .rek-table:not(.serie-teilnahmen-table):not(.vr-table) td:last-child { display: none; }
   /* Athletenname auf Mobile auf max. 140px begrenzen;
      .rek-name-cell ist ein Block-div – overflow:hidden wirkt zuverlässig ohne table-layout:fixed */
   .rek-name-cell { max-width: 140px; }
@@ -835,6 +835,27 @@ tr:hover td { background: var(--surf2); }
   font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 600;
   color: var(--text); margin: 4px 0 16px; letter-spacing: .01em;
   border-bottom: 3px solid var(--accent); padding-bottom: 6px; display: inline-block;
+}
+
+/* ── VEREINSREKORDE ── */
+.vr-table .vr-group-head {
+  text-align: center; text-transform: none; font-size: 13px; border-bottom: 2px solid var(--border);
+}
+.vr-table .vr-group-w { background: rgba(0,0,0,.03); border-bottom-color: var(--primary); }
+.vr-table .vr-subhead th { font-size: 11px; color: var(--text2); border-bottom: 1px solid var(--border); }
+.vr-table .vr-col-disz { white-space: nowrap; min-width: 110px; }
+.vr-table .vr-name     { min-width: 120px; }
+.vr-table .vr-result   { white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; min-width: 72px; }
+.vr-table .vr-date     { white-space: nowrap; min-width: 80px; }
+.vr-table .vr-event    { min-width: 120px; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Trennlinie zwischen Frauen- und Männer-Block */
+.vr-table td:nth-child(5), .vr-table th:nth-child(5) { border-right: 2px solid var(--border); }
+
+[data-theme="dark"] .vr-table .vr-group-w { background: rgba(255,255,255,.04); }
+
+@media (max-width: 700px) {
+  .vr-table .vr-date, .vr-table th.vr-date  { display: none; }
+  .vr-table .vr-event, .vr-table th.vr-event { display: none; }
 }
 
 /* ── TIMELINE ── */
