@@ -1796,7 +1796,7 @@ if ($res === 'dashboard' && $method === 'GET') {
             // Nur externe Ergebnisse für diese Disziplin
             $ergs = DB::fetchAll(
                 "SELECT pb.resultat, $pbValExpr AS val_sort, pb.datum, ($akExprTlPb) AS altersklasse,
-                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
+                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht, 1 AS extern
                  FROM " . DB::tbl('athlet_pb') . " pb
                  JOIN " . DB::tbl('athleten') . " a ON a.id=pb.athlet_id
                  WHERE $pbErgWhere AND pb.resultat IS NOT NULL AND pb.resultat != ''
@@ -1807,7 +1807,7 @@ if ($res === 'dashboard' && $method === 'GET') {
         } else {
             $ergs = DB::fetchAll(
                 "SELECT e.resultat, $valExpr AS val_sort, v.datum, ($akExprTl) AS altersklasse,
-                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
+                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht, 0 AS extern
                  FROM $tblN e
                  JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
                  JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
@@ -1815,7 +1815,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                    AND e.geloescht_am IS NULL
                  UNION ALL
                  SELECT pb.resultat, $pbValExpr AS val_sort, pb.datum, ($akExprTlPb) AS altersklasse,
-                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
+                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht, 1 AS extern
                  FROM " . DB::tbl('athlet_pb') . " pb
                  JOIN " . DB::tbl('athleten') . " a ON a.id=pb.athlet_id
                  WHERE $pbErgWhere AND pb.resultat IS NOT NULL AND pb.resultat != ''
@@ -1894,7 +1894,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                 if ($prevGesamt === null) $firstEverDatum = $datum;
                 // Co-Debüt: vorheriger Bestwert am selben Tag → kein echter Vorgänger
                 $sameDayGesamt = ($prevGesamt !== null && $prevGesamtDatum === $datum);
-                $labelClub = ($prevGesamt === null || $sameDayGesamt) ? 'Erste Gesamtleistung' : 'Gesamtbestleistung';
+                $labelClub = ($prevGesamt === null || $sameDayGesamt) ? 'Erste Gesamtleistung' : 'Vereinsrekord';
                 $vorherClub = (!$sameDayGesamt) ? ($prevGesamt ?? null) : null;
                 if ($vorher === null && !$sameDayGesamt) $vorher = $prevGesamt;
                 // Geschlechts-Bestleistung mitaktualisieren (prevByG sichern!)
@@ -1991,6 +1991,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                     'label'               => $labelClub ?? $labelPers,
                     'fmt'                 => $fmt,
                     'priority'            => $prio,
+                    'extern'              => !empty($e['extern']),
                 ];
             }
         }

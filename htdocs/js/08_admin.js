@@ -1189,7 +1189,7 @@ var WIDGET_DEFS = [
 // Verfügbare Stat-Karten (Reihenfolge und Auswahl konfigurierbar)
 // Timeline-Label-Typen (fest, AK-Labels sind dynamisch aber gehören zu Typ 'ak')
 var TIMELINE_TYPE_DEFS = [
-  { id: 'gesamt',  label: 'Gesamtbestleistung',            desc: 'Beste Leistung aller Athleten in einer Disziplin (Gold)',      prio: 0 },
+  { id: 'gesamt',  label: 'Vereinsrekord',                  desc: 'Beste Leistung aller Athleten in einer Disziplin (Gold)',      prio: 0 },
   { id: 'gender',  label: 'Bestleistung M / W',            desc: 'Beste Leistung je Geschlecht (Gold)',                          prio: 1 },
   { id: 'ak',      label: 'Bestleistung / Erste Leis. AK', desc: 'Beste oder erste Leistung je Altersklasse (Silber)',           prio: 2 },
   { id: 'pb',      label: 'PB / Debüt',                    desc: 'Persönliche Bestleistung oder erstes Ergebnis (Grün)',         prio: 3 },
@@ -1197,7 +1197,7 @@ var TIMELINE_TYPE_DEFS = [
 
 function timelineLabelType(lbl) {
   if (!lbl) return null;
-  if (lbl === 'Gesamtbestleistung' || lbl === 'Erste Gesamtleistung') return 'gesamt';
+  if (lbl === 'Vereinsrekord' || lbl === 'Gesamtbestleistung' || lbl === 'Erste Gesamtleistung') return 'gesamt';
   if (lbl === 'Bestleistung Männer' || lbl === 'Bestleistung Frauen' ||
       lbl === 'Erstes Ergebnis M'   || lbl === 'Erstes Ergebnis W') return 'gender';
   if (lbl === 'PB' || lbl === 'Debüt') return 'pb';

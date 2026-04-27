@@ -237,7 +237,7 @@ function timelineBadges(rek) {
 
   var html = '';
   if (lc) {
-    var isGold = lc.indexOf('Gesamt') >= 0 || lc.indexOf('Männer') >= 0 || lc.indexOf('Frauen') >= 0 || lc.indexOf('Ergebnis M') >= 0 || lc.indexOf('Ergebnis W') >= 0;
+    var isGold = lc === 'Vereinsrekord' || lc.indexOf('Gesamt') >= 0 || lc.indexOf('Männer') >= 0 || lc.indexOf('Frauen') >= 0 || lc.indexOf('Ergebnis M') >= 0 || lc.indexOf('Ergebnis W') >= 0;
     var vcSuffix = (!rek.extern && vcFmt) ? ' <span style="opacity:.75;font-weight:400">(' + vcFmt + ')</span>' : '';
     html += '<span class="badge ' + (isGold ? 'badge-gold' : 'badge-silver') + '">' + lc + vcSuffix + '</span> ';
   }
@@ -249,7 +249,7 @@ function timelineBadges(rek) {
   // Fallback für ältere Daten ohne label_club/label_pers
   if (!lc && !lp && rek.label) {
     var lbl = rek.label;
-    var cls = (lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0 || lbl === 'Bestleistung Männer' || lbl === 'Bestleistung Frauen') ? 'badge-gold'
+    var cls = (lbl === 'Vereinsrekord' || lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0 || lbl === 'Bestleistung Männer' || lbl === 'Bestleistung Frauen') ? 'badge-gold'
             : (lbl === 'PB' || lbl === 'Débüt') ? 'badge-pb' : 'badge-silver';
     var fallbackV = _fmtV(rek.vorher_val);
     var fbSuffix = (!rek.extern && fallbackV) ? ' <span style="opacity:.75;font-weight:400">(' + fallbackV + ')</span>' : '';
@@ -263,12 +263,12 @@ function timelineBadges(rek) {
   var timelineMax = rekordeTimeline.length;
   for (var i = 0; i < timelineMax; i++) {
     var rek = rekordeTimeline[i];
+    if (rek.extern) continue;
     var fmt = rek.fmt || '';
     var res = fmt === 'm' ? fmtMeter(rek.resultat) : fmtTime(rek.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
     var lbl = rek.label || '';
     var athletName = rek.athlet || '';
     var badgesHtml = timelineBadges(rek);
-    var dotStyle = rek.extern ? 'background:var(--accent);' : '';
     if (!athletName) continue;
     // "Nachname, Vorname" → "Vorname Nachname"
     var _nvParts = athletName.split(', ');
@@ -322,7 +322,7 @@ function timelineBadges(rek) {
         var vShowPace = _vPace && _vPace !== '00:00' && vfmt !== 'm' && vfmt !== 's';
         vrows +=
           '<tr>' +
-            '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span></td>' +
+            '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span>' + (parseInt(e2.extern) ? ' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>' : '') + '</td>' +
             '<td>' + akBadge(e2.altersklasse) + '</td>' +
             '<td class="result">' + vres + '</td>' +
             '<td class="ort-text">' + (vShowPace ? fmtTime(_vPace, 'min/km') : '') + '</td>' +
@@ -331,6 +331,19 @@ function timelineBadges(rek) {
           '</tr>';
       }
     }
+    var _vErgs = v.ergebnisse || [];
+    var _vExtErgs = _vErgs.filter(function(e){return parseInt(e.extern);});
+    var _vExtErgCount = _vExtErgs.length;
+    var _vTotalErg = _vErgs.length;
+    var _vClubIds = _vErgs.filter(function(e){return !parseInt(e.extern);}).map(function(e){return e.athlet_id;});
+    var _vAllIds = _vErgs.map(function(e){return e.athlet_id;});
+    var _vUniqIds = _vAllIds.filter(function(id,i,a){return a.indexOf(id)===i;});
+    var _vTotalAth = _vUniqIds.length;
+    var _vExtOnlyAth = _vUniqIds.filter(function(id){return _vClubIds.indexOf(id)<0;}).length;
+    var _vErgStr = _vTotalErg === 1 ? '1 Ergebnis' : _vTotalErg + ' Ergebnisse';
+    if (_vExtErgCount > 0) _vErgStr += ' (' + _vExtErgCount + ' extern)';
+    var _vAthStr = _vTotalAth === 1 ? '1 Athlet*in' : _vTotalAth + ' Athlet*innen';
+    if (_vExtOnlyAth > 0) _vAthStr += ' (' + _vExtOnlyAth + ' extern)';
     var isLast = (vi === veranst.length - 1);
     veranstHtml +=
       '<div class="veranst-dash-block" style="' + (isLast ? 'padding:14px 20px 4px' : 'border-bottom:1px solid var(--border);padding:14px 20px') + '">' +
@@ -339,7 +352,7 @@ function timelineBadges(rek) {
             '<div style="font-weight:700;font-size:16px;color:var(--primary)">' + vname + '</div>' +
             '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + v.ort : '') + '</div>' +
           '</div>' +
-          '<div style="font-size:12px;color:var(--text2);white-space:nowrap">' + v.anz_ergebnisse + ' Ergebnisse &middot; ' + v.anz_athleten + ' Athleten</div>' +
+          '<div style="font-size:12px;color:var(--text2);white-space:nowrap">' + _vErgStr + ' &middot; ' + _vAthStr + '</div>' +
         '</div>' +
         (vrows ? '<div class="table-scroll" style="margin-bottom:8px"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz"><col class="vcol-ms"></colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Platz AK</th><th>Meisterschaft</th></tr></thead><tbody>' + vrows + '</tbody></table></div>' :
                  '<div style="color:var(--text2);font-size:13px;padding:4px 0 8px">Keine Ergebnisse</div>') +
@@ -433,6 +446,7 @@ function timelineBadges(rek) {
         for (var ti = 0; ti < rekordeTimeline.length; ti++) {
           var rek2 = rekordeTimeline[ti];
           if (!rek2.athlet) continue;
+          if (rek2.extern) continue;
           // Favoriten-Filter: Disziplin muss in Favoritenliste sein
           if (nurFavoriten && _favMids.length) {
             var _m2 = rek2.disziplin_mapping_id ? parseInt(rek2.disziplin_mapping_id) : null;
@@ -467,7 +481,7 @@ function timelineBadges(rek) {
           var fRek  = filtItems[fi].rek;
           var fFmt  = fItem.fmt || '';
           var fRes  = fFmt === 'm' ? fmtMeter(fItem.resultat) : fmtTime(fItem.resultat, fFmt === 's' ? 's' : (fFmt === 'min_h' ? 'min_h' : undefined));
-          var fLblCls = (fLbl.indexOf('Gesamtbestleistung') >= 0 || fLbl.indexOf('Erste Gesamtleistung') >= 0 || fLbl === 'Bestleistung Männer' || fLbl === 'Bestleistung Frauen') ? 'badge badge-gold' :
+          var fLblCls = (fLbl === 'Vereinsrekord' || fLbl.indexOf('Gesamtbestleistung') >= 0 || fLbl.indexOf('Erste Gesamtleistung') >= 0 || fLbl === 'Bestleistung Männer' || fLbl === 'Bestleistung Frauen') ? 'badge badge-gold' :
                         (fLbl === 'PB' || fLbl === 'Debüt') ? 'badge badge-pb' : 'badge badge-silver';
           var fBadgesHtml = timelineBadges(Object.assign({}, fRek, {
             label_club: hiddenTypes.indexOf(timelineLabelType(fRek.label_club)) < 0 ? fRek.label_club : null,
@@ -570,7 +584,7 @@ function timelineBadges(rek) {
               var vvres = vvfmt === 'm' ? fmtMeter(ve2.resultat) : fmtTime(ve2.resultat, vvfmt === 's' ? 's' : (vvfmt === 'min_h' ? 'min_h' : undefined));
               var vvpace = diszKm(ve2.disziplin) >= 1 ? calcPace(ve2.disziplin, ve2.resultat) : '';
               var vvShowPace = vvpace && vvpace !== '00:00' && vvfmt !== 'm' && vvfmt !== 's';
-              var vvCells = { athlet: '<td><span class="athlet-link" onclick="openAthletById('+ve2.athlet_id+')">'+ve2.athlet+'</span></td>', ak: '<td>'+akBadge(ve2.altersklasse)+'</td>', result: '<td class="result">'+vvres+'</td>', pace: '<td class="ort-text">'+(vvShowPace?fmtTime(vvpace,'min/km'):'')+'</td>', platz: '<td>'+medalBadge(ve2.ak_platzierung)+'</td>', ms: '<td>'+mstrBadge(ve2.meisterschaft)+'</td>' };
+              var vvCells = { athlet: '<td><span class="athlet-link" onclick="openAthletById('+ve2.athlet_id+')">'+ve2.athlet+'</span>'+(parseInt(ve2.extern)?' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>':'')+'</td>', ak: '<td>'+akBadge(ve2.altersklasse)+'</td>', result: '<td class="result">'+vvres+'</td>', pace: '<td class="ort-text">'+(vvShowPace?fmtTime(vvpace,'min/km'):'')+'</td>', platz: '<td>'+medalBadge(ve2.ak_platzierung)+'</td>', ms: '<td>'+mstrBadge(ve2.meisterschaft)+'</td>' };
               var vvRow = '<tr>';
               for (var vci = 0; vci < visibleCols.length; vci++) vvRow += vvCells[visibleCols[vci]] || '<td></td>';
               vvrows += vvRow + '</tr>';
@@ -586,12 +600,24 @@ function timelineBadges(rek) {
             vvThead += '<th>' + (vdef?vdef.label:visibleCols[vci2]) + '</th>';
           }
           vvColgroup += '</colgroup>'; vvThead += '</tr>';
+          var _vvErgs = vv.ergebnisse || [];
+          var _vvExtErgCount = _vvErgs.filter(function(e){return parseInt(e.extern);}).length;
+          var _vvTotalErg = _vvErgs.length;
+          var _vvClubIds = _vvErgs.filter(function(e){return !parseInt(e.extern);}).map(function(e){return e.athlet_id;});
+          var _vvAllIds = _vvErgs.map(function(e){return e.athlet_id;});
+          var _vvUniqIds = _vvAllIds.filter(function(id,i,a){return a.indexOf(id)===i;});
+          var _vvTotalAth = _vvUniqIds.length;
+          var _vvExtOnlyAth = _vvUniqIds.filter(function(id){return _vvClubIds.indexOf(id)<0;}).length;
+          var _vvErgStr = _vvTotalErg === 1 ? '1 Ergebnis' : _vvTotalErg + ' Ergebnisse';
+          if (_vvExtErgCount > 0) _vvErgStr += ' (' + _vvExtErgCount + ' extern)';
+          var _vvAthStr = _vvTotalAth === 1 ? '1 Athlet*in' : _vvTotalAth + ' Athlet*innen';
+          if (_vvExtOnlyAth > 0) _vvAthStr += ' (' + _vvExtOnlyAth + ' extern)';
           var isLast2 = (vvi === veranst.length - 1);
           vHtml += '<div class="veranst-dash-block" style="' + (isLast2?'padding:14px 20px 4px':'border-bottom:1px solid var(--border);padding:14px 20px') + '">' +
             '<div class="veranst-meta" style="display:flex;justify-content:space-between;align-items:baseline;gap:4px;margin-bottom:6px">' +
               '<div><div style="font-weight:700;font-size:16px;color:var(--primary)">' + vvname + '</div>' +
               '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(vv.datum) + (vv.ort?' &middot; '+vv.ort:'') + '</div></div>' +
-              '<div style="font-size:12px;color:var(--text2);white-space:nowrap">' + vv.anz_ergebnisse + ' Ergebnisse &middot; ' + vv.anz_athleten + ' Athleten</div>' +
+              '<div style="font-size:12px;color:var(--text2);white-space:nowrap">' + _vvErgStr + ' &middot; ' + _vvAthStr + '</div>' +
             '</div>' +
             (vvrows ? '<div class="table-scroll" style="margin-bottom:8px"><table class="veranst-dash-table">' + vvColgroup + '<thead>' + vvThead + '</thead><tbody>' + vvrows + '</tbody></table></div>'
                     : '<div style="color:var(--text2);font-size:13px;padding:4px 0 8px">Keine Ergebnisse</div>') +
