@@ -1,4 +1,5 @@
 ## vCUR
+- Fix: Admin → Wartung → Verwaiste Veranstaltungen: Veranstaltungen mit ausschließlich externen Ergebnissen (athlet_pb) werden nicht mehr als verwaist angezeigt
 - Vereinsrekorde: Ergebnisformat verwendet jetzt COALESCE(fmt_override, kat.fmt) – disziplinspezifische Formate (z. B. min_h) werden korrekt dargestellt
 - Vereinsrekorde: table-layout:fixed für exakt gleiche Frauen/Männer-Breite und Veranstaltungsname-Kürzung per ellipsis
 - Dashboard: „Bestleistung Männer/Frauen" und „Gesamtbestleistung [Männer/Frauen]" → „Vereinsrekord ♂/♀" in Timeline-Badges und Hall of Fame

@@ -5408,13 +5408,15 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'verwaist' && $method
     Auth::requireAdmin();
     $eTbl = ergebnisTbl('strasse', $unified, $_sys);
     $vTbl = DB::tbl('veranstaltungen');
+    $pbTbl = DB::tbl('athlet_pb');
     $rows = DB::fetchAll(
         "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.erstellt_am
          FROM $vTbl v
          LEFT JOIN $eTbl e ON e.veranstaltung_id=v.id AND e.geloescht_am IS NULL
+         LEFT JOIN $pbTbl pb ON pb.veranstaltung_id=v.id AND pb.geloescht_am IS NULL
          WHERE v.geloescht_am IS NULL
          GROUP BY v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.erstellt_am
-         HAVING COUNT(e.id) = 0
+         HAVING COUNT(e.id) = 0 AND COUNT(pb.id) = 0
          ORDER BY v.datum DESC
          LIMIT 500"
     );
