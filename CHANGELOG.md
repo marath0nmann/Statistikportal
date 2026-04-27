@@ -1,7 +1,7 @@
-## vCUR
+## v1161
 - Dashboard: Badge-Vorgängerwerte mit „war" kennzeichnen (war 2:37:42h)
 
-## v1160
+## v1161
 - Dashboard: „Neueste Bestleistungen" zeigt nur noch Vereinsergebnisse (keine externen); „Gesamtbestleistung" → „Vereinsrekord"
 - Dashboard: „Letzte Veranstaltungen" kennzeichnet externe Ergebnisse mit (ext.); Zusammenfassung mit korrekter Einzahl/Mehrzahl und Extern-Anteil
 - Config: Hook für automatisches Merge nach main + Versionsnummer-Erhöhung nach jedem Push
@@ -26,7 +26,7 @@
 - UX: Bulk-Eintragen – "Regelmäßige Veranstaltung" steht jetzt über "Datum"; Auswahl belegt Ort (immer) und Veranstaltungsname (wenn leer) automatisch vor
 - UX: Bulk-Eintragen – Importkategorie-Auswahl synchronisiert sofort das Kategorie-Feld
 
-## v1160
+## v1161
 - Fix: Registrierung mit E-Mail eines soft-gelöschten Accounts schlug beim Genehmigen mit Duplicate-Entry-Fehler fehl – UPDATE statt INSERT für wiederbelebte Accounts
 - Feature: Admin-Panel zeigt alle Registrierungen (auch approved/rejected) mit Löschen-Button für Altlasten
 
