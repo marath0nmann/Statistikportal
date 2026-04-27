@@ -1,4 +1,4 @@
-## vCUR
+## v1170
 - Dashboard: „Bestleistung Männer/Frauen" und „Gesamtbestleistung [Männer/Frauen]" → „Vereinsrekord ♂/♀" in Timeline-Badges und Hall of Fame
 - Vereinsrekorde: Tabelle optisch an „Bestleistungen" angeglichen (rek-table), Disziplinen nach Kategorie geclustert und nach Distanz/alphabetisch sortiert; eigene Responsive-Regeln für Mobile
 - Admin → Disziplinen: Favorit-Stern direkt in Tabelle integriert; separates Favoriten-Panel entfernt
