@@ -1,3 +1,6 @@
+## vCUR
+- Admin → Disziplinen: Favorit-Stern direkt in Tabelle integriert; separates Favoriten-Panel entfernt
+
 ## v1163
 - Athletenprofil-Modal: „Wettkämpfe" → „Ergebnisse" (mit korrekter Einzahl)
 - Dashboard-Widget „mein Athletenprofil": „Wettkämpfe" → „Ergebnisse" (mit korrekter Einzahl)

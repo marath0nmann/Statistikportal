@@ -2359,6 +2359,8 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
       var delBtn = anz === 0
         ? '<button class="btn btn-danger btn-sm" title="Disziplin l\u00f6schen" data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" onclick="deleteDisziplin(this.dataset.disz)">&#x2715;</button>'
         : '<button class="btn btn-ghost btn-sm" disabled title="' + anz + ' Ergebnis(se) vorhanden">&#x1F512;</button>';
+      var isFav = window._favList && window._favList.indexOf(d.id) >= 0;
+      var starBtn = '<button class="btn btn-ghost btn-sm" title="Favorit (Bestleistungen)" data-fav-mid="' + d.id + '" onclick="toggleFavDisz(' + d.id + ')" style="color:' + (isFav ? 'var(--warning,#f59e0b)' : 'var(--text3,var(--text2))') + '">' + (isFav ? '&#x2605;' : '&#x2606;') + '</button>';
       mapRows +=
         '<tr>' +
           '<td style="font-weight:600">' + (function(d) {
@@ -2375,7 +2377,7 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
           '<td style="font-size:13px;color:var(--text2)">' + fmtValue + '</td>' +
           '<td>' + selHtml + '</td>' +
           '<td style="text-align:right;padding-right:12px">' + anzBadge + '</td>' +
-          '<td style="white-space:nowrap;display:flex;gap:4px">' + editBtn + delBtn + '</td>' +
+          '<td style="white-space:nowrap;display:flex;gap:4px">' + starBtn + editBtn + delBtn + '</td>' +
         '</tr>';
     }
     panelBody = filteredDisz.length
@@ -2507,68 +2509,34 @@ async function renderAdminDisziplinen() {
     '</div>' +
     katGruppenPanel;
 
-  // Favorisierte Disziplinen nachladen + Panel rendern
-  var _allDisz = [];
-  if (rMap && rMap.ok) {
-    rMap.data.forEach(function(m) { if (m.disziplin && _allDisz.indexOf(m.disziplin) < 0) _allDisz.push(m.disziplin); });
-    _allDisz.sort();
-  }
-  var _favRaw  = (appConfig && appConfig.top_disziplinen) || '';
+  // Favoriten-Liste global verfügbar machen (für _buildDiszDetailHtml)
+  var _favRaw = (appConfig && appConfig.top_disziplinen) || '';
   var _favListRaw = _favRaw ? (JSON.parse(_favRaw) || []) : [];
-  // mapping_id-Array: Zahlen oder Strings normalisieren (Migration: alte Name-Arrays ignorieren)
-  var _favList = _favListRaw.filter(function(x){ return typeof x === 'number' || (typeof x === 'string' && /^\d+$/.test(x)); }).map(Number);
-  // Disziplinen nach Kategorie gruppieren (mit Ergebnis-Anzahl)
-  var _katMap = {};   // kat -> [{disziplin, count}]
-  var _katOrder = [];
-  var _diszCount = {}; // disziplin -> count
-  if (rMap && rMap.ok) {
-    rMap.data.forEach(function(m) {
-      var kat = m.kategorie || m.kategorie_name || m.kat_name || 'Sonstige';
-      if (!_katMap[kat]) { _katMap[kat] = []; _katOrder.push(kat); }
-      if (m.disziplin && m.id) { // nur gemappte Disziplinen (id = mapping_id)
-        if (!_katMap[kat].find(function(x){ return x.mid === m.id; })) {
-          _katMap[kat].push({ d: m.disziplin, mid: m.id, n: m.ergebnis_anzahl || 0 });
-        }
-      }
-    });
-    // Innerhalb jeder Kategorie nach Ergebnisanzahl absteigend sortieren
-    _katOrder.forEach(function(kat) {
-      _katMap[kat].sort(function(a, b) { return b.n - a.n || a.d.localeCompare(b.d); });
-    });
-  }
-  var _favKatHtml = _katOrder.map(function(kat) {
-    var disz = _katMap[kat];
-    return '<div style="margin-bottom:14px">' +
-      '<div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">' + kat + '</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
-      disz.map(function(item) {
-        var d = item.d, mid = item.mid, n = item.n;
-        var sel = _favList.indexOf(mid) >= 0 || _favList.indexOf(String(mid)) >= 0;
-        var countBadge = '<span style="font-size:10px;background:var(--surf3,var(--surf2));color:var(--text2);border-radius:10px;padding:1px 5px;margin-left:2px;line-height:1.6">' + n + '</span>';
-        return '<label style="display:inline-flex;align-items:center;gap:5px;background:var(--surf2);border-radius:6px;padding:4px 9px;cursor:pointer;font-size:13px;' + (sel ? 'outline:2px solid var(--accent);background:var(--primary-faint,var(--surf2));' : '') + '">' +
-          '<input type="checkbox" data-fav-disz="' + mid + '" ' + (sel ? 'checked' : '') + ' style="width:13px;height:13px"> ' + d + countBadge + '</label>';
-      }).join('') +
-      '</div></div>';
-  }).join('');
-  var _favPanel = '<div class="panel" style="margin-top:16px">' +
-    '<div class="panel-header"><div class="panel-title">⭐ Favorisierte Disziplinen (Bestleistungen)</div></div>' +
-    '<div class="settings-panel-body">' +
-      '<div style="font-size:13px;color:var(--text2);margin-bottom:16px">Diese Disziplinen erscheinen in Bestleistungen immer zuerst. Alle anderen werden dahinter sortiert.</div>' +
-      _favKatHtml +
-      '<button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="saveFavDisziplinen()">&#x1F4BE; Favoriten speichern</button>' +
-    '</div>' +
-  '</div>';
-  el.innerHTML += _favPanel;
+  window._favList = _favListRaw.filter(function(x){ return typeof x === 'number' || (typeof x === 'string' && /^\d+$/.test(x)); }).map(Number);
+  // Detail re-rendern damit Stern-Buttons erscheinen
+  _renderDiszDetail();
 }
 
-async function saveFavDisziplinen() {
-  var checked = Array.from(document.querySelectorAll('[data-fav-disz]:checked')).map(function(cb){ return parseInt(cb.dataset.favDisz, 10); }).filter(function(x){ return !isNaN(x); });
-  var r = await apiPost('einstellungen', { top_disziplinen: JSON.stringify(checked) });
+async function toggleFavDisz(mid) {
+  if (!window._favList) window._favList = [];
+  var idx = window._favList.indexOf(mid);
+  if (idx >= 0) window._favList.splice(idx, 1);
+  else window._favList.push(mid);
+  var r = await apiPost('einstellungen', { top_disziplinen: JSON.stringify(window._favList) });
   if (r && r.ok) {
-    if (appConfig) appConfig.top_disziplinen = JSON.stringify(checked);
-    state.topDisziplinen = {}; // Cache leeren
-    notify('Favoriten gespeichert.', 'ok');
-  } else notify('Fehler beim Speichern.', 'err');
+    if (appConfig) appConfig.top_disziplinen = JSON.stringify(window._favList);
+    state.topDisziplinen = {};
+    var isFav = window._favList.indexOf(mid) >= 0;
+    var btn = document.querySelector('[data-fav-mid="' + mid + '"]');
+    if (btn) {
+      btn.innerHTML = isFav ? '&#x2605;' : '&#x2606;';
+      btn.style.color = isFav ? 'var(--warning,#f59e0b)' : 'var(--text3,var(--text2))';
+    }
+  } else {
+    // Revert
+    if (idx >= 0) window._favList.push(mid); else { var ri = window._favList.indexOf(mid); if (ri >= 0) window._favList.splice(ri, 1); }
+    notify('Fehler beim Speichern.', 'err');
+  }
 }
 
 async function setDiszMapping(sel) {
