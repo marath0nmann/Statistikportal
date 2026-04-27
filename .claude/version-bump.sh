@@ -28,6 +28,6 @@ else
 fi
 
 cd "$REPO"
-git add htdocs/index.html README.md COMMIT_EDITMSG CHANGELOG.md
+git add htdocs/index.html README.md CHANGELOG.md
 git commit -m "$(cat "$REPO/COMMIT_EDITMSG")"
 git push origin main
