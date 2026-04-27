@@ -1,4 +1,4 @@
-## vCUR
+## v1172
 - Vereinsrekorde: table-layout:fixed für exakt gleiche Frauen/Männer-Breite und Veranstaltungsname-Kürzung per ellipsis
 - Dashboard: „Bestleistung Männer/Frauen" und „Gesamtbestleistung [Männer/Frauen]" → „Vereinsrekord ♂/♀" in Timeline-Badges und Hall of Fame
 - Admin → Disziplinen: Favorit-Stern direkt in Tabelle integriert; separates Favoriten-Panel entfernt
