@@ -979,14 +979,7 @@ tr:hover td { background: var(--surf2); }
 }
 #mobile-nav-drawer.open { transform: translateX(0); }
 
-.mobile-nav-logo {
-  display: flex; align-items: center; gap: 12px;
-  padding: 18px 20px 14px;
-  border-bottom: 1px solid rgba(255,255,255,.12);
-}
-.mobile-nav-logo img { height: 38px; background: #fff; border-radius: 6px; padding: 3px 5px; }
-.mobile-nav-logo-text { font-family: 'Barlow Condensed', sans-serif;
-  font-size: 18px; font-weight: 600; color: var(--on-primary); }
+#mobile-header-ver { display: none; }
 
 #mobile-page-title {
   display: none;
@@ -1027,6 +1020,8 @@ tr:hover td { background: var(--surf2); }
   .burger-btn { display: flex; }
   #main-nav { display: none; }
   #mobile-page-title { display: block; }
+  #mobile-header-ver { display: inline; }
+  .logo-sub { display: none; }
   .anon-btn-wrap { display: none !important; }
   /* Profil- und Logout-Button im Header ausblenden wenn Burger aktiv */
   #user-btn { display: none !important; }

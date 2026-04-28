@@ -19,7 +19,10 @@ function applyVersionVisibility() {
   if (!el) return;
   var nurAdmins = (appConfig.version_nur_admins === '1' || appConfig.version_nur_admins === 1);
   var isAdmin   = currentUser && currentUser.rolle === 'admin';
-  el.style.display = (nurAdmins && !isAdmin) ? 'none' : '';
+  var hide = nurAdmins && !isAdmin;
+  el.style.display = hide ? 'none' : '';
+  var elMob = document.getElementById('mobile-header-ver');
+  if (elMob) elMob.style.display = hide ? 'none' : '';
 }
 
 // ── FARBBERECHNUNG ─────────────────────────────────────────
@@ -343,14 +346,14 @@ function applyConfig(cfg) {
   var elLS = document.querySelector('.login-sub');
   if (elLS) elLS.textContent = untertitel + ' · Bitte einloggen';
 
-  // Mobile Drawer
-  var elMob = document.querySelector('.mobile-nav-logo-text');
-  if (elMob) elMob.textContent = kuerzel;
+  // Mobile Header-Version neben Vereinskürzel
+  var elMobVer = document.getElementById('mobile-header-ver');
+  if (elMobVer) elMobVer.textContent = document.getElementById('header-version').textContent;
   var elFoot = document.querySelector('.mobile-nav-footer');
   if (elFoot) elFoot.textContent = untertitel;
 
   // Logos – src immer setzen; bei leer ausblenden, sonst einblenden
-  document.querySelectorAll('.logo-img, .login-logo, .mobile-nav-logo img').forEach(function(img) {
+  document.querySelectorAll('.logo-img, .login-logo').forEach(function(img) {
     if (logoUrl) {
       img.src = logoUrl;
       img.alt = name;
@@ -2515,7 +2518,8 @@ function _renderNavTabs(tabs) {
 
   var specialLabels = { konto: 'Konto', veranstaltung: 'Veranstaltung' };
   var found = tabs.find(function(t){ return t.id === state.tab; });
-  var pageTitle = found ? found.label.replace(/<[^>]+>/g, '') : (specialLabels[state.tab] || '');
+  var pageTitle = (state.tab === 'dashboard') ? '' :
+    found ? found.label.replace(/<[^>]+>/g, '') : (specialLabels[state.tab] || '');
   var titleEl = document.getElementById('mobile-page-title');
   if (titleEl) titleEl.textContent = pageTitle;
 }
