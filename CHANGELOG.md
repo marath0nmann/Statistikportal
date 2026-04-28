@@ -1,4 +1,4 @@
-## vCUR
+## v1179
 - Mobile Header: Vereinslogo/-name + Versionsnummer (wenn konfiguriert) + aktiver Seitentitel (außer Dashboard); Burger-Drawer ohne Logo/Name, startet unterhalb des Headers
 - Vereinsrekorde: Mobile-optimierte Karten-Ansicht (≤700 px) – Frauen/Männer gestapelt statt nebeneinander in 9-Spalten-Tabelle
 - Externe Ergebnisse: Vereinsname (verein) jetzt im Edit-Modal pflegbar und wird korrekt gespeichert
