@@ -1,4 +1,5 @@
 ## vCUR
+- Vereinsrekorde: Mobile-optimierte Karten-Ansicht (≤700 px) – Frauen/Männer gestapelt statt nebeneinander in 9-Spalten-Tabelle
 - Externe Ergebnisse: Vereinsname (verein) jetzt im Edit-Modal pflegbar und wird korrekt gespeichert
 - Externe Ergebnisse: Wettkampf-Freitext entfernt – Veranstaltungsbezug erfolgt ausschließlich über Veranstaltungssuche; API synchronisiert wettkampf-Feld automatisch
 - Externe Ergebnisse: API GET gibt jetzt pb.verein zurück; API PUT unterstützt verein-Update
