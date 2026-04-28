@@ -2525,10 +2525,14 @@ function toggleBurgerMenu() {
   if (isOpen) closeBurgerMenu(); else openBurgerMenu();
 }
 function openBurgerMenu() {
+  var headerH = (document.querySelector('header') || {}).offsetHeight || 0;
   var drawer = document.getElementById('mobile-nav-drawer');
+  var overlay = document.getElementById('mobile-nav-overlay');
+  drawer.style.top = headerH + 'px';
+  overlay.style.top = headerH + 'px';
   drawer.style.visibility = '';
   drawer.classList.add('open');
-  document.getElementById('mobile-nav-overlay').classList.add('open');
+  overlay.classList.add('open');
   document.getElementById('burger-btn').classList.add('open');
   document.getElementById('burger-btn').setAttribute('aria-expanded', 'true');
   document.body.style.overflow = 'hidden';

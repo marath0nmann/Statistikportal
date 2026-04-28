@@ -1,5 +1,5 @@
-## v1176
-- Mobile Header: aktiver Seitentitel (z.B. „Vereinsrekorde") wird in der Titelleiste neben Logo und Version angezeigt
+## vCUR
+- Mobile Header: aktiver Seitentitel in der Titelleiste; Burger-Drawer startet unterhalb des Headers (kein Überlappen mehr)
 - Vereinsrekorde: Mobile-optimierte Karten-Ansicht (≤700 px) – Frauen/Männer gestapelt statt nebeneinander in 9-Spalten-Tabelle
 - Externe Ergebnisse: Vereinsname (verein) jetzt im Edit-Modal pflegbar und wird korrekt gespeichert
 - Externe Ergebnisse: Wettkampf-Freitext entfernt – Veranstaltungsbezug erfolgt ausschließlich über Veranstaltungssuche; API synchronisiert wettkampf-Feld automatisch
