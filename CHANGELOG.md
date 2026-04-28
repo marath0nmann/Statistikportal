@@ -1,4 +1,4 @@
-## v1175
+## v1176
 - Mobile Header: aktiver Seitentitel (z.B. „Vereinsrekorde") wird in der Titelleiste neben Logo und Version angezeigt
 - Vereinsrekorde: Mobile-optimierte Karten-Ansicht (≤700 px) – Frauen/Männer gestapelt statt nebeneinander in 9-Spalten-Tabelle
 - Externe Ergebnisse: Vereinsname (verein) jetzt im Edit-Modal pflegbar und wird korrekt gespeichert
