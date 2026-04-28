@@ -866,10 +866,42 @@ tr:hover td { background: var(--surf2); }
   letter-spacing: .03em;
 }
 
+/* Mobile-Karten-Layout für Vereinsrekorde */
+.vr-mobile { display: none; }
+
 @media (max-width: 700px) {
-  .vr-table .vr-date, .vr-table th.vr-date  { display: none; }
-  .vr-table .vr-event, .vr-table th.vr-event { display: none; }
+  .vr-desktop { display: none !important; }
+  .vr-mobile  { display: block; }
 }
+
+/* Karten-Styles (immer definiert, nur auf Mobile sichtbar) */
+.vr-m-cat-hd {
+  font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700;
+  color: var(--text); background: var(--surf2);
+  padding: 6px 12px; border-bottom: 1px solid var(--border);
+  letter-spacing: .03em;
+}
+.vr-m-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.vr-m-row:active { background: var(--surf2); }
+.vr-m-disz {
+  font-weight: 700; font-size: 13px; min-width: 72px; max-width: 90px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding-top: 2px; flex-shrink: 0;
+}
+.vr-m-entries { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.vr-m-entry {
+  display: flex; align-items: center; gap: 6px; font-size: 13px; min-width: 0;
+}
+.vr-m-symbol { font-size: 13px; width: 16px; flex-shrink: 0; color: var(--text2); }
+.vr-m-name   { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.vr-m-result { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.vr-m-entry--w .vr-m-symbol { color: var(--primary); }
+.vr-m-entry--w .vr-m-name   { color: var(--primary); font-weight: 500; }
+.vr-m-entry--empty .vr-m-name, .vr-m-entry--empty .vr-m-result { color: var(--text3); }
 
 /* ── TIMELINE ── */
 .timeline { padding: 8px 16px; }

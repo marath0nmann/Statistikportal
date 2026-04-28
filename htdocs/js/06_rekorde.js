@@ -381,6 +381,22 @@ async function renderVereinsrekorde() {
     return;
   }
 
+  // Mobile: eine Zeile (♀/♂ Symbol + Name + Ergebnis)
+  function vrMobileEntry(entry, fmt, symbol, isWoman) {
+    var isEmpty = !entry || !entry.resultat;
+    var result = isEmpty ? '–' : (fmt === 'm' ? fmtMeter(entry.resultat) : fmtTime(entry.resultat, fmt));
+    var athlet = isEmpty ? '–'
+      : (entry.athlet_id
+          ? '<span class="athlet-link" data-athlet-id="' + entry.athlet_id + '" onclick="event.stopPropagation()">' + (entry.athlet || '–') + '</span>'
+          : (entry.athlet || '–'));
+    var cls = 'vr-m-entry' + (isWoman ? ' vr-m-entry--w' : '') + (isEmpty ? ' vr-m-entry--empty' : '');
+    return '<div class="' + cls + '">' +
+      '<span class="vr-m-symbol">' + symbol + '</span>' +
+      '<span class="vr-m-name">' + athlet + '</span>' +
+      '<span class="vr-m-result">' + result + '</span>' +
+    '</div>';
+  }
+
   // Hilfsfunktion: 4 Zellen für eine Bestleistung (Frau oder Mann)
   function vrCell(entry, fmt, label) {
     if (!entry) {
@@ -454,10 +470,30 @@ async function renderVereinsrekorde() {
     }
   }
 
+  // Mobile-Karten-Layout
+  var mobileHtml = '<div class="vr-mobile">';
+  for (var mgi = 0; mgi < groups.length; mgi++) {
+    var mg = groups[mgi];
+    mobileHtml += '<div class="vr-m-cat-hd">' + mg.kat_name + '</div>';
+    for (var mii = 0; mii < mg.items.length; mii++) {
+      var md = mg.items[mii];
+      var mdEsc = md.disziplin.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      mobileHtml += '<div class="vr-m-row" onclick="navigateToDisz(\'' + mdEsc + '\',' + md.mapping_id + ')">' +
+        '<div class="vr-m-disz">' + md.disziplin + '</div>' +
+        '<div class="vr-m-entries">' +
+          vrMobileEntry(md.frauen,  md.fmt, '&#9792;', true) +
+          vrMobileEntry(md.maenner, md.fmt, '&#9794;', false) +
+        '</div>' +
+      '</div>';
+    }
+  }
+  mobileHtml += '</div>';
+
   el.innerHTML =
-    '<div class="panel" style="overflow-x:auto">' +
+    '<div class="panel vr-desktop" style="overflow-x:auto">' +
       '<table class="rek-table vr-table">' + COLGROUP + THEAD + '<tbody>' + tbody + '</tbody></table>' +
-    '</div>';
+    '</div>' +
+    mobileHtml;
 }
 
 // ── EINTRAGEN ──────────────────────────────────────────────
