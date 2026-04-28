@@ -1,4 +1,4 @@
-## vCUR
+## v1174
 - Mobile Burger-Menü: Vereinskürzel, Untertitel und Versionsnummer im Drawer-Header anzeigen (wie Desktop); aktive Seite daneben
 - Vereinsrekorde: Mobile-optimierte Karten-Ansicht (≤700 px) – Frauen/Männer gestapelt statt nebeneinander in 9-Spalten-Tabelle
 - Externe Ergebnisse: Vereinsname (verein) jetzt im Edit-Modal pflegbar und wird korrekt gespeichert
