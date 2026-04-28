@@ -19,10 +19,7 @@ function applyVersionVisibility() {
   if (!el) return;
   var nurAdmins = (appConfig.version_nur_admins === '1' || appConfig.version_nur_admins === 1);
   var isAdmin   = currentUser && currentUser.rolle === 'admin';
-  var vis = (nurAdmins && !isAdmin) ? 'none' : '';
-  el.style.display = vis;
-  var elMobVer = document.getElementById('mobile-nav-ver');
-  if (elMobVer) elMobVer.style.display = vis;
+  el.style.display = (nurAdmins && !isAdmin) ? 'none' : '';
 }
 
 // ── FARBBERECHNUNG ─────────────────────────────────────────
@@ -349,10 +346,6 @@ function applyConfig(cfg) {
   // Mobile Drawer
   var elMob = document.querySelector('.mobile-nav-logo-text');
   if (elMob) elMob.textContent = kuerzel;
-  var elMobSub = document.querySelector('.mobile-nav-untertitel');
-  if (elMobSub) elMobSub.textContent = untertitel;
-  var elMobVer = document.getElementById('mobile-nav-ver');
-  if (elMobVer) { var hvEl = document.getElementById('header-version'); if (hvEl) elMobVer.textContent = hvEl.textContent; }
   var elFoot = document.querySelector('.mobile-nav-footer');
   if (elFoot) elFoot.textContent = untertitel;
 
@@ -2519,7 +2512,12 @@ function _renderNavTabs(tabs) {
   }
   var el = document.getElementById('mobile-nav-items');
   if (el) el.innerHTML = mhtml;
-  window._navTabsAll = tabs;
+
+  var specialLabels = { konto: 'Konto', veranstaltung: 'Veranstaltung' };
+  var found = tabs.find(function(t){ return t.id === state.tab; });
+  var pageTitle = found ? found.label.replace(/<[^>]+>/g, '') : (specialLabels[state.tab] || '');
+  var titleEl = document.getElementById('mobile-page-title');
+  if (titleEl) titleEl.textContent = pageTitle;
 }
 
 function toggleBurgerMenu() {
@@ -2534,12 +2532,6 @@ function openBurgerMenu() {
   document.getElementById('burger-btn').classList.add('open');
   document.getElementById('burger-btn').setAttribute('aria-expanded', 'true');
   document.body.style.overflow = 'hidden';
-  var pageEl = document.getElementById('mobile-nav-page-label');
-  if (pageEl) {
-    var specialLabels = { konto: 'Konto', veranstaltung: 'Veranstaltung' };
-    var found = (window._navTabsAll || []).find(function(t){ return t.id === state.tab; });
-    pageEl.textContent = found ? found.label.replace(/<[^>]+>/g, '') : (specialLabels[state.tab] || '');
-  }
 }
 function closeBurgerMenu() {
   document.getElementById('mobile-nav-drawer').classList.remove('open');

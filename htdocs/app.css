@@ -985,16 +985,17 @@ tr:hover td { background: var(--surf2); }
   border-bottom: 1px solid rgba(255,255,255,.12);
 }
 .mobile-nav-logo img { height: 38px; background: #fff; border-radius: 6px; padding: 3px 5px; }
-.mobile-nav-logo-info { flex: 1; min-width: 0; }
-.mobile-nav-logo-top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
 .mobile-nav-logo-text { font-family: 'Barlow Condensed', sans-serif;
-  font-size: 18px; font-weight: 600; color: var(--on-primary);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mobile-nav-page-label { font-family: 'Barlow Condensed', sans-serif;
-  font-size: 13px; font-weight: 500; color: rgba(255,255,255,.7);
+  font-size: 18px; font-weight: 600; color: var(--on-primary); }
+
+#mobile-page-title {
+  display: none;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 16px; font-weight: 600; letter-spacing: .5px;
+  color: rgba(255,255,255,.85);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  flex-shrink: 1; text-align: right; }
-.mobile-nav-logo-sub { font-size: 11px; color: rgba(255,255,255,.5); margin-top: 2px; }
+  flex: 1; text-align: center;
+}
 
 .mobile-nav-items { flex: 1; padding: 10px 0; }
 .mobile-nav-items button {
@@ -1025,6 +1026,7 @@ tr:hover td { background: var(--surf2); }
 @media (max-width: 900px) {
   .burger-btn { display: flex; }
   #main-nav { display: none; }
+  #mobile-page-title { display: block; }
   .anon-btn-wrap { display: none !important; }
   /* Profil- und Logout-Button im Header ausblenden wenn Burger aktiv */
   #user-btn { display: none !important; }
