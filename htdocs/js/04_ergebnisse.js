@@ -76,7 +76,7 @@ async function loadErgebnisseData() {
     var rExt = await apiGet('externe-ergebnisse?' + params);
     if (!rExt || !rExt.ok) {
       var el = document.getElementById('main-content');
-      if (el) el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler:</strong> ' + (rExt && rExt.fehler || 'Unbekannt') + '</div>';
+      if (el) el.innerHTML = (state.tab === 'admin' && typeof adminSubtabs === 'function' ? adminSubtabs() : '') + '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler:</strong> ' + (rExt && rExt.fehler || 'Unbekannt') + '</div>';
       return;
     }
     rows = rExt.data.rows; total = rExt.data.total;
@@ -86,7 +86,7 @@ async function loadErgebnisseData() {
     r = await apiGet(state.subTab + '?' + params);
     if (!r || !r.ok) {
       var el = document.getElementById('main-content');
-      if (el) el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler beim Laden der Ergebnisse:</strong><br><code>' + (r && r.fehler ? r.fehler : 'Unbekannter Fehler') + '</code></div>';
+      if (el) el.innerHTML = (state.tab === 'admin' && typeof adminSubtabs === 'function' ? adminSubtabs() : '') + '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler beim Laden der Ergebnisse:</strong><br><code>' + (r && r.fehler ? r.fehler : 'Unbekannter Fehler') + '</code></div>';
       return;
     }
     rows = r.data.rows; total = r.data.total;
@@ -123,6 +123,7 @@ async function loadErgebnisseData() {
 
   var _ergFoc = _saveFocus();
   document.getElementById('main-content').innerHTML =
+    (state.tab === 'admin' && typeof adminSubtabs === 'function' ? adminSubtabs() : '') +
     '<div class="filter-bar">' +
       '<div class="fg"><label>Athlet</label><input type="text" id="erg-athlet-filter" placeholder="Name…" value="' + (state.filters.athlet||'') + '" oninput="_ergAthletFilter(this.value)" style="min-width:0;width:100%"/></div>' +
       '<div class="fg"><label>Kategorie</label><select onchange="setFilter(\'kategorie\',this.value)">' + katOptHtml + '</select></div>' +

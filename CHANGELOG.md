@@ -1,3 +1,9 @@
+## vCUR
+- Navigation: "Ergebnisse" und "Athleten" (Tabellen-Verwaltung) in Admin-Bereich verschoben (nur Admins)
+- Neue öffentliche Athleten-Seite im Karten-Layout (Hall-of-Fame-Stil, 5 Spalten Desktop), zeigt alle aktiven Mitglieder inkl. Vereinsrekord-/Bestleistungs-Badges
+
+---
+
 ## v1181
 - Bestleistungen: Kategorie-Tabs sortiert nach Ergebnisanzahl absteigend (statt manueller Reihenfolge)
 - Admin: Reihenfolge-Feld bei neuer Kategorie entfernt

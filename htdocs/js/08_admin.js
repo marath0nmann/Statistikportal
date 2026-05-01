@@ -370,6 +370,8 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">✋ Anträge' + _adminBadge((window._adminPendingAntraege||0)+(window._adminPendingFreigabe||0)) + '</button>' +
     '<button class="subtab' + (t==='wartung'        ? ' active' : '') + '" onclick="navAdmin(\'wartung\')">🔧 Wartung</button>' +
     '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb' + _adminBadge(window._adminPendingPapierkorb||0) + '</button>' +
+    '<button class="subtab' + (t==='ergebnisse'     ? ' active' : '') + '" onclick="navAdmin(\'ergebnisse\')">&#x1F4CB;&#xFE0E; Ergebnisse</button>' +
+    '<button class="subtab' + (t==='athleten'       ? ' active' : '') + '" onclick="navAdmin(\'athleten\')">&#x1F464; Athleten</button>' +
   '</div>';
 }
 
@@ -419,6 +421,8 @@ async function renderAdmin() {
   if (state.adminTab === 'papierkorb')     { await renderPapierkorb(); return; }
   if (state.adminTab === 'darstellung')    { renderAdminDarstellung(); return; }
   if (state.adminTab === 'dashboard_cfg')  { await renderAdminDashboard(); return; }
+  if (state.adminTab === 'ergebnisse')     { if (!state.subTab) state.subTab = 'strasse'; await renderErgebnisse(); return; }
+  if (state.adminTab === 'athleten')       { await renderAthleten(); return; }
   var r = await apiGet('benutzer');
   if (!r || !r.ok) return;
   var benutzer = r.data.benutzer || r.data; // Rückwärtskompatibel
