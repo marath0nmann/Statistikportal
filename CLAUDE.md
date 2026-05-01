@@ -33,35 +33,14 @@ CHANGELOG.md          → Versionshistorie
 
 ## Deployment
 
-Build-Befehl: `cd /home/claude/portal/Statistikportal && bash build.sh`
+**Nach jeder Änderung immer sofort committen und pushen – ohne auf Bestätigung zu warten.**  
+GitHub Actions deployed automatisch per FTP nach all-inkl.com (`/html/statistik/`). Kein ZIP-Export nötig.
 
-Das Skript:
-1. Erhöht die Version automatisch (liest aktuelle aus `index.html`)
-2. Ersetzt alle `?v=NNN` Cache-Buster in `index.html`
-3. Baut `paket_vNNN.zip` → `/mnt/user-data/outputs/`
+**Claude-Workflow nach jeder Änderung:**
+1. `CHANGELOG.md`: neue Bullet-Zeile oben in `## vCUR` einfügen
+2. `git add <geänderte Dateien>`, `git commit`, `git push`
 
-**Namenskonvention (IMMER einhalten):**
-- ZIP-Datei heißt `paket_vNNN.zip` (z.B. `paket_v1006.zip`)
-- Der Ordner **innerhalb** der ZIP heißt ebenfalls `paket_vNNN` (z.B. `paket_v1006/`)
-- Version wird **immer automatisch** um 1 erhöht – nie manuell setzen
-
-**`build.sh` aktualisiert automatisch – kein manuelles Eingreifen:**
-- `index.html` → Versionsnummer + alle `?v=NNN` Cache-Buster
-- `README.md` → Versionsnummer + aktuelles Datum
-- `COMMIT_EDITMSG` → erste `-`-Zeile aus dem obersten CHANGELOG-Eintrag
-- `CHANGELOG.md` → Versionsnummer im obersten Eintrag (`## vCUR` → `## vNEW`)
-
-**Claude-Workflow vor jedem Build (NUR das ist manuell):**
-1. `CHANGELOG.md`: neuen Eintrag **oben** einfügen: `## vNNN\n- Beschreibung`
-2. `bash build.sh` ausführen → Rest läuft automatisch
-
-Deploy-Workflow:
-1. ZIP per FTP auf all-inkl.com hochladen und entpacken
-2. `https://statistik.tus-oedt.de/opcache-clear.php` aufrufen → OPcache leeren
-3. Nur **eine** ZIP deployen (kein Doppel-Deploy mehr nötig)
-
-**Wichtig:** PHP OPcache auf dem Server war Ursache des „erst zweiter Deploy wirkt"-Problems.
-`opcache-clear.php` löst das zuverlässig nach dem ersten Deploy.
+**Wichtig:** PHP OPcache auf dem Server wird per GitHub Actions automatisch geleert (`opcache-clear.php`).
 
 ## Technisches
 
