@@ -5689,12 +5689,13 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                     }
                 }
 
-                // 3. Bestleistung je Altersklasse
-                if ($ak !== '') {
-                    if (!isset($bestByAK[$ak])
-                        || ($dir === 'ASC'  && $val < $bestByAK[$ak])
-                        || ($dir === 'DESC' && $val > $bestByAK[$ak])) {
-                        $bestByAK[$ak] = $val; $bestAKAid[$ak] = $aid; $bestAKDatum[$ak] = $datum;
+                // 3. Bestleistung je Altersklasse (Fallback: Geschlecht → MHK/WHK)
+                $akEff = $ak !== '' ? $ak : ($g === 'M' ? 'MHK' : ($g === 'W' ? 'WHK' : ''));
+                if ($akEff !== '') {
+                    if (!isset($bestByAK[$akEff])
+                        || ($dir === 'ASC'  && $val < $bestByAK[$akEff])
+                        || ($dir === 'DESC' && $val > $bestByAK[$akEff])) {
+                        $bestByAK[$akEff] = $val; $bestAKAid[$akEff] = $aid; $bestAKDatum[$akEff] = $datum;
                     }
                 }
             }
