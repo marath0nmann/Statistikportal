@@ -3058,12 +3058,14 @@ if ($res === 'kategorien') {
                 ('Mittelstrecke','mittelstrecke','min','ASC',3),
                 ('Sprung & Wurf','sprungwurf','m','DESC',4)");
         }
-        // disz_anzahl = Anzahl gemappter Disziplinen pro Kategorie (aus einheitlicher Tabelle)
         $rows = DB::fetchAll(
-            "SELECT k.*, COUNT(m.id) AS disz_anzahl
+            "SELECT k.*, COUNT(DISTINCT m.id) AS disz_anzahl,
+                    COALESCE(SUM(ec.cnt), 0) AS ergebnis_anzahl
              FROM " . DB::tbl('disziplin_kategorien') . " k
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.kategorie_id = k.id
-             GROUP BY k.id ORDER BY k.reihenfolge, k.name");
+             LEFT JOIN (SELECT disziplin_mapping_id, COUNT(*) AS cnt FROM " . DB::tbl('ergebnisse') . "
+                        WHERE geloescht_am IS NULL GROUP BY disziplin_mapping_id) ec ON ec.disziplin_mapping_id = m.id
+             GROUP BY k.id ORDER BY ergebnis_anzahl DESC, k.name");
         jsonOk($rows);
     }
 
@@ -3320,6 +3322,7 @@ if ($res === 'disziplin-mapping') {
         $hof_exclude      = isset($body['hof_exclude'])      ? (int)$body['hof_exclude']       : 0;
         $distanz_mapping  = isset($body['distanz']) && $body['distanz'] !== '' && $body['distanz'] !== null
                             ? floatOrNull($body['distanz']) : null;
+        $move_mapping_id = isset($body['mapping_id']) ? intval($body['mapping_id']) : 0;
         // Prüfen ob (disziplin, kategorie_id) bereits existiert
         $existing = DB::fetchOne(
             "SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=? AND kategorie_id=?",
@@ -3332,13 +3335,20 @@ if ($res === 'disziplin-mapping') {
                       [$fmt_override ?: null, $kat_suffix ?: null, $hof_exclude, $distanz_mapping, $existing['id']]);
             jsonOk(['id' => (int)$existing['id']]);
         }
-        // Prüfen ob der Name in einer ANDEREN Kategorie existiert → sauber als neuer Eintrag anlegen
+        // Wenn mapping_id mitgeschickt wurde: bestehende Row in neue Kategorie verschieben
+        // (ergebnisse.disziplin_mapping_id bleibt gültig, da dieselbe ID erhalten bleibt)
+        if ($move_mapping_id) {
+            DB::query("UPDATE " . DB::tbl('disziplin_mapping') .
+                      " SET kategorie_id=?, fmt_override=?, kat_suffix_override=?, hof_exclude=?, distanz=COALESCE(?,distanz) WHERE id=?",
+                      [$kategorie_id, $fmt_override ?: null, $kat_suffix ?: null, $hof_exclude, $distanz_mapping, $move_mapping_id]);
+            jsonOk(['id' => $move_mapping_id]);
+        }
+        // Neue Disziplin (noch kein Mapping vorhanden) → anlegen
         DB::query("INSERT INTO " . DB::tbl('disziplin_mapping') . "
                    (disziplin, kategorie_id, fmt_override, kat_suffix_override, hof_exclude, distanz)
                    VALUES (?,?,?,?,?,?)",
                   [$disziplin, $kategorie_id, $fmt_override ?: null, $kat_suffix ?: null, $hof_exclude, $distanz_mapping]);
         $newId = DB::lastInsertId();
-        // NICHT pauschal alle Ergebnisse umhängen — neue Disziplin hat noch keine
         jsonOk(['id' => (int)$newId]);
     }
 

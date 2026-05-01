@@ -1,3 +1,10 @@
+## v1181
+- Bestleistungen: Kategorie-Tabs sortiert nach Ergebnisanzahl absteigend (statt manueller Reihenfolge)
+- Admin: Reihenfolge-Feld bei neuer Kategorie entfernt
+- Admin: Disziplin-Kategorie-Wechsel verschiebt bestehende Mapping-Row statt neue anzulegen (fix: 0 Ergebnisse nach Kategorie-Umbenennung)
+
+---
+
 ## v1180
 - Mobile Header: Vereinslogo/-name + Versionsnummer (wenn konfiguriert) + aktiver Seitentitel (außer Dashboard); Burger-Drawer ohne Logo/Name, startet unterhalb des Headers
 - Vereinsrekorde: Mobile-optimierte Karten-Ansicht (≤700 px) – Frauen/Männer gestapelt statt nebeneinander in 9-Spalten-Tabelle

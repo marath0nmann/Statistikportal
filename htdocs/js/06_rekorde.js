@@ -18,7 +18,7 @@ async function renderRekorde() {
     if (rk && rk.ok) {
       REK_CATS = rk.data
         .filter(function(k) { return parseInt(k.disz_anzahl) > 0; })
-        .sort(function(a,b) { return a.reihenfolge - b.reihenfolge; })
+        .sort(function(a,b) { return (b.ergebnis_anzahl||0) - (a.ergebnis_anzahl||0) || a.name.localeCompare(b.name); })
         .map(function(k) { return { id: k.tbl_key, label: k.name, fmt: k.fmt === 'm' ? 'm' : k.fmt === 's' ? 's' : undefined }; });
     }
     if (!REK_CATS.length) {

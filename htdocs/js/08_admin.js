@@ -2340,7 +2340,7 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
     for (var i = 0; i < filteredDisz.length; i++) {
       var d = filteredDisz[i];
       var fmtValue = d.fmt_override || d.kat_fmt || selKat.fmt || '';
-      var selHtml = '<select class="disz-map-sel" data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" onchange="setDiszMapping(this)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface)">';
+      var selHtml = '<select class="disz-map-sel" data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" data-mappingid="' + (d.id||'') + '" onchange="setDiszMapping(this)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface)">';
       selHtml += '<option value="">– keine –</option>';
       for (var j = 0; j < kategorien.length; j++) {
         selHtml += '<option value="' + kategorien[j].id + '"' + (d.kategorie_id == kategorien[j].id ? ' selected' : '') + '>' + kategorien[j].name + '</option>';
@@ -2543,12 +2543,13 @@ async function toggleFavDisz(mid) {
 async function setDiszMapping(sel) {
   var disz = sel.dataset.disz;
   var katId = sel.value;
+  var mid = sel.dataset.mappingid ? parseInt(sel.dataset.mappingid) : null;
   if (!katId) {
     var r = await apiDel('disziplin-mapping/' + encodeURIComponent(disz));
     if (r && r.ok) notify('Zuordnung entfernt.', 'ok');
     else notify((r && r.fehler) || 'Fehler', 'err');
   } else {
-    var r = await apiPost('disziplin-mapping', { disziplin: disz, kategorie_id: parseInt(katId) });
+    var r = await apiPost('disziplin-mapping', { disziplin: disz, kategorie_id: parseInt(katId), mapping_id: mid });
     if (r && r.ok) notify('Zugeordnet.', 'ok');
     else notify((r && r.fehler) || 'Fehler', 'err');
   }
@@ -2562,7 +2563,6 @@ function showNeueKatModal() {
       '<div class="form-group"><label>Schlüssel * <span style="font-size:11px;color:var(--text2)">(a-z, 0-9, _)</span></label><input type="text" id="nk-key" placeholder="z.B. mehrkampf"/></div>' +
       '<div class="form-group"><label>Ergebnisformat</label><select id="nk-fmt"><option value="min">Zeit (min)</option><option value="min_h">Zeit (min) mit Hundertstel</option><option value="s">Zeit (s / Sekunden)</option><option value="m">Weite (m)</option></select></div>' +
       '<div class="form-group"><label>Sortierung</label><select id="nk-dir"><option value="ASC">Aufsteigend (Zeit)</option><option value="DESC">Absteigend (Weite)</option></select></div>' +
-      '<div class="form-group"><label>Reihenfolge</label><input type="number" id="nk-ord" value="99" min="1"/></div>' +
     '</div>' +
     '<div style="font-size:12px;color:var(--text2);margin-bottom:16px">&#x26A0;&#xFE0F; Der Schlüssel muss mit einer bestehenden Ergebnistabelle (<code>ergebnisse_[schlüssel]</code>) übereinstimmen oder eine neue Tabelle wird benötigt.</div>' +
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button><button class="btn btn-primary" onclick="createKat()">Erstellen</button></div>'
@@ -2575,7 +2575,6 @@ async function createKat() {
     tbl_key:     document.getElementById('nk-key').value.trim(),
     fmt:         document.getElementById('nk-fmt').value,
     sort_dir:    document.getElementById('nk-dir').value,
-    reihenfolge: parseInt(document.getElementById('nk-ord').value),
   });
   if (r && r.ok) { closeModal(); REK_CATS = []; notify('Kategorie erstellt.', 'ok'); await renderAdminDisziplinen(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
