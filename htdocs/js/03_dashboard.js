@@ -220,11 +220,11 @@ async function renderDashboard() {
     return '<div class="stat-card" style="width:100%"><div class="stat-num">' + num + '</div><div class="stat-label">' + icon + ' ' + label + '</div></div>';
   }
 
-// Label-Transformation: Bestleistung Männer/Frauen → Vereinsrekord ♂/♀
+// Label-Transformation: Bestleistung Männer/Frauen → Vereinsrekord
 function _rekLabel(lbl) {
   if (!lbl) return lbl;
-  if (lbl === 'Bestleistung Männer' || lbl === 'Gesamtbestleistung Männer') return 'Vereinsrekord ♂';
-  if (lbl === 'Bestleistung Frauen' || lbl === 'Gesamtbestleistung Frauen') return 'Vereinsrekord ♀';
+  if (lbl === 'Bestleistung Männer' || lbl === 'Gesamtbestleistung Männer') return 'Vereinsrekord';
+  if (lbl === 'Bestleistung Frauen' || lbl === 'Gesamtbestleistung Frauen') return 'Vereinsrekord';
   if (lbl === 'Gesamtbestleistung') return 'Vereinsrekord';
   return lbl;
 }
@@ -685,8 +685,8 @@ function timelineBadges(rek) {
           if (gesamtAll) {
             parts.push('Vereinsrekord');
           } else {
-            if (gesamtM || hasMaenner) parts.push('Vereinsrekord \u2642');
-            if (gesamtW || hasFrauen) parts.push('Vereinsrekord \u2640');
+            if (gesamtM || hasMaenner) parts.push('Vereinsrekord');
+            if (gesamtW || hasFrauen) parts.push('Vereinsrekord');
           }
           if (akM.length) parts.push('Bestleistung ' + compressAKList(akM));
           if (akW.length) parts.push('Bestleistung ' + compressAKList(akW));
