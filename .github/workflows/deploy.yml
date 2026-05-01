@@ -24,3 +24,6 @@ jobs:
             **/.git*/**
             **/config.php
             **/*.zip
+
+      - name: Clear OPcache
+        run: curl -s https://statistik.tus-oedt.de/opcache-clear.php
