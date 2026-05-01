@@ -5691,9 +5691,9 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
             }
 
             // Titel zuweisen (nur wenn Athlet in athletMap bekannt)
-            $addTitel = function(int $aid, string $label, string $datum) use ($disz, &$athletMap): void {
+            $addTitel = function(int $aid, string $label, string $datum) use ($disz, $mappingId, &$athletMap): void {
                 if (isset($athletMap[$aid])) {
-                    $athletMap[$aid]['titel'][] = ['disziplin' => $disz, 'label' => $label, 'datum' => $datum];
+                    $athletMap[$aid]['titel'][] = ['disziplin' => $disz, 'mapping_id' => $mappingId, 'label' => $label, 'datum' => $datum];
                 }
             };
 
@@ -5783,7 +5783,8 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
             if (!empty($t['is_meisterschaft'])) {
                 $mTitel[] = ['label' => $t['label'], 'datum' => $t['datum'], 'disziplin' => $t['disziplin'] ?? '', 'kat_name' => $t['kat_name'] ?? '', 'ak' => $t['ak'] ?? '', 'jahr' => (int)substr($t['datum'] ?? '', 0, 4)];
             } else {
-                $byDisz[$t['disziplin']][] = ['label' => $t['label'], 'datum' => $t['datum']];
+                $diszKey = ($t['disziplin'] ?? '') . '|||' . ($t['mapping_id'] ?? '');
+                $byDisz[$diszKey][] = ['label' => $t['label'], 'datum' => $t['datum'], 'mid' => $t['mapping_id'] ?? null];
             }
         }
         $ath['disziplinen']         = $byDisz;

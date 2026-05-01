@@ -1042,6 +1042,8 @@ async function renderAthletenKarten() {
       for (var hdi = 0; hdi < diszKeys.length; hdi++) {
         var hd = diszKeys[hdi];
         var htitels = hof.disziplinen[hd];
+        var hDiszName = hd.indexOf('|||') >= 0 ? hd.split('|||')[0] : hd;
+        var hMappingId = (htitels[0] || {}).mid || null;
         var gesamtAll = htitels.some(function(t) { return t.label === 'Gesamtbestleistung'; });
         var gesamtM   = htitels.some(function(t) { return t.label === 'Gesamtbestleistung Männer'; });
         var gesamtW   = htitels.some(function(t) { return t.label === 'Gesamtbestleistung Frauen'; });
@@ -1065,12 +1067,12 @@ async function renderAthletenKarten() {
         if (!sentence) continue;
         var lineClass = gesamt ? 'badge badge-gold' : 'badge badge-silver';
         if (!groupMap[sentence]) { groupMap[sentence] = { lineClass: lineClass, disz: [], isGold: gesamt }; groupOrder.push(sentence); }
-        groupMap[sentence].disz.push(hd);
+        groupMap[sentence].disz.push({name: hDiszName, mid: hMappingId});
       }
       groupOrder.sort(function(a, b) { return (groupMap[b].isGold ? 1 : 0) - (groupMap[a].isGold ? 1 : 0); });
       for (var gi = 0; gi < groupOrder.length; gi++) {
         var gKey = groupOrder[gi], gData = groupMap[gKey], dl = gData.disz;
-        var diszStr = dl.length === 1 ? diszMitKat(dl[0]) : dl.slice(0, -1).map(function(d) { return diszMitKat(d); }).join(', ') + ' und ' + diszMitKat(dl[dl.length - 1]);
+        var diszStr = dl.length === 1 ? diszMitKat(dl[0].name, dl[0].mid) : dl.slice(0, -1).map(function(d) { return diszMitKat(d.name, d.mid); }).join(', ') + ' und ' + diszMitKat(dl[dl.length - 1].name, dl[dl.length - 1].mid);
         badgesHtml += '<span class="' + gData.lineClass + '" style="display:inline-block;margin:2px 3px 2px 0;font-size:11px;line-height:1.4">' + gKey + ' über ' + diszStr + '</span>';
       }
     }
