@@ -3,7 +3,7 @@
 - Neue öffentliche Athleten-Seite im Karten-Layout (Hall-of-Fame-Stil, 5 Spalten Desktop), zeigt alle aktiven Mitglieder inkl. Vereinsrekord-/Bestleistungs-Badges
 - HOF/Athleten: AK-Bestleistungen werden jetzt auch für Vereinsrekord-Inhaber angezeigt (Tier-3-Unterdrückung entfernt)
 - Deploy: GitHub Actions leert OPcache automatisch nach FTP-Upload
-- HOF/Athleten: Ergebnisse ohne Altersklasse fallen auf MHK/WHK zurück → Jugend-Ergebnisse erscheinen als Bestleistung MHK/WHK
+- HOF/Athleten: Jugend-AK-Merge-Konfiguration explizit angewendet — alle konfigurierten AKs (MU18, MU20, …) erscheinen als „Bestleistung MHK/WHK"
 
 ---
 

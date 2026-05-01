@@ -5598,6 +5598,19 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         $mergeAK = ($_GET['merge_ak'] ?? '1') !== '0';
         $akExpr  = buildAkCaseExpr($mergeAK);
 
+        // Explizite Jugend-AK→MHK/WHK-Map für Tier-3-Bestleistungen
+        $jAksJson = Settings::get('jugend_aks') ?: '';
+        $jAksList = $jAksJson ? (json_decode($jAksJson, true) ?: []) : [];
+        if (empty($jAksList)) {
+            $jAksList = ['MHK','M','MU8','MU10-12','MU18','MU20','MU23','mJB','mjA','mjB','U18',
+                         'WHK','W','F','WU8','WU10-U12','WU18','WU23','wjA','wjB'];
+        }
+        $jAksMerge = [];
+        foreach ($jAksList as $jAk) {
+            $first = strtoupper(substr($jAk, 0, 1));
+            $jAksMerge[strtolower($jAk)] = ($first === 'W' || $jAk === 'F') ? 'WHK' : 'MHK';
+        }
+
         foreach ($diszList as $dRow) {
             if (!empty($dRow['hof_exclude'])) continue; // aus Hall of Fame ausgeschlossen
             $disz      = $dRow['disziplin'];
@@ -5620,9 +5633,10 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                 : "e.disziplin = ?";
             $hofParam = $mappingId ?? $disz;
 
-            // Alle Ergebnisse dieser Disziplin laden
+            // Alle Ergebnisse dieser Disziplin laden (ak_raw = ungemergte Altersklasse)
             $ergs = DB::fetchAll(
                 "SELECT e.resultat, ($valExpr) AS val_sort, " . $akExpr . " AS altersklasse,
+                        e.altersklasse AS ak_raw,
                         a.id AS athlet_id, a.name_nv, a.vorname, a.nachname, a.geschlecht,
                         b.avatar_pfad, v.datum
                  FROM " . DB::tbl('ergebnisse') . " e
@@ -5689,13 +5703,13 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                     }
                 }
 
-                // 3. Bestleistung je Altersklasse (Fallback: Geschlecht → MHK/WHK)
-                $akEff = $ak !== '' ? $ak : ($g === 'M' ? 'MHK' : ($g === 'W' ? 'WHK' : ''));
-                if ($akEff !== '') {
-                    if (!isset($bestByAK[$akEff])
-                        || ($dir === 'ASC'  && $val < $bestByAK[$akEff])
-                        || ($dir === 'DESC' && $val > $bestByAK[$akEff])) {
-                        $bestByAK[$akEff] = $val; $bestAKAid[$akEff] = $aid; $bestAKDatum[$akEff] = $datum;
+                // 3. Bestleistung je Altersklasse (rohe AK für genaues Tracking)
+                $akRaw = $e['ak_raw'] ?? '';
+                if ($akRaw !== '') {
+                    if (!isset($bestByAK[$akRaw])
+                        || ($dir === 'ASC'  && $val < $bestByAK[$akRaw])
+                        || ($dir === 'DESC' && $val > $bestByAK[$akRaw])) {
+                        $bestByAK[$akRaw] = $val; $bestAKAid[$akRaw] = $aid; $bestAKDatum[$akRaw] = $datum;
                     }
                 }
             }
@@ -5721,10 +5735,24 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                 if (!empty($hasGesamtBest[$aid])) continue;
                 $addTitel($aid, $g === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen', $bestGDatum[$g]);
             }
-            // Tier 3: AK-Bestleistung (immer, unabhängig von Tier 1+2)
-            foreach ($bestAKAid as $ak => $aid) {
-                $akNorm = preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $ak);
-                $addTitel($aid, 'Bestleistung ' . $akNorm, $bestAKDatum[$ak]);
+            // Tier 3: AK-Bestleistung — rohe AKs via jAksMerge zu MHK/WHK normalisieren,
+            // dann pro Gruppe das beste Ergebnis als Bestleistung eintragen.
+            // Gruppe: AKs die in jugend_aks → 'MHK'/'WHK'; alle anderen → eigene Gruppe.
+            $tier3Groups = []; // label => [val, aid, datum]
+            foreach ($bestAKAid as $rawAk => $aid) {
+                $label = isset($jAksMerge[strtolower($rawAk)])
+                    ? 'Bestleistung ' . $jAksMerge[strtolower($rawAk)]
+                    : 'Bestleistung ' . preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $rawAk);
+                $val   = $bestByAK[$rawAk];
+                $datum = $bestAKDatum[$rawAk];
+                if (!isset($tier3Groups[$label])
+                    || ($dir === 'ASC'  && $val < $tier3Groups[$label][0])
+                    || ($dir === 'DESC' && $val > $tier3Groups[$label][0])) {
+                    $tier3Groups[$label] = [$val, $aid, $datum];
+                }
+            }
+            foreach ($tier3Groups as $label => [$val, $aid, $datum]) {
+                $addTitel($aid, $label, $datum);
             }
         }
 
