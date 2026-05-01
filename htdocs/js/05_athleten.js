@@ -976,13 +976,8 @@ async function renderAthletenKarten() {
   var hofMap = {};
   for (var i = 0; i < hofData.length; i++) hofMap[hofData[i].id] = hofData[i];
 
-  var hofIds = hofData.map(function(h) { return h.id; });
   alleAthleten.sort(function(a, b) {
-    var ai = hofIds.indexOf(a.id), bi = hofIds.indexOf(b.id);
-    if (ai >= 0 && bi >= 0) return ai - bi;
-    if (ai >= 0) return -1;
-    if (bi >= 0) return 1;
-    return (a.name_nv || '').localeCompare(b.name_nv || '');
+    return (a.nachname || '').localeCompare(b.nachname || '', 'de') || (a.vorname || '').localeCompare(b.vorname || '', 'de');
   });
 
   var cards = '';
@@ -995,10 +990,18 @@ async function renderAthletenKarten() {
     var statsHtml = '', badgesHtml = '';
     if (hof) {
       var _mCnt = (hof.meisterschaftsTitel || []).length;
-      var _bCnt = (hof.titelCount || 0) - _mCnt;
+      var _vrCnt = 0, _blCnt = 0;
+      var _dkeys = Object.keys(hof.disziplinen || {});
+      for (var _di = 0; _di < _dkeys.length; _di++) {
+        var _tls = hof.disziplinen[_dkeys[_di]];
+        for (var _ti = 0; _ti < _tls.length; _ti++) {
+          if ((_tls[_ti].label || '').indexOf('Gesamtbestleistung') >= 0) _vrCnt++; else _blCnt++;
+        }
+      }
       var _parts = [];
-      if (_mCnt) _parts.push(_mCnt + ' ' + (_mCnt === 1 ? 'Titel' : 'Titel'));
-      if (_bCnt > 0) _parts.push(_bCnt + ' ' + (_bCnt === 1 ? 'Bestleistung' : 'Bestleistungen'));
+      if (_mCnt)  _parts.push(_mCnt  + ' ' + (_mCnt  === 1 ? 'Titel'        : 'Titel'));
+      if (_vrCnt) _parts.push(_vrCnt + ' ' + (_vrCnt === 1 ? 'Vereinsrekord' : 'Vereinsrekorde'));
+      if (_blCnt) _parts.push(_blCnt + ' ' + (_blCnt === 1 ? 'Bestleistung'  : 'Bestleistungen'));
       if (_parts.length) statsHtml = '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">' + _parts.join(' · ') + '</div>';
 
       var mTitel = hof.meisterschaftsTitel || [];

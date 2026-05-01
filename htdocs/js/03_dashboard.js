@@ -763,10 +763,18 @@ function timelineBadges(rek) {
             '</div>' +
             (function(){
             var _mCnt = (ha.meisterschaftsTitel || []).length;
-            var _bCnt = ha.titelCount - _mCnt;
+            var _vrCnt = 0, _blCnt = 0;
+            var _dkeys = Object.keys(ha.disziplinen || {});
+            for (var _di = 0; _di < _dkeys.length; _di++) {
+              var _tls = ha.disziplinen[_dkeys[_di]];
+              for (var _ti = 0; _ti < _tls.length; _ti++) {
+                if ((_tls[_ti].label || '').indexOf('Gesamtbestleistung') >= 0) _vrCnt++; else _blCnt++;
+              }
+            }
             var _parts = [];
-            if (_mCnt) _parts.push(_mCnt + ' ' + (_mCnt === 1 ? 'Titel' : 'Titel'));
-            if (_bCnt) _parts.push(_bCnt + ' ' + (_bCnt === 1 ? 'Bestleistung' : 'Bestleistungen'));
+            if (_mCnt)  _parts.push(_mCnt  + ' ' + (_mCnt  === 1 ? 'Titel'         : 'Titel'));
+            if (_vrCnt) _parts.push(_vrCnt + ' ' + (_vrCnt === 1 ? 'Vereinsrekord'  : 'Vereinsrekorde'));
+            if (_blCnt) _parts.push(_blCnt + ' ' + (_blCnt === 1 ? 'Bestleistung'   : 'Bestleistungen'));
             return '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">' + _parts.join(' · ') + '</div>';
           }()) +
             '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:1px">' + hBadgesHtml + '</div>' +
