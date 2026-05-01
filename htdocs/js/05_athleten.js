@@ -1060,7 +1060,7 @@ function _buildAthletCard(a, hof) {
   var ergBadge = '';
   if (!hasVrOrBl) {
     var anz = parseInt(a.anz_ergebnisse) || 0;
-    ergBadge = '<span class="badge badge-platz">' + anz + ' ' + (anz === 1 ? 'Ergebnis' : 'Ergebnisse') + '</span>';
+    ergBadge = '<span class="badge badge-pb" style="display:inline-block;margin:2px 3px 2px 0;font-size:11px;line-height:1.4">' + anz + ' ' + (anz === 1 ? 'Ergebnis' : 'Ergebnisse') + '</span>';
   }
 
   return '<div style="background:var(--surface);text-align:center;padding:24px 14px;cursor:pointer;transition:background .15s" ' +
