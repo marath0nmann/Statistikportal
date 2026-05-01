@@ -682,10 +682,13 @@ function timelineBadges(rek) {
           var akW = htitels.filter(function(t){ return /^Bestleistung W(?:\d|U\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
 
           var parts = [];
-          if (gesamtAll) parts.push('Vereinsrekord');
-          if (gesamtM || hasMaenner) parts.push('Vereinsrekord \u2642');
+          if (gesamtAll) {
+            parts.push('Vereinsrekord');
+          } else {
+            if (gesamtM || hasMaenner) parts.push('Vereinsrekord \u2642');
+            if (gesamtW || hasFrauen) parts.push('Vereinsrekord \u2640');
+          }
           if (akM.length) parts.push('Bestleistung ' + compressAKList(akM));
-          if (gesamtW || hasFrauen) parts.push('Vereinsrekord \u2640');
           if (akW.length) parts.push('Bestleistung ' + compressAKList(akW));
 
           var sentence  = parts.join(' \u00b7 ');
@@ -738,7 +741,7 @@ function timelineBadges(rek) {
             }
             hBadgesHtml += '<div style="width:100%;display:flex;flex-direction:column;align-items:center;gap:2px;margin-bottom:2px">' + _mRowsHtml + '</div>';
           } else {
-            hBadgesHtml += mMedalSpans.join('');
+            hBadgesHtml += '<div style="width:100%;display:flex;justify-content:center;flex-wrap:wrap;gap:1px;margin-bottom:2px">' + mMedalSpans.join('') + '</div>';
           }
         }
                 for (var gi = 0; gi < groupOrder.length; gi++) {
@@ -767,9 +770,16 @@ function timelineBadges(rek) {
             var _dkeys = Object.keys(ha.disziplinen || {});
             for (var _di = 0; _di < _dkeys.length; _di++) {
               var _tls = ha.disziplinen[_dkeys[_di]];
+              var _gesAll = false, _gesM = false, _gesW = false;
               for (var _ti = 0; _ti < _tls.length; _ti++) {
-                if ((_tls[_ti].label || '').indexOf('Gesamtbestleistung') >= 0) _vrCnt++; else _blCnt++;
+                var _lbl = _tls[_ti].label || '';
+                if (_lbl === 'Gesamtbestleistung') _gesAll = true;
+                else if (_lbl === 'Gesamtbestleistung Männer') _gesM = true;
+                else if (_lbl === 'Gesamtbestleistung Frauen') _gesW = true;
+                else _blCnt++;
               }
+              if (_gesAll) { _vrCnt++; }
+              else { if (_gesM) _vrCnt++; if (_gesW) _vrCnt++; }
             }
             var _parts = [];
             if (_mCnt)  _parts.push(_mCnt  + ' ' + (_mCnt  === 1 ? 'Titel'         : 'Titel'));
