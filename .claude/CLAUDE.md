@@ -23,10 +23,13 @@ Kopiere `includes/config.sample.php` nach `includes/config.php` und trage DB-Zug
 
 ## Commit & Deployment
 
-**IMMER nach jeder Änderung: sofort committen und pushen – ohne auf Bestätigung zu warten.**
+**IMMER nach jeder Änderung: Versionsnummer erhöhen, committen und pushen – ohne auf Bestätigung zu warten.**
 
 1. `CHANGELOG.md`: neue Bullet-Zeile oben in `## vCUR` einfügen
-2. `git add <geänderte Dateien>`, `git commit`, `git push`
+2. Versionsnummer um 1 erhöhen:
+   - `htdocs/index.html`: alle `?v=NNN` + `header-version`-Span auf `NNN+1` setzen
+   - `CHANGELOG.md`: `## vCUR` → `## vNNN+1`
+3. `git add <geänderte Dateien>`, `git commit`, `git push`
 
 GitHub Actions deployed automatisch per FTP nach all-inkl.com (`/html/statistik/`). Kein ZIP-Export nötig.
 

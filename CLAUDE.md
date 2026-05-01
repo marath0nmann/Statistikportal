@@ -36,9 +36,12 @@ CHANGELOG.md          → Versionshistorie
 **Nach jeder Änderung immer sofort committen und pushen – ohne auf Bestätigung zu warten.**  
 GitHub Actions deployed automatisch per FTP nach all-inkl.com (`/html/statistik/`). Kein ZIP-Export nötig.
 
-**Claude-Workflow nach jeder Änderung:**
+**Claude-Workflow nach jeder Änderung (IMMER, ohne Ausnahme):**
 1. `CHANGELOG.md`: neue Bullet-Zeile oben in `## vCUR` einfügen
-2. `git add <geänderte Dateien>`, `git commit`, `git push`
+2. Versionsnummer um 1 erhöhen:
+   - `index.html`: alle `?v=NNN` Cache-Buster + `header-version`-Span (`v=NNN` → `v=NNN+1`)
+   - `CHANGELOG.md`: `## vCUR` → `## vNNN+1`
+3. `git add <geänderte Dateien>`, `git commit`, `git push`
 
 **Wichtig:** PHP OPcache auf dem Server wird per GitHub Actions automatisch geleert (`opcache-clear.php`).
 
