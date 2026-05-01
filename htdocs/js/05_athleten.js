@@ -1054,8 +1054,10 @@ async function renderAthletenKarten() {
         if (gesamtAll) {
           parts.push('Vereinsrekord');
         } else {
-          if (gesamtM || !!_mhnLabel) parts.push('Vereinsrekord');
-          if (gesamtW || !!_whnLabel) parts.push('Vereinsrekord');
+          if (gesamtM) parts.push('Vereinsrekord');
+          else if (_mhnLabel) parts.push('Bestleistung ' + _mhnLabel.label.replace('Bestleistung ', ''));
+          if (gesamtW) parts.push('Vereinsrekord');
+          else if (_whnLabel) parts.push('Bestleistung ' + _whnLabel.label.replace('Bestleistung ', ''));
         }
         if (akM.length) parts.push('Bestleistung ' + compressAKList(akM));
         if (akW.length) parts.push('Bestleistung ' + compressAKList(akW));

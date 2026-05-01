@@ -685,8 +685,10 @@ function timelineBadges(rek) {
           if (gesamtAll) {
             parts.push('Vereinsrekord');
           } else {
-            if (gesamtM || hasMaenner) parts.push('Vereinsrekord');
-            if (gesamtW || hasFrauen) parts.push('Vereinsrekord');
+            if (gesamtM) parts.push('Vereinsrekord');
+            else if (hasMaenner) parts.push('Bestleistung ' + mhnText);
+            if (gesamtW) parts.push('Vereinsrekord');
+            else if (hasFrauen) parts.push('Bestleistung ' + whnText);
           }
           if (akM.length) parts.push('Bestleistung ' + compressAKList(akM));
           if (akW.length) parts.push('Bestleistung ' + compressAKList(akW));
