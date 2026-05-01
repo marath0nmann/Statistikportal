@@ -5585,6 +5585,15 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         $diszList = DB::fetchAll($diszListSql, $diszParams);
         sortDisziplinen($diszList);
 
+        // Auf favorisierte Disziplinen (top_disziplinen) beschränken
+        $hofFavJson = Settings::get('top_disziplinen', '');
+        $hofFavList = $hofFavJson ? array_values(array_filter(array_map('intval', json_decode($hofFavJson, true) ?: []), function($v){ return $v > 0; })) : [];
+        if ($hofFavList) {
+            $diszList = array_values(array_filter($diszList, function($row) use ($hofFavList) {
+                return in_array((int)($row['disziplin_mapping_id'] ?? 0), $hofFavList);
+            }));
+        }
+
         // Jugend-AK zusammenfassen: aus Settings-Konfiguration
         $mergeAK = ($_GET['merge_ak'] ?? '1') !== '0';
         $akExpr  = buildAkCaseExpr($mergeAK);
