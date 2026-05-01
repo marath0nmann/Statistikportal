@@ -5721,9 +5721,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                 $addTitel($aid, $g === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen', $bestGDatum[$g]);
             }
             // Tier 3: AK-Bestleistung (immer, unabhängig von Tier 1+2)
-            // Ausnahme: wenn identischer Wert wie Gesamtbestleistung → bereits durch Tier 1 abgedeckt
             foreach ($bestAKAid as $ak => $aid) {
-                if (!empty($hasGesamtBest[$aid]) && abs($bestByAK[$ak] - $bestGesamt) < 0.001) continue;
                 $akNorm = preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $ak);
                 $addTitel($aid, 'Bestleistung ' . $akNorm, $bestAKDatum[$ak]);
             }
