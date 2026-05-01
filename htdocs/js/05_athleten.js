@@ -962,141 +962,170 @@ async function _doDeletePb(athletId, pbId) {
   _apRender();
 }
 
+function _buildAthletCard(a, hof) {
+  var displayName = (a.vorname ? a.vorname + ' ' : '') + a.nachname;
+  var av = avatarHtml(a.avatar_pfad, displayName, 72, 27);
+
+  var statsHtml = '', badgesHtml = '', hasVrOrBl = false;
+  if (hof) {
+    var _mCnt = (hof.meisterschaftsTitel || []).length;
+    var _vrCnt = 0, _blCnt = 0;
+    var _dkeys = Object.keys(hof.disziplinen || {});
+    for (var _di = 0; _di < _dkeys.length; _di++) {
+      var _tls = hof.disziplinen[_dkeys[_di]];
+      var _gesAll = false, _gesM = false, _gesW = false;
+      for (var _ti = 0; _ti < _tls.length; _ti++) {
+        var _lbl = _tls[_ti].label || '';
+        if (_lbl === 'Gesamtbestleistung') _gesAll = true;
+        else if (_lbl === 'Gesamtbestleistung Männer') _gesM = true;
+        else if (_lbl === 'Gesamtbestleistung Frauen') _gesW = true;
+        else _blCnt++;
+      }
+      if (_gesAll) { _vrCnt++; }
+      else { if (_gesM) _vrCnt++; if (_gesW) _vrCnt++; }
+    }
+    hasVrOrBl = (_vrCnt > 0 || _blCnt > 0);
+    var _parts = [];
+    if (_mCnt)  _parts.push(_mCnt  + ' ' + (_mCnt  === 1 ? 'Titel'        : 'Titel'));
+    if (_vrCnt) _parts.push(_vrCnt + ' ' + (_vrCnt === 1 ? 'Vereinsrekord' : 'Vereinsrekorde'));
+    if (_blCnt) _parts.push(_blCnt + ' ' + (_blCnt === 1 ? 'Bestleistung'  : 'Bestleistungen'));
+    if (_parts.length) statsHtml = '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">' + _parts.join(' · ') + '</div>';
+
+    var mTitel = hof.meisterschaftsTitel || [];
+    if (mTitel.length) {
+      var mGroups = {}, mOrder = [];
+      for (var mi = 0; mi < mTitel.length; mi++) {
+        var mt = mTitel[mi];
+        var mgKey = mt.label + '|' + (mt.kat_name || '');
+        if (!mGroups[mgKey]) { mGroups[mgKey] = { label: mt.label, jahre: [] }; mOrder.push(mgKey); }
+        if (mt.jahr && mGroups[mgKey].jahre.indexOf(mt.jahr) < 0) mGroups[mgKey].jahre.push(mt.jahr);
+      }
+      var mSpans = [];
+      var haGeschlecht = hof.geschlecht || '';
+      var mSuffix = haGeschlecht === 'M' ? '-Meister' : haGeschlecht === 'W' ? '-Meisterin' : '-Meister/in';
+      mOrder.forEach(function(key) {
+        var mg = mGroups[key];
+        var afterEmoji = mg.label.indexOf(' ') >= 0 ? mg.label.slice(mg.label.indexOf(' ') + 1) : mg.label;
+        var sp2 = afterEmoji.indexOf(' ');
+        var mstrName = sp2 > 0 ? afterEmoji.slice(0, sp2) : afterEmoji;
+        var diszPart = sp2 > 0 ? afterEmoji.slice(sp2 + 1) : '';
+        var _sep = /e$/i.test(mstrName) ? ' ' : '-';
+        mg.jahre.sort();
+        var tooltip = mstrName + _sep + mSuffix.replace(/^-/, '') + ' ' + diszPart + (mg.jahre.length ? ' ' + mg.jahre.join(', ') : '');
+        mSpans.push('<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:16px;cursor:default;line-height:1">&#x1F947;</span>');
+      });
+      badgesHtml += '<div style="width:100%;display:flex;justify-content:center;flex-wrap:wrap;gap:1px;margin-bottom:4px">' + mSpans.join('') + '</div>';
+    }
+
+    var diszKeys = Object.keys(hof.disziplinen || {});
+    var groupMap = {}, groupOrder = [];
+    for (var hdi = 0; hdi < diszKeys.length; hdi++) {
+      var hd = diszKeys[hdi];
+      var htitels = hof.disziplinen[hd];
+      var hDiszName = hd.indexOf('|||') >= 0 ? hd.split('|||')[0] : hd;
+      var hMappingId = (htitels[0] || {}).mid || null;
+      var gesamtAll = htitels.some(function(t) { return t.label === 'Gesamtbestleistung'; });
+      var gesamtM   = htitels.some(function(t) { return t.label === 'Gesamtbestleistung Männer'; });
+      var gesamtW   = htitels.some(function(t) { return t.label === 'Gesamtbestleistung Frauen'; });
+      var gesamt    = gesamtAll || gesamtM || gesamtW;
+      var _mhnLabel = htitels.find(function(t) { return t.label === 'Bestleistung Männer' || t.label === 'Bestleistung MHK'; });
+      var _whnLabel = htitels.find(function(t) { return t.label === 'Bestleistung Frauen'  || t.label === 'Bestleistung WHK'; });
+      var akM = htitels.filter(function(t) { return /^Bestleistung M(?:\d|U\d)/.test(t.label); }).map(function(t) { return t.label.replace('Bestleistung ', ''); });
+      var akW = htitels.filter(function(t) { return /^Bestleistung W(?:\d|U\d)/.test(t.label); }).map(function(t) { return t.label.replace('Bestleistung ', ''); });
+      var parts = [];
+      if (gesamtAll) {
+        parts.push('Vereinsrekord');
+      } else {
+        if (gesamtM) parts.push('Vereinsrekord');
+        else if (_mhnLabel) parts.push('Bestleistung ' + _mhnLabel.label.replace('Bestleistung ', ''));
+        if (gesamtW) parts.push('Vereinsrekord');
+        else if (_whnLabel) parts.push('Bestleistung ' + _whnLabel.label.replace('Bestleistung ', ''));
+      }
+      if (akM.length) parts.push('Bestleistung ' + compressAKList(akM));
+      if (akW.length) parts.push('Bestleistung ' + compressAKList(akW));
+      var sentence = parts.join(' · ');
+      if (!sentence) continue;
+      var lineClass = gesamt ? 'badge badge-gold' : 'badge badge-silver';
+      if (!groupMap[sentence]) { groupMap[sentence] = { lineClass: lineClass, disz: [], isGold: gesamt }; groupOrder.push(sentence); }
+      groupMap[sentence].disz.push({name: hDiszName, mid: hMappingId});
+    }
+    groupOrder.sort(function(a, b) { return (groupMap[b].isGold ? 1 : 0) - (groupMap[a].isGold ? 1 : 0); });
+    for (var gi = 0; gi < groupOrder.length; gi++) {
+      var gKey = groupOrder[gi], gData = groupMap[gKey], dl = gData.disz;
+      var diszStr = dl.length === 1 ? diszMitKat(dl[0].name, dl[0].mid) : dl.slice(0, -1).map(function(d) { return diszMitKat(d.name, d.mid); }).join(', ') + ' und ' + diszMitKat(dl[dl.length - 1].name, dl[dl.length - 1].mid);
+      badgesHtml += '<span class="' + gData.lineClass + '" style="display:inline-block;margin:2px 3px 2px 0;font-size:11px;line-height:1.4">' + gKey + ' über ' + diszStr + '</span>';
+    }
+  }
+
+  var ergBadge = '';
+  if (!hasVrOrBl) {
+    var anz = parseInt(a.anz_ergebnisse) || 0;
+    ergBadge = '<span class="badge badge-platz">' + anz + ' ' + (anz === 1 ? 'Ergebnis' : 'Ergebnisse') + '</span>';
+  }
+
+  return '<div style="background:var(--surface);text-align:center;padding:24px 14px;cursor:pointer;transition:background .15s" ' +
+    'onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'var(--surface)\'" ' +
+    'onclick="openAthletById(' + a.id + ')">' +
+    '<div style="display:flex;justify-content:center;margin-bottom:12px">' + av + '</div>' +
+    '<div style="font-weight:700;font-size:14px;margin-bottom:2px"><span class="athlet-link">' + displayName + '</span></div>' +
+    statsHtml +
+    (badgesHtml || ergBadge ? '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">' + badgesHtml + ergBadge + '</div>' : '') +
+  '</div>';
+}
+
 async function renderAthletenKarten() {
   var el = document.getElementById('main-content');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
 
-  var rA = await apiGet('athleten');
-  var rH = await apiGet('hall-of-fame?merge_ak=1');
+  var results = await Promise.all([apiGet('athleten'), apiGet('hall-of-fame?merge_ak=1'), apiGet('athleten-aktivitaet')]);
+  var rA = results[0], rH = results[1], rAkt = results[2];
   if (!rA || !rA.ok) { el.innerHTML = '<div class="panel" style="padding:32px;text-align:center;color:var(--text2)">Fehler beim Laden.</div>'; return; }
 
-  var alleAthleten = (rA.data || []).filter(function(a) { return a.aktiv; });
+  var jetzt = new Date().getFullYear();
+  var aktMap = (rAkt && rAkt.ok) ? rAkt.data : {};
   var hofData = (rH && rH.ok) ? (rH.data || []) : [];
 
   var hofMap = {};
   for (var i = 0; i < hofData.length; i++) hofMap[hofData[i].id] = hofData[i];
 
+  // Nur Athleten mit mindestens 1 registriertem Ergebnis
+  var alleAthleten = (rA.data || []).filter(function(a) { return parseInt(a.anz_ergebnisse) >= 1; });
+
   alleAthleten.sort(function(a, b) {
     return (a.nachname || '').localeCompare(b.nachname || '', 'de') || (a.vorname || '').localeCompare(b.vorname || '', 'de');
   });
 
-  var cards = '';
-  for (var ci = 0; ci < alleAthleten.length; ci++) {
-    var a = alleAthleten[ci];
-    var hof = hofMap[a.id];
-    var displayName = (a.vorname ? a.vorname + ' ' : '') + a.nachname;
-    var av = avatarHtml(a.avatar_pfad, displayName, 72, 27);
-
-    var statsHtml = '', badgesHtml = '';
-    if (hof) {
-      var _mCnt = (hof.meisterschaftsTitel || []).length;
-      var _vrCnt = 0, _blCnt = 0;
-      var _dkeys = Object.keys(hof.disziplinen || {});
-      for (var _di = 0; _di < _dkeys.length; _di++) {
-        var _tls = hof.disziplinen[_dkeys[_di]];
-        var _gesAll = false, _gesM = false, _gesW = false;
-        for (var _ti = 0; _ti < _tls.length; _ti++) {
-          var _lbl = _tls[_ti].label || '';
-          if (_lbl === 'Gesamtbestleistung') _gesAll = true;
-          else if (_lbl === 'Gesamtbestleistung Männer') _gesM = true;
-          else if (_lbl === 'Gesamtbestleistung Frauen') _gesW = true;
-          else _blCnt++;
-        }
-        if (_gesAll) { _vrCnt++; }
-        else { if (_gesM) _vrCnt++; if (_gesW) _vrCnt++; }
-      }
-      var _parts = [];
-      if (_mCnt)  _parts.push(_mCnt  + ' ' + (_mCnt  === 1 ? 'Titel'        : 'Titel'));
-      if (_vrCnt) _parts.push(_vrCnt + ' ' + (_vrCnt === 1 ? 'Vereinsrekord' : 'Vereinsrekorde'));
-      if (_blCnt) _parts.push(_blCnt + ' ' + (_blCnt === 1 ? 'Bestleistung'  : 'Bestleistungen'));
-      if (_parts.length) statsHtml = '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">' + _parts.join(' · ') + '</div>';
-
-      var mTitel = hof.meisterschaftsTitel || [];
-      if (mTitel.length) {
-        var mGroups = {}, mOrder = [];
-        for (var mi = 0; mi < mTitel.length; mi++) {
-          var mt = mTitel[mi];
-          var mgKey = mt.label + '|' + (mt.kat_name || '');
-          if (!mGroups[mgKey]) { mGroups[mgKey] = { label: mt.label, jahre: [] }; mOrder.push(mgKey); }
-          if (mt.jahr && mGroups[mgKey].jahre.indexOf(mt.jahr) < 0) mGroups[mgKey].jahre.push(mt.jahr);
-        }
-        var mSpans = [];
-        var haGeschlecht = hof.geschlecht || '';
-        var mSuffix = haGeschlecht === 'M' ? '-Meister' : haGeschlecht === 'W' ? '-Meisterin' : '-Meister/in';
-        mOrder.forEach(function(key) {
-          var mg = mGroups[key];
-          var afterEmoji = mg.label.indexOf(' ') >= 0 ? mg.label.slice(mg.label.indexOf(' ') + 1) : mg.label;
-          var sp2 = afterEmoji.indexOf(' ');
-          var mstrName = sp2 > 0 ? afterEmoji.slice(0, sp2) : afterEmoji;
-          var diszPart = sp2 > 0 ? afterEmoji.slice(sp2 + 1) : '';
-          var _sep = /e$/i.test(mstrName) ? ' ' : '-';
-          mg.jahre.sort();
-          var tooltip = mstrName + _sep + mSuffix.replace(/^-/, '') + ' ' + diszPart + (mg.jahre.length ? ' ' + mg.jahre.join(', ') : '');
-          mSpans.push('<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:16px;cursor:default;line-height:1">&#x1F947;</span>');
-        });
-        badgesHtml += '<div style="width:100%;display:flex;justify-content:center;flex-wrap:wrap;gap:1px;margin-bottom:4px">' + mSpans.join('') + '</div>';
-      }
-
-      var diszKeys = Object.keys(hof.disziplinen || {});
-      var groupMap = {}, groupOrder = [];
-      for (var hdi = 0; hdi < diszKeys.length; hdi++) {
-        var hd = diszKeys[hdi];
-        var htitels = hof.disziplinen[hd];
-        var hDiszName = hd.indexOf('|||') >= 0 ? hd.split('|||')[0] : hd;
-        var hMappingId = (htitels[0] || {}).mid || null;
-        var gesamtAll = htitels.some(function(t) { return t.label === 'Gesamtbestleistung'; });
-        var gesamtM   = htitels.some(function(t) { return t.label === 'Gesamtbestleistung Männer'; });
-        var gesamtW   = htitels.some(function(t) { return t.label === 'Gesamtbestleistung Frauen'; });
-        var gesamt    = gesamtAll || gesamtM || gesamtW;
-        var _mhnLabel = htitels.find(function(t) { return t.label === 'Bestleistung Männer' || t.label === 'Bestleistung MHK'; });
-        var _whnLabel = htitels.find(function(t) { return t.label === 'Bestleistung Frauen'  || t.label === 'Bestleistung WHK'; });
-        var akM = htitels.filter(function(t) { return /^Bestleistung M(?:\d|U\d)/.test(t.label); }).map(function(t) { return t.label.replace('Bestleistung ', ''); });
-        var akW = htitels.filter(function(t) { return /^Bestleistung W(?:\d|U\d)/.test(t.label); }).map(function(t) { return t.label.replace('Bestleistung ', ''); });
-        var parts = [];
-        if (gesamtAll) {
-          parts.push('Vereinsrekord');
-        } else {
-          if (gesamtM) parts.push('Vereinsrekord');
-          else if (_mhnLabel) parts.push('Bestleistung ' + _mhnLabel.label.replace('Bestleistung ', ''));
-          if (gesamtW) parts.push('Vereinsrekord');
-          else if (_whnLabel) parts.push('Bestleistung ' + _whnLabel.label.replace('Bestleistung ', ''));
-        }
-        if (akM.length) parts.push('Bestleistung ' + compressAKList(akM));
-        if (akW.length) parts.push('Bestleistung ' + compressAKList(akW));
-        var sentence = parts.join(' · ');
-        if (!sentence) continue;
-        var lineClass = gesamt ? 'badge badge-gold' : 'badge badge-silver';
-        if (!groupMap[sentence]) { groupMap[sentence] = { lineClass: lineClass, disz: [], isGold: gesamt }; groupOrder.push(sentence); }
-        groupMap[sentence].disz.push({name: hDiszName, mid: hMappingId});
-      }
-      groupOrder.sort(function(a, b) { return (groupMap[b].isGold ? 1 : 0) - (groupMap[a].isGold ? 1 : 0); });
-      for (var gi = 0; gi < groupOrder.length; gi++) {
-        var gKey = groupOrder[gi], gData = groupMap[gKey], dl = gData.disz;
-        var diszStr = dl.length === 1 ? diszMitKat(dl[0].name, dl[0].mid) : dl.slice(0, -1).map(function(d) { return diszMitKat(d.name, d.mid); }).join(', ') + ' und ' + diszMitKat(dl[dl.length - 1].name, dl[dl.length - 1].mid);
-        badgesHtml += '<span class="' + gData.lineClass + '" style="display:inline-block;margin:2px 3px 2px 0;font-size:11px;line-height:1.4">' + gKey + ' über ' + diszStr + '</span>';
-      }
-    }
-
-    cards +=
-      '<div style="background:var(--surface);text-align:center;padding:24px 14px;cursor:pointer;transition:background .15s" ' +
-        'onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'var(--surface)\'" ' +
-        'onclick="openAthletById(' + a.id + ')">' +
-        '<div style="display:flex;justify-content:center;margin-bottom:12px">' + av + '</div>' +
-        '<div style="font-weight:700;font-size:14px;margin-bottom:2px"><span class="athlet-link">' + displayName + '</span></div>' +
-        statsHtml +
-        (badgesHtml ? '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">' + badgesHtml + '</div>' : '') +
-      '</div>';
-  }
-
   if (!alleAthleten.length) {
-    el.innerHTML = '<div class="panel"><div class="empty"><div class="empty-icon">&#x1F464;</div><div class="empty-text">Keine aktiven Athleten gefunden.</div></div></div>';
+    el.innerHTML = '<div class="panel"><div class="empty"><div class="empty-icon">&#x1F464;</div><div class="empty-text">Keine Athleten gefunden.</div></div></div>';
     return;
   }
 
+  // Aufteilen: aktiv = Ergebnis in diesem oder letztem Jahr
+  var aktiveAthleten = [], inaktiveAthleten = [];
+  for (var ci = 0; ci < alleAthleten.length; ci++) {
+    var a = alleAthleten[ci];
+    var letzteAkt = aktMap[a.id] || aktMap[String(a.id)] || 0;
+    if (letzteAkt >= jetzt - 1) {
+      aktiveAthleten.push(a);
+    } else if (hofMap[a.id]) {
+      // Inaktiv aber mit aktuellen Vereinsrekorden oder Bestleistungen
+      inaktiveAthleten.push(a);
+    }
+  }
+
+  var gridStyle = 'display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden';
+
+  function buildSection(title, athletes) {
+    if (!athletes.length) return '';
+    var cards = '';
+    for (var si = 0; si < athletes.length; si++) cards += _buildAthletCard(athletes[si], hofMap[athletes[si].id]);
+    return '<div style="font-weight:700;font-size:15px;margin:16px 0 10px;color:var(--text)">' + title + ' <span style="font-size:13px;font-weight:400;color:var(--text2)">(' + athletes.length + ')</span></div>' +
+      '<div style="' + gridStyle + '">' + cards + '</div>';
+  }
+
   el.innerHTML =
-    '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">' +
-      cards +
-    '</div>' +
+    buildSection('Aktive Athleten', aktiveAthleten) +
+    buildSection('Inaktive Athleten', inaktiveAthleten) +
     '<style>@media(max-width:900px){#main-content>div[style*="repeat(5"]{grid-template-columns:repeat(3,1fr)}}' +
     '@media(max-width:560px){#main-content>div[style*="repeat(5"]{grid-template-columns:repeat(2,1fr)}}</style>';
 }
