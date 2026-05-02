@@ -715,29 +715,17 @@ function timelineBadges(rek) {
         var haGeschlecht = ha.geschlecht || '';
         var mSuffix = haGeschlecht === 'M' ? '-Meister' : haGeschlecht === 'W' ? '-Meisterin' : '-Meister/in';
         if (mTitel.length) {
-          var mGroups = {}, mOrder = [];
+          var mMedalSpans = [];
           for (var mi = 0; mi < mTitel.length; mi++) {
             var mt = mTitel[mi];
-            var mgKey = mt.label + '|' + (mt.kat_name || '');
-            if (!mGroups[mgKey]) { mGroups[mgKey] = { label: mt.label, kat: mt.kat_name, jahre: [] }; mOrder.push(mgKey); }
-            if (mt.jahr && mGroups[mgKey].jahre.indexOf(mt.jahr) < 0) mGroups[mgKey].jahre.push(mt.jahr);
-          }
-          var mMedalSpans = [];
-          mOrder.forEach(function(key) {
-            var mg = mGroups[key];
-            // label: "🥇 Nordrhein 1.500m" – alles nach erstem Leerzeichen
-            var afterEmoji = mg.label.indexOf(' ') >= 0 ? mg.label.slice(mg.label.indexOf(' ') + 1) : mg.label;
-            // Ersten Token = Meisterschaftsname, Rest = Disziplin
+            var afterEmoji = mt.label.indexOf(' ') >= 0 ? mt.label.slice(mt.label.indexOf(' ') + 1) : mt.label;
             var sp2 = afterEmoji.indexOf(' ');
             var mstrName = sp2 > 0 ? afterEmoji.slice(0, sp2) : afterEmoji;
             var diszPart  = sp2 > 0 ? afterEmoji.slice(sp2 + 1) : '';
-            var katStr = mg.kat && mg.kat !== 'Sonstige' ? ' (' + mg.kat + ')' : '';
-            mg.jahre.sort();
-            var jahreStr = mg.jahre.length ? ' ' + mg.jahre.join(', ') : '';
             var _sep = /e$/i.test(mstrName) ? ' ' : '-';
-            var tooltip = mstrName + _sep + mSuffix.replace(/^-/, '') + ' ' + diszPart + katStr + jahreStr;
+            var tooltip = mstrName + _sep + mSuffix.replace(/^-/, '') + ' ' + diszPart + (mt.ak ? ' (' + mt.ak + ')' : '') + (mt.jahr ? ' ' + mt.jahr : '');
             mMedalSpans.push('<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:15px;display:inline-block;cursor:default;line-height:1">&#x1F947;</span>');
-          });
+          }
           if (mMedalSpans.length > 9) {
             var _mNumRows = Math.ceil(mMedalSpans.length / 9);
             var _mPerRow  = Math.ceil(mMedalSpans.length / _mNumRows);
@@ -771,7 +759,7 @@ function timelineBadges(rek) {
               '<span class="athlet-link" onclick="openAthletById(' + ha.id + ')">' + ha.name + '</span>' +
             '</div>' +
             (function(){
-            var _mCntSet = {}; (ha.meisterschaftsTitel || []).forEach(function(mt) { _mCntSet[mt.label + '|' + (mt.kat_name || '')] = 1; }); var _mCnt = Object.keys(_mCntSet).length;
+            var _mCnt = (ha.meisterschaftsTitel || []).length;
             var _vrCnt = 0, _blCnt = 0;
             var _dkeys = Object.keys(ha.disziplinen || {});
             for (var _di = 0; _di < _dkeys.length; _di++) {

@@ -968,7 +968,7 @@ function _buildAthletCard(a, hof) {
 
   var statsHtml = '', badgesHtml = '', hasVrOrBl = false;
   if (hof) {
-    var _mCntSet = {}; (hof.meisterschaftsTitel || []).forEach(function(mt) { _mCntSet[mt.label + '|' + (mt.kat_name || '')] = 1; }); var _mCnt = Object.keys(_mCntSet).length;
+    var _mCnt = (hof.meisterschaftsTitel || []).length;
     var _vrCnt = 0, _blCnt = 0;
     var _dkeys = Object.keys(hof.disziplinen || {});
     for (var _di = 0; _di < _dkeys.length; _di++) {
@@ -993,27 +993,19 @@ function _buildAthletCard(a, hof) {
 
     var mTitel = hof.meisterschaftsTitel || [];
     if (mTitel.length) {
-      var mGroups = {}, mOrder = [];
-      for (var mi = 0; mi < mTitel.length; mi++) {
-        var mt = mTitel[mi];
-        var mgKey = mt.label + '|' + (mt.kat_name || '');
-        if (!mGroups[mgKey]) { mGroups[mgKey] = { label: mt.label, jahre: [] }; mOrder.push(mgKey); }
-        if (mt.jahr && mGroups[mgKey].jahre.indexOf(mt.jahr) < 0) mGroups[mgKey].jahre.push(mt.jahr);
-      }
       var mSpans = [];
       var haGeschlecht = hof.geschlecht || '';
       var mSuffix = haGeschlecht === 'M' ? '-Meister' : haGeschlecht === 'W' ? '-Meisterin' : '-Meister/in';
-      mOrder.forEach(function(key) {
-        var mg = mGroups[key];
-        var afterEmoji = mg.label.indexOf(' ') >= 0 ? mg.label.slice(mg.label.indexOf(' ') + 1) : mg.label;
+      for (var mi = 0; mi < mTitel.length; mi++) {
+        var mt = mTitel[mi];
+        var afterEmoji = mt.label.indexOf(' ') >= 0 ? mt.label.slice(mt.label.indexOf(' ') + 1) : mt.label;
         var sp2 = afterEmoji.indexOf(' ');
         var mstrName = sp2 > 0 ? afterEmoji.slice(0, sp2) : afterEmoji;
         var diszPart = sp2 > 0 ? afterEmoji.slice(sp2 + 1) : '';
         var _sep = /e$/i.test(mstrName) ? ' ' : '-';
-        mg.jahre.sort();
-        var tooltip = mstrName + _sep + mSuffix.replace(/^-/, '') + ' ' + diszPart + (mg.jahre.length ? ' ' + mg.jahre.join(', ') : '');
+        var tooltip = mstrName + _sep + mSuffix.replace(/^-/, '') + ' ' + diszPart + (mt.ak ? ' (' + mt.ak + ')' : '') + (mt.jahr ? ' ' + mt.jahr : '');
         mSpans.push('<span title="' + tooltip.replace(/"/g, '&quot;') + '" style="font-size:16px;cursor:default;line-height:1">&#x1F947;</span>');
-      });
+      }
       badgesHtml += '<div style="width:100%;display:flex;justify-content:center;flex-wrap:wrap;gap:1px;margin-bottom:4px">' + mSpans.join('') + '</div>';
     }
 

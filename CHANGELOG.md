@@ -1,5 +1,5 @@
-## v1198
-- HOF/Athleten-Karten: Medaillen-Anzahl ("X Titel") entspricht jetzt der angezeigten Anzahl (Deduplizierung nach Label+Kategorie)
+## v1199
+- HOF/Athleten-Karten: Medaillen-Deduplizierung aufgehoben – jeder Titel erscheint als einzelnes Emoji mit Tooltip (AK + Jahr)
 - HOF/Athleten-Karten: Badge zeigt bei Frauen-/Männer-Vereinsrekord auch die zugehörige MHK/WHK-Bestleistung an (war wegen else-if übersprungen)
 - Athleten-Karten: Ergebnis-Badge Zeilenabstand nach oben korrigiert (margin-top:6px wenn kein statsHtml)
 
