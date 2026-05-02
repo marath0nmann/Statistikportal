@@ -1311,7 +1311,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
 
   var disziplinen = state.disziplinen||[];
   var diszList    = disziplinen.map(function(d){return d.disziplin;}).filter(function(v,i,a){return a.indexOf(v)===i;});
-  var allResults  = [], listsChecked = 0;
+  var allResults  = [], listsChecked = 0, _externPayloads = [];
   var base        = 'https://my.raceresult.com/' + eid + '/RRPublish/data/list';
   var hdrs        = {'Origin':'https://my.raceresult.com','Referer':'https://my.raceresult.com/'};
   var iName=3,iClub=6,iAK=-1,iZeit=8,iNetto=7,iPlatz=2,iYear=-1,iGeschlecht=-1,iAKPlatz=-1;
@@ -1337,7 +1337,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
     if(iNetto>=0&&iNetto===iClub)iNetto=(iZeit>=0&&iZeit!==iClub)?iZeit:-1;
   }
 
-  function _proc(payload, contestName, le) { le = le || {};
+  function _proc(payload, contestName, le, externMode) { le = le || {};
     var df=payload.DataFields||[];
     if(Array.isArray(df)&&df.length>0)_cal(df);
     var dRaw=payload.data||{};
@@ -1387,7 +1387,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
         rowsArr.forEach(function(row){
           if(!Array.isArray(row)||row.length<3)return;
           var club=iClub>=0?String(row[iClub]||'').trim():'';
-          if(clubPhrase&&club.toLowerCase().indexOf(clubPhrase)<0)return;
+          if(!externMode){if(clubPhrase&&club.toLowerCase().indexOf(clubPhrase)<0)return;}
           var rName=String(row[iName]||'').trim();
           var rZeit=String(row[iNetto>=0?iNetto:iZeit]||'').trim();
           if(!rZeit||!/\d{1,2}:\d{2}|\d+[,.]\d+/.test(rZeit))return;
@@ -1405,6 +1405,11 @@ async function bulkImportFromRR(url, kat, statusEl) {
           var rP=0,pi=iAKPlatz>=0?iAKPlatz:iPlatz;
           if(pi>=0){var pr=String(row[pi]||'').trim().replace(/\.$/,'');if(/^\d+$/.test(pr))rP=parseInt(pr)||0;}
           if(!rName)return;
+          // Extern-Modus: Vereinsname darf nicht eigener Verein sein, Name muss bekanntem Athleten entsprechen
+          if(externMode){
+            if(clubPhrase&&club.toLowerCase().indexOf(clubPhrase)>=0)return;
+            if(!uitsAutoMatch(rName,state.athleten||[]))return;
+          }
           var disz=rrBestDisz(cnD,diszList);
           var dObj=disziplinen.find(function(d){return d.disziplin===disz&&(!kat||(bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key)>=0);});
           var _dup=allResults.find(function(r){return r.name===rName&&r.resultat===rZeit;});
@@ -1422,7 +1427,9 @@ async function bulkImportFromRR(url, kat, statusEl) {
               contestId:String(le ? le.contest : ''),
               contestName:contestName||'',
               tagNr:le ? (le.tagNr||0) : 0,
-              isAkList:le ? !!le.isAkList : false});
+              isAkList:le ? !!le.isAkList : false,
+              extern:externMode?true:false,
+              verein:externMode?club:''});
           }
         });
     }
@@ -1469,6 +1476,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
 
     if(!payload)continue;
     listsChecked++;
+    _externPayloads.push({payload:payload,cname:cname,le:le});
     _proc(payload, cname, le);
   }
 
@@ -1511,6 +1519,14 @@ async function bulkImportFromRR(url, kat, statusEl) {
   }
   _bkDbgLine('Listen durchsucht', listsChecked);
   _bkDbgLine('Gefunden', allResults.length+' TuS-Eintr\u00e4ge');
+
+  // Extern-Suche: TuS-Athleten die unter anderem Verein gestartet sind
+  if(allResults.length===0 && _externPayloads.length && (state.athleten||[]).length){
+    _bkDbgSep();
+    _bkDbgLine('Extern-Suche','TuS-Athleten unter anderem Verein\u2026');
+    _externPayloads.forEach(function(cp){ _proc(cp.payload,cp.cname,cp.le,true); });
+    _bkDbgLine('Extern-Gefunden',allResults.length+' Eintr\u00e4ge');
+  }
 
   if(allResults.length){
     _bkDbgSep();

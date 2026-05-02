@@ -1,3 +1,6 @@
+## v1203
+- RaceResult-Importer: Extern-Suche nach TuS-Athleten unter anderem Verein (Name-Matching gegen DB, kein Extra-Request – gecachte Listendaten werden erneut durchsucht)
+
 ## v1202
 - HOF/API: Meisterschaftstitel-Deduplizierung nach (Label + AK + Jahr) – verhindert doppelte Medaillen bei gleichem Meisterschaftstyp in Indoor- und Outdoor-Veranstaltungen desselben Jahres
 
