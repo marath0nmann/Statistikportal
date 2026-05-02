@@ -69,6 +69,10 @@ function jsonErr(string $msg, int $code = 400): void {
     echo json_encode(['ok' => false, 'fehler' => $msg]);
     exit;
 }
+function sendMail(string $to, string $subject, string $body): bool {
+    $headers = "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8";
+    return @mail($to, $subject, $body, $headers);
+}
 function sanitize(mixed $v): ?string {
     if ($v === null || $v === '') return null;
     return htmlspecialchars(strip_tags((string)$v), ENT_QUOTES, 'UTF-8');
@@ -450,7 +454,7 @@ if ($res === 'auth') {
                    "Dieser Code ist 5 Minuten gültig.\n\n" .
                    "Wenn du das nicht warst, ignoriere diese E-Mail.\n\n" .
                    Settings::get('verein_name','Mein Verein e.V.') . ' ' . Settings::get('app_untertitel','Leichtathletik-Statistik');
-        @mail($user['email'], $subject, $msg, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+        sendMail($user['email'], $subject, $msg);
         jsonOk('Code gesendet.');
     }
 
@@ -704,7 +708,7 @@ if ($res === 'auth') {
                    "Dieser Code ist 30 Minuten gültig.\n\n" .
                    "Wenn du keine Registrierung beantragt hast, ignoriere diese E-Mail.\n\n" .
                    Settings::get('verein_name','Mein Verein e.V.') . ' ' . Settings::get('app_untertitel','Leichtathletik-Statistik');
-        @mail($email, $subject, $msg, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+        sendMail($email, $subject, $msg);
 
         jsonOk('Code gesendet.');
     }
@@ -722,7 +726,7 @@ if ($res === 'auth') {
 
         $subject = Settings::get('verein_name','Mein Verein e.V.') . ' – Neuer Bestätigungscode: ' . $code;
         $msg     = "Dein neuer Bestätigungscode lautet:\n\n    " . $code . "\n\n(gültig 30 Minuten)\n\n" . Settings::get('verein_name','Mein Verein e.V.');
-        @mail($email, $subject, $msg, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+        sendMail($email, $subject, $msg);
 
         jsonOk('Code erneut gesendet.');
     }
@@ -786,19 +790,17 @@ if ($res === 'auth') {
                 );
                 DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE email = ?', ['approved', $email]);
                 $approvedMsg = "Hallo " . $regNow['name'] . ",\n\ndeine Registrierung wurde bestätigt! Du kannst dich jetzt einloggen.\n\n" . Settings::get('verein_name','');
-                @mail($regNow['email'], Settings::get('verein_name','') . ' – Registrierung bestätigt', $approvedMsg, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+                sendMail($regNow['email'], Settings::get('verein_name','') . ' – Registrierung bestätigt', $approvedMsg);
                 foreach ($admins as $admin) {
                     $msg = "Neue Registrierung (automatisch freigegeben):\n\nE-Mail: " . $reg['email'] . "\n\n" . Settings::get('verein_name','');
-                    @mail($admin['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Neue Registrierung: ' . $reg['email'], $msg,
-                          "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+                    sendMail($admin['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Neue Registrierung: ' . $reg['email'], $msg);
                 }
                 jsonOk(['auto_freigabe' => true]);
             }
         }
         foreach ($admins as $admin) {
             $msg = "Neue Registrierungsanfrage:\n\nE-Mail: " . $reg['email'] . "\n\nBitte in der Admin-Oberfläche unter Benutzer freigeben.";
-            @mail($admin['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Neue Registrierung: ' . $reg['email'], $msg,
-                  "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+            sendMail($admin['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Neue Registrierung: ' . $reg['email'], $msg);
         }
         jsonOk('Registrierung abgeschlossen. Warte auf Admin-Freigabe.');
     }
@@ -822,19 +824,17 @@ if ($res === 'auth') {
                 );
                 DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE email = ?', ['approved', $email]);
                 $approvedMsg2 = "Hallo " . $regNow2['name'] . ",\n\ndeine Registrierung wurde bestätigt! Du kannst dich jetzt einloggen.\n\n" . Settings::get('verein_name','');
-                @mail($regNow2['email'], Settings::get('verein_name','') . ' – Registrierung bestätigt', $approvedMsg2, "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+                sendMail($regNow2['email'], Settings::get('verein_name','') . ' – Registrierung bestätigt', $approvedMsg2);
                 foreach ($admins2 as $admin) {
                     $msg = "Neue Registrierung (automatisch freigegeben):\n\nE-Mail: " . $reg['email'] . "\n\n" . Settings::get('verein_name','');
-                    @mail($admin['email'], Settings::get('verein_name','') . ' – Neue Registrierung: ' . $reg['email'], $msg,
-                          "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+                    sendMail($admin['email'], Settings::get('verein_name','') . ' – Neue Registrierung: ' . $reg['email'], $msg);
                 }
                 jsonOk(['auto_freigabe' => true]);
             }
         }
         foreach ($admins2 as $admin) {
             $msg = "Neue Registrierungsanfrage (E-Mail-Login):\n\nE-Mail: " . $reg['email'] . "\n\nBitte in der Admin-Oberfläche unter Benutzer freigeben.";
-            @mail($admin['email'], Settings::get('verein_name','') . ' – Neue Registrierung: ' . $reg['email'], $msg,
-                  "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+            sendMail($admin['email'], Settings::get('verein_name','') . ' – Neue Registrierung: ' . $reg['email'], $msg);
         }
         jsonOk('Registrierung abgeschlossen. Warte auf Admin-Freigabe.');
     }
@@ -862,8 +862,7 @@ if ($res === 'auth') {
             }
             $msg = "Dein Code zum Zurücksetzen des Passworts lautet:\n\n    " . $code .
                    "\n\n(gültig 15 Minuten)\n\n" . Settings::get('verein_name','');
-            @mail($user['email'], Settings::get('verein_name','') . ' – Passwort zurücksetzen', $msg,
-                  "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+            sendMail($user['email'], Settings::get('verein_name','') . ' – Passwort zurücksetzen', $msg);
         }
         jsonOk('Falls ein Konto mit dieser E-Mail existiert, wurde ein Code gesendet.');
     }
@@ -956,8 +955,7 @@ if ($res === 'auth') {
         // Benachrichtigungs-Mail
         $msg = "Hallo " . $reg['name'] . ",\n\ndeine Registrierung wurde genehmigt!\n\n" .
                "Benutzername: " . $bname . "\n\nDu kannst dich jetzt einloggen.\n\n" . Settings::get('verein_name','Mein Verein e.V.');
-        @mail($reg['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Registrierung genehmigt', $msg,
-              "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+        sendMail($reg['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Registrierung genehmigt', $msg);
 
         jsonOk(['benutzername' => $bname]);
     }
@@ -980,8 +978,7 @@ if ($res === 'auth') {
         if ($reg) {
             $msg = "Hallo " . $reg['name'] . ",\n\nleider wurde deine Registrierungsanfrage abgelehnt.\n\n" .
                    "Bei Fragen wende dich an den Verein.\n\n" . Settings::get('verein_name','Mein Verein e.V.');
-            @mail($reg['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Registrierung abgelehnt', $msg,
-                  "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8");
+            sendMail($reg['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Registrierung abgelehnt', $msg);
         }
         jsonOk('Abgelehnt.');
     }
@@ -1654,8 +1651,7 @@ if ($res === 'benutzer') {
             $params[] = $body['email_login_bevorzugt'] ? 1 : 0;
         }
         if (!$felder) jsonErr('Keine Änderungen.');
-        $params[] = $id;
-        DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET ' . implode(',', $felder) . ' WHERE id=?', $params);
+        DB::updateById(DB::tbl('benutzer'), $felder, $params, $id);
         jsonOk('Gespeichert.');
     }
     if ($method === 'DELETE' && $id && empty($parts[2])) {
@@ -2279,8 +2275,7 @@ if (in_array($res, $ergebnisTabellen)) {
         if (isset($body['meisterschaft'])) { $felder[] = 'meisterschaft=?'; $params[] = intOrNull($body['meisterschaft']); }
         if (array_key_exists('ak_platz_meisterschaft', $body)) { $felder[] = 'ak_platz_meisterschaft=?'; $params[] = intOrNull($body['ak_platz_meisterschaft']); }
         if (!$felder) jsonErr('Keine Felder zum Aktualisieren.');
-        $params[] = $id;
-        DB::query("UPDATE $tbl SET " . implode(',', $felder) . " WHERE id=?", $params);
+        DB::updateById($tbl, $felder, $params, $id);
         jsonOk('OK');
     }
 
@@ -2672,9 +2667,8 @@ if ($res === 'athleten') {
         if (isset($body['geburtsjahr'])){ $felder[] = 'geburtsjahr=?';$params[] = ($body['geburtsjahr'] ? intval($body['geburtsjahr']) : null); }
         if (isset($body['aktiv']))       { $felder[] = 'aktiv=?';       $params[] = (int)$body['aktiv']; }
         if (!$felder) jsonErr('Keine Änderungen.');
-        $params[] = $id;
         try {
-            DB::query('UPDATE ' . DB::tbl('athleten') . ' SET ' . implode(',', $felder) . ' WHERE id=?', $params);
+            DB::updateById(DB::tbl('athleten'), $felder, $params, $id);
         } catch (\Exception $e) {
             jsonErr('Name bereits vorhanden.');
         }
@@ -3095,8 +3089,7 @@ if ($res === 'kategorien') {
         if ($sort_dir)    { $sets[] = 'sort_dir=?';     $params[] = $sort_dir; }
         if ($reihenfolge !== null) { $sets[] = 'reihenfolge=?'; $params[] = $reihenfolge; }
         if (!$sets) jsonErr('Nichts zu aktualisieren.', 400);
-        $params[] = $id;
-        DB::query("UPDATE " . DB::tbl('disziplin_kategorien') . " SET " . implode(',', $sets) . " WHERE id=?", $params);
+        DB::updateById(DB::tbl('disziplin_kategorien'), $sets, $params, $id);
         jsonOk(null);
     }
 
@@ -3432,11 +3425,9 @@ if ($res === 'disziplin-mapping') {
         if (array_key_exists('distanz', $body)) { $sets[] = 'distanz=?'; $params[] = $body['distanz'] !== null && $body['distanz'] !== '' ? (float)$body['distanz'] : null; }
         if ($sets) {
             if ($mappingId) {
-                $params[] = $mappingId;
-                DB::query("UPDATE " . DB::tbl('disziplin_mapping') . " SET " . implode(',', $sets) . " WHERE id=?", $params);
+                DB::updateById(DB::tbl('disziplin_mapping'), $sets, $params, $mappingId);
             } else {
-                $params[] = $disziplin;
-                DB::query("UPDATE " . DB::tbl('disziplin_mapping') . " SET " . implode(',', $sets) . " WHERE disziplin=?", $params);
+                DB::updateById(DB::tbl('disziplin_mapping'), $sets, $params, $disziplin, 'disziplin');
             }
         }
 
@@ -4867,8 +4858,7 @@ if ($res === 'veranstaltung-serien' && $method === 'PUT' && $id) {
         if ($autoKuerzel) { $felder[] = 'kuerzel=?'; $params[] = $autoKuerzel; }
     }
     if (!$felder) jsonErr('Keine Änderungen.');
-    $params[] = $id;
-    DB::query("UPDATE $sTbl SET " . implode(',', $felder) . " WHERE id=?", $params);
+    DB::updateById($sTbl, $felder, $params, $id);
     jsonOk('Gespeichert.');
 }
 
@@ -5034,8 +5024,7 @@ if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
     if (array_key_exists('serie_id', $body)) { $felder[] = 'serie_id=?'; $params[] = $body['serie_id'] ? (int)$body['serie_id'] : null; }
     if (!empty($body['restore']))    { $felder[] = 'geloescht_am=NULL'; } // Aus Papierkorb wiederherstellen
     if (!$felder) jsonErr('Keine Änderungen.');
-    $params[] = $id;
-    DB::query('UPDATE ' . DB::tbl('veranstaltungen') . ' SET ' . implode(',', $felder) . ' WHERE id=?', $params);
+    DB::updateById(DB::tbl('veranstaltungen'), $felder, $params, $id);
     jsonOk('Gespeichert.');
 }
 
@@ -5134,8 +5123,7 @@ if ($res === 'externe-ergebnisse' && $method === 'PUT' && $id) {
         }
     }
     if (!$felder) jsonErr('Keine Änderungen.');
-    $params[] = (int)$id;
-    DB::query('UPDATE ' . DB::tbl('athlet_pb') . ' SET ' . implode(',', $felder) . ' WHERE id=?', $params);
+    DB::updateById(DB::tbl('athlet_pb'), $felder, $params, (int)$id);
     jsonOk('Gespeichert.');
 }
 

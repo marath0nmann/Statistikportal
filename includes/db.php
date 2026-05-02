@@ -40,4 +40,10 @@ class DB {
     public static function lastInsertId(): string {
         return self::get()->lastInsertId();
     }
+
+    // Dynamisches UPDATE: $felder = ['col=?', ...], $params = passende Werte
+    public static function updateById(string $table, array $felder, array $params, $id, string $idCol = 'id'): int {
+        $params[] = $id;
+        return self::query("UPDATE $table SET " . implode(',', $felder) . " WHERE $idCol=?", $params)->rowCount();
+    }
 }

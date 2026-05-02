@@ -658,9 +658,7 @@ async function bulkImportFromLA(url, kat, statusEl) {
 
 
       var disz    = rrBestDisz(ll.text, diszList);
-      // Exakten kat-Treffer bevorzugen, dann Gruppen-Fallback
-      var diszObj = (kat ? disziplinen.find(function(d){return d.disziplin===disz&&d.tbl_key===kat;}) : null)
-                 || disziplinen.find(function(d){return d.disziplin===disz&&(!kat||(bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key)>=0);});
+      var diszObj = findDiszObj(disz, kat, disziplinen);
 
       var _dup = allResults.find(function(r){return r.name===rName&&r.resultat===rZeit;});
       if (_dup) {

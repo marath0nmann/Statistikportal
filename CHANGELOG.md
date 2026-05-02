@@ -1,3 +1,9 @@
+## v1204
+- Refactor: `DB::updateById()`-Helper – 9 dynamische UPDATEs in api/index.php abstrahiert (Benutzer, Ergebnisse, Athleten, Disziplin-Kategorien/Mapping, Serien, Veranstaltungen, athlet_pb)
+- Refactor: `findDiszObj()`-Helper in 09_utils.js – 4 dupliziertes Disziplin-Matching in 07_eintragen.js + 13_uitslagen.js zentralisiert
+- Refactor: `sendMail()`-Helper in api/index.php – 12 wiederholte `@mail()`-Aufrufe konsolidiert (gleicher From/Content-Type-Header)
+- Doku: veraltete `.claude/CLAUDE.md` (sprach noch von monolithischer app.js, v941) entfernt – Hauptdatei `CLAUDE.md` ist Single Source of Truth
+
 ## v1203
 - RaceResult-Importer: Extern-Suche nach TuS-Athleten unter anderem Verein (Name-Matching gegen DB, kein Extra-Request – gecachte Listendaten werden erneut durchsucht)
 

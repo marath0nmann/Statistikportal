@@ -12,6 +12,17 @@ function _restoreFocus(saved) {
   try { if (saved.s !== null) el.setSelectionRange(saved.s, saved.e); } catch(e) {}
 }
 
+// Disziplin-Objekt für Importer ermitteln: erst kat-strikt (tbl_key===kat),
+// dann Fallback über bkKatMitGruppen (Bahn/Halle/Straße/...).
+function findDiszObj(disz, kat, disziplinen) {
+  disziplinen = disziplinen || (state && state.disziplinen) || [];
+  var strict = kat ? disziplinen.find(function(d){ return d.disziplin===disz && d.tbl_key===kat; }) : null;
+  if (strict) return strict;
+  return disziplinen.find(function(d){
+    return d.disziplin===disz && (!kat || (bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key) >= 0);
+  });
+}
+
 function buildSelectOptions(items, emptyLabel, getVal, getLabel, isSelected) {
   var html = '<option value="">' + (emptyLabel || '') + '</option>';
   for (var _i = 0; _i < items.length; _i++) {

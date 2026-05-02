@@ -1411,7 +1411,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
             if(!uitsAutoMatch(rName,state.athleten||[]))return;
           }
           var disz=rrBestDisz(cnD,diszList);
-          var dObj=disziplinen.find(function(d){return d.disziplin===disz&&(!kat||(bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key)>=0);});
+          var dObj=findDiszObj(disz,kat,disziplinen);
           var _dup=allResults.find(function(r){return r.name===rName&&r.resultat===rZeit;});
           if(_dup){
             // Platz: AK-Listen haben Priorität (isAkList). Aus Nicht-AK-Listen nur wenn noch kein Platz.
@@ -1800,8 +1800,7 @@ function rrExtractRowsForBulk(data, vereinCfg, kat) {
       });
       if (!name || !zeit) return;
       var disz = rrBestDisz(contestName || '', diszList);
-      var diszObj = (kat ? disziplinen.find(function(d){return d.disziplin===disz&&d.tbl_key===kat;}) : null)
-               || disziplinen.find(function(d){ return d.disziplin === disz && (!kat || (bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key) >= 0); });
+      var diszObj = findDiszObj(disz, kat, disziplinen);
       rows.push({ name: name, resultat: zeit, ak: ak, platz: platz,
                   disziplin: diszObj ? diszObj.disziplin : disz,
                   diszMid: diszObj ? (diszObj.id || diszObj.mapping_id) : null });
@@ -1846,8 +1845,7 @@ function mikaExtractRowsForBulk(data, kat) {
   }).map(function(res) {
     var contestName = res.contest || res.disziplin || '';
     var disz = rrBestDisz(contestName, diszList);
-    var diszObj = (kat ? disziplinen.find(function(d){return d.disziplin===disz&&d.tbl_key===kat;}) : null)
-               || disziplinen.find(function(d){ return d.disziplin === disz && (!kat || (bkKatMitGruppen(kat)||[]).indexOf(d.tbl_key) >= 0); });
+    var diszObj = findDiszObj(disz, kat, disziplinen);
     // Extern wenn Vereinsname leer oder nicht zum eigenen Verein passt
     var resClub = (res.club || '').trim().toLowerCase();
     var isExtern = !resClub || (vereinRaw && resClub.indexOf(vereinRaw) === -1 && vereinRaw.indexOf(resClub) === -1);
