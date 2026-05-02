@@ -2128,55 +2128,7 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
 }
 // ── Disziplin aus Streckenname (evenementen.uitslagen.nl) ────────────────────
 // Streckenname enthält Distanz: "halve marathon", "10 kilometer", "5 kilometer", "1 km", "500 m"
-function uitsEvenementenDiszFromStrecke(streckeName, disziplinen, kat) {
-  var sn = (streckeName || '').toLowerCase();
-  var katDisz = kat ? disziplinen.filter(function(d){ return d.tbl_key === kat; }) : disziplinen;
-  if (!katDisz.length) katDisz = disziplinen;
-  if (!katDisz.length) return null;
-
-  // Distanz in Metern aus Streckenname
-  var distM = null;
-  if (/halve?\s+marathon/i.test(sn))             distM = 21097;
-  else if (/\bmarathon\b/i.test(sn))             distM = 42195;
-  else {
-    var kmM = sn.match(/(\d+[.,]?\d*)\s*kilometer/i) || sn.match(/(\d+[.,]?\d*)\s*km\b/i);
-    if (kmM) distM = Math.round(parseFloat(kmM[1].replace(',', '.')) * 1000);
-    else {
-      var mM = sn.match(/(\d+)\s*m\b/i);
-      if (mM) distM = parseInt(mM[1]);
-    }
-  }
-  if (distM === null) return katDisz[0].mapping_id || katDisz[0].id;
-
-  // 1. Versuch: distanz-Feld (Meter) aus Disziplin-Mapping
-  var bestMid = null, bestDiff = Infinity;
-  katDisz.forEach(function(d) {
-    var dDist = parseFloat(d.distanz) || 0;
-    if (dDist > 0) {
-      var diff = Math.abs(dDist - distM);
-      if (diff < bestDiff) { bestDiff = diff; bestMid = d.mapping_id || d.id; }
-    }
-  });
-  if (bestMid && bestDiff < distM * 0.15) return bestMid;
-
-  // 2. Versuch: Keyword-Match im Disziplinnamen
-  var kwMid = null;
-  katDisz.forEach(function(d) {
-    var dn = (d.disziplin || '').toLowerCase().replace(/[\s.,]/g, '');
-    var mid = d.mapping_id || d.id;
-    if (distM === 21097 && (dn.includes('21') || dn.includes('halbmarathon') || dn.includes('halvemarathon'))) kwMid = mid;
-    else if (distM === 42195 && (dn.includes('42') || dn === 'marathon')) kwMid = mid;
-    else if (distM === 10000 && dn.includes('10') && !dn.includes('100')) kwMid = mid;
-    else if (distM === 5000  && (dn === '5km' || dn === '5000m' || dn.includes('5km'))) kwMid = mid;
-    else if (distM === 3000  && (dn === '3km' || dn === '3000m')) kwMid = mid;
-    else if (distM === 1000  && (dn === '1km' || dn === '1000m')) kwMid = mid;
-    else if (distM === 500   && (dn === '500m' || dn.includes('500'))) kwMid = mid;
-  });
-  if (kwMid) return kwMid;
-
-  // 3. Fallback: erste Disziplin der Kategorie
-  return katDisz[0].mapping_id || katDisz[0].id;
-}
+// uitsEvenementenDiszFromStrecke wird in 13_uitslagen.js definiert (lädt nach 07).
 
 // ── ACN Timing importer ──────────────────────────────────────────────────────
 

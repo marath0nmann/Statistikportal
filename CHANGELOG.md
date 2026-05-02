@@ -1,3 +1,8 @@
+## v1205
+- Refactor: `finalizeRegistration()`-Helper – TOTP- und E-Mail-2FA-Endpunkte teilen sich jetzt Auto-Freigabe + Mailversand (~50 Zeilen Copy-Paste entfernt)
+- Refactor: Ergebnisse-Endpoint nutzt eine einheitliche `$buildWhere`-Closure für Hauptquery und Dropdown-Subqueries (vorher zwei parallele Filter-Implementierungen, die bei Filter-Erweiterungen leicht auseinanderlaufen)
+- Cleanup: doppelt definierte `uitsEvenementenDiszFromStrecke` in 07_eintragen.js entfernt – Funktion wird in 13_uitslagen.js definiert (lädt nach 07, überschrieb 07-Variante zur Laufzeit)
+
 ## v1204
 - Refactor: `DB::updateById()`-Helper – 9 dynamische UPDATEs in api/index.php abstrahiert (Benutzer, Ergebnisse, Athleten, Disziplin-Kategorien/Mapping, Serien, Veranstaltungen, athlet_pb)
 - Refactor: `findDiszObj()`-Helper in 09_utils.js – 4 dupliziertes Disziplin-Matching in 07_eintragen.js + 13_uitslagen.js zentralisiert

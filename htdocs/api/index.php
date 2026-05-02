@@ -69,6 +69,47 @@ function jsonErr(string $msg, int $code = 400): void {
     echo json_encode(['ok' => false, 'fehler' => $msg]);
     exit;
 }
+// Registrierung abschließen: Auto-Freigabe (Benutzer anlegen + Mails) oder Admin-Mail.
+// $useTOTP=true: totp_secret/totp_aktiv aus Registrierung; sonst E-Mail-Login bevorzugt.
+function finalizeRegistration(array $reg, bool $useTOTP): array {
+    $email          = $reg['email'];
+    $verein         = Settings::get('verein_name','');
+    $vereinDef      = Settings::get('verein_name','Mein Verein e.V.');
+    $admins         = DB::fetchAll("SELECT email FROM " . DB::tbl('benutzer') . " WHERE rolle = 'admin' AND aktiv = 1");
+    $autoFreigabe   = Settings::get('registrierung_auto_freigabe','0') === '1';
+    $loginHinweis   = $useTOTP ? '' : ' (E-Mail-Login)';
+
+    if ($autoFreigabe) {
+        $regNow = DB::fetchOne('SELECT * FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?', [$email, 'pending']);
+        if ($regNow) {
+            if ($useTOTP) {
+                DB::query(
+                    'INSERT INTO ' . DB::tbl('benutzer') . ' (benutzername, email, passwort, rolle, aktiv, totp_secret, totp_aktiv, totp_backup, email_login_bevorzugt) VALUES (?,?,?,?,1,?,?,?,?)',
+                    [$regNow['email'], $regNow['email'], $regNow['passwort_hash'], 'leser',
+                     $regNow['totp_secret'], (int)$regNow['totp_aktiv'], '[]', 0]
+                );
+            } else {
+                DB::query(
+                    'INSERT INTO ' . DB::tbl('benutzer') . ' (benutzername, email, passwort, rolle, aktiv, totp_aktiv, totp_backup, email_login_bevorzugt) VALUES (?,?,?,?,1,0,?,1)',
+                    [$regNow['email'], $regNow['email'], $regNow['passwort_hash'], 'leser', '[]']
+                );
+            }
+            DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE email = ?', ['approved', $email]);
+            $approvedMsg = "Hallo " . $regNow['name'] . ",\n\ndeine Registrierung wurde bestätigt! Du kannst dich jetzt einloggen.\n\n" . $verein;
+            sendMail($regNow['email'], $verein . ' – Registrierung bestätigt', $approvedMsg);
+            foreach ($admins as $admin) {
+                $msg = "Neue Registrierung (automatisch freigegeben)" . $loginHinweis . ":\n\nE-Mail: " . $email . "\n\n" . $verein;
+                sendMail($admin['email'], $vereinDef . ' – Neue Registrierung: ' . $email, $msg);
+            }
+            return ['auto_freigabe' => true];
+        }
+    }
+    foreach ($admins as $admin) {
+        $msg = "Neue Registrierungsanfrage" . $loginHinweis . ":\n\nE-Mail: " . $email . "\n\nBitte in der Admin-Oberfläche unter Benutzer freigeben.";
+        sendMail($admin['email'], $vereinDef . ' – Neue Registrierung: ' . $email, $msg);
+    }
+    return ['auto_freigabe' => false];
+}
 function sendMail(string $to, string $subject, string $body): bool {
     $headers = "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8";
     return @mail($to, $subject, $body, $headers);
@@ -777,31 +818,8 @@ if ($res === 'auth') {
         DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET totp_aktiv = 1, totp_secret = ? WHERE email = ?',
             [$reg['totp_pending'], $email]);
 
-        $autoFreigabe = Settings::get('registrierung_auto_freigabe','0') === '1';
-        $admins = DB::fetchAll("SELECT email FROM " . DB::tbl('benutzer') . " WHERE rolle = 'admin' AND aktiv = 1");
-        if ($autoFreigabe) {
-            $regNow = DB::fetchOne('SELECT * FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?', [$email, 'pending']);
-            if ($regNow) {
-                $bname2 = $regNow['email'];
-                DB::query(
-                    'INSERT INTO ' . DB::tbl('benutzer') . ' (benutzername, email, passwort, rolle, aktiv, totp_secret, totp_aktiv, totp_backup, email_login_bevorzugt) VALUES (?,?,?,?,1,?,?,?,?)',
-                    [$bname2, $regNow['email'], $regNow['passwort_hash'], 'leser',
-                     $regNow['totp_secret'], (int)$regNow['totp_aktiv'], '[]', 0]
-                );
-                DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE email = ?', ['approved', $email]);
-                $approvedMsg = "Hallo " . $regNow['name'] . ",\n\ndeine Registrierung wurde bestätigt! Du kannst dich jetzt einloggen.\n\n" . Settings::get('verein_name','');
-                sendMail($regNow['email'], Settings::get('verein_name','') . ' – Registrierung bestätigt', $approvedMsg);
-                foreach ($admins as $admin) {
-                    $msg = "Neue Registrierung (automatisch freigegeben):\n\nE-Mail: " . $reg['email'] . "\n\n" . Settings::get('verein_name','');
-                    sendMail($admin['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Neue Registrierung: ' . $reg['email'], $msg);
-                }
-                jsonOk(['auto_freigabe' => true]);
-            }
-        }
-        foreach ($admins as $admin) {
-            $msg = "Neue Registrierungsanfrage:\n\nE-Mail: " . $reg['email'] . "\n\nBitte in der Admin-Oberfläche unter Benutzer freigeben.";
-            sendMail($admin['email'], Settings::get('verein_name','Mein Verein e.V.') . ' – Neue Registrierung: ' . $reg['email'], $msg);
-        }
+        $r = finalizeRegistration($reg, true);
+        if ($r['auto_freigabe']) jsonOk(['auto_freigabe' => true]);
         jsonOk('Registrierung abgeschlossen. Warte auf Admin-Freigabe.');
     }
 
@@ -812,30 +830,9 @@ if ($res === 'auth') {
         if (!$reg) jsonErr('E-Mail nicht bestätigt oder Registrierung nicht gefunden.');
         // Kein TOTP — E-Mail-Login bevorzugt
         DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET totp_aktiv = 0, email_login_bevorzugt = 1 WHERE email = ?', [$email]);
-        $autoFreigabe2 = Settings::get('registrierung_auto_freigabe','0') === '1';
-        $admins2 = DB::fetchAll("SELECT email FROM " . DB::tbl('benutzer') . " WHERE rolle = 'admin' AND aktiv = 1");
-        if ($autoFreigabe2) {
-            $regNow2 = DB::fetchOne('SELECT * FROM ' . DB::tbl('registrierungen') . ' WHERE email = ? AND status = ?', [$email, 'pending']);
-            if ($regNow2) {
-                $bname3 = $regNow2['email'];
-                DB::query(
-                    'INSERT INTO ' . DB::tbl('benutzer') . ' (benutzername, email, passwort, rolle, aktiv, totp_aktiv, totp_backup, email_login_bevorzugt) VALUES (?,?,?,?,1,0,?,1)',
-                    [$bname3, $regNow2['email'], $regNow2['passwort_hash'], 'leser', '[]']
-                );
-                DB::query('UPDATE ' . DB::tbl('registrierungen') . ' SET status = ? WHERE email = ?', ['approved', $email]);
-                $approvedMsg2 = "Hallo " . $regNow2['name'] . ",\n\ndeine Registrierung wurde bestätigt! Du kannst dich jetzt einloggen.\n\n" . Settings::get('verein_name','');
-                sendMail($regNow2['email'], Settings::get('verein_name','') . ' – Registrierung bestätigt', $approvedMsg2);
-                foreach ($admins2 as $admin) {
-                    $msg = "Neue Registrierung (automatisch freigegeben):\n\nE-Mail: " . $reg['email'] . "\n\n" . Settings::get('verein_name','');
-                    sendMail($admin['email'], Settings::get('verein_name','') . ' – Neue Registrierung: ' . $reg['email'], $msg);
-                }
-                jsonOk(['auto_freigabe' => true]);
-            }
-        }
-        foreach ($admins2 as $admin) {
-            $msg = "Neue Registrierungsanfrage (E-Mail-Login):\n\nE-Mail: " . $reg['email'] . "\n\nBitte in der Admin-Oberfläche unter Benutzer freigeben.";
-            sendMail($admin['email'], Settings::get('verein_name','') . ' – Neue Registrierung: ' . $reg['email'], $msg);
-        }
+
+        $r = finalizeRegistration($reg, false);
+        if ($r['auto_freigabe']) jsonOk(['auto_freigabe' => true]);
         jsonOk('Registrierung abgeschlossen. Warte auf Admin-Freigabe.');
     }
 
@@ -2028,54 +2025,49 @@ if (in_array($res, $ergebnisTabellen)) {
     $tbl = ergebnisTbl($res, $unified, $_sys);
 
     if ($method === 'GET' && !$id) {
-        // Filter-Parameter
-        $where = ['1=1'];
-        $params = [];
-        if (!empty($_GET['athlet_id'])) {
-            $where[] = 'e.athlet_id=?'; $params[] = (int)$_GET['athlet_id'];
-        }
-        if (!empty($_GET['athlet'])) {
-            $where[] = 'a.name_nv LIKE ?'; $params[] = '%'.$_GET['athlet'].'%';
-        }
-        if (!empty($_GET['kategorie'])) {
-            $kat_row = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_kategorien') . " WHERE tbl_key=?", [$_GET['kategorie']]);
-            if ($kat_row) {
-                $kd = DB::fetchAll("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE kategorie_id=?", [$kat_row['id']]);
-                $kids = array_column($kd, 'id');
-                if ($kids) { $where[] = "e.disziplin_mapping_id IN (".implode(',',array_fill(0,count($kids),'?')).")"; $params = array_merge($params, $kids); }
-                else { $where[] = '0=1'; }
-            }
-        }
-        if (!empty($_GET['disziplin_mapping_id'])) {
-            $where[] = 'e.disziplin_mapping_id=?'; $params[] = (int)$_GET['disziplin_mapping_id'];
-        } elseif (!empty($_GET['disziplin'])) {
-            $where[] = 'e.disziplin=?'; $params[] = $_GET['disziplin'];
-        }
-        if (!empty($_GET['ak'])) {
-            $where[] = 'e.altersklasse=?'; $params[] = $_GET['ak'];
-        }
-        if (!empty($_GET['jahr'])) {
-            $where[] = 'YEAR(v.datum)=?'; $params[] = (int)$_GET['jahr'];
-        }
-        if (!empty($_GET['suche'])) {
-            $s = '%'.$_GET['suche'].'%';
-            $where[] = '(a.name_nv LIKE ? OR e.disziplin LIKE ? OR v.kuerzel LIKE ?)';
-            $params = array_merge($params, [$s,$s,$s]);
-        }
-        if (!empty($_GET['meisterschaft'])) {
-            $mstrRaw = $_GET['meisterschaft'];
-            if ($mstrRaw === '1') {
-                // Legacy: nur "hat Meisterschaft"
-                $where[] = 'e.meisterschaft IS NOT NULL';
-            } else {
-                // Kommagetrennte IDs: z.B. "1,3,5"
-                $mstrIds = array_filter(array_map('intval', explode(',', $mstrRaw)));
-                if ($mstrIds) {
-                    $where[] = 'e.meisterschaft IN (' . implode(',', array_fill(0, count($mstrIds), '?')) . ')';
-                    $params  = array_merge($params, $mstrIds);
+        // Einheitlicher Filter-Builder: $exclude steuert, welche Filter ignoriert werden
+        // (für Dropdown-Subqueries werden die jeweils gefilterten Keys ausgelassen).
+        $get = $_GET;
+        $buildWhere = function(array $exclude = []) use ($get) {
+            $w = ['1=1']; $p = [];
+            $skip = function($k) use ($exclude){ return in_array($k, $exclude, true); };
+            if (!$skip('athlet_id') && !empty($get['athlet_id'])) { $w[]='e.athlet_id=?';    $p[]=(int)$get['athlet_id']; }
+            if (!$skip('athlet')    && !empty($get['athlet']))    { $w[]='a.name_nv LIKE ?'; $p[]='%'.$get['athlet'].'%'; }
+            if (!$skip('kategorie') && !empty($get['kategorie'])) {
+                $kr = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_kategorien') . " WHERE tbl_key=?", [$get['kategorie']]);
+                if ($kr) {
+                    $kd = DB::fetchAll("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE kategorie_id=?", [$kr['id']]);
+                    $kids = array_column($kd, 'id');
+                    if ($kids) { $w[] = "e.disziplin_mapping_id IN (".implode(',',array_fill(0,count($kids),'?')).")"; $p = array_merge($p, $kids); }
+                    else       { $w[] = '0=1'; }
                 }
             }
-        }
+            if (!$skip('disziplin')) {
+                if (!empty($get['disziplin_mapping_id'])) { $w[]='e.disziplin_mapping_id=?'; $p[]=(int)$get['disziplin_mapping_id']; }
+                elseif (!empty($get['disziplin']))         { $w[]='e.disziplin=?';            $p[]=$get['disziplin']; }
+            }
+            if (!$skip('ak')   && !empty($get['ak']))   { $w[]='e.altersklasse=?'; $p[]=$get['ak']; }
+            if (!$skip('jahr') && !empty($get['jahr'])) { $w[]='YEAR(v.datum)=?';  $p[]=(int)$get['jahr']; }
+            if (!$skip('suche') && !empty($get['suche'])) {
+                $s='%'.$get['suche'].'%';
+                $w[]='(a.name_nv LIKE ? OR e.disziplin LIKE ? OR v.kuerzel LIKE ?)';
+                $p = array_merge($p, [$s,$s,$s]);
+            }
+            if (!$skip('meisterschaft') && !empty($get['meisterschaft'])) {
+                $mstrRaw = $get['meisterschaft'];
+                if ($mstrRaw === '1') {
+                    $w[] = 'e.meisterschaft IS NOT NULL';
+                } else {
+                    $mstrIds = array_filter(array_map('intval', explode(',', $mstrRaw)));
+                    if ($mstrIds) {
+                        $w[] = 'e.meisterschaft IN (' . implode(',', array_fill(0, count($mstrIds), '?')) . ')';
+                        $p   = array_merge($p, $mstrIds);
+                    }
+                }
+            }
+            return [$w, $p];
+        };
+        list($where, $params) = $buildWhere();
 
         $sortMap = [
             'datum'    => 'v.datum',
@@ -2133,38 +2125,21 @@ if (in_array($res, $ergebnisTabellen)) {
                 JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
                 WHERE " . implode(' AND ', $where), $params)['c'];
 
-        // Distinct-Werte für Filter-Dropdowns
-        // Hilfsfunktion: Filter-WHERE ohne bestimmte Keys neu aufbauen
-        $get = $_GET; // Superglobal in lokale Variable kopieren (Closure-kompatibel)
-        $buildSubWhere = function(array $exclude) use ($get, $tbl) {
-            $w = ['1=1']; $p = [];
-            if (!in_array('athlet_id',$exclude) && !empty($get['athlet_id']))  { $w[]='e.athlet_id=?';    $p[]=(int)$get['athlet_id']; }
-            if (!in_array('athlet',$exclude)    && !empty($get['athlet']))     { $w[]='a.name_nv LIKE ?'; $p[]='%'.$get['athlet'].'%'; }
-            if (!in_array('ak',$exclude)        && !empty($get['ak']))         { $w[]='e.altersklasse=?'; $p[]=$get['ak']; }
-            if (!in_array('jahr',$exclude)      && !empty($get['jahr']))       { $w[]='YEAR(v.datum)=?';  $p[]=(int)$get['jahr']; }
-            if (!in_array('meisterschaft',$exclude) && !empty($get['meisterschaft'])) { $w[]='e.meisterschaft IS NOT NULL'; }
-            if (!in_array('suche',$exclude)     && !empty($get['suche']))      { $s='%'.$get['suche'].'%'; $w[]='(a.name_nv LIKE ? OR e.disziplin LIKE ? OR v.kuerzel LIKE ?)'; $p=array_merge($p,[$s,$s,$s]); }
-            if (!in_array('kategorie',$exclude) && !empty($get['kategorie'])) {
-                $kr = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_kategorien') . " WHERE tbl_key=?", [$get['kategorie']]);
-                if ($kr) { $kd=DB::fetchAll("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE kategorie_id=?",[$kr['id']]); $kids3=array_column($kd,'id'); if ($kids3) { $w[]="e.disziplin_mapping_id IN (".implode(',',array_fill(0,count($kids3),'?')).")"; $p=array_merge($p,$kids3); } else { $w[]='0=1'; } }
-            }
-            if (!in_array('disziplin',$exclude) && !empty($get['disziplin']))  { $w[]='e.disziplin=?';    $p[]=$get['disziplin']; }
-            return array($w, $p);
-        };
+        // Distinct-Werte für Filter-Dropdowns: $buildWhere von oben wiederverwenden
         $jn = "JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id";
 
         // Disziplin-Dropdown: alle Filter aktiv außer disziplin; wenn Kategorie aktiv, schränkt sie ein
-        list($wd,$pd) = $buildSubWhere(array('disziplin'));
+        list($wd,$pd) = $buildWhere(['disziplin']);
         $diszRaw = DB::fetchAll("SELECT DISTINCT e.disziplin, e.disziplin_mapping_id, dk.name AS kategorie_name FROM $tbl e $jn LEFT JOIN " . DB::tbl('disziplin_mapping') . " dm ON dm.id=e.disziplin_mapping_id LEFT JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.id=dm.kategorie_id WHERE ".implode(' AND ',$wd), $pd);
         sortDisziplinen($diszRaw);
         $disziplinen = $diszRaw;
 
         // AK-Dropdown: alle Filter außer ak
-        list($wa,$pa) = $buildSubWhere(array('ak'));
+        list($wa,$pa) = $buildWhere(['ak']);
         $aks = array_column(DB::fetchAll("SELECT DISTINCT e.altersklasse FROM $tbl e $jn WHERE ".implode(' AND ',$wa)." AND e.altersklasse IS NOT NULL ORDER BY e.altersklasse", $pa), 'altersklasse');
 
         // Jahr-Dropdown: alle Filter außer jahr
-        list($wj,$pj) = $buildSubWhere(array('jahr'));
+        list($wj,$pj) = $buildWhere(['jahr']);
         $jahre = array_column(DB::fetchAll("SELECT DISTINCT YEAR(v.datum) j FROM $tbl e $jn WHERE ".implode(' AND ',$wj)." ORDER BY j DESC", $pj), 'j');
 
         // Kategorien: alle die in den Ergebnissen vorkommen
