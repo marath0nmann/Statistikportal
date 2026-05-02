@@ -1,3 +1,6 @@
+## v1201
+- HOF/API: Fallback WHK/MHK-Bestleistung für Gesamtbestleistung-Inhaber auch dann, wenn ein anderer Athlet das Tier-3-WHK/MHK-Titel hält (z.B. AK NULL bei Vereinsrekord-Inhaber, aber gemappte AK bei anderem Athleten)
+
 ## v1200
 - HOF/API: Fallback WHK/MHK für Vereinsrekord-Inhaber wenn Tier-3 keine AK-Bestleistung liefert (z.B. bei NULL-Altersklassen in der DB)
 

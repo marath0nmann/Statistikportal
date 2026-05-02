@@ -5725,19 +5725,25 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                 $akNorm = preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $ak);
                 $addTitel($aid, 'Bestleistung ' . $akNorm, $bestAKDatum[$ak]);
             }
-            // Fallback WHK/MHK: Vereinsrekord-Inhaber erhält AK-Bestleistung falls kein Tier-3-Eintrag vorhanden
-            // (tritt auf wenn alle Ergebnisse eine ungemappte/NULL-AK haben)
+            // Fallback WHK/MHK: Gesamtbestleistung-Frauen/Männer-Inhaber erhält AK-Bestleistung
+            // falls er sie nicht bereits via Tier-3 hat (auch wenn ein anderer Athlet das AK-Titel hat)
+            $hasTitelLabel = function(int $aid, string $label) use (&$athletMap): bool {
+                foreach ($athletMap[$aid]['titel'] ?? [] as $t) {
+                    if ($t['label'] === $label) return true;
+                }
+                return false;
+            };
             foreach ($bestGAid as $g => $aid) {
                 if (!empty($hasGesamtBest[$aid])) continue;
                 $fbAk = $g === 'W' ? 'WHK' : 'MHK';
-                if (!isset($bestAKAid[$fbAk])) {
+                if (!$hasTitelLabel($aid, 'Bestleistung ' . $fbAk)) {
                     $addTitel($aid, 'Bestleistung ' . $fbAk, $bestGDatum[$g]);
                 }
             }
             if ($bestGesamtAid !== null) {
                 $gesamtG = $athletMap[$bestGesamtAid]['geschlecht'] ?? '';
                 $gesamtFbAk = $gesamtG === 'W' ? 'WHK' : ($gesamtG === 'M' ? 'MHK' : '');
-                if ($gesamtFbAk && !isset($bestAKAid[$gesamtFbAk])) {
+                if ($gesamtFbAk && !$hasTitelLabel($bestGesamtAid, 'Bestleistung ' . $gesamtFbAk)) {
                     $addTitel($bestGesamtAid, 'Bestleistung ' . $gesamtFbAk, $bestGesamtDatum);
                 }
             }
