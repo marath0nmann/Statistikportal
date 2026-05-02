@@ -4,6 +4,7 @@
 - Navigation: "Ergebnisse" und "Athleten" (Tabellen-Verwaltung) in Admin-Bereich verschoben (nur Admins)
 - Neue öffentliche Athleten-Seite im Karten-Layout (Hall-of-Fame-Stil, 5 Spalten Desktop), zeigt alle aktiven Mitglieder inkl. Vereinsrekord-/Bestleistungs-Badges
 - HOF/Athleten: AK-Bestleistungen werden jetzt auch für Vereinsrekord-Inhaber angezeigt (Tier-3-Unterdrückung entfernt)
+- HOF/Athleten: Tier-3-Tracking nutzt SQL-CASE-Expression (inkl. ak_mapping-Kette, z.B. M6→MU8→MHK)
 - Deploy: GitHub Actions leert OPcache automatisch nach FTP-Upload
 - HOF/Athleten: Jugend-AK-Merge-Konfiguration explizit angewendet — alle konfigurierten AKs (MU18, MU20, …) erscheinen als „Bestleistung MHK/WHK"
 
