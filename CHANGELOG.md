@@ -1,4 +1,7 @@
-## v1194
+## v1196
+- Athleten-Karten: Ergebnis-Badge Zeilenabstand nach oben korrigiert (margin-top:6px wenn kein statsHtml)
+
+## v1195
 - Athleten-Karten: Ergebnis-Badge jetzt im gleichen Look wie Vereinsrekord/Bestleistung (grün mit Border, badge-pb)
 - Athleten-Karten: nur Athleten mit ≥1 Ergebnis anzeigen; Aufteilung in „Aktive Athleten" (Ergebnis in diesem/letztem Jahr) und „Inaktive Athleten" (älter, aber mit VR/Bestleistung); grünes „X Ergebnisse"-Badge wenn keine Vereinsrekorde oder Bestleistungen vorhanden
 - Navigation: "Ergebnisse" und "Athleten" (Tabellen-Verwaltung) in Admin-Bereich verschoben (nur Admins)

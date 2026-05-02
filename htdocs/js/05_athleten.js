@@ -1069,7 +1069,7 @@ function _buildAthletCard(a, hof) {
     '<div style="display:flex;justify-content:center;margin-bottom:12px">' + av + '</div>' +
     '<div style="font-weight:700;font-size:14px;margin-bottom:2px"><span class="athlet-link">' + displayName + '</span></div>' +
     statsHtml +
-    (badgesHtml || ergBadge ? '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px">' + badgesHtml + ergBadge + '</div>' : '') +
+    (badgesHtml || ergBadge ? '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px' + (!statsHtml ? ';margin-top:6px' : '') + '">' + badgesHtml + ergBadge + '</div>' : '') +
   '</div>';
 }
 
