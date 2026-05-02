@@ -1,6 +1,6 @@
-## v1197
+## v1198
 - HOF/Athleten-Karten: Medaillen-Anzahl ("X Titel") entspricht jetzt der angezeigten Anzahl (Deduplizierung nach Label+Kategorie)
-- HOF/Athleten-Karten: Badge zeigt bei Vereinsrekord (Gesamtbestleistung) jetzt auch die MHK/WHK-Bestleistung an
+- HOF/Athleten-Karten: Badge zeigt bei Frauen-/Männer-Vereinsrekord auch die zugehörige MHK/WHK-Bestleistung an (war wegen else-if übersprungen)
 - Athleten-Karten: Ergebnis-Badge Zeilenabstand nach oben korrigiert (margin-top:6px wenn kein statsHtml)
 
 ## v1195

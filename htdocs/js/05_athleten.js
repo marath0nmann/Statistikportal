@@ -1038,9 +1038,9 @@ function _buildAthletCard(a, hof) {
         if (_mhnLabel) parts.push('Bestleistung ' + _mhnLabel.label.replace('Bestleistung ', ''));
         if (_whnLabel) parts.push('Bestleistung ' + _whnLabel.label.replace('Bestleistung ', ''));
       } else {
-        if (gesamtM) parts.push('Vereinsrekord');
+        if (gesamtM) { parts.push('Vereinsrekord'); if (_mhnLabel) parts.push('Bestleistung ' + _mhnLabel.label.replace('Bestleistung ', '')); }
         else if (_mhnLabel) parts.push('Bestleistung ' + _mhnLabel.label.replace('Bestleistung ', ''));
-        if (gesamtW) parts.push('Vereinsrekord');
+        if (gesamtW) { parts.push('Vereinsrekord'); if (_whnLabel) parts.push('Bestleistung ' + _whnLabel.label.replace('Bestleistung ', '')); }
         else if (_whnLabel) parts.push('Bestleistung ' + _whnLabel.label.replace('Bestleistung ', ''));
       }
       if (akM.length) parts.push('Bestleistung ' + compressAKList(akM));
