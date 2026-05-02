@@ -968,7 +968,7 @@ function _buildAthletCard(a, hof) {
 
   var statsHtml = '', badgesHtml = '', hasVrOrBl = false;
   if (hof) {
-    var _mCnt = (hof.meisterschaftsTitel || []).length;
+    var _mCntSet = {}; (hof.meisterschaftsTitel || []).forEach(function(mt) { _mCntSet[mt.label + '|' + (mt.kat_name || '')] = 1; }); var _mCnt = Object.keys(_mCntSet).length;
     var _vrCnt = 0, _blCnt = 0;
     var _dkeys = Object.keys(hof.disziplinen || {});
     for (var _di = 0; _di < _dkeys.length; _di++) {
@@ -1035,6 +1035,8 @@ function _buildAthletCard(a, hof) {
       var parts = [];
       if (gesamtAll) {
         parts.push('Vereinsrekord');
+        if (_mhnLabel) parts.push('Bestleistung ' + _mhnLabel.label.replace('Bestleistung ', ''));
+        if (_whnLabel) parts.push('Bestleistung ' + _whnLabel.label.replace('Bestleistung ', ''));
       } else {
         if (gesamtM) parts.push('Vereinsrekord');
         else if (_mhnLabel) parts.push('Bestleistung ' + _mhnLabel.label.replace('Bestleistung ', ''));

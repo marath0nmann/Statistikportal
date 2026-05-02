@@ -686,6 +686,8 @@ function timelineBadges(rek) {
           var parts = [];
           if (gesamtAll) {
             parts.push('Vereinsrekord');
+            if (hasMaenner) parts.push('Bestleistung ' + mhnText);
+            if (hasFrauen) parts.push('Bestleistung ' + whnText);
           } else {
             if (gesamtM) parts.push('Vereinsrekord');
             else if (hasMaenner) parts.push('Bestleistung ' + mhnText);
@@ -769,7 +771,7 @@ function timelineBadges(rek) {
               '<span class="athlet-link" onclick="openAthletById(' + ha.id + ')">' + ha.name + '</span>' +
             '</div>' +
             (function(){
-            var _mCnt = (ha.meisterschaftsTitel || []).length;
+            var _mCntSet = {}; (ha.meisterschaftsTitel || []).forEach(function(mt) { _mCntSet[mt.label + '|' + (mt.kat_name || '')] = 1; }); var _mCnt = Object.keys(_mCntSet).length;
             var _vrCnt = 0, _blCnt = 0;
             var _dkeys = Object.keys(ha.disziplinen || {});
             for (var _di = 0; _di < _dkeys.length; _di++) {
