@@ -1,3 +1,6 @@
+## v1202
+- HOF/API: Meisterschaftstitel-Deduplizierung nach (Label + AK + Jahr) – verhindert doppelte Medaillen bei gleichem Meisterschaftstyp in Indoor- und Outdoor-Veranstaltungen desselben Jahres
+
 ## v1201
 - HOF/API: Fallback WHK/MHK-Bestleistung für Gesamtbestleistung-Inhaber auch dann, wenn ein anderer Athlet das Tier-3-WHK/MHK-Titel hält (z.B. AK NULL bei Vereinsrekord-Inhaber, aber gemappte AK bei anderem Athleten)
 

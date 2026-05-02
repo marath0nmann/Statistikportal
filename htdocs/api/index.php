@@ -5808,9 +5808,14 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
     foreach ($hof as &$ath) {
         $byDisz = [];
         $mTitel = [];
+        $mTitelSeen = [];
         foreach ($ath['titel'] as $t) {
             if (!empty($t['is_meisterschaft'])) {
-                $mTitel[] = ['label' => $t['label'], 'datum' => $t['datum'], 'disziplin' => $t['disziplin'] ?? '', 'kat_name' => $t['kat_name'] ?? '', 'ak' => $t['ak'] ?? '', 'jahr' => (int)substr($t['datum'] ?? '', 0, 4)];
+                $jahr = (int)substr($t['datum'] ?? '', 0, 4);
+                $dedupKey = ($t['label'] ?? '') . '|||' . ($t['ak'] ?? '') . '|||' . $jahr;
+                if (isset($mTitelSeen[$dedupKey])) continue;
+                $mTitelSeen[$dedupKey] = true;
+                $mTitel[] = ['label' => $t['label'], 'datum' => $t['datum'], 'disziplin' => $t['disziplin'] ?? '', 'kat_name' => $t['kat_name'] ?? '', 'ak' => $t['ak'] ?? '', 'jahr' => $jahr];
             } else {
                 $diszKey = ($t['disziplin'] ?? '') . '|||' . ($t['mapping_id'] ?? '');
                 $byDisz[$diszKey][] = ['label' => $t['label'], 'datum' => $t['datum'], 'mid' => $t['mapping_id'] ?? null];
