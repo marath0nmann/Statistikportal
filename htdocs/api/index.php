@@ -5725,6 +5725,22 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                 $akNorm = preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $ak);
                 $addTitel($aid, 'Bestleistung ' . $akNorm, $bestAKDatum[$ak]);
             }
+            // Fallback WHK/MHK: Vereinsrekord-Inhaber erhält AK-Bestleistung falls kein Tier-3-Eintrag vorhanden
+            // (tritt auf wenn alle Ergebnisse eine ungemappte/NULL-AK haben)
+            foreach ($bestGAid as $g => $aid) {
+                if (!empty($hasGesamtBest[$aid])) continue;
+                $fbAk = $g === 'W' ? 'WHK' : 'MHK';
+                if (!isset($bestAKAid[$fbAk])) {
+                    $addTitel($aid, 'Bestleistung ' . $fbAk, $bestGDatum[$g]);
+                }
+            }
+            if ($bestGesamtAid !== null) {
+                $gesamtG = $athletMap[$bestGesamtAid]['geschlecht'] ?? '';
+                $gesamtFbAk = $gesamtG === 'W' ? 'WHK' : ($gesamtG === 'M' ? 'MHK' : '');
+                if ($gesamtFbAk && !isset($bestAKAid[$gesamtFbAk])) {
+                    $addTitel($bestGesamtAid, 'Bestleistung ' . $gesamtFbAk, $bestGesamtDatum);
+                }
+            }
         }
 
         // ── Meisterschafts-Titel: 1. Platz in einer Meisterschaft ──

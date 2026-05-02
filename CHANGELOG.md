@@ -1,3 +1,6 @@
+## v1200
+- HOF/API: Fallback WHK/MHK für Vereinsrekord-Inhaber wenn Tier-3 keine AK-Bestleistung liefert (z.B. bei NULL-Altersklassen in der DB)
+
 ## v1199
 - HOF/Athleten-Karten: Medaillen-Deduplizierung aufgehoben – jeder Titel erscheint als einzelnes Emoji mit Tooltip (AK + Jahr)
 - HOF/Athleten-Karten: Badge zeigt bei Frauen-/Männer-Vereinsrekord auch die zugehörige MHK/WHK-Bestleistung an (war wegen else-if übersprungen)
