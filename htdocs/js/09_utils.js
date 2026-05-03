@@ -12,6 +12,12 @@ function _restoreFocus(saved) {
   try { if (saved.s !== null) el.setSelectionRange(saved.s, saved.e); } catch(e) {}
 }
 
+// Standard-Modal-Header: `<h2>title <close-x></h2>`. Spart das Inline-Markup
+// bei den ~24 showModal()-Aufrufen mit einfachem closeModal()-Schließer.
+function modalH2(titleHtml) {
+  return '<h2>' + titleHtml + ' <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>';
+}
+
 // Disziplin-Objekt für Importer ermitteln: erst kat-strikt (tbl_key===kat),
 // dann Fallback über bkKatMitGruppen (Bahn/Halle/Straße/...).
 function findDiszObj(disz, kat, disziplinen) {

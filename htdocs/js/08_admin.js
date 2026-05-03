@@ -659,7 +659,7 @@ function _rolleModal(titel, rolle) {
       '<div style="display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto;padding:8px;background:var(--surf2);border-radius:8px">' + checkboxes + '</div>';
   var oeffentlichChecked = (r.oeffentlich === 1 || r.oeffentlich === true) ? 'checked' : '';
   showModal(
-    '<h2>' + titel + ' <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('' + titel + '') +
     '<div class="form-group"><label>Rollenname * <span style="font-size:11px;color:var(--text2)">(intern)</span></label><input type="text" id="rm-name" value="' + (r.name||'') + '"/></div>' +
     '<div class="form-group"><label>Bezeichnung <span style="font-size:11px;color:var(--text2)">(öffentlich sichtbar, z. B. "Administrator")</span></label><input type="text" id="rm-label" placeholder="' + (r.name||'') + '" value="' + (r.label||'') + '"/></div>' +
     '<label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer;font-size:13px">' +
@@ -700,7 +700,7 @@ async function deleteRolle(id, name) {
 
 function showNeuerBenutzerModal() {
   showModal(
-    '<h2>&#x1F464; Neuer Benutzer <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x1F464; Neuer Benutzer') +
     '<div class="form-grid">' +
       '<div style="display:none"><input type="text" id="nb-user" value=""/></div>' +
       '<div class="form-group"><label>E-Mail *</label><input type="email" id="nb-email" placeholder="max@example.com"/></div>' +
@@ -740,7 +740,7 @@ function showBenutzerEditModal(id) {
     athletOpts += '<option value="' + a.id + '"' + (b.athlet_id === a.id ? ' selected' : '') + '>' + a.name_nv + '</option>';
   }
   showModal(
-    '<h2>&#x270F;&#xFE0F; Benutzer bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x270F;&#xFE0F; Benutzer bearbeiten') +
     '<div style="color:var(--text2);margin-bottom:16px">' + b.email + '</div>' +
     '<div class="form-grid">' +
       '<div class="form-group"><label>E-Mail</label><input type="email" id="eb-email" value="' + b.email + '"/></div>' +
@@ -832,7 +832,7 @@ async function deleteBenutzer(id, name) {
 
 function showNeuerAthletModal() {
   showModal(
-    '<h2>&#x1F464; Neuer Athlet <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x1F464; Neuer Athlet') +
     '<div class="form-grid">' +
       '<div class="form-group"><label>Nachname *</label><input type="text" id="na-nn"/></div>' +
       '<div class="form-group"><label>Vorname *</label><input type="text" id="na-vn"/></div>' +
@@ -865,7 +865,7 @@ function showAthletEditModal(id) {
   var gebJahr = a.geburtsjahr ? String(a.geburtsjahr) : '';
   var curGruppen = (a.gruppen || []).map(function(g) { return g.name; }).join(', ');
   showModal(
-    '<h2>&#x270F;&#xFE0F; Athlet bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x270F;&#xFE0F; Athlet bearbeiten') +
     '<div class="form-grid">' +
       '<div class="form-group"><label>Nachname *</label><input type="text" id="ea-nn" value="' + (a.nachname||'') + '"/></div>' +
       '<div class="form-group"><label>Vorname</label><input type="text" id="ea-vn" value="' + (a.vorname||'') + '"/></div>' +
@@ -936,7 +936,7 @@ function showNeuerRekordModal() {
     athOptHtml += '<option value="' + a.id + '">' + a.name_nv + '</option>';
   }
   showModal(
-    '<h2>&#x1F3C6; Neuer Vereinsrekord <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x1F3C6; Neuer Vereinsrekord') +
     '<div class="form-grid">' +
       '<div class="form-group"><label>Disziplin *</label><input type="text" id="nr-disziplin"/></div>' +
       '<div class="form-group"><label>Altersklasse *</label><input type="text" id="nr-ak"/></div>' +
@@ -1054,7 +1054,7 @@ async function pkDelete(typ, id) {
 
 function pkLeeren(total) {
   showModal(
-    '<h2>Papierkorb leeren <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('Papierkorb leeren') +
     '<div style="background:#fde8e8;border:1px solid #f5b0b0;border-radius:8px;padding:14px 16px;margin-bottom:20px;font-size:13px">' +
       '<strong>&#x26A0;&#xFE0F; Achtung:</strong> Alle <strong>' + total + ' Eintr\u00e4ge</strong> im Papierkorb werden unwiderruflich gel\u00f6scht.' +
     '</div>' +
@@ -2561,7 +2561,7 @@ async function setDiszMapping(sel) {
 
 function showNeueKatModal() {
   showModal(
-    '<h2>&#x1F3F7;&#xFE0F; Neue Kategorie <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x1F3F7;&#xFE0F; Neue Kategorie') +
     '<div class="form-grid">' +
       '<div class="form-group"><label>Name *</label><input type="text" id="nk-name" placeholder="z.B. Mehrkampf"/></div>' +
       '<div class="form-group"><label>Schlüssel * <span style="font-size:11px;color:var(--text2)">(a-z, 0-9, _)</span></label><input type="text" id="nk-key" placeholder="z.B. mehrkampf"/></div>' +
@@ -2590,7 +2590,7 @@ function showKatEditModal(btn) {
   var fmt  = btn.dataset.kfmt;
   var dir  = btn.dataset.kdir;
   showModal(
-    '<h2>&#x270F;&#xFE0F; Kategorie bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x270F;&#xFE0F; Kategorie bearbeiten') +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Name *</label><input type="text" id="ek-name" value="' + name + '"/></div>' +
       '<div class="form-group"><label>Ergebnisformat</label><select id="ek-fmt">' +
@@ -2657,7 +2657,7 @@ function showDiszEditModal(btn) {
       '<option value="nein"' + (katSuffix === 'nein' ? ' selected' : '') + '>Nie anzeigen</option>' +
     '</select>';
   showModal(
-    '<h2>&#x270F;&#xFE0E; Disziplin bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x270F;&#xFE0E; Disziplin bearbeiten') +
     '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Original: <strong>' + disz + '</strong></div>' +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Umbenennen in</label>' +
@@ -2741,7 +2741,7 @@ async function showNeueDiszModal(preSelKatId) {
     '</select>';
 
   showModal(
-    '<h2>&#x2795; Neue Disziplin <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x2795; Neue Disziplin') +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Disziplinname *</label>' +
         '<input type="text" id="nd-name" placeholder="z.B. Crosslauf, 3000m Hindernis \u2026" autofocus/>' +

@@ -66,6 +66,9 @@ function jsonOk(mixed $data): void {
 }
 function jsonErr(string $msg, int $code = 400): void {
     http_response_code($code);
+    if ($code >= 500) {
+        error_log('[api ' . $code . '] ' . ($_SERVER['REQUEST_METHOD'] ?? '?') . ' ' . ($_SERVER['REQUEST_URI'] ?? '?') . ' – ' . $msg);
+    }
     echo json_encode(['ok' => false, 'fehler' => $msg]);
     exit;
 }

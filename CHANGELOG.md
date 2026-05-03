@@ -1,3 +1,7 @@
+## v1206
+- Refactor: `modalH2(title)`-Helper in 09_utils.js – 24 wiederholte Modal-Header (`<h2>… <button class="modal-close" onclick="closeModal()">✕</button></h2>`) zentralisiert
+- API: `jsonErr()` loggt 5xx-Fehler jetzt via `error_log()` (REQUEST_METHOD + URI + Message) – vorher gingen Server-Fehler ohne Spur unter
+
 ## v1205
 - Refactor: `finalizeRegistration()`-Helper – TOTP- und E-Mail-2FA-Endpunkte teilen sich jetzt Auto-Freigabe + Mailversand (~50 Zeilen Copy-Paste entfernt)
 - Refactor: Ergebnisse-Endpoint nutzt eine einheitliche `$buildWhere`-Closure für Hauptquery und Dropdown-Subqueries (vorher zwei parallele Filter-Implementierungen, die bei Filter-Erweiterungen leicht auseinanderlaufen)

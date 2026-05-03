@@ -459,7 +459,7 @@ async function openEditExternErgebnis(ds) {
   var searchPrefill = ds.extVid ? (ds.extVname||'') : (ds.extWettkampf||'');
 
   showModal(
-    '<h2>&#x270E; Externes Ergebnis bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x270E; Externes Ergebnis bearbeiten') +
     '<div class="form-grid">' +
       '<div class="form-group"><label>Disziplin</label><input type="text" id="ext-disz" value="' + (ds.extDisz||'').replace(/"/g,'&quot;') + '"/></div>' +
       '<div class="form-group"><label>Ergebnis</label><input type="text" id="ext-res" value="' + (ds.extRes||'') + '"/></div>' +
@@ -553,7 +553,7 @@ async function _saveExternErgebnis(id) {
 
 function deleteExternErgebnis(id) {
   showModal(
-    '<h2>Externes Ergebnis löschen <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('Externes Ergebnis löschen') +
     '<p style="font-size:14px;color:var(--text2);margin:8px 0 20px">Dieses externe Ergebnis wirklich löschen?</p>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +

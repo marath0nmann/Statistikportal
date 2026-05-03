@@ -789,7 +789,7 @@ function _bkMatchSerie(eventName) {
 
 async function bkNeueSerieModal() {
   showModal(
-    '<h2>&#x1F504; Neue regelmäßige Veranstaltung <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x1F504; Neue regelmäßige Veranstaltung') +
     '<div class="form-group full" style="margin-bottom:16px">' +
       '<label>Name *</label>' +
       '<input type="text" id="bk-neue-serie-name" placeholder="z.B. Venloop" autofocus style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"/>' +
@@ -2625,7 +2625,7 @@ async function bulkMeldeImport() {
 
   // Vorschau-Modal mit Kommentarfeld
   showModal(
-    '<h2>&#x26A0;&#xFE0F; Schlechten Import melden <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x26A0;&#xFE0F; Schlechten Import melden') +
     '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">Das folgende GitHub-Issue wird erstellt. Bitte erg\u00e4nze einen Kommentar was falsch importiert wurde.</div>' +
     '<div style="background:var(--surf2);border-radius:8px;padding:12px 16px;font-size:12px;margin-bottom:12px">' +
       '<div><strong>Titel:</strong> [Import-Fehler] v' + vNum + ' &ndash; ' + new Date().toLocaleDateString('de-DE') + '</div>' +
@@ -2683,7 +2683,7 @@ async function _bulkMeldeImportSend(repo, token, vNum, wer) {
     var d = await r.json();
     if (r.ok && d.html_url) {
       showModal(
-        '<h2>&#x2705; Import gemeldet <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+        modalH2('&#x2705; Import gemeldet') +
         '<p style="color:var(--text2);font-size:14px;margin:8px 0 16px">Das Issue wurde erfolgreich bei GitHub erstellt.</p>' +
         '<div style="background:var(--surf2);border-radius:8px;padding:12px 16px;font-size:13px;margin-bottom:16px">' +
           '<div><strong>Issue #' + d.number + '</strong></div>' +
@@ -4406,7 +4406,7 @@ function _rrShowGjModal(updates) {
       '</tr>';
   }
   showModal(
-    '<h2>&#x1F382; Geburtsjahr übernehmen? <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x1F382; Geburtsjahr übernehmen?') +
     '<p style="font-size:13px;color:var(--text2);margin-bottom:10px">' +
       'Für folgende Athleten wurde in den RaceResult-Daten ein Geburtsjahr gefunden, ' +
       'das noch nicht in der Datenbank hinterlegt ist. Welche sollen übernommen werden?' +

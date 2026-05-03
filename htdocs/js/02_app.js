@@ -1504,7 +1504,7 @@ function copyBackupCodes() {
 
 function logout() {
   showModal(
-    '<h2>Abmelden <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('Abmelden') +
     '<p style="margin:8px 0 24px;color:var(--text2)">Möchtest du dich wirklich abmelden?</p>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -1810,7 +1810,7 @@ async function showTotpSetupInProfile() {
   if (!r || !r.ok) { notify('Fehler: ' + ((r && r.fehler) || 'Unbekannt'), 'err'); return; }
   var d = r.data;
   showModal(
-    '<h2>&#x1F512; 2FA einrichten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x1F512; 2FA einrichten') +
     '<p style="color:var(--text2);font-size:13px;margin:0 0 16px">Scanne den QR-Code mit einer Authenticator-App (z.B. Google/Microsoft Authenticator).</p>' +
     '<div style="text-align:center;margin-bottom:16px">' +
       '<img src="' + d.qr_url + '" style="width:180px;height:180px;border-radius:12px;border:1px solid var(--border)"/>' +
@@ -1864,7 +1864,7 @@ async function uploadAvatar(input) {
 
 function showAvatarCropModal(dataUrl, file) {
   showModal(
-    '<h2>Avatar zuschneiden <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('Avatar zuschneiden') +
     '<p style="font-size:13px;color:var(--text2);margin:0 0 12px">Verschiebe und vergrößere den Ausschnitt, dann speichern.</p>' +
     '<div style="position:relative;overflow:hidden;background:#111;border-radius:8px;margin-bottom:14px;touch-action:none" id="crop-wrap">' +
       '<img id="crop-img" src="' + dataUrl + '" style="display:block;max-width:100%;max-height:340px;margin:0 auto;user-select:none;-webkit-user-drag:none">' +
@@ -2597,7 +2597,7 @@ async function editLegalPage(type) {
   var cfgKeys  = { datenschutz: 'footer_datenschutz_text', nutzung: 'footer_nutzung_text', impressum: 'footer_impressum_text' };
   var current = cfg[cfgKeys[type]] || defaults[type] || '';
   showModal(
-    '<h2>' + titles[type] + ' bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('' + titles[type] + ' bearbeiten') +
     '<p style="font-size:12px;color:var(--text2);margin:0 0 12px">Markdown wird unterstützt: # Überschrift, ## Unterüberschrift, **fett**, *kursiv*, - Liste</p>' +
     '<textarea id="legal-edit-ta" style="width:100%;height:360px;box-sizing:border-box;padding:12px;border:1.5px solid var(--border);border-radius:8px;font-family:monospace;font-size:13px;background:var(--surf2);color:var(--text);resize:vertical">' + current.replace(/</g,'&lt;') + '</textarea>' +
     '<div class="modal-actions">' +

@@ -544,7 +544,7 @@ async function showSerieCreateModal() {
     .filter(function(v){ return v.name; });
 
   showModal(
-    '<h2>\uD83D\uDD04 Neue regelmäßige Veranstaltung <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('\uD83D\uDD04 Neue regelmäßige Veranstaltung') +
     '<div class="form-group full" style="margin-bottom:16px">' +
       '<label>Name *</label>' +
       '<input type="text" id="sr-name" placeholder="z.B. Venloop" autofocus ' +
@@ -618,7 +618,7 @@ async function saveSerieCreate() {
 
 function showSerieEditModal(id, curName) {
   showModal(
-    '<h2>&#x270F;&#xFE0F; Serie bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x270F;&#xFE0F; Serie bearbeiten') +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Name</label>' +
         '<input type="text" id="sr-name" value="' + (curName || '').replace(/"/g,'&quot;') + '"/></div>' +
@@ -666,7 +666,7 @@ async function showVeranstEditModal(id) {
     function(s) { return String(s.id) === String(curSerie); });
 
   showModal(
-    '<h2>&#x270F;&#xFE0F; Veranstaltung bearbeiten <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
+    modalH2('&#x270F;&#xFE0F; Veranstaltung bearbeiten') +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Name (optional)</label>' +
         '<input type="text" id="ve-name" value="' + curName.replace(/"/g,'&quot;') + '" placeholder="z.B. 44. Stra&szlig;enlauf Rund um das Bayer-Kreuz"/></div>' +
