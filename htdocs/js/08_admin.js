@@ -2339,7 +2339,16 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
         '</div>' +
       '</div>';
   } else {
-    var filteredDisz = disziplinen.filter(function(d) { return d.kategorie_id == selKat.id; }).sort(function(a,b){ return (b.ergebnis_anzahl||0)-(a.ergebnis_anzahl||0) || a.disziplin.localeCompare(b.disziplin); });
+    var _sort = window._diszSort || { col: 'anz', dir: 'desc' };
+    var filteredDisz = disziplinen.filter(function(d) { return d.kategorie_id == selKat.id; }).sort(function(a, b) {
+      var av, bv;
+      if (_sort.col === 'name')    { av = a.disziplin || '';                       bv = b.disziplin || ''; }
+      else if (_sort.col === 'fmt')     { av = a.fmt_override || a.kat_fmt || '';  bv = b.fmt_override || b.kat_fmt || ''; }
+      else if (_sort.col === 'distanz') { av = a.distanz != null ? a.distanz : -1; bv = b.distanz != null ? b.distanz : -1; }
+      else                              { av = a.ergebnis_anzahl || 0;             bv = b.ergebnis_anzahl || 0; }
+      var cmp = typeof av === 'string' ? av.localeCompare(bv, 'de') : (av - bv);
+      return _sort.dir === 'asc' ? cmp : -cmp;
+    });
     var mapRows = '';
     for (var i = 0; i < filteredDisz.length; i++) {
       var d = filteredDisz[i];
@@ -2396,11 +2405,29 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
         '</tr>';
     }
     panelBody = filteredDisz.length
-      ? '<div class="table-scroll"><table><thead><tr><th>Disziplin</th><th>Format</th><th>Distanz</th><th>Kategorie</th><th style="text-align:right">Ergebnisse</th><th></th></tr></thead><tbody>' + mapRows + '</tbody></table></div>'
+      ? (function() {
+          var _s = window._diszSort || { col: 'anz', dir: 'desc' };
+          function _th(col, label, align) {
+            var active = _s.col === col;
+            var arrow = active ? (_s.dir === 'asc' ? ' ↑' : ' ↓') : ' <span style="opacity:0.3">↕</span>';
+            return '<th onclick="sortDiszTable(\'' + col + '\')" style="cursor:pointer;user-select:none' + (align ? ';text-align:' + align : '') + '">' + label + arrow + '</th>';
+          }
+          return '<div class="table-scroll"><table><thead><tr>' +
+            _th('name', 'Disziplin') + _th('fmt', 'Format') + _th('distanz', 'Distanz') +
+            '<th>Kategorie</th>' + _th('anz', 'Ergebnisse', 'right') + '<th></th>' +
+          '</tr></thead><tbody>' + mapRows + '</tbody></table></div>';
+        })()
       : '<div style="padding:20px;color:var(--text2);font-size:13px">Keine Disziplinen in dieser Kategorie.</div>';
     panelBody += '<div style="padding:12px 20px"><button class="btn btn-primary btn-sm" onclick="showNeueDiszModal(' + selKat.id + ')">+ Neue Disziplin</button></div>';
   }
   return '<div class="panel"><div class="panel-header"><div class="panel-title">' + selKat.name + '</div>' + viewToggle + '</div>' + panelBody + '</div>';
+}
+
+function sortDiszTable(col) {
+  var cur = window._diszSort || { col: 'anz', dir: 'desc' };
+  var numCols = { anz: true, distanz: true };
+  window._diszSort = { col: col, dir: cur.col === col ? (cur.dir === 'asc' ? 'desc' : 'asc') : (numCols[col] ? 'desc' : 'asc') };
+  _renderDiszDetail();
 }
 
 function _renderDiszDetail() {
