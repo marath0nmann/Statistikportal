@@ -1,3 +1,6 @@
+## v1233
+- Fix: Admin Veranstaltungen – athlet_pb hat kein geloescht_am (Hard-Delete), JOIN-Bedingung entfernt
+
 ## v1232
 - Admin Veranstaltungen: Bulk-Name – Option „Durchnumerieren" (Startnummer + Sortierung alt→neu)
 
