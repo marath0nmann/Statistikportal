@@ -4854,6 +4854,32 @@ if ($res === 'veranstaltung-serien' && $method === 'DELETE' && $id) {
 // ============================================================
 // VERANSTALTUNGEN
 // ============================================================
+// Admin-Übersicht: alle Veranstaltungen (inkl. ungenehmigter), ohne Detail-Ergebnisse
+if ($res === 'veranstaltungen' && $method === 'GET' && !empty($_GET['admin'])) {
+    Auth::requireRecht('veranstaltung_eintragen');
+    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $suche = trim($_GET['suche'] ?? '');
+    $whereExtra = '';
+    $searchParams = [];
+    if ($suche !== '') {
+        $s = '%' . $suche . '%';
+        $whereExtra = ' AND (v.name LIKE ? OR v.kuerzel LIKE ? OR v.ort LIKE ?)';
+        $searchParams = [$s, $s, $s];
+    }
+    $veranst = DB::fetchAll(
+        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.serie_id,
+                COUNT(DISTINCT e.id) AS anz_ergebnisse,
+                COUNT(DISTINCT e.athlet_id) AS anz_athleten
+         FROM " . DB::tbl('veranstaltungen') . " v
+         LEFT JOIN $eTbl e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
+         WHERE v.geloescht_am IS NULL$whereExtra
+         GROUP BY v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.serie_id
+         ORDER BY v.datum DESC",
+        $searchParams
+    );
+    jsonOk($veranst);
+}
+
 // Ausstehende Veranstaltungen (genehmigt=0) – nur Admin/Editor
 if ($res === 'veranstaltungen' && $method === 'GET' && isset($_GET['pending'])) {
     Auth::requireRecht('veranstaltung_eintragen');

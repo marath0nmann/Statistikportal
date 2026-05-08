@@ -372,6 +372,7 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='papierkorb'     ? ' active' : '') + '" onclick="navAdmin(\'papierkorb\')">🗑️ Papierkorb' + _adminBadge(window._adminPendingPapierkorb||0) + '</button>' +
     '<button class="subtab' + (t==='ergebnisse'     ? ' active' : '') + '" onclick="navAdmin(\'ergebnisse\')">&#x1F4CB;&#xFE0E; Ergebnisse</button>' +
     '<button class="subtab' + (t==='athleten'       ? ' active' : '') + '" onclick="navAdmin(\'athleten\')">&#x1F464; Athleten</button>' +
+    '<button class="subtab' + (t==='veranstaltungen'? ' active' : '') + '" onclick="navAdmin(\'veranstaltungen\')">&#x1F4C5; Veranstaltungen</button>' +
   '</div>';
 }
 
@@ -423,6 +424,7 @@ async function renderAdmin() {
   if (state.adminTab === 'dashboard_cfg')  { await renderAdminDashboard(); return; }
   if (state.adminTab === 'ergebnisse')     { if (!state.subTab) state.subTab = 'strasse'; await renderErgebnisse(); return; }
   if (state.adminTab === 'athleten')       { await renderAthleten(); return; }
+  if (state.adminTab === 'veranstaltungen'){ await renderAdminVeranstaltungen(); return; }
   var r = await apiGet('benutzer');
   if (!r || !r.ok) return;
   var benutzer = r.data.benutzer || r.data; // Rückwärtskompatibel
@@ -3218,4 +3220,313 @@ async function verwaistDelete(id, btn) {
     notify('Fehler: ' + (r&&r.fehler||'?'), 'err');
     if (btn) btn.disabled = false;
   }
+}
+
+// ── ADMIN: VERANSTALTUNGEN ──────────────────────────────────────────────────
+function _vaEsc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+var _veranstAdminCache  = { items: [] };
+var _veranstAdminSort   = { col: 'datum', dir: -1 };
+var _veranstAdminSel    = {};
+var _veranstAdminFilter = { suche: '', jahr: '', genehmigt: '' };
+
+function _veranstAdminSortHeader() {
+  var cols = [
+    { key: 'check',         label: '<input type="checkbox" id="vaCheckAll" onchange="_vaToggleAll(this.checked)" style="cursor:pointer">' },
+    { key: 'datum',         label: 'Datum' },
+    { key: 'name',          label: 'Name / Kürzel' },
+    { key: 'ort',           label: 'Ort' },
+    { key: 'anz_ergebnisse',label: 'Erg.' },
+    { key: 'genehmigt',     label: 'Status' },
+    { key: '',              label: '' },
+  ];
+  return cols.map(function(c) {
+    if (c.key === 'check') return '<th style="width:32px">' + c.label + '</th>';
+    if (!c.key) return '<th></th>';
+    var arrow = _veranstAdminSort.col === c.key ? (_veranstAdminSort.dir === 1 ? ' ▲' : ' ▼') : '';
+    var style = 'cursor:pointer;user-select:none;white-space:nowrap' + (_veranstAdminSort.col === c.key ? ';color:var(--primary)' : '');
+    return '<th style="' + style + '" onclick="_vaSetSort(\'' + c.key + '\')">' + c.label + arrow + '</th>';
+  }).join('');
+}
+
+function _vaSetSort(col) {
+  if (_veranstAdminSort.col === col) _veranstAdminSort.dir *= -1;
+  else { _veranstAdminSort.col = col; _veranstAdminSort.dir = -1; }
+  var thead = document.querySelector('#veranst-admin-tabelle thead tr');
+  if (thead) thead.innerHTML = _veranstAdminSortHeader();
+  _renderVeranstAdminTable();
+}
+
+function _vaToggleAll(checked) {
+  var items = _vaGetFiltered();
+  _veranstAdminSel = {};
+  if (checked) { for (var i = 0; i < items.length; i++) _veranstAdminSel[items[i].id] = true; }
+  _renderVeranstAdminTable();
+}
+
+function _vaToggle(id) {
+  if (_veranstAdminSel[id]) delete _veranstAdminSel[id];
+  else _veranstAdminSel[id] = true;
+  _vaUpdateBulkBar();
+  // Checkbox-State der Zeile + Select-all aktualisieren
+  var chk = document.querySelector('#veranst-admin-tabelle tbody tr input[onchange*="' + id + '"]');
+  if (chk) chk.checked = !!_veranstAdminSel[id];
+  var allChk = document.getElementById('vaCheckAll');
+  if (allChk) {
+    var sel = Object.keys(_veranstAdminSel).length;
+    var total = _vaGetFiltered().length;
+    allChk.checked = sel > 0 && sel >= total;
+    allChk.indeterminate = sel > 0 && sel < total;
+  }
+}
+
+function _vaUpdateBulkBar() {
+  var n = Object.keys(_veranstAdminSel).length;
+  var bar = document.getElementById('va-bulk-bar');
+  if (!bar) return;
+  bar.style.display = n > 0 ? 'flex' : 'none';
+  var countEl = document.getElementById('va-bulk-count');
+  if (countEl) countEl.textContent = n + ' ausgewählt';
+}
+
+function _vaGetFiltered() {
+  var items = _veranstAdminCache.items || [];
+  var suche = (_veranstAdminFilter.suche || '').toLowerCase();
+  var jahr  = _veranstAdminFilter.jahr ? parseInt(_veranstAdminFilter.jahr) : 0;
+  var genF  = _veranstAdminFilter.genehmigt;
+  return items.filter(function(v) {
+    if (suche) {
+      var s = ((v.name||'') + ' ' + (v.kuerzel||'') + ' ' + (v.ort||'')).toLowerCase();
+      if (s.indexOf(suche) < 0) return false;
+    }
+    if (jahr && (!v.datum || parseInt(v.datum.slice(0,4)) !== jahr)) return false;
+    if (genF === '1' && !parseInt(v.genehmigt)) return false;
+    if (genF === '0' &&  parseInt(v.genehmigt)) return false;
+    return true;
+  });
+}
+
+function _renderVeranstAdminTable() {
+  var items = _vaGetFiltered();
+  var col = _veranstAdminSort.col, dir = _veranstAdminSort.dir;
+  items = items.slice().sort(function(a, b) {
+    var va, vb;
+    if (col === 'datum')          { va = a.datum||''; vb = b.datum||''; }
+    else if (col === 'name')      { va = ((a.name||a.kuerzel||'')).toLowerCase(); vb = ((b.name||b.kuerzel||'')).toLowerCase(); }
+    else if (col === 'ort')       { va = (a.ort||'').toLowerCase(); vb = (b.ort||'').toLowerCase(); }
+    else if (col === 'anz_ergebnisse') { va = parseInt(a.anz_ergebnisse)||0; vb = parseInt(b.anz_ergebnisse)||0; }
+    else if (col === 'genehmigt') { va = parseInt(a.genehmigt)||0; vb = parseInt(b.genehmigt)||0; }
+    else                          { va = a.datum||''; vb = b.datum||''; }
+    if (va < vb) return -dir;
+    if (va > vb) return dir;
+    return 0;
+  });
+
+  var rows = '';
+  for (var i = 0; i < items.length; i++) {
+    var v = items[i];
+    var chk = _veranstAdminSel[v.id] ? ' checked' : '';
+    var rowBg = _veranstAdminSel[v.id] ? ' style="background:var(--surf2)"' : '';
+    var gBadge = parseInt(v.genehmigt)
+      ? '<span class="badge badge-aktiv">Genehmigt</span>'
+      : '<span class="badge badge-inaktiv">Gesperrt</span>';
+    var datumStr = v.datum ? v.datum.slice(0,10) : '–';
+    var nameStr = (v.name ? _vaEsc(v.name) : '') +
+      (v.kuerzel ? ' <span style="color:var(--text2);font-size:12px">(' + _vaEsc(v.kuerzel) + ')</span>' : '');
+    var anzErg = parseInt(v.anz_ergebnisse)||0;
+    rows +=
+      '<tr' + rowBg + '>' +
+        '<td style="width:32px;text-align:center"><input type="checkbox"' + chk + ' onchange="_vaToggle(' + v.id + ')" style="cursor:pointer"></td>' +
+        '<td style="white-space:nowrap;font-size:13px">' + datumStr + '</td>' +
+        '<td>' + nameStr + '</td>' +
+        '<td style="color:var(--text2);font-size:13px">' + (v.ort ? _vaEsc(v.ort) : '–') + '</td>' +
+        '<td style="text-align:center">' + (anzErg ? '<span class="badge badge-platz">' + anzErg + '</span>' : '<span style="color:var(--text2)">0</span>') + '</td>' +
+        '<td>' + gBadge + '</td>' +
+        '<td style="white-space:nowrap">' +
+          '<button class="btn btn-ghost btn-sm" onclick="showVeranstEditModal(' + v.id + ')" title="Bearbeiten">&#x270F;&#xFE0E;</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="deleteVeranst(' + v.id + ',\'' + (v.name||v.kuerzel||'?').replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" title="Löschen">&#x2715;</button>' +
+        '</td>' +
+      '</tr>';
+  }
+
+  var tbody = document.querySelector('#veranst-admin-tabelle tbody');
+  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:20px">Keine Einträge</td></tr>';
+
+  var countEl = document.getElementById('veranst-admin-count');
+  if (countEl) countEl.textContent = items.length + ' Veranstaltungen';
+
+  var allChk = document.getElementById('vaCheckAll');
+  if (allChk) {
+    var selN = Object.keys(_veranstAdminSel).length;
+    allChk.checked = selN > 0 && selN >= items.length;
+    allChk.indeterminate = selN > 0 && selN < items.length;
+  }
+  _vaUpdateBulkBar();
+}
+
+async function renderAdminVeranstaltungen() {
+  var el = document.getElementById('main-content');
+  el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden…</div>';
+
+  var r = await apiGet('veranstaltungen?admin=1');
+  if (!r || !r.ok) {
+    el.innerHTML = adminSubtabs() + '<div style="color:var(--accent);padding:20px">Fehler beim Laden.</div>';
+    return;
+  }
+
+  _veranstAdminCache.items = r.data || [];
+  _veranstAdminSel = {};
+
+  // Jahre für Filter
+  var jahre = {};
+  for (var i = 0; i < _veranstAdminCache.items.length; i++) {
+    var d = _veranstAdminCache.items[i].datum;
+    if (d) jahre[d.slice(0,4)] = true;
+  }
+  var jahrArr = Object.keys(jahre).sort().reverse();
+  var jahrOpts = '<option value="">Alle Jahre</option>';
+  for (var j = 0; j < jahrArr.length; j++) {
+    jahrOpts += '<option value="' + jahrArr[j] + '"' + (_veranstAdminFilter.jahr === jahrArr[j] ? ' selected' : '') + '>' + jahrArr[j] + '</option>';
+  }
+
+  var html = adminSubtabs() +
+    '<div class="filter-bar" style="margin-bottom:12px">' +
+      '<div class="fg"><label>Suche</label>' +
+        '<input type="text" id="va-suche" placeholder="Name, Kürzel, Ort…" value="' + _vaEsc(_veranstAdminFilter.suche||'') + '" oninput="_vaFilter(\'suche\',this.value)" style="min-width:0;width:100%"/>' +
+      '</div>' +
+      '<div class="fg" style="max-width:130px"><label>Jahr</label>' +
+        '<select onchange="_vaFilter(\'jahr\',this.value)">' + jahrOpts + '</select>' +
+      '</div>' +
+      '<div class="fg" style="max-width:160px"><label>Status</label>' +
+        '<select onchange="_vaFilter(\'genehmigt\',this.value)">' +
+          '<option value=""'  + (!_veranstAdminFilter.genehmigt     ? ' selected' : '') + '>Alle</option>' +
+          '<option value="1"' + (_veranstAdminFilter.genehmigt==='1' ? ' selected' : '') + '>Genehmigt</option>' +
+          '<option value="0"' + (_veranstAdminFilter.genehmigt==='0' ? ' selected' : '') + '>Gesperrt</option>' +
+        '</select>' +
+      '</div>' +
+    '</div>' +
+    '<div id="va-bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surf2);border:1px solid var(--primary);border-radius:8px;padding:10px 14px;margin-bottom:12px">' +
+      '<span id="va-bulk-count" style="font-weight:600;font-size:13px"></span>' +
+      '<button class="btn btn-sm btn-primary" onclick="bulkVeranst(\'genehmigen\')">&#x2713; Genehmigen</button>' +
+      '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'sperren\')">&#x23FC; Sperren</button>' +
+      '<button class="btn btn-sm btn-danger" onclick="bulkVeranst(\'loeschen\')">&#x2715; Löschen</button>' +
+    '</div>' +
+    '<div class="panel">' +
+      '<div class="panel-header">' +
+        '<div class="panel-title">&#x1F4C5; Veranstaltungen</div>' +
+        '<div class="panel-count" id="veranst-admin-count"></div>' +
+      '</div>' +
+      '<div class="table-scroll"><table id="veranst-admin-tabelle" class="data-table" style="width:100%">' +
+        '<thead><tr>' + _veranstAdminSortHeader() + '</tr></thead>' +
+        '<tbody></tbody>' +
+      '</table></div>' +
+    '</div>';
+
+  el.innerHTML = html;
+  _renderVeranstAdminTable();
+}
+
+function _vaFilter(key, val) {
+  _veranstAdminFilter[key] = val;
+  _veranstAdminSel = {};
+  _renderVeranstAdminTable();
+}
+
+function showVeranstEditModal(id) {
+  var v = null;
+  var items = _veranstAdminCache.items || [];
+  for (var i = 0; i < items.length; i++) { if (items[i].id == id) { v = items[i]; break; } }
+  if (!v) return;
+  showModal(
+    modalH2('&#x270F;&#xFE0F; Veranstaltung bearbeiten') +
+    '<div class="form-grid">' +
+      '<div class="form-group full"><label>Name</label><input type="text" id="ve-name" value="' + _vaEsc(v.name||'') + '"/></div>' +
+      '<div class="form-group"><label>Ort</label><input type="text" id="ve-ort" value="' + _vaEsc(v.ort||'') + '"/></div>' +
+      '<div class="form-group"><label>Datum</label><input type="date" id="ve-datum" value="' + (v.datum ? v.datum.slice(0,10) : '') + '"/></div>' +
+      '<div class="form-group"><label>Status</label><select id="ve-genehmigt">' +
+        '<option value="1"' + (parseInt(v.genehmigt) ? ' selected' : '') + '>Genehmigt</option>' +
+        '<option value="0"' + (!parseInt(v.genehmigt) ? ' selected' : '') + '>Gesperrt</option>' +
+      '</select></div>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="saveVeranst(' + id + ')">Speichern</button>' +
+    '</div>',
+    false, true
+  );
+}
+
+async function saveVeranst(id) {
+  var body = {
+    name:      document.getElementById('ve-name').value.trim() || null,
+    ort:       document.getElementById('ve-ort').value.trim() || null,
+    datum:     document.getElementById('ve-datum').value || null,
+    genehmigt: parseInt(document.getElementById('ve-genehmigt').value),
+  };
+  var r = await apiPut('veranstaltungen/' + id, body);
+  if (r && r.ok) {
+    closeModal();
+    notify('Gespeichert.', 'ok');
+    // Cache sofort aktualisieren für flotte Re-Render
+    var items = _veranstAdminCache.items;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].id == id) {
+        if (body.name  !== null) items[i].name  = body.name;
+        if (body.ort   !== null) items[i].ort   = body.ort;
+        if (body.datum !== null) items[i].datum = body.datum;
+        items[i].genehmigt = body.genehmigt;
+        break;
+      }
+    }
+    _renderVeranstAdminTable();
+  } else {
+    notify((r && r.fehler) || 'Fehler', 'err');
+  }
+}
+
+async function deleteVeranst(id, name) {
+  if (!confirm('Veranstaltung "' + name + '" in den Papierkorb verschieben?\n\nAlle zugehörigen Ergebnisse werden ebenfalls verschoben.')) return;
+  var r = await apiDel('veranstaltungen/' + id);
+  if (r && r.ok) {
+    notify('Gelöscht.', 'ok');
+    _veranstAdminCache.items = _veranstAdminCache.items.filter(function(v){ return v.id != id; });
+    delete _veranstAdminSel[id];
+    _renderVeranstAdminTable();
+  } else {
+    notify((r && r.fehler) || 'Fehler', 'err');
+  }
+}
+
+async function bulkVeranst(action) {
+  var ids = Object.keys(_veranstAdminSel).map(Number).filter(function(x){ return x > 0; });
+  if (!ids.length) return;
+
+  if (action === 'loeschen') {
+    if (!confirm(ids.length + ' Veranstaltung(en) in den Papierkorb verschieben?')) return;
+    var ok = 0;
+    for (var i = 0; i < ids.length; i++) {
+      var r = await apiDel('veranstaltungen/' + ids[i]);
+      if (r && r.ok) ok++;
+    }
+    _veranstAdminCache.items = _veranstAdminCache.items.filter(function(v){ return !_veranstAdminSel[v.id]; });
+    _veranstAdminSel = {};
+    notify(ok + ' Veranstaltung(en) gelöscht.', ok ? 'ok' : 'err');
+    _renderVeranstAdminTable();
+    return;
+  }
+
+  var genehmigt = action === 'genehmigen' ? 1 : 0;
+  var ok2 = 0;
+  for (var i = 0; i < ids.length; i++) {
+    var r2 = await apiPut('veranstaltungen/' + ids[i], { genehmigt: genehmigt });
+    if (r2 && r2.ok) {
+      ok2++;
+      var items = _veranstAdminCache.items;
+      for (var j = 0; j < items.length; j++) {
+        if (items[j].id == ids[i]) { items[j].genehmigt = genehmigt; break; }
+      }
+    }
+  }
+  _veranstAdminSel = {};
+  notify(ok2 + ' Veranstaltung(en) ' + (genehmigt ? 'genehmigt' : 'gesperrt') + '.', ok2 ? 'ok' : 'err');
+  _renderVeranstAdminTable();
 }

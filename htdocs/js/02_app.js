@@ -2774,7 +2774,7 @@ function restoreFromHash() {
   if (tab === 'admin' && sub) {
     var validAdmin = ['system','benutzer','registrierungen','disziplinen','altersklassen',
                       'meisterschaften','darstellung','dashboard_cfg','antraege','papierkorb','wartung',
-                      'ergebnisse','athleten'];
+                      'ergebnisse','athleten','veranstaltungen'];
     if (validAdmin.indexOf(sub) >= 0) state.adminTab = sub;
   } else if (tab === 'veranstaltung' && sub) {
     state.veranstaltungId = parseInt(sub) || null;

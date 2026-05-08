@@ -1,3 +1,6 @@
+## v1225
+- Admin: neuer Tab „Veranstaltungen" – Übersicht aller Veranstaltungen inkl. Ergebnisanzahl, Suche, Jahr-/Status-Filter, Sortierung, Editieren, Einzellöschen, Multiselect + Bulk-Genehmigen/Sperren/Löschen
+
 ## v1224
 - Athletenprofil: Ergebnisanzahl als „(N)" in Disziplin-Beschriftung (wie Kategorien); kein farbiger Border mehr für Favoriten
 
