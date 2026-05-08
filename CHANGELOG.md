@@ -1,3 +1,8 @@
+## v1222
+- Eigenes Ergebnis eintragen: Buttons „Reset" und „Speichern & Neues" ergänzt
+- Eigenes Ergebnis eintragen: „Bestehende wählen" nutzt jetzt Filter-Dropdown (wie Bulk-Eintragen)
+- Admin → Einstellungen: Prüfen-Toggles für neue Veranstaltungen und eigene Ergebnisse (auto-approve)
+
 ## v1221
 - Admin → Disziplinen: Button „Anlegen & Nächste" im Neue-Disziplin-Modal
 

@@ -1919,6 +1919,23 @@ async function renderAdminDarstellung() {
       '</div>' +
     '</div>' +
 
+    // ── Eintragen ──
+    '<div class="panel">' +
+      '<div class="panel-header"><div class="panel-title">&#x1F4DD; Eigenes Ergebnis eintragen</div></div>' +
+      '<div class="settings-panel-body">' +
+        row('Neue Veranstaltungen prüfen', 'Wenn aktiv, werden neue Veranstaltungen aus „Eigenes Ergebnis eintragen" erst nach Admin-Freigabe veröffentlicht.',
+          '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
+          '<input type="checkbox" id="cfg-eigenes_veranst_prufen" ' + (cfgVal('eigenes_veranst_prufen','1') !== '0' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer"/>' +
+          '<span style="font-size:13px;color:var(--text2)">Neue Veranstaltungen vom Admin prüfen lassen</span>' +
+          '</label>') +
+        row('Eigene Ergebnisse prüfen', 'Wenn aktiv, werden eingereichte Ergebnisse erst nach Editor-/Admin-Freigabe veröffentlicht.',
+          '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
+          '<input type="checkbox" id="cfg-eigenes_ergebnis_prufen" ' + (cfgVal('eigenes_ergebnis_prufen','1') !== '0' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer"/>' +
+          '<span style="font-size:13px;color:var(--text2)">Ergebnis vom Admin prüfen lassen</span>' +
+          '</label>') +
+      '</div>' +
+    '</div>' +
+
     // ── Footer-Links ──
     '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">&#x1F4CB; Footer &amp; Rechtliches</div></div>' +
@@ -2085,7 +2102,7 @@ async function saveAllSettings() {
     if (el) payload[keys[i]] = el.value;
   }
   // Checkboxen separat (checked → '1', unchecked → '0')
-  var cbKeys = ['version_nur_admins', 'wartung_aktiv', 'login_portal_aktiv'];
+  var cbKeys = ['version_nur_admins', 'wartung_aktiv', 'login_portal_aktiv', 'eigenes_veranst_prufen', 'eigenes_ergebnis_prufen'];
 
   for (var j = 0; j < cbKeys.length; j++) {
     var cb = document.getElementById('cfg-' + cbKeys[j]);

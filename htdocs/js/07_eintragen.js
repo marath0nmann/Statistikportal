@@ -1,4 +1,8 @@
 // ── Eigenes Ergebnis eintragen ────────────────────────────
+var _eeSelectedVeranst = null;
+var _eeVeranstSearchTimer = null;
+var _eeVeranstResults = [];
+
 function renderEigenesEintragen() {
   var el = document.getElementById('main-content');
   var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : '';
@@ -7,6 +11,9 @@ function renderEigenesEintragen() {
   (state.disziplinen || []).forEach(function(d) {
     if (d.tbl_key && !seen[d.tbl_key]) { seen[d.tbl_key] = true; katOpts += '<option value="' + d.tbl_key + '">' + d.kategorie + '</option>'; }
   });
+
+  var veranstPruefen = !appConfig || appConfig.eigenes_veranst_prufen !== '0';
+  var ergebnisPruefen = !appConfig || appConfig.eigenes_ergebnis_prufen !== '0';
 
   el.innerHTML += (
     '<div class="panel" style="max-width:560px;padding:24px">' +
@@ -31,16 +38,16 @@ function renderEigenesEintragen() {
           '<label>Veranstaltungsname</label>' +
           '<input type="text" id="ee-evname" placeholder="z.B. Düsseldorf Marathon"/>' +
         '</div>' +
-        '<div class="form-group full" style="background:color-mix(in srgb,var(--accent) 6%,transparent);border-radius:8px;padding:10px 12px">' +
+        (veranstPruefen ? '<div class="form-group full" style="background:color-mix(in srgb,var(--accent) 6%,transparent);border-radius:8px;padding:10px 12px">' +
           '<div style="font-size:12px;color:var(--accent);font-weight:600">&#x2139;&#xFE0E; Neue Veranstaltungen werden von einem Editor oder Admin geprüft.</div>' +
-        '</div>' +
+        '</div>' : '') +
       '</div>' +
 
       '<div id="ee-best-form" style="display:none;margin-bottom:16px">' +
         '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Veranstaltung *</label>' +
-        '<select id="ee-veranst-sel" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text)">' +
-          '<option value="">– laden…</option>' +
-        '</select>' +
+        '<input id="ee-veranst-search" type="text" placeholder="Name, Kürzel oder Ort suchen…" autocomplete="off"' +
+          ' style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box"' +
+          ' oninput="eeVeranstSearch(this.value)" onfocus="eeVeranstSearch(this.value)" onblur="setTimeout(eeVeranstHideDropdown,200)">' +
       '</div>' +
 
       '<div class="form-grid" style="margin-bottom:16px">' +
@@ -66,17 +73,100 @@ function renderEigenesEintragen() {
         '</div>' +
       '</div>' +
 
-      '<div class="panel" style="background:color-mix(in srgb,var(--primary) 5%,transparent);border:none;padding:10px 14px;margin-bottom:16px;font-size:13px">' +
+      (ergebnisPruefen ? '<div class="panel" style="background:color-mix(in srgb,var(--primary) 5%,transparent);border:none;padding:10px 14px;margin-bottom:16px;font-size:13px">' +
         '&#x23F3;&#xFE0E; Dein Ergebnis wird vor der Veröffentlichung von einem Editor oder Admin geprüft.' +
-      '</div>' +
+      '</div>' : '') +
 
       '<div id="ee-err" style="color:var(--accent);font-size:13px;min-height:18px;margin-bottom:8px"></div>' +
-      '<div class="modal-actions" style="justify-content:flex-end">' +
-        '<button class="btn btn-primary" onclick="saveEigenesErgebnis()">&#x1F4BE; Speichern</button>' +
+      '<div class="modal-actions" style="justify-content:flex-start;gap:8px">' +
+        '<button class="btn btn-ghost" onclick="resetEigenesErgebnis()">&#x21BA; Reset</button>' +
+        '<div style="flex:1"></div>' +
+        '<button class="btn btn-ghost" onclick="saveEigenesErgebnis(true)">&#x1F4BE; Speichern &amp; Neues</button>' +
+        '<button class="btn btn-primary" onclick="saveEigenesErgebnis(false)">&#x1F4BE; Speichern</button>' +
       '</div>' +
     '</div>'
   );
-  _eeLoadVeranstOptions();
+  _eeSelectedVeranst = null;
+}
+
+function resetEigenesErgebnis() {
+  var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : '';
+  var fields = ['ee-datum','ee-ort','ee-evname','ee-res','ee-ak'];
+  fields.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (id === 'ee-datum') el.value = new Date().toISOString().slice(0,10);
+    else el.value = '';
+  });
+  var vereinEl = document.getElementById('ee-verein');
+  if (vereinEl) vereinEl.value = clubName;
+  var katEl = document.getElementById('ee-kat');
+  if (katEl) { katEl.value = ''; _eeUpdateDisz(); }
+  var searchEl = document.getElementById('ee-veranst-search');
+  if (searchEl) searchEl.value = '';
+  _eeSelectedVeranst = null;
+  var errEl = document.getElementById('ee-err');
+  if (errEl) errEl.textContent = '';
+  if (_eeVeranstModus === 'neu') eeBkToggle('neu');
+}
+
+function _eeVeranstGetOrCreateDropdown() {
+  var drop = document.getElementById('ee-veranst-dropdown');
+  if (!drop) {
+    drop = document.createElement('div');
+    drop.id = 'ee-veranst-dropdown';
+    drop.style.cssText = 'display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:9999;max-height:320px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.22)';
+    document.body.appendChild(drop);
+  }
+  return drop;
+}
+
+function eeVeranstSearch(val) {
+  clearTimeout(_eeVeranstSearchTimer);
+  _eeVeranstSearchTimer = setTimeout(async function() {
+    var inp = document.getElementById('ee-veranst-search');
+    if (!inp) return;
+    var drop = _eeVeranstGetOrCreateDropdown();
+    var q = val.trim();
+    if (_eeSelectedVeranst && inp.value !== _eeVeranstLabel(_eeSelectedVeranst)) _eeSelectedVeranst = null;
+    var url = q ? 'veranstaltungen?limit=20&suche=' + encodeURIComponent(q) : 'veranstaltungen?limit=20';
+    var r = await apiGet(url);
+    _eeVeranstResults = (r && r.ok && r.data.veranst) ? r.data.veranst : [];
+    if (!_eeVeranstResults.length) {
+      drop.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:var(--text2)">Keine Veranstaltung gefunden</div>';
+    } else {
+      drop.innerHTML = _eeVeranstResults.map(function(v, i) {
+        var label = _eeVeranstLabel(v);
+        return '<div style="padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border)"' +
+          ' onmousedown="eeVeranstSelect(' + i + ')"' +
+          ' onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+          label.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>';
+      }).join('');
+    }
+    var rect = inp.getBoundingClientRect();
+    drop.style.left  = rect.left + 'px';
+    drop.style.top   = (rect.bottom + 2) + 'px';
+    drop.style.width = rect.width + 'px';
+    drop.style.display = '';
+  }, 250);
+}
+
+function _eeVeranstLabel(v) {
+  return (v.name || v.kuerzel) + ' (' + formatDate(v.datum) + (v.ort ? ', ' + v.ort : '') + ')';
+}
+
+function eeVeranstSelect(idx) {
+  var v = _eeVeranstResults[idx];
+  if (!v) return;
+  _eeSelectedVeranst = v;
+  var inp = document.getElementById('ee-veranst-search');
+  if (inp) inp.value = _eeVeranstLabel(v);
+  eeVeranstHideDropdown();
+}
+
+function eeVeranstHideDropdown() {
+  var drop = document.getElementById('ee-veranst-dropdown');
+  if (drop) drop.style.display = 'none';
 }
 
 var _eeVeranstModus = 'neu';
@@ -87,19 +177,12 @@ function eeBkToggle(modus) {
   if (modus === 'best') {
     if (nF) nF.style.display = 'none'; if (bF) bF.style.display = '';
     if (bN) bN.className = 'btn btn-ghost btn-sm'; if (bB) bB.className = 'btn btn-primary btn-sm';
+    var inp = document.getElementById('ee-veranst-search');
+    if (inp && !inp.value) eeVeranstSearch('');
   } else {
     if (nF) nF.style.display = ''; if (bF) bF.style.display = 'none';
     if (bN) bN.className = 'btn btn-primary btn-sm'; if (bB) bB.className = 'btn btn-ghost btn-sm';
   }
-}
-async function _eeLoadVeranstOptions() {
-  var sel = document.getElementById('ee-veranst-sel');
-  if (!sel) return;
-  var r = await apiGet('veranstaltungen?limit=200');
-  if (!r || !r.ok) return;
-  var veranst = (r.data.veranstaltungen || r.data || []);
-  sel.innerHTML = '<option value="">– bitte wählen –</option>' +
-    veranst.map(function(v) { return '<option value="' + v.id + '">' + v.kuerzel + '</option>'; }).join('');
 }
 function _eeUpdateDisz() {
   var katKey = document.getElementById('ee-kat') ? document.getElementById('ee-kat').value : '';
@@ -121,7 +204,7 @@ async function _eeAutoAk() {
   var ak = calcDlvAK(a.geburtsjahr, a.geschlecht, parseInt(datVal.slice(0,4)));
   if (ak && !akEl.value) akEl.value = ak;
 }
-async function saveEigenesErgebnis() {
+async function saveEigenesErgebnis(andNew) {
   var errEl = document.getElementById('ee-err');
   if (errEl) errEl.textContent = '';
   var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : '';
@@ -138,30 +221,10 @@ async function saveEigenesErgebnis() {
     return;
   }
 
-  // Anderer Verein → externes Ergebnis (athlet_pb)
-  var isExternal = verein && verein.toLowerCase() !== clubName.toLowerCase();
-  if (isExternal) {
-    // Externes Ergebnis ebenfalls per Antrag (muss genehmigt werden)
-    var extBody = {
-      disziplin: diszName, disziplin_mapping_id: diszMappingId,
-      resultat: res, altersklasse: ak || null,
-      externer_verein: verein,
-      datum: document.getElementById('ee-datum') ? document.getElementById('ee-datum').value : null,
-      veranstaltung_name: document.getElementById('ee-evname') ? document.getElementById('ee-evname').value.trim() : ''
-    };
-    if (veranstId) extBody.veranstaltung_id = veranstId;
-    else { extBody.datum = datum; extBody.ort = ort; }
-    var r = await apiPost('ergebnisse/eigenes', extBody);
-    if (r && r.ok) { notify(r.data && r.data.pending ? 'Ergebnis eingereicht – wird geprüft.' : 'Gespeichert.', 'ok'); state.subTab = null; renderEintragen(); }
-    else if (errEl) errEl.textContent = (r && r.fehler) ? r.fehler : 'Fehler beim Speichern.';
-    return;
-  }
-
-  // Eigener Verein → als Antrag eintragen (pending)
   var datum = '', ort = '', evname = '', veranstId = null;
   if (_eeVeranstModus === 'best') {
-    veranstId = document.getElementById('ee-veranst-sel') ? parseInt(document.getElementById('ee-veranst-sel').value) : null;
-    if (!veranstId) { if (errEl) errEl.textContent = 'Bitte Veranstaltung wählen.'; return; }
+    veranstId = _eeSelectedVeranst ? _eeSelectedVeranst.id : null;
+    if (!veranstId) { if (errEl) errEl.textContent = 'Bitte Veranstaltung auswählen.'; return; }
   } else {
     datum = document.getElementById('ee-datum') ? document.getElementById('ee-datum').value : '';
     ort = document.getElementById('ee-ort') ? document.getElementById('ee-ort').value.trim() : '';
@@ -169,20 +232,26 @@ async function saveEigenesErgebnis() {
     if (!datum || !ort) { if (errEl) errEl.textContent = 'Datum und Ort sind Pflichtfelder.'; return; }
   }
 
+  // Anderer Verein → externes Ergebnis (athlet_pb)
+  var isExternal = verein && verein.toLowerCase() !== clubName.toLowerCase();
   var body = {
-    athlet_id: currentUser.athlet_id,
     disziplin: diszName, disziplin_mapping_id: diszMappingId,
     resultat: res, altersklasse: ak || null,
   };
+  if (isExternal) body.externer_verein = verein;
   if (veranstId) body.veranstaltung_id = veranstId;
   else { body.datum = datum; body.ort = ort; body.veranstaltung_name = evname; }
 
-  var r2 = await apiPost('ergebnisse/eigenes', body);
-  if (r2 && r2.ok) {
-    notify(r2.data && r2.data.pending ? 'Ergebnis eingereicht – wird geprüft.' : 'Gespeichert.', 'ok');
-    state.subTab = null; renderEintragen();
+  var r = await apiPost('ergebnisse/eigenes', body);
+  if (r && r.ok) {
+    notify(r.data && r.data.pending ? 'Ergebnis eingereicht – wird geprüft.' : 'Gespeichert.', 'ok');
+    if (andNew) {
+      resetEigenesErgebnis();
+    } else {
+      state.subTab = null; renderEintragen();
+    }
   } else if (errEl) {
-    errEl.textContent = (r2 && r2.fehler) ? r2.fehler : 'Fehler beim Speichern.';
+    errEl.textContent = (r && r.fehler) ? r.fehler : 'Fehler beim Speichern.';
   }
 }
 

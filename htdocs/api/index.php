@@ -1426,6 +1426,7 @@ if ($res === 'einstellungen') {
                 'meisterschaften_liste',
                 'top_disziplinen',
                 'login_portal_aktiv','login_portal_url','login_portal_apps','passkey_rp_id',
+                'eigenes_veranst_prufen','eigenes_ergebnis_prufen',
             ];
             $save = [];
             foreach ($erlaubt as $k) {
@@ -5124,6 +5125,9 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes') {
     if (!$disziplin || !$resultat) jsonErr('Disziplin und Ergebnis erforderlich.');
 
     // Veranstaltung: bestehende oder neue
+    $veranstPruefen  = Settings::get('eigenes_veranst_prufen',  '1') !== '0';
+    $ergebnisPruefen = Settings::get('eigenes_ergebnis_prufen', '1') !== '0';
+
     $vid = intOrNull($body['veranstaltung_id'] ?? null);
     if (!$vid) {
         $datum  = sanitize($body['datum'] ?? '');
@@ -5131,23 +5135,31 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes') {
         $evname = sanitize($body['veranstaltung_name'] ?? '');
         if (!$datum || !$ort) jsonErr('Datum und Ort erforderlich.');
         $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
-        // Neue Veranstaltung anlegen (vorab – Ergebnis bleibt pending)
         $v = DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=?', [$kuerzel]);
         if (!$v) {
-            DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum,genehmigt) VALUES (?,?,?,?,0)',
-                [$kuerzel, $evname ?: $kuerzel, $ort, $datum]);
+            $genehmigt = $veranstPruefen ? 0 : 1;
+            DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum,genehmigt) VALUES (?,?,?,?,?)',
+                [$kuerzel, $evname ?: $kuerzel, $ort, $datum, $genehmigt]);
             $vid = DB::lastInsertId();
         } else $vid = $v['id'];
     }
 
-    // Ergebnis als Antrag speichern
-    $neueWerte = json_encode(['veranstaltung_id'=>$vid,'athlet_id'=>$athId,'disziplin'=>$disziplin,
-        'disziplin_mapping_id'=>$dmId,'resultat'=>$resultat,'altersklasse'=>$ak,
-        'erstellt_von'=>$user['id']]);
-    DB::query('INSERT INTO ' . DB::tbl('ergebnis_aenderungen') .
-        ' (ergebnis_id,ergebnis_tbl,typ,neue_werte,beantragt_von) VALUES (?,?,?,?,?)',
-        [null, 'ergebnisse', 'insert', $neueWerte, $user['id']]);
-    jsonOk(['pending' => true, 'msg' => 'Ergebnis eingereicht. Wird von einem Editor geprüft.']);
+    if ($ergebnisPruefen) {
+        // Ergebnis als Antrag speichern
+        $neueWerte = json_encode(['veranstaltung_id'=>$vid,'athlet_id'=>$athId,'disziplin'=>$disziplin,
+            'disziplin_mapping_id'=>$dmId,'resultat'=>$resultat,'altersklasse'=>$ak,
+            'erstellt_von'=>$user['id']]);
+        DB::query('INSERT INTO ' . DB::tbl('ergebnis_aenderungen') .
+            ' (ergebnis_id,ergebnis_tbl,typ,neue_werte,beantragt_von) VALUES (?,?,?,?,?)',
+            [null, 'ergebnisse', 'insert', $neueWerte, $user['id']]);
+        jsonOk(['pending' => true, 'msg' => 'Ergebnis eingereicht. Wird von einem Editor geprüft.']);
+    } else {
+        // Direkt speichern
+        DB::query('INSERT INTO ' . DB::tbl('ergebnisse') .
+            ' (veranstaltung_id,athlet_id,disziplin,disziplin_mapping_id,resultat,altersklasse,erstellt_von) VALUES (?,?,?,?,?,?,?)',
+            [$vid, $athId, $disziplin, $dmId, $resultat, $ak ?: null, $user['id']]);
+        jsonOk(['pending' => false, 'msg' => 'Ergebnis gespeichert.']);
+    }
 }
 
 if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
