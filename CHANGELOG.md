@@ -1,3 +1,6 @@
+## v1230
+- Admin Veranstaltungen: Kürzel nicht mehr in der Liste anzeigen (nur noch Fallback wenn kein Name)
+
 ## v1229
 - Admin Veranstaltungen: Fix Bulk-Ort-Umbenennung (leerer Wert wurde als null gesendet → PHP isset() schlug fehl); Fehlernotification bei API-Fehler; klarere Meldung bei Keine-Änderungen
 

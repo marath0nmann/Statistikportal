@@ -3238,7 +3238,7 @@ function _veranstAdminSortHeader() {
   var cols = [
     { key: 'check',         label: '<input type="checkbox" id="vaCheckAll" onchange="_vaToggleAll(this.checked)" style="cursor:pointer">' },
     { key: 'datum',         label: 'Datum' },
-    { key: 'name',          label: 'Name / Kürzel' },
+    { key: 'name',          label: 'Name' },
     { key: 'ort',           label: 'Ort' },
     { key: 'anz_ergebnisse',label: 'Erg.' },
     { key: 'genehmigt',     label: 'Status' },
@@ -3336,8 +3336,7 @@ function _renderVeranstAdminTable() {
       ? '<span class="badge badge-aktiv">Genehmigt</span>'
       : '<span class="badge badge-inaktiv">Gesperrt</span>';
     var datumStr = v.datum ? v.datum.slice(0,10) : '–';
-    var nameStr = (v.name ? _vaEsc(v.name) : '') +
-      (v.kuerzel ? ' <span style="color:var(--text2);font-size:12px">(' + _vaEsc(v.kuerzel) + ')</span>' : '');
+    var nameStr = v.name ? _vaEsc(v.name) : (v.kuerzel ? _vaEsc(v.kuerzel) : '–');
     var anzErg = parseInt(v.anz_ergebnisse)||0;
     rows +=
       '<tr' + rowBg + '>' +
@@ -3397,7 +3396,7 @@ async function renderAdminVeranstaltungen() {
   var html = adminSubtabs() +
     '<div class="filter-bar" style="margin-bottom:12px">' +
       '<div class="fg"><label>Suche</label>' +
-        '<input type="text" id="va-suche" placeholder="Name, Kürzel, Ort…" value="' + _vaEsc(_veranstAdminFilter.suche||'') + '" oninput="_vaFilter(\'suche\',this.value)" style="min-width:0;width:100%"/>' +
+        '<input type="text" id="va-suche" placeholder="Name, Ort…" value="' + _vaEsc(_veranstAdminFilter.suche||'') + '" oninput="_vaFilter(\'suche\',this.value)" style="min-width:0;width:100%"/>' +
       '</div>' +
       '<div class="fg" style="max-width:130px"><label>Jahr</label>' +
         '<select onchange="_vaFilter(\'jahr\',this.value)">' + jahrOpts + '</select>' +
