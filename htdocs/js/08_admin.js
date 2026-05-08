@@ -2366,6 +2366,15 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
         : '<button class="btn btn-ghost btn-sm" disabled title="' + anz + ' Ergebnis(se) vorhanden">&#x1F512;</button>';
       var isFav = window._favList && window._favList.indexOf(d.id) >= 0;
       var starBtn = '<button class="btn btn-ghost btn-sm" title="Favorit (Bestleistungen)" data-fav-mid="' + d.id + '" onclick="toggleFavDisz(' + d.id + ')" style="color:' + (isFav ? 'var(--warning,#f59e0b)' : 'var(--text3,var(--text2))') + '">' + (isFav ? '&#x2605;' : '&#x2606;') + '</button>';
+      var hofExcluded = d.hof_exclude == 1;
+      var hofBtn = d.id
+        ? '<button class="btn btn-ghost btn-sm" ' +
+          'title="' + (hofExcluded ? 'In Hall of Fame einschließen' : 'Aus Hall of Fame ausschließen') + '" ' +
+          'data-mapping-id="' + d.id + '" ' +
+          'data-hofexclude="' + (hofExcluded ? '1' : '0') + '" ' +
+          'onclick="toggleHofExclude(this)" ' +
+          'style="' + (hofExcluded ? 'opacity:0.35;text-decoration:line-through' : 'color:var(--warning,#f59e0b)') + '">&#x1F3C6;</button>'
+        : '';
       mapRows +=
         '<tr>' +
           '<td style="font-weight:600">' + (function(d) {
@@ -2382,7 +2391,7 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
           '<td style="font-size:13px;color:var(--text2)">' + fmtValue + '</td>' +
           '<td>' + selHtml + '</td>' +
           '<td style="text-align:right;padding-right:12px">' + anzBadge + '</td>' +
-          '<td style="white-space:nowrap;display:flex;gap:4px">' + starBtn + editBtn + delBtn + '</td>' +
+          '<td style="white-space:nowrap;display:flex;gap:4px">' + starBtn + hofBtn + editBtn + delBtn + '</td>' +
         '</tr>';
     }
     panelBody = filteredDisz.length
@@ -2557,6 +2566,21 @@ async function setDiszMapping(sel) {
     if (r && r.ok) notify('Zugeordnet.', 'ok');
     else notify((r && r.fehler) || 'Fehler', 'err');
   }
+}
+
+async function toggleHofExclude(btn) {
+  var mId = btn.dataset.mappingId;
+  if (!mId) return;
+  var newVal = btn.dataset.hofexclude === '1' ? 0 : 1;
+  var r = await apiPut('disziplin-mapping/' + mId, { hof_exclude: newVal });
+  if (!r || !r.ok) { notify((r && r.fehler) || 'Fehler', 'err'); return; }
+  var disz = window._adminDiszMappings;
+  if (disz) {
+    for (var i = 0; i < disz.length; i++) {
+      if (String(disz[i].id) === String(mId)) { disz[i].hof_exclude = newVal; break; }
+    }
+  }
+  _renderDiszDetail();
 }
 
 function showNeueKatModal() {
@@ -2751,7 +2775,7 @@ async function showNeueDiszModal(preSelKatId) {
       '<div class="form-group"><label>Kategorie-Suffix</label>' + katSuffixSel + '</div>' +
       '<div class="form-group full">' +
         '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">' +
-          '<input type="checkbox" id="nd-hofexclude" style="width:16px;height:16px;cursor:pointer">' +
+          '<input type="checkbox" id="nd-hofexclude" checked style="width:16px;height:16px;cursor:pointer">' +
           '<span>Diese Disziplin aus der <strong>Hall of Fame</strong> ausschlie&szlig;en</span>' +
         '</label>' +
       '</div>' +

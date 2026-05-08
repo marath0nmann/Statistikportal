@@ -1,3 +1,6 @@
+## v1216
+- Admin → Disziplinen: „Aus Hall of Fame ausschließen" als Toggle-Button (🏆) direkt in der Tabellenzeile; bei neuen Disziplinen standardmäßig aktiviert
+
 ## v1215
 - Veranstaltungen: Regelmäßige Veranstaltungen als sortierbare Tabelle statt Buttons; neuer MMDD-Sortierschlüssel (nächste anstehende Veranstaltung oben); Überschriften „Regelmäßige Veranstaltungen" und „Letzte Veranstaltungen"; API liefert datum_letzte pro Serie
 
