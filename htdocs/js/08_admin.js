@@ -3563,16 +3563,15 @@ async function _vaBulkRename(action) {
   var apiField = isOrt ? 'ort' : 'name';
   closeModal();
   var ids = Object.keys(_veranstAdminSel).map(Number).filter(function(x){ return x > 0; });
-  var ok = 0;
+  var ok = 0, err = 0;
   for (var i = 0; i < ids.length; i++) {
     var item = null;
     var arr = _veranstAdminCache.items;
     for (var j = 0; j < arr.length; j++) { if (arr[j].id == ids[i]) { item = arr[j]; break; } }
     if (!item) continue;
-    var altVal = item[apiField] || '';
+    var altVal = item[apiField] != null ? String(item[apiField]) : '';
     var neuerVal;
     if (!suche) {
-      // Kein Suchtext → gesamten Wert ersetzen
       neuerVal = ersatz;
     } else {
       var rx = (suche.indexOf('*') >= 0 || suche.indexOf('?') >= 0) ? _vaWildcard(suche) : null;
@@ -3580,11 +3579,13 @@ async function _vaBulkRename(action) {
     }
     if (neuerVal === altVal) continue;
     var body = {};
-    body[apiField] = neuerVal || null;
+    body[apiField] = neuerVal !== '' ? neuerVal : '';
     var r = await apiPut('veranstaltungen/' + ids[i], body);
-    if (r && r.ok) { item[apiField] = neuerVal; ok++; }
+    if (r && r.ok) { item[apiField] = neuerVal || null; ok++; }
+    else { err++; if (err === 1) notify((r && r.fehler) || 'API-Fehler bei ID ' + ids[i], 'err'); }
   }
   _veranstAdminSel = {};
-  notify(ok + ' Veranstaltung(en) aktualisiert.', ok ? 'ok' : 'err');
+  if (ok > 0) notify(ok + ' Veranstaltung(en) aktualisiert.', 'ok');
+  else if (!err) notify('Keine Änderungen (Werte bereits identisch).', 'err');
   _renderVeranstAdminTable();
 }

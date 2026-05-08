@@ -1,3 +1,6 @@
+## v1229
+- Admin Veranstaltungen: Fix Bulk-Ort-Umbenennung (leerer Wert wurde als null gesendet → PHP isset() schlug fehl); Fehlernotification bei API-Fehler; klarere Meldung bei Keine-Änderungen
+
 ## v1228
 - Admin Veranstaltungen: Bulk-Bar „Ort" – Ort für ausgewählte Einträge per Suchen & Ersetzen (mit Wildcard) oder direkt setzen
 
