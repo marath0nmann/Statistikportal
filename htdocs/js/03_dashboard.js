@@ -700,7 +700,7 @@ function timelineBadges(rek) {
             parts.push('Bestleistung ' + (showWHK && wStr ? 'WHK, ' + wStr : showWHK ? 'WHK' : wStr));
           }
 
-          var sentence  = parts.join(' \u00b7 ');
+          var sentence  = parts.join(' und ');
           var lineClass = gesamt ? 'badge badge-gold' : 'badge badge-silver';
           if (!groupMap[sentence]) { groupMap[sentence] = { lineClass: lineClass, disz: [], isGold: gesamt }; groupOrder.push(sentence); }
           groupMap[sentence].disz.push({name: hDiszName, mid: hMappingId});

@@ -1056,7 +1056,7 @@ function _buildAthletCard(a, hof) {
         var wStr = akW.length ? compressAKList(akW) : '';
         parts.push('Bestleistung ' + (showWHK && wStr ? 'WHK, ' + wStr : showWHK ? 'WHK' : wStr));
       }
-      var sentence = parts.join(' · ');
+      var sentence = parts.join(' und ');
       if (!sentence) continue;
       var lineClass = gesamt ? 'badge badge-gold' : 'badge badge-silver';
       if (!groupMap[sentence]) { groupMap[sentence] = { lineClass: lineClass, disz: [], isGold: gesamt }; groupOrder.push(sentence); }

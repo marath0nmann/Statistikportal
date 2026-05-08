@@ -1,3 +1,6 @@
+## v1208
+- HoF/Athleten: Teile eines Badges werden mit „und" statt „·" verbunden (z. B. „Vereinsrekord und Bestleistung W45 und W55")
+
 ## v1207
 - HoF/Athleten: „Bestleistung WHK/MHK" wird nicht mehr redundant neben „Vereinsrekord" angezeigt – wird stattdessen mit numerischen AK-Bestleistungen gruppiert (z. B. „Bestleistung WHK, W45 und W55")
 
