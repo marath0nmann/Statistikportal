@@ -1,3 +1,6 @@
+## v1209
+- HoF/Athleten: Kein Zeilenumbruch mehr zwischen Zahl und Begriff in der Statistikzeile (z. B. „51 Bestleistungen")
+
 ## v1208
 - HoF/Athleten: Teile eines Badges werden mit „und" statt „·" verbunden (z. B. „Vereinsrekord und Bestleistung W45 und W55")
 

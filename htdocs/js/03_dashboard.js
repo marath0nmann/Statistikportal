@@ -779,9 +779,9 @@ function timelineBadges(rek) {
               else { if (_gesM) _vrCnt++; if (_gesW) _vrCnt++; }
             }
             var _parts = [];
-            if (_mCnt)  _parts.push(_mCnt  + ' ' + (_mCnt  === 1 ? 'Titel'         : 'Titel'));
-            if (_vrCnt) _parts.push(_vrCnt + ' ' + (_vrCnt === 1 ? 'Vereinsrekord'  : 'Vereinsrekorde'));
-            if (_blCnt) _parts.push(_blCnt + ' ' + (_blCnt === 1 ? 'Bestleistung'   : 'Bestleistungen'));
+            if (_mCnt)  _parts.push(_mCnt  + '\u00a0' + (_mCnt  === 1 ? 'Titel'         : 'Titel'));
+            if (_vrCnt) _parts.push(_vrCnt + '\u00a0' + (_vrCnt === 1 ? 'Vereinsrekord'  : 'Vereinsrekorde'));
+            if (_blCnt) _parts.push(_blCnt + '\u00a0' + (_blCnt === 1 ? 'Bestleistung'   : 'Bestleistungen'));
             return '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">' + _parts.join(' · ') + '</div>';
           }()) +
             '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:1px">' + hBadgesHtml + '</div>' +

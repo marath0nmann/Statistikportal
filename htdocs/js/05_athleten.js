@@ -997,9 +997,9 @@ function _buildAthletCard(a, hof) {
     }
     hasVrOrBl = (_vrCnt > 0 || _blCnt > 0);
     var _parts = [];
-    if (_mCnt)  _parts.push(_mCnt  + ' ' + (_mCnt  === 1 ? 'Titel'        : 'Titel'));
-    if (_vrCnt) _parts.push(_vrCnt + ' ' + (_vrCnt === 1 ? 'Vereinsrekord' : 'Vereinsrekorde'));
-    if (_blCnt) _parts.push(_blCnt + ' ' + (_blCnt === 1 ? 'Bestleistung'  : 'Bestleistungen'));
+    if (_mCnt)  _parts.push(_mCnt  + '\u00a0' + (_mCnt  === 1 ? 'Titel'        : 'Titel'));
+    if (_vrCnt) _parts.push(_vrCnt + '\u00a0' + (_vrCnt === 1 ? 'Vereinsrekord' : 'Vereinsrekorde'));
+    if (_blCnt) _parts.push(_blCnt + '\u00a0' + (_blCnt === 1 ? 'Bestleistung'  : 'Bestleistungen'));
     if (_parts.length) statsHtml = '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">' + _parts.join(' · ') + '</div>';
 
     var mTitel = hof.meisterschaftsTitel || [];
