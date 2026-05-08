@@ -1,5 +1,5 @@
-## v1211
-- Bestleistungen (06_rekorde): Ansicht „Gesamt" entfernt; nur noch „Frauen / Männer" und „Nach Altersklasse"
+## v1212
+- Bestleistungen: Fix „Can't find variable: sectionHtml" nach Entfernen der Gesamt-Ansicht
 
 ## v1210
 - Jährliche Veranstaltungen/Bestleistungen: Ansicht „Gesamt" entfernt; nur noch „Frauen / Männer" und „Nach Altersklasse"
