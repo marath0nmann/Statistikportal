@@ -433,13 +433,11 @@ function _apRender() {
     var pbStr = pb ? _apFmtRes(pb, fmt) : '';
     var diszCount = _allForPb.length;
     var isActive2 = disz === _apState.selDisz;
-    var isFav2 = _isFavDisz(disz);
     diszBtns += '<button class="rek-top-btn' + (isActive2 ? ' active' : '') + '" ' +
-      'style="min-width:80px;padding:8px 14px;margin:0 6px 6px 0' + (isFav2 ? ';border-color:var(--primary)' : '') + '" ' +
+      'style="min-width:80px;padding:8px 14px;margin:0 6px 6px 0" ' +
       'data-ap-disz="' + disz.replace(/"/g,'&quot;') + '">' +
-      '<span class="rek-top-name">' + diszLabel + '</span>' +
+      '<span class="rek-top-name">' + diszLabel + ' <span style="opacity:.7">(' + diszCount + ')</span></span>' +
       (pbStr ? '<span class="rek-top-cnt" style="font-family:Barlow Condensed,sans-serif;font-size:13px;font-weight:700;margin-top:2px">' + pbStr + '</span>' : '') +
-      '<span style="font-size:10px;opacity:.6;margin-top:1px">' + diszCount + ' ' + (diszCount === 1 ? 'Ergebnis' : 'Ergebnisse') + '</span>' +
     '</button>';
   }
 

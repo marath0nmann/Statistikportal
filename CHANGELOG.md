@@ -1,3 +1,6 @@
+## v1224
+- Athletenprofil: Ergebnisanzahl als „(N)" in Disziplin-Beschriftung (wie Kategorien); kein farbiger Border mehr für Favoriten
+
 ## v1223
 - Athletenprofil: Favorisierte Disziplinen werden zuerst angezeigt (hervorgehoben mit Primärfarbe); Disziplin-Buttons zeigen jetzt die Ergebnisanzahl
 
