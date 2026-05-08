@@ -632,6 +632,14 @@ async function openAthletById(id) {
                   if (isGold) byDisz[b.disziplin].gold.push(b.label);
                   else byDisz[b.disziplin].ak.push(b.label.replace('Bestleistung ', ''));
                 });
+                // WHK/MHK aus AK-Liste entfernen wenn Vereinsrekord (Gesamtbestleistung Frauen/M\u00e4nner) bereits vorhanden
+                Object.keys(byDisz).forEach(function(disz) {
+                  var d = byDisz[disz];
+                  var hasGestW = d.gold.some(function(l) { return l.indexOf('Frauen') >= 0 || l === 'Gesamtbestleistung'; });
+                  var hasGestM = d.gold.some(function(l) { return l.indexOf('M\u00e4nner') >= 0 || l === 'Gesamtbestleistung'; });
+                  if (hasGestW) d.ak = d.ak.filter(function(ak) { return ak !== 'WHK'; });
+                  if (hasGestM) d.ak = d.ak.filter(function(ak) { return ak !== 'MHK'; });
+                });
                 var gesamtLines = {}, gesamtOrd = [];
                 var akMap = {};
                 Object.keys(byDisz).forEach(function(disz) {
@@ -655,7 +663,10 @@ async function openAthletById(id) {
                 Object.keys(akMap).forEach(function(k) {
                   var entry = akMap[k];
                   var dl = entry.disz;
-                  var akStr = compressAKList(entry.aks);
+                  var mainAKs = entry.aks.filter(function(ak) { return ak === 'WHK' || ak === 'MHK'; });
+                  var numAKs  = entry.aks.filter(function(ak) { return ak !== 'WHK' && ak !== 'MHK'; });
+                  var numStr  = numAKs.length ? compressAKList(numAKs) : '';
+                  var akStr   = mainAKs.length && numStr ? mainAKs.join(', ') + ', ' + numStr : mainAKs.length ? mainAKs.join(' und ') : numStr;
                   var dStr = dl.length === 1 ? dl[0] : dl.slice(0,-1).join(', ') + ' und ' + dl[dl.length-1];
                   katLines.push('Bestleistung ' + akStr + ' \u00fcber ' + dStr);
                 });
@@ -1020,23 +1031,31 @@ function _buildAthletCard(a, hof) {
       var gesamtM   = htitels.some(function(t) { return t.label === 'Gesamtbestleistung Männer'; });
       var gesamtW   = htitels.some(function(t) { return t.label === 'Gesamtbestleistung Frauen'; });
       var gesamt    = gesamtAll || gesamtM || gesamtW;
-      var _mhnLabel = htitels.find(function(t) { return t.label === 'Bestleistung Männer' || t.label === 'Bestleistung MHK'; });
-      var _whnLabel = htitels.find(function(t) { return t.label === 'Bestleistung Frauen'  || t.label === 'Bestleistung WHK'; });
+      var _mhnLabel = htitels.find(function(t) { return t.label === 'Bestleistung Männer'; });
+      var _whnLabel = htitels.find(function(t) { return t.label === 'Bestleistung Frauen'; });
+      var hasMHK = htitels.some(function(t) { return t.label === 'Bestleistung MHK'; });
+      var hasWHK = htitels.some(function(t) { return t.label === 'Bestleistung WHK'; });
       var akM = htitels.filter(function(t) { return /^Bestleistung M(?:\d|U\d)/.test(t.label); }).map(function(t) { return t.label.replace('Bestleistung ', ''); });
       var akW = htitels.filter(function(t) { return /^Bestleistung W(?:\d|U\d)/.test(t.label); }).map(function(t) { return t.label.replace('Bestleistung ', ''); });
       var parts = [];
       if (gesamtAll) {
         parts.push('Vereinsrekord');
-        if (_mhnLabel) parts.push('Bestleistung ' + _mhnLabel.label.replace('Bestleistung ', ''));
-        if (_whnLabel) parts.push('Bestleistung ' + _whnLabel.label.replace('Bestleistung ', ''));
       } else {
-        if (gesamtM) { parts.push('Vereinsrekord'); if (_mhnLabel) parts.push('Bestleistung ' + _mhnLabel.label.replace('Bestleistung ', '')); }
-        else if (_mhnLabel) parts.push('Bestleistung ' + _mhnLabel.label.replace('Bestleistung ', ''));
-        if (gesamtW) { parts.push('Vereinsrekord'); if (_whnLabel) parts.push('Bestleistung ' + _whnLabel.label.replace('Bestleistung ', '')); }
-        else if (_whnLabel) parts.push('Bestleistung ' + _whnLabel.label.replace('Bestleistung ', ''));
+        if (gesamtM) { parts.push('Vereinsrekord'); }
+        else if (_mhnLabel) parts.push('Bestleistung Männer');
+        if (gesamtW) { parts.push('Vereinsrekord'); }
+        else if (_whnLabel) parts.push('Bestleistung Frauen');
       }
-      if (akM.length) parts.push('Bestleistung ' + compressAKList(akM));
-      if (akW.length) parts.push('Bestleistung ' + compressAKList(akW));
+      var showMHK = hasMHK && !gesamtM && !gesamtAll;
+      var showWHK = hasWHK && !gesamtW && !gesamtAll;
+      if (akM.length || showMHK) {
+        var mStr = akM.length ? compressAKList(akM) : '';
+        parts.push('Bestleistung ' + (showMHK && mStr ? 'MHK, ' + mStr : showMHK ? 'MHK' : mStr));
+      }
+      if (akW.length || showWHK) {
+        var wStr = akW.length ? compressAKList(akW) : '';
+        parts.push('Bestleistung ' + (showWHK && wStr ? 'WHK, ' + wStr : showWHK ? 'WHK' : wStr));
+      }
       var sentence = parts.join(' · ');
       if (!sentence) continue;
       var lineClass = gesamt ? 'badge badge-gold' : 'badge badge-silver';

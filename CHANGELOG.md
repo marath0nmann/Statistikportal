@@ -1,3 +1,6 @@
+## v1207
+- HoF/Athleten: „Bestleistung WHK/MHK" wird nicht mehr redundant neben „Vereinsrekord" angezeigt – wird stattdessen mit numerischen AK-Bestleistungen gruppiert (z. B. „Bestleistung WHK, W45 und W55")
+
 ## v1206
 - Refactor: `modalH2(title)`-Helper in 09_utils.js – 24 wiederholte Modal-Header (`<h2>… <button class="modal-close" onclick="closeModal()">✕</button></h2>`) zentralisiert
 - API: `jsonErr()` loggt 5xx-Fehler jetzt via `error_log()` (REQUEST_METHOD + URI + Message) – vorher gingen Server-Fehler ohne Spur unter

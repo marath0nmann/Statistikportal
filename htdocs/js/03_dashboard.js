@@ -673,29 +673,32 @@ function timelineBadges(rek) {
           var gesamtW   = htitels.some(function(t){ return t.label === 'Gesamtbestleistung Frauen'; });
           var gesamtAll = htitels.some(function(t){ return t.label === 'Gesamtbestleistung'; });
           var gesamt    = gesamtM || gesamtW || gesamtAll;
-          var _mhnLabel = htitels.find(function(t){ return t.label === 'Bestleistung M\u00e4nner' || t.label === 'Bestleistung MHK'; });
-          var _whnLabel = htitels.find(function(t){ return t.label === 'Bestleistung Frauen'  || t.label === 'Bestleistung WHK'; });
-          var hasMaenner = !!_mhnLabel;
-          var hasFrauen  = !!_whnLabel;
-          // Label aus tatsächlichem Titel übernehmen (WHK/MHK statt Frauen/Männer)
-          var mhnText = _mhnLabel ? _mhnLabel.label.replace('Bestleistung ', '') : 'M\u00e4nner';
-          var whnText = _whnLabel ? _whnLabel.label.replace('Bestleistung ', '') : 'Frauen';
+          var _mhnLabel = htitels.find(function(t){ return t.label === 'Bestleistung M\u00e4nner'; });
+          var _whnLabel = htitels.find(function(t){ return t.label === 'Bestleistung Frauen'; });
+          var hasMHK = htitels.some(function(t){ return t.label === 'Bestleistung MHK'; });
+          var hasWHK = htitels.some(function(t){ return t.label === 'Bestleistung WHK'; });
           var akM = htitels.filter(function(t){ return /^Bestleistung M(?:\d|U\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
           var akW = htitels.filter(function(t){ return /^Bestleistung W(?:\d|U\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
 
           var parts = [];
           if (gesamtAll) {
             parts.push('Vereinsrekord');
-            if (hasMaenner) parts.push('Bestleistung ' + mhnText);
-            if (hasFrauen) parts.push('Bestleistung ' + whnText);
           } else {
-            if (gesamtM) { parts.push('Vereinsrekord'); if (hasMaenner) parts.push('Bestleistung ' + mhnText); }
-            else if (hasMaenner) parts.push('Bestleistung ' + mhnText);
-            if (gesamtW) { parts.push('Vereinsrekord'); if (hasFrauen) parts.push('Bestleistung ' + whnText); }
-            else if (hasFrauen) parts.push('Bestleistung ' + whnText);
+            if (gesamtM) { parts.push('Vereinsrekord'); }
+            else if (_mhnLabel) parts.push('Bestleistung M\u00e4nner');
+            if (gesamtW) { parts.push('Vereinsrekord'); }
+            else if (_whnLabel) parts.push('Bestleistung Frauen');
           }
-          if (akM.length) parts.push('Bestleistung ' + compressAKList(akM));
-          if (akW.length) parts.push('Bestleistung ' + compressAKList(akW));
+          var showMHK = hasMHK && !gesamtM && !gesamtAll;
+          var showWHK = hasWHK && !gesamtW && !gesamtAll;
+          if (akM.length || showMHK) {
+            var mStr = akM.length ? compressAKList(akM) : '';
+            parts.push('Bestleistung ' + (showMHK && mStr ? 'MHK, ' + mStr : showMHK ? 'MHK' : mStr));
+          }
+          if (akW.length || showWHK) {
+            var wStr = akW.length ? compressAKList(akW) : '';
+            parts.push('Bestleistung ' + (showWHK && wStr ? 'WHK, ' + wStr : showWHK ? 'WHK' : wStr));
+          }
 
           var sentence  = parts.join(' \u00b7 ');
           var lineClass = gesamt ? 'badge badge-gold' : 'badge badge-silver';
