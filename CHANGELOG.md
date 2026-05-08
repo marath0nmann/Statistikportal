@@ -1,3 +1,6 @@
+## v1220
+- Fix: Distanz-Ableitung aus Namen mit deutschem Tausenderpunkt (z.B. „3.800m" → 3800 statt 3,8)
+
 ## v1219
 - Admin → Disziplinen: Sortierung der Tabelle per Klick auf Spaltenkopf (Disziplin, Format, Distanz, Ergebnisse); Pfeilindikator zeigt aktive Spalte und Richtung
 

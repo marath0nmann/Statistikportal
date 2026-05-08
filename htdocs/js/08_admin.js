@@ -2601,12 +2601,14 @@ function distanzAusName(name) {
   var s = name.trim();
   if (/halbmarathon|half.?marathon/i.test(s)) return 21097.5;
   if (/\bmarathon\b/i.test(s)) return 42195;
-  var mKm = s.match(/(\d+[.,]?\d*)\s*km/i);
-  if (mKm) return Math.round(parseFloat(mKm[1].replace(',', '.')) * 1000 * 10) / 10;
-  var mM = s.match(/(\d+(?:[.,]\d*)?)\s*(?:m(?!\w)|meter\b)/i);
-  if (mM) return parseFloat(mM[1].replace(',', '.'));
-  var mMi = s.match(/(\d+[.,]?\d*)\s*(?:mile|meile)/i);
-  if (mMi) return Math.round(parseFloat(mMi[1].replace(',', '.')) * 1609.344);
+  // Tausendertrenner (Punkt vor genau 3 Ziffern) entfernen, dann Komma→Punkt
+  function parseNum(str) { return parseFloat(str.replace(/\.(\d{3})(?!\d)/g, '$1').replace(',', '.')); }
+  var mKm = s.match(/(\d[\d.,]*)\s*km/i);
+  if (mKm) return Math.round(parseNum(mKm[1]) * 1000 * 10) / 10;
+  var mM = s.match(/(\d[\d.,]*)\s*(?:m(?!\w)|meter\b)/i);
+  if (mM) return parseNum(mM[1]);
+  var mMi = s.match(/(\d[\d.,]*)\s*(?:mile|meile)/i);
+  if (mMi) return Math.round(parseNum(mMi[1]) * 1609.344);
   return null;
 }
 
