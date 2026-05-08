@@ -1,3 +1,6 @@
+## v1218
+- Admin → Disziplinen: Distanz wird automatisch aus dem Disziplinnamen abgeleitet (z.B. „5km" → 5000, „Halbmarathon" → 21097.5), wenn das Feld noch leer ist; für Sprung/Wurf-Kategorien (fmt=m) ist das Feld gesperrt
+
 ## v1217
 - Admin → Disziplinen: Distanz-Spalte in Tabelle anzeigen; Distanz-Feld in „Neue Disziplin"-Dialog ergänzt; Bug behoben (Distanz beim Anlegen wurde nie gespeichert)
 

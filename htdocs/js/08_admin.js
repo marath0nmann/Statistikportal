@@ -2569,6 +2569,20 @@ async function setDiszMapping(sel) {
   }
 }
 
+function distanzAusName(name) {
+  if (!name) return null;
+  var s = name.trim();
+  if (/halbmarathon|half.?marathon/i.test(s)) return 21097.5;
+  if (/\bmarathon\b/i.test(s)) return 42195;
+  var mKm = s.match(/(\d+[.,]?\d*)\s*km/i);
+  if (mKm) return Math.round(parseFloat(mKm[1].replace(',', '.')) * 1000 * 10) / 10;
+  var mM = s.match(/(\d+(?:[.,]\d*)?)\s*(?:m(?!\w)|meter\b)/i);
+  if (mM) return parseFloat(mM[1].replace(',', '.'));
+  var mMi = s.match(/(\d+[.,]?\d*)\s*(?:mile|meile)/i);
+  if (mMi) return Math.round(parseFloat(mMi[1].replace(',', '.')) * 1609.344);
+  return null;
+}
+
 async function toggleHofExclude(btn) {
   var mId = btn.dataset.mappingId;
   if (!mId) return;
@@ -2709,6 +2723,28 @@ function showDiszEditModal(btn) {
       '<button class="btn btn-primary" data-disz="' + disz.replace(/"/g,'&quot;') + '" data-mappingid="' + mappingId + '" onclick="updateDisz(this)">Speichern</button>' +
     '</div>'
   , false, true);
+  setTimeout(function() {
+    var distEl = document.getElementById('de-distanz');
+    var nameEl = document.getElementById('de-name');
+    var isField = katfmt === 'm';
+    if (distEl && isField) {
+      distEl.disabled = true;
+      distEl.value = '';
+      distEl.placeholder = 'Nicht relevant (Sprung/Wurf)';
+    }
+    if (nameEl && distEl && !isField) {
+      if (!distEl.value.trim()) {
+        var v = distanzAusName(nameEl.value);
+        if (v !== null) distEl.value = v;
+      }
+      nameEl.addEventListener('input', function() {
+        if (!distEl.value.trim()) {
+          var v = distanzAusName(nameEl.value);
+          if (v !== null) distEl.value = v;
+        }
+      });
+    }
+  }, 100);
 }
 
 async function updateDisz(btn) {
@@ -2792,8 +2828,30 @@ async function showNeueDiszModal(preSelKatId) {
   , false, true);
 
   setTimeout(function() {
-    var el = document.getElementById('nd-name');
-    if (el) el.focus();
+    var nameEl = document.getElementById('nd-name');
+    var katEl  = document.getElementById('nd-kat');
+    var distEl = document.getElementById('nd-distanz');
+    function syncDistanzState() {
+      if (!distEl || !katEl) return;
+      var kats = window._adminDiszKategorien || [];
+      var selId = katEl.value;
+      var kat = null;
+      for (var i = 0; i < kats.length; i++) { if (String(kats[i].id) === String(selId)) { kat = kats[i]; break; } }
+      var isField = kat && kat.fmt === 'm';
+      distEl.disabled = !!isField;
+      distEl.placeholder = isField ? 'Nicht relevant (Sprung/Wurf)' : 'z.B. 800';
+      if (isField) distEl.value = '';
+    }
+    function tryAutoFill() {
+      if (!distEl || distEl.disabled || distEl.value.trim() !== '') return;
+      var v = distanzAusName(nameEl ? nameEl.value : '');
+      if (v !== null) distEl.value = v;
+    }
+    if (katEl) katEl.addEventListener('change', function() { syncDistanzState(); tryAutoFill(); });
+    if (nameEl) nameEl.addEventListener('input', tryAutoFill);
+    syncDistanzState();
+    tryAutoFill();
+    if (nameEl) nameEl.focus();
   }, 100);
 }
 
