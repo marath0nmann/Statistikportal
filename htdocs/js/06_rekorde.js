@@ -169,8 +169,8 @@ async function renderRekorde() {
       if (k === 'WU10-U12') return '1_0110';
       if (k === 'WU18')     return '1_0118';
       if (k === 'WU23')     return '1_0123';
-      if (k === 'wjB')      return '1_0214'; // vor mjA/MHK-Slot
-      if (k === 'wjA')      return '1_0215';
+      if (k === 'wjB' || k === 'WJg B') return '1_0214'; // vor mjA/MHK-Slot
+      if (k === 'wjA' || k === 'WJg A') return '1_0215';
       if (k === 'WHK')      return '1_0220';
       if (k === 'F' || k === 'W') return '1_0221';
       // Sonderfälle Männer
@@ -199,7 +199,7 @@ async function renderRekorde() {
     var grids = [[]];
     for (var aki = 0; aki < akKeys.length; aki++) {
       var ak = akKeys[aki];
-      var isW = /^W/.test(ak) || ak === 'WHK' || ak === 'wjA' || ak === 'wjB';
+      var isW = /^W/.test(ak) || ak === 'WHK' || ak === 'wjA' || ak === 'wjB' || ak === 'WJg A' || ak === 'WJg B';
       var curGender = isW ? 'w' : 'm';
       if (prevGender !== null && prevGender !== curGender) { grids.push([]); }
       grids[grids.length - 1].push({ ak: ak, isW: isW });

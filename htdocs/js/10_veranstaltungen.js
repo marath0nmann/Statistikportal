@@ -473,6 +473,9 @@ async function _loadSerieBestleistungen(serieId, disz, mappingId) {
       var nm = k.match(/^([MW])(\d+)$/);
       if (nm) { var g=nm[1]==='W'?'1':'2'; var n=parseInt(nm[2],10); var slot=n<20?(100+n):n<30?(200+n):(300+n); return g+'_'+String(slot).padStart(4,'0'); }
       if (k==='WHK') return '1_0220'; if (k==='MHK'||k==='M') return '2_0220';
+      if (k==='wjB'||k==='WJg B') return '1_0214';
+      if (k==='wjA'||k==='WJg A') return '1_0215';
+      if (k==='mjB') return '2_0214'; if (k==='mjA') return '2_0215';
       if (/^WU/.test(k)) return '1_0'+String(parseInt(k.replace('WU',''))).padStart(4,'0');
       if (/^MU/.test(k)) return '2_0'+String(parseInt(k.replace('MU',''))).padStart(4,'0');
       return '9_'+k;
@@ -487,7 +490,7 @@ async function _loadSerieBestleistungen(serieId, disz, mappingId) {
     var prevGender = null; var grids = [[]];
     for (var aki = 0; aki < akKeys.length; aki++) {
       var ak = akKeys[aki];
-      var isW = /^W/.test(ak) || ak === 'WHK';
+      var isW = /^W/.test(ak) || ak === 'WHK' || ak === 'wjA' || ak === 'wjB' || ak === 'WJg A' || ak === 'WJg B';
       var curG = isW ? 'w' : 'm';
       if (prevGender !== null && prevGender !== curG) grids.push([]);
       grids[grids.length-1].push({ ak: ak, isW: isW });

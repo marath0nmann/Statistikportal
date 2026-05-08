@@ -1,3 +1,6 @@
+## v1214
+- Bestleistungen/Veranstaltungen: „WJg A" und „WJg B" werden korrekt als Frauen-AKs sortiert und eingefärbt (nicht mehr unter den männlichen AKs)
+
 ## v1213
 - Bestleistungen + Veranstaltungen: Abschnitts-Header „Frauen / Männer" in „Gesamt" umbenannt
 
