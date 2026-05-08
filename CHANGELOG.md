@@ -1,3 +1,6 @@
+## v1221
+- Admin → Disziplinen: Button „Anlegen & Nächste" im Neue-Disziplin-Modal
+
 ## v1220
 - Fix: Distanz-Ableitung aus Namen mit deutschem Tausenderpunkt (z.B. „3.800m" → 3800 statt 3,8)
 

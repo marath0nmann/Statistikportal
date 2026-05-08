@@ -2852,6 +2852,7 @@ async function showNeueDiszModal(preSelKatId) {
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-ghost" onclick="saveNeueDisziplin(true)">&#x1F4BE; Anlegen &amp; Nächste</button>' +
       '<button class="btn btn-primary" onclick="saveNeueDisziplin()">&#x1F4BE; Anlegen</button>' +
     '</div>'
   , false, true);
@@ -2884,7 +2885,7 @@ async function showNeueDiszModal(preSelKatId) {
   }, 100);
 }
 
-async function saveNeueDisziplin() {
+async function saveNeueDisziplin(andNext) {
   var name      = (document.getElementById('nd-name')?.value || '').trim();
   var katId     = parseInt(document.getElementById('nd-kat')?.value || '') || 0;
   var fmt       = document.getElementById('nd-fmt')?.value || '';
@@ -2904,13 +2905,17 @@ async function saveNeueDisziplin() {
   });
 
   if (r && r.ok) {
-    closeModal();
     notify('Disziplin \u201e' + name + '\u201c angelegt.', 'ok');
     state.disziplinen = null;
     await loadDisziplinen();
     var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
     await renderAdminDisziplinen();
     window.scrollTo(0, scrollY);
+    if (andNext) {
+      showNeueDiszModal(katId);
+    } else {
+      closeModal();
+    }
   } else {
     notify((r && r.fehler) || 'Fehler beim Anlegen.', 'err');
   }
