@@ -1,3 +1,6 @@
+## v1217
+- Admin → Disziplinen: Distanz-Spalte in Tabelle anzeigen; Distanz-Feld in „Neue Disziplin"-Dialog ergänzt; Bug behoben (Distanz beim Anlegen wurde nie gespeichert)
+
 ## v1216
 - Admin → Disziplinen: „Aus Hall of Fame ausschließen" als Toggle-Button (🏆) direkt in der Tabellenzeile; bei neuen Disziplinen standardmäßig aktiviert
 

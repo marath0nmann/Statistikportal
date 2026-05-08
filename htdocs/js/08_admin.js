@@ -2389,13 +2389,14 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
             return d.disziplin;
           })(d) + '</td>' +
           '<td style="font-size:13px;color:var(--text2)">' + fmtValue + '</td>' +
+          '<td style="font-size:13px;color:var(--text2);white-space:nowrap">' + (d.distanz != null ? (d.distanz % 1 === 0 ? d.distanz : d.distanz.toLocaleString('de-DE')) + ' m' : '<span style="opacity:0.4">–</span>') + '</td>' +
           '<td>' + selHtml + '</td>' +
           '<td style="text-align:right;padding-right:12px">' + anzBadge + '</td>' +
           '<td style="white-space:nowrap;display:flex;gap:4px">' + starBtn + hofBtn + editBtn + delBtn + '</td>' +
         '</tr>';
     }
     panelBody = filteredDisz.length
-      ? '<div class="table-scroll"><table><thead><tr><th>Disziplin</th><th>Format</th><th>Kategorie</th><th style="text-align:right">Ergebnisse</th><th></th></tr></thead><tbody>' + mapRows + '</tbody></table></div>'
+      ? '<div class="table-scroll"><table><thead><tr><th>Disziplin</th><th>Format</th><th>Distanz</th><th>Kategorie</th><th style="text-align:right">Ergebnisse</th><th></th></tr></thead><tbody>' + mapRows + '</tbody></table></div>'
       : '<div style="padding:20px;color:var(--text2);font-size:13px">Keine Disziplinen in dieser Kategorie.</div>';
     panelBody += '<div style="padding:12px 20px"><button class="btn btn-primary btn-sm" onclick="showNeueDiszModal(' + selKat.id + ')">+ Neue Disziplin</button></div>';
   }
@@ -2773,8 +2774,12 @@ async function showNeueDiszModal(preSelKatId) {
       '<div class="form-group full"><label>Kategorie *</label>' + katSel + '</div>' +
       '<div class="form-group"><label>Ergebnisformat</label>' + fmtSel + '</div>' +
       '<div class="form-group"><label>Kategorie-Suffix</label>' + katSuffixSel + '</div>' +
-      '<div class="form-group full">' +
-        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">' +
+      '<div class="form-group"><label>Distanz (Meter, optional)</label>' +
+        '<input type="number" id="nd-distanz" placeholder="z.B. 800"/>' +
+        '<div style="font-size:11px;color:var(--text2);margin-top:4px">Für Pace-Berechnung</div>' +
+      '</div>' +
+      '<div class="form-group">' +
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;padding-top:20px">' +
           '<input type="checkbox" id="nd-hofexclude" checked style="width:16px;height:16px;cursor:pointer">' +
           '<span>Diese Disziplin aus der <strong>Hall of Fame</strong> ausschlie&szlig;en</span>' +
         '</label>' +
@@ -2808,7 +2813,7 @@ async function saveNeueDisziplin() {
     fmt_override:       fmt,
     kat_suffix_override: katSuffix,
     hof_exclude:        hofExclude,
-    distanz:            (function(){ var el=document.getElementById('ad-distanz'); return el&&el.value.trim()!==''?parseFloat(el.value):null; })(),
+    distanz:            (function(){ var el=document.getElementById('nd-distanz'); return el&&el.value.trim()!==''?parseFloat(el.value):null; })(),
   });
 
   if (r && r.ok) {
