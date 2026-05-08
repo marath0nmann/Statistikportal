@@ -1,3 +1,6 @@
+## v1227
+- Admin Veranstaltungen: Wildcard-Suche in Filter und Umbenennen (* = beliebig, ? = ein Zeichen)
+
 ## v1226
 - Admin Veranstaltungen: Fix Namenskonflikt (showVeranstEditModal → _vaEditModal/_vaSave/_vaDelete); Bulk-Bar: Umbenennen (Suchen & Ersetzen im Namen aller ausgewählten Einträge)
 

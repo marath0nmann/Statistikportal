@@ -3224,6 +3224,11 @@ async function verwaistDelete(id, btn) {
 
 // ── ADMIN: VERANSTALTUNGEN ──────────────────────────────────────────────────
 function _vaEsc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _vaWildcard(pattern) {
+  // Wildcard-Pattern → RegExp: * = beliebig, ? = ein Zeichen
+  var esc = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
+  try { return new RegExp(esc, 'i'); } catch(e) { return null; }
+}
 var _veranstAdminCache  = { items: [] };
 var _veranstAdminSort   = { col: 'datum', dir: -1 };
 var _veranstAdminSel    = {};
@@ -3293,10 +3298,11 @@ function _vaGetFiltered() {
   var suche = (_veranstAdminFilter.suche || '').toLowerCase();
   var jahr  = _veranstAdminFilter.jahr ? parseInt(_veranstAdminFilter.jahr) : 0;
   var genF  = _veranstAdminFilter.genehmigt;
+  var sucheRx = (suche && (suche.indexOf('*') >= 0 || suche.indexOf('?') >= 0)) ? _vaWildcard(suche) : null;
   return items.filter(function(v) {
     if (suche) {
       var s = ((v.name||'') + ' ' + (v.kuerzel||'') + ' ' + (v.ort||'')).toLowerCase();
-      if (s.indexOf(suche) < 0) return false;
+      if (sucheRx ? !sucheRx.test(s) : s.indexOf(suche) < 0) return false;
     }
     if (jahr && (!v.datum || parseInt(v.datum.slice(0,4)) !== jahr)) return false;
     if (genF === '1' && !parseInt(v.genehmigt)) return false;
@@ -3503,9 +3509,9 @@ async function bulkVeranst(action) {
   if (action === 'umbenennen') {
     showModal(
       modalH2('&#x270F; Umbenennen (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +
-      '<p style="font-size:13px;color:var(--text2);margin:0 0 12px">Suchen &amp; Ersetzen im Namen aller ausgew&auml;hlten Veranstaltungen.</p>' +
+      '<p style="font-size:13px;color:var(--text2);margin:0 0 12px">Suchen &amp; Ersetzen im Namen. Wildcards: <code>*</code> = beliebig viele Zeichen, <code>?</code> = genau ein Zeichen.</p>' +
       '<div class="form-grid">' +
-        '<div class="form-group full"><label>Suchen</label><input type="text" id="va-ren-suche" placeholder="z.B. Stadtlauf"/></div>' +
+        '<div class="form-group full"><label>Suchen</label><input type="text" id="va-ren-suche" placeholder="z.B. Stadt* oder Lauf?"/></div>' +
         '<div class="form-group full"><label>Ersetzen durch</label><input type="text" id="va-ren-ersatz" placeholder="z.B. Stadtmarathon"/></div>' +
       '</div>' +
       '<div class="modal-actions">' +
@@ -3559,8 +3565,15 @@ async function _vaBulkRename() {
     var arr = _veranstAdminCache.items;
     for (var j = 0; j < arr.length; j++) { if (arr[j].id == ids[i]) { item = arr[j]; break; } }
     if (!item) continue;
-    var neuerName = (item.name || '').split(suche).join(ersatz);
-    if (neuerName === (item.name || '')) continue; // keine Änderung
+    var altName = item.name || '';
+    var neuerName;
+    var rx = (suche.indexOf('*') >= 0 || suche.indexOf('?') >= 0) ? _vaWildcard(suche) : null;
+    if (rx) {
+      neuerName = altName.replace(rx, ersatz);
+    } else {
+      neuerName = altName.split(suche).join(ersatz);
+    }
+    if (neuerName === altName) continue; // keine Änderung
     var r = await apiPut('veranstaltungen/' + ids[i], { name: neuerName });
     if (r && r.ok) { item.name = neuerName; ok++; }
   }
