@@ -1,3 +1,6 @@
+## v1223
+- Athletenprofil: Favorisierte Disziplinen werden zuerst angezeigt (hervorgehoben mit Primärfarbe); Disziplin-Buttons zeigen jetzt die Ergebnisanzahl
+
 ## v1222
 - Eigenes Ergebnis eintragen: Buttons „Reset" und „Speichern & Neues" ergänzt
 - Eigenes Ergebnis eintragen: „Bestehende wählen" nutzt jetzt Filter-Dropdown (wie Bulk-Eintragen)

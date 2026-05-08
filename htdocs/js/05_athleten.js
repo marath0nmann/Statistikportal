@@ -388,7 +388,15 @@ function _apRender() {
     if (!diszMap[key]) diszMap[key] = [];
     if (!_extKeyMap[key]) _extKeyMap[key] = p;
   });
+  // Favorisierte Disziplinen (top_disziplinen) – IDs als Set
+  var _favRawCfg = (appConfig && appConfig.top_disziplinen) ? appConfig.top_disziplinen : '';
+  var _favIds = {};
+  try { (_favRawCfg ? JSON.parse(_favRawCfg) : []).forEach(function(id) { _favIds[id] = true; }); } catch(e) {}
+  function _isFavDisz(key) { var m = key.match(/^m(\d+)$/); return m ? !!_favIds[parseInt(m[1])] : false; }
+
   var diszList = Object.keys(diszMap).sort(function(a, b) {
+    var fa = _isFavDisz(a) ? 0 : 1, fb = _isFavDisz(b) ? 0 : 1;
+    if (fa !== fb) return fa - fb;
     var ea = diszMap[a][0] || _extKeyMap[a], eb = diszMap[b][0] || _extKeyMap[b];
     var ka = _apDiszSortKey(ea ? (ea.disziplin_mapped || ea.disziplin) : a);
     var kb = _apDiszSortKey(eb ? (eb.disziplin_mapped || eb.disziplin) : b);
@@ -423,12 +431,15 @@ function _apRender() {
     }));
     var pb = _apBestOf(_allForPb, fmt);
     var pbStr = pb ? _apFmtRes(pb, fmt) : '';
+    var diszCount = _allForPb.length;
     var isActive2 = disz === _apState.selDisz;
+    var isFav2 = _isFavDisz(disz);
     diszBtns += '<button class="rek-top-btn' + (isActive2 ? ' active' : '') + '" ' +
-      'style="min-width:80px;padding:8px 14px;margin:0 6px 6px 0" ' +
+      'style="min-width:80px;padding:8px 14px;margin:0 6px 6px 0' + (isFav2 ? ';border-color:var(--primary)' : '') + '" ' +
       'data-ap-disz="' + disz.replace(/"/g,'&quot;') + '">' +
       '<span class="rek-top-name">' + diszLabel + '</span>' +
       (pbStr ? '<span class="rek-top-cnt" style="font-family:Barlow Condensed,sans-serif;font-size:13px;font-weight:700;margin-top:2px">' + pbStr + '</span>' : '') +
+      '<span style="font-size:10px;opacity:.6;margin-top:1px">' + diszCount + ' ' + (diszCount === 1 ? 'Ergebnis' : 'Ergebnisse') + '</span>' +
     '</button>';
   }
 
