@@ -4981,7 +4981,8 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
                  )) AS anz_athleten,
                 COUNT(DISTINCT v.id) AS anz_austragungen,
                 MIN(YEAR(v.datum))   AS jahr_von,
-                MAX(YEAR(v.datum))   AS jahr_bis
+                MAX(YEAR(v.datum))   AS jahr_bis,
+                MAX(v.datum)         AS datum_letzte
          FROM $sTbl2 s
          LEFT JOIN $vTbl2 v ON v.serie_id=s.id AND v.geloescht_am IS NULL AND v.genehmigt=1
          $serienWhere

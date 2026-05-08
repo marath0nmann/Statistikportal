@@ -1,3 +1,6 @@
+## v1215
+- Veranstaltungen: Regelmäßige Veranstaltungen als sortierbare Tabelle statt Buttons; neuer MMDD-Sortierschlüssel (nächste anstehende Veranstaltung oben); Überschriften „Regelmäßige Veranstaltungen" und „Letzte Veranstaltungen"; API liefert datum_letzte pro Serie
+
 ## v1214
 - Bestleistungen/Veranstaltungen: „WJg A" und „WJg B" werden korrekt als Frauen-AKs sortiert und eingefärbt (nicht mehr unter den männlichen AKs)
 

@@ -99,35 +99,10 @@ async function renderVeranstaltungenListe() {
     shellEl.innerHTML = searchBar + '<div id="veranst-serien"></div>';
     shellEl.dataset.built = '1';
   }
-  // Serien-Buttons (nach jeder Suche neu, da gefiltert)
+  // Serien-Tabelle (nach jeder Suche neu, da gefiltert)
   var serienEl = document.getElementById('veranst-serien');
   if (serienEl) {
-    var serienHtml = '';
-    if (serien && serien.length) {
-      serienHtml = '<div class="rek-top-disz" style="margin-bottom:16px">';
-      for (var si = 0; si < serien.length; si++) {
-        var s = serien[si];
-        var sLabel = s.name || s.kuerzel || 'Serie';
-        var sCnt    = s.anz_ergebnisse   ? Number(s.anz_ergebnisse)   : 0;
-        var sAthlet = s.anz_athleten     ? Number(s.anz_athleten)     : 0;
-        var sAustr  = s.anz_austragungen ? Number(s.anz_austragungen) : 0;
-        var sJahre = (s.jahr_von && s.jahr_bis)
-          ? (s.jahr_von === s.jahr_bis ? String(s.jahr_von) : s.jahr_von + '–' + s.jahr_bis)
-          : '';
-        var sMeta = [
-          sCnt   ? sCnt.toLocaleString('de-DE') + (sCnt === 1 ? ' Ergebnis' : ' Ergebnisse') : '',
-          sAthlet ? sAthlet + (sAthlet === 1 ? ' Athlet' : ' Athleten') : '',
-          sAustr  ? sAustr  + (sAustr  === 1 ? ' Austragung' : ' Austragungen') : '',
-          sJahre
-        ].filter(Boolean).join(' · ');
-        serienHtml += '<button class="rek-top-btn rek-top-btn--sm" onclick="openSerieDetail(' + s.id + ')">' +
-          '<span class="rek-top-name">' + sLabel + '</span>' +
-          '<span class="rek-top-cnt">' + sMeta + '</span>' +
-        '</button>';
-      }
-      serienHtml += '</div>';
-    }
-    serienEl.innerHTML = serienHtml;
+    serienEl.innerHTML = serien && serien.length ? _serienTabelle(serien) : '';
   }
 
   var html = '';
@@ -177,7 +152,108 @@ async function renderVeranstaltungenListe() {
       '</div>';
     }
   }
-  resultsEl.innerHTML = massenbtn + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
+  var secStyleR = 'font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text);margin:0 0 14px';
+  var letzteHeading = veranst.length ? '<div style="' + secStyleR + '">📅 Letzte Veranstaltungen</div>' : '';
+  resultsEl.innerHTML = massenbtn + letzteHeading + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
+}
+
+// ── SERIEN-TABELLE ─────────────────────────────────────────
+function _serienTabelle(serien) {
+  var today = new Date();
+  var todayMmdd = (today.getMonth() + 1) * 100 + today.getDate();
+
+  function getMmdd(s) {
+    if (!s.datum_letzte) return 9999;
+    var d = new Date(s.datum_letzte);
+    return (d.getMonth() + 1) * 100 + d.getDate();
+  }
+
+  function mmddDiff(mmdd) {
+    return (mmdd - todayMmdd + 10000) % 10000;
+  }
+
+  var sort = state.serienSort || { col: 'mmdd', dir: 'asc' };
+
+  var sorted = serien.slice().sort(function(a, b) {
+    var av, bv;
+    switch (sort.col) {
+      case 'name':
+        av = (a.name || '').toLowerCase(); bv = (b.name || '').toLowerCase();
+        return sort.dir === 'asc' ? (av < bv ? -1 : av > bv ? 1 : 0) : (bv < av ? -1 : bv > av ? 1 : 0);
+      case 'datum_letzte':
+        av = a.datum_letzte || ''; bv = b.datum_letzte || '';
+        return sort.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+      case 'anz_austragungen':
+        av = Number(a.anz_austragungen || 0); bv = Number(b.anz_austragungen || 0);
+        return sort.dir === 'asc' ? av - bv : bv - av;
+      case 'anz_ergebnisse':
+        av = Number(a.anz_ergebnisse || 0); bv = Number(b.anz_ergebnisse || 0);
+        return sort.dir === 'asc' ? av - bv : bv - av;
+      case 'anz_athleten':
+        av = Number(a.anz_athleten || 0); bv = Number(b.anz_athleten || 0);
+        return sort.dir === 'asc' ? av - bv : bv - av;
+      case 'jahre':
+        av = Number(a.jahr_bis || 0); bv = Number(b.jahr_bis || 0);
+        return sort.dir === 'asc' ? av - bv : bv - av;
+      case 'mmdd':
+      default:
+        av = mmddDiff(getMmdd(a)); bv = mmddDiff(getMmdd(b));
+        return sort.dir === 'asc' ? av - bv : bv - av;
+    }
+  });
+
+  function thClick(col) {
+    return 'onclick="_sortSerien(\'' + col + '\')"';
+  }
+
+  function thArrow(col) {
+    if (sort.col !== col) return ' <span style="opacity:.25">↕</span>';
+    return sort.dir === 'asc' ? ' ↑' : ' ↓';
+  }
+
+  var thBase = 'cursor:pointer;user-select:none;white-space:nowrap;padding:8px 12px;text-align:left;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);border-bottom:2px solid var(--border)';
+  var thR = thBase + ';text-align:right';
+  var td = 'padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle';
+  var tdR = td + ';text-align:right;font-variant-numeric:tabular-nums';
+
+  var rows = sorted.map(function(s) {
+    var jahrRange = s.jahr_von
+      ? (String(s.jahr_von) === String(s.jahr_bis) ? String(s.jahr_von) : s.jahr_von + '–' + s.jahr_bis)
+      : '–';
+    var datumLetzte = s.datum_letzte ? formatDate(s.datum_letzte) : '–';
+    return '<tr style="cursor:pointer" onclick="openSerieDetail(' + s.id + ')" ' +
+      'onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+      '<td style="' + td + ';font-weight:600">' + (s.name || s.kuerzel || '') + '</td>' +
+      '<td style="' + td + '">' + datumLetzte + '</td>' +
+      '<td style="' + tdR + '">' + (Number(s.anz_austragungen) || 0) + '</td>' +
+      '<td style="' + td + '">' + jahrRange + '</td>' +
+      '<td style="' + tdR + '">' + Number(s.anz_ergebnisse || 0).toLocaleString('de-DE') + '</td>' +
+      '<td style="' + tdR + '">' + (Number(s.anz_athleten) || 0) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  var secStyle = 'font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text);margin:0 0 10px';
+  return '<div style="' + secStyle + '">🔄 Regelmäßige Veranstaltungen</div>' +
+    '<div class="table-scroll" style="margin-bottom:24px"><table style="width:100%;border-collapse:collapse">' +
+    '<thead><tr>' +
+    '<th style="' + thBase + '" ' + thClick('name') + '>Name' + thArrow('name') + '</th>' +
+    '<th style="' + thBase + '" ' + thClick('datum_letzte') + '>Letzte Austragung' + thArrow('datum_letzte') + '</th>' +
+    '<th style="' + thR + '" ' + thClick('anz_austragungen') + '>Austragungen' + thArrow('anz_austragungen') + '</th>' +
+    '<th style="' + thBase + '" ' + thClick('jahre') + '>Jahre' + thArrow('jahre') + '</th>' +
+    '<th style="' + thR + '" ' + thClick('anz_ergebnisse') + '>Ergebnisse' + thArrow('anz_ergebnisse') + '</th>' +
+    '<th style="' + thR + '" ' + thClick('anz_athleten') + '>Athleten' + thArrow('anz_athleten') + '</th>' +
+    '</tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+    '</table></div>';
+}
+
+function _sortSerien(col) {
+  var cur = state.serienSort || { col: 'mmdd', dir: 'asc' };
+  state.serienSort = { col: col, dir: cur.col === col && cur.dir === 'asc' ? 'desc' : 'asc' };
+  var serienEl = document.getElementById('veranst-serien');
+  if (serienEl && window._lastSerienList) {
+    serienEl.innerHTML = _serienTabelle(window._lastSerienList);
+  }
 }
 
 // ── SERIEN-LISTE ───────────────────────────────────────────
