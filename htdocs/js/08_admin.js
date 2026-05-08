@@ -3342,8 +3342,8 @@ function _renderVeranstAdminTable() {
         '<td style="text-align:center">' + (anzErg ? '<span class="badge badge-platz">' + anzErg + '</span>' : '<span style="color:var(--text2)">0</span>') + '</td>' +
         '<td>' + gBadge + '</td>' +
         '<td style="white-space:nowrap">' +
-          '<button class="btn btn-ghost btn-sm" onclick="showVeranstEditModal(' + v.id + ')" title="Bearbeiten">&#x270F;&#xFE0E;</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="deleteVeranst(' + v.id + ',\'' + (v.name||v.kuerzel||'?').replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" title="Löschen">&#x2715;</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="_vaEditModal(' + v.id + ')" title="Bearbeiten">&#x270F;&#xFE0E;</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="_vaDelete(' + v.id + ',\'' + (v.name||v.kuerzel||'?').replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" title="Löschen">&#x2715;</button>' +
         '</td>' +
       '</tr>';
   }
@@ -3408,6 +3408,7 @@ async function renderAdminVeranstaltungen() {
       '<span id="va-bulk-count" style="font-weight:600;font-size:13px"></span>' +
       '<button class="btn btn-sm btn-primary" onclick="bulkVeranst(\'genehmigen\')">&#x2713; Genehmigen</button>' +
       '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'sperren\')">&#x23FC; Sperren</button>' +
+      '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'umbenennen\')">&#x270F; Umbenennen</button>' +
       '<button class="btn btn-sm btn-danger" onclick="bulkVeranst(\'loeschen\')">&#x2715; Löschen</button>' +
     '</div>' +
     '<div class="panel">' +
@@ -3431,7 +3432,7 @@ function _vaFilter(key, val) {
   _renderVeranstAdminTable();
 }
 
-function showVeranstEditModal(id) {
+function _vaEditModal(id) {
   var v = null;
   var items = _veranstAdminCache.items || [];
   for (var i = 0; i < items.length; i++) { if (items[i].id == id) { v = items[i]; break; } }
@@ -3449,13 +3450,13 @@ function showVeranstEditModal(id) {
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-      '<button class="btn btn-primary" onclick="saveVeranst(' + id + ')">Speichern</button>' +
+      '<button class="btn btn-primary" onclick="_vaSave(' + id + ')">Speichern</button>' +
     '</div>',
     false, true
   );
 }
 
-async function saveVeranst(id) {
+async function _vaSave(id) {
   var body = {
     name:      document.getElementById('ve-name').value.trim() || null,
     ort:       document.getElementById('ve-ort').value.trim() || null,
@@ -3466,7 +3467,6 @@ async function saveVeranst(id) {
   if (r && r.ok) {
     closeModal();
     notify('Gespeichert.', 'ok');
-    // Cache sofort aktualisieren für flotte Re-Render
     var items = _veranstAdminCache.items;
     for (var i = 0; i < items.length; i++) {
       if (items[i].id == id) {
@@ -3483,7 +3483,7 @@ async function saveVeranst(id) {
   }
 }
 
-async function deleteVeranst(id, name) {
+async function _vaDelete(id, name) {
   if (!confirm('Veranstaltung "' + name + '" in den Papierkorb verschieben?\n\nAlle zugehörigen Ergebnisse werden ebenfalls verschoben.')) return;
   var r = await apiDel('veranstaltungen/' + id);
   if (r && r.ok) {
@@ -3499,6 +3499,22 @@ async function deleteVeranst(id, name) {
 async function bulkVeranst(action) {
   var ids = Object.keys(_veranstAdminSel).map(Number).filter(function(x){ return x > 0; });
   if (!ids.length) return;
+
+  if (action === 'umbenennen') {
+    showModal(
+      modalH2('&#x270F; Umbenennen (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +
+      '<p style="font-size:13px;color:var(--text2);margin:0 0 12px">Suchen &amp; Ersetzen im Namen aller ausgew&auml;hlten Veranstaltungen.</p>' +
+      '<div class="form-grid">' +
+        '<div class="form-group full"><label>Suchen</label><input type="text" id="va-ren-suche" placeholder="z.B. Stadtlauf"/></div>' +
+        '<div class="form-group full"><label>Ersetzen durch</label><input type="text" id="va-ren-ersatz" placeholder="z.B. Stadtmarathon"/></div>' +
+      '</div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+        '<button class="btn btn-primary" onclick="_vaBulkRename()">Umbenennen</button>' +
+      '</div>'
+    );
+    return;
+  }
 
   if (action === 'loeschen') {
     if (!confirm(ids.length + ' Veranstaltung(en) in den Papierkorb verschieben?')) return;
@@ -3528,5 +3544,27 @@ async function bulkVeranst(action) {
   }
   _veranstAdminSel = {};
   notify(ok2 + ' Veranstaltung(en) ' + (genehmigt ? 'genehmigt' : 'gesperrt') + '.', ok2 ? 'ok' : 'err');
+  _renderVeranstAdminTable();
+}
+
+async function _vaBulkRename() {
+  var suche  = (document.getElementById('va-ren-suche')  || {}).value || '';
+  var ersatz = (document.getElementById('va-ren-ersatz') || {}).value || '';
+  if (!suche) { notify('Bitte Suchtext eingeben.', 'err'); return; }
+  closeModal();
+  var ids = Object.keys(_veranstAdminSel).map(Number).filter(function(x){ return x > 0; });
+  var ok = 0;
+  for (var i = 0; i < ids.length; i++) {
+    var item = null;
+    var arr = _veranstAdminCache.items;
+    for (var j = 0; j < arr.length; j++) { if (arr[j].id == ids[i]) { item = arr[j]; break; } }
+    if (!item) continue;
+    var neuerName = (item.name || '').split(suche).join(ersatz);
+    if (neuerName === (item.name || '')) continue; // keine Änderung
+    var r = await apiPut('veranstaltungen/' + ids[i], { name: neuerName });
+    if (r && r.ok) { item.name = neuerName; ok++; }
+  }
+  _veranstAdminSel = {};
+  notify(ok + ' Veranstaltung(en) umbenannt.', ok ? 'ok' : 'err');
   _renderVeranstAdminTable();
 }

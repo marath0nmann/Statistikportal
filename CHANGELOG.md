@@ -1,3 +1,6 @@
+## v1226
+- Admin Veranstaltungen: Fix Namenskonflikt (showVeranstEditModal → _vaEditModal/_vaSave/_vaDelete); Bulk-Bar: Umbenennen (Suchen & Ersetzen im Namen aller ausgewählten Einträge)
+
 ## v1225
 - Admin: neuer Tab „Veranstaltungen" – Übersicht aller Veranstaltungen inkl. Ergebnisanzahl, Suche, Jahr-/Status-Filter, Sortierung, Editieren, Einzellöschen, Multiselect + Bulk-Genehmigen/Sperren/Löschen
 
