@@ -3414,7 +3414,8 @@ async function renderAdminVeranstaltungen() {
       '<span id="va-bulk-count" style="font-weight:600;font-size:13px"></span>' +
       '<button class="btn btn-sm btn-primary" onclick="bulkVeranst(\'genehmigen\')">&#x2713; Genehmigen</button>' +
       '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'sperren\')">&#x23FC; Sperren</button>' +
-      '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'umbenennen\')">&#x270F; Umbenennen</button>' +
+      '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'umbenennen\')">&#x270F; Name</button>' +
+      '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'ort\')">&#x1F4CD; Ort</button>' +
       '<button class="btn btn-sm btn-danger" onclick="bulkVeranst(\'loeschen\')">&#x2715; Löschen</button>' +
     '</div>' +
     '<div class="panel">' +
@@ -3506,17 +3507,19 @@ async function bulkVeranst(action) {
   var ids = Object.keys(_veranstAdminSel).map(Number).filter(function(x){ return x > 0; });
   if (!ids.length) return;
 
-  if (action === 'umbenennen') {
+  if (action === 'umbenennen' || action === 'ort') {
+    var isOrt = action === 'ort';
+    var fieldLabel = isOrt ? 'Ort' : 'Name';
     showModal(
-      modalH2('&#x270F; Umbenennen (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +
-      '<p style="font-size:13px;color:var(--text2);margin:0 0 12px">Suchen &amp; Ersetzen im Namen. Wildcards: <code>*</code> = beliebig viele Zeichen, <code>?</code> = genau ein Zeichen.</p>' +
+      modalH2('&#x270F; ' + fieldLabel + ' bearbeiten (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +
+      '<p style="font-size:13px;color:var(--text2);margin:0 0 12px">Suchen &amp; Ersetzen im ' + fieldLabel + '. Wildcards: <code>*</code> = beliebig, <code>?</code> = ein Zeichen. Leer lassen = alle auf gleichen Wert setzen.</p>' +
       '<div class="form-grid">' +
-        '<div class="form-group full"><label>Suchen</label><input type="text" id="va-ren-suche" placeholder="z.B. Stadt* oder Lauf?"/></div>' +
-        '<div class="form-group full"><label>Ersetzen durch</label><input type="text" id="va-ren-ersatz" placeholder="z.B. Stadtmarathon"/></div>' +
+        '<div class="form-group full"><label>Suchen (leer = gesamten ' + fieldLabel + ' ersetzen)</label><input type="text" id="va-ren-suche" placeholder="z.B. Stadt* oder leer lassen"/></div>' +
+        '<div class="form-group full"><label>Ersetzen durch</label><input type="text" id="va-ren-ersatz" placeholder="' + (isOrt ? 'z.B. Essen' : 'z.B. Stadtmarathon') + '"/></div>' +
       '</div>' +
       '<div class="modal-actions">' +
         '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-        '<button class="btn btn-primary" onclick="_vaBulkRename()">Umbenennen</button>' +
+        '<button class="btn btn-primary" onclick="_vaBulkRename(\'' + action + '\')">Übernehmen</button>' +
       '</div>'
     );
     return;
@@ -3553,10 +3556,11 @@ async function bulkVeranst(action) {
   _renderVeranstAdminTable();
 }
 
-async function _vaBulkRename() {
+async function _vaBulkRename(action) {
   var suche  = (document.getElementById('va-ren-suche')  || {}).value || '';
   var ersatz = (document.getElementById('va-ren-ersatz') || {}).value || '';
-  if (!suche) { notify('Bitte Suchtext eingeben.', 'err'); return; }
+  var isOrt  = action === 'ort';
+  var apiField = isOrt ? 'ort' : 'name';
   closeModal();
   var ids = Object.keys(_veranstAdminSel).map(Number).filter(function(x){ return x > 0; });
   var ok = 0;
@@ -3565,19 +3569,22 @@ async function _vaBulkRename() {
     var arr = _veranstAdminCache.items;
     for (var j = 0; j < arr.length; j++) { if (arr[j].id == ids[i]) { item = arr[j]; break; } }
     if (!item) continue;
-    var altName = item.name || '';
-    var neuerName;
-    var rx = (suche.indexOf('*') >= 0 || suche.indexOf('?') >= 0) ? _vaWildcard(suche) : null;
-    if (rx) {
-      neuerName = altName.replace(rx, ersatz);
+    var altVal = item[apiField] || '';
+    var neuerVal;
+    if (!suche) {
+      // Kein Suchtext → gesamten Wert ersetzen
+      neuerVal = ersatz;
     } else {
-      neuerName = altName.split(suche).join(ersatz);
+      var rx = (suche.indexOf('*') >= 0 || suche.indexOf('?') >= 0) ? _vaWildcard(suche) : null;
+      neuerVal = rx ? altVal.replace(rx, ersatz) : altVal.split(suche).join(ersatz);
     }
-    if (neuerName === altName) continue; // keine Änderung
-    var r = await apiPut('veranstaltungen/' + ids[i], { name: neuerName });
-    if (r && r.ok) { item.name = neuerName; ok++; }
+    if (neuerVal === altVal) continue;
+    var body = {};
+    body[apiField] = neuerVal || null;
+    var r = await apiPut('veranstaltungen/' + ids[i], body);
+    if (r && r.ok) { item[apiField] = neuerVal; ok++; }
   }
   _veranstAdminSel = {};
-  notify(ok + ' Veranstaltung(en) umbenannt.', ok ? 'ok' : 'err');
+  notify(ok + ' Veranstaltung(en) aktualisiert.', ok ? 'ok' : 'err');
   _renderVeranstAdminTable();
 }

@@ -1,3 +1,6 @@
+## v1228
+- Admin Veranstaltungen: Bulk-Bar „Ort" – Ort für ausgewählte Einträge per Suchen & Ersetzen (mit Wildcard) oder direkt setzen
+
 ## v1227
 - Admin Veranstaltungen: Wildcard-Suche in Filter und Umbenennen (* = beliebig, ? = ein Zeichen)
 
