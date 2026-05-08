@@ -1,3 +1,6 @@
+## v1235
+- Bestleistungen: Disziplinen mit 0 Ergebnissen werden ausgeblendet
+
 ## v1234
 - Admin Veranstaltungen: Startnummer-Eingabefeld an Modal-Optik angepasst (form-group)
 

@@ -81,7 +81,11 @@ async function renderRekorde() {
 
   // Weitere Disziplinen
   // Weitere Disziplinen
-  var restDisz = diszList.filter(function(d) { return topNames.indexOf(typeof d === 'object' ? d.disziplin : d) < 0; });
+  var restDisz = diszList.filter(function(d) {
+    if (topNames.indexOf(typeof d === 'object' ? d.disziplin : d) >= 0) return false;
+    var cnt = typeof d === 'object' ? (d.cnt || 0) : 0;
+    return cnt > 0;
+  });
   var diszHtml = '';
   if (restDisz.length) {
     diszHtml += '<div style="font-size:11px;font-weight:600;text-transform:uppercase;color:var(--text2);letter-spacing:.06em;margin:4px 0 6px">Weitere Disziplinen</div>';
