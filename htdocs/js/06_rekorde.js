@@ -130,11 +130,7 @@ async function renderRekorde() {
 
   var titleHtml = '<div class="rek-disz-title">' + rs.disz + '</div>';
 
-  // ── 1. GESAMT ─────────────────────────────────────────────
-  var sectionHtml = rekSectionHead('Gesamt');
-  sectionHtml += '<div class="panel" style="overflow-x:auto;margin-bottom:28px">' + buildRekTable(uniqueRows(d.gesamt || []), fmt, false, rs.kat === 'strasse', 'Athlet*in') + '</div>';
-
-  // ── 2. MÄNNER / FRAUEN ────────────────────────────────────
+  // ── 1. MÄNNER / FRAUEN ────────────────────────────────────
   var mRows = uniqueRows(d.maenner || []);
   var wRows = uniqueRows(d.frauen  || []);
   sectionHtml += rekSectionHead('Frauen / M&auml;nner');
