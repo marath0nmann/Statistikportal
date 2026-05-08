@@ -3514,13 +3514,25 @@ async function bulkVeranst(action) {
   if (action === 'umbenennen' || action === 'ort') {
     var isOrt = action === 'ort';
     var fieldLabel = isOrt ? 'Ort' : 'Name';
+    var numSection = isOrt ? '' :
+      '<hr style="margin:14px 0;border:none;border-top:1px solid var(--border)">' +
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">' +
+        '<input type="checkbox" id="va-ren-num" onchange="var o=document.getElementById(\'va-ren-num-opts\');if(o)o.style.display=this.checked?\'block\':\'none\'">' +
+        'Durchnumerieren (von alt nach neu)' +
+      '</label>' +
+      '<div id="va-ren-num-opts" style="display:none;margin-top:10px">' +
+        '<label style="font-size:13px">Startnummer</label>' +
+        '<input type="number" id="va-ren-startnum" value="1" min="0" style="width:100px;margin-top:4px">' +
+        '<p style="font-size:12px;color:var(--text2);margin:6px 0 0">Veranstaltungen werden nach Datum (alt → neu) sortiert und ab dieser Zahl fortlaufend nummeriert. Beispiel: Startnummer 2 → \"2. Name\", \"3. Name\", …</p>' +
+      '</div>';
     showModal(
       modalH2('&#x270F; ' + fieldLabel + ' bearbeiten (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +
       '<p style="font-size:13px;color:var(--text2);margin:0 0 12px">Suchen &amp; Ersetzen im ' + fieldLabel + '. Wildcards: <code>*</code> = beliebig, <code>?</code> = ein Zeichen. Leer lassen = alle auf gleichen Wert setzen.</p>' +
       '<div class="form-grid">' +
         '<div class="form-group full"><label>Suchen (leer = gesamten ' + fieldLabel + ' ersetzen)</label><input type="text" id="va-ren-suche" placeholder="z.B. Stadt* oder leer lassen"/></div>' +
-        '<div class="form-group full"><label>Ersetzen durch</label><input type="text" id="va-ren-ersatz" placeholder="' + (isOrt ? 'z.B. Essen' : 'z.B. Stadtmarathon') + '"/></div>' +
+        '<div class="form-group full"><label>Ersetzen durch (leer = bestehenden Namen behalten)</label><input type="text" id="va-ren-ersatz" placeholder="' + (isOrt ? 'z.B. Essen' : 'z.B. Apfelblütenlauf') + '"/></div>' +
       '</div>' +
+      numSection +
       '<div class="modal-actions">' +
         '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
         '<button class="btn btn-primary" onclick="_vaBulkRename(\'' + action + '\')">Übernehmen</button>' +
@@ -3561,32 +3573,58 @@ async function bulkVeranst(action) {
 }
 
 async function _vaBulkRename(action) {
-  var suche  = (document.getElementById('va-ren-suche')  || {}).value || '';
-  var ersatz = (document.getElementById('va-ren-ersatz') || {}).value || '';
-  var isOrt  = action === 'ort';
+  var suche    = (document.getElementById('va-ren-suche')    || {}).value || '';
+  var ersatz   = (document.getElementById('va-ren-ersatz')   || {}).value || '';
+  var numChk   = document.getElementById('va-ren-num');
+  var doNum    = numChk && numChk.checked;
+  var startNum = doNum ? (parseInt((document.getElementById('va-ren-startnum') || {}).value) || 1) : 0;
+  var isOrt    = action === 'ort';
   var apiField = isOrt ? 'ort' : 'name';
   closeModal();
   var ids = Object.keys(_veranstAdminSel).map(Number).filter(function(x){ return x > 0; });
-  var ok = 0, err = 0;
+
+  // Bei Nummerierung: Items nach Datum aufsteigend (alt → neu) sortieren
+  var items = [];
+  var arr = _veranstAdminCache.items;
   for (var i = 0; i < ids.length; i++) {
-    var item = null;
-    var arr = _veranstAdminCache.items;
-    for (var j = 0; j < arr.length; j++) { if (arr[j].id == ids[i]) { item = arr[j]; break; } }
-    if (!item) continue;
+    for (var j = 0; j < arr.length; j++) { if (arr[j].id == ids[i]) { items.push(arr[j]); break; } }
+  }
+  if (doNum) {
+    items.sort(function(a, b) {
+      var da = a.datum || '', db = b.datum || '';
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+  }
+
+  var ok = 0, err = 0;
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
     var altVal = item[apiField] != null ? String(item[apiField]) : '';
     var neuerVal;
-    if (!suche) {
-      neuerVal = ersatz;
+    if (doNum) {
+      // Basis: ersatz wenn angegeben, sonst bestehender Wert (nach suche/ersatz)
+      var base;
+      if (!suche) {
+        base = ersatz !== '' ? ersatz : altVal;
+      } else {
+        var rx0 = (suche.indexOf('*') >= 0 || suche.indexOf('?') >= 0) ? _vaWildcard(suche) : null;
+        base = rx0 ? altVal.replace(rx0, ersatz) : altVal.split(suche).join(ersatz);
+      }
+      neuerVal = (startNum + i) + '. ' + base;
     } else {
-      var rx = (suche.indexOf('*') >= 0 || suche.indexOf('?') >= 0) ? _vaWildcard(suche) : null;
-      neuerVal = rx ? altVal.replace(rx, ersatz) : altVal.split(suche).join(ersatz);
+      if (!suche) {
+        neuerVal = ersatz;
+      } else {
+        var rx = (suche.indexOf('*') >= 0 || suche.indexOf('?') >= 0) ? _vaWildcard(suche) : null;
+        neuerVal = rx ? altVal.replace(rx, ersatz) : altVal.split(suche).join(ersatz);
+      }
     }
     if (neuerVal === altVal) continue;
     var body = {};
     body[apiField] = neuerVal !== '' ? neuerVal : '';
-    var r = await apiPut('veranstaltungen/' + ids[i], body);
+    var r = await apiPut('veranstaltungen/' + item.id, body);
     if (r && r.ok) { item[apiField] = neuerVal || null; ok++; }
-    else { err++; if (err === 1) notify((r && r.fehler) || 'API-Fehler bei ID ' + ids[i], 'err'); }
+    else { err++; if (err === 1) notify((r && r.fehler) || 'API-Fehler bei ID ' + item.id, 'err'); }
   }
   _veranstAdminSel = {};
   if (ok > 0) notify(ok + ' Veranstaltung(en) aktualisiert.', 'ok');

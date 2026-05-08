@@ -1,3 +1,6 @@
+## v1232
+- Admin Veranstaltungen: Bulk-Name – Option „Durchnumerieren" (Startnummer + Sortierung alt→neu)
+
 ## v1231
 - Admin Veranstaltungen: Externe Ergebnisse (athlet_pb) separat zählen und als +N-Badge anzeigen
 
