@@ -3338,13 +3338,18 @@ function _renderVeranstAdminTable() {
     var datumStr = v.datum ? v.datum.slice(0,10) : '–';
     var nameStr = v.name ? _vaEsc(v.name) : (v.kuerzel ? _vaEsc(v.kuerzel) : '–');
     var anzErg = parseInt(v.anz_ergebnisse)||0;
+    var anzExt = parseInt(v.anz_extern)||0;
+    var ergCell = '';
+    if (anzErg) ergCell += '<span class="badge badge-platz" title="Interne Ergebnisse">' + anzErg + '</span>';
+    if (anzExt) ergCell += ' <span class="badge" style="background:var(--surf2);color:var(--text2);border:1px solid var(--border)" title="Externe Ergebnisse">+' + anzExt + '</span>';
+    if (!anzErg && !anzExt) ergCell = '<span style="color:var(--text2)">0</span>';
     rows +=
       '<tr' + rowBg + '>' +
         '<td style="width:32px;text-align:center"><input type="checkbox"' + chk + ' onchange="_vaToggle(' + v.id + ')" style="cursor:pointer"></td>' +
         '<td style="white-space:nowrap;font-size:13px">' + datumStr + '</td>' +
         '<td>' + nameStr + '</td>' +
         '<td style="color:var(--text2);font-size:13px">' + (v.ort ? _vaEsc(v.ort) : '–') + '</td>' +
-        '<td style="text-align:center">' + (anzErg ? '<span class="badge badge-platz">' + anzErg + '</span>' : '<span style="color:var(--text2)">0</span>') + '</td>' +
+        '<td style="text-align:center;white-space:nowrap">' + ergCell + '</td>' +
         '<td>' + gBadge + '</td>' +
         '<td style="white-space:nowrap">' +
           '<button class="btn btn-ghost btn-sm" onclick="_vaEditModal(' + v.id + ')" title="Bearbeiten">&#x270F;&#xFE0E;</button>' +

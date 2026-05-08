@@ -4866,12 +4866,15 @@ if ($res === 'veranstaltungen' && $method === 'GET' && !empty($_GET['admin'])) {
         $whereExtra = ' AND (v.name LIKE ? OR v.kuerzel LIKE ? OR v.ort LIKE ?)';
         $searchParams = [$s, $s, $s];
     }
+    $pbTbl = DB::tbl('athlet_pb');
     $veranst = DB::fetchAll(
         "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.serie_id,
                 COUNT(DISTINCT e.id) AS anz_ergebnisse,
-                COUNT(DISTINCT e.athlet_id) AS anz_athleten
+                COUNT(DISTINCT e.athlet_id) AS anz_athleten,
+                COUNT(DISTINCT pb.id) AS anz_extern
          FROM " . DB::tbl('veranstaltungen') . " v
          LEFT JOIN $eTbl e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
+         LEFT JOIN $pbTbl pb ON pb.veranstaltung_id = v.id AND pb.geloescht_am IS NULL
          WHERE v.geloescht_am IS NULL$whereExtra
          GROUP BY v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.serie_id
          ORDER BY v.datum DESC",

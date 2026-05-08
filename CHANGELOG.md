@@ -1,3 +1,6 @@
+## v1231
+- Admin Veranstaltungen: Externe Ergebnisse (athlet_pb) separat zählen und als +N-Badge anzeigen
+
 ## v1230
 - Admin Veranstaltungen: Kürzel nicht mehr in der Liste anzeigen (nur noch Fallback wenn kein Name)
 
