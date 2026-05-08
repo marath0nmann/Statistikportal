@@ -3521,9 +3521,10 @@ async function bulkVeranst(action) {
         'Durchnumerieren (von alt nach neu)' +
       '</label>' +
       '<div id="va-ren-num-opts" style="display:none;margin-top:10px">' +
-        '<label style="font-size:13px">Startnummer</label>' +
-        '<input type="number" id="va-ren-startnum" value="1" min="0" style="width:100px;margin-top:4px">' +
-        '<p style="font-size:12px;color:var(--text2);margin:6px 0 0">Veranstaltungen werden nach Datum (alt → neu) sortiert und ab dieser Zahl fortlaufend nummeriert. Beispiel: Startnummer 2 → \"2. Name\", \"3. Name\", …</p>' +
+        '<div class="form-grid">' +
+          '<div class="form-group" style="max-width:160px"><label>Startnummer</label><input type="number" id="va-ren-startnum" value="1" min="0"/></div>' +
+        '</div>' +
+        '<p style="font-size:12px;color:var(--text2);margin:4px 0 0">Sortierung: alt → neu. Beispiel: Startnummer 2 → \"2. Name\", \"3. Name\", …</p>' +
       '</div>';
     showModal(
       modalH2('&#x270F; ' + fieldLabel + ' bearbeiten (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +

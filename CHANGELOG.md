@@ -1,3 +1,6 @@
+## v1234
+- Admin Veranstaltungen: Startnummer-Eingabefeld an Modal-Optik angepasst (form-group)
+
 ## v1233
 - Fix: Admin Veranstaltungen – athlet_pb hat kein geloescht_am (Hard-Delete), JOIN-Bedingung entfernt
 
