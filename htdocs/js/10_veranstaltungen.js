@@ -457,10 +457,7 @@ async function _loadSerieBestleistungen(serieId, disz, mappingId) {
     return '<div style="font-family:\'Barlow Condensed\',sans-serif;font-size:18px;font-weight:600;color:var(--text);border-bottom:2px solid var(--border);padding-bottom:6px;margin:0 0 14px">' + label + '</div>';
   }
 
-  var shtml = sectionHead('Gesamt');
-  shtml += '<div class="panel" style="overflow-x:auto;margin-bottom:28px">' + buildRekTable(pbDedup(d.gesamt || []), fmt, false, showPace, 'Athlet*in', disz) + '</div>';
-
-  shtml += sectionHead('Frauen / M&auml;nner');
+  var shtml = sectionHead('Frauen / M&auml;nner');
   shtml +=
     '<div class="mw-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:28px">' +
       '<div class="rek-ak-card"><div class="rek-ak-header" style="background:var(--primary);color:var(--on-primary)">Frauen</div>' +

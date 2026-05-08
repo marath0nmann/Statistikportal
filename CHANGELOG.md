@@ -1,3 +1,6 @@
+## v1210
+- Jährliche Veranstaltungen/Bestleistungen: Ansicht „Gesamt" entfernt; nur noch „Frauen / Männer" und „Nach Altersklasse"
+
 ## v1209
 - HoF/Athleten: Kein Zeilenumbruch mehr zwischen Zahl und Begriff in der Statistikzeile (z. B. „51 Bestleistungen")
 
