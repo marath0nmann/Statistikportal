@@ -1,3 +1,6 @@
+## v1222
+- Athletenprofil: Favorisierte Disziplinen werden zuerst angezeigt (hervorgehoben mit Primärfarbe); Disziplin-Buttons zeigen jetzt die Ergebnisanzahl
+
 ## v1221
 - Admin → Disziplinen: Button „Anlegen & Nächste" im Neue-Disziplin-Modal
 
