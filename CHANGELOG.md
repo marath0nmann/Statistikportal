@@ -1,3 +1,6 @@
+## v1213
+- Bestleistungen + Veranstaltungen: Abschnitts-Header „Frauen / Männer" in „Gesamt" umbenannt
+
 ## v1212
 - Bestleistungen: Fix „Can't find variable: sectionHtml" nach Entfernen der Gesamt-Ansicht
 

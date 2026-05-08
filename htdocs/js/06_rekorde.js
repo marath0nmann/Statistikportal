@@ -133,7 +133,7 @@ async function renderRekorde() {
   // ── 1. MÄNNER / FRAUEN ────────────────────────────────────
   var mRows = uniqueRows(d.maenner || []);
   var wRows = uniqueRows(d.frauen  || []);
-  var sectionHtml = rekSectionHead('Frauen / M&auml;nner');
+  var sectionHtml = rekSectionHead('Gesamt');
   sectionHtml +=
     '<div class="mw-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:28px">' +
       '<div class="rek-ak-card">' +
