@@ -1,3 +1,6 @@
+## v1238
+- Admin Veranstaltungen: table-layout:fixed + colgroup-Breiten → Name kürzt korrekt, Tabelle läuft nicht mehr über
+
 ## v1237
 - Admin Veranstaltungen: Name-Spalte kürzt mit Ellipsis (kein Rechts-Abschneiden); doppeltes HTML-Escaping (&amp;amp;) behoben
 
