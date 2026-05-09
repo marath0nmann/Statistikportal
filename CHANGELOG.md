@@ -1,3 +1,6 @@
+## v1237
+- confirm()-Dialoge durch confirmModal() ersetzt (eigenes Modal mit Abbrechen/OK)
+
 ## v1236
 - Modal: Schließen durch Klick außerhalb des Fensters deaktiviert
 

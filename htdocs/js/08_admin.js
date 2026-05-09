@@ -694,7 +694,7 @@ async function saveRolle(id) {
 }
 
 async function deleteRolle(id, name) {
-  if (!confirm('Rolle "' + name + '" wirklich löschen?')) return;
+  if (!await confirmModal('Rolle "' + name + '" wirklich löschen?')) return;
   var r = await apiDel('rollen/' + id);
   if (r && r.ok) { notify('Gelöscht.', 'ok'); _ladeRollenManager(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
@@ -797,14 +797,14 @@ async function _loadAdminPasskeys(userId) {
 }
 
 async function adminDeletePasskey(userId, pkId) {
-  if (!confirm('Passkey wirklich löschen?')) return;
+  if (!await confirmModal('Passkey wirklich löschen?')) return;
   var r = await apiDel('benutzer/' + userId + '/passkeys/' + pkId);
   if (r && r.ok) { notify('Passkey gelöscht.', 'ok'); _loadAdminPasskeys(userId); }
   else notify((r && r.fehler) || 'Fehler', 'err');
 }
 
 async function adminResetTotp(userId) {
-  if (!confirm('TOTP für diesen Benutzer wirklich zurücksetzen?')) return;
+  if (!await confirmModal('TOTP für diesen Benutzer wirklich zurücksetzen?')) return;
   var r = await apiDel('benutzer/' + userId + '/totp');
   if (r && r.ok) { notify('TOTP zurückgesetzt.', 'ok'); closeModal(); await renderAdmin(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
@@ -826,7 +826,7 @@ async function updateBenutzer(id) {
 }
 
 async function deleteBenutzer(id, name) {
-  if (!confirm('Benutzer "' + name + '" wirklich l\u00f6schen?')) return;
+  if (!await confirmModal('Benutzer "' + name + '" wirklich l\u00f6schen?')) return;
   var r = await apiDel('benutzer/' + id);
   if (r && r.ok) { notify('Gel\u00f6scht.', 'ok'); await renderAdmin(); }
   else notify((r && r.fehler) || '', 'err');
@@ -923,7 +923,7 @@ async function toggleAthletAktiv(id, aktiv) {
 }
 
 async function deleteAthlet(id, name) {
-  if (!confirm('Athlet "' + name + '" in den Papierkorb verschieben?\n\nDer Athlet kann dort wiederhergestellt oder endg\u00fcltig gel\u00f6scht werden.')) return;
+  if (!await confirmModal('Athlet "' + name + '" in den Papierkorb verschieben?\n\nDer Athlet kann dort wiederhergestellt oder endg\u00fcltig gel\u00f6scht werden.')) return;
   var r = await apiDel('athleten/' + id);
   if (r && r.ok) { notify('Gel\u00f6scht.', 'ok'); await loadAthleten(); await renderAthleten(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
@@ -1048,7 +1048,7 @@ async function pkDelete(typ, id) {
   var msg = typ === 'benutzer'
     ? 'Benutzerkonto endgültig löschen?\nDas Konto wird dauerhaft gelöscht und vom Athletenprofil getrennt.'
     : 'Eintrag endgültig löschen? Dies kann nicht rückgängig gemacht werden.';
-  if (!confirm(msg)) return;
+  if (!await confirmModal(msg)) return;
   var r = await api('DELETE', 'papierkorb/' + typ + '/' + id);
   if (r && r.ok) { notify('Endgültig gelöscht.', 'ok'); await renderPapierkorb(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
@@ -2255,9 +2255,9 @@ function mstrMoveDown(idx) {
   var tmp = MSTR_LIST[idx + 1]; MSTR_LIST[idx + 1] = MSTR_LIST[idx]; MSTR_LIST[idx] = tmp;
   _mstrSave();
 }
-function mstrDelete(idx) {
+async function mstrDelete(idx) {
   var m = MSTR_LIST[idx];
-  if (!confirm('\'' + m.label + '\' wirklich löschen?')) return;
+  if (!await confirmModal('\'' + m.label + '\' wirklich löschen?')) return;
   MSTR_LIST.splice(idx, 1);
   _mstrSave();
 }
@@ -2480,7 +2480,7 @@ async function updateKatInline(id) {
 }
 
 async function deleteDisziplin(disz) {
-  if (!confirm('Disziplin \u201e' + disz + '\u201c wirklich l\u00f6schen?')) return;
+  if (!await confirmModal('Disziplin \u201e' + disz + '\u201c wirklich l\u00f6schen?')) return;
   var r = await apiDel('disziplin-mapping/' + encodeURIComponent(disz));
   if (r && r.ok) {
     notify('Disziplin gel\u00f6scht.', 'ok');
@@ -2706,7 +2706,7 @@ async function updateKat(id) {
 }
 
 async function deleteKat(id, name) {
-  if (!confirm('Kategorie "' + name + '" wirklich löschen?')) return;
+  if (!await confirmModal('Kategorie "' + name + '" wirklich löschen?')) return;
   var r = await apiDel('kategorien/' + id);
   if (r && r.ok) {
     REK_CATS = [];
@@ -2998,9 +2998,9 @@ function katGruppeEdit(idx) {
   });
 }
 
-function katGruppeDelete(idx) {
+async function katGruppeDelete(idx) {
   var g = window._katGruppen[idx] || {};
-  if (!confirm('Gruppe "' + (g.mitglieder||[]).join(' + ') + '" wirklich löschen?')) return;
+  if (!await confirmModal('Gruppe "' + (g.mitglieder||[]).join(' + ') + '" wirklich löschen?')) return;
   window._katGruppen.splice(idx, 1);
   _katGruppenSave();
 }
@@ -3495,7 +3495,7 @@ async function _vaSave(id) {
 }
 
 async function _vaDelete(id, name) {
-  if (!confirm('Veranstaltung "' + name + '" in den Papierkorb verschieben?\n\nAlle zugehörigen Ergebnisse werden ebenfalls verschoben.')) return;
+  if (!await confirmModal('Veranstaltung "' + name + '" in den Papierkorb verschieben?\n\nAlle zugehörigen Ergebnisse werden ebenfalls verschoben.')) return;
   var r = await apiDel('veranstaltungen/' + id);
   if (r && r.ok) {
     notify('Gelöscht.', 'ok');
@@ -3543,7 +3543,7 @@ async function bulkVeranst(action) {
   }
 
   if (action === 'loeschen') {
-    if (!confirm(ids.length + ' Veranstaltung(en) in den Papierkorb verschieben?')) return;
+    if (!await confirmModal(ids.length + ' Veranstaltung(en) in den Papierkorb verschieben?')) return;
     var ok = 0;
     for (var i = 0; i < ids.length; i++) {
       var r = await apiDel('veranstaltungen/' + ids[i]);

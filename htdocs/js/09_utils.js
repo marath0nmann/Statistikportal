@@ -265,6 +265,20 @@ function showModal(html, wide, noClose) {
 
 function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
 
+function confirmModal(msg) {
+  return new Promise(function(resolve) {
+    var safe = msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    showModal(
+      '<p style="margin:0 0 20px;white-space:pre-wrap">' + safe + '</p>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-ghost" onclick="closeModal();window._cmR(false)">Abbrechen</button>' +
+        '<button class="btn btn-danger" onclick="closeModal();window._cmR(true)">OK</button>' +
+      '</div>'
+    );
+    window._cmR = resolve;
+  });
+}
+
 // ── THEME ─────────────────────────────────────────────────
 function getThemePref() {
   return localStorage.getItem('theme') || 'auto';

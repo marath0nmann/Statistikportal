@@ -167,7 +167,7 @@ async function passkeyRegisterAndRefresh(containerId) {
 }
 
 async function passkeyDeleteAndRefresh(id, containerId) {
-  if (!confirm('Passkey wirklich löschen?')) return;
+  if (!await confirmModal('Passkey wirklich löschen?')) return;
   var result = await passkeyDelete(id);
   if (result.ok) {
     notify('Passkey gelöscht.', 'ok');

@@ -718,7 +718,7 @@ async function saveSerie(id) {
 }
 
 async function deleteSerieConfirm(id, name) {
-  if (!confirm('Serie "' + name + '" l\u00f6schen?\nDie Veranstaltungen selbst bleiben erhalten, werden aber keiner Serie mehr zugeordnet.')) return;
+  if (!await confirmModal('Serie "' + name + '" l\u00f6schen?\nDie Veranstaltungen selbst bleiben erhalten, werden aber keiner Serie mehr zugeordnet.')) return;
   var r = await api('DELETE', 'veranstaltung-serien/' + id);
   if (r && r.ok) { notify('Gel\u00f6scht.', 'ok'); switchVeranstView('serien'); }
   else notify((r && r.fehler) || 'Fehler', 'err');
@@ -777,10 +777,10 @@ async function deleteVeranstaltung(id, name) {
   var v = state._veranstMap && state._veranstMap[id];
   var anz = v ? parseInt(v.anz_ergebnisse) : 0;
   if (anz > 0) {
-    if (!confirm('Veranstaltung "' + name + '" und ' + anz + ' Ergebnisse in den Papierkorb verschieben?')) return;
+    if (!await confirmModal('Veranstaltung "' + name + '" und ' + anz + ' Ergebnisse in den Papierkorb verschieben?')) return;
     var r = await api('DELETE', 'veranstaltungen/' + id + '?force=1');
   } else {
-    if (!confirm('Veranstaltung "' + name + '" in den Papierkorb verschieben?')) return;
+    if (!await confirmModal('Veranstaltung "' + name + '" in den Papierkorb verschieben?')) return;
     var r = await apiDel('veranstaltungen/' + id);
   }
   if (r && r.ok) { notify('Gel\u00f6scht.', 'ok'); await renderVeranstaltungen(); }
