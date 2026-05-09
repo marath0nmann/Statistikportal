@@ -1,3 +1,6 @@
+## v1236
+- Modal: Schließen durch Klick außerhalb des Fensters deaktiviert
+
 ## v1235
 - Bestleistungen: Disziplinen mit 0 Ergebnissen werden ausgeblendet
 
