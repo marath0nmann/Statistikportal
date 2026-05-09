@@ -1,3 +1,6 @@
+## v1250
+- Neuer Admin-Tab „Orte": zentrale Verwaltung mit OpenStreetMap/Nominatim-Anbindung (Flagge, Land, Koordinaten); Veranstaltungs-Edit nutzt Ort-Picker statt Freitext; Veranstaltungslisten zeigen Länderflagge
+
 ## v1249
 - Disziplin + Kategorie (z.B. „3.000m (Bahn)"): kein Zeilenumbruch mehr dazwischen
 

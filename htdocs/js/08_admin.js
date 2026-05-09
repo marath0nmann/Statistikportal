@@ -365,6 +365,7 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='disziplinen'    ? ' active' : '') + '" onclick="navAdmin(\'disziplinen\')">&#x1F3F7;&#xFE0F; Disziplinen</button>' +
     '<button class="subtab' + (t==='altersklassen'  ? ' active' : '') + '" onclick="navAdmin(\'altersklassen\')">&#x1F464; Altersklassen</button>' +
     '<button class="subtab' + (t==='meisterschaften'? ' active' : '') + '" onclick="navAdmin(\'meisterschaften\')">&#x1F3C5; Meisterschaften</button>' +
+    '<button class="subtab' + (t==='orte'           ? ' active' : '') + '" onclick="navAdmin(\'orte\')">&#x1F4CD; Orte</button>' +
     '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">&#x2699;&#xFE0F; Einstellungen</button>' +
     '<button class="subtab' + (t==='dashboard_cfg'  ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">&#x1F4CA;&#xFE0E; Dashboard</button>' +
     '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">✋ Anträge' + _adminBadge((window._adminPendingAntraege||0)+(window._adminPendingFreigabe||0)) + '</button>' +
@@ -417,6 +418,7 @@ async function renderAdmin() {
   if (state.adminTab === 'disziplinen')    { await renderAdminDisziplinen(); return; }
   if (state.adminTab === 'altersklassen')  { await renderAdminAltersklassen(); return; }
   if (state.adminTab === 'meisterschaften'){ await renderAdminMeisterschaften(); return; }
+  if (state.adminTab === 'orte')           { await renderAdminOrte(); return; }
   if (state.adminTab === 'antraege')        { await renderAdminAntraege(); return; }
   if (state.adminTab === 'wartung')        { await renderAdminWartung(); return; }
   if (state.adminTab === 'papierkorb')     { await renderPapierkorb(); return; }
@@ -3504,16 +3506,23 @@ function _vaFilter(key, val) {
 function _vaPage(dir) { _veranstAdminPage += dir; _renderVeranstAdminTable(); }
 function _vaGoPage(p) { _veranstAdminPage = parseInt(p)||0; _renderVeranstAdminTable(); }
 
-function _vaEditModal(id) {
+async function _vaEditModal(id) {
   var v = null;
   var items = _veranstAdminCache.items || [];
   for (var i = 0; i < items.length; i++) { if (items[i].id == id) { v = items[i]; break; } }
   if (!v) return;
+  if (typeof ortePickerLoad === 'function') await ortePickerLoad();
+  var curOrtId = v.ort_id || '';
+  var pickerText = curOrtId
+    ? (function(){ for (var i=0;i<(_orteCache||[]).length;i++){ var o=_orteCache[i]; if (o.id==curOrtId) return o.name + (o.land_code?' ('+o.land_code+')':''); } return _vaDec(v.ort||''); })()
+    : _vaDec(v.ort || '');
   showModal(
     modalH2('&#x270F;&#xFE0F; Veranstaltung bearbeiten') +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Name</label><input type="text" id="ve-name" value="' + _vaEsc(_vaDec(v.name||'')) + '"/></div>' +
-      '<div class="form-group"><label>Ort</label><input type="text" id="ve-ort" value="' + _vaEsc(_vaDec(v.ort||'')) + '"/></div>' +
+      '<div class="form-group"><label>Ort</label>' +
+        ortePickerHtml({ inputId: 've-ort', hiddenId: 've-ort-id', ortId: curOrtId, text: pickerText }) +
+      '</div>' +
       '<div class="form-group"><label>Datum</label><input type="date" id="ve-datum" value="' + (v.datum ? v.datum.slice(0,10) : '') + '"/></div>' +
       '<div class="form-group"><label>Status</label><select id="ve-genehmigt">' +
         '<option value="1"' + (parseInt(v.genehmigt) ? ' selected' : '') + '>Genehmigt</option>' +
@@ -3529,9 +3538,21 @@ function _vaEditModal(id) {
 }
 
 async function _vaSave(id) {
+  var ortIdEl = document.getElementById('ve-ort-id');
+  var ortInpEl = document.getElementById('ve-ort');
+  var ortId = ortIdEl && ortIdEl.value ? parseInt(ortIdEl.value) : null;
+  var ortFreitext = null;
+  if (ortId) {
+    for (var i = 0; i < (_orteCache || []).length; i++) {
+      if (_orteCache[i].id == ortId) { ortFreitext = _orteCache[i].name; break; }
+    }
+  } else if (ortInpEl) {
+    ortFreitext = ortInpEl.value.trim() || null;
+  }
   var body = {
     name:      document.getElementById('ve-name').value.trim() || null,
-    ort:       document.getElementById('ve-ort').value.trim() || null,
+    ort:       ortFreitext,
+    ort_id:    ortId,
     datum:     document.getElementById('ve-datum').value || null,
     genehmigt: parseInt(document.getElementById('ve-genehmigt').value),
   };
@@ -3544,6 +3565,7 @@ async function _vaSave(id) {
       if (items[i].id == id) {
         if (body.name  !== null) items[i].name  = body.name;
         if (body.ort   !== null) items[i].ort   = body.ort;
+        items[i].ort_id = body.ort_id;
         if (body.datum !== null) items[i].datum = body.datum;
         items[i].genehmigt = body.genehmigt;
         break;

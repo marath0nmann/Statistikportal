@@ -206,6 +206,23 @@ try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('veranstaltung_serien') 
     erstellt_am DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS serie_id INT NULL"); } catch (\Exception $e) {}
+// v1250: Orte-Tabelle (zentrale Ortsverwaltung mit Geo-Anreicherung via Nominatim/OSM)
+try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('orte') . " (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    name         VARCHAR(160) NOT NULL,
+    region       VARCHAR(160) NULL,
+    land         VARCHAR(120) NULL,
+    land_code    CHAR(2)      NULL,
+    lat          DECIMAL(9,6) NULL,
+    lon          DECIMAL(9,6) NULL,
+    osm_id       VARCHAR(40)  NULL,
+    osm_typ      VARCHAR(20)  NULL,
+    display_name VARCHAR(400) NULL,
+    erstellt_am  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS ort_id INT NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD INDEX idx_ort_id (ort_id)"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS geloescht_am DATETIME NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS reset_code_hash VARCHAR(255) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS reset_code_expires DATETIME NULL"); } catch (\Exception $e) {}
@@ -4516,6 +4533,201 @@ if ($res === 'autocomplete' && $id === 'athleten') {
 }
 
 // ============================================================
+// ORTE (v1250) – zentrale Ortsverwaltung
+// ============================================================
+
+// GET orte – Liste/Suche
+if ($res === 'orte' && $method === 'GET' && !$id) {
+    $oTbl = DB::tbl('orte');
+    $vTbl = DB::tbl('veranstaltungen');
+    $suche = trim($_GET['suche'] ?? $_GET['q'] ?? '');
+    $limit = min((int)($_GET['limit'] ?? 200), 500);
+    $where = '';
+    $params = [];
+    if ($suche !== '') {
+        $where = " WHERE o.name LIKE ? OR o.region LIKE ? OR o.land LIKE ? OR o.display_name LIKE ?";
+        $s = '%' . $suche . '%';
+        $params = [$s, $s, $s, $s];
+    }
+    $rows = DB::fetchAll(
+        "SELECT o.*,
+                (SELECT COUNT(*) FROM $vTbl v WHERE v.ort_id = o.id AND v.geloescht_am IS NULL) AS anz_veranstaltungen
+           FROM $oTbl o
+           $where
+           ORDER BY o.name ASC
+           LIMIT $limit",
+        $params
+    );
+    jsonOk($rows);
+}
+
+// GET orte/{id}
+if ($res === 'orte' && $method === 'GET' && $id) {
+    $oTbl = DB::tbl('orte');
+    $row = DB::fetchOne("SELECT * FROM $oTbl WHERE id=?", [(int)$id]);
+    if (!$row) jsonErr('Ort nicht gefunden.', 404);
+    jsonOk($row);
+}
+
+// POST orte – Ort anlegen
+if ($res === 'orte' && $method === 'POST' && !$id) {
+    Auth::requireRecht('veranstaltung_eintragen');
+    $name = sanitize($body['name'] ?? '');
+    if (!$name) jsonErr('Name erforderlich.');
+    $oTbl = DB::tbl('orte');
+    // Duplikat-Check: gleicher name + (region oder land_code)
+    $region = sanitize($body['region'] ?? '') ?: null;
+    $landCode = strtoupper(sanitize($body['land_code'] ?? '')) ?: null;
+    if ($landCode) $landCode = substr($landCode, 0, 2);
+    $existing = DB::fetchOne(
+        "SELECT id FROM $oTbl WHERE name=? AND (land_code <=> ?) AND (region <=> ?)",
+        [$name, $landCode, $region]
+    );
+    if ($existing) jsonErr('Ort existiert bereits (ID ' . $existing['id'] . ').', 409);
+    DB::query(
+        "INSERT INTO $oTbl (name,region,land,land_code,lat,lon,osm_id,osm_typ,display_name)
+         VALUES (?,?,?,?,?,?,?,?,?)",
+        [
+            $name,
+            $region,
+            sanitize($body['land'] ?? '') ?: null,
+            $landCode,
+            isset($body['lat']) && $body['lat'] !== '' ? (float)$body['lat'] : null,
+            isset($body['lon']) && $body['lon'] !== '' ? (float)$body['lon'] : null,
+            sanitize($body['osm_id'] ?? '') ?: null,
+            sanitize($body['osm_typ'] ?? '') ?: null,
+            sanitize($body['display_name'] ?? '') ?: null,
+        ]
+    );
+    $newId = DB::lastInsertId();
+    $row = DB::fetchOne("SELECT * FROM $oTbl WHERE id=?", [$newId]);
+    jsonOk($row);
+}
+
+// PUT orte/{id} – Ort bearbeiten
+if ($res === 'orte' && $method === 'PUT' && $id) {
+    Auth::requireRecht('veranstaltung_eintragen');
+    $oTbl = DB::tbl('orte');
+    $felder = []; $params = [];
+    $cols = ['name','region','land','land_code','lat','lon','osm_id','osm_typ','display_name'];
+    foreach ($cols as $c) {
+        if (array_key_exists($c, $body)) {
+            $felder[] = "$c=?";
+            $val = $body[$c];
+            if ($c === 'lat' || $c === 'lon') {
+                $val = ($val === '' || $val === null) ? null : (float)$val;
+            } elseif ($c === 'land_code') {
+                $val = $val ? strtoupper(substr(sanitize((string)$val), 0, 2)) : null;
+            } else {
+                $val = sanitize((string)($val ?? '')) ?: null;
+            }
+            $params[] = $val;
+        }
+    }
+    if (!$felder) jsonErr('Keine Änderungen.');
+    DB::updateById($oTbl, $felder, $params, (int)$id);
+    $row = DB::fetchOne("SELECT * FROM $oTbl WHERE id=?", [(int)$id]);
+    jsonOk($row);
+}
+
+// DELETE orte/{id} – Ort löschen (nur wenn keine Veranstaltungen verknüpft)
+if ($res === 'orte' && $method === 'DELETE' && $id) {
+    Auth::requireRecht('veranstaltung_loeschen');
+    $oTbl = DB::tbl('orte');
+    $vTbl = DB::tbl('veranstaltungen');
+    $force = !empty($_GET['force']);
+    $cnt = (int)(DB::fetchOne("SELECT COUNT(*) c FROM $vTbl WHERE ort_id=? AND geloescht_am IS NULL", [(int)$id])['c'] ?? 0);
+    if ($cnt > 0 && !$force) {
+        jsonErr('Ort wird noch von ' . $cnt . ' Veranstaltung(en) verwendet. Erst zuweisen/zusammenführen.', 409);
+    }
+    if ($force) DB::query("UPDATE $vTbl SET ort_id=NULL WHERE ort_id=?", [(int)$id]);
+    DB::query("DELETE FROM $oTbl WHERE id=?", [(int)$id]);
+    jsonOk('Gelöscht.');
+}
+
+// POST orte/{id}/merge – Ort in einen anderen mergen (alle Veranstaltungen umhängen)
+if ($res === 'orte' && $method === 'POST' && $id && ($body['action'] ?? '') === 'merge') {
+    Auth::requireRecht('veranstaltung_loeschen');
+    $oTbl = DB::tbl('orte');
+    $vTbl = DB::tbl('veranstaltungen');
+    $zielId = (int)($body['ziel_id'] ?? 0);
+    if (!$zielId || $zielId === (int)$id) jsonErr('Ungültiges Merge-Ziel.');
+    $ziel = DB::fetchOne("SELECT id FROM $oTbl WHERE id=?", [$zielId]);
+    if (!$ziel) jsonErr('Ziel-Ort nicht gefunden.', 404);
+    DB::query("UPDATE $vTbl SET ort_id=? WHERE ort_id=?", [$zielId, (int)$id]);
+    DB::query("DELETE FROM $oTbl WHERE id=?", [(int)$id]);
+    jsonOk('Zusammengeführt.');
+}
+
+// POST orte/import-from-veranstaltungen – einmalige Migration:
+// Erstellt für jeden distinct veranstaltungen.ort einen Orte-Eintrag und setzt ort_id.
+if ($res === 'orte' && $method === 'POST' && $id === 'import-from-veranstaltungen') {
+    Auth::requireRecht('veranstaltung_eintragen');
+    $oTbl = DB::tbl('orte');
+    $vTbl = DB::tbl('veranstaltungen');
+    $rows = DB::fetchAll("SELECT DISTINCT ort FROM $vTbl WHERE ort_id IS NULL AND ort IS NOT NULL AND ort <> '' AND geloescht_am IS NULL");
+    $angelegt = 0; $verknuepft = 0;
+    foreach ($rows as $r) {
+        $ort = trim((string)$r['ort']);
+        if ($ort === '') continue;
+        $ex = DB::fetchOne("SELECT id FROM $oTbl WHERE name=? AND region IS NULL AND land_code IS NULL", [$ort]);
+        if ($ex) {
+            $oid = (int)$ex['id'];
+        } else {
+            DB::query("INSERT INTO $oTbl (name) VALUES (?)", [$ort]);
+            $oid = DB::lastInsertId();
+            $angelegt++;
+        }
+        $stmt = DB::query("UPDATE $vTbl SET ort_id=? WHERE ort=? AND ort_id IS NULL", [$oid, $ort]);
+        $verknuepft += $stmt->rowCount();
+    }
+    jsonOk(['angelegt' => $angelegt, 'verknuepft' => $verknuepft]);
+}
+
+// GET orte/nominatim?q=... – Proxy zu OpenStreetMap Nominatim (Suchvorschläge)
+if ($res === 'orte' && $method === 'GET' && $id === 'nominatim') {
+    Auth::requireRecht('veranstaltung_eintragen');
+    $q = trim($_GET['q'] ?? '');
+    if ($q === '' || strlen($q) < 2) jsonOk([]);
+    $url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&accept-language=de&limit=8&q=' . urlencode($q);
+    $ua = 'Statistikportal-Leichtathletik/1.0 (' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ')';
+    $ctx = stream_context_create([
+        'http' => [
+            'timeout' => 6,
+            'header'  => "User-Agent: $ua\r\nAccept: application/json\r\n",
+        ],
+        'https' => [
+            'timeout' => 6,
+            'header'  => "User-Agent: $ua\r\nAccept: application/json\r\n",
+        ],
+    ]);
+    $raw = @file_get_contents($url, false, $ctx);
+    if ($raw === false) jsonErr('Nominatim nicht erreichbar.', 502);
+    $data = json_decode($raw, true);
+    if (!is_array($data)) jsonOk([]);
+    $out = [];
+    foreach ($data as $d) {
+        $addr = $d['address'] ?? [];
+        $name = $addr['city'] ?? $addr['town'] ?? $addr['village'] ?? $addr['hamlet'] ?? $addr['municipality'] ?? $addr['suburb'] ?? ($d['name'] ?? '');
+        $region = $addr['state'] ?? $addr['county'] ?? null;
+        $land = $addr['country'] ?? null;
+        $landCode = isset($addr['country_code']) ? strtoupper($addr['country_code']) : null;
+        $out[] = [
+            'name'         => $name,
+            'region'       => $region,
+            'land'         => $land,
+            'land_code'    => $landCode,
+            'lat'          => isset($d['lat']) ? (float)$d['lat'] : null,
+            'lon'          => isset($d['lon']) ? (float)$d['lon'] : null,
+            'osm_id'       => isset($d['osm_id']) ? (string)$d['osm_id'] : null,
+            'osm_typ'      => $d['osm_type'] ?? null,
+            'display_name' => $d['display_name'] ?? null,
+        ];
+    }
+    jsonOk($out);
+}
+
+// ============================================================
 // VERANSTALTUNG-SERIEN (v942)
 // ============================================================
 
@@ -4930,14 +5142,17 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
         $whereExtra = ' AND (v.name LIKE ? OR v.kuerzel LIKE ? OR v.ort LIKE ?)';
         $searchParams = [$s, $s, $s];
     }
+    $oTbl = DB::tbl('orte');
     $veranst = DB::fetchAll(
-        "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.datenquelle, v.serie_id,
+        "SELECT v.id, v.kuerzel, v.name, v.ort, v.ort_id, v.datum, v.datenquelle, v.serie_id,
+                o.name AS ort_name, o.land_code AS ort_land_code, o.lat AS ort_lat, o.lon AS ort_lon,
                 COUNT(e.id) AS anz_ergebnisse,
                 COUNT(DISTINCT e.athlet_id) AS anz_athleten
          FROM " . DB::tbl('veranstaltungen') . " v
          LEFT JOIN $eTbl e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
+         LEFT JOIN $oTbl o ON o.id = v.ort_id
          WHERE v.geloescht_am IS NULL AND v.genehmigt = 1$whereExtra
-         GROUP BY v.id, v.datenquelle, v.serie_id
+         GROUP BY v.id, v.datenquelle, v.serie_id, o.name, o.land_code, o.lat, o.lon
          ORDER BY v.datum DESC
          LIMIT $limit OFFSET $offset",
         $searchParams
@@ -5029,6 +5244,7 @@ if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
     if (isset($body['name']))        { $felder[] = 'name=?';        $params[] = sanitize($body['name'] ?? '') ?: null; }
     if (!empty($body['datum']))      { $felder[] = 'datum=?';       $params[] = $body['datum']; }
     if (isset($body['ort']))         { $felder[] = 'ort=?';         $params[] = sanitize($body['ort'] ?? '') ?: null; }
+    if (array_key_exists('ort_id', $body)) { $felder[] = 'ort_id=?'; $params[] = $body['ort_id'] ? (int)$body['ort_id'] : null; }
     if (isset($body['genehmigt']))   { $felder[] = 'genehmigt=?';   $params[] = $body['genehmigt'] ? 1 : 0; }
     if (array_key_exists('serie_id', $body)) { $felder[] = 'serie_id=?'; $params[] = $body['serie_id'] ? (int)$body['serie_id'] : null; }
     if (!empty($body['restore']))    { $felder[] = 'geloescht_am=NULL'; } // Aus Papierkorb wiederherstellen

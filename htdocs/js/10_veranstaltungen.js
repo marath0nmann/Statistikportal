@@ -121,7 +121,7 @@ async function renderVeranstaltungenListe() {
         '<div class="panel-header">' +
           '<div>' +
             '<div class="panel-title" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + v.id + '\',\'_blank\')">' + name + serieBadge + '</div>' +
-            '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + v.ort : '') + '</div>' +
+            '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + (flagEmoji(v.ort_land_code) ? flagEmoji(v.ort_land_code) + ' ' : '') + v.ort : '') + '</div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:10px">' +
             '<span style="font-size:13px;color:var(--text2)">' + v.anz_ergebnisse + ' Ergebnisse &middot; ' + v.anz_athleten + ' Athleten</span>' +
@@ -430,7 +430,7 @@ function _buildSerieJahreHtml(veranst) {
             '<div class="panel-title" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + v.id + '\',\'_blank\')">' +
               '<span style="font-size:20px;font-weight:800;color:var(--primary);margin-right:10px">' + v.jahr + '</span>' + name +
             '</div>' +
-            '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + v.ort : '') + '</div>' +
+            '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + (v.ort ? ' &middot; ' + (flagEmoji(v.ort_land_code) ? flagEmoji(v.ort_land_code) + ' ' : '') + v.ort : '') + '</div>' +
           '</div>' +
           '<div style="display:flex;align-items:center;gap:8px">' +
             '<span style="font-size:13px;color:var(--text2)">' + v.anz_ergebnisse + ' Ergebnisse &middot; ' + v.anz_athleten + ' Athleten</span>' +
@@ -740,12 +740,18 @@ async function showVeranstEditModal(id) {
   var curName  = v.name  || '';
   var curDatum = (v.datum || '').slice(0, 10);
   var curOrt   = v.ort   || '';
+  var curOrtId = v.ort_id || '';
   var curSerie = v.serie_id || '';
 
   var serieOptHtml = buildSelectOptions(serien, '&#8212; Keine Serie &#8212;',
     function(s) { return s.id; },
     function(s) { return s.name; },
     function(s) { return String(s.id) === String(curSerie); });
+
+  if (typeof ortePickerLoad === 'function') await ortePickerLoad();
+  var pickerText = curOrtId
+    ? (function(){ for (var i=0;i<(_orteCache||[]).length;i++){ var o=_orteCache[i]; if (o.id==curOrtId) return o.name + (o.land_code?' ('+o.land_code+')':''); } return curOrt; })()
+    : curOrt;
 
   showModal(
     modalH2('&#x270F;&#xFE0F; Veranstaltung bearbeiten') +
@@ -755,7 +761,8 @@ async function showVeranstEditModal(id) {
       '<div class="form-group"><label>Datum</label>' +
         '<input type="date" id="ve-datum" value="' + curDatum + '"/></div>' +
       '<div class="form-group"><label>Ort</label>' +
-        '<input type="text" id="ve-ort" value="' + curOrt.replace(/"/g,'&quot;') + '" placeholder="z.B. Leverkusen"/></div>' +
+        ortePickerHtml({ inputId: 've-ort', hiddenId: 've-ort-id', ortId: curOrtId, text: pickerText }) +
+      '</div>' +
       '<div class="form-group full"><label>\uD83D\uDD04 Serie (optional)</label>' +
         '<select id="ve-serie">' + serieOptHtml + '</select></div>' +
     '</div>' +
@@ -768,10 +775,23 @@ async function showVeranstEditModal(id) {
 
 async function saveVeranstaltung(id) {
   var serieEl = document.getElementById('ve-serie');
+  var ortIdEl = document.getElementById('ve-ort-id');
+  var ortInpEl = document.getElementById('ve-ort');
+  var ortId = ortIdEl && ortIdEl.value ? parseInt(ortIdEl.value) : null;
+  // Wenn ort_id gesetzt \u2192 Freitext aus Orte-Tabelle, sonst fallback auf Eingabe
+  var ortFreitext = null;
+  if (ortId) {
+    for (var i = 0; i < (_orteCache || []).length; i++) {
+      if (_orteCache[i].id == ortId) { ortFreitext = _orteCache[i].name; break; }
+    }
+  } else if (ortInpEl) {
+    ortFreitext = ortInpEl.value.trim() || null;
+  }
   var body = {
     name:     document.getElementById('ve-name').value.trim() || null,
     datum:    document.getElementById('ve-datum').value,
-    ort:      document.getElementById('ve-ort').value.trim() || null,
+    ort:      ortFreitext,
+    ort_id:   ortId,
     serie_id: serieEl ? (serieEl.value ? parseInt(serieEl.value) : null) : undefined,
   };
   var r = await apiPut('veranstaltungen/' + id, body);
@@ -948,7 +968,7 @@ async function showMassenSerieModal() {
     var name = v.name || (v.kuerzel||'').split(' ').slice(1).join(' ') || v.kuerzel || '?';
     return '<li style="padding:4px 0;font-size:13px;border-bottom:1px solid var(--border)">' +
       '<span style="font-weight:600">' + name + '</span>' +
-      ' <span style="color:var(--text2)">' + formatDate(v.datum) + (v.ort ? ' · ' + v.ort : '') + '</span>' +
+      ' <span style="color:var(--text2)">' + formatDate(v.datum) + (v.ort ? ' · ' + (flagEmoji(v.ort_land_code) ? flagEmoji(v.ort_land_code) + ' ' : '') + v.ort : '') + '</span>' +
     '</li>';
   }).join('');
 

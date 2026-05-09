@@ -372,3 +372,12 @@ function dbRes(v) {
   if (v === null || v === undefined) return '';
   return String(v).replace(',', '.');
 }
+
+// ── Länderflagge aus ISO-Code (z.B. "DE" → 🇩🇪) ──────────────────────────────
+function flagEmoji(code) {
+  if (!code || typeof code !== 'string') return '';
+  var c = code.trim().toUpperCase();
+  if (c.length !== 2 || !/^[A-Z]{2}$/.test(c)) return '';
+  var base = 0x1F1E6 - 'A'.charCodeAt(0);
+  return String.fromCodePoint(c.charCodeAt(0) + base, c.charCodeAt(1) + base);
+}
