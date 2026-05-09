@@ -4561,8 +4561,8 @@ if ($res === 'orte' && $method === 'GET' && !$id) {
     jsonOk($rows);
 }
 
-// GET orte/{id}
-if ($res === 'orte' && $method === 'GET' && $id) {
+// GET orte/{id} (nur numerisch – sonst kollidiert es mit orte/nominatim, orte/import-…)
+if ($res === 'orte' && $method === 'GET' && $id && ctype_digit((string)$id)) {
     $oTbl = DB::tbl('orte');
     $row = DB::fetchOne("SELECT * FROM $oTbl WHERE id=?", [(int)$id]);
     if (!$row) jsonErr('Ort nicht gefunden.', 404);

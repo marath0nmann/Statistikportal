@@ -1,3 +1,6 @@
+## v1253
+- Fix: GET orte/nominatim landete fälschlich im GET orte/{id}-Handler („Ort nicht gefunden") – ID-Match nur noch für numerische IDs
+
 ## v1252
 - Orte-Modale: Klick außerhalb schließt nicht mehr (noClose=true)
 - Nominatim-Fehler: detaillierte Server-Meldung wird jetzt im Dropdown angezeigt
