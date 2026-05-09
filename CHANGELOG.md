@@ -1,3 +1,6 @@
+## v1237
+- Admin Veranstaltungen: Name-Spalte kürzt mit Ellipsis (kein Rechts-Abschneiden); doppeltes HTML-Escaping (&amp;amp;) behoben
+
 ## v1236
 - Admin Veranstaltungen: Serien-Symbol auf 🔄 angeglichen; Serie als eigene sortierbare Spalte
 

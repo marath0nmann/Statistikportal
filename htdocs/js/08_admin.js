@@ -3224,6 +3224,7 @@ async function verwaistDelete(id, btn) {
 
 // ── ADMIN: VERANSTALTUNGEN ──────────────────────────────────────────────────
 function _vaEsc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _vaDec(s) { return (s||'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'"); }
 function _vaWildcard(pattern) {
   // Wildcard-Pattern → RegExp: * = beliebig, ? = ein Zeichen
   var esc = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
@@ -3338,7 +3339,9 @@ function _renderVeranstAdminTable() {
       ? '<span class="badge badge-aktiv">Genehmigt</span>'
       : '<span class="badge badge-inaktiv">Gesperrt</span>';
     var datumStr = v.datum ? v.datum.slice(0,10) : '–';
-    var nameStr = v.name ? _vaEsc(v.name) : (v.kuerzel ? _vaEsc(v.kuerzel) : '–');
+    var _nameRaw = v.name || v.kuerzel || '';
+    var _nameTitle = _vaDec(_nameRaw);
+    var nameStr = _nameRaw ? _vaEsc(_vaDec(_nameRaw)) : '–';
     var serie = v.serie_id ? (_veranstAdminCache.serieMap[v.serie_id] || null) : null;
     var serieCell = serie ? '<span style="font-size:12px;color:var(--primary)">&#x1F504; ' + _vaEsc(serie.name) + '</span>' : '<span style="color:var(--text2);font-size:12px">–</span>';
     var anzErg = parseInt(v.anz_ergebnisse)||0;
@@ -3351,7 +3354,7 @@ function _renderVeranstAdminTable() {
       '<tr' + rowBg + '>' +
         '<td style="width:32px;text-align:center"><input type="checkbox"' + chk + ' onchange="_vaToggle(' + v.id + ')" style="cursor:pointer"></td>' +
         '<td style="white-space:nowrap;font-size:13px">' + datumStr + '</td>' +
-        '<td>' + nameStr + '</td>' +
+        '<td style="min-width:0"><div style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:35vw" title="' + _vaEsc(_nameTitle) + '">' + nameStr + '</div></td>' +
         '<td style="color:var(--text2);font-size:13px">' + (v.ort ? _vaEsc(v.ort) : '–') + '</td>' +
         '<td>' + serieCell + '</td>' +
         '<td style="text-align:center;white-space:nowrap">' + ergCell + '</td>' +
