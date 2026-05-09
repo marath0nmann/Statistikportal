@@ -1,3 +1,6 @@
+## v1247
+- Admin Veranstaltungen: Aktions-Spalte von 5% auf 10% vergrößert; Name auf 42%; overflow:hidden auf Aktions-td
+
 ## v1246
 - Admin Veranstaltungen: Name-Spalte fix 44% mit text-overflow:ellipsis; table-layout:fixed; border-collapse:collapse
 

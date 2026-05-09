@@ -3241,12 +3241,12 @@ function _veranstAdminSortHeader() {
   var cols = [
     { key: 'check',         label: '<input type="checkbox" id="vaCheckAll" onchange="_vaToggleAll(this.checked)" style="cursor:pointer">', w: '3%' },
     { key: 'datum',         label: 'Datum',            w: '9%' },
-    { key: 'name',          label: 'Name',             w: '44%' },
-    { key: 'ort',           label: 'Ort',              w: '11%' },
-    { key: 'serie',         label: '&#x1F504; Serie',  w: '13%' },
+    { key: 'name',          label: 'Name',             w: '42%' },
+    { key: 'ort',           label: 'Ort',              w: '10%' },
+    { key: 'serie',         label: '&#x1F504; Serie',  w: '11%' },
     { key: 'anz_ergebnisse',label: 'Erg.',             w: '6%' },
     { key: 'genehmigt',     label: 'Status',           w: '9%' },
-    { key: '',              label: '',                  w: '5%' },
+    { key: '',              label: '',                  w: '10%' },
   ];
   return cols.map(function(c) {
     var wStyle = c.w ? 'width:' + c.w + ';' : '';
@@ -3380,7 +3380,7 @@ function _renderVeranstAdminTable() {
         '<td style="overflow:hidden;white-space:nowrap">' + serieCell + '</td>' +
         '<td style="text-align:center;white-space:nowrap">' + ergCell + '</td>' +
         '<td style="white-space:nowrap">' + gBadge + '</td>' +
-        '<td style="white-space:nowrap">' +
+        '<td style="white-space:nowrap;overflow:hidden;text-align:right">' +
           '<button class="btn btn-ghost btn-sm" onclick="_vaEditModal(' + v.id + ')" title="Bearbeiten">&#x270F;&#xFE0E;</button>' +
           '<button class="btn btn-danger btn-sm" onclick="_vaDelete(' + v.id + ',\'' + _vaDec(v.name||v.kuerzel||'?').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') + '\')" title="Löschen">&#x2715;</button>' +
         '</td>' +
