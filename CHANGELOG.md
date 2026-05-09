@@ -1,3 +1,6 @@
+## v1245
+- Athleten-Karten: „Letztes Ergebnis" nur bei inaktiven Athleten anzeigen
+
 ## v1244
 - Athleten-Karten: Sektion „Inaktive Athleten" umbenannt in „Inaktive Athleten mit bestehenden Bestleistungen"
 - Athleten-Karten: „Letztes Ergebnis: JJJJ" unter den Stats anzeigen

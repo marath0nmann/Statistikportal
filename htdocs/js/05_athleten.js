@@ -1138,12 +1138,12 @@ async function renderAthletenKarten() {
 
   var gridStyle = 'display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden';
 
-  function buildSection(title, athletes) {
+  function buildSection(title, athletes, showLetzteAkt) {
     if (!athletes.length) return '';
     var cards = '';
     for (var si = 0; si < athletes.length; si++) {
       var _a = athletes[si];
-      var _letzteAkt = aktMap[_a.id] || aktMap[String(_a.id)] || 0;
+      var _letzteAkt = showLetzteAkt ? (aktMap[_a.id] || aktMap[String(_a.id)] || 0) : 0;
       cards += _buildAthletCard(_a, hofMap[_a.id], _letzteAkt);
     }
     return '<div style="font-weight:700;font-size:15px;margin:16px 0 10px;color:var(--text)">' + title + ' <span style="font-size:13px;font-weight:400;color:var(--text2)">(' + athletes.length + ')</span></div>' +
@@ -1151,8 +1151,8 @@ async function renderAthletenKarten() {
   }
 
   el.innerHTML =
-    buildSection('Aktive Athleten', aktiveAthleten) +
-    buildSection('Inaktive Athleten mit bestehenden Bestleistungen', inaktiveAthleten) +
+    buildSection('Aktive Athleten', aktiveAthleten, false) +
+    buildSection('Inaktive Athleten mit bestehenden Bestleistungen', inaktiveAthleten, true) +
     '<style>@media(max-width:900px){#main-content>div[style*="repeat(5"]{grid-template-columns:repeat(3,1fr)}}' +
     '@media(max-width:560px){#main-content>div[style*="repeat(5"]{grid-template-columns:repeat(2,1fr)}}</style>';
 }
