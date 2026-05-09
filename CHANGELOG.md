@@ -1,3 +1,6 @@
+## v1238
+- README.md: Features-Sektion im Werbe-Stil neu geschrieben; bisher nicht aufgelistete Features ergänzt (SSO, Mobile/Dark Mode, Audit-Logs, Geburtsjahr-Import, Theme-System, Soft-Delete, Auto-Migrationen, Brute-Force-Schutz, Anträge etc.)
+
 ## v1236
 - README.md auf Stand v1235 gebracht (Dateistruktur, Features, Deployment aktualisiert)
 

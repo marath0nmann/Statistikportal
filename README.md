@@ -1,70 +1,93 @@
 # Statistikportal – Leichtathletik
-## Version v1236 | Stand: May 2026 
+## Version v1238 | Stand: May 2026 
 
-Webbasiertes Statistikportal für den Leichtathletik-Bereich.  
-PHP/MariaDB · Shared Hosting (all-inkl.com) · Vanilla JS/CSS · keine externen Frameworks
+**Die komplette Statistik-Plattform für deinen Leichtathletik-Verein.**  
+Vereinsrekorde, Bestleistungen, Veranstaltungen und Athletenprofile – alles an einem Ort, schnell, sicher und ohne externe Abhängigkeiten.
+
+PHP/MariaDB · läuft auf jedem Standard-Webhosting (all-inkl.com & Co.) · Vanilla JS/CSS · keine externen Frameworks · keine Build-Toolchain · keine versteckten Kosten.
 
 ---
 
-## ✨ Features (aktueller Stand)
+## ✨ Was das Portal kann
 
-### Dashboard
-- Konfigurierbare Widget-Layouts: Timeline, Bestleistungen, Veranstaltungen, Hall of Fame
-- Timeline: Vereinsrekorde (Gold/Silber) + persönliche Bestleistungen (Grün)
-- Korrekte AK-Labels (WHK/MHK bei merge_ak)
-- Hall of Fame: Athleten mit Bestenlisten-Titeln + Avatar
+### 📊 Dashboard, das mitdenkt
+Dein persönliches Cockpit nach dem Login: eine **Timeline** zeigt frische Vereinsrekorde in Gold und Silber neben den persönlichen Bestleistungen in Grün – auf einen Blick erkennst du, was diese Saison passiert ist. Die **Hall of Fame** rückt die Top-Athleten mit Avatar und Titeln ins Rampenlicht. Daneben die **nächsten und letzten Veranstaltungen** und ein Widget mit den eigenen Bestleistungen. Der gesamte Aufbau ist im Admin-Bereich frei konfigurierbar – jeder Verein gestaltet sein eigenes Dashboard.
 
-### Bestleistungen / Rekorde
-- Filter nach Kategorie, Disziplin, AK, Geschlecht
-- Disziplinen mit 0 Ergebnissen werden ausgeblendet
-- Disziplin-Trennung via `mapping_id` (gleicher Name in verschiedenen Kategorien möglich)
-- Favorisierte Disziplinen erscheinen immer zuerst (konfigurierbar im Admin)
-- Pace-Berechnung für alle Disziplinen ≥ 1 km
-- Filtereinstellungen (mergeAK, unique, Jahres-Highlight) pro Nutzer persistent
+### 🏆 Vereinsrekorde & Bestleistungen
+Jeder Rekord wird mit **Pace-Berechnung** (für alle Distanzen ab 1 km), Vorgängerwerten („war 2:37:42 h") und farbiger Hervorhebung des aktuellen Jahres präsentiert. Filtere nach Kategorie, Disziplin, Altersklasse und Geschlecht – inklusive intelligenter **AK-Mergung** (alle Jugend-AKs werden automatisch zu MHK/WHK gruppiert) und einer **Unique-Ansicht**, die nur das beste Ergebnis je Disziplin zeigt. Lieblings-Disziplinen erscheinen ganz oben, leere Disziplinen verschwinden automatisch – die Ansicht bleibt aufgeräumt. Alle Filter merkt sich das Portal **pro Nutzer dauerhaft**.
 
-### Ergebnisse
-- Filter nach Athlet, Kategorie, Disziplin, AK, Jahr, Meisterschaft
-- Inline-Bearbeiten-Dialog mit korrekter `mapping_id`
+### 🏃 Athleten im Karten-Layout
+Die öffentliche Athleten-Übersicht präsentiert jedes Mitglied auf einer eigenen Karte – mit **Avatar, Vereinsrekord- und Bestleistungs-Badges** und einer übersichtlichen Trennung zwischen aktiven und inaktiven Athleten. Klick aufs Profil öffnet alle Ergebnisse, sortiert nach favorisierten Disziplinen und mit Ergebniszählern. Auf dem Desktop fünf Spalten breit, auf dem Smartphone perfekt gestapelt.
 
-### Eintragen
-- **Bulk-Eintragen**: Smart-Paste, Datum pro Zeile, Meisterschaft wählbar
-- **Eigenes Ergebnis eintragen**: Reset- und „Speichern & Neues"-Button; Suchfeld „Bestehende Veranstaltung"
-- **URL-Import** direkt im Paste-Feld (automatische Erkennung):
-  - `my.raceresult.com/…` → RaceResult (inkl. tief verschachtelter AK-Listen)
-  - `*.mikatiming.com/…` → MikaTiming (parallele Event-POSTs, Orts-/Datum-Erkennung)
-  - `acn-timing.com` / `chronorace.be` → ACN Timing (alle Strecken, dynamische Spaltenerkennung)
-  - `uitslagen.nl/uitslag?id=…` → uitslagen.nl
-  - `evenementen.uitslagen.nl/JJJJ/slug/` → evenementen.uitslagen.nl (alle Strecken automatisch)
-- Debug-Fenster für alle Import-Quellen
+### 📋 Ergebnisse griffbereit
+Die zentrale Ergebnisliste filtert nach **Athlet, Kategorie, Disziplin, AK, Jahr und Meisterschaft** – jede Spalte ist sortierbar, jeder Eintrag inline editierbar. Externe Ergebnisse (auswärts errungen) lassen sich separat ein- und ausblenden. Zeitformate werden automatisch normalisiert: aus „64:30" wird „1:04:30" – auch im Import.
 
-### Login & Sicherheit
-- **3-Schritt-Login**: E-Mail → Passwort/Passkey → 2FA (TOTP, Passkey oder E-Mail-Code)
-- Passkey (WebAuthn) als primäre oder alternative Anmeldung; RP-ID konfigurierbar (portalübergreifend)
-- E-Mail-Verifizierungscode als 2FA-Fallback (6-stellig, 5 Min.)
-- Passwort-Reset per E-Mail
-- Avatar aus Athletenprofil wird nach Login sofort angezeigt
-- **Login-Portal (SSO)**: optionaler Cross-Domain-Login via Shared Session Cookie (`login_portal_aktiv`)
+### 🎯 Veranstaltungen & Serien
+Lege **regelmäßige Veranstaltungen** als Serie an – das Portal sortiert sie automatisch nach kalendarischer Nähe (die nächste anstehende oben) und zeigt für jede Serie eine eigene Bestleistungs-Auswertung über alle Jahre, geteilt nach Geschlecht und Altersklasse. Einzelveranstaltungen erscheinen mit Ergebnislisten, Meisterschafts-Platzierungen und externen Beiträgen.
 
-### Athleten
-- Öffentliche Athleten-Seite im Karten-Layout (5 Spalten Desktop) mit Vereinsrekord-/Bestleistungs-Badges
-- Aufteilung in „Aktive Athleten" (Ergebnis in diesem/letztem Jahr) und „Inaktive Athleten"
-- Athletenprofil: favorisierte Disziplinen erscheinen zuerst (farblich hervorgehoben), Ergebnisanzahl je Disziplin
+### ⚡ Bulk-Eintragen mit URL-Import
+**Einfach Ergebnisliste reinkopieren – fertig.** Der Smart-Paste-Parser erkennt Name, Disziplin, AK, Platz, Datum und Zeit unabhängig von der Reihenfolge. Akzente und Umlaute werden tolerant gematcht („André" findet auch „Andre"), die passende Veranstaltungs-Serie wird automatisch vorgeschlagen.
 
-### Veranstaltungen
-- **Regelmäßige Veranstaltungen**: sortierbare Tabelle (MMDD-Schlüssel: nächste anstehende oben)
-  - Bestleistungen pro Serie (Gesamt, Frauen/Männer, nach AK)
-  - Ergebnisse nach Jahr sortiert
+Noch schneller: **Einfach die URL einer Ergebnisseite einfügen** – das Portal holt sich die Daten direkt:
 
-### Admin
-- **Benutzer**: Verwaltung + Rollenzuweisung; Rollen-Manager (anlegen, bearbeiten, löschen); 2FA-Reset (Passkey/TOTP) pro Nutzer; ausstehende Registrierungen direkt im Benutzer-Tab (Badge mit Zähler)
-- **Disziplinen**: Kategorie-Mapping, Format-Overrides, Favoriten; Distanz-Feld (automatisch aus Namen abgeleitet); HoF-Ausschluss-Toggle direkt in der Tabelle; Sortierung per Spaltenkopf; „Anlegen & Nächste"-Button
-- **Altersklassen**: Verwaltung + Kategoriezuweisung
-- **Meisterschaften**: Typen konfigurierbar (Olympia, WM, EM, DM, NRW, …)
-- **Veranstaltungen**: Übersicht aller Veranstaltungen (Suche, Jahr-/Status-Filter, Sortierung); Bulk-Aktionen: Genehmigen, Sperren, Löschen, Umbenennen (Suchen & Ersetzen, Wildcard), Ort setzen, Durchnumerieren (Startnummer), Serie zuweisen; Serien-Tag unter dem Veranstaltungsnamen
-- **Einstellungen**: Theme, Clubname, Logo, Footer-Texte; auto-approve für neue Veranstaltungen und eigene Ergebnisse; Login-Portal-Konfiguration
-- **Dashboard-Editor**: Widget-Layout konfigurierbar
-- **Anträge**: Ergebnis-Änderungsanträge durch Athleten
-- **Papierkorb**: Gelöschte Einträge wiederherstellen
+| Quelle | Was wird automatisch importiert |
+|---|---|
+| **RaceResult** (`my.raceresult.com`) | Komplette Ergebnislisten inkl. tief verschachtelter AK-Filter |
+| **MikaTiming** (`*.mikatiming.com`) | Alle Vereinsteilnehmer, Ort & Datum aus dem Eventnamen erkannt |
+| **ACN Timing / Chronorace** (`acn-timing.com`, `chronorace.be`) | Live-Strecken mit dynamischer Spaltenerkennung |
+| **uitslagen.nl** | Einzelevents per ID |
+| **evenementen.uitslagen.nl** | Alle Strecken eines Events automatisch |
+| **Leichtathletik.de** | Wettkampfprotokolle |
+
+Ein eingebautes **Debug-Fenster** zeigt bei jedem Import HTTP-Status, Trefferanzahl und Parsing-Schritte – falls eine Quelle mal nicht mitspielt, weißt du sofort, woran es liegt.
+
+Für eigene Ergebnisse gibt es eine kompakte Eingabemaske mit „Speichern & Neues"-Button für schnelle Mehrfacheingaben.
+
+### 🔐 Login & Sicherheit auf Bank-Niveau
+**3-Schritt-Login** mit moderner Mehrfaktor-Authentifizierung:
+1. E-Mail oder Benutzername  
+2. Passwort **oder Passkey** (Touch ID, Face ID, Windows Hello, YubiKey…)  
+3. Zweiter Faktor: **TOTP** (Google Authenticator & Co.), **Passkey** oder **6-stelliger E-Mail-Code**
+
+Dazu: **Passwort-Reset per E-Mail**, **Brute-Force-Schutz** (max. 10 Fehlversuche je IP), **Login-Versuchs-Logging** für Admins, und ein **granulares Rollensystem** mit anpassbaren Rechten (Admin, Editor, Athlet, Leser – plus eigene Rollen).
+
+Der **Avatar aus dem Athletenprofil** erscheint nach dem Login sofort im Header – inklusive Online-Status-Punkt.
+
+### 🌐 Optionales Single Sign-On
+Mehrere Vereinsdienste an einer Domain? Das **integrierte Login-Portal-Modul** ermöglicht Cross-Domain-SSO via Shared Session Cookie – ein Login, alle Apps. Ein Schalter im Admin reicht zum Aktivieren; ohne Konfiguration bleibt alles standalone.
+
+### 🛠️ Admin-Bereich, der alles kann
+
+**Benutzerverwaltung:** Anlegen, bearbeiten, deaktivieren, Rollen zuweisen. Eigene Rollen mit Bitmask-Rechten erstellen. 2FA (Passkey/TOTP) für einzelne Nutzer zurücksetzen. Ausstehende Registrierungen werden direkt mit Badge-Zähler im Benutzer-Tab angezeigt – Genehmigung mit einem Klick. Admins werden automatisch per E-Mail über neue Registrierungen informiert.
+
+**Disziplinen:** Kategorie-Mapping per Drag-Klick, Format-Overrides (Sekunden, Minuten, Hundertstel, Meter), Favoriten-Stern direkt in der Tabelle, automatische **Distanz-Erkennung aus dem Namen** („Halbmarathon" → 21097,5 m), Hall-of-Fame-Ausschluss-Toggle, Sortierung per Spaltenkopf, „Anlegen & Nächste" für schnelles Mehrfacherfassen.
+
+**Altersklassen:** Verwaltung mit AK→Kategorie-Zuordnung und Jugend-AK-Mapping (MU18/MU20 → MHK/WHK).
+
+**Meisterschaften:** Frei konfigurierbare Typen (Olympia, WM, EM, DM, NRW-Meisterschaften …) mit eigenen Farben und Medaillen-Symbolen.
+
+**Veranstaltungen-Tab:** Vollständige Übersicht mit **Wildcard-Suche** (`*Stadt*`, `Marathon?`), Jahr- und Status-Filtern. Bulk-Aktionen für mehrere Einträge gleichzeitig: Genehmigen, Sperren, Löschen, **Umbenennen mit Suchen & Ersetzen**, Ort setzen, **Startnummern automatisch durchnumerieren** (alt → neu), Serie zuweisen oder neu anlegen. Serien-Zugehörigkeit als Tag direkt unter dem Namen sichtbar.
+
+**Anträge:** Athleten können Korrekturen an ihren Ergebnissen vorschlagen – Admins bekommen die Anträge gebündelt und können mit einem Klick zustimmen oder ablehnen.
+
+**Papierkorb:** Nichts ist endgültig gelöscht. Versehentlich entfernte Athleten, Ergebnisse und Veranstaltungen lassen sich jederzeit wiederherstellen.
+
+**Einstellungen:** Vereinsname, Logo, **Theme-Farben (Primary/Accent)** mit automatisch berechneten Kontrastvarianten, Footer-Texte (Datenschutz, Impressum, Nutzungsbedingungen) als bearbeitbare Templates, Auto-Freigabe für Veranstaltungen und eigene Ergebnisse, Login-Portal-Konfiguration, Adressleisten-Färbung im Browser (`theme-color`).
+
+**Dashboard-Editor:** Widget-Layout per Konfigurations-UI – Timeline-Limit, Auto-Fill, Merge-AK-Optionen.
+
+**Geburtsjahr-Bulk-Import:** CSV-Import (Semikolon-getrennt, Excel-kompatibel) mit Vorschau und Match-Status für ganze Jahrgangs-Listen.
+
+**System-Info:** Letzte Logins pro Nutzer, Aktivitäts-Tracking, Statistiken zu Ergebnissen/Veranstaltungen pro Jahr, OPcache-Clear auf Knopfdruck.
+
+### 📱 Mobil-First & Dark Mode
+Komplett responsives Design – auf dem Smartphone werden Vereinsrekorde als Karten gestapelt statt als 9-Spalten-Tabelle gequetscht, der mobile Header zeigt Logo, Versionsnummer und aktuellen Seitentitel, ein **Burger-Drawer** öffnet die Navigation. Der **Dark Mode** schaltet automatisch nach Systemeinstellung. Toast-Notifications, Modals mit Außenklick-Schließen, Live-Suchfelder mit Debounce und Keyboard-Navigation – moderne Web-UX, die sich nicht hinter App-Frontends verstecken muss.
+
+### 🔄 Daten-Integrität
+**Soft-Delete überall:** kein Datensatz wird hart gelöscht, alles landet im Papierkorb. **Audit-Logs** für Login-Versuche, **Ergebnis-Änderungsanträge** mit Status-Historie, **automatische DDL-Migrationen** beim API-Start (das Schema bleibt immer aktuell, ohne manuelle SQL-Skripte).
+
+### 🚀 Wartungsarm & schnell
+Cache-Buster auf allen JS/CSS-Dateien (`?v=NNN`), parallele HTTP-Requests beim MikaTiming-Import (~6× schneller), Pagination, Lazy Loading. **Kein Build-Step, keine npm-Dependencies** – einfach Dateien hochladen, GitHub Actions deployed automatisch und leert den OPcache.
 
 ---
 
