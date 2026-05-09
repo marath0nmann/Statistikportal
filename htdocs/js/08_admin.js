@@ -3337,6 +3337,8 @@ function _renderVeranstAdminTable() {
       : '<span class="badge badge-inaktiv">Gesperrt</span>';
     var datumStr = v.datum ? v.datum.slice(0,10) : '–';
     var nameStr = v.name ? _vaEsc(v.name) : (v.kuerzel ? _vaEsc(v.kuerzel) : '–');
+    var serie = v.serie_id ? (_veranstAdminCache.serieMap[v.serie_id] || null) : null;
+    if (serie) nameStr += '<br><span style="font-size:11px;color:var(--primary);opacity:.8">&#x1F4CB; ' + _vaEsc(serie.name) + '</span>';
     var anzErg = parseInt(v.anz_ergebnisse)||0;
     var anzExt = parseInt(v.anz_extern)||0;
     var ergCell = '';
@@ -3377,13 +3379,19 @@ async function renderAdminVeranstaltungen() {
   var el = document.getElementById('main-content');
   el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden…</div>';
 
-  var r = await apiGet('veranstaltungen?admin=1');
+  var [r, rs] = await Promise.all([apiGet('veranstaltungen?admin=1'), apiGet('veranstaltung-serien')]);
   if (!r || !r.ok) {
     el.innerHTML = adminSubtabs() + '<div style="color:var(--accent);padding:20px">Fehler beim Laden.</div>';
     return;
   }
 
   _veranstAdminCache.items = r.data || [];
+  _veranstAdminCache.serien = (rs && rs.ok && rs.data) ? rs.data : [];
+  _veranstAdminCache.serieMap = {};
+  for (var si = 0; si < _veranstAdminCache.serien.length; si++) {
+    var s = _veranstAdminCache.serien[si];
+    _veranstAdminCache.serieMap[s.id] = s;
+  }
   _veranstAdminSel = {};
 
   // Jahre für Filter
@@ -3420,6 +3428,7 @@ async function renderAdminVeranstaltungen() {
       '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'sperren\')">&#x23FC; Sperren</button>' +
       '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'umbenennen\')">&#x270F; Name</button>' +
       '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'ort\')">&#x1F4CD; Ort</button>' +
+      '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'serie\')">&#x1F4CB; Serie</button>' +
       '<button class="btn btn-sm btn-danger" onclick="bulkVeranst(\'loeschen\')">&#x2715; Löschen</button>' +
     '</div>' +
     '<div class="panel">' +
@@ -3542,6 +3551,29 @@ async function bulkVeranst(action) {
     return;
   }
 
+  if (action === 'serie') {
+    var serien = _veranstAdminCache.serien || [];
+    var serieOpts = '<option value="0">— Keine Serie (entfernen)</option>';
+    for (var si = 0; si < serien.length; si++) {
+      serieOpts += '<option value="' + serien[si].id + '">' + _vaEsc(serien[si].name) + '</option>';
+    }
+    serieOpts += '<option value="neu">+ Neue Serie anlegen…</option>';
+    showModal(
+      modalH2('&#x1F4CB; Serie zuweisen (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +
+      '<div class="form-grid">' +
+        '<div class="form-group full"><label>Serie</label>' +
+          '<select id="va-serie-sel" onchange="var n=document.getElementById(\'va-serie-neu-wrap\');if(n)n.style.display=this.value===\'neu\'?\'block\':\'none\'">' + serieOpts + '</select>' +
+        '</div>' +
+        '<div class="form-group full" id="va-serie-neu-wrap" style="display:none"><label>Name der neuen Serie</label><input type="text" id="va-serie-neu-name" placeholder="z.B. Apfelblütenlauf"/></div>' +
+      '</div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+        '<button class="btn btn-primary" onclick="_vaBulkSerie()">Zuweisen</button>' +
+      '</div>'
+    );
+    return;
+  }
+
   if (action === 'loeschen') {
     if (!confirm(ids.length + ' Veranstaltung(en) in den Papierkorb verschieben?')) return;
     var ok = 0;
@@ -3630,5 +3662,45 @@ async function _vaBulkRename(action) {
   _veranstAdminSel = {};
   if (ok > 0) notify(ok + ' Veranstaltung(en) aktualisiert.', 'ok');
   else if (!err) notify('Keine Änderungen (Werte bereits identisch).', 'err');
+  _renderVeranstAdminTable();
+}
+
+async function _vaBulkSerie() {
+  var sel = document.getElementById('va-serie-sel');
+  var val = sel ? sel.value : '0';
+  var serieId = null;
+
+  if (val === 'neu') {
+    var neuName = ((document.getElementById('va-serie-neu-name') || {}).value || '').trim();
+    if (!neuName) { notify('Bitte einen Seriennamen eingeben.', 'err'); return; }
+    closeModal();
+    var cr = await apiPost('veranstaltung-serien', { name: neuName });
+    if (!cr || !cr.ok) { notify((cr && cr.fehler) || 'Fehler beim Anlegen der Serie.', 'err'); return; }
+    serieId = cr.data && cr.data.id ? cr.data.id : null;
+    if (!serieId) { notify('Fehler: keine ID erhalten.', 'err'); return; }
+    // In lokalen Cache aufnehmen
+    var neuerS = { id: serieId, name: neuName, kuerzel: '' };
+    _veranstAdminCache.serien.push(neuerS);
+    _veranstAdminCache.serieMap[serieId] = neuerS;
+  } else {
+    serieId = val === '0' ? null : parseInt(val);
+    closeModal();
+  }
+
+  var ids = Object.keys(_veranstAdminSel).map(Number).filter(function(x){ return x > 0; });
+  var ok = 0, err = 0;
+  for (var i = 0; i < ids.length; i++) {
+    var r = await apiPut('veranstaltungen/' + ids[i], { serie_id: serieId });
+    if (r && r.ok) {
+      var arr = _veranstAdminCache.items;
+      for (var j = 0; j < arr.length; j++) { if (arr[j].id == ids[i]) { arr[j].serie_id = serieId; break; } }
+      ok++;
+    } else {
+      err++;
+      if (err === 1) notify((r && r.fehler) || 'API-Fehler bei ID ' + ids[i], 'err');
+    }
+  }
+  _veranstAdminSel = {};
+  if (ok > 0) notify(ok + ' Veranstaltung(en) aktualisiert.', 'ok');
   _renderVeranstAdminTable();
 }

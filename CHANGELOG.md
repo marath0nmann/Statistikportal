@@ -1,5 +1,5 @@
 ## v1235
-- Bestleistungen: Disziplinen mit 0 Ergebnissen werden ausgeblendet
+- Admin Veranstaltungen: Serien-Zugehörigkeit als Tag unter dem Namen; Bulk-Aktion „Serie" (bestehend zuweisen, neue anlegen, entfernen)
 
 ## v1234
 - Admin Veranstaltungen: Startnummer-Eingabefeld an Modal-Optik angepasst (form-group)
