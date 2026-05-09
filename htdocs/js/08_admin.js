@@ -3239,20 +3239,21 @@ var _veranstAdminPageSz = 50;
 
 function _veranstAdminSortHeader() {
   var cols = [
-    { key: 'check',         label: '<input type="checkbox" id="vaCheckAll" onchange="_vaToggleAll(this.checked)" style="cursor:pointer">' },
-    { key: 'datum',         label: 'Datum' },
-    { key: 'name',          label: 'Name' },
-    { key: 'ort',           label: 'Ort' },
-    { key: 'serie',         label: '&#x1F504; Serie' },
-    { key: 'anz_ergebnisse',label: 'Erg.' },
-    { key: 'genehmigt',     label: 'Status' },
-    { key: '',              label: '' },
+    { key: 'check',         label: '<input type="checkbox" id="vaCheckAll" onchange="_vaToggleAll(this.checked)" style="cursor:pointer">', w: '3%' },
+    { key: 'datum',         label: 'Datum',            w: '9%' },
+    { key: 'name',          label: 'Name'              },
+    { key: 'ort',           label: 'Ort',              w: '11%' },
+    { key: 'serie',         label: '&#x1F504; Serie',  w: '13%' },
+    { key: 'anz_ergebnisse',label: 'Erg.',             w: '6%' },
+    { key: 'genehmigt',     label: 'Status',           w: '9%' },
+    { key: '',              label: '',                  w: '5%' },
   ];
   return cols.map(function(c) {
-    if (c.key === 'check') return '<th style="width:32px">' + c.label + '</th>';
-    if (!c.key) return '<th></th>';
+    var wStyle = c.w ? 'width:' + c.w + ';' : '';
+    if (c.key === 'check') return '<th style="' + wStyle + '">' + c.label + '</th>';
+    if (!c.key) return '<th style="' + wStyle + '"></th>';
     var arrow = _veranstAdminSort.col === c.key ? (_veranstAdminSort.dir === 1 ? ' ▲' : ' ▼') : '';
-    var style = 'cursor:pointer;user-select:none;white-space:nowrap' + (_veranstAdminSort.col === c.key ? ';color:var(--primary)' : '');
+    var style = wStyle + 'cursor:pointer;user-select:none;white-space:nowrap' + (_veranstAdminSort.col === c.key ? ';color:var(--primary)' : '');
     return '<th style="' + style + '" onclick="_vaSetSort(\'' + c.key + '\')">' + c.label + arrow + '</th>';
   }).join('');
 }
@@ -3484,7 +3485,7 @@ async function renderAdminVeranstaltungen() {
         '<div class="panel-count" id="veranst-admin-count"></div>' +
       '</div>' +
       '<div class="table-scroll"><table id="veranst-admin-tabelle" class="data-table" style="width:100%;table-layout:fixed">' +
-        '<colgroup>' + '<col style="width:36px">' + '<col style="width:88px">' + '<col>' + '<col style="width:105px">' + '<col style="width:130px">' + '<col style="width:65px">' + '<col style="width:88px">' + '<col style="width:62px">' + '</colgroup>' + '<thead><tr>' + _veranstAdminSortHeader() + '</tr></thead>' +
+        '<thead><tr>' + _veranstAdminSortHeader() + '</tr></thead>' +
         '<tbody></tbody>' +
       '</table></div>' +
       '<div id="va-page-bar" style="padding:6px 16px"></div>' +
