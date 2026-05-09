@@ -983,7 +983,7 @@ function bulkRowHtml(idx) {
     '<td style="padding:4px 6px">' +
       '<input type="text" class="bk-verein" value="' + ((appConfig && appConfig.verein_name) || '').replace(/"/g, '&quot;') + '" title="Vereinsname: leer oder anderer Verein → externes Ergebnis" style="' + fld + ';min-width:100px"/>' +
     '</td>' +
-    '<td style="padding:4px 6px;text-align:center"><button onclick="bulkRemoveRow(' + idx + ')" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;padding:2px 4px" title="Zeile entfernen">&#x2715;</button></td>' +
+    '<td style="padding:4px 6px;text-align:center"><button onclick="bulkRemoveRow(' + idx + ')" style="background:none;border:none;cursor:pointer;color:var(--text2);font-size:16px;padding:2px 4px" title="Zeile entfernen">&#x1F5D1;&#xFE0F;</button></td>' +
   '</tr>';
 }
 

@@ -1,3 +1,6 @@
+## v1258
+- Lösch-Buttons: X-Symbol durch Papierkorb-Symbol (🗑️) ersetzt; Modal-Close-Buttons und Status-Badges unverändert
+
 ## v1257
 - Regelmäßige Veranstaltungen: neue Spalte „Ort" (Flagge + Name aus letzter Austragung der Serie)
 - Serien-Detailseite: Ort-Zeile mit Flagge im Info-Panel + schreibgeschützte Leaflet-Karte mit Pin
@@ -24,7 +27,6 @@
 
 ## v1250
 - Neuer Admin-Tab „Orte": zentrale Verwaltung mit OpenStreetMap/Nominatim-Anbindung (Flagge, Land, Koordinaten); Veranstaltungs-Edit nutzt Ort-Picker statt Freitext; Veranstaltungslisten zeigen Länderflagge
-
 ## v1249
 - Disziplin + Kategorie (z.B. „3.000m (Bahn)"): kein Zeilenumbruch mehr dazwischen
 

@@ -1724,7 +1724,7 @@ function _renderKontoPage() {
         '<input type="file" id="avatar-file-input" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadAvatar(this)">' +
         '<div style="font-weight:700;font-size:15px;'+( currentUser.verein ? 'color:var(--text)' : 'color:var(--primary)')+'">' + name + '</div>' +
         '<div style="color:var(--text2);font-size:12px;margin-top:3px">' + rolleLabel(currentUser.rolle) + '</div>' +
-        (currentUser.avatar ? '<button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:11px;color:var(--text2)" onclick="deleteAvatar()">&#x2715; Avatar entfernen</button>' : '') +
+        (currentUser.avatar ? '<button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:11px;color:var(--text2)" onclick="deleteAvatar()">&#x1F5D1;&#xFE0F; Avatar entfernen</button>' : '') +
       '</div>' +
 
       // Theme card
@@ -2306,7 +2306,7 @@ async function renderVeranstaltungDetail(vid) {
           (v.datenquelle ? '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" class="btn btn-ghost btn-sm" title="Ergebnisquelle">\uD83C\uDF10</a>' : '') +
           '<button class="btn btn-ghost btn-sm" title="Teilen" onclick="shareVeranstaltung(' + v.id + ')">\uD83D\uDCE4</button>' +
           (_canVeranstaltungLoeschen() ?
-            '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&#x2715;</button>' : '') +
+            '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&#x1F5D1;&#xFE0F;</button>' : '') +
         '</div>' +
       '</div>' +
       (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' + (_hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') + '</colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th>' + (_hasMstr ? '<th>Meisterschaft</th><th>Pl. MS</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' :

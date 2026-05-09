@@ -120,7 +120,7 @@ async function renderPasskeySection(containerId) {
             '<div style="font-weight:600;font-size:13px">' + pk.name + '</div>' +
             '<div style="font-size:11px;color:var(--text2)">Zuletzt verwendet: ' + datum + '</div>' +
           '</div>' +
-          '<button class="btn btn-danger btn-sm" onclick="passkeyDeleteAndRefresh(' + pk.id + ',\'' + containerId + '\')" title="Passkey löschen">&#x2715;</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="passkeyDeleteAndRefresh(' + pk.id + ',\'' + containerId + '\')" title="Passkey löschen">&#x1F5D1;&#xFE0F;</button>' +
         '</div>';
     });
     rows += '</div>';

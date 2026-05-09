@@ -249,13 +249,13 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
         cells +=
           '<td style="white-space:nowrap">' +
             '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-ext-edit-id="' + rr.id + '" data-ext-disz="' + (rr.disziplin||'').replace(/"/g,'&quot;') + '" data-ext-res="' + (rr.resultat||'') + '" data-ext-ak="' + (rr.altersklasse||'') + '" data-ext-wettkampf="' + (rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-datum="' + (rr.datum||'').slice(0,10) + '" data-ext-vid="' + (rr.veranstaltung_id||'') + '" data-ext-vname="' + (rr.verknuepfte_veranstaltung_name||rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-verein="' + (rr.verein||'').replace(/"/g,'&quot;') + '" data-ext-athlet-id="' + (rr.athlet_id||'') + '">&#x270E;</button>' +
-            '<button class="btn btn-danger btn-sm" data-ext-del-id="' + rr.id + '">&#x2715;</button>' +
+            '<button class="btn btn-danger btn-sm" data-ext-del-id="' + rr.id + '">&#x1F5D1;&#xFE0F;</button>' +
           '</td>';
       } else {
         cells +=
           '<td style="white-space:nowrap">' +
             '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-edit-id="' + rr.id + '" data-edit-tab="' + subTab + '" data-edit-disz="' + (rr.disziplin||'') + '" data-edit-mapping-id="' + (rr.disziplin_mapping_id||'') + '" data-edit-res="' + (rr.resultat||'') + '" data-edit-ak="' + (rr.altersklasse||'') + '" data-edit-akp="' + (rr.ak_platzierung||'') + '" data-edit-mstr="' + (rr.meisterschaft||'') + '" data-edit-mstr-platz="' + (rr.ak_platz_meisterschaft||'') + '" data-edit-fmt="' + (rr.fmt||'') + '" data-edit-athlet-id="' + (rr.athlet_id||'') + '" data-edit-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '">&#x270E;</button>' +
-            '<button class="btn btn-danger btn-sm" data-del-id="' + rr.id + '" data-del-tab="' + subTab + '">&#x2715;</button>' +
+            '<button class="btn btn-danger btn-sm" data-del-id="' + rr.id + '" data-del-tab="' + subTab + '">&#x1F5D1;&#xFE0F;</button>' +
           '</td>';
       }
     }
@@ -472,7 +472,7 @@ async function openEditExternErgebnis(ds) {
           '<input type="text" id="ext-veranst-search" placeholder="Name suchen…" ' +
             'value="' + searchPrefill.replace(/"/g,'&quot;') + '" ' +
             'oninput="_extVeranstSearch(this.value)" autocomplete="off" style="flex:1"/>' +
-          '<button class="btn btn-ghost btn-sm" onclick="_extVeranstClear()" title="Veranstaltungsbezug entfernen">&#x2715;</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="_extVeranstClear()" title="Veranstaltungsbezug entfernen">&#x1F5D1;&#xFE0F;</button>' +
         '</div>' +
         '<div id="ext-veranst-results" style="margin-top:4px"></div>' +
         '<div id="ext-veranst-current" style="font-size:12px;color:var(--text2);margin-top:4px">' +

@@ -630,7 +630,7 @@ async function _ladeRollenManager() {
     var pubIcon = rolle.oeffentlich ? '<span title="Öffentlich sichtbar" style="font-size:11px;margin-left:4px">👁️</span>' : '<span title="Nicht öffentlich" style="font-size:11px;margin-left:4px;opacity:.4">🙈</span>';
     var actionHtml =
       '<button class="btn btn-ghost btn-sm" onclick="showRolleEditModal(' + rolle.id + ')" title="Bearbeiten">✏️</button>' +
-      (!sysRolle ? '<button class="btn btn-danger btn-sm" onclick="deleteRolle(' + rolle.id + ',\'' + rolle.name + '\')" title="Löschen">✕</button>' : '');
+      (!sysRolle ? '<button class="btn btn-danger btn-sm" onclick="deleteRolle(' + rolle.id + ',\'' + rolle.name + '\')" title="Löschen">&#x1F5D1;&#xFE0F;</button>' : '');
     html += _rolleCard(rolle.name, lockIcon, labelDisp, pubIcon, rechteLabels, actionHtml, false);
   });
   // Pseudo-Rolle "Nicht eingeloggt"
@@ -793,7 +793,7 @@ async function _loadAdminPasskeys(userId) {
     return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">' +
       '<span>&#x1F511;</span>' +
       '<div style="flex:1;font-size:12px"><strong>' + pk.name + '</strong><br><span style="color:var(--text2)">Zuletzt: ' + datum + '</span></div>' +
-      '<button class="btn btn-danger btn-sm" onclick="adminDeletePasskey(' + userId + ',' + pk.id + ')">&#x2715;</button>' +
+      '<button class="btn btn-danger btn-sm" onclick="adminDeletePasskey(' + userId + ',' + pk.id + ')">&#x1F5D1;&#xFE0F;</button>' +
     '</div>';
   }).join('');
 }
@@ -1007,7 +1007,7 @@ async function renderPapierkorb() {
           '<td style="color:var(--text2);font-size:12px">' + ts + '</td>' +
           '<td style="white-space:nowrap">' +
             '<button class="btn btn-ghost btn-sm" title="Wiederherstellen" onclick="pkRestore(\'' + typ + '\',' + it.id + ')">&#x21A9;</button> ' +
-            '<button class="btn btn-danger btn-sm" title="Endgültig löschen" onclick="pkDelete(\'' + typ + '\',' + it.id + ')">&#x2715;</button>' +
+            '<button class="btn btn-danger btn-sm" title="Endgültig löschen" onclick="pkDelete(\'' + typ + '\',' + it.id + ')">&#x1F5D1;&#xFE0F;</button>' +
           '</td>' +
         '</tr>';
     }
@@ -1136,7 +1136,7 @@ function _regCard(reg, showActions) {
             '<button class="btn btn-danger btn-sm" onclick="regAblehnen(' + reg.id + ')">✗ Ablehnen</button>' +
           '</div>' :
           '<div style="margin-left:auto;flex-shrink:0">' +
-            '<button class="btn btn-ghost btn-sm" onclick="regLoeschen(' + reg.id + ',\'' + reg.email.replace(/'/g,'\\\'') + '\')" title="Eintrag l\xf6schen">✕</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="regLoeschen(' + reg.id + ',\'' + reg.email.replace(/'/g,'\\\'') + '\')" title="Eintrag l\xf6schen">&#x1F5D1;&#xFE0F;</button>' +
           '</div>') +
       '</div>' +
     '</div>' +
@@ -1506,7 +1506,7 @@ function renderAdminDashboardUI(layout) {
           '<div style="display:flex;align-items:center;gap:8px">' +
             widgetSelect(ri, ci, col.widget) +
             (cols.length > 1
-              ? '<button class="btn btn-ghost btn-sm" title="Spalte entfernen" onclick="dashRemoveCol(' + ri + ',' + ci + ')">✕</button>'
+              ? '<button class="btn btn-ghost btn-sm" title="Spalte entfernen" onclick="dashRemoveCol(' + ri + ',' + ci + ')">&#x1F5D1;&#xFE0F;</button>'
               : '') +
           '</div>' +
           '<label style="display:flex;align-items:center;gap:8px;font-size:12px">' +
@@ -1531,7 +1531,7 @@ function renderAdminDashboardUI(layout) {
             ? '<button class="btn btn-ghost btn-sm" title="Zeile nach unten" onclick="dashMoveRow(' + ri + ',1)">▼</button>'
             : '<button class="btn btn-ghost btn-sm" disabled style="opacity:.3">▼</button>') +
           (cols.length < 4 ? '<button class="btn btn-ghost btn-sm" onclick="dashAddCol(' + ri + ')">+ Spalte</button>' : '') +
-          '<button class="btn btn-danger btn-sm" onclick="dashRemoveRow(' + ri + ')">✕ Zeile</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="dashRemoveRow(' + ri + ')">&#x1F5D1;&#xFE0F; Zeile</button>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">' + colsHtml + '</div>' +
       '</div>';
@@ -2210,7 +2210,7 @@ async function renderAdminMeisterschaften() {
           '<span class="badge badge-ms" style="min-width:36px;text-align:center">' + m.label + '</span>' +
           '<div style="flex:1;font-size:13px;color:var(--text2)">ID: ' + m.id + '</div>' +
           '<button class="btn btn-ghost btn-sm" onclick="mstrEdit(' + i + ')">&#x270F;&#xFE0F;</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="mstrDelete(' + i + ')">&#x2715;</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="mstrDelete(' + i + ')">&#x1F5D1;&#xFE0F;</button>' +
         '</div>';
     }
     return rows || '<div style="color:var(--text2);padding:12px">Keine Einträge.</div>';
@@ -2392,7 +2392,7 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
       var anz = d.ergebnis_anzahl || 0;
       var anzBadge = '<span class="badge" style="background:' + (anz > 0 ? 'var(--surf2);color:var(--text2)' : 'var(--green);color:#fff') + ';font-size:11px">' + anz + '</span>';
       var delBtn = anz === 0
-        ? '<button class="btn btn-danger btn-sm" title="Disziplin l\u00f6schen" data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" onclick="deleteDisziplin(this.dataset.disz)">&#x2715;</button>'
+        ? '<button class="btn btn-danger btn-sm" title="Disziplin l\u00f6schen" data-disz="' + d.disziplin.replace(/"/g,'&quot;') + '" onclick="deleteDisziplin(this.dataset.disz)">&#x1F5D1;&#xFE0F;</button>'
         : '<button class="btn btn-ghost btn-sm" disabled title="' + anz + ' Ergebnis(se) vorhanden">&#x1F512;</button>';
       var isFav = window._favList && window._favList.indexOf(d.id) >= 0;
       var starBtn = '<button class="btn btn-ghost btn-sm" title="Favorit (Bestleistungen)" data-fav-mid="' + d.id + '" onclick="toggleFavDisz(' + d.id + ')" style="color:' + (isFav ? 'var(--warning,#f59e0b)' : 'var(--text3,var(--text2))') + '">' + (isFav ? '&#x2605;' : '&#x2606;') + '</button>';
@@ -2538,7 +2538,7 @@ async function renderAdminDisziplinen() {
       return '<div class="user-row" style="gap:8px">' +
         '<div style="flex:1;font-size:13px;font-weight:600">' + members + '</div>' +
         '<button class="btn btn-ghost btn-sm" onclick="katGruppeEdit(' + i + ')">&#x270F;&#xFE0E;</button>' +
-        '<button class="btn btn-danger btn-sm" onclick="katGruppeDelete(' + i + ')">&#x2715;</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="katGruppeDelete(' + i + ')">&#x1F5D1;&#xFE0F;</button>' +
       '</div>';
     }).join('');
   }
@@ -3384,7 +3384,7 @@ function _renderVeranstAdminTable() {
         '<td style="white-space:nowrap">' + gBadge + '</td>' +
         '<td style="white-space:nowrap;overflow:hidden;text-align:right">' +
           '<button class="btn btn-ghost btn-sm" onclick="_vaEditModal(' + v.id + ')" title="Bearbeiten">&#x270F;&#xFE0E;</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="_vaDelete(' + v.id + ',\'' + _vaDec(v.name||v.kuerzel||'?').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') + '\')" title="Löschen">&#x2715;</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="_vaDelete(' + v.id + ',\'' + _vaDec(v.name||v.kuerzel||'?').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') + '\')" title="Löschen">&#x1F5D1;&#xFE0F;</button>' +
         '</td>' +
       '</tr>';
   }
@@ -3479,7 +3479,7 @@ async function renderAdminVeranstaltungen() {
       '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'umbenennen\')">&#x270F; Name</button>' +
       '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'ort\')">&#x1F4CD; Ort</button>' +
       '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'serie\')">&#x1F504; Serie</button>' +
-      '<button class="btn btn-sm btn-danger" onclick="bulkVeranst(\'loeschen\')">&#x2715; Löschen</button>' +
+      '<button class="btn btn-sm btn-danger" onclick="bulkVeranst(\'loeschen\')">&#x1F5D1;&#xFE0F; Löschen</button>' +
     '</div>' +
     '<div class="panel">' +
       '<div class="panel-header">' +
