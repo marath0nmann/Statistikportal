@@ -5252,6 +5252,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     $vTbl2  = DB::tbl('veranstaltungen');
     $pbTbl2 = DB::tbl('athlet_pb');
     $sTbl2  = DB::tbl('veranstaltung_serien');
+    $oTbl3  = DB::tbl('orte');
     $serien = DB::fetchAll(
         "SELECT s.id, s.name, s.kuerzel,
                 (SELECT COUNT(*) FROM $eTbl ei
@@ -5277,7 +5278,16 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
                 COUNT(DISTINCT v.id) AS anz_austragungen,
                 MIN(YEAR(v.datum))   AS jahr_von,
                 MAX(YEAR(v.datum))   AS jahr_bis,
-                MAX(v.datum)         AS datum_letzte
+                MAX(v.datum)         AS datum_letzte,
+                (SELECT COALESCE(o2.name, v2.ort)
+                   FROM $vTbl2 v2 LEFT JOIN $oTbl3 o2 ON o2.id = v2.ort_id
+                   WHERE v2.serie_id = s.id AND v2.geloescht_am IS NULL
+                     AND (v2.ort_id IS NOT NULL OR (v2.ort IS NOT NULL AND v2.ort <> ''))
+                   ORDER BY v2.datum DESC LIMIT 1) AS ort_letzte,
+                (SELECT o3.land_code
+                   FROM $vTbl2 v3 JOIN $oTbl3 o3 ON o3.id = v3.ort_id
+                   WHERE v3.serie_id = s.id AND v3.geloescht_am IS NULL AND v3.ort_id IS NOT NULL
+                   ORDER BY v3.datum DESC LIMIT 1) AS ort_land_code
          FROM $sTbl2 s
          LEFT JOIN $vTbl2 v ON v.serie_id=s.id AND v.geloescht_am IS NULL AND v.genehmigt=1
          $serienWhere

@@ -1,3 +1,6 @@
+## v1259
+- Fix: Ort-Spalte in Serien-Tabelle fehlte – Datenquelle war GET /veranstaltungen (nicht /veranstaltung-serien), dort ort_letzte/ort_land_code ergänzt
+
 ## v1258
 - Lösch-Buttons: X-Symbol durch Papierkorb-Symbol (🗑️) ersetzt; Modal-Close-Buttons und Status-Badges unverändert
 
