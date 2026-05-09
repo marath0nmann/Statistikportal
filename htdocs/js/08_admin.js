@@ -3375,10 +3375,10 @@ function _renderVeranstAdminTable() {
         '<td style="width:32px;text-align:center"><input type="checkbox"' + chk + ' onchange="_vaToggle(' + v.id + ')" style="cursor:pointer"></td>' +
         '<td style="white-space:nowrap;font-size:13px">' + datumStr + '</td>' +
         '<td style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="' + _vaEsc(_nameTitle) + '">' + nameStr + '</td>' +
-        '<td style="color:var(--text2);font-size:13px">' + (v.ort ? _vaEsc(v.ort) : '–') + '</td>' +
-        '<td>' + serieCell + '</td>' +
+        '<td style="color:var(--text2);font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">' + (v.ort ? _vaEsc(_vaDec(v.ort)) : '–') + '</td>' +
+        '<td style="overflow:hidden;white-space:nowrap">' + serieCell + '</td>' +
         '<td style="text-align:center;white-space:nowrap">' + ergCell + '</td>' +
-        '<td>' + gBadge + '</td>' +
+        '<td style="white-space:nowrap">' + gBadge + '</td>' +
         '<td style="white-space:nowrap">' +
           '<button class="btn btn-ghost btn-sm" onclick="_vaEditModal(' + v.id + ')" title="Bearbeiten">&#x270F;&#xFE0E;</button>' +
           '<button class="btn btn-danger btn-sm" onclick="_vaDelete(' + v.id + ',\'' + _vaDec(v.name||v.kuerzel||'?').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') + '\')" title="Löschen">&#x2715;</button>' +
@@ -3484,10 +3484,10 @@ async function renderAdminVeranstaltungen() {
         '<div class="panel-count" id="veranst-admin-count"></div>' +
       '</div>' +
       '<div class="table-scroll"><table id="veranst-admin-tabelle" class="data-table" style="width:100%;table-layout:fixed">' +
-        '<colgroup>' + '<col style="width:36px">' + '<col style="width:100px">' + '<col>' + '<col style="width:130px">' + '<col style="width:160px">' + '<col style="width:75px">' + '<col style="width:100px">' + '<col style="width:70px">' + '</colgroup>' + '<thead><tr>' + _veranstAdminSortHeader() + '</tr></thead>' +
+        '<colgroup>' + '<col style="width:36px">' + '<col style="width:88px">' + '<col>' + '<col style="width:105px">' + '<col style="width:130px">' + '<col style="width:65px">' + '<col style="width:88px">' + '<col style="width:62px">' + '</colgroup>' + '<thead><tr>' + _veranstAdminSortHeader() + '</tr></thead>' +
         '<tbody></tbody>' +
       '</table></div>' +
-      '<div id="va-page-bar"></div>' +
+      '<div id="va-page-bar" style="padding:6px 16px"></div>' +
     '</div>';
 
   el.innerHTML = html;

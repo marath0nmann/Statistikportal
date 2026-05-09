@@ -1,3 +1,6 @@
+## v1243
+- Admin Veranstaltungen: Colgroup-Breiten reduziert; Ort/Serie overflow:hidden; Paginierung-Bar Padding
+
 ## v1242
 - Admin Veranstaltungen: Paginierung (50 pro Seite, Vor/Zurück + Seitenauswahl)
 
