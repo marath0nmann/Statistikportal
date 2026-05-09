@@ -2089,7 +2089,7 @@ async function disableTotp() {
     notify('⚠︎ Kein Passkey registriert – bitte zuerst einen Passkey hinzufügen.', 'err');
     return;
   }
-  if (!confirm('TOTP deaktivieren? Du kannst dich weiterhin per Passkey anmelden.')) return;
+  if (!await confirmModal('TOTP deaktivieren? Du kannst dich weiterhin per Passkey anmelden.')) return;
   var r = await apiDel('auth/totp-setup');
   if (r && r.ok) {
     currentUser.totp_aktiv = false;

@@ -190,7 +190,7 @@ async function akStdAddPrompt(geschlecht) {
 }
 
 async function akStdDelete(ak) {
-  if (!confirm('Standard-AK "' + ak + '" l\u00f6schen? Zugeh\u00f6rige Zuordnungen werden ebenfalls entfernt.')) return;
+  if (!await confirmModal('Standard-AK "' + ak + '" l\u00f6schen? Zugeh\u00f6rige Zuordnungen werden ebenfalls entfernt.')) return;
   var r = await apiDel('ak-standard/' + encodeURIComponent(ak));
   if (r && r.ok) { notify('"' + ak + '" gel\u00f6scht.', 'ok'); renderAdminAltersklassen(); }
   else notify('Fehler', 'err');

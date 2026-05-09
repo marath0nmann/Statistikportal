@@ -4515,7 +4515,7 @@ async function _rrSaveGj() {
 }
 
 async function deleteErgebnis(subTab, id) {
-  if (!confirm('Ergebnis in den Papierkorb verschieben?')) return;
+  if (!await confirmModal('Ergebnis in den Papierkorb verschieben?')) return;
   var r = await apiDel(subTab + '/' + id);
   if (r && r.ok) { notify('Gel\u00f6scht.', 'ok'); await loadErgebnisseData(); }
   else notify('Fehler: ' + ((r && r.fehler) || ''), 'err');
