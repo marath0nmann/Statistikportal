@@ -1,3 +1,6 @@
+## v1246
+- Admin Veranstaltungen: Name-Spalte fix 44% mit text-overflow:ellipsis; table-layout:fixed; border-collapse:collapse
+
 ## v1245
 - Athleten-Karten: „Letztes Ergebnis" nur bei inaktiven Athleten anzeigen
 
