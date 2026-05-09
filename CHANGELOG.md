@@ -1,3 +1,6 @@
+## v1251
+- Orte/Nominatim-Proxy: cURL statt file_get_contents (kompatibler mit Shared Hosting), detaillierte Fehlermeldung bei Fehlschlag
+
 ## v1250
 - Neuer Admin-Tab „Orte": zentrale Verwaltung mit OpenStreetMap/Nominatim-Anbindung (Flagge, Land, Koordinaten); Veranstaltungs-Edit nutzt Ort-Picker statt Freitext; Veranstaltungslisten zeigen Länderflagge
 

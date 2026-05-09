@@ -4690,19 +4690,36 @@ if ($res === 'orte' && $method === 'GET' && $id === 'nominatim') {
     $q = trim($_GET['q'] ?? '');
     if ($q === '' || strlen($q) < 2) jsonOk([]);
     $url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&accept-language=de&limit=8&q=' . urlencode($q);
-    $ua = 'Statistikportal-Leichtathletik/1.0 (' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ')';
-    $ctx = stream_context_create([
-        'http' => [
-            'timeout' => 6,
-            'header'  => "User-Agent: $ua\r\nAccept: application/json\r\n",
-        ],
-        'https' => [
-            'timeout' => 6,
-            'header'  => "User-Agent: $ua\r\nAccept: application/json\r\n",
-        ],
-    ]);
-    $raw = @file_get_contents($url, false, $ctx);
-    if ($raw === false) jsonErr('Nominatim nicht erreichbar.', 502);
+    $ua = 'Statistikportal-Leichtathletik/1.0 (' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '; mailto:noreply@' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ')';
+    $raw = false; $errMsg = '';
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT        => 8,
+            CURLOPT_USERAGENT      => $ua,
+            CURLOPT_HTTPHEADER     => ['Accept: application/json', 'Accept-Language: de'],
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        $raw = curl_exec($ch);
+        if ($raw === false) $errMsg = 'cURL: ' . curl_error($ch);
+        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($raw !== false && $httpCode >= 400) { $errMsg = 'HTTP ' . $httpCode; $raw = false; }
+    }
+    if ($raw === false && ini_get('allow_url_fopen')) {
+        $ctx = stream_context_create([
+            'http'  => ['timeout' => 8, 'header' => "User-Agent: $ua\r\nAccept: application/json\r\n"],
+            'https' => ['timeout' => 8, 'header' => "User-Agent: $ua\r\nAccept: application/json\r\n"],
+        ]);
+        $raw = @file_get_contents($url, false, $ctx);
+        if ($raw === false) {
+            $e = error_get_last();
+            $errMsg = $errMsg ?: ('fopen: ' . ($e['message'] ?? 'unbekannt'));
+        }
+    }
+    if ($raw === false) jsonErr('Nominatim nicht erreichbar' . ($errMsg ? ' (' . $errMsg . ')' : '') . '.', 502);
     $data = json_decode($raw, true);
     if (!is_array($data)) jsonOk([]);
     $out = [];
