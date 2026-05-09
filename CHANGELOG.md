@@ -1,3 +1,6 @@
+## v1241
+- Admin Veranstaltungen: Delete-Button onclick quot fix (&quot; statt \\"); Edit-Modal _vaDec; Colgroup px statt %
+
 ## v1240
 - Admin Veranstaltungen: HTML-Entities in Seriennamen dekodieren; &quot; im Delete-Button bricht onclick nicht mehr
 

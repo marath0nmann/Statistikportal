@@ -3361,7 +3361,7 @@ function _renderVeranstAdminTable() {
         '<td>' + gBadge + '</td>' +
         '<td style="white-space:nowrap">' +
           '<button class="btn btn-ghost btn-sm" onclick="_vaEditModal(' + v.id + ')" title="Bearbeiten">&#x270F;&#xFE0E;</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="_vaDelete(' + v.id + ',\'' + _vaDec(v.name||v.kuerzel||'?').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"') + '\')" title="Löschen">&#x2715;</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="_vaDelete(' + v.id + ',\'' + _vaDec(v.name||v.kuerzel||'?').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') + '\')" title="Löschen">&#x2715;</button>' +
         '</td>' +
       '</tr>';
   }
@@ -3443,7 +3443,7 @@ async function renderAdminVeranstaltungen() {
         '<div class="panel-count" id="veranst-admin-count"></div>' +
       '</div>' +
       '<div class="table-scroll"><table id="veranst-admin-tabelle" class="data-table" style="width:100%;table-layout:fixed">' +
-        '<colgroup>' + '<col style="width:36px">' + '<col style="width:9%">' + '<col>' + '<col style="width:12%">' + '<col style="width:14%">' + '<col style="width:7%">' + '<col style="width:9%">' + '<col style="width:68px">' + '</colgroup>' + '<thead><tr>' + _veranstAdminSortHeader() + '</tr></thead>' +
+        '<colgroup>' + '<col style="width:36px">' + '<col style="width:100px">' + '<col>' + '<col style="width:130px">' + '<col style="width:160px">' + '<col style="width:75px">' + '<col style="width:100px">' + '<col style="width:70px">' + '</colgroup>' + '<thead><tr>' + _veranstAdminSortHeader() + '</tr></thead>' +
         '<tbody></tbody>' +
       '</table></div>' +
     '</div>';
@@ -3466,8 +3466,8 @@ function _vaEditModal(id) {
   showModal(
     modalH2('&#x270F;&#xFE0F; Veranstaltung bearbeiten') +
     '<div class="form-grid">' +
-      '<div class="form-group full"><label>Name</label><input type="text" id="ve-name" value="' + _vaEsc(v.name||'') + '"/></div>' +
-      '<div class="form-group"><label>Ort</label><input type="text" id="ve-ort" value="' + _vaEsc(v.ort||'') + '"/></div>' +
+      '<div class="form-group full"><label>Name</label><input type="text" id="ve-name" value="' + _vaEsc(_vaDec(v.name||'')) + '"/></div>' +
+      '<div class="form-group"><label>Ort</label><input type="text" id="ve-ort" value="' + _vaEsc(_vaDec(v.ort||'')) + '"/></div>' +
       '<div class="form-group"><label>Datum</label><input type="date" id="ve-datum" value="' + (v.datum ? v.datum.slice(0,10) : '') + '"/></div>' +
       '<div class="form-group"><label>Status</label><select id="ve-genehmigt">' +
         '<option value="1"' + (parseInt(v.genehmigt) ? ' selected' : '') + '>Genehmigt</option>' +
