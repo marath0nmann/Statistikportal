@@ -139,11 +139,14 @@ function _ortFormHtml(o) {
       '<div class="form-group"><label>Land</label><input type="text" id="ort-land" value="' + _ortEsc(o.land || '') + '"/></div>' +
       '<div class="form-group"><label>ISO-Code (2)</label><input type="text" id="ort-landcode" maxlength="2" style="text-transform:uppercase" value="' + _ortEsc(o.land_code || '') + '"/></div>' +
       '<div class="form-group"><label>Flagge</label><div id="ort-flag-preview" style="font-size:24px;padding:6px 0">' + (flagEmoji(o.land_code) || '<span style="color:var(--text2);font-size:13px">—</span>') + '</div></div>' +
-      '<div class="form-group"><label>Latitude</label><input type="text" id="ort-lat" value="' + (o.lat != null ? o.lat : '') + '"/></div>' +
-      '<div class="form-group"><label>Longitude</label><input type="text" id="ort-lon" value="' + (o.lon != null ? o.lon : '') + '"/></div>' +
+      '<div class="form-group"><label>Latitude</label><input type="text" id="ort-lat" oninput="_ortLatLonInput()" value="' + (o.lat != null ? o.lat : '') + '"/></div>' +
+      '<div class="form-group"><label>Longitude</label><input type="text" id="ort-lon" oninput="_ortLatLonInput()" value="' + (o.lon != null ? o.lon : '') + '"/></div>' +
       '<input type="hidden" id="ort-osmid" value="' + _ortEsc(o.osm_id || '') + '"/>' +
       '<input type="hidden" id="ort-osmtyp" value="' + _ortEsc(o.osm_typ || '') + '"/>' +
       '<input type="hidden" id="ort-display" value="' + _ortEsc(o.display_name || '') + '"/>' +
+      '<div class="form-group full"><label>Karte <span style="font-weight:400;color:var(--text2);font-size:11px">(Klick = Pin setzen, Pin verschiebbar)</span></label>' +
+        '<div id="ort-map" style="height:240px;border:1px solid var(--border);border-radius:7px;overflow:hidden;background:var(--surf2)"></div>' +
+      '</div>' +
     '</div>'
   );
 }
@@ -162,6 +165,7 @@ function _ortAdd() {
     var i = document.getElementById('ort-nom-q'); if (i) i.focus();
     var lc = document.getElementById('ort-landcode');
     if (lc) lc.addEventListener('input', _ortFlagPreview);
+    _ortInitMap(null, null);
   }, 80);
 }
 
@@ -181,6 +185,7 @@ function _ortEdit(id) {
   setTimeout(function() {
     var lc = document.getElementById('ort-landcode');
     if (lc) lc.addEventListener('input', _ortFlagPreview);
+    _ortInitMap(o.lat, o.lon);
   }, 80);
 }
 
@@ -236,6 +241,7 @@ function _ortNominatimPick(idx) {
   document.getElementById('ort-osmtyp').value = d.osm_typ || '';
   document.getElementById('ort-display').value = d.display_name || '';
   _ortFlagPreview();
+  if (d.lat != null && d.lon != null) _ortMapSetMarker(parseFloat(d.lat), parseFloat(d.lon), 12);
   var box = document.getElementById('ort-nom-results');
   if (box) { box.style.display = 'none'; box.innerHTML = ''; }
 }
@@ -401,6 +407,7 @@ function _ortePickerNew(inputId, hiddenId) {
     if (nq) { nq.value = initial; if (initial) _ortNominatim(initial); nq.focus(); }
     var lc = document.getElementById('ort-landcode');
     if (lc) lc.addEventListener('input', _ortFlagPreview);
+    _ortInitMap(null, null);
   }, 80);
 }
 
@@ -423,6 +430,94 @@ async function _ortePickerNewSave(inputId, hiddenId) {
   _orteCache.push(newOrt);
   closeModal();
   _ortePickerPick(inputId, hiddenId, newOrt.id);
+}
+
+// ── Karte (Leaflet) ─────────────────────────────────────────────────────────
+function _ortEnsureLeaflet() {
+  return new Promise(function(resolve) {
+    if (window.L) { resolve(); return; }
+    if (!document.getElementById('leaflet-css')) {
+      var link = document.createElement('link');
+      link.id = 'leaflet-css'; link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+    if (document.getElementById('leaflet-js')) {
+      var iv = setInterval(function() { if (window.L) { clearInterval(iv); resolve(); } }, 50);
+      return;
+    }
+    var s = document.createElement('script');
+    s.id = 'leaflet-js';
+    s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    s.onload = function() { resolve(); };
+    s.onerror = function() { resolve(); };
+    document.head.appendChild(s);
+  });
+}
+
+async function _ortInitMap(initialLat, initialLon) {
+  await _ortEnsureLeaflet();
+  if (!window.L) return;
+  var el = document.getElementById('ort-map');
+  if (!el) return;
+  if (window._ortMap) {
+    try { window._ortMap.remove(); } catch (e) {}
+    window._ortMap = null;
+    window._ortMapMarker = null;
+  }
+  var lat = parseFloat(initialLat);
+  var lon = parseFloat(initialLon);
+  var hasCoords = !isNaN(lat) && !isNaN(lon);
+  var map = L.map(el, { scrollWheelZoom: false }).setView(
+    hasCoords ? [lat, lon] : [51.0, 10.0],
+    hasCoords ? 11 : 4
+  );
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap',
+    maxZoom: 19,
+  }).addTo(map);
+  window._ortMap = map;
+  window._ortMapMarker = null;
+  if (hasCoords) _ortMapAddMarker(lat, lon);
+  map.on('click', function(e) {
+    var p = e.latlng;
+    document.getElementById('ort-lat').value = p.lat.toFixed(6);
+    document.getElementById('ort-lon').value = p.lng.toFixed(6);
+    _ortMapSetMarker(p.lat, p.lng, null);
+  });
+  // Reverse-Geocoding-Hinweis: scroll-to-zoom only after click
+  map.on('focus', function() { map.scrollWheelZoom.enable(); });
+  map.on('blur',  function() { map.scrollWheelZoom.disable(); });
+  setTimeout(function() { try { map.invalidateSize(); } catch (e) {} }, 120);
+}
+
+function _ortMapAddMarker(lat, lon) {
+  if (!window._ortMap || !window.L) return;
+  var marker = L.marker([lat, lon], { draggable: true }).addTo(window._ortMap);
+  marker.on('dragend', function(e) {
+    var p = e.target.getLatLng();
+    document.getElementById('ort-lat').value = p.lat.toFixed(6);
+    document.getElementById('ort-lon').value = p.lng.toFixed(6);
+  });
+  window._ortMapMarker = marker;
+}
+
+function _ortMapSetMarker(lat, lon, zoom) {
+  if (!window._ortMap || !window.L) return;
+  if (window._ortMapMarker) {
+    window._ortMapMarker.setLatLng([lat, lon]);
+  } else {
+    _ortMapAddMarker(lat, lon);
+  }
+  var z = zoom != null ? zoom : Math.max(window._ortMap.getZoom(), 11);
+  window._ortMap.setView([lat, lon], z);
+}
+
+function _ortLatLonInput() {
+  var lat = parseFloat(document.getElementById('ort-lat').value);
+  var lon = parseFloat(document.getElementById('ort-lon').value);
+  if (isNaN(lat) || isNaN(lon)) return;
+  _ortMapSetMarker(lat, lon, null);
 }
 
 // ── Bulk-Anreicherung via Nominatim (clientseitig, 1 req/s) ─────────────────

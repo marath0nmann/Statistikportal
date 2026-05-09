@@ -1,3 +1,6 @@
+## v1255
+- Orte-Modal: Leaflet-Kartenausschnitt mit Pin – Pin per Drag verschiebbar, Klick auf Karte setzt neuen Pin, Lat/Lon-Felder sind synchron
+
 ## v1254
 - Admin Orte: Button „🌍 Alle anreichern" – ruft für jeden Ort ohne Koordinaten Nominatim auf (1 req/s gemäß OSM-Richtlinie), Fortschrittsanzeige + Live-Log + abbrechbar
 
