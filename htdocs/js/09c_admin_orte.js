@@ -65,6 +65,7 @@ function _renderOrteUI() {
         '<input type="text" placeholder="Suchen…" value="' + _ortEsc(_orteFilter) + '" oninput="_orteFilter=this.value;document.getElementById(\'orte-tbody-wrap\').innerHTML=_renderOrteTableInner()" style="flex:1;min-width:160px;max-width:280px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text)"/>' +
         '<div style="flex:1"></div>' +
         '<button class="btn btn-ghost btn-sm" onclick="_orteImportFromVeranstaltungen()" title="Bestehende Veranstaltungs-Orte als Orte-Einträge importieren">&#x1F4E5; Aus Veranstaltungen importieren</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="_orteEnrichAll()" title="Alle Orte ohne Koordinaten via OpenStreetMap anreichern">&#x1F30D; Alle anreichern</button>' +
         '<button class="btn btn-primary btn-sm" onclick="_ortAdd()">+ Neuer Ort</button>' +
       '</div>' +
       '<div id="orte-tbody-wrap">' + _renderOrteTableInner(rows) + '</div>' +
@@ -422,4 +423,121 @@ async function _ortePickerNewSave(inputId, hiddenId) {
   _orteCache.push(newOrt);
   closeModal();
   _ortePickerPick(inputId, hiddenId, newOrt.id);
+}
+
+// ── Bulk-Anreicherung via Nominatim (clientseitig, 1 req/s) ─────────────────
+var _orteEnrichCancel = false;
+
+async function _orteEnrichAll() {
+  // Nur Orte ohne Koordinaten verarbeiten
+  var todo = _orteCache.filter(function(o) { return o.lat == null || o.lon == null; });
+  if (!todo.length) {
+    notify('Alle Orte haben bereits Koordinaten.', 'ok');
+    return;
+  }
+  var estSec = Math.ceil(todo.length * 1.1);
+  var estMin = Math.ceil(estSec / 60);
+  if (!await confirmModal(todo.length + ' Ort(e) ohne Koordinaten gefunden.\n\nAlle via OpenStreetMap-Nominatim anreichern? Dauert ca. ' + (estMin > 1 ? estMin + ' Min.' : estSec + ' Sek.') + ' (1 Anfrage pro Sekunde gemäß OSM-Richtlinien).')) return;
+
+  _orteEnrichCancel = false;
+  showModal(
+    modalH2('&#x1F30D; Orte anreichern') +
+    '<div id="enrich-status" style="font-size:13px;line-height:1.6">' +
+      '<div id="enrich-progress-text">Starte&hellip;</div>' +
+      '<div style="background:var(--surf2);border-radius:8px;height:10px;margin:10px 0;overflow:hidden">' +
+        '<div id="enrich-bar" style="background:var(--primary);height:100%;width:0%;transition:width .25s"></div>' +
+      '</div>' +
+      '<div id="enrich-log" style="max-height:240px;overflow:auto;font-size:12px;font-family:monospace;background:var(--surf2);border:1px solid var(--border);border-radius:7px;padding:8px;margin-top:8px"></div>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="_orteEnrichStop()">Abbrechen</button>' +
+      '<button id="enrich-close-btn" class="btn btn-primary" onclick="closeModal();renderAdminOrte()" style="display:none">Fertig</button>' +
+    '</div>',
+    false, true
+  );
+
+  var ok = 0, miss = 0, err = 0;
+  var bar = function() { return document.getElementById('enrich-bar'); };
+  var txt = function() { return document.getElementById('enrich-progress-text'); };
+  var log = function() { return document.getElementById('enrich-log'); };
+  var addLog = function(html) {
+    var l = log(); if (!l) return;
+    l.innerHTML += html + '<br>';
+    l.scrollTop = l.scrollHeight;
+  };
+
+  for (var i = 0; i < todo.length; i++) {
+    if (_orteEnrichCancel) break;
+    var o = todo[i];
+    var pct = Math.round((i / todo.length) * 100);
+    if (bar()) bar().style.width = pct + '%';
+    if (txt()) txt().textContent = (i + 1) + ' / ' + todo.length + ' – ' + o.name;
+
+    var query = o.name;
+    if (o.region) query += ', ' + o.region;
+    if (o.land) query += ', ' + o.land;
+
+    try {
+      var r = await apiGet('orte/nominatim?q=' + encodeURIComponent(query));
+      if (!r || !r.ok) {
+        err++;
+        addLog('<span style="color:var(--accent)">✗ ' + _ortEsc(o.name) + ' – ' + _ortEsc((r && r.fehler) || 'Fehler') + '</span>');
+      } else {
+        var hits = r.data || [];
+        if (!hits.length) {
+          miss++;
+          addLog('<span style="color:var(--text2)">⚠ ' + _ortEsc(o.name) + ' – kein Treffer</span>');
+        } else {
+          var d = hits[0];
+          var upd = {
+            land:         d.land || null,
+            land_code:    d.land_code || null,
+            lat:          d.lat,
+            lon:          d.lon,
+            osm_id:       d.osm_id || null,
+            osm_typ:      d.osm_typ || null,
+            display_name: d.display_name || null,
+          };
+          // Region nur setzen wenn noch keine
+          if (!o.region && d.region) upd.region = d.region;
+          var u = await apiPut('orte/' + o.id, upd);
+          if (u && u.ok) {
+            ok++;
+            // Cache aktualisieren
+            for (var c = 0; c < _orteCache.length; c++) {
+              if (_orteCache[c].id === o.id) {
+                Object.assign(_orteCache[c], u.data);
+                break;
+              }
+            }
+            var fl = flagEmoji(d.land_code);
+            addLog('<span style="color:var(--ok,#3a8)">✓ ' + (fl ? fl + ' ' : '') + _ortEsc(o.name) + ' → ' + _ortEsc(d.display_name || '') + '</span>');
+          } else {
+            err++;
+            addLog('<span style="color:var(--accent)">✗ ' + _ortEsc(o.name) + ' – Speichern fehlgeschlagen</span>');
+          }
+        }
+      }
+    } catch (e) {
+      err++;
+      addLog('<span style="color:var(--accent)">✗ ' + _ortEsc(o.name) + ' – ' + _ortEsc(e.message || 'Exception') + '</span>');
+    }
+
+    // Rate Limit: 1 Anfrage pro Sekunde (OSM-Richtlinie)
+    if (i < todo.length - 1 && !_orteEnrichCancel) {
+      await new Promise(function(res) { setTimeout(res, 1100); });
+    }
+  }
+
+  if (bar()) bar().style.width = '100%';
+  var summary = (_orteEnrichCancel ? 'Abgebrochen. ' : 'Fertig. ') +
+    ok + ' angereichert, ' + miss + ' ohne Treffer, ' + err + ' Fehler.';
+  if (txt()) txt().textContent = summary;
+  var btn = document.getElementById('enrich-close-btn');
+  if (btn) btn.style.display = '';
+  notify(summary, ok > 0 ? 'ok' : (err > 0 ? 'err' : 'info'));
+}
+
+function _orteEnrichStop() {
+  _orteEnrichCancel = true;
 }

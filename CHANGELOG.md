@@ -1,3 +1,6 @@
+## v1254
+- Admin Orte: Button „🌍 Alle anreichern" – ruft für jeden Ort ohne Koordinaten Nominatim auf (1 req/s gemäß OSM-Richtlinie), Fortschrittsanzeige + Live-Log + abbrechbar
+
 ## v1253
 - Fix: GET orte/nominatim landete fälschlich im GET orte/{id}-Handler („Ort nicht gefunden") – ID-Match nur noch für numerische IDs
 
