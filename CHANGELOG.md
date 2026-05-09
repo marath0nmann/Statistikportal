@@ -1,3 +1,6 @@
+## v1248
+- Fix: showModal() – fehlende `overlayClick`-Variable führte zu ReferenceError bei jedem Modal-Aufruf (alle Buttons kaputt)
+
 ## v1247
 - Admin Veranstaltungen: Aktions-Spalte von 5% auf 10% vergrößert; Name auf 42%; overflow:hidden auf Aktions-td
 
