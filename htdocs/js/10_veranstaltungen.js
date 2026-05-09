@@ -152,7 +152,7 @@ async function renderVeranstaltungenListe() {
       '</div>';
     }
   }
-  var secStyleR = 'font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text);margin:0 0 14px';
+  var secStyleR = 'font-family:\'Barlow Condensed\',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin:0 0 12px';
   var letzteHeading = veranst.length ? '<div style="' + secStyleR + '">📅 Letzte Veranstaltungen</div>' : '';
   resultsEl.innerHTML = massenbtn + letzteHeading + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
 }
@@ -207,14 +207,14 @@ function _serienTabelle(serien) {
   }
 
   function thArrow(col) {
-    if (sort.col !== col) return ' <span style="opacity:.25">↕</span>';
-    return sort.dir === 'asc' ? ' ↑' : ' ↓';
+    if (sort.col !== col) return ' <span style="opacity:.3;font-size:10px">↕</span>';
+    return ' <span style="color:var(--primary)">' + (sort.dir === 'asc' ? '↑' : '↓') + '</span>';
   }
 
-  var thBase = 'cursor:pointer;user-select:none;white-space:nowrap;padding:8px 12px;text-align:left;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text2);border-bottom:2px solid var(--border)';
-  var thR = thBase + ';text-align:right';
-  var td = 'padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle';
-  var tdR = td + ';text-align:right;font-variant-numeric:tabular-nums';
+  var thBase = 'cursor:pointer;user-select:none;white-space:nowrap;padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)';
+  var thR    = thBase + ';text-align:right';
+  var td     = 'padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
+  var tdR    = td + ';text-align:right;font-variant-numeric:tabular-nums';
 
   var rows = sorted.map(function(s) {
     var jahrRange = s.jahr_von
@@ -232,19 +232,25 @@ function _serienTabelle(serien) {
     '</tr>';
   }).join('');
 
-  var secStyle = 'font-family:\'Barlow Condensed\',sans-serif;font-size:20px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text);margin:0 0 10px';
-  return '<div style="' + secStyle + '">🔄 Regelmäßige Veranstaltungen</div>' +
-    '<div class="table-scroll" style="margin-bottom:24px"><table style="width:100%;border-collapse:collapse">' +
-    '<thead><tr>' +
+  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
+
+  return '<div class="panel" style="margin-bottom:24px">' +
+    '<div class="panel-header">' +
+      '<div class="panel-title">🔄 Regelmäßige Veranstaltungen</div>' +
+      (canEdit ? '<button class="btn btn-primary btn-sm" onclick="showSerieCreateModal()">&#x2795; Neue</button>' : '') +
+    '</div>' +
+    '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
+    '<thead><tr style="border-bottom:2px solid var(--border)">' +
     '<th style="' + thBase + '" ' + thClick('name') + '>Name' + thArrow('name') + '</th>' +
     '<th style="' + thBase + '" ' + thClick('datum_letzte') + '>Letzte Austragung' + thArrow('datum_letzte') + '</th>' +
-    '<th style="' + thR + '" ' + thClick('anz_austragungen') + '>Austragungen' + thArrow('anz_austragungen') + '</th>' +
+    '<th style="' + thR + '" '   + thClick('anz_austragungen') + '>Austragungen' + thArrow('anz_austragungen') + '</th>' +
     '<th style="' + thBase + '" ' + thClick('jahre') + '>Jahre' + thArrow('jahre') + '</th>' +
-    '<th style="' + thR + '" ' + thClick('anz_ergebnisse') + '>Ergebnisse' + thArrow('anz_ergebnisse') + '</th>' +
-    '<th style="' + thR + '" ' + thClick('anz_athleten') + '>Athleten' + thArrow('anz_athleten') + '</th>' +
+    '<th style="' + thR + '" '   + thClick('anz_ergebnisse') + '>Ergebnisse' + thArrow('anz_ergebnisse') + '</th>' +
+    '<th style="' + thR + '" '   + thClick('anz_athleten') + '>Athleten' + thArrow('anz_athleten') + '</th>' +
     '</tr></thead>' +
     '<tbody>' + rows + '</tbody>' +
-    '</table></div>';
+    '</table></div>' +
+  '</div>';
 }
 
 function _sortSerien(col) {

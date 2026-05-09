@@ -1,3 +1,6 @@
+## v1239
+- Veranstaltungen: Serien-Tabelle im Panel-/Box-Design (wie Admin-Bereich); Spaltenköpfe mit farbigen Sortierpfeilen; „+ Neue"-Button im Panel-Header für Admin/Editor
+
 ## v1238
 - Admin Veranstaltungen: table-layout:fixed + colgroup-Breiten → Name kürzt korrekt, Tabelle läuft nicht mehr über
 
