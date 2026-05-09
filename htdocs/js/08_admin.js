@@ -1940,7 +1940,7 @@ async function renderAdminDarstellung() {
 
     // ── Footer-Links ──
     '<div class="panel">' +
-      '<div class="panel-header"><div class="panel-title">&#x1F4CB; Footer &amp; Rechtliches</div></div>' +
+      '<div class="panel-header"><div class="panel-title">&#x1F504; Footer &amp; Rechtliches</div></div>' +
       '<div class="settings-panel-body">' +
         '<div style="padding:12px 20px;background:var(--surf2);border-radius:8px;margin:8px 20px 16px;font-size:13px;color:var(--text2)">' +
           'Die Texte f\u00fcr Datenschutz, Nutzungsbedingungen und Impressum k\u00f6nnen direkt im Footer bearbeitet werden (als Admin: auf den Link klicken). ' +
@@ -2330,7 +2330,7 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
   var isEinst = window._diszDetailView === 'einstellungen';
   var viewToggle =
     '<div style="display:flex;gap:6px">' +
-      '<button class="btn btn-sm ' + (!isEinst ? 'btn-primary' : 'btn-ghost') + '" onclick="window._diszDetailView=\'disziplinen\';_renderDiszDetail()">&#x1F4CB; Disziplinen</button>' +
+      '<button class="btn btn-sm ' + (!isEinst ? 'btn-primary' : 'btn-ghost') + '" onclick="window._diszDetailView=\'disziplinen\';_renderDiszDetail()">&#x1F504; Disziplinen</button>' +
       '<button class="btn btn-sm ' + (isEinst ? 'btn-primary' : 'btn-ghost') + '" onclick="window._diszDetailView=\'einstellungen\';_renderDiszDetail()">&#x2699;&#xFE0E; Einstellungen</button>' +
     '</div>';
   var panelBody;
@@ -3240,6 +3240,7 @@ function _veranstAdminSortHeader() {
     { key: 'datum',         label: 'Datum' },
     { key: 'name',          label: 'Name' },
     { key: 'ort',           label: 'Ort' },
+    { key: 'serie',         label: '&#x1F504; Serie' },
     { key: 'anz_ergebnisse',label: 'Erg.' },
     { key: 'genehmigt',     label: 'Status' },
     { key: '',              label: '' },
@@ -3320,6 +3321,7 @@ function _renderVeranstAdminTable() {
     else if (col === 'name')      { va = ((a.name||a.kuerzel||'')).toLowerCase(); vb = ((b.name||b.kuerzel||'')).toLowerCase(); }
     else if (col === 'ort')       { va = (a.ort||'').toLowerCase(); vb = (b.ort||'').toLowerCase(); }
     else if (col === 'anz_ergebnisse') { va = parseInt(a.anz_ergebnisse)||0; vb = parseInt(b.anz_ergebnisse)||0; }
+    else if (col === 'serie')      { va = (_veranstAdminCache.serieMap[a.serie_id] || {name:''}).name.toLowerCase(); vb = (_veranstAdminCache.serieMap[b.serie_id] || {name:''}).name.toLowerCase(); }
     else if (col === 'genehmigt') { va = parseInt(a.genehmigt)||0; vb = parseInt(b.genehmigt)||0; }
     else                          { va = a.datum||''; vb = b.datum||''; }
     if (va < vb) return -dir;
@@ -3338,7 +3340,7 @@ function _renderVeranstAdminTable() {
     var datumStr = v.datum ? v.datum.slice(0,10) : '–';
     var nameStr = v.name ? _vaEsc(v.name) : (v.kuerzel ? _vaEsc(v.kuerzel) : '–');
     var serie = v.serie_id ? (_veranstAdminCache.serieMap[v.serie_id] || null) : null;
-    if (serie) nameStr += '<br><span style="font-size:11px;color:var(--primary);opacity:.8">&#x1F4CB; ' + _vaEsc(serie.name) + '</span>';
+    var serieCell = serie ? '<span style="font-size:12px;color:var(--primary)">&#x1F504; ' + _vaEsc(serie.name) + '</span>' : '<span style="color:var(--text2);font-size:12px">–</span>';
     var anzErg = parseInt(v.anz_ergebnisse)||0;
     var anzExt = parseInt(v.anz_extern)||0;
     var ergCell = '';
@@ -3351,6 +3353,7 @@ function _renderVeranstAdminTable() {
         '<td style="white-space:nowrap;font-size:13px">' + datumStr + '</td>' +
         '<td>' + nameStr + '</td>' +
         '<td style="color:var(--text2);font-size:13px">' + (v.ort ? _vaEsc(v.ort) : '–') + '</td>' +
+        '<td>' + serieCell + '</td>' +
         '<td style="text-align:center;white-space:nowrap">' + ergCell + '</td>' +
         '<td>' + gBadge + '</td>' +
         '<td style="white-space:nowrap">' +
@@ -3361,7 +3364,7 @@ function _renderVeranstAdminTable() {
   }
 
   var tbody = document.querySelector('#veranst-admin-tabelle tbody');
-  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:20px">Keine Einträge</td></tr>';
+  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:var(--text2);padding:20px">Keine Einträge</td></tr>';
 
   var countEl = document.getElementById('veranst-admin-count');
   if (countEl) countEl.textContent = items.length + ' Veranstaltungen';
@@ -3428,7 +3431,7 @@ async function renderAdminVeranstaltungen() {
       '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'sperren\')">&#x23FC; Sperren</button>' +
       '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'umbenennen\')">&#x270F; Name</button>' +
       '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'ort\')">&#x1F4CD; Ort</button>' +
-      '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'serie\')">&#x1F4CB; Serie</button>' +
+      '<button class="btn btn-sm btn-ghost" onclick="bulkVeranst(\'serie\')">&#x1F504; Serie</button>' +
       '<button class="btn btn-sm btn-danger" onclick="bulkVeranst(\'loeschen\')">&#x2715; Löschen</button>' +
     '</div>' +
     '<div class="panel">' +
@@ -3559,7 +3562,7 @@ async function bulkVeranst(action) {
     }
     serieOpts += '<option value="neu">+ Neue Serie anlegen…</option>';
     showModal(
-      modalH2('&#x1F4CB; Serie zuweisen (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +
+      modalH2('&#x1F504; Serie zuweisen (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +
       '<div class="form-grid">' +
         '<div class="form-group full"><label>Serie</label>' +
           '<select id="va-serie-sel" onchange="var n=document.getElementById(\'va-serie-neu-wrap\');if(n)n.style.display=this.value===\'neu\'?\'block\':\'none\'">' + serieOpts + '</select>' +
