@@ -769,7 +769,8 @@ async function showVeranstEditModal(id) {
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
       '<button class="btn btn-primary" onclick="saveVeranstaltung(' + id + ')">Speichern</button>' +
-    '</div>'
+    '</div>',
+    false, true
   );
 }
 

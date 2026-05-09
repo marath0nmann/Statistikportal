@@ -155,7 +155,7 @@ function _ortAdd() {
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
       '<button class="btn btn-primary" onclick="_ortSave(0)">Anlegen</button>' +
     '</div>',
-    true
+    true, true
   );
   setTimeout(function() {
     var i = document.getElementById('ort-nom-q'); if (i) i.focus();
@@ -175,7 +175,7 @@ function _ortEdit(id) {
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
       '<button class="btn btn-primary" onclick="_ortSave(' + id + ')">Speichern</button>' +
     '</div>',
-    true
+    true, true
   );
   setTimeout(function() {
     var lc = document.getElementById('ort-landcode');
@@ -199,7 +199,11 @@ function _ortNominatim(q) {
     if (box) box.style.display = 'block';
     var r = await apiGet('orte/nominatim?q=' + encodeURIComponent(q));
     if (!box) return;
-    if (!r || !r.ok) { box.innerHTML = '<div style="padding:8px;color:var(--accent);font-size:12px">Fehler bei Nominatim.</div>'; return; }
+    if (!r || !r.ok) {
+      var msg = (r && r.fehler) ? r.fehler : 'Nominatim nicht erreichbar.';
+      box.innerHTML = '<div style="padding:8px;color:var(--accent);font-size:12px">' + _ortEsc(msg) + '</div>';
+      return;
+    }
     var list = r.data || [];
     if (!list.length) { box.innerHTML = '<div style="padding:8px;color:var(--text2);font-size:12px">Keine Treffer.</div>'; return; }
     var html = '';
@@ -389,7 +393,7 @@ function _ortePickerNew(inputId, hiddenId) {
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
       '<button class="btn btn-primary" onclick="_ortePickerNewSave(\'' + inputId + '\',\'' + hiddenId + '\')">Anlegen &amp; übernehmen</button>' +
     '</div>',
-    true
+    true, true
   );
   setTimeout(function() {
     var nq = document.getElementById('ort-nom-q');

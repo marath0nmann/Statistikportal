@@ -1,3 +1,8 @@
+## v1252
+- Orte-Modale: Klick außerhalb schließt nicht mehr (noClose=true)
+- Nominatim-Fehler: detaillierte Server-Meldung wird jetzt im Dropdown angezeigt
+- Veranstaltungs-Edit-Modal: Klick außerhalb schließt nicht mehr
+
 ## v1251
 - Orte/Nominatim-Proxy: cURL statt file_get_contents (kompatibler mit Shared Hosting), detaillierte Fehlermeldung bei Fehlschlag
 
