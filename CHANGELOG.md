@@ -1,11 +1,8 @@
-## v1237
-- confirm()-Dialoge durch confirmModal() ersetzt (eigenes Modal mit Abbrechen/OK)
-
 ## v1236
-- Modal: Schließen durch Klick außerhalb des Fensters deaktiviert
+- README.md auf Stand v1235 gebracht (Dateistruktur, Features, Deployment aktualisiert)
 
 ## v1235
-- Bestleistungen: Disziplinen mit 0 Ergebnissen werden ausgeblendet
+- Admin Veranstaltungen: Serien-Zugehörigkeit als Tag unter dem Namen; Bulk-Aktion „Serie" (bestehend zuweisen, neue anlegen, entfernen)
 
 ## v1234
 - Admin Veranstaltungen: Startnummer-Eingabefeld an Modal-Optik angepasst (form-group)
