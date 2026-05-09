@@ -1,3 +1,6 @@
+## v1240
+- Admin Veranstaltungen: HTML-Entities in Seriennamen dekodieren; &quot; im Delete-Button bricht onclick nicht mehr
+
 ## v1239
 - Veranstaltungen: Serien-Tabelle im Panel-/Box-Design (wie Admin-Bereich); Spaltenköpfe mit farbigen Sortierpfeilen; „+ Neue"-Button im Panel-Header für Admin/Editor
 

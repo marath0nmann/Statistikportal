@@ -3343,7 +3343,7 @@ function _renderVeranstAdminTable() {
     var _nameTitle = _vaDec(_nameRaw);
     var nameStr = _nameRaw ? _vaEsc(_vaDec(_nameRaw)) : '–';
     var serie = v.serie_id ? (_veranstAdminCache.serieMap[v.serie_id] || null) : null;
-    var serieCell = serie ? '<span style="font-size:12px;color:var(--primary)">&#x1F504; ' + _vaEsc(serie.name) + '</span>' : '<span style="color:var(--text2);font-size:12px">–</span>';
+    var serieCell = serie ? '<span style="font-size:12px;color:var(--primary)">&#x1F504; ' + _vaEsc(_vaDec(serie.name)) + '</span>' : '<span style="color:var(--text2);font-size:12px">–</span>';
     var anzErg = parseInt(v.anz_ergebnisse)||0;
     var anzExt = parseInt(v.anz_extern)||0;
     var ergCell = '';
@@ -3361,7 +3361,7 @@ function _renderVeranstAdminTable() {
         '<td>' + gBadge + '</td>' +
         '<td style="white-space:nowrap">' +
           '<button class="btn btn-ghost btn-sm" onclick="_vaEditModal(' + v.id + ')" title="Bearbeiten">&#x270F;&#xFE0E;</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="_vaDelete(' + v.id + ',\'' + (v.name||v.kuerzel||'?').replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')" title="Löschen">&#x2715;</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="_vaDelete(' + v.id + ',\'' + _vaDec(v.name||v.kuerzel||'?').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"') + '\')" title="Löschen">&#x2715;</button>' +
         '</td>' +
       '</tr>';
   }
