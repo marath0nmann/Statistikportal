@@ -221,9 +221,12 @@ function _serienTabelle(serien) {
       ? (String(s.jahr_von) === String(s.jahr_bis) ? String(s.jahr_von) : s.jahr_von + '–' + s.jahr_bis)
       : '–';
     var datumLetzte = s.datum_letzte ? formatDate(s.datum_letzte) : '–';
+    var ortFlag = s.ort_land_code ? (flagEmoji(s.ort_land_code) + ' ') : '';
+    var ortText = s.ort_letzte ? (ortFlag + s.ort_letzte) : '<span style="color:var(--text3)">–</span>';
     return '<tr style="cursor:pointer" onclick="openSerieDetail(' + s.id + ')" ' +
       'onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
       '<td style="' + td + ';font-weight:600">' + (s.name || s.kuerzel || '') + '</td>' +
+      '<td style="' + td + '">' + ortText + '</td>' +
       '<td style="' + td + '">' + datumLetzte + '</td>' +
       '<td style="' + tdR + '">' + (Number(s.anz_austragungen) || 0) + '</td>' +
       '<td style="' + td + '">' + jahrRange + '</td>' +
@@ -242,6 +245,7 @@ function _serienTabelle(serien) {
     '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
     '<thead><tr style="border-bottom:2px solid var(--border)">' +
     '<th style="' + thBase + '" ' + thClick('name') + '>Name' + thArrow('name') + '</th>' +
+    '<th style="' + thBase + '">Ort</th>' +
     '<th style="' + thBase + '" ' + thClick('datum_letzte') + '>Letzte Austragung' + thArrow('datum_letzte') + '</th>' +
     '<th style="' + thR + '" '   + thClick('anz_austragungen') + '>Austragungen' + thArrow('anz_austragungen') + '</th>' +
     '<th style="' + thBase + '" ' + thClick('jahre') + '>Jahre' + thArrow('jahre') + '</th>' +
@@ -375,11 +379,19 @@ async function renderSerieDetail(id) {
   html += veranst.length + ' Austragung' + (veranst.length != 1 ? 'en' : '');
   if (jahrMin) html += ' (' + (jahrMin === jahrMax ? jahrMin : jahrMin + '&ndash;' + jahrMax) + ')';
   html += '</div>';
+  if (serie.ort_letzte) {
+    var ortFlag = serie.ort_land_code ? (flagEmoji(serie.ort_land_code) + ' ') : '';
+    html += '<div style="font-size:14px;margin-top:6px">&#x1F4CD; ' + ortFlag + serie.ort_letzte + '</div>';
+  }
   html += '</div>';
   if (canEdit) {
     html += '<button class="btn btn-ghost btn-sm" onclick="showSerieEditModal(' + serie.id + ',\'' + serie.name.replace(/'/g,"\\'") + '\')">&#x270F;&#xFE0F; Bearbeiten</button>';
   }
-  html += '</div></div>';
+  html += '</div>';
+  if (serie.ort_lat && serie.ort_lon) {
+    html += '<div id="serie-ort-map" style="height:220px;border-radius:6px;margin-top:14px;border:1px solid var(--border)"></div>';
+  }
+  html += '</div>';
 
   var secStyle = 'font-family:\'Barlow Condensed\',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)';
   html += '<div style="' + secStyle + ';margin:0 0 10px">&#x1F4CA; Anzahl Teilnahmen</div>';
@@ -392,6 +404,21 @@ async function renderSerieDetail(id) {
   html += _buildSerieJahreHtml(veranst);
 
   el.innerHTML = html;
+
+  // Karte für Ort
+  if (serie.ort_lat && serie.ort_lon) {
+    _ortEnsureLeaflet().then(function() {
+      var mapEl = document.getElementById('serie-ort-map');
+      if (!mapEl || !window.L) return;
+      var m = L.map(mapEl, { scrollWheelZoom: false, dragging: true, zoomControl: true })
+        .setView([parseFloat(serie.ort_lat), parseFloat(serie.ort_lon)], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+      }).addTo(m);
+      L.marker([parseFloat(serie.ort_lat), parseFloat(serie.ort_lon)]).addTo(m);
+    });
+  }
 
   // Bestleistungen laden
   var toLoad = state.serieDisz ? { disziplin: state.serieDisz, disziplin_mapping_id: state.serieMappingId } : disziplinen[0];

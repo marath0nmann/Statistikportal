@@ -1,3 +1,7 @@
+## v1257
+- Regelmäßige Veranstaltungen: neue Spalte „Ort" (Flagge + Name aus letzter Austragung der Serie)
+- Serien-Detailseite: Ort-Zeile mit Flagge im Info-Panel + schreibgeschützte Leaflet-Karte mit Pin
+
 ## v1256
 - Fix: „Veranstaltung bearbeiten" auf der Detailseite öffnete kein Modal – `state._veranstMap` wurde dort nicht befüllt; jetzt zusätzlich defensiver Fallback (apiGet bei Cache-Miss)
 

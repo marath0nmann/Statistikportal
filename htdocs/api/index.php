@@ -4752,14 +4752,29 @@ if ($res === 'orte' && $method === 'GET' && $id === 'nominatim') {
 if ($res === 'veranstaltung-serien' && $method === 'GET' && !$id) {
     $sTbl = DB::tbl('veranstaltung_serien');
     $vTbl = DB::tbl('veranstaltungen');
+    $oTbl = DB::tbl('orte');
     $serien = DB::fetchAll(
         "SELECT s.id, s.name, s.kuerzel,
                 COUNT(v.id) AS anz_veranstaltungen,
                 MIN(YEAR(v.datum)) AS jahr_von,
                 MAX(YEAR(v.datum)) AS jahr_bis,
-                (SELECT v2.ort FROM $vTbl v2
-                   WHERE v2.serie_id = s.id AND v2.geloescht_am IS NULL AND v2.ort IS NOT NULL AND v2.ort <> ''
+                (SELECT COALESCE(o2.name, v2.ort)
+                   FROM $vTbl v2 LEFT JOIN $oTbl o2 ON o2.id = v2.ort_id
+                   WHERE v2.serie_id = s.id AND v2.geloescht_am IS NULL
+                     AND (v2.ort_id IS NOT NULL OR (v2.ort IS NOT NULL AND v2.ort <> ''))
                    ORDER BY v2.datum DESC LIMIT 1) AS ort_letzte,
+                (SELECT o3.land_code
+                   FROM $vTbl v3 JOIN $oTbl o3 ON o3.id = v3.ort_id
+                   WHERE v3.serie_id = s.id AND v3.geloescht_am IS NULL AND v3.ort_id IS NOT NULL
+                   ORDER BY v3.datum DESC LIMIT 1) AS ort_land_code,
+                (SELECT o4.lat
+                   FROM $vTbl v4 JOIN $oTbl o4 ON o4.id = v4.ort_id
+                   WHERE v4.serie_id = s.id AND v4.geloescht_am IS NULL AND v4.ort_id IS NOT NULL
+                   ORDER BY v4.datum DESC LIMIT 1) AS ort_lat,
+                (SELECT o5.lon
+                   FROM $vTbl v5 JOIN $oTbl o5 ON o5.id = v5.ort_id
+                   WHERE v5.serie_id = s.id AND v5.geloescht_am IS NULL AND v5.ort_id IS NOT NULL
+                   ORDER BY v5.datum DESC LIMIT 1) AS ort_lon,
                 (SELECT v3.name FROM $vTbl v3
                    WHERE v3.serie_id = s.id AND v3.geloescht_am IS NULL
                    ORDER BY v3.datum DESC LIMIT 1) AS name_letzte
@@ -4980,6 +4995,24 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
              ORDER BY k.reihenfolge, e.disziplin", [$id]
         );
         jsonOk($disz_rows);
+    }
+
+    // Ort der letzten Veranstaltung
+    $oTbl2 = DB::tbl('orte');
+    $ortInfo = DB::fetchOne(
+        "SELECT COALESCE(o.name, v.ort) AS ort_letzte, o.land_code AS ort_land_code,
+                o.lat AS ort_lat, o.lon AS ort_lon
+         FROM $vTbl v LEFT JOIN $oTbl2 o ON o.id = v.ort_id
+         WHERE v.serie_id=? AND v.geloescht_am IS NULL
+           AND (v.ort_id IS NOT NULL OR (v.ort IS NOT NULL AND v.ort <> ''))
+         ORDER BY v.datum DESC LIMIT 1",
+        [$id]
+    );
+    if ($ortInfo) {
+        $serie['ort_letzte']    = $ortInfo['ort_letzte'];
+        $serie['ort_land_code'] = $ortInfo['ort_land_code'];
+        $serie['ort_lat']       = $ortInfo['ort_lat'];
+        $serie['ort_lon']       = $ortInfo['ort_lon'];
     }
 
     // Standard: Serien-Info + Veranstaltungen nach Jahr
