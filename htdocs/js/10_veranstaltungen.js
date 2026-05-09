@@ -733,7 +733,15 @@ async function deleteSerieConfirm(id, name) {
 // ── Veranstaltung-Edit (mit Serie-Zuweisung) ──────────────
 async function showVeranstEditModal(id) {
   var v = state._veranstMap && state._veranstMap[id];
-  if (!v) return;
+  if (!v) {
+    var rv = await apiGet('veranstaltungen?id=' + id);
+    v = (rv && rv.ok && rv.data && (rv.data.veranst || [])[0]) || null;
+    if (v) {
+      if (!state._veranstMap) state._veranstMap = {};
+      state._veranstMap[id] = v;
+    }
+  }
+  if (!v) { notify('Veranstaltung nicht gefunden.', 'err'); return; }
   // Serien immer ungefiltert laden (nicht aus gefiltertem Cache)
   var _sr = await apiGet('veranstaltung-serien');
   var serien = (_sr && _sr.ok) ? (_sr.data || []) : (window._lastSerienList || []);

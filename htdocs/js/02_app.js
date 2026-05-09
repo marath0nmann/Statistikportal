@@ -2247,6 +2247,9 @@ async function renderVeranstaltungDetail(vid) {
     el.innerHTML = '<div class="panel" style="padding:32px;text-align:center">Veranstaltung nicht gefunden.</div>';
     return;
   }
+  // Edit-Modal liest aus state._veranstMap
+  if (!state._veranstMap) state._veranstMap = {};
+  state._veranstMap[v.id] = v;
 
   var name = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel || '';
   var ergs = v.ergebnisse || [];

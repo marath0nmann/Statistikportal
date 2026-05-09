@@ -1,3 +1,6 @@
+## v1256
+- Fix: „Veranstaltung bearbeiten" auf der Detailseite öffnete kein Modal – `state._veranstMap` wurde dort nicht befüllt; jetzt zusätzlich defensiver Fallback (apiGet bei Cache-Miss)
+
 ## v1255
 - Orte-Modal: Leaflet-Kartenausschnitt mit Pin – Pin per Drag verschiebbar, Klick auf Karte setzt neuen Pin, Lat/Lon-Felder sind synchron
 
