@@ -1,3 +1,6 @@
+## v1236
+- README.md auf Stand v1235 gebracht (Dateistruktur, Features, Deployment aktualisiert)
+
 ## v1235
 - Admin Veranstaltungen: Serien-Zugehörigkeit als Tag unter dem Namen; Bulk-Aktion „Serie" (bestehend zuweisen, neue anlegen, entfernen)
 
