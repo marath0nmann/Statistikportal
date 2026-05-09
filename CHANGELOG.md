@@ -1,3 +1,7 @@
+## v1244
+- Athleten-Karten: Sektion „Inaktive Athleten" umbenannt in „Inaktive Athleten mit bestehenden Bestleistungen"
+- Athleten-Karten: „Letztes Ergebnis: JJJJ" unter den Stats anzeigen
+
 ## v1243
 - Admin Veranstaltungen: Colgroup-Breiten reduziert; Ort/Serie overflow:hidden; Paginierung-Bar Padding
 

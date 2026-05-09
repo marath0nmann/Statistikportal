@@ -982,7 +982,7 @@ async function _doDeletePb(athletId, pbId) {
   _apRender();
 }
 
-function _buildAthletCard(a, hof) {
+function _buildAthletCard(a, hof, letzteAkt) {
   var displayName = (a.vorname ? a.vorname + ' ' : '') + a.nachname;
   var av = avatarHtml(a.avatar_pfad, displayName, 72, 27);
 
@@ -1091,7 +1091,8 @@ function _buildAthletCard(a, hof) {
     '<div style="display:flex;justify-content:center;margin-bottom:12px">' + av + '</div>' +
     '<div style="font-weight:700;font-size:14px;margin-bottom:2px"><span class="athlet-link">' + displayName + '</span></div>' +
     statsHtml +
-    (badgesHtml || ergBadge ? '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px' + (!statsHtml ? ';margin-top:6px' : '') + '">' + badgesHtml + ergBadge + '</div>' : '') +
+    (letzteAkt ? '<div style="font-size:11px;color:var(--text2);margin-bottom:4px">Letztes Ergebnis: ' + letzteAkt + '</div>' : '') +
+    (badgesHtml || ergBadge ? '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:2px' + (!statsHtml && !letzteAkt ? ';margin-top:6px' : '') + '">' + badgesHtml + ergBadge + '</div>' : '') +
   '</div>';
 }
 
@@ -1140,14 +1141,18 @@ async function renderAthletenKarten() {
   function buildSection(title, athletes) {
     if (!athletes.length) return '';
     var cards = '';
-    for (var si = 0; si < athletes.length; si++) cards += _buildAthletCard(athletes[si], hofMap[athletes[si].id]);
+    for (var si = 0; si < athletes.length; si++) {
+      var _a = athletes[si];
+      var _letzteAkt = aktMap[_a.id] || aktMap[String(_a.id)] || 0;
+      cards += _buildAthletCard(_a, hofMap[_a.id], _letzteAkt);
+    }
     return '<div style="font-weight:700;font-size:15px;margin:16px 0 10px;color:var(--text)">' + title + ' <span style="font-size:13px;font-weight:400;color:var(--text2)">(' + athletes.length + ')</span></div>' +
       '<div style="' + gridStyle + '">' + cards + '</div>';
   }
 
   el.innerHTML =
     buildSection('Aktive Athleten', aktiveAthleten) +
-    buildSection('Inaktive Athleten', inaktiveAthleten) +
+    buildSection('Inaktive Athleten mit bestehenden Bestleistungen', inaktiveAthleten) +
     '<style>@media(max-width:900px){#main-content>div[style*="repeat(5"]{grid-template-columns:repeat(3,1fr)}}' +
     '@media(max-width:560px){#main-content>div[style*="repeat(5"]{grid-template-columns:repeat(2,1fr)}}</style>';
 }
