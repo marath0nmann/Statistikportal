@@ -116,7 +116,7 @@ function diszMitKat(disziplin, mappingId) {
         var e2 = list[_j];
         var ov2 = e2.kat_suffix_override || '';
         var show2 = ov2 === 'ja' ? true : ov2 === 'nein' ? false : (appConfig.disziplin_kategorie_suffix || '1') === '1';
-        return show2 && e2.kategorie ? disziplin + ' <span style="font-size:0.85em;opacity:0.6">(' + e2.kategorie + ')</span>' : disziplin;
+        return show2 && e2.kategorie ? disziplin + '&nbsp;<span style="font-size:0.85em;opacity:0.6;white-space:nowrap">(' + e2.kategorie + ')</span>' : disziplin;
       }
     }
   }
@@ -126,7 +126,7 @@ function diszMitKat(disziplin, mappingId) {
   var entry = matches[0];
   var override = entry.kat_suffix_override || '';
   var showSuffix = override === 'ja' ? true : override === 'nein' ? false : (appConfig.disziplin_kategorie_suffix || '1') === '1';
-  return showSuffix && entry.kategorie ? disziplin + ' <span style="font-size:0.85em;opacity:0.6">(' + entry.kategorie + ')</span>' : disziplin;
+  return showSuffix && entry.kategorie ? disziplin + '&nbsp;<span style="font-size:0.85em;opacity:0.6;white-space:nowrap">(' + entry.kategorie + ')</span>' : disziplin;
 }
 
 // Disziplin-Name sortierbar machen: "5.000m" → 5000, "10km" → 10000
@@ -173,7 +173,7 @@ function ergDiszLabel(e) {
     if (override === 'ja') showSuffix = true;
     else if (override === 'nein') showSuffix = false;
     else showSuffix = (appConfig.disziplin_kategorie_suffix || '1') === '1';
-    if (showSuffix) return disz + ' <span style="font-size:0.85em;opacity:0.6">(' + e.kategorie_name + ')</span>';
+    if (showSuffix) return disz + '&nbsp;<span style="font-size:0.85em;opacity:0.6;white-space:nowrap">(' + e.kategorie_name + ')</span>';
   }
   return e.disziplin;
 }

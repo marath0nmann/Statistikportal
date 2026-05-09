@@ -1,3 +1,6 @@
+## v1249
+- Disziplin + Kategorie (z.B. „3.000m (Bahn)"): kein Zeilenumbruch mehr dazwischen
+
 ## v1248
 - Fix: showModal() – fehlende `overlayClick`-Variable führte zu ReferenceError bei jedem Modal-Aufruf (alle Buttons kaputt)
 

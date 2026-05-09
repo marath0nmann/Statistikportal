@@ -2412,7 +2412,7 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
             else if (override === 'nein') showSuffix = false;
             else showSuffix = (appConfig.disziplin_kategorie_suffix || '1') === '1';
             if (showSuffix && d.kategorie_name) {
-              return d.disziplin + ' <span style="font-size:0.85em;opacity:0.6">(' + d.kategorie_name + ')</span>';
+              return d.disziplin + '&nbsp;<span style="font-size:0.85em;opacity:0.6;white-space:nowrap">(' + d.kategorie_name + ')</span>';
             }
             return d.disziplin;
           })(d) + '</td>' +
