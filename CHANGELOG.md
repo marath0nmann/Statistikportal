@@ -1,3 +1,6 @@
+## v1242
+- Admin Veranstaltungen: Paginierung (50 pro Seite, Vor/Zurück + Seitenauswahl)
+
 ## v1241
 - Admin Veranstaltungen: Delete-Button onclick quot fix (&quot; statt \\"); Edit-Modal _vaDec; Colgroup px statt %
 

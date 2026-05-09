@@ -3234,6 +3234,8 @@ var _veranstAdminCache  = { items: [] };
 var _veranstAdminSort   = { col: 'datum', dir: -1 };
 var _veranstAdminSel    = {};
 var _veranstAdminFilter = { suche: '', jahr: '', genehmigt: '' };
+var _veranstAdminPage   = 0;
+var _veranstAdminPageSz = 50;
 
 function _veranstAdminSortHeader() {
   var cols = [
@@ -3264,9 +3266,21 @@ function _vaSetSort(col) {
 }
 
 function _vaToggleAll(checked) {
-  var items = _vaGetFiltered();
-  _veranstAdminSel = {};
-  if (checked) { for (var i = 0; i < items.length; i++) _veranstAdminSel[items[i].id] = true; }
+  var all = _vaGetFiltered();
+  var col2 = _veranstAdminSort.col, dir2 = _veranstAdminSort.dir;
+  all = all.slice().sort(function(a,b){
+    var va,vb;
+    if(col2==='datum'){va=a.datum||'';vb=b.datum||'';}
+    else if(col2==='name'){va=(a.name||a.kuerzel||'').toLowerCase();vb=(b.name||b.kuerzel||'').toLowerCase();}
+    else if(col2==='ort'){va=(a.ort||'').toLowerCase();vb=(b.ort||'').toLowerCase();}
+    else if(col2==='serie'){va=(_veranstAdminCache.serieMap[a.serie_id]||{name:''}).name.toLowerCase();vb=(_veranstAdminCache.serieMap[b.serie_id]||{name:''}).name.toLowerCase();}
+    else if(col2==='genehmigt'){va=parseInt(a.genehmigt)||0;vb=parseInt(b.genehmigt)||0;}
+    else{va=a.datum||'';vb=b.datum||'';}
+    if(va<vb)return -dir2; if(va>vb)return dir2; return 0;
+  });
+  var page = all.slice(_veranstAdminPage*_veranstAdminPageSz, (_veranstAdminPage+1)*_veranstAdminPageSz);
+  if (!checked) { for (var i=0;i<page.length;i++) delete _veranstAdminSel[page[i].id]; }
+  else          { for (var i=0;i<page.length;i++) _veranstAdminSel[page[i].id]=true; }
   _renderVeranstAdminTable();
 }
 
@@ -3330,9 +3344,15 @@ function _renderVeranstAdminTable() {
     return 0;
   });
 
+  var totalItems = items.length;
+  var totalPages = Math.max(1, Math.ceil(totalItems / _veranstAdminPageSz));
+  if (_veranstAdminPage >= totalPages) _veranstAdminPage = totalPages - 1;
+  var pageStart = _veranstAdminPage * _veranstAdminPageSz;
+  var pageItems = items.slice(pageStart, pageStart + _veranstAdminPageSz);
+
   var rows = '';
-  for (var i = 0; i < items.length; i++) {
-    var v = items[i];
+  for (var i = 0; i < pageItems.length; i++) {
+    var v = pageItems[i];
     var chk = _veranstAdminSel[v.id] ? ' checked' : '';
     var rowBg = _veranstAdminSel[v.id] ? ' style="background:var(--surf2)"' : '';
     var gBadge = parseInt(v.genehmigt)
@@ -3370,13 +3390,34 @@ function _renderVeranstAdminTable() {
   if (tbody) tbody.innerHTML = rows || '<tr><td colspan="8" style="text-align:center;color:var(--text2);padding:20px">Keine Einträge</td></tr>';
 
   var countEl = document.getElementById('veranst-admin-count');
-  if (countEl) countEl.textContent = items.length + ' Veranstaltungen';
+  if (countEl) countEl.textContent = totalItems + ' Veranstaltungen';
+
+  // Paginierungs-Bar
+  var pagBar = document.getElementById('va-page-bar');
+  if (pagBar) {
+    if (totalPages <= 1) {
+      pagBar.innerHTML = '';
+    } else {
+      var from = pageStart + 1, to = Math.min(pageStart + _veranstAdminPageSz, totalItems);
+      var pHtml = '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:13px;color:var(--text2)">';
+      pHtml += '<button class="btn btn-ghost btn-sm" onclick="_vaPage(-1)" ' + (_veranstAdminPage===0?'disabled':'') + '>&#x276E;</button>';
+      pHtml += '<span>' + from + '–' + to + ' von ' + totalItems + '</span>';
+      pHtml += '<button class="btn btn-ghost btn-sm" onclick="_vaPage(1)" ' + (_veranstAdminPage>=totalPages-1?'disabled':'') + '>&#x276F;</button>';
+      pHtml += '<select onchange="_vaGoPage(this.value)" style="font-size:12px;padding:2px 4px">';
+      for (var p = 0; p < totalPages; p++) {
+        pHtml += '<option value="' + p + '"' + (p===_veranstAdminPage?' selected':'') + '>Seite ' + (p+1) + '</option>';
+      }
+      pHtml += '</select></div>';
+      pagBar.innerHTML = pHtml;
+    }
+  }
 
   var allChk = document.getElementById('vaCheckAll');
   if (allChk) {
-    var selN = Object.keys(_veranstAdminSel).length;
-    allChk.checked = selN > 0 && selN >= items.length;
-    allChk.indeterminate = selN > 0 && selN < items.length;
+    var selN = 0;
+    for (var pi = 0; pi < pageItems.length; pi++) { if (_veranstAdminSel[pageItems[pi].id]) selN++; }
+    allChk.checked = selN > 0 && selN >= pageItems.length;
+    allChk.indeterminate = selN > 0 && selN < pageItems.length;
   }
   _vaUpdateBulkBar();
 }
@@ -3446,6 +3487,7 @@ async function renderAdminVeranstaltungen() {
         '<colgroup>' + '<col style="width:36px">' + '<col style="width:100px">' + '<col>' + '<col style="width:130px">' + '<col style="width:160px">' + '<col style="width:75px">' + '<col style="width:100px">' + '<col style="width:70px">' + '</colgroup>' + '<thead><tr>' + _veranstAdminSortHeader() + '</tr></thead>' +
         '<tbody></tbody>' +
       '</table></div>' +
+      '<div id="va-page-bar"></div>' +
     '</div>';
 
   el.innerHTML = html;
@@ -3454,9 +3496,12 @@ async function renderAdminVeranstaltungen() {
 
 function _vaFilter(key, val) {
   _veranstAdminFilter[key] = val;
+  _veranstAdminPage = 0;
   _veranstAdminSel = {};
   _renderVeranstAdminTable();
 }
+function _vaPage(dir) { _veranstAdminPage += dir; _renderVeranstAdminTable(); }
+function _vaGoPage(p) { _veranstAdminPage = parseInt(p)||0; _renderVeranstAdminTable(); }
 
 function _vaEditModal(id) {
   var v = null;
