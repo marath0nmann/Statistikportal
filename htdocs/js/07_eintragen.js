@@ -1822,7 +1822,7 @@ async function bulkImportFromMika(url, kat, statusEl) {
           return;
         }
         // Debug: Roh-Treffer zählen
-        _allMikaResults.push.apply(_allMikaResults, (_nr.data.results || []).map(function(res) { return { q: _nn, name: res.name }; }));
+        _allMikaResults.push.apply(_allMikaResults, (_nr.data.results || []).map(function(res) { return { q: _nn, name: res.name, idp: res.idp }; }));
         if (!_bkDbgLines._namDebugShown && _nr.data.debug) {
           var _d = _nr.data.debug;
           _bkDbgLine('Name-API-Debug', ['noEventResults','noEventIdpRaw','noEventFirstLiSample','detailHasTime','detailLen'].filter(function(k){return _d[k]!==undefined;}).map(function(k){return k+'='+JSON.stringify(_d[k]).slice(0,120);}).join(' | '));
@@ -1838,11 +1838,23 @@ async function bulkImportFromMika(url, kat, statusEl) {
       });
     }
     _bkDbgLine('Namens-Treffer', _nameRows.length + ' Athleten gefunden (' + _searchedNames.length + ' Namen gesucht, ' + _allMikaResults.length + ' Roh-Treffer)');
-    // Debug: welche Namen hatten überhaupt Roh-Treffer (hilft bei fehlenden Athleten)
+    // Debug: welche Namen hatten Roh-Treffer, aber wurden NICHT gematcht (hilft bei fehlenden Athleten)
     if (_allMikaResults.length) {
-      var _hitsPerName = {};
-      _allMikaResults.forEach(function(h) { _hitsPerName[h.q] = (_hitsPerName[h.q]||0)+1; });
-      _bkDbgLine('Namen mit Treffern', Object.keys(_hitsPerName).map(function(n){ return n+'('+_hitsPerName[n]+')'; }).join(', '));
+      var _matchedIdps = {};
+      _nameRows.forEach(function(r){ _matchedIdps[r.idp] = true; });
+      var _unmatchedByQ = {};
+      _allMikaResults.forEach(function(h) {
+        if (h.idp && _matchedIdps[h.idp]) return; // schon gematcht
+        if (!_unmatchedByQ[h.q]) _unmatchedByQ[h.q] = [];
+        if (_unmatchedByQ[h.q].length < 3) _unmatchedByQ[h.q].push(h.name);
+      });
+      // Nur unmatched mit Roh-Treffer ausgeben
+      var _unmatchedKeys = Object.keys(_unmatchedByQ);
+      if (_unmatchedKeys.length) {
+        _unmatchedKeys.forEach(function(q) {
+          _bkDbgLine('  ? ' + q, _unmatchedByQ[q].join(' | '));
+        });
+      }
     }
     _bkDbgFlush();
     // Vereins-Ergebnisse mit Namens-Ergebnissen zusammenführen (dedup via idp)

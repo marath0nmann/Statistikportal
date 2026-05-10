@@ -1,3 +1,7 @@
+## v1273
+- MikaTiming: DNS-Filter über fehlende Platzierung+Zeit (statt Textsuche „DNS"); erkennt Em-Dash-Anzeige
+- MikaTiming Debug: zeigt für nicht-gematchte Roh-Treffer die rohen MikaTiming-Namen (max. 3 pro Suchbegriff)
+
 ## v1272
 - MikaTiming: DNS/DNF/DQ-Einträge werden serverseitig herausgefiltert (type-time-Feld)
 - MikaTiming Debug: zeigt welche Athleten-Namen Roh-Treffer hatten (Diagnose fehlender Athleten)
