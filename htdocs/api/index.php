@@ -3733,8 +3733,18 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $hasSimpleSearchName = strpos($mainHtml, 'simple-search-name') !== false;
     $hasSearchForm = strpos($mainHtml, 'name="search[name]"') !== false || strpos($mainHtml, "name='search[name]'") !== false;
     // Alle search[*]-Feldnamen aus dem Formular extrahieren (für Diagnose)
-    if (preg_match_all('/name=["\']search\[([a-z_]+)\]["\']/i', $mainHtml, $sfMatches)) {
+    if (preg_match_all('/name=["\']search\[([^\]"\']+)\]["\']/i', $mainHtml, $sfMatches)) {
         $debug['formSearchFields'] = array_values(array_unique($sfMatches[1]));
+    }
+    // HTML-Fragment um "Verein"-Label dumpen (Feldname-Erkennung)
+    if (preg_match('/Verein/i', $mainHtml, $vm, PREG_OFFSET_CAPTURE)) {
+        $off = max(0, $vm[0][1] - 200);
+        $debug['formVereinFragment'] = mb_substr(strip_tags(substr($mainHtml, $off, 700)), 0, 500);
+        // Auch <input>-Tag-Names im Umfeld extrahieren
+        $around = substr($mainHtml, $off, 1500);
+        if (preg_match_all('/<(input|select)[^>]*name=["\']([^"\']+)["\']/i', $around, $im)) {
+            $debug['formInputsNearVerein'] = array_values(array_unique($im[2]));
+        }
     }
     // newInterface ist der default, wenn die Seite irgendeinen Marker hat, der auf klassischen Form-POST zeigt
     $isNewInterface = $hasSimpleSearchName || $hasSearchForm || $hasSearchProvider;

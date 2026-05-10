@@ -1,3 +1,6 @@
+## v1275
+- MikaTiming Debug: erweiterter Feldnamen-Regex + HTML-Dump um Verein-Label (Feldnamen-Erkennung)
+
 ## v1274
 - MikaTiming Debug: extrahiert alle `search[*]`-Feldnamen aus dem Formular (Diagnose Verein-vs-Team-Feld)
 
