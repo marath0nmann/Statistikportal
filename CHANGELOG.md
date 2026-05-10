@@ -1,3 +1,6 @@
+## v1260
+- Fix: RaceResult-Import erkennt Namens-Spalte jetzt auch bei DataFields "Name", "Lastname", "Nachname", "Surname" (vorher: iName blieb auf Default-Index 3 → Zeit oder Platz als Name)
+
 ## v1259
 - Fix: Ort-Spalte in Serien-Tabelle fehlte – Datenquelle war GET /veranstaltungen (nicht /veranstaltung-serien), dort ort_letzte/ort_land_code ergänzt
 

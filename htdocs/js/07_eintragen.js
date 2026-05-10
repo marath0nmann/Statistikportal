@@ -1389,7 +1389,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
     iAK=-1;iYear=-1;iGeschlecht=-1;iAKPlatz=-1;iName=3;iClub=6;iNetto=-1;iZeit=-1;iPlatz=2;
     for(var fi=0;fi<df.length;fi++){
       var f=df[fi].toLowerCase();
-      if(f.indexOf('anzeigename')>=0||f.indexOf('lfname')>=0||f==='displayname'||f==='fullname')iName=fi;
+      if(f.indexOf('anzeigename')>=0||f.indexOf('lfname')>=0||f==='displayname'||f==='fullname'||f==='name'||f.indexOf('lastname')>=0||f.indexOf('nachname')>=0||f.indexOf('surname')>=0)iName=fi;
       else if(f.indexOf('club')>=0||f.indexOf('verein')>=0)iClub=fi;
       else if(f.indexOf('autorankp')>=0||f.indexOf('overallrank')>=0||f.indexOf('withstatus')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0||f.indexOf('agegrouprank')>=0){if(f.indexOf('akpl')>=0||f.indexOf('agegrouprank')>=0)iAKPlatz=fi;else iPlatz=fi;}
       else if(f.indexOf('akpl')>=0)iAKPlatz=fi;
