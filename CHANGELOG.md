@@ -1,3 +1,6 @@
+## v1268
+- Veranstaltung bearbeiten: Ort ist jetzt Pflichtfeld (muss aus Orte-Tabelle gewählt werden, kein Freitext-Fallback mehr)
+
 ## v1267
 - Admin Veranstaltungen: Bulk-Ort-Edit zeigt Auswahlliste statt Freitext; Filterfeld über der Liste
 

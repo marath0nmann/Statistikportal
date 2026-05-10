@@ -3520,7 +3520,7 @@ async function _vaEditModal(id) {
     modalH2('&#x270F;&#xFE0F; Veranstaltung bearbeiten') +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Name</label><input type="text" id="ve-name" value="' + _vaEsc(_vaDec(v.name||'')) + '"/></div>' +
-      '<div class="form-group"><label>Ort</label>' +
+      '<div class="form-group"><label>Ort <span style="color:var(--accent)">*</span></label>' +
         ortePickerHtml({ inputId: 've-ort', hiddenId: 've-ort-id', ortId: curOrtId, text: pickerText }) +
       '</div>' +
       '<div class="form-group"><label>Datum</label><input type="date" id="ve-datum" value="' + (v.datum ? v.datum.slice(0,10) : '') + '"/></div>' +
@@ -3539,15 +3539,11 @@ async function _vaEditModal(id) {
 
 async function _vaSave(id) {
   var ortIdEl = document.getElementById('ve-ort-id');
-  var ortInpEl = document.getElementById('ve-ort');
   var ortId = ortIdEl && ortIdEl.value ? parseInt(ortIdEl.value) : null;
+  if (!ortId) { notify('Bitte wähle einen Ort aus der Liste oder lege einen neuen an.', 'err'); return; }
   var ortFreitext = null;
-  if (ortId) {
-    for (var i = 0; i < (_orteCache || []).length; i++) {
-      if (_orteCache[i].id == ortId) { ortFreitext = _orteCache[i].name; break; }
-    }
-  } else if (ortInpEl) {
-    ortFreitext = ortInpEl.value.trim() || null;
+  for (var i = 0; i < (_orteCache || []).length; i++) {
+    if (_orteCache[i].id == ortId) { ortFreitext = _orteCache[i].name; break; }
   }
   var body = {
     name:      document.getElementById('ve-name').value.trim() || null,
