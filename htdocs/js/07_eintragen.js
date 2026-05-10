@@ -1552,6 +1552,8 @@ async function bulkImportFromRR(url, kat, statusEl) {
   function _proc(payload, contestName, le, externMode) { le = le || {};
     var df=payload.DataFields||[];
     if(Array.isArray(df)&&df.length>0)_cal(df);
+    _bkDbgLine('DataFields['+contestName+']', df.length ? df.join(' | ') : '(leer)');
+    _bkDbgLine('iName/iClub/iNetto/iZeit/iPlatz', iName+'/'+iClub+'/'+iNetto+'/'+iZeit+'/'+iPlatz);
     var dRaw=payload.data||{};
     // Rekursiv beliebig tief verschachtelte Gruppen abarbeiten
     function _walkGroups(obj, path) {
@@ -1600,6 +1602,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
           if(!Array.isArray(row)||row.length<3)return;
           var club=iClub>=0?String(row[iClub]||'').trim():'';
           if(!externMode){if(clubPhrase&&club.toLowerCase().indexOf(clubPhrase)<0)return;}
+          if(allResults.length===0)_bkDbgLine('row[0] raw', JSON.stringify(row).slice(0,300));
           var rName=String(row[iName]||'').trim();
           var rZeit=String(row[iNetto>=0?iNetto:iZeit]||'').trim();
           if(!rZeit||!/\d{1,2}:\d{2}|\d+[,.]\d+/.test(rZeit))return;

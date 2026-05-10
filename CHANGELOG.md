@@ -1,3 +1,6 @@
+## v1263
+- Debug: RaceResult-Import zeigt DataFields + Indizes + erste TuS-Row im Protokoll (Diagnose "Name als Zeit")
+
 ## v1262
 - Bulk-Eintragen: Ort-Feld als Autocomplete gegen Admin-Orte-Liste (Auswahl setzt ort_id, „Neuer Ort"-Option, API speichert ort_id bei Veranstaltungsanlage)
 - Bulk-Eintragen: Serie-Autoerkennung jetzt auch bei RaceResult-, Leichtathletik.de-, ACN- und Text-Paste-Import (war nur MikaTiming + Uitslagen)
