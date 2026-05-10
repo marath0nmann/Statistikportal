@@ -52,7 +52,7 @@ function _renderOrteUI() {
           '<td style="padding:8px 10px;text-align:right;white-space:nowrap">' +
             '<button class="btn btn-ghost btn-sm" title="Bearbeiten" onclick="_ortEdit(' + o.id + ')">&#x270F;&#xFE0F;</button> ' +
             '<button class="btn btn-ghost btn-sm" title="Zusammenführen mit anderem Ort" onclick="_ortMerge(' + o.id + ')">&#x1F517;</button> ' +
-            '<button class="btn btn-danger btn-sm" title="Löschen" onclick="_ortDelete(' + o.id + ')">&#x2715;</button>' +
+            '<button class="btn btn-danger btn-sm" title="Löschen" onclick="_ortDelete(' + o.id + ')">&#x1F5D1;&#xFE0F;</button>' +
           '</td>' +
         '</tr>';
     }
@@ -105,7 +105,7 @@ function _renderOrteTableInner(prebuiltRows) {
             '<td style="padding:8px 10px;text-align:right;white-space:nowrap">' +
               '<button class="btn btn-ghost btn-sm" title="Bearbeiten" onclick="_ortEdit(' + o.id + ')">&#x270F;&#xFE0F;</button> ' +
               '<button class="btn btn-ghost btn-sm" title="Zusammenführen" onclick="_ortMerge(' + o.id + ')">&#x1F517;</button> ' +
-              '<button class="btn btn-danger btn-sm" title="Löschen" onclick="_ortDelete(' + o.id + ')">&#x2715;</button>' +
+              '<button class="btn btn-danger btn-sm" title="Löschen" onclick="_ortDelete(' + o.id + ')">&#x1F5D1;&#xFE0F;</button>' +
             '</td>' +
           '</tr>';
       }

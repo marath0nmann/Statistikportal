@@ -1,3 +1,6 @@
+## v1261
+- Papierkorb-Symbol: noch fehlende Stellen in Benutzer, Orte, Athleten (Athlet löschen + PB-Löschen) nachgezogen
+
 ## v1260
 - Fix: RaceResult-Import erkennt Namens-Spalte jetzt auch bei DataFields "Name", "Lastname", "Nachname", "Surname" (vorher: iName blieb auf Default-Index 3 → Zeit oder Platz als Name)
 

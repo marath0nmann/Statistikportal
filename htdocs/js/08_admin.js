@@ -505,7 +505,7 @@ async function renderAdmin() {
       '<td style="padding:8px 8px;text-align:right">' +
         '<div style="display:flex;gap:4px;justify-content:flex-end">' +
           '<button class="btn btn-ghost btn-sm" onclick="showBenutzerEditModal(' + b.id + ')" title="Bearbeiten">\u270f\ufe0f</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="deleteBenutzer(' + b.id + ',\'' + b.email + '\')" title="L\xf6schen">\u2715</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="deleteBenutzer(' + b.id + ',\'' + b.email + '\')" title="L\xf6schen">&#x1F5D1;&#xFE0F;</button>' +
         '</div>' +
       '</td>' +
     '</tr>';

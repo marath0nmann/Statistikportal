@@ -1,5 +1,5 @@
 function _mkDelBtn(id) {
-  return '<button class="btn btn-danger btn-sm" onclick="deleteAthletById(' + id + ')" title="Löschen">&#x2715;</button>';
+  return '<button class="btn btn-danger btn-sm" onclick="deleteAthletById(' + id + ')" title="Löschen">&#x1F5D1;&#xFE0F;</button>';
 }
 
 function deleteAthletById(id) {
@@ -483,7 +483,7 @@ function _apRender() {
     var editBtns = canEdit
       ? '<span style="margin-left:6px;white-space:nowrap">' +
           '<button class="btn btn-ghost btn-sm" style="padding:1px 5px;font-size:10px" data-pb-edit="' + p.id + '">✏️</button> ' +
-          '<button class="btn btn-danger btn-sm" style="padding:1px 5px;font-size:10px" data-pb-del="' + p.id + '" data-pb-disz="' + (p.disziplin||'').replace(/"/g,'&quot;') + '">✕</button>' +
+          '<button class="btn btn-danger btn-sm" style="padding:1px 5px;font-size:10px" data-pb-del="' + p.id + '" data-pb-disz="' + (p.disziplin||'').replace(/"/g,'&quot;') + '">&#x1F5D1;&#xFE0F;</button>' +
         '</span>'
       : '';
     rows += '<tr style="color:var(--text)">' +
@@ -782,7 +782,7 @@ async function _apRenderPb() {
       (canEdit ?
         '<td style="padding:6px 8px;white-space:nowrap">' +
           '<button class="btn btn-ghost btn-sm" data-pb-edit="' + pb.id + '">&#x270F;&#xFE0F;</button> ' +
-          '<button class="btn btn-danger btn-sm" data-pb-del="' + pb.id + '" data-pb-disz="' + pb.disziplin.replace(/"/g,'&quot;') + '">&#x2715;</button>' +
+          '<button class="btn btn-danger btn-sm" data-pb-del="' + pb.id + '" data-pb-disz="' + pb.disziplin.replace(/"/g,'&quot;') + '">&#x1F5D1;&#xFE0F;</button>' +
         '</td>' : '<td></td>') +
     '</tr>';
   }
