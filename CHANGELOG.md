@@ -1,3 +1,6 @@
+## v1267
+- Admin Veranstaltungen: Bulk-Ort-Edit zeigt Auswahlliste statt Freitext; Filterfeld über der Liste
+
 ## v1266
 - Fix: leichtathletik.de-Import erkennt "5km" jetzt korrekt als "5.000m Bahn" (diszList auf gewählte Importkategorie eingeschränkt, verhindert Exact-Match auf falsche Kategorie)
 
