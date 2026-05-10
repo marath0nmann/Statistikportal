@@ -579,7 +579,9 @@ async function bulkImportFromLA(url, kat, statusEl) {
   if (!listLinks.length) { if (statusEl) statusEl.textContent = '\u26a0 Keine Ergebnislisten'; return; }
 
   var disziplinen = state.disziplinen || [];
-  var diszList    = disziplinen.map(function(d){return d.disziplin;}).filter(function(v,i,a){return a.indexOf(v)===i;});
+  var _erlaubt    = bkKatMitGruppen(kat);
+  var _diszForKat = _erlaubt ? disziplinen.filter(function(d){ return _erlaubt.indexOf(d.tbl_key) >= 0; }) : disziplinen;
+  var diszList    = _diszForKat.map(function(d){return d.disziplin;}).filter(function(v,i,a){return a.indexOf(v)===i;});
   var allResults  = [], listsChecked = 0;
 
   for (var li = 0; li < listLinks.length; li++) {

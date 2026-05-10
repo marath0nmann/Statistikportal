@@ -1,3 +1,6 @@
+## v1266
+- Fix: leichtathletik.de-Import erkennt "5km" jetzt korrekt als "5.000m Bahn" (diszList auf gewählte Importkategorie eingeschränkt, verhindert Exact-Match auf falsche Kategorie)
+
 ## v1265
 - Fix: Karte bei regelmäßigen Veranstaltungen nicht verschiebbar/zoombar; Karte überlagert Header beim Scrollen nicht mehr
 
