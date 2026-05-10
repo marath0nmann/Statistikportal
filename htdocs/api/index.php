@@ -5502,15 +5502,17 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         } else {
             $kuerzel  = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
             $serieId  = isset($item['serie_id']) && is_numeric($item['serie_id']) ? (int)$item['serie_id'] : null;
+            $ortId    = isset($item['ort_id'])   && is_numeric($item['ort_id'])   ? (int)$item['ort_id']   : null;
             $v = DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=?', [$kuerzel]);
             if (!$v) {
-                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum,serie_id) VALUES (?,?,?,?,?)',
-                    [$kuerzel, $evname ?: $kuerzel, $ort, $datum, $serieId]);
+                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,ort_id,datum,serie_id) VALUES (?,?,?,?,?,?)',
+                    [$kuerzel, $evname ?: $kuerzel, $ort, $ortId, $datum, $serieId]);
                 $vid = DB::lastInsertId();
             } else {
                 $vid = $v['id'];
-                // Serie nachträglich setzen wenn noch keine zugeordnet
+                // Serie + ort_id nachträglich setzen wenn noch nicht zugeordnet
                 if ($serieId) DB::query('UPDATE ' . DB::tbl('veranstaltungen') . ' SET serie_id=? WHERE id=? AND serie_id IS NULL', [$serieId, $vid]);
+                if ($ortId)   DB::query('UPDATE ' . DB::tbl('veranstaltungen') . ' SET ort_id=?   WHERE id=? AND ort_id IS NULL',   [$ortId,   $vid]);
             }
         }
         // mapping_id: vom Client bevorzugen (exakter Kategorie-Treffer)

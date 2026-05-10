@@ -360,7 +360,7 @@ function renderEintragen() {
             return opts;
           })() + '</select></div>' +
           '<div class="form-group"><label>Veranstaltungsname</label><input type="text" id="bk-evname" placeholder="z.B. Düsseldorf Marathon"/></div>' +
-          '<div class="form-group"><label>Ort *</label><input type="text" id="bk-ort" placeholder="z.B. D&uuml;sseldorf"/></div>' +
+          '<div class="form-group"><label>Ort *</label><input type="text" id="bk-ort" placeholder="z.B. D&uuml;sseldorf" autocomplete="off" oninput="bkOrtSearch(this.value)" onfocus="bkOrtSearch(this.value)" onblur="setTimeout(bkOrtHideDropdown,200)"/></div>' +
           '<div class="form-group"><label>Meisterschaft</label>' +
             '<select id="bk-mstr-global" style="width:100%" onchange="importToggleMstr(\'bk\',!!this.value,this.value)">' +
               mstrOptions(0) +
@@ -412,6 +412,8 @@ function renderEintragen() {
 
   document.getElementById('main-content').innerHTML = tabHtml + content;
   _bkLoadSerien();
+  _bkLoadOrte();
+  _bkSelectedOrtId = null;
 
   if (isBulk) {
     bulkAddRow();
@@ -746,8 +748,7 @@ function bkSerieSelectIdx(i) {
   _bkSelectedSerie = s;
   var inp = document.getElementById('bk-serie-search');
   if (inp) inp.value = s.name;
-  var ortEl = document.getElementById('bk-ort');
-  if (ortEl && s.ort_letzte) ortEl.value = s.ort_letzte;
+  if (s.ort_letzte && !((document.getElementById('bk-ort')||{}).value)) _bkAutoSetOrt(s.ort_letzte);
   var evEl = document.getElementById('bk-evname');
   if (evEl && !evEl.value) evEl.value = _cleanEventName(s.name);
   bkSerieHideDropdown();
@@ -891,6 +892,136 @@ async function bkNeueSerieAnlegen() {
     bkSerieSetById(newId);
   }
   notify('Regelmäßige Veranstaltung "' + name + '" angelegt.', 'ok');
+}
+
+// ── Orte-Autocomplete ────────────────────────────────────────────────────────
+
+var _bkSelectedOrtId = null;
+var _bkOrtSearchTimer = null;
+
+async function _bkLoadOrte() {
+  var r = await apiGet('orte?limit=500');
+  if (!r || !r.ok) return;
+  window._bkOrte = r.data || [];
+}
+
+function _bkAutoSetOrt(name) {
+  if (!name) return;
+  var ortEl = document.getElementById('bk-ort');
+  if (ortEl) ortEl.value = name;
+  _bkSelectedOrtId = null;
+  var orte = window._bkOrte || [];
+  var n = (name || '').toLowerCase().trim();
+  var match = null;
+  for (var oi = 0; oi < orte.length; oi++) {
+    if ((orte[oi].name || '').toLowerCase().trim() === n) { match = orte[oi]; break; }
+  }
+  if (match) _bkSelectedOrtId = match.id;
+}
+
+function _bkOrtNameById(id) {
+  var orte = window._bkOrte || [];
+  for (var i = 0; i < orte.length; i++) { if (orte[i].id == id) return orte[i].name; }
+  return '';
+}
+
+function _bkOrtGetOrCreateDropdown() {
+  var drop = document.getElementById('bk-ort-dropdown');
+  if (!drop) {
+    drop = document.createElement('div');
+    drop.id = 'bk-ort-dropdown';
+    drop.style.cssText = 'display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:9999;max-height:280px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.22)';
+    document.body.appendChild(drop);
+  }
+  return drop;
+}
+
+function bkOrtSearch(val) {
+  clearTimeout(_bkOrtSearchTimer);
+  _bkOrtSearchTimer = setTimeout(function() {
+    var inp = document.getElementById('bk-ort');
+    if (!inp) return;
+    var drop = _bkOrtGetOrCreateDropdown();
+    var q = (val || '').toLowerCase().trim();
+    if (_bkSelectedOrtId !== null && inp.value !== _bkOrtNameById(_bkSelectedOrtId)) _bkSelectedOrtId = null;
+    var orte = window._bkOrte || [];
+    var filtered = q ? orte.filter(function(o) {
+      return (o.name || '').toLowerCase().indexOf(q) >= 0 ||
+             (o.region && o.region.toLowerCase().indexOf(q) >= 0);
+    }) : orte;
+    filtered = filtered.slice(0, 25);
+    var html = filtered.map(function(o, i) {
+      var extra = o.region ? ' (' + o.region + (o.land_code ? ', ' + o.land_code : '') + ')' : (o.land_code ? ' (' + o.land_code + ')' : '');
+      return '<div style="padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border)"' +
+        ' onmousedown="bkOrtSelectIdx(' + i + ')"' +
+        ' onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+        (o.name || '').replace(/&/g,'&amp;').replace(/</g,'&lt;') +
+        (extra ? '<span style="color:var(--text2);font-size:11px"> ' + extra.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</span>' : '') +
+        '</div>';
+    }).join('');
+    html += '<div style="padding:8px 12px;font-size:13px;cursor:pointer;color:var(--accent)"' +
+      ' onmousedown="bkOrtNeu()"' +
+      ' onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+      '&#xFF0B; Neuer Ort&hellip;</div>';
+    drop.innerHTML = html;
+    drop._filteredOrte = filtered;
+    var rect = inp.getBoundingClientRect();
+    drop.style.left  = rect.left + 'px';
+    drop.style.top   = (rect.bottom + 2) + 'px';
+    drop.style.width = rect.width + 'px';
+    drop.style.display = '';
+  }, 150);
+}
+
+function bkOrtSelectIdx(i) {
+  var drop = document.getElementById('bk-ort-dropdown');
+  var o = drop && drop._filteredOrte && drop._filteredOrte[i];
+  if (!o) return;
+  _bkSelectedOrtId = o.id;
+  var inp = document.getElementById('bk-ort');
+  if (inp) inp.value = o.name;
+  bkOrtHideDropdown();
+}
+
+function bkOrtHideDropdown() {
+  var drop = document.getElementById('bk-ort-dropdown');
+  if (drop) drop.style.display = 'none';
+}
+
+function bkOrtNeu() {
+  bkOrtHideDropdown();
+  var curName = ((document.getElementById('bk-ort') || {}).value || '').trim();
+  showModal(
+    modalH2('&#x1F4CD; Neuer Ort') +
+    '<div class="form-group full" style="margin-bottom:16px">' +
+      '<label>Name *</label>' +
+      '<input type="text" id="bk-neuer-ort-name" value="' + curName.replace(/"/g,'&quot;') + '" placeholder="z.B. Düsseldorf" autofocus style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"/>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="bkNeuerOrtAnlegen()">Anlegen &amp; auswählen</button>' +
+    '</div>'
+  );
+  setTimeout(function() {
+    var inp = document.getElementById('bk-neuer-ort-name');
+    if (inp) inp.focus();
+  }, 50);
+}
+
+async function bkNeuerOrtAnlegen() {
+  var name = ((document.getElementById('bk-neuer-ort-name') || {}).value || '').trim();
+  if (!name) { notify('Name erforderlich.', 'err'); return; }
+  var r = await apiPost('orte', { name: name });
+  if (!r || !r.ok) { notify('Fehler: ' + (r && r.fehler || '?'), 'err'); return; }
+  var newOrt = r.data;
+  closeModal();
+  if (!window._bkOrte) window._bkOrte = [];
+  window._bkOrte.push(newOrt);
+  window._bkOrte.sort(function(a, b) { return (a.name||'').localeCompare(b.name||''); });
+  _bkSelectedOrtId = newOrt.id;
+  var inp = document.getElementById('bk-ort');
+  if (inp) inp.value = newOrt.name;
+  notify('Ort „' + newOrt.name + '“ angelegt.', 'ok');
 }
 
 function bkKatChanged() {
@@ -1054,6 +1185,7 @@ async function bulkSubmit() {
     evname = ((document.getElementById('bk-evname') || {}).value || '').trim();
     if (!datum || !ort) { notify('Datum und Ort sind Pflichtfelder!', 'err'); return; }
     veranstId = null;
+    var _ortId = _bkSelectedOrtId || null;
   }
 
   var rows = document.querySelectorAll('#bulk-rows tr');
@@ -1078,7 +1210,7 @@ async function bulkSubmit() {
       })(),
       meisterschaft: (function(){ var s=row.querySelector('.bk-mstr-sel'); return s&&s.value?parseInt(s.value)||null:null; })(),
       ak_platz_meisterschaft: (function(){ var s=row.querySelector('.bk-mstr-platz'); return s&&s.value?parseInt(s.value)||null:null; })(),
-      ort: ort, veranstaltung_name: evname,
+      ort: ort, ort_id: (typeof _ortId !== 'undefined' ? _ortId : null), veranstaltung_name: evname,
       datenquelle: ((document.getElementById('bk-quelle') || {}).value || '') || null,
       veranstaltung_id: veranstId ? parseInt(veranstId) : null,
       serie_id: _bkSelectedSerie ? parseInt(_bkSelectedSerie.id) : null,
@@ -1333,14 +1465,25 @@ async function bulkImportFromRR(url, kat, statusEl) {
   if (prxResp && prxResp.ok && prxResp.data) {
     var pd = prxResp.data;
     var datEl = document.getElementById('bk-datum');
-    var ortEl = document.getElementById('bk-ort');
     var evEl  = document.getElementById('bk-evname');
     if (pd.date     && datEl) { datEl.value = pd.date; bkSyncDatum(pd.date); }
-    if (pd.location && ortEl && !ortEl.value) ortEl.value = pd.location;
+    if (pd.location && !((document.getElementById('bk-ort')||{}).value)) _bkAutoSetOrt(pd.location);
     if (eventName   && evEl  && !evEl.value)  evEl.value  = _cleanEventName(eventName);
-    _bkDbgLine('Datum', pd.date     || '\u2013');
-    _bkDbgLine('Ort',   pd.location || '\u2013');
+    _bkDbgLine('Datum', pd.date     || '–');
+    _bkDbgLine('Ort',   pd.location || '–');
   }
+  if (eventName) {
+    var _rrSerie = _bkMatchSerie(eventName);
+    if (_rrSerie) {
+      bkSerieSetById(_rrSerie.id);
+      _bkDbgLine('Serie', _rrSerie.name + ' (auto-erkannt)');
+      if (!((document.getElementById('bk-ort')||{}).value) && _rrSerie.ort_letzte) {
+        _bkAutoSetOrt(_rrSerie.ort_letzte);
+        _bkDbgLine('Ort', _rrSerie.ort_letzte + ' (aus letzter Austragung)');
+      }
+    }
+  }
+
 
   var listSource = cfg.list || cfg.lists || {};
   var listArr    = Array.isArray(listSource) ? listSource
@@ -1732,9 +1875,8 @@ async function bulkImportFromMika(url, kat, statusEl) {
     var evEl = document.getElementById('bk-evname');
     if (evEl && !evEl.value) evEl.value = _cleanEventName(_mikaEvName);
   }
-  if (_evData.eventOrt) {
-    var ortEl = document.getElementById('bk-ort');
-    if (ortEl && !ortEl.value) ortEl.value = _evData.eventOrt;
+  if (_evData.eventOrt && !((document.getElementById('bk-ort')||{}).value)) {
+    _bkAutoSetOrt(_evData.eventOrt);
   }
   if (_evData.eventDate) {
     var datEl = document.getElementById('bk-datum');
@@ -1750,12 +1892,9 @@ async function bulkImportFromMika(url, kat, statusEl) {
       bkSerieSetById(_matchedSerie.id);
       _bkDbgLine('Serie', _matchedSerie.name + ' (auto-erkannt)');
       // Ort aus letzter Austragung ableiten, wenn MikaTiming keinen lieferte
-      if (!_evData.eventOrt && _matchedSerie.ort_letzte) {
-        var _ortEl2 = document.getElementById('bk-ort');
-        if (_ortEl2 && !_ortEl2.value) {
-          _ortEl2.value = _matchedSerie.ort_letzte;
-          _bkDbgLine('Ort', _matchedSerie.ort_letzte + ' (aus letzter Austragung)');
-        }
+      if (!_evData.eventOrt && _matchedSerie.ort_letzte && !((document.getElementById('bk-ort')||{}).value)) {
+        _bkAutoSetOrt(_matchedSerie.ort_letzte);
+        _bkDbgLine('Ort', _matchedSerie.ort_letzte + ' (aus letzter Austragung)');
       }
     }
   }
@@ -1804,13 +1943,21 @@ async function bulkImportFromUits(url, kat, statusEl) {
     var datEl = document.getElementById('bk-datum');
     if (datEl) { datEl.value = parsed.eventDate; bkSyncDatum(parsed.eventDate); }
   }
-  if (parsed.eventOrt) {
-    var ortEl = document.getElementById('bk-ort');
-    if (ortEl && !ortEl.value) ortEl.value = parsed.eventOrt;
+  if (parsed.eventOrt && !((document.getElementById('bk-ort')||{}).value)) {
+    _bkAutoSetOrt(parsed.eventOrt);
   }
   if (parsed.eventName) {
     var evEl = document.getElementById('bk-evname');
     if (evEl && !evEl.value) evEl.value = _cleanEventName(parsed.eventName);
+    var _laSerie = _bkMatchSerie(parsed.eventName);
+    if (_laSerie) {
+      bkSerieSetById(_laSerie.id);
+      _bkDbgLine('Serie', _laSerie.name + ' (auto-erkannt)');
+      if (!((document.getElementById('bk-ort')||{}).value) && _laSerie.ort_letzte) {
+        _bkAutoSetOrt(_laSerie.ort_letzte);
+        _bkDbgLine('Ort', _laSerie.ort_letzte + ' (aus letzter Austragung)');
+      }
+    }
   }
 
   var ownRows = parsed.rows.filter(function(row) { return row.ownClub; });
@@ -2185,7 +2332,7 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   var evEl  = document.getElementById('bk-evname');
   var ortEl = document.getElementById('bk-ort');
   if (evEl  && !evEl.value)  evEl.value  = _cleanEventName(evName);
-  if (ortEl && !ortEl.value && evOrt) ortEl.value = evOrt;
+  if (evOrt && !((document.getElementById('bk-ort')||{}).value)) _bkAutoSetOrt(evOrt);
 
   var bulkRows = ownRows.map(function(row) {
     var mid  = uitsEvenementenDiszFromStrecke(row.strecke, state.disziplinen, kat);
@@ -2222,7 +2369,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     var datEl  = document.getElementById('bk-datum');
     var ortEl  = document.getElementById('bk-ort');
     if (datEl) { datEl.value = evDate; bkSyncDatum(evDate); }
-    if (ortEl && !ortEl.value) ortEl.value = evOrt;
+    if (!((document.getElementById('bk-ort')||{}).value)) _bkAutoSetOrt(evOrt);
     _bkDbgLine('Datum', evDate);
     _bkDbgLine('Ort',   evOrt);
   }
@@ -2238,6 +2385,15 @@ async function bulkImportFromAcn(url, kat, statusEl) {
           _bkDbgLine('Veranstaltung', evName);
           var evnEl = document.getElementById('bk-evname');
           if (evnEl && !evnEl.value) evnEl.value = _cleanEventName(evName);
+          var _acnSerie = _bkMatchSerie(evName);
+          if (_acnSerie) {
+            bkSerieSetById(_acnSerie.id);
+            _bkDbgLine('Serie', _acnSerie.name + ' (auto-erkannt)');
+            if (!((document.getElementById('bk-ort')||{}).value) && _acnSerie.ort_letzte) {
+              _bkAutoSetOrt(_acnSerie.ort_letzte);
+              _bkDbgLine('Ort', _acnSerie.ort_letzte + ' (aus letzter Austragung)');
+            }
+          }
         }
       }
     } catch(e) { _bkDbgLine('Event-Name Fehler', e.message); }
@@ -2668,6 +2824,7 @@ function bulkReset() {
     var el = document.getElementById(id);
     if (el) el.value = '';
   });
+  _bkSelectedOrtId = null;
   // Importkategorie-Wrapper verstecken
   var katWrap = document.getElementById('bk-import-kat-wrap');
   if (katWrap) katWrap.style.display = 'none';
@@ -2983,7 +3140,16 @@ function bulkParsePaste() {
 
   // Veranstaltungsfelder befüllen wenn erkannt
   if (evName) { var ef = document.getElementById('bk-evname'); if (ef) ef.value = _cleanEventName(evName); }
-  if (evOrt)  { var of = document.getElementById('bk-ort');    if (of) of.value = evOrt; }
+  if (evOrt) _bkAutoSetOrt(evOrt);
+  if (evName) {
+    var _pasteSerie = _bkMatchSerie(evName);
+    if (_pasteSerie) {
+      bkSerieSetById(_pasteSerie.id);
+      if (!((document.getElementById('bk-ort')||{}).value) && _pasteSerie.ort_letzte) {
+        _bkAutoSetOrt(_pasteSerie.ort_letzte);
+      }
+    }
+  }
 
   // Vorhandene Zeilen leeren, dann neue anlegen
   var tbody = document.getElementById('bulk-rows');

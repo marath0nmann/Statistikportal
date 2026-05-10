@@ -1,3 +1,8 @@
+## v1262
+- Bulk-Eintragen: Ort-Feld als Autocomplete gegen Admin-Orte-Liste (Auswahl setzt ort_id, „Neuer Ort"-Option, API speichert ort_id bei Veranstaltungsanlage)
+- Bulk-Eintragen: Serie-Autoerkennung jetzt auch bei RaceResult-, Leichtathletik.de-, ACN- und Text-Paste-Import (war nur MikaTiming + Uitslagen)
+- Bulk-Eintragen: Ort aus Importer-Daten setzt ebenfalls ort_id wenn Ort-Name in Orte-Liste gefunden
+
 ## v1261
 - Papierkorb-Symbol: noch fehlende Stellen in Benutzer, Orte, Athleten (Athlet löschen + PB-Löschen) nachgezogen
 
