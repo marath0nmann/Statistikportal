@@ -1,3 +1,6 @@
+## v1270
+- Bulk-Eintragen: Seltec/Track&Field PDF-Import (📄 Seltec PDF-Button, client-seitig via PDF.js, filtert auf eigenen Verein)
+
 ## v1269
 - Admin Veranstaltungen: Bulk-Ort-Edit verwendet identischen ortePickerHtml-Picker wie Einzeledit (Autocomplete aus Orte-Tabelle, inkl. ort_id)
 
