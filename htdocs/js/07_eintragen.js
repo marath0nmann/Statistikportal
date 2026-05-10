@@ -306,7 +306,7 @@ function renderEintragen() {
         '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Mehrere Ergebnisse auf einmal eintragen &ndash; alle geh&ouml;ren zur selben Veranstaltung.</div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
-          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Seltec/Track&amp;Field PDF hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
             '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
             '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
@@ -326,8 +326,6 @@ function renderEintragen() {
           '</div>' +
           '<div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">' +
             '<button class="btn btn-primary btn-sm" id="bk-einlesen-btn" onclick="bulkEinlesen()">&#x25B6; Einlesen</button>' +
-            '<button class="btn btn-ghost btn-sm" onclick="bulkSeltecPdfClick()" title="Track&amp;Field / Seltec PDF importieren">&#x1F4C4; Seltec PDF</button>' +
-            '<input type="file" id="bk-seltec-pdf" accept=".pdf" style="display:none" onchange="bulkSeltecPdfChanged(this)">' +
             '<div id="bk-post-import-actions" style="display:none;gap:8px;align-items:center">' +
               '<button class="btn btn-ghost btn-sm" onclick="bulkReset()">&#x21BA; Reset</button>' +
             '</div>' +
@@ -2819,14 +2817,30 @@ async function bulkFillFromImport(rows, statusEl) {
 
 // ── Seltec / Track&Field PDF Importer ────────────────────────────────────────
 
-function bulkSeltecPdfClick() {
-  var inp = document.getElementById('bk-seltec-pdf');
-  if (inp) { inp.value = ''; inp.click(); }
+function bulkPdfDragOver(e) {
+  var hasFile = e.dataTransfer && Array.from(e.dataTransfer.items || []).some(function(it) {
+    return it.kind === 'file' && it.type === 'application/pdf';
+  });
+  if (!hasFile) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  var ta = document.getElementById('bk-paste-area');
+  if (ta) ta.style.borderColor = 'var(--primary, #1976d2)';
 }
 
-function bulkSeltecPdfChanged(inp) {
-  var file = inp && inp.files && inp.files[0];
+function bulkPdfDragLeave(e) {
+  var ta = document.getElementById('bk-paste-area');
+  if (ta) ta.style.borderColor = '';
+}
+
+function bulkPdfDrop(e) {
+  var ta = document.getElementById('bk-paste-area');
+  if (ta) ta.style.borderColor = '';
+  var file = e.dataTransfer && Array.from(e.dataTransfer.files || []).find(function(f) {
+    return f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+  });
   if (!file) return;
+  e.preventDefault();
   var statusEl = document.getElementById('bk-import-status');
   _bkDebugInit(file.name, 'Seltec PDF', '');
   bulkImportFromSeltecPdf(file, statusEl);

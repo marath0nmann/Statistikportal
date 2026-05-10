@@ -13,7 +13,7 @@
 - „Teilnehmer*innen"/„Teilnehmer*in" → „Teilnehmenden"/„Teilnehmende" (2 Stellen in Veranstaltungs-Detailansicht)
 
 ## v1270
-- Bulk-Eintragen: Seltec/Track&Field PDF-Import (📄 Seltec PDF-Button, client-seitig via PDF.js, filtert auf eigenen Verein)
+- Bulk-Eintragen: Seltec/Track&Field PDF per Drag &amp; Drop auf das Eingabefeld importieren (PDF.js, filtert auf eigenen Verein)
 
 ## v1269
 - Admin Veranstaltungen: Bulk-Ort-Edit verwendet identischen ortePickerHtml-Picker wie Einzeledit (Autocomplete aus Orte-Tabelle, inkl. ort_id)
