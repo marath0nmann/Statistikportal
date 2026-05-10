@@ -1,3 +1,7 @@
+## v1272
+- MikaTiming: DNS/DNF/DQ-Einträge werden serverseitig herausgefiltert (type-time-Feld)
+- MikaTiming Debug: zeigt welche Athleten-Namen Roh-Treffer hatten (Diagnose fehlender Athleten)
+
 ## v1271
 - „Teilnehmer*innen"/„Teilnehmer*in" → „Teilnehmenden"/„Teilnehmende" (2 Stellen in Veranstaltungs-Detailansicht)
 

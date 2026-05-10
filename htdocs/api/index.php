@@ -3966,6 +3966,14 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 // Hilfsfunktion: Wert = Gesamttext minus Label-Text
                 $liNetto = ''; $liAK = '';
 
+                // DNS/DNF/DQ: Nicht-Finisher überspringen
+                $liStatus = '';
+                foreach ($xp2->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
+                    $raw = trim($tn->textContent);
+                    if (preg_match('/\b(DNS|DNF|DQ|DSQ|DNST)\b/i', $raw, $sm)) { $liStatus = strtoupper($sm[1]); break; }
+                }
+                if ($liStatus) continue;
+
                 // Zeit: type-time, Label "Ziel" = Nettozeit
                 foreach ($xp2->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
                     $labelEl = $xp2->query('.//*[contains(@class,"list-label")]', $tn)->item(0);
