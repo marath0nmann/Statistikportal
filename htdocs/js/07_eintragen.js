@@ -1532,7 +1532,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
     iAK=-1;iYear=-1;iGeschlecht=-1;iAKPlatz=-1;iName=3;iClub=6;iNetto=-1;iZeit=-1;iPlatz=2;
     for(var fi=0;fi<df.length;fi++){
       var f=df[fi].toLowerCase();
-      if(f.indexOf('anzeigename')>=0||f.indexOf('lfname')>=0||f==='displayname'||f==='fullname'||f==='name'||f.indexOf('lastname')>=0||f.indexOf('nachname')>=0||f.indexOf('surname')>=0)iName=fi;
+      if(f.indexOf('anzeigename')>=0||f.indexOf('flname')>=0||f.indexOf('lfname')>=0||f==='displayname'||f==='fullname'||f==='name'||f.indexOf('lastname')>=0||f.indexOf('nachname')>=0||f.indexOf('surname')>=0)iName=fi;
       else if(f.indexOf('club')>=0||f.indexOf('verein')>=0)iClub=fi;
       else if(f.indexOf('autorankp')>=0||f.indexOf('overallrank')>=0||f.indexOf('withstatus')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0||f.indexOf('agegrouprank')>=0){if(f.indexOf('akpl')>=0||f.indexOf('agegrouprank')>=0)iAKPlatz=fi;else iPlatz=fi;}
       else if(f.indexOf('akpl')>=0)iAKPlatz=fi;
@@ -1552,8 +1552,6 @@ async function bulkImportFromRR(url, kat, statusEl) {
   function _proc(payload, contestName, le, externMode) { le = le || {};
     var df=payload.DataFields||[];
     if(Array.isArray(df)&&df.length>0)_cal(df);
-    _bkDbgLine('DataFields['+contestName+']', df.length ? df.join(' | ') : '(leer)');
-    _bkDbgLine('iName/iClub/iNetto/iZeit/iPlatz', iName+'/'+iClub+'/'+iNetto+'/'+iZeit+'/'+iPlatz);
     var dRaw=payload.data||{};
     // Rekursiv beliebig tief verschachtelte Gruppen abarbeiten
     function _walkGroups(obj, path) {
@@ -1602,7 +1600,6 @@ async function bulkImportFromRR(url, kat, statusEl) {
           if(!Array.isArray(row)||row.length<3)return;
           var club=iClub>=0?String(row[iClub]||'').trim():'';
           if(!externMode){if(clubPhrase&&club.toLowerCase().indexOf(clubPhrase)<0)return;}
-          if(allResults.length===0)_bkDbgLine('row[0] raw', JSON.stringify(row).slice(0,300));
           var rName=String(row[iName]||'').trim();
           var rZeit=String(row[iNetto>=0?iNetto:iZeit]||'').trim();
           if(!rZeit||!/\d{1,2}:\d{2}|\d+[,.]\d+/.test(rZeit))return;
@@ -3653,7 +3650,7 @@ async function rrFetch() {
         if (Array.isArray(df) && df.length > 0) {
           for (var fi = 0; fi < df.length; fi++) {
             var f = df[fi].toLowerCase();
-            if (f.indexOf('anzeigename') >= 0 || f.indexOf('lfname') >= 0 || f === 'displayname' || f === 'fullname') iName = fi;
+            if (f.indexOf('anzeigename') >= 0 || f.indexOf('flname') >= 0 || f.indexOf('lfname') >= 0 || f === 'displayname' || f === 'fullname' || f === 'name' || f.indexOf('lastname') >= 0 || f.indexOf('nachname') >= 0 || f.indexOf('surname') >= 0) iName = fi;
             else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
             else if ((f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]' || f.indexOf('akabk') >= 0 || f.indexOf('ak_abk') >= 0 || f === 'es_akabkürzung' || f.indexOf('agegroupname') >= 0) && f.indexOf('rank') < 0) iAK = fi;
             else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* skip */ }
@@ -3700,7 +3697,7 @@ async function rrFetch() {
                 iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
                 for (var _fai = 0; _fai < _dfAll.length; _fai++) {
                   var _fa = _dfAll[_fai].toLowerCase();
-                  if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('lfname') >= 0 || _fa === 'displayname' || _fa === 'fullname') iName = _fai;
+                  if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('flname') >= 0 || _fa.indexOf('lfname') >= 0 || _fa === 'displayname' || _fa === 'fullname' || _fa === 'name' || _fa.indexOf('lastname') >= 0 || _fa.indexOf('nachname') >= 0 || _fa.indexOf('surname') >= 0) iName = _fai;
                   else if (_fa.indexOf('club') >= 0 || _fa.indexOf('verein') >= 0) iClub = _fai;
                   else if ((_fa.indexOf('agegroup') >= 0 || _fa.indexOf('akabk') >= 0 || _fa.indexOf('agegroupname') >= 0) && _fa.indexOf('rank') < 0) iAK = _fai;
                   else if (_fa === 'year' || _fa === 'yob') iYear = _fai;
@@ -3820,7 +3817,7 @@ async function rrFetch() {
             iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
             for (var fi2 = 0; fi2 < df2.length; fi2++) {
               var f2 = df2[fi2].toLowerCase();
-              if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('lfname') >= 0 || f2 === 'displayname' || f2 === 'fullname') iName = fi2;
+              if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('flname') >= 0 || f2.indexOf('lfname') >= 0 || f2 === 'displayname' || f2 === 'fullname' || f2 === 'name' || f2.indexOf('lastname') >= 0 || f2.indexOf('nachname') >= 0 || f2.indexOf('surname') >= 0) iName = fi2;
               else if (f2.indexOf('club') >= 0 || f2.indexOf('verein') >= 0) iClub = fi2;
               else if ((f2.indexOf('agegroup') >= 0 || f2.indexOf('akabk') >= 0 || f2.indexOf('ak_abk') >= 0 || f2 === 'es_akabkürzung') && f2.indexOf('rank') < 0) iAK = fi2;
               else if (f2 === 'year' || f2 === 'yob' || f2 === 'es_jahrgang') iYear = fi2;
@@ -3879,7 +3876,7 @@ async function rrFetch() {
           iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
           for (var _ffi = 0; _ffi < _fdf.length; _ffi++) {
             var _ff = _fdf[_ffi].toLowerCase();
-            if (_ff.indexOf('anzeigename') >= 0 || _ff.indexOf('lfname') >= 0) iName = _ffi;
+            if (_ff.indexOf('anzeigename') >= 0 || _ff.indexOf('flname') >= 0 || _ff.indexOf('lfname') >= 0 || _ff === 'displayname' || _ff === 'fullname' || _ff === 'name' || _ff.indexOf('lastname') >= 0 || _ff.indexOf('nachname') >= 0 || _ff.indexOf('surname') >= 0) iName = _ffi;
             else if (_ff.indexOf('club') >= 0 || _ff.indexOf('verein') >= 0) iClub = _ffi;
             else if ((_ff.indexOf('agegroup') >= 0 || _ff.indexOf('akabk') >= 0 || _ff === 'es_akabkürzung') && _ff.indexOf('rank') < 0) iAK = _ffi;
             else if (_ff === 'year' || _ff === 'yob' || _ff === 'es_jahrgang') iYear = _ffi;
