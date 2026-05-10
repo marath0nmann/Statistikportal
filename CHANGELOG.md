@@ -1,3 +1,6 @@
+## v1271
+- „Teilnehmer*innen"/„Teilnehmer*in" → „Teilnehmenden"/„Teilnehmende" (2 Stellen in Veranstaltungs-Detailansicht)
+
 ## v1270
 - Bulk-Eintragen: Seltec/Track&Field PDF-Import (📄 Seltec PDF-Button, client-seitig via PDF.js, filtert auf eigenen Verein)
 
