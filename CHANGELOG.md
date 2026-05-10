@@ -1,3 +1,8 @@
+## v1276
+- MikaTiming: Wildcards für nation/sex/age_class beim Form-POST (komplette Ergebnislisten)
+- MikaTiming Bulk-Import: Checkbox „Auch inaktive Athleten" wirkt jetzt auch auf die Namens-Suche (vorher wurden alle Nachnamen gesucht)
+- MikaTiming Debug: API-Version-Marker `apiVersion` zur OPcache-Diagnose
+
 ## v1275
 - MikaTiming Debug: erweiterter Feldnamen-Regex + HTML-Dump um Verein-Label (Feldnamen-Erkennung)
 

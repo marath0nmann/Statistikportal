@@ -1784,7 +1784,10 @@ async function bulkImportFromMika(url, kat, statusEl) {
   if (true) {
     _bkDbgLine('Athleten-Suche', 'Suche nach bekannten Athleten-Namen…');
     var _athleten = state.athleten || [];
-    var _activeAth = _athleten;  // alle Athleten, nicht nur aktive
+    // Inaktive nur durchsuchen, wenn Checkbox „Auch inaktive Athleten" aktiv
+    var _activeAth = window._bkMatchInaktive
+      ? _athleten
+      : _athleten.filter(function(a){ return !(a.aktiv === false || a.aktiv === 0); });
     // Einzigartige Nachnamen sammeln (aus name_nv: "Nachname, Vorname")
     var _seenNamen = {};
     var _nachnamen = [];

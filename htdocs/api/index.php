@@ -3732,6 +3732,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $hasSearchProvider = strpos($mainHtml, 'SearchProvider.js') !== false;
     $hasSimpleSearchName = strpos($mainHtml, 'simple-search-name') !== false;
     $hasSearchForm = strpos($mainHtml, 'name="search[name]"') !== false || strpos($mainHtml, "name='search[name]'") !== false;
+    $debug['apiVersion'] = 'v1276'; // sichtbarer Marker für OPcache-Status
     // Alle search[*]-Feldnamen aus dem Formular extrahieren (für Diagnose)
     if (preg_match_all('/name=["\']search\[([^\]"\']+)\]["\']/i', $mainHtml, $sfMatches)) {
         $debug['formSearchFields'] = array_values(array_unique($sfMatches[1]));
@@ -3911,6 +3912,9 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         //        Reduziert Namens-Suche-Zeit von ~6×RTT auf 1×RTT (~6× schneller).
         $postBodiesByEvent = [];
         foreach ($eventIds as $_evLoop) {
+            // v1276: Wildcards für nation/sex/age_class mitsenden (wie Form-Submit der Webseite),
+            // sonst liefert MikaTiming bei manchen Sites (z.B. duisburg.r.mikatiming.de) leere
+            // bzw. unvollständige Ergebnisse für die Club-Filterung.
             $postFields = [
                 'lang'               => 'DE',
                 'startpage'          => 'start_responsive',
@@ -3919,6 +3923,9 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 'search[name]'       => $nameSearch ?: '',
                 'search[firstname]'  => '',
                 'search[start_no]'   => '',
+                'search[nation]'     => '%',
+                'search[sex]'        => '%',
+                'search[age_class]'  => '%',
             ];
             // Club-Suche: wenn kein Namens-Query aktiv, stattdessen nach Verein filtern
             if (!$nameSearch && $club !== '') {
