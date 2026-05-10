@@ -3620,20 +3620,12 @@ async function bulkVeranst(action) {
   }
 
   if (action === 'ort') {
-    var allOrt = {};
-    var allCacheItems = _veranstAdminCache.items || [];
-    for (var oi = 0; oi < allCacheItems.length; oi++) {
-      var ov = _vaDec(allCacheItems[oi].ort || '');
-      if (ov) allOrt[ov] = true;
-    }
-    var ortArr = Object.keys(allOrt).sort(function(a, b){ return a.localeCompare(b, 'de'); });
-    var ortOpts = ortArr.map(function(o){ return '<option value="' + _vaEsc(o) + '">' + _vaEsc(o) + '</option>'; }).join('');
+    await ortePickerLoad();
     showModal(
       modalH2('&#x1F4CD; Ort zuweisen (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +
       '<div class="form-group" style="margin-bottom:0">' +
-        '<label>Ort auswählen</label>' +
-        '<input type="text" placeholder="Filtern…" oninput="_vaOrtFilter(this.value)" style="margin-bottom:6px"/>' +
-        '<select id="va-ort-sel" size="10" style="width:100%;height:220px">' + ortOpts + '</select>' +
+        '<label>Ort</label>' +
+        ortePickerHtml({ inputId: 'va-bulk-ort', hiddenId: 'va-bulk-ort-id' }) +
       '</div>' +
       '<div class="modal-actions">' +
         '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -3697,30 +3689,27 @@ async function bulkVeranst(action) {
   _renderVeranstAdminTable();
 }
 
-function _vaOrtFilter(val) {
-  var sel = document.getElementById('va-ort-sel');
-  if (!sel) return;
-  var v = val.toLowerCase();
-  for (var i = 0; i < sel.options.length; i++) {
-    var opt = sel.options[i];
-    opt.style.display = (!v || opt.text.toLowerCase().indexOf(v) >= 0) ? '' : 'none';
-  }
-}
-
 async function _vaBulkOrt() {
-  var sel = document.getElementById('va-ort-sel');
-  if (!sel || !sel.value) { notify('Bitte einen Ort auswählen.', 'err'); return; }
-  var ort = sel.value;
+  var ortIdEl  = document.getElementById('va-bulk-ort-id');
+  var ortInpEl = document.getElementById('va-bulk-ort');
+  var ortId    = ortIdEl && ortIdEl.value ? parseInt(ortIdEl.value) : null;
+  var ortName  = null;
+  if (ortId) {
+    for (var i = 0; i < (_orteCache || []).length; i++) {
+      if (_orteCache[i].id == ortId) { ortName = _orteCache[i].name; break; }
+    }
+  }
+  if (!ortId && !ortName) { notify('Bitte einen Ort aus der Liste auswählen.', 'err'); return; }
   closeModal();
   var ids = Object.keys(_veranstAdminSel).map(Number).filter(function(x){ return x > 0; });
   var ok = 0, err = 0;
   for (var i = 0; i < ids.length; i++) {
-    var r = await apiPut('veranstaltungen/' + ids[i], { ort: ort });
+    var r = await apiPut('veranstaltungen/' + ids[i], { ort: ortName, ort_id: ortId });
     if (r && r.ok) {
       ok++;
       var items = _veranstAdminCache.items;
       for (var j = 0; j < items.length; j++) {
-        if (items[j].id == ids[i]) { items[j].ort = ort; break; }
+        if (items[j].id == ids[i]) { items[j].ort = ortName; items[j].ort_id = ortId; break; }
       }
     } else { err++; }
   }

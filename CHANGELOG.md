@@ -1,3 +1,6 @@
+## v1269
+- Admin Veranstaltungen: Bulk-Ort-Edit verwendet identischen ortePickerHtml-Picker wie Einzeledit (Autocomplete aus Orte-Tabelle, inkl. ort_id)
+
 ## v1268
 - Veranstaltung bearbeiten: Ort ist jetzt Pflichtfeld (muss aus Orte-Tabelle gewählt werden, kein Freitext-Fallback mehr)
 
