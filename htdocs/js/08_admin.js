@@ -3594,10 +3594,8 @@ async function bulkVeranst(action) {
   var ids = Object.keys(_veranstAdminSel).map(Number).filter(function(x){ return x > 0; });
   if (!ids.length) return;
 
-  if (action === 'umbenennen' || action === 'ort') {
-    var isOrt = action === 'ort';
-    var fieldLabel = isOrt ? 'Ort' : 'Name';
-    var numSection = isOrt ? '' :
+  if (action === 'umbenennen') {
+    var numSection =
       '<hr style="margin:14px 0;border:none;border-top:1px solid var(--border)">' +
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">' +
         '<input type="checkbox" id="va-ren-num" onchange="var o=document.getElementById(\'va-ren-num-opts\');if(o)o.style.display=this.checked?\'block\':\'none\'">' +
@@ -3610,16 +3608,40 @@ async function bulkVeranst(action) {
         '<p style="font-size:12px;color:var(--text2);margin:4px 0 0">Sortierung: alt → neu. Beispiel: Startnummer 2 → \"2. Name\", \"3. Name\", …</p>' +
       '</div>';
     showModal(
-      modalH2('&#x270F; ' + fieldLabel + ' bearbeiten (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +
-      '<p style="font-size:13px;color:var(--text2);margin:0 0 12px">Suchen &amp; Ersetzen im ' + fieldLabel + '. Wildcards: <code>*</code> = beliebig, <code>?</code> = ein Zeichen. Leer lassen = alle auf gleichen Wert setzen.</p>' +
+      modalH2('&#x270F; Name bearbeiten (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +
+      '<p style="font-size:13px;color:var(--text2);margin:0 0 12px">Suchen &amp; Ersetzen im Name. Wildcards: <code>*</code> = beliebig, <code>?</code> = ein Zeichen. Leer lassen = alle auf gleichen Wert setzen.</p>' +
       '<div class="form-grid">' +
-        '<div class="form-group full"><label>Suchen (leer = gesamten ' + fieldLabel + ' ersetzen)</label><input type="text" id="va-ren-suche" placeholder="z.B. Stadt* oder leer lassen"/></div>' +
-        '<div class="form-group full"><label>Ersetzen durch (leer = bestehenden Namen behalten)</label><input type="text" id="va-ren-ersatz" placeholder="' + (isOrt ? 'z.B. Essen' : 'z.B. Apfelblütenlauf') + '"/></div>' +
+        '<div class="form-group full"><label>Suchen (leer = gesamten Namen ersetzen)</label><input type="text" id="va-ren-suche" placeholder="z.B. Stadt* oder leer lassen"/></div>' +
+        '<div class="form-group full"><label>Ersetzen durch (leer = bestehenden Namen behalten)</label><input type="text" id="va-ren-ersatz" placeholder="z.B. Apfelblütenlauf"/></div>' +
       '</div>' +
       numSection +
       '<div class="modal-actions">' +
         '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-        '<button class="btn btn-primary" onclick="_vaBulkRename(\'' + action + '\')">Übernehmen</button>' +
+        '<button class="btn btn-primary" onclick="_vaBulkRename()">Übernehmen</button>' +
+      '</div>'
+    );
+    return;
+  }
+
+  if (action === 'ort') {
+    var allOrt = {};
+    var allCacheItems = _veranstAdminCache.items || [];
+    for (var oi = 0; oi < allCacheItems.length; oi++) {
+      var ov = _vaDec(allCacheItems[oi].ort || '');
+      if (ov) allOrt[ov] = true;
+    }
+    var ortArr = Object.keys(allOrt).sort(function(a, b){ return a.localeCompare(b, 'de'); });
+    var ortOpts = ortArr.map(function(o){ return '<option value="' + _vaEsc(o) + '">' + _vaEsc(o) + '</option>'; }).join('');
+    showModal(
+      modalH2('&#x1F4CD; Ort zuweisen (' + ids.length + ' Veranstaltung' + (ids.length > 1 ? 'en' : '') + ')') +
+      '<div class="form-group" style="margin-bottom:0">' +
+        '<label>Ort auswählen</label>' +
+        '<input type="text" placeholder="Filtern…" oninput="_vaOrtFilter(this.value)" style="margin-bottom:6px"/>' +
+        '<select id="va-ort-sel" size="10" style="width:100%;height:220px">' + ortOpts + '</select>' +
+      '</div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+        '<button class="btn btn-primary" onclick="_vaBulkOrt()">Übernehmen</button>' +
       '</div>'
     );
     return;
@@ -3679,14 +3701,46 @@ async function bulkVeranst(action) {
   _renderVeranstAdminTable();
 }
 
-async function _vaBulkRename(action) {
+function _vaOrtFilter(val) {
+  var sel = document.getElementById('va-ort-sel');
+  if (!sel) return;
+  var v = val.toLowerCase();
+  for (var i = 0; i < sel.options.length; i++) {
+    var opt = sel.options[i];
+    opt.style.display = (!v || opt.text.toLowerCase().indexOf(v) >= 0) ? '' : 'none';
+  }
+}
+
+async function _vaBulkOrt() {
+  var sel = document.getElementById('va-ort-sel');
+  if (!sel || !sel.value) { notify('Bitte einen Ort auswählen.', 'err'); return; }
+  var ort = sel.value;
+  closeModal();
+  var ids = Object.keys(_veranstAdminSel).map(Number).filter(function(x){ return x > 0; });
+  var ok = 0, err = 0;
+  for (var i = 0; i < ids.length; i++) {
+    var r = await apiPut('veranstaltungen/' + ids[i], { ort: ort });
+    if (r && r.ok) {
+      ok++;
+      var items = _veranstAdminCache.items;
+      for (var j = 0; j < items.length; j++) {
+        if (items[j].id == ids[i]) { items[j].ort = ort; break; }
+      }
+    } else { err++; }
+  }
+  _veranstAdminSel = {};
+  if (ok > 0) notify(ok + ' Veranstaltung(en) aktualisiert.', 'ok');
+  else notify('Fehler beim Aktualisieren.', 'err');
+  _renderVeranstAdminTable();
+}
+
+async function _vaBulkRename() {
   var suche    = (document.getElementById('va-ren-suche')    || {}).value || '';
   var ersatz   = (document.getElementById('va-ren-ersatz')   || {}).value || '';
   var numChk   = document.getElementById('va-ren-num');
   var doNum    = numChk && numChk.checked;
   var startNum = doNum ? (parseInt((document.getElementById('va-ren-startnum') || {}).value) || 1) : 0;
-  var isOrt    = action === 'ort';
-  var apiField = isOrt ? 'ort' : 'name';
+  var apiField = 'name';
   closeModal();
   var ids = Object.keys(_veranstAdminSel).map(Number).filter(function(x){ return x > 0; });
 
