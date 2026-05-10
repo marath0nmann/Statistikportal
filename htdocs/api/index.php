@@ -3732,27 +3732,13 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $hasSearchProvider = strpos($mainHtml, 'SearchProvider.js') !== false;
     $hasSimpleSearchName = strpos($mainHtml, 'simple-search-name') !== false;
     $hasSearchForm = strpos($mainHtml, 'name="search[name]"') !== false || strpos($mainHtml, "name='search[name]'") !== false;
-    $debug['apiVersion'] = 'v1276'; // sichtbarer Marker für OPcache-Status
-    // Alle search[*]-Feldnamen aus dem Formular extrahieren (für Diagnose)
-    if (preg_match_all('/name=["\']search\[([^\]"\']+)\]["\']/i', $mainHtml, $sfMatches)) {
-        $debug['formSearchFields'] = array_values(array_unique($sfMatches[1]));
-    }
-    // HTML-Fragment um "Verein"-Label dumpen (Feldname-Erkennung)
-    if (preg_match('/Verein/i', $mainHtml, $vm, PREG_OFFSET_CAPTURE)) {
-        $off = max(0, $vm[0][1] - 200);
-        $debug['formVereinFragment'] = mb_substr(strip_tags(substr($mainHtml, $off, 700)), 0, 500);
-        // Auch <input>-Tag-Names im Umfeld extrahieren
-        $around = substr($mainHtml, $off, 1500);
-        if (preg_match_all('/<(input|select)[^>]*name=["\']([^"\']+)["\']/i', $around, $im)) {
-            $debug['formInputsNearVerein'] = array_values(array_unique($im[2]));
-        }
-    }
     // newInterface ist der default, wenn die Seite irgendeinen Marker hat, der auf klassischen Form-POST zeigt
     $isNewInterface = $hasSimpleSearchName || $hasSearchForm || $hasSearchProvider;
     // v2 nur als Ausweich-Fallback, wenn newInterface leer liefert
     $isV2Interface = $hasSearchProvider;
     $nameSearch = trim($_GET['name'] ?? '');
     $debug = [
+        'apiVersion' => 'v1277',
         'hasSearchProvider' => $hasSearchProvider,
         'hasSimpleSearchName' => $hasSimpleSearchName,
         'hasSearchForm' => $hasSearchForm,
@@ -3762,6 +3748,10 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         'mainHtmlLen' => strlen($mainHtml),
         'mainHtmlHead' => substr($mainHtml, 0, 200),
     ];
+    // Alle search[*]-Feldnamen aus dem Formular extrahieren (Diagnose)
+    if (preg_match_all('/name=["\']search\[([^\]"\']+)\]["\']/i', $mainHtml, $sfMatches)) {
+        $debug['formSearchFields'] = array_values(array_unique($sfMatches[1]));
+    }
 
     if (false /* v2-JSON-API seit v1095 nie funktioniert (Server liefert HTTP 200 mit 0 Byte) - deaktiviert in v1103; newInterface-POST ist zuverlässig */) {
         // V2-Interface: JSON-API via content=ajax2&func=getList + X-Requested-With Header
@@ -4181,6 +4171,8 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     $debug['noEventFirstLiSample'] = mb_substr($liPlainText, 0, 400);
                 }
 
+                // DNS/DNF: weder Platzierung noch Zeit → Nicht-Finisher überspringen
+                if (!$liNetto2 && !$placeGes2 && !$placeAK2) continue;
                 $oldResults[$idp] = [
                     'name' => trim($name), 'contest' => $evIdFromLink ?: 'Unbekannt',
                     'netto' => $liNetto2, 'ak' => $liAK2, 'platz_ak' => $placeAK2, 'platz_ges' => $placeGes2,

@@ -1,3 +1,7 @@
+## v1277
+- MikaTiming: DNS-Filter jetzt auch im alten Interface (Daams kam dort durch)
+- MikaTiming Debug: `apiVersion`-Marker und `formSearchFields` werden korrekt gesetzt (waren zuvor durch `$debug = [...]`-Reset überschrieben)
+
 ## v1276
 - MikaTiming: Wildcards für nation/sex/age_class beim Form-POST (komplette Ergebnislisten)
 - MikaTiming Bulk-Import: Checkbox „Auch inaktive Athleten" wirkt jetzt auch auf die Namens-Suche (vorher wurden alle Nachnamen gesucht)
