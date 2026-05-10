@@ -389,7 +389,7 @@ async function renderSerieDetail(id) {
   }
   html += '</div>';
   if (serie.ort_lat && serie.ort_lon) {
-    html += '<div id="serie-ort-map" style="height:220px;border-radius:6px;margin-top:14px;border:1px solid var(--border)"></div>';
+    html += '<div id="serie-ort-map" style="height:220px;border-radius:6px;margin-top:14px;border:1px solid var(--border);isolation:isolate"></div>';
   }
   html += '</div>';
 
@@ -410,7 +410,7 @@ async function renderSerieDetail(id) {
     _ortEnsureLeaflet().then(function() {
       var mapEl = document.getElementById('serie-ort-map');
       if (!mapEl || !window.L) return;
-      var m = L.map(mapEl, { scrollWheelZoom: false, dragging: true, zoomControl: true })
+      var m = L.map(mapEl, { scrollWheelZoom: false, dragging: false, zoomControl: false, touchZoom: false, doubleClickZoom: false, keyboard: false, boxZoom: false })
         .setView([parseFloat(serie.ort_lat), parseFloat(serie.ort_lon)], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',

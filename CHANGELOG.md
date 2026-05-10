@@ -1,3 +1,6 @@
+## v1265
+- Fix: Karte bei regelmäßigen Veranstaltungen nicht verschiebbar/zoombar; Karte überlagert Header beim Scrollen nicht mehr
+
 ## v1264
 - Fix: RaceResult-Import erkennt Namens-Spalte "FLNAME" (RaceResult-Standard-Feldname für Vollständigen Namen); alle 4 Kalibrierungs-Stellen vereinheitlicht
 
