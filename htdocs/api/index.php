@@ -3732,6 +3732,10 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $hasSearchProvider = strpos($mainHtml, 'SearchProvider.js') !== false;
     $hasSimpleSearchName = strpos($mainHtml, 'simple-search-name') !== false;
     $hasSearchForm = strpos($mainHtml, 'name="search[name]"') !== false || strpos($mainHtml, "name='search[name]'") !== false;
+    // Alle search[*]-Feldnamen aus dem Formular extrahieren (für Diagnose)
+    if (preg_match_all('/name=["\']search\[([a-z_]+)\]["\']/i', $mainHtml, $sfMatches)) {
+        $debug['formSearchFields'] = array_values(array_unique($sfMatches[1]));
+    }
     // newInterface ist der default, wenn die Seite irgendeinen Marker hat, der auf klassischen Form-POST zeigt
     $isNewInterface = $hasSimpleSearchName || $hasSearchForm || $hasSearchProvider;
     // v2 nur als Ausweich-Fallback, wenn newInterface leer liefert

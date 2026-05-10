@@ -1,3 +1,6 @@
+## v1274
+- MikaTiming Debug: extrahiert alle `search[*]`-Feldnamen aus dem Formular (Diagnose Verein-vs-Team-Feld)
+
 ## v1273
 - MikaTiming: DNS-Filter über fehlende Platzierung+Zeit (statt Textsuche „DNS"); erkennt Em-Dash-Anzeige
 - MikaTiming Debug: zeigt für nicht-gematchte Roh-Treffer die rohen MikaTiming-Namen (max. 3 pro Suchbegriff)
