@@ -1688,9 +1688,11 @@ async function bulkImportFromRR(url, kat, statusEl) {
 
     if(!payload){_bkDbgLine('SKIP (kein Payload)', le.name);continue;}
     listsChecked++;
-    var _dbgRowCnt=0;(function(p){var d=p.data||{};function _c(o){if(!o)return;if(Array.isArray(o)){if(o.length&&Array.isArray(o[0]))_dbgRowCnt+=o.length;else o.forEach(function(v){_c(v);});}else if(typeof o==='object')Object.keys(o).forEach(function(k){_c(o[k]);});}  _c(d);})(payload);
-    _bkDbgLine('LIST '+le.name, 'df='+(payload.DataFields||[]).length+' rows≈'+_dbgRowCnt+' keys='+JSON.stringify(Object.keys(payload.data||{}).slice(0,5)));
-    if(_dbgRowCnt===0){var _raw=JSON.stringify(payload).slice(0,400);_bkDbgLine('raw',_raw);}
+    if(li===0){
+      _bkDbgLine('DF[0]', (payload.DataFields||[]).join(' | '));
+      var _r0=(function(d){var r=null;function _s(o){if(r||!o)return;if(Array.isArray(o)){if(o.length&&Array.isArray(o[0])){r=o[0];return;}o.forEach(_s);}else if(typeof o==='object')Object.keys(o).forEach(function(k){_s(o[k]);});}  _s(d);return r;})(payload.data||{});
+      if(_r0)_bkDbgLine('row[0]', JSON.stringify(_r0).slice(0,300));
+    }
     _externPayloads.push({payload:payload,cname:cname,le:le});
     _proc(payload, cname, le);
   }
