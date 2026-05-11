@@ -1,3 +1,8 @@
+## v1285
+- MikaTiming: mainHtml-Fetch mit Retry (bis zu 3× bei leerer/zu kleiner Antwort) — verhindert dass eventName/Ort/Datum verloren gehen
+- MikaTiming OLD-Interface: DNS-Filter im Hauptlist-Parser (Daams wurde durchgelassen, jetzt geblockt)
+- MikaTiming OLD-Interface: AK-Text-Bereinigung (`MM45` → `M45`) via Regex auf `[MW]\d{2,3}`
+
 ## v1284
 - MikaTiming GET-Listings: Plaintext-Fallbacks für Zeit/AK/Platz AK/Verein, wenn die typed-Klassen (`type-time`, `type-field`) fehlen
 - MikaTiming Debug: erste LI wird vollständig gedumped (`listGet_firstLi_html`/`classes`/`text`) zur Diagnose der Struktur
