@@ -1,3 +1,6 @@
+## v1300
+- Fix: RaceResult-Import „Auch inaktive Athleten"-Schalter löst jetzt auch Extern-Suche aus wenn bereits TuS-Einträge gefunden wurden (z.B. Daniel Weyers unter ASV Süchteln)
+
 ## v1299
 - Fix: RaceResult-Import erkennt Zeitfeld aus RaceResult-Formel-Ausdrücken (z.B. choose([STATUS]+1;[TIMETEXT1];…)) – ältere Events (z.B. 2018) wurden mit 0 Treffern abgebrochen
 

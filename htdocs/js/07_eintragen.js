@@ -1733,11 +1733,13 @@ async function bulkImportFromRR(url, kat, statusEl) {
   _bkDbgLine('Gefunden', allResults.length+' TuS-Eintr\u00e4ge');
 
   // Extern-Suche: TuS-Athleten die unter anderem Verein gestartet sind
-  if(allResults.length===0 && _externPayloads.length && (state.athleten||[]).length){
+  // L\u00e4uft bei 0 TuS-Treffern ODER wenn "Auch inaktive Athleten" aktiv ist
+  if((allResults.length===0 || window._bkMatchInaktive) && _externPayloads.length && (state.athleten||[]).length){
+    var _externPre = allResults.length;
     _bkDbgSep();
     _bkDbgLine('Extern-Suche','TuS-Athleten unter anderem Verein\u2026');
     _externPayloads.forEach(function(cp){ _proc(cp.payload,cp.cname,cp.le,true); });
-    _bkDbgLine('Extern-Gefunden',allResults.length+' Eintr\u00e4ge');
+    _bkDbgLine('Extern-Gefunden',(allResults.length-_externPre)+' Eintr\u00e4ge');
   }
 
   if(allResults.length){
