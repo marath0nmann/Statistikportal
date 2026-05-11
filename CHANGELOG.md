@@ -1,3 +1,9 @@
+## v1286
+- MikaTiming GET-Listings: Position-basierter Platz-Parser (1. type-place = Gesamt, 2. = AK) — Duisburg-Format
+- MikaTiming GET-Listings: iteriert alle `list-field`-Elemente und klassifiziert per Label oder Inhalts-Muster (Zeit/AK/Verein)
+- MikaTiming: Datums-Fallback aus listGet-HTML wenn mainHtml kein Datum hat
+- MikaTiming Debug: LI-Dump verlängert auf 4000 Zeichen
+
 ## v1285
 - MikaTiming: mainHtml-Fetch mit Retry (bis zu 3× bei leerer/zu kleiner Antwort) — verhindert dass eventName/Ort/Datum verloren gehen
 - MikaTiming OLD-Interface: DNS-Filter im Hauptlist-Parser (Daams wurde durchgelassen, jetzt geblockt)
