@@ -1,3 +1,8 @@
+## v1295
+- Seltec PDF: AK-Header über mehrere Zeilen gebrochen werden zusammengefügt (z.B. "weibliche Jugend U18 -\nZeitläufe" → WU18)
+- Seltec PDF: Feldwettkämpfe (Weitsprung etc.) als Hauptsektion erkannt (Komma-Regel statt Ziffernanfang)
+- Seltec PDF: Disziplin-Normalisierung "1500m" ↔ "1.500m" für DB-Tausenderpunkt
+
 ## v1294
 - Seltec PDF: Format 2018 unterstützt (Datum:/Beginn:-Zeile, AK-Unter-Sektionen "X – Zeitläufe", opt. Nationalität, Wind-Suffix bei Feldwettkämpfen)
 

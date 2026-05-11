@@ -2876,6 +2876,39 @@ async function bulkImportFromSeltecPdf(file, statusEl) {
       });
     }
 
+    // Mehrzeilige Abschnitts-Header zusammenfügen (PDF bricht Zeilen oft um, z.B.
+    // "weibliche Jugend U18 -" + "Zeitläufe" oder "männliche" + "Jugend" + "U18 -" + "Zeitläufe")
+    var _changed = true;
+    while (_changed) {
+      _changed = false;
+      var _merged = [];
+      for (var _mi = 0; _mi < allLines.length; _mi++) {
+        var _l = allLines[_mi];
+        if (_merged.length > 0) {
+          var _prev = _merged[_merged.length - 1];
+          var _lkw = /^(Zeitl[äa]ufe|Finale|Vorlauf|Zeitlauf|Endkampf|Endlauf)\b/i;
+          var _zkw = /- ?(Zeitl[äa]ufe|Finale|Vorlauf|Zeitlauf|Endkampf|Endlauf)/i;
+          // A: "... U18 -" + "Zeitläufe"
+          if (/[-–]\s*$/.test(_prev) && _lkw.test(_l)) {
+            _merged[_merged.length - 1] = _prev.replace(/\s*[-–]\s*$/, '') + ' - ' + _l.trim();
+            _changed = true; continue;
+          }
+          // B: "...Jugend" + "U18 - Zeitläufe" oder "U18"
+          if (!/\d{2}\.\d{2}/.test(_prev) && /^U\d+/.test(_l) && (_zkw.test(_l) || _lkw.test(_l))) {
+            _merged[_merged.length - 1] = _prev.trim() + ' ' + _l.trim();
+            _changed = true; continue;
+          }
+          // C: "männliche"/"weibliche" allein + "Jugend..."
+          if (/^(männliche?|weibliche?)\s*$/i.test(_prev) && /^Jugend\b/i.test(_l)) {
+            _merged[_merged.length - 1] = _prev.trim() + ' ' + _l.trim();
+            _changed = true; continue;
+          }
+        }
+        _merged.push(_l);
+      }
+      allLines = _merged;
+    }
+
     _bkDbgLine('Seltec Zeilen', allLines.length);
 
     var parsed = _parseSeltecLines(allLines);
@@ -3093,8 +3126,8 @@ function _parseSeltecLines(lines) {
     var ztM = lineNoWind.match(/^(.+?)\s*-\s*(Zeitl[äa]ufe|Finale|Vorlauf|Zeitlauf|Endkampf|Endlauf)\s*$/i);
     if (ztM) {
       var ztTitle = ztM[1].trim();
-      if (/^\d/.test(ztTitle)) {
-        // Haupt-Sektions-Titel (beginnt mit Distanz/Disziplin, z.B. "75m, weibliche Jugend U14")
+      if (/,/.test(ztTitle)) {
+        // Haupt-Sektions-Titel enthält Komma (z.B. "75m, weibliche Jugend U14" oder "Weitsprung, WMU18/20,...")
         var diszHaupt = (ztTitle.match(/^([^,]+)/) || [, ztTitle])[1].trim();
         if (/^\d+\s*x\s*\d+/i.test(diszHaupt)) {
           // Staffel – überspringen
@@ -3235,6 +3268,11 @@ function _seltecFindDisz(rawDisz, kat) {
     var dl2 = (d.disziplin || '').toLowerCase();
     return dl2.startsWith(rl) || rl.startsWith(dl2);
   });
+  // Normalisierter Vergleich: "1500m" ↔ "1.500m" (Tausenderpunkt im DB-Eintrag)
+  if (!found) {
+    var rlN = rl.replace(/\./g, '');
+    found = dl.find(function(d) { return (d.disziplin || '').toLowerCase().replace(/\./g, '') === rlN; });
+  }
   if (!found) return { disz: rawDisz, diszMid: null };
   return { disz: found.disziplin, diszMid: found.id || found.mapping_id };
 }
