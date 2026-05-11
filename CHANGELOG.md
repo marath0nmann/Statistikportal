@@ -1,3 +1,6 @@
+## v1303
+- Fix: Bulk-Import ersetzt jetzt alle bestehenden Zeilen statt sie zu ergänzen – verhindert Verdoppelung bei erneutem Import
+
 ## v1302
 - Revert v1301: Name-Dedup in Extern-Suche entfernt – dieselbe Person kann legitim mehrere Distanzen haben (z.B. 5km + 10km)
 
