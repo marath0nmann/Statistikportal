@@ -1,3 +1,6 @@
+## v1292
+- Seltec PDF: Event-Name, Datum, Ort und leere Disziplinen gefixt (Safari/PDF.js y-Gruppen-Problem); AK aus Sub-Sektionen extrahiert
+
 ## v1291
 - Bulk-Eintragen: Seltec/Track&Field PDF per Drag &amp; Drop auf das Eingabefeld importieren (PDF.js, filtert auf eigenen Verein); Safari-Fix für dragover
 

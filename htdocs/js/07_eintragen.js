@@ -2902,8 +2902,8 @@ async function bulkImportFromSeltecPdf(file, statusEl) {
     var quelleEl = document.getElementById('bk-quelle');
     if (quelleEl && !quelleEl.value) quelleEl.value = file.name;
     if (parsed.location) {
-      var _ortParts = parsed.location.split(',');
-      _bkAutoSetOrt(_ortParts[_ortParts.length - 1].trim());
+      // Ersten Teil vor Komma als Ort (z.B. "Grefrath, Nierskampfbahn" → "Grefrath")
+      _bkAutoSetOrt(parsed.location.split(',')[0].trim());
     }
 
     var kat = ((document.getElementById('bk-kat') || {}).value || '');
@@ -2979,10 +2979,14 @@ async function bulkImportFromSeltecPdf(file, statusEl) {
 function _parseSeltecLines(lines) {
   var eventName = '', location = '', date = '', ownClub = '';
   var sections = [];
+  var akMap = {};          // name → AK-Code (aus "aus gemeinsamem Bewerb"-Sektionen)
   var currentSection = null;
   var inResults = false;
   var headerParsed = false;
   var isFieldEvent = false;
+  var inSubSection = false; // gerade in einer "aus gemeinsamem Bewerb"-Sektion
+  var subSectionAk = '';
+  var prevTitleLine = '';   // letzte Zeile vor einer Datumszeile (für geteilte Header)
 
   var ownVerL = ((appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '').toLowerCase();
 
@@ -2990,38 +2994,58 @@ function _parseSeltecLines(lines) {
     var line = lines[i].trim();
     if (!line) continue;
 
-    // Footer: extract licensed club
+    // Footer
     var licM = line.match(/lizenziert f[üu]r\s+(.+?)\s+Seite\s+\d+/i);
     if (licM) { ownClub = licM[1].trim(); continue; }
     if (/^Dataservice by/i.test(line) || /^Gedruckt am /i.test(line)) continue;
     if (/^Rang\s+(StNr|Name)\b/i.test(line)) continue;
 
-    // Event header
+    // Event-Header (erste zwei inhaltliche Zeilen auf Seite 1)
+    // PDF.js kann "ERGEBNISSE" auf dieselbe y-Zeile wie den Ort legen →
+    // "ERGEBNISSE" aus der Zeile entfernen, dann prüfen ob Datum vorhanden
     if (!headerParsed) {
-      if (/ERGEBNISSE\s*$/.test(line)) {
-        eventName = line.replace(/\s*ERGEBNISSE\s*$/, '').trim();
-        continue;
-      }
-      var hdrDateM = line.match(/^(.+),\s*(\d{2})\.(\d{2})\.(\d{4})$/);
+      var stripped = line.replace(/\s*\bERGEBNISSE\b\s*/g, ' ').trim().replace(/\s+/g, ' ');
+      // Ortszeile: "<Ort>, DD.MM.YYYY" (kein Uhrzeitanteil)
+      var hdrDateM = stripped.match(/^(.+),\s*(\d{2})\.(\d{2})\.(\d{4})$/);
       if (hdrDateM && !date) {
         date = hdrDateM[4] + '-' + hdrDateM[3] + '-' + hdrDateM[2];
         location = hdrDateM[1].trim();
         headerParsed = true;
         continue;
       }
+      // Veranstaltungsname: erste nicht-leere, nicht-numerische Zeile
+      if (!eventName && stripped && !/^\d/.test(stripped)) {
+        // Trailing-Jahr abschneiden ("Bahneröffnung 2019" → "Bahneröffnung")
+        eventName = stripped.replace(/\s+\d{4}$/, '').trim();
+      }
+      // Kein continue – Zeile kann gleichzeitig Sektions-Header sein
     }
 
-    // Section header: line containing date/time pattern
+    // Sektions-Header: Zeile mit Datum + Uhrzeit (DD.MM.YYYY / HH:MM)
     var sdM = line.match(/(\d{2})\.(\d{2})\.(\d{4})\s*\/\s*\d{2}:\d{2}/);
     if (sdM) {
       var sDate = sdM[3] + '-' + sdM[2] + '-' + sdM[1];
       var sTitle = line.replace(/\s*\d{2}\.\d{2}\.\d{4}\s*\/\s*\d{2}:\d{2}\s*/, '').trim();
 
-      if (/aus gemeinsamem Bewerb/i.test(sTitle)) { currentSection = null; inResults = false; continue; }
+      // PDF.js trennt manchmal Disziplinname und Datum in zwei y-Gruppen →
+      // sTitle leer? → Vorherige Zeile als Titel verwenden
+      if (!sTitle && prevTitleLine) sTitle = prevTitleLine;
+
+      prevTitleLine = '';
+
+      if (/aus gemeinsamem Bewerb/i.test(sTitle)) {
+        // Sub-Sektion: nur AK-Mapping aufbauen, keine Zeilen hinzufügen
+        inSubSection = true;
+        inResults = false;
+        currentSection = null;
+        subSectionAk = _seltecAkFromTitle(sTitle);
+        continue;
+      }
+
+      inSubSection = false; subSectionAk = '';
 
       var isCont = /[-–]\s*Fortsetzung/i.test(sTitle);
       sTitle = sTitle.replace(/\s*[-–]\s*Fortsetzung\s*/i, '').trim();
-
       var disziplin = (sTitle.match(/^([^,]+)/) || [, sTitle])[1].trim();
 
       if (/^\d+x\d+/i.test(disziplin)) { currentSection = null; inResults = false; continue; }
@@ -3041,10 +3065,19 @@ function _parseSeltecLines(lines) {
 
     if (/^Finale/i.test(line)) { inResults = true; continue; }
 
-    if (!inResults || !currentSection) continue;
+    // Letzte nicht-spezielle Zeile merken (für geteilte Sektions-Header)
+    if (!/^\d/.test(line)) prevTitleLine = line;
+
+    if (!inResults) continue;
 
     var rM = line.match(/^(\d+)\s+(\d+)\s+(.+)$/);
-    if (rM) {
+    if (!rM) continue;
+
+    if (inSubSection && subSectionAk) {
+      // Nur AK-Map befüllen
+      var subAth = _parseSeltecAthRow(rM[3], false);
+      if (subAth) akMap[subAth.name] = subSectionAk;
+    } else if (currentSection) {
       var ath = _parseSeltecAthRow(rM[3], isFieldEvent);
       if (ath) {
         ath.platz = parseInt(rM[1]);
@@ -3056,7 +3089,34 @@ function _parseSeltecLines(lines) {
     }
   }
 
+  // AK aus Sub-Sektionen auf Hauptsektions-Athleten übertragen
+  sections.forEach(function(sec) {
+    sec.athletes.forEach(function(ath) {
+      if (!ath.ak && akMap[ath.name]) ath.ak = akMap[ath.name];
+    });
+  });
+
   return { eventName: eventName, location: location, date: date, ownClub: ownClub, sections: sections };
+}
+
+function _seltecAkFromTitle(title) {
+  // "75m, Jugend W12 (aus gemeinsamem Bewerb)"           → "W12"
+  // "800m, Seniorinnen W45 (aus gemeinsamem Bewerb)"     → "W45"
+  // "100m, Weibliche Jugend U18 (aus gemeinsamem Bewerb)"→ "WU18"
+  // "800m, Männliche Jugend U20 (aus gemeinsamem Bewerb)"→ "MU20"
+  // "100m, Frauen (aus gemeinsamem Bewerb)"              → "W"
+  // "100m, Männer (aus gemeinsamem Bewerb)"              → "M"
+  var m;
+  if ((m = title.match(/\b([MW]\d{2})\b/))) return m[1];
+  if ((m = title.match(/Weibliche?\s+Jugend\s+U(\d+)/i))) return 'WU' + m[1];
+  if ((m = title.match(/Männliche?\s+Jugend\s+U(\d+)/i))) return 'MU' + m[1];
+  if ((m = title.match(/U(\d+)/i))) {
+    if (/weiblich|frauen|seniorinnen/i.test(title)) return 'WU' + m[1];
+    if (/männlich|herren|senioren/i.test(title))    return 'MU' + m[1];
+  }
+  if (/\bFrauen?\b|\bSeniorinnen?\b/i.test(title))  return 'W';
+  if (/\bMänner\b|\bHerren\b|\bSenioren?\b/i.test(title)) return 'M';
+  return '';
 }
 
 function _parseSeltecAthRow(rest, isFieldEvent) {
@@ -3100,7 +3160,7 @@ function _parseSeltecAthRow(rest, isFieldEvent) {
 
   var verein = afterNat.slice(0, clubEnd).join(' ');
 
-  return { name: fullName, year: year, geschlecht: '', verein: verein, resultat: result, platz: 0, ownClub: false };
+  return { name: fullName, year: year, geschlecht: '', verein: verein, resultat: result, platz: 0, ownClub: false, ak: '' };
 }
 
 function _seltecIsField(disziplin) {
