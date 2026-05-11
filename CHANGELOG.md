@@ -1,3 +1,7 @@
+## v1278
+- MikaTiming: Pagination-Limit erhöht (num_results=1000, mehrere Feldnamen-Varianten); DNS-Filter im Event-Loop-Fallback ergänzt
+- MikaTiming Debug: `formTopFields` listet auch Nicht-`search[]`-Form-Felder (Anzahl Ergebnisse etc.)
+
 ## v1277
 - MikaTiming: DNS-Filter jetzt auch im alten Interface (Daams kam dort durch)
 - MikaTiming Debug: `apiVersion`-Marker und `formSearchFields` werden korrekt gesetzt (waren zuvor durch `$debug = [...]`-Reset überschrieben)

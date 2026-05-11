@@ -3738,7 +3738,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $isV2Interface = $hasSearchProvider;
     $nameSearch = trim($_GET['name'] ?? '');
     $debug = [
-        'apiVersion' => 'v1277',
+        'apiVersion' => 'v1278',
         'hasSearchProvider' => $hasSearchProvider,
         'hasSimpleSearchName' => $hasSimpleSearchName,
         'hasSearchForm' => $hasSearchForm,
@@ -3751,6 +3751,10 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     // Alle search[*]-Feldnamen aus dem Formular extrahieren (Diagnose)
     if (preg_match_all('/name=["\']search\[([^\]"\']+)\]["\']/i', $mainHtml, $sfMatches)) {
         $debug['formSearchFields'] = array_values(array_unique($sfMatches[1]));
+    }
+    // Top-Level Form-Felder (z.B. num_results, search_sort) extrahieren
+    if (preg_match_all('/<(?:input|select)[^>]*\bname=["\']([a-z_][a-z0-9_]*)["\']/i', $mainHtml, $tfMatches)) {
+        $debug['formTopFields'] = array_values(array_unique($tfMatches[1]));
     }
 
     if (false /* v2-JSON-API seit v1095 nie funktioniert (Server liefert HTTP 200 mit 0 Byte) - deaktiviert in v1103; newInterface-POST ist zuverlässig */) {
@@ -3916,6 +3920,12 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 'search[nation]'     => '%',
                 'search[sex]'        => '%',
                 'search[age_class]'  => '%',
+                // v1278: Default ist 25 Treffer; viele Namens-Treffer (z.B. "Klein") werden sonst abgeschnitten.
+                // Wir probieren die geläufigsten Pagination-Feldnamen — falscher Name wird ignoriert.
+                'num_results'        => 1000,
+                'numresults'         => 1000,
+                'pageSize'           => 1000,
+                'page_size'          => 1000,
             ];
             // Club-Suche: wenn kein Namens-Query aktiv, stattdessen nach Verein filtern
             if (!$nameSearch && $club !== '') {
@@ -4237,6 +4247,8 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         foreach ($xpO->query('.//*[contains(@class,"place-secondary")]', $li) as $n) {
                             $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK2 = $t; break; }
                         }
+                        // DNS/DNF: weder Platzierung noch Zeit → Nicht-Finisher überspringen
+                        if (!$placeGes2 && !$placeAK2) continue;
                         $oldResults[$idp] = [
                             'name' => trim($name), 'contest' => $oEvId,
                             'netto' => '', 'ak' => '', 'platz_ak' => $placeAK2, 'platz_ges' => $placeGes2,
