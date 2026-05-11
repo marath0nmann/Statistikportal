@@ -3743,7 +3743,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $isV2Interface = $hasSearchProvider;
     $nameSearch = trim($_GET['name'] ?? '');
     $debug = [
-        'apiVersion' => 'v1285',
+        'apiVersion' => 'v1286',
         'hasSearchProvider' => $hasSearchProvider,
         'hasSimpleSearchName' => $hasSimpleSearchName,
         'hasSearchForm' => $hasSearchForm,
@@ -3963,11 +3963,11 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     // Debug: ersten LI dumpen (HTML + alle CSS-Klassen)
                     if (!$liFirstDumped && $_ev === array_key_first($listGetHtml)) {
                         $liHtmlRaw = $dG->saveHTML($li);
-                        $debug['listGet_firstLi_html'] = mb_substr($liHtmlRaw, 0, 1500);
+                        $debug['listGet_firstLi_html'] = mb_substr($liHtmlRaw, 0, 4000);
                         preg_match_all('/class="([^"]+)"/', $liHtmlRaw, $cm);
                         $allCl = []; foreach ($cm[1] as $cs) foreach (explode(' ',$cs) as $cl) if (trim($cl)) $allCl[trim($cl)]=1;
                         $debug['listGet_firstLi_classes'] = array_keys($allCl);
-                        $debug['listGet_firstLi_text'] = mb_substr(preg_replace('/\s+/', ' ', strip_tags($liHtmlRaw)), 0, 500);
+                        $debug['listGet_firstLi_text'] = mb_substr(preg_replace('/\s+/', ' ', strip_tags($liHtmlRaw)), 0, 800);
                         $liFirstDumped = true;
                     }
                     $name = '';
@@ -3977,35 +3977,44 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     }
                     if (!$name) continue;
                     $liClub = ''; $liAK = ''; $liNetto = ''; $pg = ''; $pa = '';
-                    // Zeit: type-time ODER irgendeine H:MM:SS im LI-Text (Plaintext-Fallback)
+                    // v1286: Duisburg-Format — beide Plätze haben Klasse "place-primary type-place".
+                    // Position-basiert: 1. type-place = Gesamtplatz, 2. type-place = AK-Platz
+                    $placeIdx = 0;
+                    foreach ($xG->query('.//*[contains(@class,"type-place") or contains(@class,"place-primary") or contains(@class,"place-secondary")]', $li) as $pn) {
+                        $t = trim($pn->textContent);
+                        if (!ctype_digit($t)) { $placeIdx++; continue; }
+                        if ($placeIdx === 0 && !$pg) $pg = $t;
+                        elseif ($placeIdx === 1 && !$pa) $pa = $t;
+                        $placeIdx++;
+                    }
+                    // Zeit: type-time
                     foreach ($xG->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
                         if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $tn->textContent, $tm)) { $liNetto = $tm[1]; break; }
                     }
-                    // type-field mit Label
-                    foreach ($xG->query('.//*[contains(@class,"type-field")]', $li) as $fn) {
+                    // ALLE list-field-Elemente iterieren: anhand list-label oder Inhalt zuordnen
+                    foreach ($xG->query('.//*[contains(@class,"list-field")]', $li) as $fn) {
+                        $cls = $fn->getAttribute('class');
+                        // Schon abgehandelte Felder überspringen
+                        if (stripos($cls, 'type-place') !== false || stripos($cls, 'type-fullname') !== false) continue;
                         $labelEl = $xG->query('.//*[contains(@class,"list-label")]', $fn)->item(0);
                         $label = $labelEl ? trim($labelEl->textContent) : '';
                         $raw = trim(str_replace($label, '', $fn->textContent));
-                        if ($label === 'AK' && $raw && !$liAK) $liAK = $raw;
-                        if ($label === 'Verein' && $raw && !$liClub) $liClub = $raw;
+                        $raw = trim(preg_replace('/\s+/', ' ', $raw));
+                        if (!$raw) continue;
+                        // Klassifikation per Label / Inhalt
+                        if ($label === 'AK' && !$liAK) { if (preg_match('/[MW]\d{2,3}/', $raw, $m)) $liAK = $m[0]; else $liAK = $raw; }
+                        elseif ($label === 'Verein' && !$liClub) $liClub = $raw;
+                        elseif (!$liAK && preg_match('/^[MW]\d{2,3}$/', $raw)) $liAK = $raw;
+                        elseif (!$liNetto && preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $raw)) $liNetto = $raw;
+                        elseif (!$liClub && strlen($raw) > 2 && !preg_match('/^\d/', $raw) && !preg_match('/^[MW]\d/', $raw)) $liClub = $raw;
                     }
-                    foreach ($xG->query('.//*[contains(@class,"place-primary") or contains(@class,"place_all")]', $li) as $n) {
-                        $t = trim($n->textContent); if (ctype_digit($t)) { $pg = $t; break; }
-                    }
-                    foreach ($xG->query('.//*[contains(@class,"place-secondary") or contains(@class,"place_age")]', $li) as $n) {
-                        $t = trim($n->textContent); if (ctype_digit($t)) { $pa = $t; break; }
-                    }
-                    // v1284: Plaintext-Fallbacks (für die kompakte LI-Struktur, die manche Events nutzen)
+                    // Plaintext-Fallbacks für übrig gebliebene Felder
                     $liPlainText = trim(preg_replace('/\s+/', ' ', strip_tags($dG->saveHTML($li))));
                     if (!$liNetto && preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $liPlainText, $tm)) {
-                        // Uhrzeiten ausschließen (Laufzeiten meist < 10h)
                         list($h,$mm,$ss) = explode(':', $tm[1]);
                         if ((int)$h <= 9) $liNetto = $tm[1];
                     }
                     if (!$liAK && preg_match('/\b([MW]\d{2,3})\b/', $liPlainText, $am)) $liAK = $am[1];
-                    if (!$pa && preg_match('/(?:Pl\.?\s*AK|Platz\s*AK)[^0-9]*(\d+)/i', $liPlainText, $pm)) $pa = $pm[1];
-                    if (!$pg && preg_match('/(?:^|Platz[^0-9]*)(\d+)/i', $liPlainText, $pm)) $pg = $pm[1];
-                    if (!$liClub && preg_match('/(?:Verein|Club|Team)[:\s]+([^\d]{2,60}?)(?:\s+(?:AK|Brutto|Ziel|Zeit|Pl\.|Platz|M\d|W\d|\d{1,2}:)|$)/i', $liPlainText, $cm)) $liClub = trim($cm[1]);
                     if (!$liNetto && !$pg && !$pa) continue;
                     $allResults[$idp] = [
                         'name' => trim($name), 'contest' => $_ev,
@@ -4051,6 +4060,18 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 $debug['listGet_' . $_ev . '_rows'] = ['li' => $rowsFoundA, 'tr' => $rowsFoundB];
             }
             $debug['listGet_total'] = count($allResults);
+            // v1286: Datums-Fallback — falls mainHtml kein Datum lieferte, im listGet-HTML suchen
+            if (!$eventDate) {
+                foreach ($listGetHtml as $_h) {
+                    if (!$_h) continue;
+                    if (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $_h, $dm)) { $eventDate = $dm[3].'-'.$dm[2].'-'.$dm[1]; break; }
+                    if (preg_match('/(\d{1,2})\.\s*(Januar|Februar|M[aä]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/ui', $_h, $dm)) {
+                        $monate = ['januar'=>'01','februar'=>'02','märz'=>'03','maerz'=>'03','april'=>'04','mai'=>'05','juni'=>'06','juli'=>'07','august'=>'08','september'=>'09','oktober'=>'10','november'=>'11','dezember'=>'12'];
+                        $mKey = mb_strtolower($dm[2], 'UTF-8');
+                        if (isset($monate[$mKey])) { $eventDate = $dm[3] . '-' . $monate[$mKey] . '-' . str_pad($dm[1], 2, '0', STR_PAD_LEFT); break; }
+                    }
+                }
+            }
         }
 
         // WICHTIG (v1103): Der MikaTiming-Server liefert nur dann echte Ergebnisse
