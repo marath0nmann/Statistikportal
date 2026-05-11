@@ -1,3 +1,6 @@
+## v1293
+- Seltec PDF: Hauptdatum wird jetzt immer aus der PDF gesetzt (nicht vom vorausgefüllten Tagesdatum blockiert)
+
 ## v1292
 - Seltec PDF: Event-Name, Datum, Ort und leere Disziplinen gefixt (Safari/PDF.js y-Gruppen-Problem); AK aus Sub-Sektionen extrahiert
 

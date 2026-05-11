@@ -2896,7 +2896,7 @@ async function bulkImportFromSeltecPdf(file, statusEl) {
 
     // Auto-fill event fields
     var datEl = document.getElementById('bk-datum');
-    if (datEl && !datEl.value && parsed.date) { datEl.value = parsed.date; bkSyncDatum(parsed.date); }
+    if (datEl && parsed.date) { datEl.value = parsed.date; bkSyncDatum(parsed.date); }
     var evnEl = document.getElementById('bk-evname');
     if (evnEl && !evnEl.value && parsed.eventName) evnEl.value = parsed.eventName;
     var quelleEl = document.getElementById('bk-quelle');
