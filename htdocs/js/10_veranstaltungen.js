@@ -373,7 +373,7 @@ async function renderSerieDetail(id) {
   if (gesamtErg) {
     html += gesamtErg + ' Ergebnis' + (gesamtErg !== 1 ? 'se' : '');
     if (externErg) html += ' (davon ' + externErg + ' nicht f&uuml;r den Verein)';
-    html += ' von ' + uniqueAthlets + ' Teilnehmer*' + (uniqueAthlets !== 1 ? 'innen' : 'in');
+    html += ' von ' + uniqueAthlets + ' Teilnehmenden';
     html += ' in ';
   }
   html += veranst.length + ' Austragung' + (veranst.length != 1 ? 'en' : '');
@@ -971,7 +971,7 @@ async function _loadSerieTeilnahmen(serieId) {
   }).join('');
   html += '</tbody><tfoot><tr style="border-top:2px solid var(--border)">' +
     '<td></td>' +
-    '<td colspan="2" style="padding:6px 8px 6px 4px;font-family:\'Barlow Condensed\',sans-serif;font-size:17px;font-weight:700;color:var(--primary);white-space:nowrap">' + gesamtTeilnehmer + ' Teilnehmer*innen</td>' +
+    '<td colspan="2" style="padding:6px 8px 6px 4px;font-family:\'Barlow Condensed\',sans-serif;font-size:17px;font-weight:700;color:var(--primary);white-space:nowrap">' + gesamtTeilnehmer + ' Teilnehmende</td>' +
     perJahrCells +
     '</tr></tfoot></table></div>';
   html += '<div style="display:flex;gap:18px;margin-top:10px;font-size:11px;color:var(--text2);align-items:center">' +

@@ -1,3 +1,6 @@
+## v1296
+- Veranstaltungen: "Teilnehmer*innen" → "Teilnehmende"
+
 ## v1295
 - Seltec PDF: AK-Header über mehrere Zeilen gebrochen werden zusammengefügt (z.B. "weibliche Jugend U18 -\nZeitläufe" → WU18)
 - Seltec PDF: Feldwettkämpfe (Weitsprung etc.) als Hauptsektion erkannt (Komma-Regel statt Ziffernanfang)
