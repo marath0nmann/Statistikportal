@@ -3653,19 +3653,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             // v1287: ISO-Datum als letzter Fallback (z.B. in JS-Variablen, data-Attributen)
             elseif (preg_match('/\b(\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))\b/', $mainHtml, $dm)) $eventDate = $dm[1];
         }
-        // v1288: Datum-Debug — zeigt 120 Zeichen rund um "Mai" / "2026" im mainHtml
-        if (!$eventDate && $mainHtml) {
-            $snippets = [];
-            foreach (['Mai','April','März','Juni','Juli','August','September','Oktober','November','Dezember','Januar','Februar'] as $_mon) {
-                $pos = mb_stripos($mainHtml, $_mon);
-                if ($pos !== false) { $snippets[] = mb_substr($mainHtml, max(0,$pos-60), 180); break; }
-            }
-            if (empty($snippets)) {
-                $pos = strpos($mainHtml, '2026');
-                if ($pos !== false) $snippets[] = mb_substr($mainHtml, max(0,$pos-40), 120);
-            }
-            if (!empty($snippets)) $debug['mainHtml_date_snippet'] = $snippets[0];
-        }
         // Ort aus JSON-LD, meta oder Seitentext
         if (preg_match('/"addressLocality"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
         elseif (preg_match('/"location"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
@@ -4111,8 +4098,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         if (isset($monate2[$mKey])) { $eventDate = $dm[3] . '-' . $monate2[$mKey] . '-' . str_pad($dm[1], 2, '0', STR_PAD_LEFT); break; }
                     }
                     if (preg_match('/\b(\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))\b/', $_h, $dm)) { $eventDate = $dm[1]; break; }
-                    // Debug: erste 800 Zeichen des ersten listGet-HTML für Datumsdiagnose
-                    if (!isset($debug['listGet_date_snippet'])) $debug['listGet_date_snippet'] = substr($_h, 0, 800);
                 }
             }
         }
