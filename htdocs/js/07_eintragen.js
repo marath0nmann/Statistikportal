@@ -323,6 +323,10 @@ function renderEintragen() {
               '<input type="checkbox" id="bk-match-inaktive" checked onchange="window._bkMatchInaktive=this.checked" style="width:13px;height:13px;cursor:pointer">' +
               'Auch inaktive Athleten' +
             '</label>' +
+            '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin-left:8px" title="MikaTiming: zusätzliche Namens-Suche für Athleten, die nicht im Verein registriert sind (langsam, ~80 API-Aufrufe)">' +
+              '<input type="checkbox" id="bk-namens-suche" onchange="window._bkNamensSuche=this.checked" style="width:13px;height:13px;cursor:pointer">' +
+              'Namens-Suche erzwingen' +
+            '</label>' +
           '</div>' +
           '<div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">' +
             '<button class="btn btn-primary btn-sm" id="bk-einlesen-btn" onclick="bulkEinlesen()">&#x25B6; Einlesen</button>' +
@@ -1782,8 +1786,11 @@ async function bulkImportFromMika(url, kat, statusEl) {
   var rows = mikaExtractRowsForBulk(r.data, kat);
   _bkDbgLine('Vereins-Treffer', rows.length + ' Einträge');
 
-  // Zusätzliche Suche nach bekannten Athleten-Namen (immer, nicht nur als Fallback)
-  if (true) {
+  // Zusätzliche Namens-Suche: nur als Fallback wenn Verein 0 Treffer hat,
+  // oder wenn User-Checkbox "Namens-Suche erzwingen" aktiv ist.
+  // (Spart bei funktionierender Vereins-Suche ~80 API-Calls und verhindert Rate-Limit-403.)
+  var _runNamensSuche = (rows.length === 0) || !!window._bkNamensSuche;
+  if (_runNamensSuche) {
     _bkDbgLine('Athleten-Suche', 'Suche nach bekannten Athleten-Namen…');
     var _athleten = state.athleten || [];
     // Inaktive nur durchsuchen, wenn Checkbox „Auch inaktive Athleten" aktiv
@@ -3277,6 +3284,7 @@ async function _bulkMeldeImportSend(repo, token, vNum, wer) {
   }
 }
 window._bkMatchInaktive = true; // Default: auch inaktive Athleten matchen
+window._bkNamensSuche = false;  // Default: MikaTiming-Namens-Suche nur als Fallback, wenn Verein 0 Treffer
 
 function bulkEinlesen() {
   var raw = ((document.getElementById('bk-paste-area') || {}).value || '').trim();
