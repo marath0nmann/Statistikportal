@@ -3738,7 +3738,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $isV2Interface = $hasSearchProvider;
     $nameSearch = trim($_GET['name'] ?? '');
     $debug = [
-        'apiVersion' => 'v1279',
+        'apiVersion' => 'v1280',
         'hasSearchProvider' => $hasSearchProvider,
         'hasSimpleSearchName' => $hasSimpleSearchName,
         'hasSearchForm' => $hasSearchForm,
@@ -3884,36 +3884,38 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         $eventIds = [];
         preg_match_all('/value="([A-Z][A-Z0-9]{0,5})"[^>]*>[^<]+(?:km|Lauf|Marathon)/i', $mainHtml, $evm);
         foreach ($evm[1] as $ev) $eventIds[] = $ev;
-        // option-Values aus select: nur Werte die mit einem Buchstaben beginnen (kein 25/50/100/ASC/DESC etc.)
-        preg_match_all('/<option[^>]+value="([A-Z][A-Z0-9]{0,5})"/', $mainHtml, $opm);
+        // option-Values aus select: ein- oder mehrbuchstabig (z.B. "M" für Marathon bei Duisburg)
+        preg_match_all('/<option[^>]+value=["\']([A-Z][A-Z0-9]{0,5})["\']/i', $mainHtml, $opm);
         $badOpts = ['ASC','DESC','NAME','CLUB','ALL','YES','NO','DE','EN'];
         foreach ($opm[1] as $ev) { if (!in_array($ev,$eventIds) && !in_array(strtoupper($ev),$badOpts)) $eventIds[] = $ev; }
-        // Häufige Standard-Event-IDs immer mit einschließen (z.B. HM bei Hamburg Marathon 2019)
+        // Häufige Standard-Event-IDs immer mit einschließen
         foreach (['HM','M','10L','5L','10K','5K'] as $_std) { if (!in_array($_std,$eventIds)) $eventIds[] = $_std; }
-        if (empty($eventIds)) $eventIds = ['HM','10L','5L'];
-        $eventIds = array_unique(array_slice($eventIds, 0, 16));
+        if (empty($eventIds)) $eventIds = ['HM','M','10L','5L'];
+        $eventIds = array_unique(array_slice($eventIds, 0, 20));
         $debug['newIf_eventIds'] = $eventIds;
+        // Debug: alle rohen option-Values (auch numerische), damit wir alle Event-IDs sehen
+        if (preg_match_all('/<option[^>]+value=["\']([^"\']+)["\']/i', $mainHtml, $allOpts)) {
+            $debug['allOptionValues'] = array_values(array_unique(array_slice($allOpts[1], 0, 50)));
+        }
 
         $searchUrl = $baseUrl . '?pid=search&pidp=start';
         $allResults = [];
 
-        // v1279: GET-Listings-URL VOR dem POST probieren (Form-Submit-URL der Webseite).
-        // Diese URL liefert nachweislich vollständige Vereins-Ergebnisse (auch wenn POST 0 zurückgibt).
-        // Wir probieren nur, wenn kein Namens-Query aktiv ist (Club-Suche) — name-search bleibt POST.
+        // v1280: GET-Listings-URL mit `pid=search` (exakt wie Form-Submit der Webseite).
+        // Beispiel-URL (vom User verifiziert):
+        //   ?pid=search&search[club]=Tus+Oedt&search[age_class]=%&search[sex]=%&search[nation]=%&search_sort=name&event=M
         if (!$nameSearch && $club !== '') {
             $listGetUrls = [];
             foreach ($eventIds as $_evLoop) {
                 $params = [
-                    'pid'                => 'list',
-                    'pidp'               => 'ranking',
+                    'pid'                => 'search',
                     'lang'               => 'DE',
                     'event'              => $_evLoop,
                     'search[club]'       => $club,
-                    'search[name]'       => '',
-                    'search[firstname]'  => '',
-                    'search[nation]'     => '%',
-                    'search[sex]'        => '%',
                     'search[age_class]'  => '%',
+                    'search[sex]'        => '%',
+                    'search[nation]'     => '%',
+                    'search_sort'        => 'name',
                     'num_results'        => 1000,
                 ];
                 $listGetUrls[$_evLoop] = $baseUrl . '?' . http_build_query($params);
