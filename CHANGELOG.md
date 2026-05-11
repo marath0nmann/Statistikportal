@@ -1,3 +1,6 @@
+## v1282
+- MikaTiming Bulk-Import: Namens-Suche nur noch als Fallback (wenn Vereins-Suche 0 Treffer); neue Checkbox „Namens-Suche erzwingen" zum manuellen Aktivieren — spart ~80 API-Calls und verhindert Rate-Limit-403
+
 ## v1281
 - MikaTiming: Anzahl Event-IDs limitiert (20→8) und GET-Listings auf 6 Events beschränkt, um Rate-Limit-403 zu vermeiden
 
