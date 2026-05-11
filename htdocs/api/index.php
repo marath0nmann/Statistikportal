@@ -3608,7 +3608,12 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $cookieFile = tempnam(sys_get_temp_dir(), 'mika_');
 
     // 1. Hauptseite: Session-Cookie + Datum/Ort/EventName
+    // v1285: bei leerem Response (Rate-Limit/Timeout) bis zu 2× retry mit kurzer Verzögerung
     $mainHtml = mikaCurl($baseUrl, $cookieFile, $ua);
+    for ($_retry = 0; $_retry < 2 && (!$mainHtml || strlen($mainHtml) < 1000); $_retry++) {
+        usleep(500000); // 0.5s
+        $mainHtml = mikaCurl($baseUrl, $cookieFile, $ua);
+    }
     $eventName = ''; $eventDate = ''; $eventOrt = '';
     if ($mainHtml) {
         if (preg_match('/<title[^>]*>([^<]+)<\/title>/i', $mainHtml, $tm)) {
@@ -3738,7 +3743,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $isV2Interface = $hasSearchProvider;
     $nameSearch = trim($_GET['name'] ?? '');
     $debug = [
-        'apiVersion' => 'v1284',
+        'apiVersion' => 'v1285',
         'hasSearchProvider' => $hasSearchProvider,
         'hasSimpleSearchName' => $hasSimpleSearchName,
         'hasSearchForm' => $hasSearchForm,
@@ -4477,12 +4482,21 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 
         $ak = '';
         $akNodes = $xpath->query('.//*[contains(@class,"age_class")]', $li);
-        foreach ($akNodes as $n) { $t = trim($n->textContent); if ($t) { $ak = $t; break; } }
+        foreach ($akNodes as $n) {
+            $t = trim($n->textContent);
+            // AK-Bereinigung: Label+Wert verkettet (z.B. "MM45" oder "AK\nM45") → nur "M45"/"W45"/"AKxx" extrahieren
+            if (preg_match('/\b([MW]\d{2,3})\b/', $t, $akm)) { $ak = $akm[1]; break; }
+            if (preg_match('/\b(AK\d+)\b/', $t, $akm)) { $ak = $akm[1]; break; }
+        }
 
         // Tatsächlicher Vereinsname aus Suchergebnisliste
         $liClub = '';
         $clubNodes = $xpath->query('.//*[contains(@class,"club") or contains(@class,"f-club") or contains(@class,"nation_team")]', $li);
         foreach ($clubNodes as $n) { $t = trim($n->textContent); if ($t) { $liClub = $t; break; } }
+
+        // DNS-Filter: weder Platzierung noch AK → Nicht-Finisher überspringen
+        // (Zeit kommt später via Detail-Fetch; aber Daams hat weder Platz noch AK in der Liste)
+        if (!$placeGes && !$placeAK && !$ak) continue;
 
         $results[] = [
             'name' => trim($name), 'contest' => $evId ?: 'Unbekannt',
