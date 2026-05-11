@@ -3738,7 +3738,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $isV2Interface = $hasSearchProvider;
     $nameSearch = trim($_GET['name'] ?? '');
     $debug = [
-        'apiVersion' => 'v1278',
+        'apiVersion' => 'v1279',
         'hasSearchProvider' => $hasSearchProvider,
         'hasSimpleSearchName' => $hasSimpleSearchName,
         'hasSearchForm' => $hasSearchForm,
@@ -3896,6 +3896,114 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 
         $searchUrl = $baseUrl . '?pid=search&pidp=start';
         $allResults = [];
+
+        // v1279: GET-Listings-URL VOR dem POST probieren (Form-Submit-URL der Webseite).
+        // Diese URL liefert nachweislich vollständige Vereins-Ergebnisse (auch wenn POST 0 zurückgibt).
+        // Wir probieren nur, wenn kein Namens-Query aktiv ist (Club-Suche) — name-search bleibt POST.
+        if (!$nameSearch && $club !== '') {
+            $listGetUrls = [];
+            foreach ($eventIds as $_evLoop) {
+                $params = [
+                    'pid'                => 'list',
+                    'pidp'               => 'ranking',
+                    'lang'               => 'DE',
+                    'event'              => $_evLoop,
+                    'search[club]'       => $club,
+                    'search[name]'       => '',
+                    'search[firstname]'  => '',
+                    'search[nation]'     => '%',
+                    'search[sex]'        => '%',
+                    'search[age_class]'  => '%',
+                    'num_results'        => 1000,
+                ];
+                $listGetUrls[$_evLoop] = $baseUrl . '?' . http_build_query($params);
+            }
+            $listGetHtml = mikaGetCurlMulti($listGetUrls, $cookieFile, $ua);
+            $debug['listGet_lens'] = [];
+            foreach ($listGetHtml as $_ev => $_h) $debug['listGet_lens'][$_ev] = strlen($_h);
+            // Parse jedes Event-Response: sowohl Bootstrap-LI-Items als auch HTML-Tabellen-Zeilen
+            foreach ($listGetHtml as $_ev => $html) {
+                if (!$html) continue;
+                $dG = new DOMDocument('1.0', 'UTF-8');
+                @$dG->loadHTML('<?xml encoding="UTF-8">' . $html);
+                $xG = new DOMXPath($dG);
+                // Variante A: list-group-items
+                $rowsFoundA = 0;
+                foreach ($xG->query('//li[contains(@class,"list-group-item") and not(contains(@class,"list-group-header")) and not(contains(@class,"list-info"))]') as $li) {
+                    $idp = '';
+                    foreach ($xG->query('.//a[@href]', $li) as $a) {
+                        if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $a->getAttribute('href'), $im)) { $idp = $im[1]; break; }
+                    }
+                    if (!$idp || isset($allResults[$idp])) continue;
+                    $name = '';
+                    foreach ($xG->query('.//*[contains(@class,"type-fullname") or contains(@class,"fullname") or contains(@class,"name-standard")]', $li) as $n) {
+                        $t = trim($n->textContent);
+                        if ($t) { $name = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $t); break; }
+                    }
+                    if (!$name) continue;
+                    $liClub = ''; $liAK = ''; $liNetto = ''; $pg = ''; $pa = '';
+                    foreach ($xG->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
+                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $tn->textContent, $tm)) { $liNetto = $tm[1]; break; }
+                    }
+                    foreach ($xG->query('.//*[contains(@class,"type-field")]', $li) as $fn) {
+                        $labelEl = $xG->query('.//*[contains(@class,"list-label")]', $fn)->item(0);
+                        $label = $labelEl ? trim($labelEl->textContent) : '';
+                        $raw = trim(str_replace($label, '', $fn->textContent));
+                        if ($label === 'AK' && $raw && !$liAK) $liAK = $raw;
+                        if ($label === 'Verein' && $raw && !$liClub) $liClub = $raw;
+                    }
+                    foreach ($xG->query('.//*[contains(@class,"place-primary") or contains(@class,"place_all")]', $li) as $n) {
+                        $t = trim($n->textContent); if (ctype_digit($t)) { $pg = $t; break; }
+                    }
+                    foreach ($xG->query('.//*[contains(@class,"place-secondary") or contains(@class,"place_age")]', $li) as $n) {
+                        $t = trim($n->textContent); if (ctype_digit($t)) { $pa = $t; break; }
+                    }
+                    if (!$liNetto && !$pg && !$pa) continue;
+                    $allResults[$idp] = [
+                        'name' => trim($name), 'contest' => $_ev,
+                        'netto' => $liNetto, 'ak' => $liAK,
+                        'platz_ak' => $pa, 'platz_ges' => $pg,
+                        'event_id' => $_ev, 'idp' => $idp, 'club' => $liClub,
+                    ];
+                    $rowsFoundA++;
+                }
+                // Variante B: HTML-Tabellen-Zeilen (Duisburg 2026 nutzt diese Struktur)
+                $rowsFoundB = 0;
+                foreach ($xG->query('//table//tr[.//a[contains(@href,"idp=")]]') as $tr) {
+                    $idp = '';
+                    foreach ($xG->query('.//a[@href]', $tr) as $a) {
+                        if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $a->getAttribute('href'), $im)) { $idp = $im[1]; break; }
+                    }
+                    if (!$idp || isset($allResults[$idp])) continue;
+                    $cells = [];
+                    foreach ($xG->query('.//td', $tr) as $td) $cells[] = trim(preg_replace('/\s+/', ' ', $td->textContent));
+                    if (count($cells) < 4) continue;
+                    // Heuristik: erste Platzierungs-Spalte = Gesamtplatz, dann Pl.AK, dann Name, ...
+                    $pg = ctype_digit($cells[0]) ? $cells[0] : '';
+                    $pa = (isset($cells[1]) && ctype_digit($cells[1])) ? $cells[1] : '';
+                    $name = ''; $liAK = ''; $liClub = ''; $liNetto = '';
+                    foreach ($cells as $c) {
+                        if (!$name && strpos($c, ',') !== false && strlen($c) < 60) {
+                            $name = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $c); continue;
+                        }
+                        if (!$liAK && preg_match('/^[MW]\d{2,3}$/', $c)) { $liAK = $c; continue; }
+                        if (!$liNetto && preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $c)) { $liNetto = $c; continue; }
+                        if (!$liClub && strlen($c) > 2 && strlen($c) < 80 && !ctype_digit($c) && !preg_match('/^\d/', $c) && $c !== $name) $liClub = $c;
+                    }
+                    if (!$name) continue;
+                    if (!$liNetto && !$pg && !$pa) continue;
+                    $allResults[$idp] = [
+                        'name' => $name, 'contest' => $_ev,
+                        'netto' => $liNetto, 'ak' => $liAK,
+                        'platz_ak' => $pa, 'platz_ges' => $pg,
+                        'event_id' => $_ev, 'idp' => $idp, 'club' => $liClub,
+                    ];
+                    $rowsFoundB++;
+                }
+                $debug['listGet_' . $_ev . '_rows'] = ['li' => $rowsFoundA, 'tr' => $rowsFoundB];
+            }
+            $debug['listGet_total'] = count($allResults);
+        }
 
         // WICHTIG (v1103): Der MikaTiming-Server liefert nur dann echte Ergebnisse
         // wenn ALLE versteckten Form-Felder mitgeschickt werden:
