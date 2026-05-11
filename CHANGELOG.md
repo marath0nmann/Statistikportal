@@ -1,3 +1,6 @@
+## v1302
+- Revert v1301: Name-Dedup in Extern-Suche entfernt – dieselbe Person kann legitim mehrere Distanzen haben (z.B. 5km + 10km)
+
 ## v1301
 - Fix: RaceResult-Extern-Suche dedupliziert jetzt nach Name (nicht Name+Zeit) – verhindert, dass dieselbe Person für mehrere Distanzen doppelt auftaucht
 

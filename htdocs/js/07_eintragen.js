@@ -1621,8 +1621,6 @@ async function bulkImportFromRR(url, kat, statusEl) {
           if(externMode){
             if(clubPhrase&&club.toLowerCase().indexOf(clubPhrase)>=0)return;
             if(!uitsAutoMatch(rName,state.athleten||[]))return;
-            // Extern: pro Person nur ein Eintrag (Name-Dedup), egal ob verschiedene Distanzen
-            if(allResults.find(function(r){return r.name===rName;}))return;
           }
           var disz=rrBestDisz(cnD,diszList);
           var dObj=findDiszObj(disz,kat,disziplinen);
