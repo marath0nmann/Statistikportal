@@ -1,3 +1,6 @@
+## v1294
+- Seltec PDF: Format 2018 unterstützt (Datum:/Beginn:-Zeile, AK-Unter-Sektionen "X – Zeitläufe", opt. Nationalität, Wind-Suffix bei Feldwettkämpfen)
+
 ## v1293
 - Seltec PDF: Hauptdatum wird jetzt immer aus der PDF gesetzt (nicht vom vorausgefüllten Tagesdatum blockiert)
 

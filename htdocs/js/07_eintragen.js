@@ -2923,7 +2923,8 @@ async function bulkImportFromSeltecPdf(file, statusEl) {
           diszMid:   dResult.diszMid,
           platz:     ath.platz,
           verein:    ath.verein,
-          ownClub:   ath.ownClub
+          ownClub:   ath.ownClub,
+          ak:        ath.ak || sec.ak || ''
         });
       });
     });
@@ -2956,7 +2957,7 @@ async function bulkImportFromSeltecPdf(file, statusEl) {
         year:      row.year,
         geschlecht: row.geschlecht,
         resultat:  row.resultat,
-        ak:        '',
+        ak:        row.ak || '',
         platz:     row.platz,
         disziplin: row.disziplin,
         diszMid:   row.diszMid,
@@ -2981,10 +2982,12 @@ function _parseSeltecLines(lines) {
   var sections = [];
   var akMap = {};          // name → AK-Code (aus "aus gemeinsamem Bewerb"-Sektionen)
   var currentSection = null;
+  var currentDisziplin = '';   // Format 2018: Disziplin aus Haupt-Sektions-Titel
+  var currentSectionDate = ''; // Format 2018: Datum aus "Datum:"-Zeile
   var inResults = false;
   var headerParsed = false;
   var isFieldEvent = false;
-  var inSubSection = false; // gerade in einer "aus gemeinsamem Bewerb"-Sektion
+  var inSubSection = false; // gerade in einer "aus gemeinsamem Bewerb"-Sektion (Format 2019)
   var subSectionAk = '';
   var prevTitleLine = '';   // letzte Zeile vor einer Datumszeile (für geteilte Header)
 
@@ -2994,18 +2997,29 @@ function _parseSeltecLines(lines) {
     var line = lines[i].trim();
     if (!line) continue;
 
-    // Footer
-    var licM = line.match(/lizenziert f[üu]r\s+(.+?)\s+Seite\s+\d+/i);
-    if (licM) { ownClub = licM[1].trim(); continue; }
+    // Footer – beide Formate
+    var licM = line.match(/lizenziert f[üu]r\s+(.+)/i);
+    if (licM) { ownClub = licM[1].replace(/\s+Seite\s+\d+\s*$/, '').trim(); continue; }
     if (/^Dataservice by/i.test(line) || /^Gedruckt am /i.test(line)) continue;
-    if (/^Rang\s+(StNr|Name)\b/i.test(line)) continue;
+    if (/^Erstellt durch SELTEC/i.test(line) || /^www\.seltec\./i.test(line)) continue;
+    if (/^Rang\s+(StNr|Name)\b/i.test(line)) { inResults = true; continue; }
+    if (/^Rk\.\s+StNr\b/i.test(line)) { inResults = true; continue; }
+    if (/^Wind:/i.test(line)) continue;
 
     // Event-Header (erste zwei inhaltliche Zeilen auf Seite 1)
     // PDF.js kann "ERGEBNISSE" auf dieselbe y-Zeile wie den Ort legen →
     // "ERGEBNISSE" aus der Zeile entfernen, dann prüfen ob Datum vorhanden
     if (!headerParsed) {
       var stripped = line.replace(/\s*\bERGEBNISSE\b\s*/g, ' ').trim().replace(/\s+/g, ' ');
-      // Ortszeile: "<Ort>, DD.MM.YYYY" (kein Uhrzeitanteil)
+      // Format 2018: "<Ort>, am DD.MM.YYYY"
+      var hdrDateAmM = stripped.match(/^(.+),\s*am\s*(\d{2})\.(\d{2})\.(\d{4})(?:\s|$)/);
+      if (hdrDateAmM && !date) {
+        date = hdrDateAmM[4] + '-' + hdrDateAmM[3] + '-' + hdrDateAmM[2];
+        location = hdrDateAmM[1].trim();
+        headerParsed = true;
+        continue;
+      }
+      // Format 2019: "<Ort>, DD.MM.YYYY" (kein Uhrzeitanteil)
       var hdrDateM = stripped.match(/^(.+),\s*(\d{2})\.(\d{2})\.(\d{4})$/);
       if (hdrDateM && !date) {
         date = hdrDateM[4] + '-' + hdrDateM[3] + '-' + hdrDateM[2];
@@ -3021,7 +3035,7 @@ function _parseSeltecLines(lines) {
       // Kein continue – Zeile kann gleichzeitig Sektions-Header sein
     }
 
-    // Sektions-Header: Zeile mit Datum + Uhrzeit (DD.MM.YYYY / HH:MM)
+    // Format 2019: Sektions-Header mit Datum + Uhrzeit (DD.MM.YYYY / HH:MM)
     var sdM = line.match(/(\d{2})\.(\d{2})\.(\d{4})\s*\/\s*\d{2}:\d{2}/);
     if (sdM) {
       var sDate = sdM[3] + '-' + sdM[2] + '-' + sdM[1];
@@ -3048,7 +3062,7 @@ function _parseSeltecLines(lines) {
       sTitle = sTitle.replace(/\s*[-–]\s*Fortsetzung\s*/i, '').trim();
       var disziplin = (sTitle.match(/^([^,]+)/) || [, sTitle])[1].trim();
 
-      if (/^\d+x\d+/i.test(disziplin)) { currentSection = null; inResults = false; continue; }
+      if (/^\d+\s*x\s*\d+/i.test(disziplin)) { currentSection = null; inResults = false; continue; }
 
       isFieldEvent = _seltecIsField(disziplin);
 
@@ -3063,14 +3077,52 @@ function _parseSeltecLines(lines) {
       continue;
     }
 
+    // Format 2018: "Datum: DD.MM.YYYY  Beginn: HH:MM" – separate Datumszeile
+    var datumLineM = line.match(/^Datum:\s*(\d{2})\.(\d{2})\.(\d{4})/);
+    if (datumLineM) {
+      currentSectionDate = datumLineM[3] + '-' + datumLineM[2] + '-' + datumLineM[1];
+      if (!date) date = currentSectionDate;
+      if (currentSection && !currentSection.date) currentSection.date = currentSectionDate;
+      inResults = false;
+      continue;
+    }
+
+    // Format 2018: Sektions-Header endet mit "- Zeitläufe" / "- Finale" / "- Vorlauf" etc.
+    // Wind-Info auf derselben Zeile abschneiden bevor der Titel verglichen wird
+    var lineNoWind = line.replace(/\s*Wind:.*$/i, '').trim();
+    var ztM = lineNoWind.match(/^(.+?)\s*-\s*(Zeitl[äa]ufe|Finale|Vorlauf|Zeitlauf|Endkampf|Endlauf)\s*$/i);
+    if (ztM) {
+      var ztTitle = ztM[1].trim();
+      if (/^\d/.test(ztTitle)) {
+        // Haupt-Sektions-Titel (beginnt mit Distanz/Disziplin, z.B. "75m, weibliche Jugend U14")
+        var diszHaupt = (ztTitle.match(/^([^,]+)/) || [, ztTitle])[1].trim();
+        if (/^\d+\s*x\s*\d+/i.test(diszHaupt)) {
+          // Staffel – überspringen
+          currentDisziplin = ''; currentSection = null; inResults = false;
+        } else {
+          currentDisziplin = diszHaupt;
+          isFieldEvent = _seltecIsField(diszHaupt);
+          currentSection = null; // Athleten kommen in AK-Unter-Sektionen
+          inResults = false;
+        }
+      } else if (currentDisziplin) {
+        // AK-Unter-Sektion (z.B. "Jugend W12", "männliche Jugend U18", "Männer M45")
+        var ak2018 = _seltecAkFromTitle(ztTitle);
+        currentSection = { disziplin: currentDisziplin, date: currentSectionDate || date, athletes: [], ak: ak2018 };
+        sections.push(currentSection);
+        inResults = false;
+      }
+      continue;
+    }
+
     if (/^Finale/i.test(line)) { inResults = true; continue; }
 
-    // Letzte nicht-spezielle Zeile merken (für geteilte Sektions-Header)
+    // Letzte nicht-spezielle Zeile merken (für geteilte Sektions-Header, Format 2019)
     if (!/^\d/.test(line)) prevTitleLine = line;
 
     if (!inResults) continue;
 
-    var rM = line.match(/^(\d+)\s+(\d+)\s+(.+)$/);
+    var rM = line.match(/^(\d+)\.?\s+(\d+)\s+(.+)$/);
     if (!rM) continue;
 
     if (inSubSection && subSectionAk) {
@@ -3121,16 +3173,18 @@ function _seltecAkFromTitle(title) {
 
 function _parseSeltecAthRow(rest, isFieldEvent) {
   var tokens = rest.split(/\s+/);
-  if (tokens.length < 5) return null;
+  if (tokens.length < 4) return null;
 
   var yearIdx = -1;
-  for (var i = 1; i < tokens.length - 2; i++) {
+  for (var i = 1; i < tokens.length - 1; i++) {
     if (/^(19|20)\d{2}$/.test(tokens[i])) { yearIdx = i; break; }
   }
   if (yearIdx < 0) return null;
 
+  // Nationalitäts-Code optional (Format 2018: Deutsche Athleten ohne Nat-Kürzel)
   var nat = tokens[yearIdx + 1];
-  if (!/^[A-Z]{2,3}$/.test(nat)) return null;
+  var hasNat = nat && /^[A-Z]{2,3}$/.test(nat);
+  var afterNatIdx = hasNat ? yearIdx + 2 : yearIdx + 1;
 
   var year = tokens[yearIdx];
   var nameParts = tokens.slice(0, yearIdx);
@@ -3139,18 +3193,23 @@ function _parseSeltecAthRow(rest, isFieldEvent) {
   var lastname  = nameParts.slice(0, nameParts.length - 1).join(' ');
   var fullName  = lastname ? firstname + ' ' + lastname : firstname;
 
-  var afterNat = tokens.slice(yearIdx + 2);
+  var afterNat = tokens.slice(afterNatIdx);
   if (!afterNat.length) return null;
 
   var last = afterNat[afterNat.length - 1];
   var prev = afterNat.length >= 2 ? afterNat[afterNat.length - 2] : '';
 
-  if (/^abg\.?$|^DSQ$|^DNS$|^DNF$/i.test(last) || /^abg\.?$|^DSQ$|^DNS$|^DNF$/i.test(prev)) return null;
+  if (/^abg\.?$|^DSQ$|^DNS$|^DNF$|^n\.a\.?$/i.test(last) || /^abg\.?$|^DSQ$|^DNS$|^DNF$/i.test(prev)) return null;
 
   var result, clubEnd;
   if (/^[\d\-]+\.\/[IVX]+$/.test(last)) {
+    // Lauf: Lauf-/Platznummer am Ende (z.B. "2./I")
+    result = prev; clubEnd = afterNat.length - 2;
+  } else if (isFieldEvent && /^\([+\-]?\d+[,.]?\d*\)$/.test(last)) {
+    // Feldwettkampf: Wind in Klammern am Ende (z.B. "(0,0)" oder "(-1,2)")
     result = prev; clubEnd = afterNat.length - 2;
   } else if (isFieldEvent && /^[+\-]?\d+[,.]?\d*$/.test(last)) {
+    // Feldwettkampf: Windwert ohne Klammern
     result = prev; clubEnd = afterNat.length - 2;
   } else {
     result = last; clubEnd = afterNat.length - 1;
