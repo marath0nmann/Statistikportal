@@ -3738,7 +3738,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $isV2Interface = $hasSearchProvider;
     $nameSearch = trim($_GET['name'] ?? '');
     $debug = [
-        'apiVersion' => 'v1283',
+        'apiVersion' => 'v1284',
         'hasSearchProvider' => $hasSearchProvider,
         'hasSimpleSearchName' => $hasSimpleSearchName,
         'hasSearchForm' => $hasSearchForm,
@@ -3948,12 +3948,23 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 $xG = new DOMXPath($dG);
                 // Variante A: list-group-items
                 $rowsFoundA = 0;
+                $liFirstDumped = false;
                 foreach ($xG->query('//li[contains(@class,"list-group-item") and not(contains(@class,"list-group-header")) and not(contains(@class,"list-info"))]') as $li) {
                     $idp = '';
                     foreach ($xG->query('.//a[@href]', $li) as $a) {
                         if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $a->getAttribute('href'), $im)) { $idp = $im[1]; break; }
                     }
                     if (!$idp || isset($allResults[$idp])) continue;
+                    // Debug: ersten LI dumpen (HTML + alle CSS-Klassen)
+                    if (!$liFirstDumped && $_ev === array_key_first($listGetHtml)) {
+                        $liHtmlRaw = $dG->saveHTML($li);
+                        $debug['listGet_firstLi_html'] = mb_substr($liHtmlRaw, 0, 1500);
+                        preg_match_all('/class="([^"]+)"/', $liHtmlRaw, $cm);
+                        $allCl = []; foreach ($cm[1] as $cs) foreach (explode(' ',$cs) as $cl) if (trim($cl)) $allCl[trim($cl)]=1;
+                        $debug['listGet_firstLi_classes'] = array_keys($allCl);
+                        $debug['listGet_firstLi_text'] = mb_substr(preg_replace('/\s+/', ' ', strip_tags($liHtmlRaw)), 0, 500);
+                        $liFirstDumped = true;
+                    }
                     $name = '';
                     foreach ($xG->query('.//*[contains(@class,"type-fullname") or contains(@class,"fullname") or contains(@class,"name-standard")]', $li) as $n) {
                         $t = trim($n->textContent);
@@ -3961,9 +3972,11 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     }
                     if (!$name) continue;
                     $liClub = ''; $liAK = ''; $liNetto = ''; $pg = ''; $pa = '';
+                    // Zeit: type-time ODER irgendeine H:MM:SS im LI-Text (Plaintext-Fallback)
                     foreach ($xG->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
                         if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $tn->textContent, $tm)) { $liNetto = $tm[1]; break; }
                     }
+                    // type-field mit Label
                     foreach ($xG->query('.//*[contains(@class,"type-field")]', $li) as $fn) {
                         $labelEl = $xG->query('.//*[contains(@class,"list-label")]', $fn)->item(0);
                         $label = $labelEl ? trim($labelEl->textContent) : '';
@@ -3977,6 +3990,17 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     foreach ($xG->query('.//*[contains(@class,"place-secondary") or contains(@class,"place_age")]', $li) as $n) {
                         $t = trim($n->textContent); if (ctype_digit($t)) { $pa = $t; break; }
                     }
+                    // v1284: Plaintext-Fallbacks (für die kompakte LI-Struktur, die manche Events nutzen)
+                    $liPlainText = trim(preg_replace('/\s+/', ' ', strip_tags($dG->saveHTML($li))));
+                    if (!$liNetto && preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $liPlainText, $tm)) {
+                        // Uhrzeiten ausschließen (Laufzeiten meist < 10h)
+                        list($h,$mm,$ss) = explode(':', $tm[1]);
+                        if ((int)$h <= 9) $liNetto = $tm[1];
+                    }
+                    if (!$liAK && preg_match('/\b([MW]\d{2,3})\b/', $liPlainText, $am)) $liAK = $am[1];
+                    if (!$pa && preg_match('/(?:Pl\.?\s*AK|Platz\s*AK)[^0-9]*(\d+)/i', $liPlainText, $pm)) $pa = $pm[1];
+                    if (!$pg && preg_match('/(?:^|Platz[^0-9]*)(\d+)/i', $liPlainText, $pm)) $pg = $pm[1];
+                    if (!$liClub && preg_match('/(?:Verein|Club|Team)[:\s]+([^\d]{2,60}?)(?:\s+(?:AK|Brutto|Ziel|Zeit|Pl\.|Platz|M\d|W\d|\d{1,2}:)|$)/i', $liPlainText, $cm)) $liClub = trim($cm[1]);
                     if (!$liNetto && !$pg && !$pa) continue;
                     $allResults[$idp] = [
                         'name' => trim($name), 'contest' => $_ev,

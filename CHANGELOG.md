@@ -1,3 +1,7 @@
+## v1284
+- MikaTiming GET-Listings: Plaintext-Fallbacks für Zeit/AK/Platz AK/Verein, wenn die typed-Klassen (`type-time`, `type-field`) fehlen
+- MikaTiming Debug: erste LI wird vollständig gedumped (`listGet_firstLi_html`/`classes`/`text`) zur Diagnose der Struktur
+
 ## v1283
 - MikaTiming: Event-ID-Extraktion vereinfacht (nutzt jetzt zuverlässig die gleiche Regex wie `allOptionValues`) — `M` (Marathon) wird jetzt erkannt
 - MikaTiming: GET-Listings-URL ohne `lang`/`num_results` (exakt wie Form-Submit der Webseite)
