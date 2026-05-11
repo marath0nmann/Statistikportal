@@ -3738,7 +3738,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $isV2Interface = $hasSearchProvider;
     $nameSearch = trim($_GET['name'] ?? '');
     $debug = [
-        'apiVersion' => 'v1280',
+        'apiVersion' => 'v1281',
         'hasSearchProvider' => $hasSearchProvider,
         'hasSimpleSearchName' => $hasSimpleSearchName,
         'hasSearchForm' => $hasSearchForm,
@@ -3891,7 +3891,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         // Häufige Standard-Event-IDs immer mit einschließen
         foreach (['HM','M','10L','5L','10K','5K'] as $_std) { if (!in_array($_std,$eventIds)) $eventIds[] = $_std; }
         if (empty($eventIds)) $eventIds = ['HM','M','10L','5L'];
-        $eventIds = array_unique(array_slice($eventIds, 0, 20));
+        $eventIds = array_unique(array_slice($eventIds, 0, 8));
         $debug['newIf_eventIds'] = $eventIds;
         // Debug: alle rohen option-Values (auch numerische), damit wir alle Event-IDs sehen
         if (preg_match_all('/<option[^>]+value=["\']([^"\']+)["\']/i', $mainHtml, $allOpts)) {
@@ -3901,12 +3901,14 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         $searchUrl = $baseUrl . '?pid=search&pidp=start';
         $allResults = [];
 
-        // v1280: GET-Listings-URL mit `pid=search` (exakt wie Form-Submit der Webseite).
+        // v1281: GET-Listings-URL mit `pid=search` (exakt wie Form-Submit der Webseite).
+        // Auf max 6 Events beschränkt um Rate-Limit (403) zu vermeiden.
         // Beispiel-URL (vom User verifiziert):
         //   ?pid=search&search[club]=Tus+Oedt&search[age_class]=%&search[sex]=%&search[nation]=%&search_sort=name&event=M
         if (!$nameSearch && $club !== '') {
             $listGetUrls = [];
-            foreach ($eventIds as $_evLoop) {
+            $listGetEventIds = array_slice($eventIds, 0, 6);
+            foreach ($listGetEventIds as $_evLoop) {
                 $params = [
                     'pid'                => 'search',
                     'lang'               => 'DE',
