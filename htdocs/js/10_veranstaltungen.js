@@ -373,7 +373,7 @@ async function renderSerieDetail(id) {
   if (gesamtErg) {
     html += gesamtErg + ' Ergebnis' + (gesamtErg !== 1 ? 'se' : '');
     if (externErg) html += ' (davon ' + externErg + ' nicht f&uuml;r den Verein)';
-    html += ' von ' + uniqueAthlets + ' Teilnehmenden';
+    html += ' von ' + uniqueAthlets + ' Teilnehmer*' + (uniqueAthlets !== 1 ? 'innen' : 'in');
     html += ' in ';
   }
   html += veranst.length + ' Austragung' + (veranst.length != 1 ? 'en' : '');
@@ -795,7 +795,7 @@ async function showVeranstEditModal(id) {
         '<input type="text" id="ve-name" value="' + curName.replace(/"/g,'&quot;') + '" placeholder="z.B. 44. Stra&szlig;enlauf Rund um das Bayer-Kreuz"/></div>' +
       '<div class="form-group"><label>Datum</label>' +
         '<input type="date" id="ve-datum" value="' + curDatum + '"/></div>' +
-      '<div class="form-group"><label>Ort <span style="color:var(--accent)">*</span></label>' +
+      '<div class="form-group"><label>Ort</label>' +
         ortePickerHtml({ inputId: 've-ort', hiddenId: 've-ort-id', ortId: curOrtId, text: pickerText }) +
       '</div>' +
       '<div class="form-group full"><label>\uD83D\uDD04 Serie (optional)</label>' +
@@ -812,11 +812,16 @@ async function showVeranstEditModal(id) {
 async function saveVeranstaltung(id) {
   var serieEl = document.getElementById('ve-serie');
   var ortIdEl = document.getElementById('ve-ort-id');
+  var ortInpEl = document.getElementById('ve-ort');
   var ortId = ortIdEl && ortIdEl.value ? parseInt(ortIdEl.value) : null;
-  if (!ortId) { notify('Bitte w\u00e4hle einen Ort aus der Liste oder lege einen neuen an.', 'err'); return; }
+  // Wenn ort_id gesetzt \u2192 Freitext aus Orte-Tabelle, sonst fallback auf Eingabe
   var ortFreitext = null;
-  for (var i = 0; i < (_orteCache || []).length; i++) {
-    if (_orteCache[i].id == ortId) { ortFreitext = _orteCache[i].name; break; }
+  if (ortId) {
+    for (var i = 0; i < (_orteCache || []).length; i++) {
+      if (_orteCache[i].id == ortId) { ortFreitext = _orteCache[i].name; break; }
+    }
+  } else if (ortInpEl) {
+    ortFreitext = ortInpEl.value.trim() || null;
   }
   var body = {
     name:     document.getElementById('ve-name').value.trim() || null,
@@ -966,7 +971,7 @@ async function _loadSerieTeilnahmen(serieId) {
   }).join('');
   html += '</tbody><tfoot><tr style="border-top:2px solid var(--border)">' +
     '<td></td>' +
-    '<td colspan="2" style="padding:6px 8px 6px 4px;font-family:\'Barlow Condensed\',sans-serif;font-size:17px;font-weight:700;color:var(--primary);white-space:nowrap">' + gesamtTeilnehmer + ' Teilnehmende</td>' +
+    '<td colspan="2" style="padding:6px 8px 6px 4px;font-family:\'Barlow Condensed\',sans-serif;font-size:17px;font-weight:700;color:var(--primary);white-space:nowrap">' + gesamtTeilnehmer + ' Teilnehmer*innen</td>' +
     perJahrCells +
     '</tr></tfoot></table></div>';
   html += '<div style="display:flex;gap:18px;margin-top:10px;font-size:11px;color:var(--text2);align-items:center">' +

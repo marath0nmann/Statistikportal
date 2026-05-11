@@ -638,8 +638,8 @@ async function bulkImportFromLA(url, kat, statusEl) {
       var _blockForPlatz = line.closest('.runblock');
       var _blockNameForPlatz = _blockForPlatz ? ((_blockForPlatz.querySelector('.blockname')||{}).textContent||'').trim() : '';
       var _inAkBlock = /^(M\u00e4nner|Frauen|MHK|WHK|[MW]\d{2}|[MW]U\d{1,2}|Weiblich|M\u00e4nnlich|Senioren|Senior|Jugend)/i.test(_blockNameForPlatz);
-      // Priorität: im AK-Block col-1; sonst col-6 (Masters '1./III'), col-5, col-1
-      var _platzCols = _inAkBlock ? [1] : [6, 5, 1];
+      // Priorität: im AK-Block col-1; sonst col-1 (Gesamtplatz), col-6 (Masters/Lauf-Fallback), col-5
+      var _platzCols = _inAkBlock ? [1] : [1, 6, 5];
       for (var _pci = 0; _pci < _platzCols.length; _pci++) {
         var _pc = line.querySelector('.col-' + _platzCols[_pci]);
         var _pfl = _pc ? _pc.querySelector('.firstline') : null;

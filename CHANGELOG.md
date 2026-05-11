@@ -1,3 +1,6 @@
+## v1290
+- Fix: leichtathletik.de-Import verwendet bei Sprint-Läufen mit Vorläufen jetzt den Gesamtplatz (col-1) statt den Laufplatz "6./IV" (col-6); col-6 bleibt Fallback für Masters-AK-Plätze
+
 ## v1289
 - MikaTiming: Debug-Snippets für Datumsdiagnose entfernt (nicht benötigt)
 

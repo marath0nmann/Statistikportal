@@ -3608,12 +3608,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $cookieFile = tempnam(sys_get_temp_dir(), 'mika_');
 
     // 1. Hauptseite: Session-Cookie + Datum/Ort/EventName
-    // v1285: bei leerem Response (Rate-Limit/Timeout) bis zu 2× retry mit kurzer Verzögerung
     $mainHtml = mikaCurl($baseUrl, $cookieFile, $ua);
-    for ($_retry = 0; $_retry < 2 && (!$mainHtml || strlen($mainHtml) < 1000); $_retry++) {
-        usleep(500000); // 0.5s
-        $mainHtml = mikaCurl($baseUrl, $cookieFile, $ua);
-    }
     $eventName = ''; $eventDate = ''; $eventOrt = '';
     if ($mainHtml) {
         if (preg_match('/<title[^>]*>([^<]+)<\/title>/i', $mainHtml, $tm)) {
@@ -3634,24 +3629,15 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             }
         }
         if (!$eventDate) {
-            $monate = ['januar'=>'01','februar'=>'02','märz'=>'03','maerz'=>'03','april'=>'04','mai'=>'05','juni'=>'06','juli'=>'07','august'=>'08','september'=>'09','oktober'=>'10','november'=>'11','dezember'=>'12'];
             if (preg_match('/"startDate"\s*:\s*"(\d{4}-\d{2}-\d{2})/i', $mainHtml, $dm)) $eventDate = $dm[1];
             elseif (preg_match('/datePublished.*?(\d{4}-\d{2}-\d{2})/i', $mainHtml, $dm)) $eventDate = $dm[1];
-            // v1287: <time datetime="YYYY-MM-DD"> und meta content="YYYY-MM-DD"
-            elseif (preg_match('/<time[^>]+datetime="(\d{4}-\d{2}-\d{2})"/i', $mainHtml, $dm)) $eventDate = $dm[1];
-            elseif (preg_match('/<meta[^>]+content="(\d{4}-\d{2}-\d{2})"[^>]*>/i', $mainHtml, $dm)) $eventDate = $dm[1];
             elseif (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $mainHtml, $dm)) $eventDate = $dm[3].'-'.$dm[2].'-'.$dm[1];
-            // v1105: Deutsches Textformat "19. April 2026" (mika:timing Seitenheader), auch mit Wochentag "Sonntag, 10. Mai 2026"
-            elseif (preg_match('/(?:Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag),?\s*(\d{1,2})\.\s*(Januar|Februar|M[aä]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/ui', $mainHtml, $dm)) {
-                $mKey = mb_strtolower($dm[2], 'UTF-8');
-                if (isset($monate[$mKey])) $eventDate = $dm[3] . '-' . $monate[$mKey] . '-' . str_pad($dm[1], 2, '0', STR_PAD_LEFT);
-            }
+            // v1105: Deutsches Textformat "19. April 2026" (mika:timing Seitenheader)
             elseif (preg_match('/(\d{1,2})\.\s*(Januar|Februar|M[aä]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/ui', $mainHtml, $dm)) {
+                $monate = ['januar'=>'01','februar'=>'02','märz'=>'03','maerz'=>'03','april'=>'04','mai'=>'05','juni'=>'06','juli'=>'07','august'=>'08','september'=>'09','oktober'=>'10','november'=>'11','dezember'=>'12'];
                 $mKey = mb_strtolower($dm[2], 'UTF-8');
                 if (isset($monate[$mKey])) $eventDate = $dm[3] . '-' . $monate[$mKey] . '-' . str_pad($dm[1], 2, '0', STR_PAD_LEFT);
             }
-            // v1287: ISO-Datum als letzter Fallback (z.B. in JS-Variablen, data-Attributen)
-            elseif (preg_match('/\b(\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))\b/', $mainHtml, $dm)) $eventDate = $dm[1];
         }
         // Ort aus JSON-LD, meta oder Seitentext
         if (preg_match('/"addressLocality"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
@@ -3752,7 +3738,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $isV2Interface = $hasSearchProvider;
     $nameSearch = trim($_GET['name'] ?? '');
     $debug = [
-        'apiVersion' => 'v1286',
         'hasSearchProvider' => $hasSearchProvider,
         'hasSimpleSearchName' => $hasSimpleSearchName,
         'hasSearchForm' => $hasSearchForm,
@@ -3762,14 +3747,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         'mainHtmlLen' => strlen($mainHtml),
         'mainHtmlHead' => substr($mainHtml, 0, 200),
     ];
-    // Alle search[*]-Feldnamen aus dem Formular extrahieren (Diagnose)
-    if (preg_match_all('/name=["\']search\[([^\]"\']+)\]["\']/i', $mainHtml, $sfMatches)) {
-        $debug['formSearchFields'] = array_values(array_unique($sfMatches[1]));
-    }
-    // Top-Level Form-Felder (z.B. num_results, search_sort) extrahieren
-    if (preg_match_all('/<(?:input|select)[^>]*\bname=["\']([a-z_][a-z0-9_]*)["\']/i', $mainHtml, $tfMatches)) {
-        $debug['formTopFields'] = array_values(array_unique($tfMatches[1]));
-    }
 
     if (false /* v2-JSON-API seit v1095 nie funktioniert (Server liefert HTTP 200 mit 0 Byte) - deaktiviert in v1103; newInterface-POST ist zuverlässig */) {
         // V2-Interface: JSON-API via content=ajax2&func=getList + X-Requested-With Header
@@ -3894,213 +3871,22 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     if ($isNewInterface) {
         // Neue Interface: POST pro Event-Typ
         $searchName = $nameSearch ?: $club;
-        // Event-IDs aus Hauptseite extrahieren: einfache Heuristik auf alle <option value="...">
+        // Event-IDs aus Hauptseite extrahieren oder Defaults
         $eventIds = [];
-        $badOpts = ['ASC','DESC','NAME','CLUB','ALL','YES','NO','DE','EN','FIRSTNAME','START_NO','PLACE_ALL'];
-        if (preg_match_all('/<option[^>]+value=["\']([^"\']+)["\']/i', $mainHtml, $allOpts)) {
-            $debug['allOptionValues'] = array_values(array_unique(array_slice($allOpts[1], 0, 50)));
-            foreach ($allOpts[1] as $v) {
-                // Event-IDs: 1-6 Zeichen, beginnt mit Großbuchstaben, alphanumerisch
-                if (preg_match('/^[A-Z][A-Z0-9]{0,5}$/', $v) && !in_array(strtoupper($v), $badOpts) && !in_array($v, $eventIds)) {
-                    $eventIds[] = $v;
-                }
-            }
-        }
-        // Häufige Standard-Event-IDs immer mit einschließen
+        preg_match_all('/value="([A-Z][A-Z0-9]{0,5})"[^>]*>[^<]+(?:km|Lauf|Marathon)/i', $mainHtml, $evm);
+        foreach ($evm[1] as $ev) $eventIds[] = $ev;
+        // option-Values aus select: nur Werte die mit einem Buchstaben beginnen (kein 25/50/100/ASC/DESC etc.)
+        preg_match_all('/<option[^>]+value="([A-Z][A-Z0-9]{0,5})"/', $mainHtml, $opm);
+        $badOpts = ['ASC','DESC','NAME','CLUB','ALL','YES','NO','DE','EN'];
+        foreach ($opm[1] as $ev) { if (!in_array($ev,$eventIds) && !in_array(strtoupper($ev),$badOpts)) $eventIds[] = $ev; }
+        // Häufige Standard-Event-IDs immer mit einschließen (z.B. HM bei Hamburg Marathon 2019)
         foreach (['HM','M','10L','5L','10K','5K'] as $_std) { if (!in_array($_std,$eventIds)) $eventIds[] = $_std; }
-        if (empty($eventIds)) $eventIds = ['HM','M','10L','5L'];
-        $eventIds = array_slice($eventIds, 0, 8);
+        if (empty($eventIds)) $eventIds = ['HM','10L','5L'];
+        $eventIds = array_unique(array_slice($eventIds, 0, 16));
         $debug['newIf_eventIds'] = $eventIds;
 
         $searchUrl = $baseUrl . '?pid=search&pidp=start';
         $allResults = [];
-
-        // v1281: GET-Listings-URL mit `pid=search` (exakt wie Form-Submit der Webseite).
-        // Auf max 6 Events beschränkt um Rate-Limit (403) zu vermeiden.
-        // Beispiel-URL (vom User verifiziert):
-        //   ?pid=search&search[club]=Tus+Oedt&search[age_class]=%&search[sex]=%&search[nation]=%&search_sort=name&event=M
-        if (!$nameSearch && $club !== '') {
-            $listGetUrls = [];
-            $listGetEventIds = array_slice($eventIds, 0, 6);
-            foreach ($listGetEventIds as $_evLoop) {
-                // v1283: URL-Schema exakt wie Form-Submit (kein lang, kein num_results — die brechen evtl. die Suche)
-                $params = [
-                    'pid'                => 'search',
-                    'search[club]'       => $club,
-                    'search[age_class]'  => '%',
-                    'search[sex]'        => '%',
-                    'search[nation]'     => '%',
-                    'search_sort'        => 'name',
-                    'event'              => $_evLoop,
-                ];
-                $listGetUrls[$_evLoop] = $baseUrl . '?' . http_build_query($params);
-            }
-            $debug['listGet_urls'] = $listGetUrls;
-            $listGetHtml = mikaGetCurlMulti($listGetUrls, $cookieFile, $ua);
-            $debug['listGet_lens'] = [];
-            foreach ($listGetHtml as $_ev => $_h) $debug['listGet_lens'][$_ev] = strlen($_h);
-            // Diagnose: dump ein Sample des Responses für das erste Event (Klassen + Body-Auszug)
-            $firstEv = array_key_first($listGetHtml);
-            if ($firstEv && $listGetHtml[$firstEv]) {
-                $sampleHtml = $listGetHtml[$firstEv];
-                // Suche nach charakteristischen Strukturen
-                $debug['listGet_sample_event'] = $firstEv;
-                $debug['listGet_sample_hasResultTable'] = stripos($sampleHtml, '<table') !== false;
-                $debug['listGet_sample_hasListGroup'] = stripos($sampleHtml, 'list-group-item') !== false;
-                $debug['listGet_sample_hasIdp'] = preg_match('/[?&]idp=[A-Z0-9]{8,}/', $sampleHtml);
-                $debug['listGet_sample_resultsCount'] = preg_match_all('/[?&]idp=[A-Z0-9]{8,}/', $sampleHtml);
-                // Extrahiere Text-Schnipsel um das Wort "Ergebnis" oder "Verein:"
-                if (preg_match('/(?:Ergebniss?e?|3 Ergebnisse|Verein:)[\s\S]{0,400}/i', $sampleHtml, $sm)) {
-                    $debug['listGet_sample_resultArea'] = mb_substr(strip_tags($sm[0]), 0, 400);
-                }
-            }
-            // Parse jedes Event-Response: sowohl Bootstrap-LI-Items als auch HTML-Tabellen-Zeilen
-            foreach ($listGetHtml as $_ev => $html) {
-                if (!$html) continue;
-                $dG = new DOMDocument('1.0', 'UTF-8');
-                @$dG->loadHTML('<?xml encoding="UTF-8">' . $html);
-                $xG = new DOMXPath($dG);
-                // Variante A: list-group-items
-                $rowsFoundA = 0;
-                $liFirstDumped = false;
-                foreach ($xG->query('//li[contains(@class,"list-group-item") and not(contains(@class,"list-group-header")) and not(contains(@class,"list-info"))]') as $li) {
-                    $idp = '';
-                    foreach ($xG->query('.//a[@href]', $li) as $a) {
-                        if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $a->getAttribute('href'), $im)) { $idp = $im[1]; break; }
-                    }
-                    if (!$idp || isset($allResults[$idp])) continue;
-                    // Debug: ersten LI dumpen (HTML + alle CSS-Klassen)
-                    if (!$liFirstDumped && $_ev === array_key_first($listGetHtml)) {
-                        $liHtmlRaw = $dG->saveHTML($li);
-                        $debug['listGet_firstLi_html'] = mb_substr($liHtmlRaw, 0, 4000);
-                        preg_match_all('/class="([^"]+)"/', $liHtmlRaw, $cm);
-                        $allCl = []; foreach ($cm[1] as $cs) foreach (explode(' ',$cs) as $cl) if (trim($cl)) $allCl[trim($cl)]=1;
-                        $debug['listGet_firstLi_classes'] = array_keys($allCl);
-                        $debug['listGet_firstLi_text'] = mb_substr(preg_replace('/\s+/', ' ', strip_tags($liHtmlRaw)), 0, 800);
-                        $liFirstDumped = true;
-                    }
-                    $name = '';
-                    foreach ($xG->query('.//*[contains(@class,"type-fullname") or contains(@class,"fullname") or contains(@class,"name-standard")]', $li) as $n) {
-                        $t = trim($n->textContent);
-                        if ($t) { $name = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $t); break; }
-                    }
-                    if (!$name) continue;
-                    $liClub = ''; $liAK = ''; $liNetto = ''; $pg = ''; $pa = '';
-                    // v1286: Duisburg-Format — beide Plätze haben Klasse "place-primary type-place".
-                    // Position-basiert: 1. type-place = Gesamtplatz, 2. type-place = AK-Platz
-                    $placeIdx = 0;
-                    foreach ($xG->query('.//*[contains(@class,"type-place") or contains(@class,"place-primary") or contains(@class,"place-secondary")]', $li) as $pn) {
-                        $t = trim($pn->textContent);
-                        if (!ctype_digit($t)) { $placeIdx++; continue; }
-                        if ($placeIdx === 0 && !$pg) $pg = $t;
-                        elseif ($placeIdx === 1 && !$pa) $pa = $t;
-                        $placeIdx++;
-                    }
-                    // v1288: Alle type-time Elemente durchlaufen — Netto-Label bevorzugen,
-                    // sonst letzte Zeit nehmen (MikaTiming: erst Brutto, dann Netto)
-                    $liTimeLast = '';
-                    foreach ($xG->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
-                        $labelEl = $xG->query('.//*[contains(@class,"list-label")]', $tn)->item(0);
-                        $label = $labelEl ? trim($labelEl->textContent) : '';
-                        $raw = trim(str_replace($label, '', $tn->textContent));
-                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) {
-                            if ($label === 'Netto' || $label === 'Net' || $label === 'Chip') { $liNetto = $tm[1]; break; }
-                            $liTimeLast = $tm[1]; // merken, letzte Zeit = Netto-Kandidat
-                        }
-                    }
-                    if (!$liNetto && $liTimeLast) $liNetto = $liTimeLast;
-                    // ALLE list-field-Elemente iterieren: anhand list-label oder Inhalt zuordnen
-                    foreach ($xG->query('.//*[contains(@class,"list-field")]', $li) as $fn) {
-                        $cls = $fn->getAttribute('class');
-                        // Schon abgehandelte Felder überspringen
-                        if (stripos($cls, 'type-place') !== false || stripos($cls, 'type-fullname') !== false) continue;
-                        $labelEl = $xG->query('.//*[contains(@class,"list-label")]', $fn)->item(0);
-                        $label = $labelEl ? trim($labelEl->textContent) : '';
-                        $raw = trim(str_replace($label, '', $fn->textContent));
-                        $raw = trim(preg_replace('/\s+/', ' ', $raw));
-                        if (!$raw) continue;
-                        // Klassifikation per Label / Inhalt
-                        // v1288: Netto-Label immer überschreiben (auch wenn Brutto schon gesetzt)
-                        if (($label === 'Netto' || $label === 'Net' || $label === 'Chip') && preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $raw)) $liNetto = $raw;
-                        elseif ($label === 'AK' && !$liAK) { if (preg_match('/[MW]\d{2,3}/', $raw, $m)) $liAK = $m[0]; else $liAK = $raw; }
-                        elseif ($label === 'Verein' && !$liClub) $liClub = $raw;
-                        elseif (!$liAK && preg_match('/^[MW]\d{2,3}$/', $raw)) $liAK = $raw;
-                        elseif ($label !== 'Brutto' && $label !== 'Zeit' && !$liNetto && preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $raw)) $liNetto = $raw;
-                        elseif (!$liClub && strlen($raw) > 2 && !preg_match('/^\d/', $raw) && !preg_match('/^[MW]\d/', $raw)) $liClub = $raw;
-                    }
-                    // Plaintext-Fallbacks für übrig gebliebene Felder
-                    $liPlainText = trim(preg_replace('/\s+/', ' ', strip_tags($dG->saveHTML($li))));
-                    if (!$liNetto && preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $liPlainText, $tm)) {
-                        list($h,$mm,$ss) = explode(':', $tm[1]);
-                        if ((int)$h <= 9) $liNetto = $tm[1];
-                    }
-                    if (!$liAK && preg_match('/\b([MW]\d{2,3})\b/', $liPlainText, $am)) $liAK = $am[1];
-                    if (!$liNetto && !$pg && !$pa) continue;
-                    $allResults[$idp] = [
-                        'name' => trim($name), 'contest' => $_ev,
-                        'netto' => $liNetto, 'ak' => $liAK,
-                        'platz_ak' => $pa, 'platz_ges' => $pg,
-                        'event_id' => $_ev, 'idp' => $idp, 'club' => $liClub,
-                    ];
-                    $rowsFoundA++;
-                }
-                // Variante B: HTML-Tabellen-Zeilen (Duisburg 2026 nutzt diese Struktur)
-                $rowsFoundB = 0;
-                foreach ($xG->query('//table//tr[.//a[contains(@href,"idp=")]]') as $tr) {
-                    $idp = '';
-                    foreach ($xG->query('.//a[@href]', $tr) as $a) {
-                        if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $a->getAttribute('href'), $im)) { $idp = $im[1]; break; }
-                    }
-                    if (!$idp || isset($allResults[$idp])) continue;
-                    $cells = [];
-                    foreach ($xG->query('.//td', $tr) as $td) $cells[] = trim(preg_replace('/\s+/', ' ', $td->textContent));
-                    if (count($cells) < 4) continue;
-                    // Heuristik: erste Platzierungs-Spalte = Gesamtplatz, dann Pl.AK, dann Name, ...
-                    $pg = ctype_digit($cells[0]) ? $cells[0] : '';
-                    $pa = (isset($cells[1]) && ctype_digit($cells[1])) ? $cells[1] : '';
-                    $name = ''; $liAK = ''; $liClub = ''; $liNetto = '';
-                    foreach ($cells as $c) {
-                        if (!$name && strpos($c, ',') !== false && strlen($c) < 60) {
-                            $name = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $c); continue;
-                        }
-                        if (!$liAK && preg_match('/^[MW]\d{2,3}$/', $c)) { $liAK = $c; continue; }
-                        if (!$liNetto && preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $c)) { $liNetto = $c; continue; }
-                        if (!$liClub && strlen($c) > 2 && strlen($c) < 80 && !ctype_digit($c) && !preg_match('/^\d/', $c) && $c !== $name) $liClub = $c;
-                    }
-                    if (!$name) continue;
-                    if (!$liNetto && !$pg && !$pa) continue;
-                    $allResults[$idp] = [
-                        'name' => $name, 'contest' => $_ev,
-                        'netto' => $liNetto, 'ak' => $liAK,
-                        'platz_ak' => $pa, 'platz_ges' => $pg,
-                        'event_id' => $_ev, 'idp' => $idp, 'club' => $liClub,
-                    ];
-                    $rowsFoundB++;
-                }
-                $debug['listGet_' . $_ev . '_rows'] = ['li' => $rowsFoundA, 'tr' => $rowsFoundB];
-            }
-            $debug['listGet_total'] = count($allResults);
-            // v1286: Datums-Fallback — falls mainHtml kein Datum lieferte, im listGet-HTML suchen
-            // v1287: erweiterte Muster (time datetime, meta content, Wochentag-Prefix, ISO-Fallback)
-            if (!$eventDate) {
-                $monate2 = ['januar'=>'01','februar'=>'02','märz'=>'03','maerz'=>'03','april'=>'04','mai'=>'05','juni'=>'06','juli'=>'07','august'=>'08','september'=>'09','oktober'=>'10','november'=>'11','dezember'=>'12'];
-                foreach ($listGetHtml as $_lgKey => $_h) {
-                    if (!$_h) continue;
-                    if (preg_match('/<time[^>]+datetime="(\d{4}-\d{2}-\d{2})"/i', $_h, $dm)) { $eventDate = $dm[1]; break; }
-                    if (preg_match('/<meta[^>]+content="(\d{4}-\d{2}-\d{2})"[^>]*>/i', $_h, $dm)) { $eventDate = $dm[1]; break; }
-                    if (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $_h, $dm)) { $eventDate = $dm[3].'-'.$dm[2].'-'.$dm[1]; break; }
-                    if (preg_match('/(?:Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag),?\s*(\d{1,2})\.\s*(Januar|Februar|M[aä]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/ui', $_h, $dm)) {
-                        $mKey = mb_strtolower($dm[2], 'UTF-8');
-                        if (isset($monate2[$mKey])) { $eventDate = $dm[3] . '-' . $monate2[$mKey] . '-' . str_pad($dm[1], 2, '0', STR_PAD_LEFT); break; }
-                    }
-                    if (preg_match('/(\d{1,2})\.\s*(Januar|Februar|M[aä]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/ui', $_h, $dm)) {
-                        $mKey = mb_strtolower($dm[2], 'UTF-8');
-                        if (isset($monate2[$mKey])) { $eventDate = $dm[3] . '-' . $monate2[$mKey] . '-' . str_pad($dm[1], 2, '0', STR_PAD_LEFT); break; }
-                    }
-                    if (preg_match('/\b(\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))\b/', $_h, $dm)) { $eventDate = $dm[1]; break; }
-                }
-            }
-        }
 
         // WICHTIG (v1103): Der MikaTiming-Server liefert nur dann echte Ergebnisse
         // wenn ALLE versteckten Form-Felder mitgeschickt werden:
@@ -4111,9 +3897,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         //        Reduziert Namens-Suche-Zeit von ~6×RTT auf 1×RTT (~6× schneller).
         $postBodiesByEvent = [];
         foreach ($eventIds as $_evLoop) {
-            // v1276: Wildcards für nation/sex/age_class mitsenden (wie Form-Submit der Webseite),
-            // sonst liefert MikaTiming bei manchen Sites (z.B. duisburg.r.mikatiming.de) leere
-            // bzw. unvollständige Ergebnisse für die Club-Filterung.
             $postFields = [
                 'lang'               => 'DE',
                 'startpage'          => 'start_responsive',
@@ -4122,15 +3905,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 'search[name]'       => $nameSearch ?: '',
                 'search[firstname]'  => '',
                 'search[start_no]'   => '',
-                'search[nation]'     => '%',
-                'search[sex]'        => '%',
-                'search[age_class]'  => '%',
-                // v1278: Default ist 25 Treffer; viele Namens-Treffer (z.B. "Klein") werden sonst abgeschnitten.
-                // Wir probieren die geläufigsten Pagination-Feldnamen — falscher Name wird ignoriert.
-                'num_results'        => 1000,
-                'numresults'         => 1000,
-                'pageSize'           => 1000,
-                'page_size'          => 1000,
             ];
             // Club-Suche: wenn kein Namens-Query aktiv, stattdessen nach Verein filtern
             if (!$nameSearch && $club !== '') {
@@ -4192,18 +3966,15 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 // Hilfsfunktion: Wert = Gesamttext minus Label-Text
                 $liNetto = ''; $liAK = '';
 
-                // v1288: Alle type-time durchlaufen — Netto-Label bevorzugen, sonst letzte Zeit
-                $liTimeLast2 = '';
+                // Zeit: type-time, Label "Ziel" = Nettozeit
                 foreach ($xp2->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
                     $labelEl = $xp2->query('.//*[contains(@class,"list-label")]', $tn)->item(0);
                     $label = $labelEl ? trim($labelEl->textContent) : '';
-                    $raw = trim(str_replace($label, '', $tn->textContent));
-                    if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) {
-                        if ($label === 'Netto' || $label === 'Net' || $label === 'Chip') { $liNetto = $tm[1]; break; }
-                        if ($label !== 'Brutto') $liTimeLast2 = $tm[1];
+                    if ($label === 'Ziel' || $label === 'Zeit' || $label === '') {
+                        $raw = trim(str_replace($label, '', $tn->textContent));
+                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) { $liNetto = $tm[1]; break; }
                     }
                 }
-                if (!$liNetto && $liTimeLast2) $liNetto = $liTimeLast2;
                 // AK + Verein: type-field, unterschieden via list-label
                 foreach ($xp2->query('.//*[contains(@class,"type-field")]', $li) as $fn) {
                     $labelEl = $xp2->query('.//*[contains(@class,"list-label")]', $fn)->item(0);
@@ -4225,10 +3996,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         }
                     }
                 }
-                // DNS/DNF: weder Platzierung noch Zeit → Nicht-Finisher überspringen
-                // (Auf duisburg.r.mikatiming.de zeigt die Seite "–" statt Zahlen/Zeiten)
-                if (!$liNetto && !$placeGes && !$placeAK) continue;
-
                 if (!isset($allResults[$idp])) {
                     // Debug für ersten Fund
                     if (!isset($debug['firstLiClasses'])) {
@@ -4389,8 +4156,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     $debug['noEventFirstLiSample'] = mb_substr($liPlainText, 0, 400);
                 }
 
-                // DNS/DNF: weder Platzierung noch Zeit → Nicht-Finisher überspringen
-                if (!$liNetto2 && !$placeGes2 && !$placeAK2) continue;
                 $oldResults[$idp] = [
                     'name' => trim($name), 'contest' => $evIdFromLink ?: 'Unbekannt',
                     'netto' => $liNetto2, 'ak' => $liAK2, 'platz_ak' => $placeAK2, 'platz_ges' => $placeGes2,
@@ -4455,8 +4220,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         foreach ($xpO->query('.//*[contains(@class,"place-secondary")]', $li) as $n) {
                             $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK2 = $t; break; }
                         }
-                        // DNS/DNF: weder Platzierung noch Zeit → Nicht-Finisher überspringen
-                        if (!$placeGes2 && !$placeAK2) continue;
                         $oldResults[$idp] = [
                             'name' => trim($name), 'contest' => $oEvId,
                             'netto' => '', 'ak' => '', 'platz_ak' => $placeAK2, 'platz_ges' => $placeGes2,
@@ -4534,21 +4297,12 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 
         $ak = '';
         $akNodes = $xpath->query('.//*[contains(@class,"age_class")]', $li);
-        foreach ($akNodes as $n) {
-            $t = trim($n->textContent);
-            // AK-Bereinigung: Label+Wert verkettet (z.B. "MM45" oder "AK\nM45") → nur "M45"/"W45"/"AKxx" extrahieren
-            if (preg_match('/\b([MW]\d{2,3})\b/', $t, $akm)) { $ak = $akm[1]; break; }
-            if (preg_match('/\b(AK\d+)\b/', $t, $akm)) { $ak = $akm[1]; break; }
-        }
+        foreach ($akNodes as $n) { $t = trim($n->textContent); if ($t) { $ak = $t; break; } }
 
         // Tatsächlicher Vereinsname aus Suchergebnisliste
         $liClub = '';
         $clubNodes = $xpath->query('.//*[contains(@class,"club") or contains(@class,"f-club") or contains(@class,"nation_team")]', $li);
         foreach ($clubNodes as $n) { $t = trim($n->textContent); if ($t) { $liClub = $t; break; } }
-
-        // DNS-Filter: weder Platzierung noch AK → Nicht-Finisher überspringen
-        // (Zeit kommt später via Detail-Fetch; aber Daams hat weder Platz noch AK in der Liste)
-        if (!$placeGes && !$placeAK && !$ak) continue;
 
         $results[] = [
             'name' => trim($name), 'contest' => $evId ?: 'Unbekannt',
