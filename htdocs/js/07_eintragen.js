@@ -1542,7 +1542,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
       else if(f.indexOf('geschlechtmw')>=0||f==='es_geschlecht'||f==='gendermf'||f==='gender'||f==='sex')iGeschlecht=fi;
       else if(f.indexOf('chip')>=0||f.indexOf('netto')>=0)iNetto=fi;
       else if(f.indexOf('gun')>=0||f.indexOf('brutto')>=0||f==='ziel'||f.indexOf('ziel')>=0||f.indexOf('finish')>=0)iZeit=fi;
-      else if(f==='time'||f.indexOf('time')===0)iZeit=fi;
+      else if(f==='time'||f.indexOf('time')===0||f.indexOf('timetext')>=0)iZeit=fi;
     }
     if(iNetto>=0&&iZeit<0)iZeit=iNetto;
     if(iNetto<0&&iZeit>=0)iNetto=iZeit;
@@ -1686,13 +1686,8 @@ async function bulkImportFromRR(url, kat, statusEl) {
       }catch(e){}
     }
 
-    if(!payload){_bkDbgLine('SKIP (kein Payload)', le.name);continue;}
+    if(!payload)continue;
     listsChecked++;
-    if(li===0){
-      _bkDbgLine('DF[0]', (payload.DataFields||[]).join(' | '));
-      var _r0=(function(d){var r=null;function _s(o){if(r||!o)return;if(Array.isArray(o)){if(o.length&&Array.isArray(o[0])){r=o[0];return;}o.forEach(_s);}else if(typeof o==='object')Object.keys(o).forEach(function(k){_s(o[k]);});}  _s(d);return r;})(payload.data||{});
-      if(_r0)_bkDbgLine('row[0]', JSON.stringify(_r0).slice(0,300));
-    }
     _externPayloads.push({payload:payload,cname:cname,le:le});
     _proc(payload, cname, le);
   }
@@ -4143,7 +4138,7 @@ async function rrFetch() {
             else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht' || f === 'gendermf' || f === 'gender' || f === 'sex') iGeschlecht = fi;
             else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
             else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0 || f === 'ziel' || f.indexOf('ziel') >= 0 || f.indexOf('finish') >= 0) iZeit = fi;
-            else if (f === 'time' || f.indexOf('time') === 0) iZeit = fi; // z.B. TIME1
+            else if (f === 'time' || f.indexOf('time') === 0 || f.indexOf('timetext') >= 0) iZeit = fi;
             else if (/^rank\dp$/.test(f)) { if (f === 'rank1p') iPlatz = fi; else iAKPlatz = fi; }
             else if (f.indexOf('akpl') >= 0) iAKPlatz = fi;  // AKPlp, AKPl.P direkt
             else if (f.indexOf('autorankp') >= 0 || f.indexOf('overallrank') >= 0 || f.indexOf('withstatus') >= 0 || f.indexOf('mitstatus') >= 0 || f.indexOf('statusplatz') >= 0) { // withstatus BEFORE agegroup check
@@ -4368,6 +4363,7 @@ async function rrFetch() {
             else if (_ff.indexOf('geschlechtmw') >= 0 || _ff === 'es_geschlecht') iGeschlecht = _ffi;
             else if (_ff.indexOf('chip') >= 0 || _ff.indexOf('netto') >= 0) iNetto = _ffi;
             else if (_ff.indexOf('gun') >= 0 || _ff.indexOf('brutto') >= 0 || _ff.indexOf('ziel') >= 0) iZeit = _ffi;
+            else if (_ff === 'time' || _ff.indexOf('time') === 0 || _ff.indexOf('timetext') >= 0) iZeit = _ffi;
             else if (_ff.indexOf('mitstatus') >= 0 || _ff.indexOf('statusplatz') >= 0) { if (_ff.indexOf('akpl') >= 0) _fiAKPlatz = _ffi; else iPlatz = _ffi; }
           }
           if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;

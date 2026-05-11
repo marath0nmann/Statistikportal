@@ -1,3 +1,6 @@
+## v1299
+- Fix: RaceResult-Import erkennt Zeitfeld aus RaceResult-Formel-Ausdrücken (z.B. choose([STATUS]+1;[TIMETEXT1];…)) – ältere Events (z.B. 2018) wurden mit 0 Treffern abgebrochen
+
 ## v1298
 - Debug: RaceResult-Import zeigt DataFields + erste Row der ersten Liste (Diagnose 2018-Event)
 
