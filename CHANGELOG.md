@@ -1,3 +1,8 @@
+## v1288
+- MikaTiming: Netto-Zeit korrekt importiert — alle type-time Elemente durchlaufen, "Netto"-Label bevorzugen, sonst letzte Zeit (Brutto zuerst, Netto zuletzt bei MikaTiming)
+- MikaTiming: list-field-Loop ignoriert "Brutto"/"Zeit"-Label beim Zeitimport
+- MikaTiming Debug: `mainHtml_date_snippet` zeigt 180 Zeichen rund ums erste Monatsname im HTML
+
 ## v1287
 - MikaTiming: Datum-Extraktion erweitert um `<time datetime>`, `<meta content>`, Wochentag-Prefix ("Sonntag, 10. Mai 2026") und ISO-Fallback (`\bYYYY-MM-DD\b`)
 - MikaTiming Debug: `listGet_date_snippet` zeigt ersten 800 Zeichen des listGet-HTML zur Datumsdiagnose

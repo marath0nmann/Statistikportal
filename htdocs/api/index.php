@@ -3653,6 +3653,19 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             // v1287: ISO-Datum als letzter Fallback (z.B. in JS-Variablen, data-Attributen)
             elseif (preg_match('/\b(\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))\b/', $mainHtml, $dm)) $eventDate = $dm[1];
         }
+        // v1288: Datum-Debug — zeigt 120 Zeichen rund um "Mai" / "2026" im mainHtml
+        if (!$eventDate && $mainHtml) {
+            $snippets = [];
+            foreach (['Mai','April','März','Juni','Juli','August','September','Oktober','November','Dezember','Januar','Februar'] as $_mon) {
+                $pos = mb_stripos($mainHtml, $_mon);
+                if ($pos !== false) { $snippets[] = mb_substr($mainHtml, max(0,$pos-60), 180); break; }
+            }
+            if (empty($snippets)) {
+                $pos = strpos($mainHtml, '2026');
+                if ($pos !== false) $snippets[] = mb_substr($mainHtml, max(0,$pos-40), 120);
+            }
+            if (!empty($snippets)) $debug['mainHtml_date_snippet'] = $snippets[0];
+        }
         // Ort aus JSON-LD, meta oder Seitentext
         if (preg_match('/"addressLocality"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
         elseif (preg_match('/"location"\s*:\s*\{[^}]*"name"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
@@ -3996,10 +4009,19 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         elseif ($placeIdx === 1 && !$pa) $pa = $t;
                         $placeIdx++;
                     }
-                    // Zeit: type-time
+                    // v1288: Alle type-time Elemente durchlaufen — Netto-Label bevorzugen,
+                    // sonst letzte Zeit nehmen (MikaTiming: erst Brutto, dann Netto)
+                    $liTimeLast = '';
                     foreach ($xG->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
-                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $tn->textContent, $tm)) { $liNetto = $tm[1]; break; }
+                        $labelEl = $xG->query('.//*[contains(@class,"list-label")]', $tn)->item(0);
+                        $label = $labelEl ? trim($labelEl->textContent) : '';
+                        $raw = trim(str_replace($label, '', $tn->textContent));
+                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) {
+                            if ($label === 'Netto' || $label === 'Net' || $label === 'Chip') { $liNetto = $tm[1]; break; }
+                            $liTimeLast = $tm[1]; // merken, letzte Zeit = Netto-Kandidat
+                        }
                     }
+                    if (!$liNetto && $liTimeLast) $liNetto = $liTimeLast;
                     // ALLE list-field-Elemente iterieren: anhand list-label oder Inhalt zuordnen
                     foreach ($xG->query('.//*[contains(@class,"list-field")]', $li) as $fn) {
                         $cls = $fn->getAttribute('class');
@@ -4011,10 +4033,12 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         $raw = trim(preg_replace('/\s+/', ' ', $raw));
                         if (!$raw) continue;
                         // Klassifikation per Label / Inhalt
-                        if ($label === 'AK' && !$liAK) { if (preg_match('/[MW]\d{2,3}/', $raw, $m)) $liAK = $m[0]; else $liAK = $raw; }
+                        // v1288: Netto-Label immer überschreiben (auch wenn Brutto schon gesetzt)
+                        if (($label === 'Netto' || $label === 'Net' || $label === 'Chip') && preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $raw)) $liNetto = $raw;
+                        elseif ($label === 'AK' && !$liAK) { if (preg_match('/[MW]\d{2,3}/', $raw, $m)) $liAK = $m[0]; else $liAK = $raw; }
                         elseif ($label === 'Verein' && !$liClub) $liClub = $raw;
                         elseif (!$liAK && preg_match('/^[MW]\d{2,3}$/', $raw)) $liAK = $raw;
-                        elseif (!$liNetto && preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $raw)) $liNetto = $raw;
+                        elseif ($label !== 'Brutto' && $label !== 'Zeit' && !$liNetto && preg_match('/^\d{1,2}:\d{2}:\d{2}$/', $raw)) $liNetto = $raw;
                         elseif (!$liClub && strlen($raw) > 2 && !preg_match('/^\d/', $raw) && !preg_match('/^[MW]\d/', $raw)) $liClub = $raw;
                     }
                     // Plaintext-Fallbacks für übrig gebliebene Felder
@@ -4183,15 +4207,18 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 // Hilfsfunktion: Wert = Gesamttext minus Label-Text
                 $liNetto = ''; $liAK = '';
 
-                // Zeit: type-time, Label "Ziel" = Nettozeit
+                // v1288: Alle type-time durchlaufen — Netto-Label bevorzugen, sonst letzte Zeit
+                $liTimeLast2 = '';
                 foreach ($xp2->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
                     $labelEl = $xp2->query('.//*[contains(@class,"list-label")]', $tn)->item(0);
                     $label = $labelEl ? trim($labelEl->textContent) : '';
-                    if ($label === 'Ziel' || $label === 'Zeit' || $label === '') {
-                        $raw = trim(str_replace($label, '', $tn->textContent));
-                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) { $liNetto = $tm[1]; break; }
+                    $raw = trim(str_replace($label, '', $tn->textContent));
+                    if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) {
+                        if ($label === 'Netto' || $label === 'Net' || $label === 'Chip') { $liNetto = $tm[1]; break; }
+                        if ($label !== 'Brutto') $liTimeLast2 = $tm[1];
                     }
                 }
+                if (!$liNetto && $liTimeLast2) $liNetto = $liTimeLast2;
                 // AK + Verein: type-field, unterschieden via list-label
                 foreach ($xp2->query('.//*[contains(@class,"type-field")]', $li) as $fn) {
                     $labelEl = $xp2->query('.//*[contains(@class,"list-label")]', $fn)->item(0);
