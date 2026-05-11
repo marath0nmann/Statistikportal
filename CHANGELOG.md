@@ -1,3 +1,6 @@
+## v1301
+- Fix: RaceResult-Extern-Suche dedupliziert jetzt nach Name (nicht Name+Zeit) – verhindert, dass dieselbe Person für mehrere Distanzen doppelt auftaucht
+
 ## v1300
 - Fix: RaceResult-Import „Auch inaktive Athleten"-Schalter löst jetzt auch Extern-Suche aus wenn bereits TuS-Einträge gefunden wurden (z.B. Daniel Weyers unter ASV Süchteln)
 
