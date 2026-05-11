@@ -1,3 +1,6 @@
+## v1281
+- MikaTiming: Anzahl Event-IDs limitiert (20→8) und GET-Listings auf 6 Events beschränkt, um Rate-Limit-403 zu vermeiden
+
 ## v1280
 - MikaTiming: GET-Listings-URL nutzt `pid=search` (statt `pid=list&pidp=ranking`) — entspricht exakt der vom Browser nach Form-Submit verwendeten URL
 - MikaTiming: Event-ID-Extraktion robuster (auch single-letter wie `M` für Marathon); Limit von 16 → 20
