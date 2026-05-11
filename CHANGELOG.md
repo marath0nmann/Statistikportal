@@ -1,3 +1,7 @@
+## v1287
+- MikaTiming: Datum-Extraktion erweitert um `<time datetime>`, `<meta content>`, Wochentag-Prefix ("Sonntag, 10. Mai 2026") und ISO-Fallback (`\bYYYY-MM-DD\b`)
+- MikaTiming Debug: `listGet_date_snippet` zeigt ersten 800 Zeichen des listGet-HTML zur Datumsdiagnose
+
 ## v1286
 - MikaTiming GET-Listings: Position-basierter Platz-Parser (1. type-place = Gesamt, 2. = AK) — Duisburg-Format
 - MikaTiming GET-Listings: iteriert alle `list-field`-Elemente und klassifiziert per Label oder Inhalts-Muster (Zeit/AK/Verein)

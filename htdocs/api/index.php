@@ -3634,15 +3634,24 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             }
         }
         if (!$eventDate) {
+            $monate = ['januar'=>'01','februar'=>'02','märz'=>'03','maerz'=>'03','april'=>'04','mai'=>'05','juni'=>'06','juli'=>'07','august'=>'08','september'=>'09','oktober'=>'10','november'=>'11','dezember'=>'12'];
             if (preg_match('/"startDate"\s*:\s*"(\d{4}-\d{2}-\d{2})/i', $mainHtml, $dm)) $eventDate = $dm[1];
             elseif (preg_match('/datePublished.*?(\d{4}-\d{2}-\d{2})/i', $mainHtml, $dm)) $eventDate = $dm[1];
+            // v1287: <time datetime="YYYY-MM-DD"> und meta content="YYYY-MM-DD"
+            elseif (preg_match('/<time[^>]+datetime="(\d{4}-\d{2}-\d{2})"/i', $mainHtml, $dm)) $eventDate = $dm[1];
+            elseif (preg_match('/<meta[^>]+content="(\d{4}-\d{2}-\d{2})"[^>]*>/i', $mainHtml, $dm)) $eventDate = $dm[1];
             elseif (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $mainHtml, $dm)) $eventDate = $dm[3].'-'.$dm[2].'-'.$dm[1];
-            // v1105: Deutsches Textformat "19. April 2026" (mika:timing Seitenheader)
-            elseif (preg_match('/(\d{1,2})\.\s*(Januar|Februar|M[aä]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/ui', $mainHtml, $dm)) {
-                $monate = ['januar'=>'01','februar'=>'02','märz'=>'03','maerz'=>'03','april'=>'04','mai'=>'05','juni'=>'06','juli'=>'07','august'=>'08','september'=>'09','oktober'=>'10','november'=>'11','dezember'=>'12'];
+            // v1105: Deutsches Textformat "19. April 2026" (mika:timing Seitenheader), auch mit Wochentag "Sonntag, 10. Mai 2026"
+            elseif (preg_match('/(?:Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag),?\s*(\d{1,2})\.\s*(Januar|Februar|M[aä]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/ui', $mainHtml, $dm)) {
                 $mKey = mb_strtolower($dm[2], 'UTF-8');
                 if (isset($monate[$mKey])) $eventDate = $dm[3] . '-' . $monate[$mKey] . '-' . str_pad($dm[1], 2, '0', STR_PAD_LEFT);
             }
+            elseif (preg_match('/(\d{1,2})\.\s*(Januar|Februar|M[aä]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/ui', $mainHtml, $dm)) {
+                $mKey = mb_strtolower($dm[2], 'UTF-8');
+                if (isset($monate[$mKey])) $eventDate = $dm[3] . '-' . $monate[$mKey] . '-' . str_pad($dm[1], 2, '0', STR_PAD_LEFT);
+            }
+            // v1287: ISO-Datum als letzter Fallback (z.B. in JS-Variablen, data-Attributen)
+            elseif (preg_match('/\b(\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))\b/', $mainHtml, $dm)) $eventDate = $dm[1];
         }
         // Ort aus JSON-LD, meta oder Seitentext
         if (preg_match('/"addressLocality"\s*:\s*"([^"]+)"/i', $mainHtml, $lm)) $eventOrt = $lm[1];
@@ -4061,15 +4070,25 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             }
             $debug['listGet_total'] = count($allResults);
             // v1286: Datums-Fallback — falls mainHtml kein Datum lieferte, im listGet-HTML suchen
+            // v1287: erweiterte Muster (time datetime, meta content, Wochentag-Prefix, ISO-Fallback)
             if (!$eventDate) {
-                foreach ($listGetHtml as $_h) {
+                $monate2 = ['januar'=>'01','februar'=>'02','märz'=>'03','maerz'=>'03','april'=>'04','mai'=>'05','juni'=>'06','juli'=>'07','august'=>'08','september'=>'09','oktober'=>'10','november'=>'11','dezember'=>'12'];
+                foreach ($listGetHtml as $_lgKey => $_h) {
                     if (!$_h) continue;
+                    if (preg_match('/<time[^>]+datetime="(\d{4}-\d{2}-\d{2})"/i', $_h, $dm)) { $eventDate = $dm[1]; break; }
+                    if (preg_match('/<meta[^>]+content="(\d{4}-\d{2}-\d{2})"[^>]*>/i', $_h, $dm)) { $eventDate = $dm[1]; break; }
                     if (preg_match('/(\d{2})\.(\d{2})\.(\d{4})/', $_h, $dm)) { $eventDate = $dm[3].'-'.$dm[2].'-'.$dm[1]; break; }
-                    if (preg_match('/(\d{1,2})\.\s*(Januar|Februar|M[aä]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/ui', $_h, $dm)) {
-                        $monate = ['januar'=>'01','februar'=>'02','märz'=>'03','maerz'=>'03','april'=>'04','mai'=>'05','juni'=>'06','juli'=>'07','august'=>'08','september'=>'09','oktober'=>'10','november'=>'11','dezember'=>'12'];
+                    if (preg_match('/(?:Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag),?\s*(\d{1,2})\.\s*(Januar|Februar|M[aä]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/ui', $_h, $dm)) {
                         $mKey = mb_strtolower($dm[2], 'UTF-8');
-                        if (isset($monate[$mKey])) { $eventDate = $dm[3] . '-' . $monate[$mKey] . '-' . str_pad($dm[1], 2, '0', STR_PAD_LEFT); break; }
+                        if (isset($monate2[$mKey])) { $eventDate = $dm[3] . '-' . $monate2[$mKey] . '-' . str_pad($dm[1], 2, '0', STR_PAD_LEFT); break; }
                     }
+                    if (preg_match('/(\d{1,2})\.\s*(Januar|Februar|M[aä]rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/ui', $_h, $dm)) {
+                        $mKey = mb_strtolower($dm[2], 'UTF-8');
+                        if (isset($monate2[$mKey])) { $eventDate = $dm[3] . '-' . $monate2[$mKey] . '-' . str_pad($dm[1], 2, '0', STR_PAD_LEFT); break; }
+                    }
+                    if (preg_match('/\b(\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]))\b/', $_h, $dm)) { $eventDate = $dm[1]; break; }
+                    // Debug: erste 800 Zeichen des ersten listGet-HTML für Datumsdiagnose
+                    if (!isset($debug['listGet_date_snippet'])) $debug['listGet_date_snippet'] = substr($_h, 0, 800);
                 }
             }
         }
