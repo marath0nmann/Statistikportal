@@ -1,3 +1,8 @@
+## v1280
+- MikaTiming: GET-Listings-URL nutzt `pid=search` (statt `pid=list&pidp=ranking`) — entspricht exakt der vom Browser nach Form-Submit verwendeten URL
+- MikaTiming: Event-ID-Extraktion robuster (auch single-letter wie `M` für Marathon); Limit von 16 → 20
+- MikaTiming Debug: `allOptionValues` (alle option-values aus mainHtml) zur Event-ID-Diagnose
+
 ## v1279
 - MikaTiming: GET-Listings-URL (`pid=list&pidp=ranking`) als primärer Pfad für Vereins-Suche (wie echte Webseite); parsed sowohl list-group-items als auch Tabellen-Zeilen
 - MikaTiming Debug: `listGet_*`-Felder pro Event zur Diagnose
