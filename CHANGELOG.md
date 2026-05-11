@@ -1,3 +1,8 @@
+## v1283
+- MikaTiming: Event-ID-Extraktion vereinfacht (nutzt jetzt zuverlässig die gleiche Regex wie `allOptionValues`) — `M` (Marathon) wird jetzt erkannt
+- MikaTiming: GET-Listings-URL ohne `lang`/`num_results` (exakt wie Form-Submit der Webseite)
+- MikaTiming Debug: `listGet_sample_*` zeigt Struktur der Antwort (Table/List-Group/Idp-Treffer) zur Diagnose
+
 ## v1282
 - MikaTiming Bulk-Import: Namens-Suche nur noch als Fallback (wenn Vereins-Suche 0 Treffer); neue Checkbox „Namens-Suche erzwingen" zum manuellen Aktivieren — spart ~80 API-Calls und verhindert Rate-Limit-403
 

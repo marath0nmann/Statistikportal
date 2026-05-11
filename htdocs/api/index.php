@@ -3738,7 +3738,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $isV2Interface = $hasSearchProvider;
     $nameSearch = trim($_GET['name'] ?? '');
     $debug = [
-        'apiVersion' => 'v1281',
+        'apiVersion' => 'v1283',
         'hasSearchProvider' => $hasSearchProvider,
         'hasSimpleSearchName' => $hasSimpleSearchName,
         'hasSearchForm' => $hasSearchForm,
@@ -3880,23 +3880,23 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     if ($isNewInterface) {
         // Neue Interface: POST pro Event-Typ
         $searchName = $nameSearch ?: $club;
-        // Event-IDs aus Hauptseite extrahieren oder Defaults
+        // Event-IDs aus Hauptseite extrahieren: einfache Heuristik auf alle <option value="...">
         $eventIds = [];
-        preg_match_all('/value="([A-Z][A-Z0-9]{0,5})"[^>]*>[^<]+(?:km|Lauf|Marathon)/i', $mainHtml, $evm);
-        foreach ($evm[1] as $ev) $eventIds[] = $ev;
-        // option-Values aus select: ein- oder mehrbuchstabig (z.B. "M" für Marathon bei Duisburg)
-        preg_match_all('/<option[^>]+value=["\']([A-Z][A-Z0-9]{0,5})["\']/i', $mainHtml, $opm);
-        $badOpts = ['ASC','DESC','NAME','CLUB','ALL','YES','NO','DE','EN'];
-        foreach ($opm[1] as $ev) { if (!in_array($ev,$eventIds) && !in_array(strtoupper($ev),$badOpts)) $eventIds[] = $ev; }
+        $badOpts = ['ASC','DESC','NAME','CLUB','ALL','YES','NO','DE','EN','FIRSTNAME','START_NO','PLACE_ALL'];
+        if (preg_match_all('/<option[^>]+value=["\']([^"\']+)["\']/i', $mainHtml, $allOpts)) {
+            $debug['allOptionValues'] = array_values(array_unique(array_slice($allOpts[1], 0, 50)));
+            foreach ($allOpts[1] as $v) {
+                // Event-IDs: 1-6 Zeichen, beginnt mit Großbuchstaben, alphanumerisch
+                if (preg_match('/^[A-Z][A-Z0-9]{0,5}$/', $v) && !in_array(strtoupper($v), $badOpts) && !in_array($v, $eventIds)) {
+                    $eventIds[] = $v;
+                }
+            }
+        }
         // Häufige Standard-Event-IDs immer mit einschließen
         foreach (['HM','M','10L','5L','10K','5K'] as $_std) { if (!in_array($_std,$eventIds)) $eventIds[] = $_std; }
         if (empty($eventIds)) $eventIds = ['HM','M','10L','5L'];
-        $eventIds = array_unique(array_slice($eventIds, 0, 8));
+        $eventIds = array_slice($eventIds, 0, 8);
         $debug['newIf_eventIds'] = $eventIds;
-        // Debug: alle rohen option-Values (auch numerische), damit wir alle Event-IDs sehen
-        if (preg_match_all('/<option[^>]+value=["\']([^"\']+)["\']/i', $mainHtml, $allOpts)) {
-            $debug['allOptionValues'] = array_values(array_unique(array_slice($allOpts[1], 0, 50)));
-        }
 
         $searchUrl = $baseUrl . '?pid=search&pidp=start';
         $allResults = [];
@@ -3909,22 +3909,37 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             $listGetUrls = [];
             $listGetEventIds = array_slice($eventIds, 0, 6);
             foreach ($listGetEventIds as $_evLoop) {
+                // v1283: URL-Schema exakt wie Form-Submit (kein lang, kein num_results — die brechen evtl. die Suche)
                 $params = [
                     'pid'                => 'search',
-                    'lang'               => 'DE',
-                    'event'              => $_evLoop,
                     'search[club]'       => $club,
                     'search[age_class]'  => '%',
                     'search[sex]'        => '%',
                     'search[nation]'     => '%',
                     'search_sort'        => 'name',
-                    'num_results'        => 1000,
+                    'event'              => $_evLoop,
                 ];
                 $listGetUrls[$_evLoop] = $baseUrl . '?' . http_build_query($params);
             }
+            $debug['listGet_urls'] = $listGetUrls;
             $listGetHtml = mikaGetCurlMulti($listGetUrls, $cookieFile, $ua);
             $debug['listGet_lens'] = [];
             foreach ($listGetHtml as $_ev => $_h) $debug['listGet_lens'][$_ev] = strlen($_h);
+            // Diagnose: dump ein Sample des Responses für das erste Event (Klassen + Body-Auszug)
+            $firstEv = array_key_first($listGetHtml);
+            if ($firstEv && $listGetHtml[$firstEv]) {
+                $sampleHtml = $listGetHtml[$firstEv];
+                // Suche nach charakteristischen Strukturen
+                $debug['listGet_sample_event'] = $firstEv;
+                $debug['listGet_sample_hasResultTable'] = stripos($sampleHtml, '<table') !== false;
+                $debug['listGet_sample_hasListGroup'] = stripos($sampleHtml, 'list-group-item') !== false;
+                $debug['listGet_sample_hasIdp'] = preg_match('/[?&]idp=[A-Z0-9]{8,}/', $sampleHtml);
+                $debug['listGet_sample_resultsCount'] = preg_match_all('/[?&]idp=[A-Z0-9]{8,}/', $sampleHtml);
+                // Extrahiere Text-Schnipsel um das Wort "Ergebnis" oder "Verein:"
+                if (preg_match('/(?:Ergebniss?e?|3 Ergebnisse|Verein:)[\s\S]{0,400}/i', $sampleHtml, $sm)) {
+                    $debug['listGet_sample_resultArea'] = mb_substr(strip_tags($sm[0]), 0, 400);
+                }
+            }
             // Parse jedes Event-Response: sowohl Bootstrap-LI-Items als auch HTML-Tabellen-Zeilen
             foreach ($listGetHtml as $_ev => $html) {
                 if (!$html) continue;
