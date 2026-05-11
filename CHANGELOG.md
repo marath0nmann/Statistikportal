@@ -1,3 +1,6 @@
+## v1291
+- Bulk-Eintragen: Seltec/Track&Field PDF per Drag &amp; Drop auf das Eingabefeld importieren (PDF.js, filtert auf eigenen Verein); Safari-Fix für dragover
+
 ## v1290
 - Fix: leichtathletik.de-Import verwendet bei Sprint-Läufen mit Vorläufen jetzt den Gesamtplatz (col-1) statt den Laufplatz "6./IV" (col-6); col-6 bleibt Fallback für Masters-AK-Plätze
 

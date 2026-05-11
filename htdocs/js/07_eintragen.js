@@ -306,7 +306,7 @@ function renderEintragen() {
         '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Mehrere Ergebnisse auf einmal eintragen &ndash; alle geh&ouml;ren zur selben Veranstaltung.</div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
-          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Seltec/Track&amp;Field PDF hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
             '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
             '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
@@ -2795,6 +2795,329 @@ async function bulkFillFromImport(rows, statusEl) {
   if (pasteEl) pasteEl.value = '';
   var katWrap = document.getElementById('bk-import-kat-wrap');
   if (katWrap) katWrap.style.display = 'none';
+}
+
+// ── Seltec / Track&Field PDF Importer ────────────────────────────────────────
+
+function bulkPdfDragOver(e) {
+  // Safari liefert dataTransfer.items während dragover nicht → types prüfen
+  var types = e.dataTransfer && e.dataTransfer.types;
+  var hasFiles = types && (typeof types.contains === 'function' ? types.contains('Files') : Array.prototype.indexOf.call(types, 'Files') >= 0);
+  if (!hasFiles) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  var ta = document.getElementById('bk-paste-area');
+  if (ta) ta.style.borderColor = 'var(--primary, #1976d2)';
+}
+
+function bulkPdfDragLeave(e) {
+  var ta = document.getElementById('bk-paste-area');
+  if (ta) ta.style.borderColor = '';
+}
+
+function bulkPdfDrop(e) {
+  e.preventDefault(); // immer zuerst – verhindert Safari-Default (Pfad als Text einfügen)
+  var ta = document.getElementById('bk-paste-area');
+  if (ta) ta.style.borderColor = '';
+  var file = e.dataTransfer && Array.from(e.dataTransfer.files || []).find(function(f) {
+    return f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+  });
+  if (!file) return;
+  var statusEl = document.getElementById('bk-import-status');
+  _bkDebugInit(file.name, 'Seltec PDF', '');
+  bulkImportFromSeltecPdf(file, statusEl);
+}
+
+async function _seltecLoadPdfJs() {
+  if (window.pdfjsLib) return window.pdfjsLib;
+  return new Promise(function(resolve, reject) {
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.crossOrigin = 'anonymous';
+    s.onload = function() {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve(window.pdfjsLib);
+    };
+    s.onerror = function() { reject(new Error('PDF.js konnte nicht geladen werden')); };
+    document.head.appendChild(s);
+  });
+}
+
+async function bulkImportFromSeltecPdf(file, statusEl) {
+  var einlesenBtn = document.getElementById('bk-einlesen-btn');
+  if (einlesenBtn) einlesenBtn.style.display = 'none';
+  try {
+    if (statusEl) statusEl.textContent = '⏳ Lade PDF.js…';
+    var pdfjs = await _seltecLoadPdfJs();
+
+    if (statusEl) statusEl.textContent = '⏳ Lese PDF…';
+    var arrayBuffer = await file.arrayBuffer();
+    var pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+    if (statusEl) statusEl.textContent = '⏳ Extrahiere Text (' + pdf.numPages + ' Seiten)…';
+
+    var allLines = [];
+    for (var p = 1; p <= pdf.numPages; p++) {
+      var page = await pdf.getPage(p);
+      var tc = await page.getTextContent();
+      var yGroups = {};
+      tc.items.forEach(function(item) {
+        if (!item.str) return;
+        var y = Math.round(item.transform[5] / 2) * 2;
+        if (!yGroups[y]) yGroups[y] = [];
+        yGroups[y].push({ x: item.transform[4], str: item.str });
+      });
+      var ys = Object.keys(yGroups).map(Number).sort(function(a, b) { return b - a; });
+      ys.forEach(function(y) {
+        var items = yGroups[y].sort(function(a, b) { return a.x - b.x; });
+        var line = items.map(function(i) { return i.str; }).join('').replace(/\s+/g, ' ').trim();
+        if (line) allLines.push(line);
+      });
+    }
+
+    _bkDbgLine('Seltec Zeilen', allLines.length);
+
+    var parsed = _parseSeltecLines(allLines);
+
+    _bkDbgLine('Event', parsed.eventName || '(keiner)');
+    _bkDbgLine('Datum', parsed.date || '(keins)');
+    _bkDbgLine('Ort', parsed.location || '(keiner)');
+    _bkDbgLine('Eigener Verein (PDF)', parsed.ownClub || '(unbekannt)');
+    _bkDbgLine('Sektionen', parsed.sections.length);
+    parsed.sections.forEach(function(s) {
+      _bkDbgLine('  ' + s.disziplin, s.athletes.length + ' Zeilen, ' + s.date);
+    });
+
+    if (!parsed.sections.length) {
+      if (statusEl) statusEl.textContent = '❌ Kein Seltec-Format erkannt';
+      return;
+    }
+
+    // Auto-fill event fields
+    var datEl = document.getElementById('bk-datum');
+    if (datEl && !datEl.value && parsed.date) { datEl.value = parsed.date; bkSyncDatum(parsed.date); }
+    var evnEl = document.getElementById('bk-evname');
+    if (evnEl && !evnEl.value && parsed.eventName) evnEl.value = parsed.eventName;
+    var quelleEl = document.getElementById('bk-quelle');
+    if (quelleEl && !quelleEl.value) quelleEl.value = file.name;
+    if (parsed.location) {
+      var _ortParts = parsed.location.split(',');
+      _bkAutoSetOrt(_ortParts[_ortParts.length - 1].trim());
+    }
+
+    var kat = ((document.getElementById('bk-kat') || {}).value || '');
+
+    // Collect all athletes across sections
+    var allAthletes = [];
+    parsed.sections.forEach(function(sec) {
+      var dResult = _seltecFindDisz(sec.disziplin, kat);
+      sec.athletes.forEach(function(ath) {
+        allAthletes.push({
+          name:      ath.name,
+          year:      ath.year,
+          geschlecht: ath.geschlecht,
+          resultat:  ath.resultat,
+          datum:     sec.date || parsed.date,
+          disziplin: dResult.disz || sec.disziplin,
+          diszMid:   dResult.diszMid,
+          platz:     ath.platz,
+          verein:    ath.verein,
+          ownClub:   ath.ownClub
+        });
+      });
+    });
+
+    _bkDbgLine('Athleten gesamt', allAthletes.length);
+
+    // Filter to own club, fall back to name-match
+    var ownRows = allAthletes.filter(function(a) { return a.ownClub; });
+    var rowsToImport = ownRows;
+    if (!ownRows.length) {
+      var _ath = state.athleten || [];
+      rowsToImport = allAthletes.filter(function(a) {
+        return uitsAutoMatch(a.name, _ath) !== null;
+      });
+      _bkDbgLine('Hinweis', 'Kein Vereinstreffer – ' + rowsToImport.length + ' Namens-Treffer');
+    } else {
+      _bkDbgLine('Vereinstreffer', ownRows.length);
+    }
+
+    if (!rowsToImport.length) {
+      _bkDbgLine('Hinweis', 'Keine Treffer. Erste 20 Athleten:');
+      allAthletes.slice(0, 20).forEach(function(a) { _bkDbgLine('  ' + a.name, a.verein); });
+      if (statusEl) statusEl.textContent = '❌ Keine Vereinsathleten gefunden – Debug-Log prüfen';
+      return;
+    }
+
+    var bulkRows = rowsToImport.map(function(row) {
+      return {
+        name:      row.name,
+        year:      row.year,
+        geschlecht: row.geschlecht,
+        resultat:  row.resultat,
+        ak:        '',
+        platz:     row.platz,
+        disziplin: row.disziplin,
+        diszMid:   row.diszMid,
+        datum:     row.datum,
+        extern:    !row.ownClub,
+        verein:    row.ownClub ? '' : row.verein
+      };
+    });
+
+    await bulkFillFromImport(bulkRows, statusEl);
+
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '❌ ' + e.message;
+    _bkDbgLine('Fehler', e.message);
+  } finally {
+    if (einlesenBtn) einlesenBtn.style.display = '';
+  }
+}
+
+function _parseSeltecLines(lines) {
+  var eventName = '', location = '', date = '', ownClub = '';
+  var sections = [];
+  var currentSection = null;
+  var inResults = false;
+  var headerParsed = false;
+  var isFieldEvent = false;
+
+  var ownVerL = ((appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '').toLowerCase();
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+
+    // Footer: extract licensed club
+    var licM = line.match(/lizenziert f[üu]r\s+(.+?)\s+Seite\s+\d+/i);
+    if (licM) { ownClub = licM[1].trim(); continue; }
+    if (/^Dataservice by/i.test(line) || /^Gedruckt am /i.test(line)) continue;
+    if (/^Rang\s+(StNr|Name)\b/i.test(line)) continue;
+
+    // Event header
+    if (!headerParsed) {
+      if (/ERGEBNISSE\s*$/.test(line)) {
+        eventName = line.replace(/\s*ERGEBNISSE\s*$/, '').trim();
+        continue;
+      }
+      var hdrDateM = line.match(/^(.+),\s*(\d{2})\.(\d{2})\.(\d{4})$/);
+      if (hdrDateM && !date) {
+        date = hdrDateM[4] + '-' + hdrDateM[3] + '-' + hdrDateM[2];
+        location = hdrDateM[1].trim();
+        headerParsed = true;
+        continue;
+      }
+    }
+
+    // Section header: line containing date/time pattern
+    var sdM = line.match(/(\d{2})\.(\d{2})\.(\d{4})\s*\/\s*\d{2}:\d{2}/);
+    if (sdM) {
+      var sDate = sdM[3] + '-' + sdM[2] + '-' + sdM[1];
+      var sTitle = line.replace(/\s*\d{2}\.\d{2}\.\d{4}\s*\/\s*\d{2}:\d{2}\s*/, '').trim();
+
+      if (/aus gemeinsamem Bewerb/i.test(sTitle)) { currentSection = null; inResults = false; continue; }
+
+      var isCont = /[-–]\s*Fortsetzung/i.test(sTitle);
+      sTitle = sTitle.replace(/\s*[-–]\s*Fortsetzung\s*/i, '').trim();
+
+      var disziplin = (sTitle.match(/^([^,]+)/) || [, sTitle])[1].trim();
+
+      if (/^\d+x\d+/i.test(disziplin)) { currentSection = null; inResults = false; continue; }
+
+      isFieldEvent = _seltecIsField(disziplin);
+
+      if (isCont && currentSection) {
+        currentSection.date = currentSection.date || sDate;
+        inResults = false;
+      } else {
+        currentSection = { disziplin: disziplin, date: sDate, athletes: [] };
+        sections.push(currentSection);
+        inResults = false;
+      }
+      continue;
+    }
+
+    if (/^Finale/i.test(line)) { inResults = true; continue; }
+
+    if (!inResults || !currentSection) continue;
+
+    var rM = line.match(/^(\d+)\s+(\d+)\s+(.+)$/);
+    if (rM) {
+      var ath = _parseSeltecAthRow(rM[3], isFieldEvent);
+      if (ath) {
+        ath.platz = parseInt(rM[1]);
+        var verL = ath.verein.toLowerCase();
+        ath.ownClub = (ownVerL && verL.indexOf(ownVerL) >= 0) ||
+                      (ownClub && verL.indexOf(ownClub.toLowerCase()) >= 0);
+        currentSection.athletes.push(ath);
+      }
+    }
+  }
+
+  return { eventName: eventName, location: location, date: date, ownClub: ownClub, sections: sections };
+}
+
+function _parseSeltecAthRow(rest, isFieldEvent) {
+  var tokens = rest.split(/\s+/);
+  if (tokens.length < 5) return null;
+
+  var yearIdx = -1;
+  for (var i = 1; i < tokens.length - 2; i++) {
+    if (/^(19|20)\d{2}$/.test(tokens[i])) { yearIdx = i; break; }
+  }
+  if (yearIdx < 0) return null;
+
+  var nat = tokens[yearIdx + 1];
+  if (!/^[A-Z]{2,3}$/.test(nat)) return null;
+
+  var year = tokens[yearIdx];
+  var nameParts = tokens.slice(0, yearIdx);
+  if (!nameParts.length) return null;
+  var firstname = nameParts[nameParts.length - 1];
+  var lastname  = nameParts.slice(0, nameParts.length - 1).join(' ');
+  var fullName  = lastname ? firstname + ' ' + lastname : firstname;
+
+  var afterNat = tokens.slice(yearIdx + 2);
+  if (!afterNat.length) return null;
+
+  var last = afterNat[afterNat.length - 1];
+  var prev = afterNat.length >= 2 ? afterNat[afterNat.length - 2] : '';
+
+  if (/^abg\.?$|^DSQ$|^DNS$|^DNF$/i.test(last) || /^abg\.?$|^DSQ$|^DNS$|^DNF$/i.test(prev)) return null;
+
+  var result, clubEnd;
+  if (/^[\d\-]+\.\/[IVX]+$/.test(last)) {
+    result = prev; clubEnd = afterNat.length - 2;
+  } else if (isFieldEvent && /^[+\-]?\d+[,.]?\d*$/.test(last)) {
+    result = prev; clubEnd = afterNat.length - 2;
+  } else {
+    result = last; clubEnd = afterNat.length - 1;
+  }
+
+  if (!result || !/\d/.test(result)) return null;
+
+  var verein = afterNat.slice(0, clubEnd).join(' ');
+
+  return { name: fullName, year: year, geschlecht: '', verein: verein, resultat: result, platz: 0, ownClub: false };
+}
+
+function _seltecIsField(disziplin) {
+  return /weitsprung|hochsprung|dreisprung|kugel|diskus|speer|hammer|stab|gewicht/i.test(disziplin);
+}
+
+function _seltecFindDisz(rawDisz, kat) {
+  if (!rawDisz) return { disz: '', diszMid: null };
+  var rl = rawDisz.toLowerCase().trim();
+  var dl = (state.disziplinen || []).filter(function(d) { return !kat || d.tbl_key === kat; });
+  var found = dl.find(function(d) { return (d.disziplin || '').toLowerCase() === rl; });
+  if (!found) found = dl.find(function(d) {
+    var dl2 = (d.disziplin || '').toLowerCase();
+    return dl2.startsWith(rl) || rl.startsWith(dl2);
+  });
+  if (!found) return { disz: rawDisz, diszMid: null };
+  return { disz: found.disziplin, diszMid: found.id || found.mapping_id };
 }
 
 // ── Smart-Paste Parser ──────────────────────────────────────────────────────
