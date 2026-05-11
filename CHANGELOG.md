@@ -1,3 +1,7 @@
+## v1279
+- MikaTiming: GET-Listings-URL (`pid=list&pidp=ranking`) als primärer Pfad für Vereins-Suche (wie echte Webseite); parsed sowohl list-group-items als auch Tabellen-Zeilen
+- MikaTiming Debug: `listGet_*`-Felder pro Event zur Diagnose
+
 ## v1278
 - MikaTiming: Pagination-Limit erhöht (num_results=1000, mehrere Feldnamen-Varianten); DNS-Filter im Event-Loop-Fallback ergänzt
 - MikaTiming Debug: `formTopFields` listet auch Nicht-`search[]`-Form-Felder (Anzahl Ergebnisse etc.)
