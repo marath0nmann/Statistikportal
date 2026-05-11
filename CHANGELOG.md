@@ -1,3 +1,6 @@
+## v1297
+- Debug: RaceResult-Import zeigt pro Liste payload-Infos + Rohdaten bei 0 Rows (Diagnose ältere Events)
+
 ## v1296
 - Veranstaltungen: "Teilnehmer*innen" → "Teilnehmende"
 
