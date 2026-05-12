@@ -1,3 +1,6 @@
+## v1305
+- Fix: RaceResult-Import übernimmt Disziplin beim Dedup-Treffer wenn bisher leer – Läufer aus Allgemein-Gesamtliste (ohne Distanz) bekommen nachträglich die Disziplin aus der distanzspezifischen Liste (z.B. „10 km DeBeukelaer Hauptlauf A")
+
 ## v1304
 - Fix: `_cleanEventName` schneidet Namen mit Bindestrich (z.B. „Griesson-de Beukelaer-Altstadtlauf") nicht mehr vorzeitig ab – einfache Städtenamen (nur Kleinbuchstaben, kein Bindestrich) werden korrekt erkannt
 

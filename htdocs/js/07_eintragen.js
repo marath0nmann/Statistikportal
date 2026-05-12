@@ -1633,6 +1633,8 @@ async function bulkImportFromRR(url, kat, statusEl) {
             // AK übernehmen wenn besser (echter Wert > Punkt/leer)
             var _dupAkOk = _dup.ak && _dup.ak !== '.' && _dup.ak.length > 1;
             if(rAK && rAK !== '.' && rAK.length > 1 && !_dupAkOk) _dup.ak = rAK;
+            // Disziplin übernehmen wenn bisher leer (z.B. Allgemein-Gesamtliste vor distanzspez. Liste verarbeitet)
+            if(!_dup.disziplin && disz){_dup.disziplin=dObj?dObj.disziplin:disz;_dup.diszMid=dObj?(dObj.id||dObj.mapping_id):null;}
           } else {
             allResults.push({name:rName,resultat:rZeit,ak:rAK,platz:rP,
               disziplin:dObj?dObj.disziplin:disz,diszMid:dObj?(dObj.id||dObj.mapping_id):null,
