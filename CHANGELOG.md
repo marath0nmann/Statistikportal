@@ -1,3 +1,6 @@
+## v1304
+- Fix: `_cleanEventName` schneidet Namen mit Bindestrich (z.B. „Griesson-de Beukelaer-Altstadtlauf") nicht mehr vorzeitig ab – einfache Städtenamen (nur Kleinbuchstaben, kein Bindestrich) werden korrekt erkannt
+
 ## v1303
 - Fix: Bulk-Import ersetzt jetzt alle bestehenden Zeilen statt sie zu ergänzen – verhindert Verdoppelung bei erneutem Import
 

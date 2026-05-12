@@ -1284,8 +1284,9 @@ function _cleanEventName(name) {
   if (!m) return name;
   var withoutYear = m[1].trim();
   // Freistehenden Ortsnamen (einzelnes Wort, Großbuchstabe, nur Buchstaben) direkt vor dem Jahr entfernen
-  var cityM = withoutYear.match(/^([\s\S]*\S)\s+([A-ZÄÖÜ][a-zA-ZäöüÄÖÜß\-]*[a-zäöüß])$/);
-  if (cityM && cityM[1].length > 0 && !/\s/.test(cityM[2])) {
+  // Nur einfache Ortsnamen entfernen (kein Bindestrich, keine Event-Begriffe wie -lauf, -run etc.)
+  var cityM = withoutYear.match(/^([\s\S]*\S)\s+([A-ZÄÖÜ][a-zäöüß]+)$/);
+  if (cityM && cityM[1].length > 0 && !/lauf|run|race|trail|marathon/i.test(cityM[2])) {
     return cityM[1].trim();
   }
   return withoutYear;
