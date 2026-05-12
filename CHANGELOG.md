@@ -1,3 +1,6 @@
+## v1313
+- Fix: Bestleistungen-Seite zeigt keine externen Ergebnisse mehr (extern=1 aus rekorde-Endpunkt gefiltert)
+
 ## v1312
 - Athletenprofil: „Externes Ergebnis bearbeiten"-Modal verwendet jetzt Veranstaltungs-Picker statt Freitext-Felder (Datum/Wettkampf); Veranstaltung ist Pflichtfeld
 

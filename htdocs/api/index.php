@@ -2757,9 +2757,9 @@ if ($res === 'rekorde') {
         foreach ($diszList as $d) {
             $tbl = $getTblForDisz($d['disziplin']);
             if ($d['mapping_id']) {
-                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin_mapping_id=? AND geloescht_am IS NULL", [$d['mapping_id']]);
+                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin_mapping_id=? AND geloescht_am IS NULL AND extern=0", [$d['mapping_id']]);
             } else {
-                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin=? AND disziplin_mapping_id IS NULL AND geloescht_am IS NULL", [$d['disziplin']]);
+                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin=? AND disziplin_mapping_id IS NULL AND geloescht_am IS NULL AND extern=0", [$d['disziplin']]);
             }
             $counts[] = ['disziplin' => $d['disziplin'], 'mapping_id' => $d['mapping_id'], 'cnt' => $cnt ? (int)$cnt['c'] : 0];
         }
@@ -2799,9 +2799,9 @@ if ($res === 'rekorde') {
         foreach ($diszList as $d) {
             $tbl = $getTblForDisz($d['disziplin']);
             if ($d['mapping_id']) {
-                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin_mapping_id=? AND geloescht_am IS NULL", [$d['mapping_id']]);
+                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin_mapping_id=? AND geloescht_am IS NULL AND extern=0", [$d['mapping_id']]);
             } else {
-                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin=? AND disziplin_mapping_id IS NULL AND geloescht_am IS NULL", [$d['disziplin']]);
+                $cnt = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin=? AND disziplin_mapping_id IS NULL AND geloescht_am IS NULL AND extern=0", [$d['disziplin']]);
             }
             $result[] = ['disziplin' => $d['disziplin'], 'mapping_id' => $d['mapping_id'], 'cnt' => $cnt ? (int)$cnt['c'] : 0];
         }
@@ -2881,7 +2881,7 @@ if ($res === 'rekorde') {
             "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
              FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
-             WHERE $diszCond AND e.geloescht_am IS NULL
+             WHERE $diszCond AND e.geloescht_am IS NULL AND e.extern=0
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
              ORDER BY $sortCol $dir", [$diszParam]);
 
@@ -2900,7 +2900,7 @@ if ($res === 'rekorde') {
              JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
              JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
              WHERE $diszCond AND e.altersklasse IS NOT NULL AND e.altersklasse != ''
-               AND e.geloescht_am IS NULL AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
+               AND e.geloescht_am IS NULL AND e.extern=0 AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
              ORDER BY altersklasse", [$diszParam]);
         $all_ak = [];
         foreach ($aks_rows as $ak_row) {
