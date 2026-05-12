@@ -1,3 +1,6 @@
+## v1306
+- Bulk-Eintragen: „Laufserie erkannt"-Dialog entfernt – mehrere Ergebnisse pro Athlet/Disziplin in einer Veranstaltung sind normal und kein Indiz für eine Laufserie
+
 ## v1305
 - Fix: RaceResult-Import übernimmt Disziplin beim Dedup-Treffer wenn bisher leer – Läufer aus Allgemein-Gesamtliste (ohne Distanz) bekommen nachträglich die Disziplin aus der distanzspezifischen Liste (z.B. „10 km DeBeukelaer Hauptlauf A")
 
