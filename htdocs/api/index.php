@@ -243,6 +243,14 @@ try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXIST
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS reset_code_expires DATETIME NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athleten') . " MODIFY COLUMN geschlecht ENUM('M','W','D','') NOT NULL DEFAULT ''"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athleten') . " ADD COLUMN IF NOT EXISTS orga TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
+// Migration: Alternative Athleten-Namen
+try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('athlet_altnamen') . " (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    athlet_id INT NOT NULL,
+    vorname VARCHAR(100) NOT NULL DEFAULT '',
+    nachname VARCHAR(100) NOT NULL,
+    INDEX idx_athlet_id (athlet_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (\Exception $e) {}
 // Migration: Rollen-System (rollen-Tabelle)
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rollen') . " (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -2418,7 +2426,43 @@ if ($res === 'athleten') {
             foreach ($rows as &$row) { $row['gruppen'] = []; }
             unset($row);
         }
+        // Alternative Namen nur für eingeloggte User (sind nur im Backend relevant)
+        if (Auth::check()) {
+            try {
+                $altNamenAll = DB::fetchAll('SELECT athlet_id, vorname, nachname FROM ' . DB::tbl('athlet_altnamen'));
+                $altMap = [];
+                foreach ($altNamenAll as $an) { $altMap[(int)$an['athlet_id']][] = ['vorname' => $an['vorname'], 'nachname' => $an['nachname']]; }
+                foreach ($rows as &$row) { $row['alt_namen'] = $altMap[(int)$row['id']] ?? []; }
+                unset($row);
+            } catch (\Exception $e) {
+                foreach ($rows as &$row) { $row['alt_namen'] = []; }
+                unset($row);
+            }
+        }
         jsonOk($rows);
+    }
+
+    // ── Sub-Ressource: Alternative Namen /athleten/{id}/altnamen[/{altnamId}] ──
+    if ($id && ($parts[2] ?? '') === 'altnamen') {
+        $user = Auth::requireEditor();
+        $athletId = (int)$id;
+        $altnamId = isset($parts[3]) ? (int)$parts[3] : null;
+        if ($method === 'GET') {
+            $rows = DB::fetchAll('SELECT id, vorname, nachname FROM ' . DB::tbl('athlet_altnamen') . ' WHERE athlet_id=? ORDER BY nachname, vorname', [$athletId]);
+            jsonOk($rows);
+        }
+        if ($method === 'POST') {
+            $nn = sanitize($body['nachname'] ?? '');
+            $vn = sanitize($body['vorname']  ?? '');
+            if (!$nn) jsonErr('Nachname erforderlich.');
+            DB::query('INSERT INTO ' . DB::tbl('athlet_altnamen') . ' (athlet_id, vorname, nachname) VALUES (?,?,?)', [$athletId, $vn, $nn]);
+            jsonOk(['id' => (int)DB::lastInsertId(), 'vorname' => $vn, 'nachname' => $nn]);
+        }
+        if ($method === 'DELETE' && $altnamId) {
+            DB::query('DELETE FROM ' . DB::tbl('athlet_altnamen') . ' WHERE id=? AND athlet_id=?', [$altnamId, $athletId]);
+            jsonOk('OK');
+        }
+        jsonErr('Methode nicht erlaubt.', 405);
     }
 
     // ── Sub-Ressource: Auszeichnungen (HoF-Daten) für einen Athleten ──

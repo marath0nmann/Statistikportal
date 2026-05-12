@@ -1,3 +1,6 @@
+## v1371
+- Feature: Alternative Athleten-Namen (Namensänderungen, Schreibweisen) – Admin → Athleten → Bearbeiten; werden in allen Bulk-Import-Matchern berücksichtigt
+
 ## v1370
 - Fix: „Letzte Aktivität" in Athleten-Tabelle berücksichtigt nur eigene Vereinsergebnisse (extern=0), keine fremden Vereinsergebnisse mehr
 

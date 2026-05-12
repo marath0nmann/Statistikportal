@@ -917,8 +917,61 @@ function showAthletEditModal(id) {
         '&#x1F9E9; Orga-Mitglied (inaktiv, aber in der Organisation aktiv &ndash; z.B. für Sportfest-Planung)' +
       '</label>' +
     '</div>' +
+    '<div style="border-top:1px solid var(--border);margin:16px 0 12px"></div>' +
+    '<div style="font-size:13px;font-weight:700;margin-bottom:8px">&#x1F4CB; Alternative Namen <span style="font-size:11px;font-weight:400;color:var(--text2)">(nur Backend &ndash; f&uuml;r Namens&auml;nderungen &amp; Schreibweisen)</span></div>' +
+    '<div id="ea-altnamen-list" style="margin-bottom:8px"><span style="color:var(--text2);font-size:12px">&#x23F3;</span></div>' +
+    '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">' +
+      '<div><label style="font-size:12px;display:block;margin-bottom:3px">Nachname *</label><input type="text" id="ea-an-nn" placeholder="z.B. M\u00fcller" style="width:140px"/></div>' +
+      '<div><label style="font-size:12px;display:block;margin-bottom:3px">Vorname</label><input type="text" id="ea-an-vn" placeholder="z.B. Anna" style="width:120px"/></div>' +
+      '<button class="btn btn-sm" onclick="addAthletAltName(' + id + ')" style="margin-bottom:1px">&#x2795; Hinzuf&uuml;gen</button>' +
+    '</div>' +
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button><button class="btn btn-primary" onclick="saveAthlet(' + id + ')">Speichern</button></div>'
   , false, true);
+  _loadAthletAltNamen(id);
+}
+
+async function _loadAthletAltNamen(athletId) {
+  var el = document.getElementById('ea-altnamen-list');
+  if (!el) return;
+  var r = await apiGet('athleten/' + athletId + '/altnamen');
+  var list = (r && r.ok && r.data) ? r.data : [];
+  if (!list.length) {
+    el.innerHTML = '<span style="color:var(--text2);font-size:12px;font-style:italic">Keine alternativen Namen eingetragen.</span>';
+    return;
+  }
+  el.innerHTML = list.map(function(an) {
+    var label = an.nachname + (an.vorname ? ', ' + an.vorname : '');
+    return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border)">' +
+      '<span style="flex:1;font-size:13px">' + label + '</span>' +
+      '<button class="btn btn-danger btn-sm" onclick="deleteAthletAltName(' + athletId + ',' + an.id + ')">&#x1F5D1;&#xFE0F;</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function addAthletAltName(athletId) {
+  var nn = (document.getElementById('ea-an-nn').value || '').trim();
+  var vn = (document.getElementById('ea-an-vn').value || '').trim();
+  if (!nn) { notify('Nachname erforderlich.', 'err'); return; }
+  var r = await apiPost('athleten/' + athletId + '/altnamen', { nachname: nn, vorname: vn });
+  if (r && r.ok) {
+    document.getElementById('ea-an-nn').value = '';
+    document.getElementById('ea-an-vn').value = '';
+    await _loadAthletAltNamen(athletId);
+    // state.athleten aktualisieren damit Matching sofort greift
+    await loadAthleten();
+  } else {
+    notify((r && r.fehler) || 'Fehler', 'err');
+  }
+}
+
+async function deleteAthletAltName(athletId, altnamId) {
+  var r = await apiDel('athleten/' + athletId + '/altnamen/' + altnamId);
+  if (r && r.ok) {
+    await _loadAthletAltNamen(athletId);
+    await loadAthleten();
+  } else {
+    notify((r && r.fehler) || 'Fehler', 'err');
+  }
 }
 
 function _eaAktivChanged() {

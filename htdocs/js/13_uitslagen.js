@@ -339,23 +339,34 @@ function uitsAutoMatch(name, athleten) {
     return _un(a) === _un(b);
   }
 
+  function _matchNameParts(surTok, firstTok, inTok) {
+    var surOk = surTok.some(function(st){ return inTok.some(function(it){ return _tokEq(it,st); }); });
+    if (!surOk) return false;
+    if (!firstTok.length) return true;
+    return firstTok.some(function(ft){ return inTok.some(function(it){ return _tokEq(it,ft); }); });
+  }
+
   for (var i=0; i<athleten.length; i++) {
     var a = athleten[i];
-    var cp = (a.name_nv||'').split(',');
-    // Surname-Tokens: Praepositionsfilter (von/van/de/der etc. werden ignoriert)
-    var surTok   = _toks(cp[0]||'', true);
-    var firstTok = _toks((cp.slice(1).join(' '))||'', false);
-    if (!surTok.length) continue;
     if ((a.aktiv === false || a.aktiv === 0) && !window._bkMatchInaktive) continue;
 
     var inTok = _toks(name, false);
     if (!inTok.length) continue;
 
-    var surOk = surTok.some(function(st){ return inTok.some(function(it){ return _tokEq(it,st); }); });
-    if (!surOk) continue;
-    if (!firstTok.length) return a.id;
-    var firstOk = firstTok.some(function(ft){ return inTok.some(function(it){ return _tokEq(it,ft); }); });
-    if (firstOk) return a.id;
+    // Hauptname
+    var cp = (a.name_nv||'').split(',');
+    var surTok   = _toks(cp[0]||'', true);
+    var firstTok = _toks((cp.slice(1).join(' '))||'', false);
+    if (surTok.length && _matchNameParts(surTok, firstTok, inTok)) return a.id;
+
+    // Alternative Namen
+    var altNamen = a.alt_namen || [];
+    for (var j=0; j<altNamen.length; j++) {
+      var an = altNamen[j];
+      var aSur   = _toks(an.nachname||'', true);
+      var aFirst = _toks(an.vorname||'',  false);
+      if (aSur.length && _matchNameParts(aSur, aFirst, inTok)) return a.id;
+    }
   }
   return null;
 }
