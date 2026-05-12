@@ -3485,6 +3485,7 @@ async function renderAdminVeranstaltungen() {
       '<div class="panel-header">' +
         '<div class="panel-title">&#x1F4C5; Veranstaltungen</div>' +
         '<div class="panel-count" id="veranst-admin-count"></div>' +
+        '<button class="btn btn-primary btn-sm" onclick="_vaNewModal()" style="margin-left:auto">+ Neue Veranstaltung</button>' +
       '</div>' +
       '<div class="table-scroll"><table id="veranst-admin-tabelle" class="data-table" style="width:100%;table-layout:fixed;border-collapse:collapse">' +
         '<thead><tr>' + _veranstAdminSortHeader() + '</tr></thead>' +
@@ -3574,6 +3575,78 @@ async function _vaSave(id) {
     _renderVeranstAdminTable();
   } else {
     notify((r && r.fehler) || 'Fehler', 'err');
+  }
+}
+
+async function _vaNewModal() {
+  if (typeof ortePickerLoad === 'function') await ortePickerLoad();
+  var serieOpts = '<option value="">– keine –</option>';
+  var serien = _veranstAdminCache.serien || [];
+  for (var i = 0; i < serien.length; i++) {
+    serieOpts += '<option value="' + serien[i].id + '">' + _vaEsc(_vaDec(serien[i].name || '')) + '</option>';
+  }
+  showModal(
+    modalH2('&#x1F4C5; Neue Veranstaltung') +
+    '<div class="form-grid">' +
+      '<div class="form-group full"><label>Name</label><input type="text" id="ve-new-name" placeholder="Veranstaltungsname…"/></div>' +
+      '<div class="form-group"><label>Ort <span style="color:var(--accent)">*</span></label>' +
+        ortePickerHtml({ inputId: 've-new-ort', hiddenId: 've-new-ort-id' }) +
+      '</div>' +
+      '<div class="form-group"><label>Datum <span style="color:var(--accent)">*</span></label><input type="date" id="ve-new-datum"/></div>' +
+      '<div class="form-group"><label>Status</label><select id="ve-new-genehmigt">' +
+        '<option value="1">Genehmigt</option>' +
+        '<option value="0">Gesperrt</option>' +
+      '</select></div>' +
+      '<div class="form-group"><label>Serie</label><select id="ve-new-serie">' + serieOpts + '</select></div>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="_vaCreate()">Erstellen</button>' +
+    '</div>',
+    false, true
+  );
+}
+
+async function _vaCreate() {
+  var ortIdEl  = document.getElementById('ve-new-ort-id');
+  var ortId    = ortIdEl && ortIdEl.value ? parseInt(ortIdEl.value) : null;
+  if (!ortId) { notify('Bitte einen Ort aus der Liste auswählen.', 'err'); return; }
+  var ortName  = null;
+  for (var i = 0; i < (_orteCache || []).length; i++) {
+    if (_orteCache[i].id == ortId) { ortName = _orteCache[i].name; break; }
+  }
+  var datum = document.getElementById('ve-new-datum').value;
+  if (!datum) { notify('Bitte ein Datum angeben.', 'err'); return; }
+  var serieEl = document.getElementById('ve-new-serie');
+  var body = {
+    name:      document.getElementById('ve-new-name').value.trim() || null,
+    ort:       ortName,
+    ort_id:    ortId,
+    datum:     datum,
+    genehmigt: parseInt(document.getElementById('ve-new-genehmigt').value),
+    serie_id:  serieEl && serieEl.value ? parseInt(serieEl.value) : null,
+  };
+  var r = await apiPost('veranstaltungen', body);
+  if (r && r.ok) {
+    closeModal();
+    notify('Veranstaltung erstellt.', 'ok');
+    var newItem = {
+      id:             r.id,
+      name:           body.name,
+      ort:            body.ort,
+      ort_id:         body.ort_id,
+      datum:          body.datum,
+      genehmigt:      body.genehmigt,
+      serie_id:       body.serie_id,
+      anz_ergebnisse: 0,
+      anz_athleten:   0,
+      anz_extern:     0,
+    };
+    _veranstAdminCache.items.unshift(newItem);
+    _veranstAdminPage = 0;
+    _renderVeranstAdminTable();
+  } else {
+    notify((r && r.fehler) || 'Fehler beim Erstellen.', 'err');
   }
 }
 

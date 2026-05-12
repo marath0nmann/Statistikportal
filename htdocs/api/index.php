@@ -5265,6 +5265,23 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     jsonOk(compact('veranst','total','serien'));
 }
 
+if ($res === 'veranstaltungen' && $method === 'POST' && !$id) {
+    Auth::requireRecht('veranstaltung_eintragen');
+    $name      = sanitize($body['name']  ?? '') ?: null;
+    $ort       = sanitize($body['ort']   ?? '') ?: null;
+    $ortId     = !empty($body['ort_id'])   ? (int)$body['ort_id']   : null;
+    $datum     = !empty($body['datum'])    ? $body['datum']         : null;
+    $genehmigt = isset($body['genehmigt']) ? ($body['genehmigt'] ? 1 : 0) : 1;
+    $serieId   = !empty($body['serie_id']) ? (int)$body['serie_id'] : null;
+    if (!$datum) jsonErr('Datum ist erforderlich.');
+    DB::query(
+        'INSERT INTO ' . DB::tbl('veranstaltungen') . ' (name, ort, ort_id, datum, genehmigt, serie_id) VALUES (?,?,?,?,?,?)',
+        [$name, $ort, $ortId, $datum, $genehmigt, $serieId]
+    );
+    $newId = (int)DB::lastInsertId();
+    jsonOk('Erstellt.', ['id' => $newId]);
+}
+
 if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
     Auth::requireRecht('veranstaltung_eintragen');
     $felder = []; $params = [];

@@ -1,3 +1,6 @@
+## v1311
+- Admin Veranstaltungen: Neue Veranstaltung anlegen (Button im Panel-Header, POST /veranstaltungen in API)
+
 ## v1310
 - Fix: Externe Ergebnisse (extern=1) erscheinen nicht mehr in Timeline, Bestleistungen, Vereinsrekorden, Hall of Fame, Meisterschaftstiteln und Serien-Ranglisten
 
