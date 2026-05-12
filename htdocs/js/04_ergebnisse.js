@@ -228,18 +228,14 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
     var _vid = rr.veranstaltung_id || null;
     var ortCell;
     if (_vid) {
-      // Alle Ergebnisse mit veranstaltung_id → Link zur Veranstaltungsseite
       ortCell = '<td class="ort-text">' +
         '<a href="#veranstaltung/' + _vid + '" style="color:var(--primary);text-decoration:underline;text-underline-offset:2px" title="Zur Veranstaltung">' +
           ort +
         '</a>' +
       '</td>';
     } else {
-      // Freies externes Ergebnis ohne veranstaltung_id
-      ortCell = '<td class="ort-text">' +
-        '<span style="font-size:11px;color:var(--text2);background:var(--surf2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;margin-right:4px" title="Kein Veranstaltungsbezug">frei</span>' +
-        (rr.veranstaltung ? '<span style="color:var(--text2)">' + rr.veranstaltung + '</span>' : '') +
-      '</td>';
+      // Legacy: migriertes externes Ergebnis ohne Veranstaltungsbezug
+      ortCell = '<td class="ort-text"><span style="font-size:11px;color:var(--text2)">' + (rr.veranstaltung || '–') + '</span></td>';
     }
     cells += ortCell;
     if (canEdit) cells += '<td class="ort-text">' + (rr.extern ? (rr.eingetragen_von || '–') : (rr.eingetragen_von || 'Excel-Import')) + '</td>';
@@ -454,9 +450,7 @@ function editKatChanged() {
 // ── Externe Ergebnisse: Edit + Delete ────────────────────────────────────────
 async function openEditExternErgebnis(ds) {
   window._extVid = ds.extVid ? parseInt(ds.extVid) : null;
-  window._extVname = ds.extVname || '';
-  // Suchfeld vorbelegen: bei gesetzter vid den Namen, sonst den wettkampf-Freitext
-  var searchPrefill = ds.extVid ? (ds.extVname||'') : (ds.extWettkampf||'');
+  window._extVname = ds.extVname || ds.extWettkampf || '';
 
   showModal(
     modalH2('&#x270E; Externes Ergebnis bearbeiten') +
@@ -464,19 +458,15 @@ async function openEditExternErgebnis(ds) {
       '<div class="form-group"><label>Disziplin</label><input type="text" id="ext-disz" value="' + (ds.extDisz||'').replace(/"/g,'&quot;') + '"/></div>' +
       '<div class="form-group"><label>Ergebnis</label><input type="text" id="ext-res" value="' + (ds.extRes||'') + '"/></div>' +
       '<div class="form-group"><label>Altersklasse</label><input type="text" id="ext-ak" value="' + (ds.extAk||'') + '" placeholder="z.B. M40"/></div>' +
-      '<div class="form-group"><label>Datum</label><input type="date" id="ext-datum" value="' + (ds.extDatum||'') + '"/></div>' +
       '<div class="form-group full"><label>Verein</label><input type="text" id="ext-verein" value="' + (ds.extVerein||'').replace(/"/g,'&quot;') + '" placeholder="z.B. SV Musterstadt"/></div>' +
       '<div class="form-group full">' +
-        '<label>Veranstaltung</label>' +
-        '<div style="display:flex;gap:6px;align-items:center">' +
-          '<input type="text" id="ext-veranst-search" placeholder="Name suchen…" ' +
-            'value="' + searchPrefill.replace(/"/g,'&quot;') + '" ' +
-            'oninput="_extVeranstSearch(this.value)" autocomplete="off" style="flex:1"/>' +
-          '<button class="btn btn-ghost btn-sm" onclick="_extVeranstClear()" title="Veranstaltungsbezug entfernen">&#x1F5D1;&#xFE0F;</button>' +
-        '</div>' +
+        '<label>Veranstaltung *</label>' +
+        '<input type="text" id="ext-veranst-search" placeholder="Name suchen…" ' +
+          'value="' + (window._extVname).replace(/"/g,'&quot;') + '" ' +
+          'oninput="_extVeranstSearch(this.value)" autocomplete="off"/>' +
         '<div id="ext-veranst-results" style="margin-top:4px"></div>' +
         '<div id="ext-veranst-current" style="font-size:12px;color:var(--text2);margin-top:4px">' +
-          (ds.extVid ? '&#x1F517; ' + (ds.extVname || 'Veranstaltung #' + ds.extVid) : '<span style="color:var(--text3)">Kein Veranstaltungsbezug</span>') +
+          (window._extVid ? '&#x1F517; ' + window._extVname : '<span style="color:var(--accent)">Pflichtfeld – bitte Veranstaltung auswählen</span>') +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -524,27 +514,15 @@ function _extVeranstSelect(id, name) {
   if (cur) cur.innerHTML = '&#x1F517; ' + name;
 }
 
-function _extVeranstClear() {
-  window._extVid = null;
-  window._extVname = '';
-  var inp = document.getElementById('ext-veranst-search');
-  if (inp) inp.value = '';
-  var box = document.getElementById('ext-veranst-results');
-  if (box) box.innerHTML = '';
-  var cur = document.getElementById('ext-veranst-current');
-  if (cur) cur.innerHTML = 'Kein Veranstaltungsbezug';
-}
-
 async function _saveExternErgebnis(id) {
+  var vid = window._extVid || null;
+  if (!vid) { notify('Bitte eine Veranstaltung auswählen.', 'err'); return; }
   var body = {
     disziplin:        (document.getElementById('ext-disz')   || {}).value || '',
     resultat:         (document.getElementById('ext-res')    || {}).value || '',
     altersklasse:     (document.getElementById('ext-ak')     || {}).value || null,
-    datum:            (document.getElementById('ext-datum')  || {}).value || null,
     verein:           (document.getElementById('ext-verein') || {}).value || null,
-    veranstaltung_id: window._extVid || null,
-    // wettkampf aus dem Veranstaltungsnamen ableiten (API synchronisiert bei gesetzter vid automatisch)
-    wettkampf:        window._extVid ? null : ((document.getElementById('ext-veranst-search') || {}).value || null),
+    veranstaltung_id: vid,
   };
   var r = await apiPut('externe-ergebnisse/' + id, body);
   if (r && r.ok) { closeModal(); notify('Gespeichert.', 'ok'); loadErgebnisseData(); }

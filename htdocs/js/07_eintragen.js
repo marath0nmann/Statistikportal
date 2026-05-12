@@ -232,7 +232,7 @@ async function saveEigenesErgebnis(andNew) {
     if (!datum || !ort) { if (errEl) errEl.textContent = 'Datum und Ort sind Pflichtfelder.'; return; }
   }
 
-  // Anderer Verein → externes Ergebnis (athlet_pb)
+  // Anderer Verein → externes Ergebnis
   var isExternal = verein && verein.toLowerCase() !== clubName.toLowerCase();
   var body = {
     disziplin: diszName, disziplin_mapping_id: diszMappingId,
@@ -396,7 +396,7 @@ function renderEintragen() {
               '<th class="bk-mstr-th" style="padding:8px 6px;text-align:left;font-weight:600;display:none">Meisterschaft</th>' +
               '<th class="bk-mstr-th" style="padding:8px 6px;text-align:left;font-weight:600;display:none">Platz MS</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Datum</th>' +
-              '<th style="padding:8px 6px;text-align:left;font-weight:600;font-size:11px" title="Vereinsname: leer oder anderer Verein → externes Ergebnis (athlet_pb)">Verein</th>' +
+              '<th style="padding:8px 6px;text-align:left;font-weight:600;font-size:11px" title="Vereinsname: leer oder anderer Verein → externes Ergebnis">Verein</th>' +
               '<th style="padding:8px 6px;width:36px"></th>' +
             '</tr></thead>' +
             '<tbody id="bulk-rows"></tbody>' +

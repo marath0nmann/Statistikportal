@@ -1,3 +1,11 @@
+## v1309
+- Externe Ergebnisse: strukturell in `ergebnisse`-Tabelle vereint (neues Feld `extern=1`), Datenmigration aus `athlet_pb` automatisch beim ersten Start
+- Externe Ergebnisse erfordern zwingend eine Veranstaltung – Freitext `wettkampf` entfällt
+- Edit-Modal externe Ergebnisse: Veranstaltung ist Pflichtfeld, Lösch-Button für Veranstaltungsbezug entfernt
+- Vereinsname-Feld (`verein`) für externe Ergebnisse bleibt erhalten
+- Soft-Delete für externe Ergebnisse (wie interne)
+- Bestleistungen-Timeline: vereinfachte Abfrage ohne UNION
+
 ## v1308
 - Fix: RaceResult-Import entfernt Jahrgang in Klammern am Namensende (z.B. „Schulte, Julius (2001)") – verhindert Duplikate wenn dieselbe Person in Ziel- und Altersklassenliste unterschiedlich formatiert ist
 

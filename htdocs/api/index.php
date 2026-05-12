@@ -196,6 +196,21 @@ try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXIS
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS altersklasse VARCHAR(20) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS veranstaltung_id INT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS erstellt_von INT NULL"); } catch (\Exception $e) {}
+// v1309: externe Ergebnisse in ergebnisse-Tabelle vereinen
+try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS extern TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS verein VARCHAR(120) NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " MODIFY COLUMN veranstaltung_id INT NULL"); } catch (\Exception $e) {}
+// Einmalige Datenmigration: athlet_pb → ergebnisse
+if (Settings::get('athlet_pb_migriert') !== '1') {
+    try {
+        DB::query("INSERT INTO " . DB::tbl('ergebnisse') . "
+            (veranstaltung_id, athlet_id, altersklasse, disziplin, disziplin_mapping_id, resultat, erstellt_von, extern, verein, import_quelle)
+            SELECT pb.veranstaltung_id, pb.athlet_id, pb.altersklasse, pb.disziplin, pb.disziplin_mapping_id,
+                   pb.resultat, pb.erstellt_von, 1, pb.verein, 'migration_pb'
+            FROM " . DB::tbl('athlet_pb') . " pb");
+        Settings::set('athlet_pb_migriert', '1');
+    } catch (\Exception $e) {}
+}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS genehmigt TINYINT(1) NOT NULL DEFAULT 1"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS datenquelle VARCHAR(1024) NULL DEFAULT NULL"); } catch (\Exception $e) {}
 // v942: Veranstaltungsserien (jährlich wiederkehrende Veranstaltungen)
@@ -1386,7 +1401,7 @@ if ($res === 'admin-dashboard' && $method === 'GET') {
     if ($stats['erstesErgebnisDatum'] && $stats['ergebnisse']) { $years = max(1,(time()-strtotime($stats['erstesErgebnisDatum']))/31557600); $stats['ergebnisseProJahr'] = round($stats['ergebnisse']/$years,1); }
     try { $stats['veranstaltungen'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
     if ($stats['erstesErgebnisDatum'] && $stats['veranstaltungen']) { $years2 = max(1,(time()-strtotime($stats['erstesErgebnisDatum']))/31557600); $stats['veranstaltungenProJahr'] = round($stats['veranstaltungen']/$years2,1); }
-    try { $stats['externePBs'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('athlet_pb'))['c'] ?? 0); } catch(\Exception $e) {}
+    try { $stats['externePBs'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE extern=1 AND geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
     try { $stats['importiert'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE import_quelle IS NOT NULL AND geloescht_am IS NULL")['c'] ?? 0); } catch(\Exception $e) {}
     try { $stats['disziplinen'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('disziplin_mapping'))['c'] ?? 0); } catch(\Exception $e) {}
     try { $stats['antraege'] = (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnis_aenderungen') . " WHERE status='pending'")['c'] ?? 0); } catch(\Exception $e) {}
@@ -1524,7 +1539,7 @@ function migrateResultatNum(): void {
 // Einmalig: MM:SS-Zeiten mit MM≥60 → H:MM:SS normalisieren (z.B. "64:30" → "01:04:30")
 function migrateNormalizeOverflowTimes(): void {
     try {
-        $tables = [DB::tbl('ergebnisse'), DB::tbl('athlet_pb')];
+        $tables = [DB::tbl('ergebnisse')];
         foreach ($tables as $tbl) {
             DB::query(
                 "UPDATE $tbl SET resultat = CONCAT(
@@ -1798,46 +1813,20 @@ if ($res === 'dashboard' && $method === 'GET') {
 
         // merge_ak: Jugend-AKs zu MHK/WHK zusammenfassen (aus Settings)
         $mergeAKTl = ($_GET['merge_ak_tl'] ?? '1') !== '0';
-        $akExprTl    = buildAkCaseExpr($mergeAKTl);
-        $akExprTlPb  = buildAkCaseExpr($mergeAKTl, 'pb');
-        $pbErgWhere  = $mappingId
-            ? "pb.disziplin_mapping_id=?"
-            : "pb.disziplin=? AND pb.disziplin_mapping_id IS NULL";
-        // valExpr für athlet_pb (alias pb statt e)
-        $pbValExpr = str_replace(['e.resultat_num', 'e.resultat'], ['NULL', 'pb.resultat'], $valExpr);
+        $akExprTl  = buildAkCaseExpr($mergeAKTl);
         $extOnly = $dInfo['ext_only'] ?? false;
-        if ($extOnly) {
-            // Nur externe Ergebnisse für diese Disziplin
-            $ergs = DB::fetchAll(
-                "SELECT pb.resultat, $pbValExpr AS val_sort, pb.datum, ($akExprTlPb) AS altersklasse,
-                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht, 1 AS extern
-                 FROM " . DB::tbl('athlet_pb') . " pb
-                 JOIN " . DB::tbl('athleten') . " a ON a.id=pb.athlet_id
-                 WHERE $pbErgWhere AND pb.resultat IS NOT NULL AND pb.resultat != ''
-                   AND pb.datum IS NOT NULL
-                 ORDER BY pb.datum ASC, pb.id ASC",
-                [$ergParam]
-            );
-        } else {
-            $ergs = DB::fetchAll(
-                "SELECT e.resultat, $valExpr AS val_sort, v.datum, ($akExprTl) AS altersklasse,
-                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht, 0 AS extern
-                 FROM $tblN e
-                 JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
-                 JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
-                 WHERE $ergWhere AND e.resultat IS NOT NULL AND e.resultat != ''
-                   AND e.geloescht_am IS NULL
-                 UNION ALL
-                 SELECT pb.resultat, $pbValExpr AS val_sort, pb.datum, ($akExprTlPb) AS altersklasse,
-                        $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht, 1 AS extern
-                 FROM " . DB::tbl('athlet_pb') . " pb
-                 JOIN " . DB::tbl('athleten') . " a ON a.id=pb.athlet_id
-                 WHERE $pbErgWhere AND pb.resultat IS NOT NULL AND pb.resultat != ''
-                   AND pb.datum IS NOT NULL
-                 ORDER BY datum ASC, 1 ASC",
-                [$ergParam, $ergParam]
-            );
-        }
+        $extWhere = $extOnly ? " AND e.extern=1" : "";
+        $ergs = DB::fetchAll(
+            "SELECT e.resultat, $valExpr AS val_sort, v.datum, ($akExprTl) AS altersklasse,
+                    $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht, e.extern
+             FROM $tblN e
+             JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
+             LEFT JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
+             WHERE $ergWhere AND e.resultat IS NOT NULL AND e.resultat != ''
+               AND e.geloescht_am IS NULL AND v.datum IS NOT NULL$extWhere
+             ORDER BY v.datum ASC, e.id ASC",
+            [$ergParam]
+        );
 
         $bestGesamt   = null;
         $bestByG      = [];
@@ -2015,7 +2004,7 @@ if ($res === 'dashboard' && $method === 'GET') {
         return $cmp !== 0 ? $cmp : ($a['priority'] - $b['priority']);
     });
 
-    // (athlet_pb wird bereits per UNION in Phase 1 berücksichtigt)
+    // (externe Ergebnisse sind bereits in ergebnisse.extern=1 enthalten)
     $rekordeTimeline = array_slice($timelineEvents, 0, min((int)($_GET['timeline_limit'] ?? 20), 200));
 
     // Aktuelle Ergebnisse (mit fmt-Info aus disziplin_mapping)
@@ -2328,16 +2317,18 @@ if ($res === 'athleten') {
 
         if ($method === 'GET') {
             $rows = DB::fetchAll(
-                'SELECT pb.id, pb.disziplin, pb.resultat, pb.wettkampf, pb.datum, pb.verein, pb.altersklasse,
-                        pb.disziplin_mapping_id,
+                'SELECT e.id, e.disziplin, e.resultat, v.name AS wettkampf, v.datum, e.verein, e.altersklasse,
+                        e.disziplin_mapping_id, e.veranstaltung_id,
                         COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
                         COALESCE(dk.name, \'Sonstige\') AS kat_name,
                         COALESCE(dk.reihenfolge, 99) AS kat_sort,
-                        COALESCE(dm.disziplin, pb.disziplin) AS disziplin_mapped
-                 FROM ' . DB::tbl('athlet_pb') . ' pb
-                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=pb.disziplin_mapping_id
+                        COALESCE(dm.disziplin, e.disziplin) AS disziplin_mapped
+                 FROM ' . DB::tbl('ergebnisse') . ' e
+                 LEFT JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
+                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
                  LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
-                 WHERE pb.athlet_id=? ORDER BY dk.reihenfolge, pb.disziplin',
+                 WHERE e.athlet_id=? AND e.extern=1 AND e.geloescht_am IS NULL
+                 ORDER BY dk.reihenfolge, e.disziplin',
                 [$athletId]);
             jsonOk($rows);
         }
@@ -2345,33 +2336,34 @@ if ($res === 'athleten') {
             $disz = sanitize($body['disziplin'] ?? '');
             $res2 = sanitize($body['resultat']  ?? '');
             if (!$disz || !$res2) jsonErr('Disziplin und Ergebnis erforderlich.');
-            $dat = ($body['datum'] ?? '') ?: null;
-            $wk  = sanitize($body['wettkampf'] ?? '');
+            $vid  = intOrNull($body['veranstaltung_id'] ?? null);
+            if (!$vid) jsonErr('Veranstaltung erforderlich.');
             $vr   = sanitize($body['verein']    ?? '');
             $ak   = sanitize($body['altersklasse'] ?? '');
             $dmId = intOrNull($body['disziplin_mapping_id'] ?? null);
             $pbUser = Auth::requireLogin();
             DB::query(
-                'INSERT INTO ' . DB::tbl('athlet_pb') . ' (athlet_id, disziplin, resultat, wettkampf, datum, verein, altersklasse, disziplin_mapping_id, erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)',
-                [$athletId, $disz, $res2, $wk ?: null, $dat, $vr ?: null, $ak ?: null, $dmId, $pbUser['id']]);
+                'INSERT INTO ' . DB::tbl('ergebnisse') . ' (athlet_id, disziplin, resultat, veranstaltung_id, verein, altersklasse, disziplin_mapping_id, erstellt_von, extern) VALUES (?,?,?,?,?,?,?,?,1)',
+                [$athletId, $disz, $res2, $vid, $vr ?: null, $ak ?: null, $dmId, $pbUser['id']]);
             jsonOk(['id' => DB::lastInsertId()]);
         }
         if ($method === 'PUT' && $pbId) {
             $disz = sanitize($body['disziplin'] ?? '');
             $res2 = sanitize($body['resultat']  ?? '');
             if (!$disz || !$res2) jsonErr('Disziplin und Ergebnis erforderlich.');
-            $dat = ($body['datum'] ?? '') ?: null;
-            $wk  = sanitize($body['wettkampf'] ?? '');
+            $vid  = intOrNull($body['veranstaltung_id'] ?? null);
             $vr   = sanitize($body['verein']    ?? '');
             $ak   = sanitize($body['altersklasse'] ?? '');
             $dmId = intOrNull($body['disziplin_mapping_id'] ?? null);
-            DB::query(
-                'UPDATE ' . DB::tbl('athlet_pb') . ' SET disziplin=?, resultat=?, wettkampf=?, datum=?, verein=?, altersklasse=?, disziplin_mapping_id=? WHERE id=? AND athlet_id=?',
-                [$disz, $res2, $wk ?: null, $dat, $vr ?: null, $ak ?: null, $dmId, $pbId, $athletId]);
+            $felder = ['disziplin=?','resultat=?','verein=?','altersklasse=?','disziplin_mapping_id=?'];
+            $params = [$disz, $res2, $vr ?: null, $ak ?: null, $dmId];
+            if ($vid) { $felder[] = 'veranstaltung_id=?'; $params[] = $vid; }
+            $params[] = $pbId; $params[] = $athletId;
+            DB::query('UPDATE ' . DB::tbl('ergebnisse') . ' SET ' . implode(',', $felder) . ' WHERE id=? AND athlet_id=? AND extern=1', $params);
             jsonOk('OK');
         }
         if ($method === 'DELETE' && $pbId) {
-            DB::query('DELETE FROM ' . DB::tbl('athlet_pb') . ' WHERE id=? AND athlet_id=?', [$pbId, $athletId]);
+            DB::query('UPDATE ' . DB::tbl('ergebnisse') . ' SET geloescht_am=NOW() WHERE id=? AND athlet_id=? AND extern=1', [$pbId, $athletId]);
             jsonOk('OK');
         }
         jsonErr('Methode nicht erlaubt.', 405);
@@ -2584,16 +2576,18 @@ if ($res === 'athleten') {
             }
             $kategorien = array_values($kategorien);
             // Externe PBs mitsenden
-            $pbs = DB::fetchAll('SELECT pb.id, pb.disziplin, pb.resultat, pb.wettkampf, pb.datum, pb.verein, pb.altersklasse,
-                        pb.disziplin_mapping_id,
+            $pbs = DB::fetchAll('SELECT e.id, e.disziplin, e.resultat, v.name AS wettkampf, v.datum, e.verein, e.altersklasse,
+                        e.disziplin_mapping_id, e.veranstaltung_id,
                         COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
                         COALESCE(dk.name, \'Sonstige\') AS kat_name,
                         COALESCE(dk.reihenfolge, 99) AS kat_sort,
-                        COALESCE(dm.disziplin, pb.disziplin) AS disziplin_mapped
-                 FROM ' . DB::tbl('athlet_pb') . ' pb
-                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=pb.disziplin_mapping_id
+                        COALESCE(dm.disziplin, e.disziplin) AS disziplin_mapped
+                 FROM ' . DB::tbl('ergebnisse') . ' e
+                 LEFT JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
+                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
                  LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
-                 WHERE pb.athlet_id=? ORDER BY dk.reihenfolge, pb.disziplin', [(int)$id]);
+                 WHERE e.athlet_id=? AND e.extern=1 AND e.geloescht_am IS NULL
+                 ORDER BY dk.reihenfolge, e.disziplin', [(int)$id]);
             jsonOk(compact('athlet','kategorien','pbs'));
         } else {
             $strasse = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_strasse') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
@@ -4885,9 +4879,8 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
 
     // Teilnahmen-Ranking: ?teilnahmen=1
     if (isset($_GET['teilnahmen'])) {
-        $pbTbl = DB::tbl('athlet_pb');
         $aTbl  = DB::tbl('athleten');
-        // Vereins-Teilnahmen (pro Jahr = eine Teilnahme, egal wie viele Distanzen)
+        // Alle Teilnahmen aus ergebnisse (intern extern=0 und extern=1 getrennt aggregieren)
         $vereinsRows = DB::fetchAll(
             "SELECT a.id AS athlet_id, a.name_nv AS athlet, a.geschlecht,
                     COUNT(DISTINCT YEAR(v.datum)) AS teilnahmen,
@@ -4896,21 +4889,20 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
              FROM $eTbl e
              JOIN $aTbl a ON a.id=e.athlet_id
              JOIN $vTbl v ON v.id=e.veranstaltung_id
-             WHERE v.serie_id=? AND e.geloescht_am IS NULL
+             WHERE v.serie_id=? AND e.extern=0 AND e.geloescht_am IS NULL
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL AND v.genehmigt=1
              GROUP BY a.id, a.name_nv, a.geschlecht",
             [$id]
         );
-        // Externe Teilnahmen (athlet_pb mit veranstaltung_id in dieser Serie)
         $externRows = DB::fetchAll(
             "SELECT a.id AS athlet_id, a.name_nv AS athlet, a.geschlecht,
                     COUNT(DISTINCT YEAR(v.datum)) AS teilnahmen,
                     MIN(v.datum) AS erstes_jahr, MAX(v.datum) AS letztes_jahr,
                     1 AS nur_extern
-             FROM $pbTbl pb
-             JOIN $aTbl a ON a.id=pb.athlet_id
-             JOIN $vTbl v ON v.id=pb.veranstaltung_id
-             WHERE v.serie_id=? AND pb.veranstaltung_id IS NOT NULL
+             FROM $eTbl e
+             JOIN $aTbl a ON a.id=e.athlet_id
+             JOIN $vTbl v ON v.id=e.veranstaltung_id
+             WHERE v.serie_id=? AND e.extern=1 AND e.geloescht_am IS NULL
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL AND v.genehmigt=1
              GROUP BY a.id, a.name_nv, a.geschlecht",
             [$id]
@@ -4921,7 +4913,6 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
         foreach ($externRows as $er) {
             $idx = array_search($er['athlet_id'], $vereinsIds);
             if ($idx !== false) {
-                // Athlet hat beides: externe Starts addieren, extern=mixed
                 $merged[$idx]['teilnahmen'] += $er['teilnahmen'];
                 $merged[$idx]['extern_teilnahmen'] = (int)$er['teilnahmen'];
                 $merged[$idx]['nur_extern'] = 0;
@@ -4931,29 +4922,26 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
             }
         }
         usort($merged, function($a, $b) {
-            // 1. Gesamt-Teilnahmen absteigend
             $cmp = $b['teilnahmen'] <=> $a['teilnahmen'];
             if ($cmp !== 0) return $cmp;
-            // 2. Vereins-Teilnahmen absteigend (= Gesamt minus externe)
             $aVerein = (int)$a['teilnahmen'] - (int)($a['extern_teilnahmen'] ?? 0);
             $bVerein = (int)$b['teilnahmen'] - (int)($b['extern_teilnahmen'] ?? 0);
             $cmp2 = $bVerein <=> $aVerein;
             if ($cmp2 !== 0) return $cmp2;
-            // 3. Alphabetisch
             return strcmp($a['athlet'], $b['athlet']);
         });
-        // Jahre pro Athlet (Verein + Extern)
+        // Jahre pro Athlet
         $detailVerein = DB::fetchAll(
             "SELECT DISTINCT e.athlet_id, YEAR(v.datum) AS jahr, 0 AS extern
              FROM $eTbl e JOIN $vTbl v ON v.id=e.veranstaltung_id
-             WHERE v.serie_id=? AND e.geloescht_am IS NULL
+             WHERE v.serie_id=? AND e.extern=0 AND e.geloescht_am IS NULL
                AND v.geloescht_am IS NULL AND v.genehmigt=1",
             [$id]
         );
         $detailExtern = DB::fetchAll(
-            "SELECT DISTINCT pb.athlet_id, YEAR(v.datum) AS jahr, 1 AS extern
-             FROM $pbTbl pb JOIN $vTbl v ON v.id=pb.veranstaltung_id
-             WHERE v.serie_id=? AND pb.veranstaltung_id IS NOT NULL
+            "SELECT DISTINCT e.athlet_id, YEAR(v.datum) AS jahr, 1 AS extern
+             FROM $eTbl e JOIN $vTbl v ON v.id=e.veranstaltung_id
+             WHERE v.serie_id=? AND e.extern=1 AND e.geloescht_am IS NULL
                AND v.geloescht_am IS NULL AND v.genehmigt=1",
             [$id]
         );
@@ -4964,7 +4952,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
             if (!isset($jahreMap[$aid2][$jahr])) {
                 $jahreMap[$aid2][$jahr] = ['extern' => (bool)$row['extern']];
             } elseif (!$row['extern']) {
-                $jahreMap[$aid2][$jahr]['extern'] = false; // Vereins-Start gewinnt
+                $jahreMap[$aid2][$jahr]['extern'] = false;
             }
         }
         foreach ($merged as &$r) {
@@ -5043,22 +5031,19 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
              ORDER BY e.resultat_num ASC, e.resultat ASC",
             [$v['id']]
         );
-        $externErg = [];
-        try {
-            $externErg = DB::fetchAll(
-                "SELECT a.name_nv AS athlet, a.id AS athlet_id, pb.altersklasse, pb.disziplin,
-                        pb.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
-                        pb.resultat, NULL AS meisterschaft, NULL AS ak_platzierung, NULL AS ak_platz_meisterschaft,
-                        COALESCE(m.fmt_override, k.fmt) AS fmt,
-                        1 AS extern
-                 FROM " . DB::tbl('athlet_pb') . " pb
-                 JOIN " . DB::tbl('athleten') . " a ON a.id=pb.athlet_id
-                 LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=pb.disziplin_mapping_id
-                 LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
-                 WHERE pb.veranstaltung_id=?",
-                [$v['id']]
-            );
-        } catch (\Exception $e) {}
+        $externErg = DB::fetchAll(
+            "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
+                    e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
+                    e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
+                    COALESCE(m.fmt_override, k.fmt) AS fmt,
+                    1 AS extern
+             FROM $eTbl e
+             JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
+             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
+             LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
+             WHERE e.veranstaltung_id=? AND e.extern=1 AND e.geloescht_am IS NULL",
+            [$v['id']]
+        );
         $v['ergebnisse'] = array_merge($vereinErg, $externErg);
     }
     unset($v);
@@ -5128,15 +5113,13 @@ if ($res === 'veranstaltungen' && $method === 'GET' && !empty($_GET['admin'])) {
         $whereExtra = ' AND (v.name LIKE ? OR v.kuerzel LIKE ? OR v.ort LIKE ?)';
         $searchParams = [$s, $s, $s];
     }
-    $pbTbl = DB::tbl('athlet_pb');
     $veranst = DB::fetchAll(
         "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.serie_id,
-                COUNT(DISTINCT e.id) AS anz_ergebnisse,
-                COUNT(DISTINCT e.athlet_id) AS anz_athleten,
-                COUNT(DISTINCT pb.id) AS anz_extern
+                COUNT(DISTINCT CASE WHEN e.extern=0 THEN e.id END) AS anz_ergebnisse,
+                COUNT(DISTINCT CASE WHEN e.extern=0 THEN e.athlet_id END) AS anz_athleten,
+                COUNT(DISTINCT CASE WHEN e.extern=1 THEN e.id END) AS anz_extern
          FROM " . DB::tbl('veranstaltungen') . " v
          LEFT JOIN $eTbl e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
-         LEFT JOIN $pbTbl pb ON pb.veranstaltung_id = v.id
          WHERE v.geloescht_am IS NULL$whereExtra
          GROUP BY v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.serie_id
          ORDER BY v.datum DESC",
@@ -5223,22 +5206,19 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
              ORDER BY e.resultat_num ASC, e.resultat ASC",
             [$v['id']]
         );
-        $externErg = [];
-        try {
-            $externErg = DB::fetchAll(
-                "SELECT a.name_nv AS athlet, a.id AS athlet_id, pb.altersklasse, pb.disziplin,
-                        pb.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
-                        pb.resultat, NULL AS meisterschaft, NULL AS ak_platzierung, NULL AS ak_platz_meisterschaft,
-                        COALESCE(m.fmt_override, k.fmt) AS fmt,
-                        1 AS extern
-                 FROM " . DB::tbl('athlet_pb') . " pb
-                 JOIN " . DB::tbl('athleten') . " a ON a.id=pb.athlet_id
-                 LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=pb.disziplin_mapping_id
-                 LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
-                 WHERE pb.veranstaltung_id=?",
-                [$v['id']]
-            );
-        } catch (\Exception $e) {}
+        $externErg = DB::fetchAll(
+            "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
+                    e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
+                    e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
+                    COALESCE(m.fmt_override, k.fmt) AS fmt,
+                    1 AS extern
+             FROM $eTbl e
+             JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
+             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
+             LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
+             WHERE e.veranstaltung_id=? AND e.extern=1 AND e.geloescht_am IS NULL",
+            [$v['id']]
+        );
         $v['ergebnisse'] = array_merge($vereinErg, $externErg);
     }
     unset($v);
@@ -5250,7 +5230,6 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
         $serienParams = ['%'.$suche.'%', '%'.$suche.'%'];
     }
     $vTbl2  = DB::tbl('veranstaltungen');
-    $pbTbl2 = DB::tbl('athlet_pb');
     $sTbl2  = DB::tbl('veranstaltung_serien');
     $oTbl3  = DB::tbl('orte');
     $serien = DB::fetchAll(
@@ -5258,23 +5237,11 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
                 (SELECT COUNT(*) FROM $eTbl ei
                  JOIN $vTbl2 vi ON vi.id=ei.veranstaltung_id
                  WHERE vi.serie_id=s.id AND vi.geloescht_am IS NULL AND vi.genehmigt=1 AND ei.geloescht_am IS NULL)
-                +
-                (SELECT COUNT(*) FROM $pbTbl2 pi
-                 JOIN $vTbl2 vpi ON vpi.id=pi.veranstaltung_id
-                 WHERE vpi.serie_id=s.id AND vpi.geloescht_am IS NULL AND vpi.genehmigt=1 AND pi.veranstaltung_id IS NOT NULL)
                 AS anz_ergebnisse,
                 (SELECT COUNT(DISTINCT ei2.athlet_id) FROM $eTbl ei2
                  JOIN $vTbl2 vi2 ON vi2.id=ei2.veranstaltung_id
                  WHERE vi2.serie_id=s.id AND vi2.geloescht_am IS NULL AND vi2.genehmigt=1 AND ei2.geloescht_am IS NULL)
-                +
-                (SELECT COUNT(DISTINCT pi2.athlet_id) FROM $pbTbl2 pi2
-                 JOIN $vTbl2 vpi2 ON vpi2.id=pi2.veranstaltung_id
-                 WHERE vpi2.serie_id=s.id AND vpi2.geloescht_am IS NULL AND vpi2.genehmigt=1 AND pi2.veranstaltung_id IS NOT NULL
-                 AND pi2.athlet_id NOT IN (
-                   SELECT ei3.athlet_id FROM $eTbl ei3
-                   JOIN $vTbl2 vi3 ON vi3.id=ei3.veranstaltung_id
-                   WHERE vi3.serie_id=s.id AND vi3.geloescht_am IS NULL AND vi3.genehmigt=1 AND ei3.geloescht_am IS NULL
-                 )) AS anz_athleten,
+                AS anz_athleten,
                 COUNT(DISTINCT v.id) AS anz_austragungen,
                 MIN(YEAR(v.datum))   AS jahr_von,
                 MAX(YEAR(v.datum))   AS jahr_bis,
@@ -5326,63 +5293,62 @@ if ($res === 'veranstaltungen' && $method === 'DELETE' && $id) {
 }
 
 // ============================================================
-// EXTERNE ERGEBNISSE (athlet_pb) – Ergebnisse-Seite
+// EXTERNE ERGEBNISSE – Ergebnisse-Seite
 // ============================================================
 if ($res === 'externe-ergebnisse' && $method === 'GET' && !$id) {
     $user = Auth::requireRecht('externe_ergebnisse_sehen');
-    $pbTbl = DB::tbl('athlet_pb');
+    $eTblX = DB::tbl('ergebnisse');
     $aTbl  = DB::tbl('athleten');
     $vTbl  = DB::tbl('veranstaltungen');
     $dmTbl = DB::tbl('disziplin_mapping');
     $dkTbl = DB::tbl('disziplin_kategorien');
-    $where = ['1=1']; $params = [];
+    $oTbl  = DB::tbl('orte');
+    $where = ['e.extern=1', 'e.geloescht_am IS NULL']; $params = [];
     if (!empty($_GET['athlet']))   { $where[] = 'a.name_nv LIKE ?'; $params[] = '%'.$_GET['athlet'].'%'; }
-    if (!empty($_GET['athlet_id'])) { $where[] = 'pb.athlet_id=?'; $params[] = (int)$_GET['athlet_id']; }
-    if (!empty($_GET['disziplin_mapping_id'])) { $where[] = 'pb.disziplin_mapping_id=?'; $params[] = (int)$_GET['disziplin_mapping_id']; }
-    elseif (!empty($_GET['disziplin'])) { $where[] = 'pb.disziplin=?'; $params[] = $_GET['disziplin']; }
-    if (!empty($_GET['ak'])) { $where[] = 'pb.altersklasse=?'; $params[] = $_GET['ak']; }
-    if (!empty($_GET['jahr'])) { $where[] = 'YEAR(pb.datum)=?'; $params[] = (int)$_GET['jahr']; }
-    if (!empty($_GET['athlet'])) {} // already handled
-    $sortMap = ['datum'=>'pb.datum','athlet'=>'a.name_nv','ak'=>'pb.altersklasse','disziplin'=>'pb.disziplin','resultat'=>'pb.resultat'];
+    if (!empty($_GET['athlet_id'])) { $where[] = 'e.athlet_id=?'; $params[] = (int)$_GET['athlet_id']; }
+    if (!empty($_GET['disziplin_mapping_id'])) { $where[] = 'e.disziplin_mapping_id=?'; $params[] = (int)$_GET['disziplin_mapping_id']; }
+    elseif (!empty($_GET['disziplin'])) { $where[] = 'e.disziplin=?'; $params[] = $_GET['disziplin']; }
+    if (!empty($_GET['ak'])) { $where[] = 'e.altersklasse=?'; $params[] = $_GET['ak']; }
+    if (!empty($_GET['jahr'])) { $where[] = 'YEAR(v.datum)=?'; $params[] = (int)$_GET['jahr']; }
+    $sortMap = ['datum'=>'v.datum','athlet'=>'a.name_nv','ak'=>'e.altersklasse','disziplin'=>'e.disziplin','resultat'=>'e.resultat'];
     $sortKey = $_GET['sort'] ?? 'datum'; $sortDir = strtoupper($_GET['dir'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
-    $sortCol = $sortMap[$sortKey] ?? 'pb.datum';
+    $sortCol = $sortMap[$sortKey] ?? 'v.datum';
     $limit = min((int)($_GET['limit'] ?? 100), 500); $offset = (int)($_GET['offset'] ?? 0);
     $wStr = implode(' AND ', $where);
-    $sql = "SELECT pb.id, a.name_nv AS athlet, a.id AS athlet_id, pb.altersklasse,
-                   pb.disziplin, pb.disziplin_mapping_id, pb.resultat,
-                   pb.datum, pb.wettkampf AS veranstaltung, pb.veranstaltung_id, pb.verein,
-                   NULL AS ort, NULL AS veranstaltung_ort,
-                   COALESCE(v.name, pb.wettkampf) AS veranstaltung_name,
-                   NULL AS veranstaltung_quelle,
-                   v.serie_id AS verknuepfte_serie_id,
-                   v.name AS verknuepfte_veranstaltung_name,
+    $sql = "SELECT e.id, a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse,
+                   e.disziplin, e.disziplin_mapping_id, e.resultat,
+                   v.datum, v.name AS veranstaltung, e.veranstaltung_id, e.verein,
+                   COALESCE(o.name, v.ort) AS ort, COALESCE(o.name, v.ort) AS veranstaltung_ort,
+                   v.name AS veranstaltung_name, NULL AS veranstaltung_quelle,
+                   v.serie_id AS verknuepfte_serie_id, v.name AS verknuepfte_veranstaltung_name,
                    COALESCE(CONCAT(ab.vorname,' ',ab.nachname), b.benutzername) AS eingetragen_von,
-                   pb.datum AS erstellt_am,
-                   NULL AS ak_platzierung, NULL AS meisterschaft, NULL AS ak_platz_meisterschaft,
+                   e.erstellt_am,
+                   e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft,
                    COALESCE(dm.fmt_override, dk.fmt) AS fmt,
                    dk.name AS kategorie_name, dk.tbl_key AS kategorie_key,
                    1 AS extern
-            FROM $pbTbl pb
-            JOIN $aTbl a ON a.id=pb.athlet_id
-            LEFT JOIN $vTbl v ON v.id=pb.veranstaltung_id
-            LEFT JOIN " . DB::tbl('benutzer') . " b ON b.id=pb.erstellt_von
+            FROM $eTblX e
+            JOIN $aTbl a ON a.id=e.athlet_id
+            LEFT JOIN $vTbl v ON v.id=e.veranstaltung_id
+            LEFT JOIN $oTbl o ON o.id=v.ort_id
+            LEFT JOIN " . DB::tbl('benutzer') . " b ON b.id=e.erstellt_von
             LEFT JOIN $aTbl ab ON ab.id=b.athlet_id
-            LEFT JOIN $dmTbl dm ON dm.id=pb.disziplin_mapping_id
+            LEFT JOIN $dmTbl dm ON dm.id=e.disziplin_mapping_id
             LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id
             WHERE a.geloescht_am IS NULL AND $wStr
-            ORDER BY $sortCol $sortDir, pb.id DESC LIMIT $limit OFFSET $offset";
+            ORDER BY $sortCol $sortDir, e.id DESC LIMIT $limit OFFSET $offset";
     $rows  = DB::fetchAll($sql, $params);
-    $total = (int)DB::fetchOne("SELECT COUNT(*) c FROM $pbTbl pb JOIN $aTbl a ON a.id=pb.athlet_id WHERE a.geloescht_am IS NULL AND $wStr", $params)['c'];
-    $disziplinen = DB::fetchAll("SELECT DISTINCT pb.disziplin, pb.disziplin_mapping_id, dk.name AS kategorie_name FROM $pbTbl pb LEFT JOIN $dmTbl dm ON dm.id=pb.disziplin_mapping_id LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id WHERE 1=1 ORDER BY pb.disziplin");
-    $aks   = array_column(DB::fetchAll("SELECT DISTINCT pb.altersklasse FROM $pbTbl pb WHERE pb.altersklasse IS NOT NULL ORDER BY pb.altersklasse"), 'altersklasse');
-    $jahre = array_column(DB::fetchAll("SELECT DISTINCT YEAR(pb.datum) j FROM $pbTbl pb WHERE pb.datum IS NOT NULL ORDER BY j DESC"), 'j');
-    jsonOk(compact('rows','total','disziplinen','aks','jahre','kategorien') + ['kategorien'=>[]]);
+    $total = (int)DB::fetchOne("SELECT COUNT(*) c FROM $eTblX e JOIN $aTbl a ON a.id=e.athlet_id LEFT JOIN $vTbl v ON v.id=e.veranstaltung_id WHERE a.geloescht_am IS NULL AND $wStr", $params)['c'];
+    $disziplinen = DB::fetchAll("SELECT DISTINCT e.disziplin, e.disziplin_mapping_id, dk.name AS kategorie_name FROM $eTblX e LEFT JOIN $dmTbl dm ON dm.id=e.disziplin_mapping_id LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id WHERE e.extern=1 AND e.geloescht_am IS NULL ORDER BY e.disziplin");
+    $aks   = array_column(DB::fetchAll("SELECT DISTINCT e.altersklasse FROM $eTblX e WHERE e.extern=1 AND e.geloescht_am IS NULL AND e.altersklasse IS NOT NULL ORDER BY e.altersklasse"), 'altersklasse');
+    $jahre = array_column(DB::fetchAll("SELECT DISTINCT YEAR(v.datum) j FROM $eTblX e LEFT JOIN $vTbl v ON v.id=e.veranstaltung_id WHERE e.extern=1 AND e.geloescht_am IS NULL AND v.datum IS NOT NULL ORDER BY j DESC"), 'j');
+    jsonOk(compact('rows','total','disziplinen','aks','jahre') + ['kategorien'=>[]]);
 }
 
-// externe-ergebnisse DELETE
+// externe-ergebnisse DELETE (Soft-Delete)
 if ($res === 'externe-ergebnisse' && $method === 'DELETE' && $id) {
     $user = Auth::requireEditor();
-    DB::query('DELETE FROM ' . DB::tbl('athlet_pb') . ' WHERE id=?', [(int)$id]);
+    DB::query('UPDATE ' . DB::tbl('ergebnisse') . ' SET geloescht_am=NOW() WHERE id=? AND extern=1', [(int)$id]);
     jsonOk('Gelöscht.');
 }
 
@@ -5390,25 +5356,18 @@ if ($res === 'externe-ergebnisse' && $method === 'DELETE' && $id) {
 if ($res === 'externe-ergebnisse' && $method === 'PUT' && $id) {
     $user = Auth::requireEditor();
     $felder = []; $params = [];
-    if (isset($body['disziplin']))          { $felder[] = 'disziplin=?';          $params[] = sanitize($body['disziplin']); }
+    if (isset($body['disziplin']))           { $felder[] = 'disziplin=?';           $params[] = sanitize($body['disziplin']); }
     if (isset($body['disziplin_mapping_id'])){ $felder[] = 'disziplin_mapping_id=?'; $params[] = intOrNull($body['disziplin_mapping_id']); }
-    if (isset($body['resultat']))           { $felder[] = 'resultat=?';           $params[] = sanitize($body['resultat']); }
-    if (isset($body['altersklasse']))       { $felder[] = 'altersklasse=?';       $params[] = sanitize($body['altersklasse']) ?: null; }
-    if (isset($body['wettkampf']))          { $felder[] = 'wettkampf=?';          $params[] = sanitize($body['wettkampf']) ?: null; }
-    if (isset($body['datum']))              { $felder[] = 'datum=?';              $params[] = sanitize($body['datum']) ?: null; }
-    if (isset($body['verein']))             { $felder[] = 'verein=?';             $params[] = sanitize($body['verein']) ?: null; }
+    if (isset($body['resultat']))            { $felder[] = 'resultat=?';             $params[] = sanitize($body['resultat']); }
+    if (isset($body['altersklasse']))        { $felder[] = 'altersklasse=?';         $params[] = sanitize($body['altersklasse']) ?: null; }
+    if (isset($body['verein']))              { $felder[] = 'verein=?';               $params[] = sanitize($body['verein']) ?: null; }
     if (array_key_exists('veranstaltung_id', $body)) {
         $vid = $body['veranstaltung_id'] ? (int)$body['veranstaltung_id'] : null;
         $felder[] = 'veranstaltung_id=?';
         $params[] = $vid;
-        // wettkampf mit Veranstaltungsname synchronisieren, wenn veranstaltung_id gesetzt
-        if ($vid && !isset($body['wettkampf'])) {
-            $vRow = DB::fetchOne('SELECT name FROM ' . DB::tbl('veranstaltungen') . ' WHERE id=?', [$vid]);
-            if ($vRow) { $felder[] = 'wettkampf=?'; $params[] = $vRow['name']; }
-        }
     }
     if (!$felder) jsonErr('Keine Änderungen.');
-    DB::updateById(DB::tbl('athlet_pb'), $felder, $params, (int)$id);
+    DB::updateById(DB::tbl('ergebnisse'), $felder, $params, (int)$id);
     jsonOk('Gespeichert.');
 }
 
@@ -5525,34 +5484,25 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         $dmFmt = $dmInfo['fmt'] ?? 'min';
         [$resultat, $rnum] = normalizeResultat($resultat, $dmFmt);
 
-        // Externes Ergebnis (nicht für den Verein) → athlet_pb statt ergebnisse
-        $verein    = sanitize($item['verein'] ?? '');
+        $verein   = sanitize($item['verein'] ?? '');
         $isExtern = !empty($item['extern']);
-        if ($isExtern) {
-            $wettkampf = trim(($evname ?: '') . ($ort ? ', ' . $ort : '') . ($datum ? ' (' . $datum . ')' : ''));
-            $dupPb = DB::fetchOne('SELECT id FROM ' . DB::tbl('athlet_pb') . ' WHERE athlet_id=? AND disziplin=? AND resultat=?',
-                [$aid, $disziplin, $resultat]);
-            if ($dupPb) { $skipped++; continue; }
-            // Auch gegen interne Ergebnisse prüfen (falls bereits als Vereinsergebnis vorhanden)
-            $dupInt = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
-                [$aid, $disziplin, $resultat]);
-            if ($dupInt) { $skipped++; continue; }
-            DB::query('INSERT INTO ' . DB::tbl('athlet_pb') . ' (athlet_id, disziplin, disziplin_mapping_id, resultat, wettkampf, datum, altersklasse, verein, veranstaltung_id, erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?)',
-                [$aid, $disziplin, $dmInfo ? (int)$dmInfo['id'] : null, $resultat, $wettkampf, $datum ?: null, $ak, $verein ?: null, $vid ?: null, $user['id'] ?? null]);
-            autoMapDisziplin($disziplin);
-            $imported++;
-            continue;
-        }
 
+        // Duplikat-Check: gleicher Athlet, gleiche Disziplin, gleiches Ergebnis in ergebnisse
         $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
             [$vid, $aid, $disziplin, $resultat]);
         if ($dup) { $skipped++; continue; }
-        // Auch gegen externe Ergebnisse prüfen (athlet_pb)
-        $dupExt = DB::fetchOne('SELECT id FROM ' . DB::tbl('athlet_pb') . ' WHERE athlet_id=? AND disziplin=? AND resultat=? AND (veranstaltung_id=? OR veranstaltung_id IS NULL)',
-            [$aid, $disziplin, $resultat, $vid]);
-        if ($dupExt) { $skipped++; continue; }
-        DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-            [$vid,$aid,$ak,$disziplin,$dmInfo ? (int)$dmInfo['id'] : null,$resultat,$rnum,$akp,$mstr,$akpm,$quelle,$user['id']]);
+        // Auch cross-prüfen: externes ↔ internes am selben Wettkampf
+        $dupCross = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE athlet_id=? AND disziplin=? AND resultat=? AND extern!=? AND geloescht_am IS NULL',
+            [$aid, $disziplin, $resultat, $isExtern ? 1 : 0]);
+        if ($dupCross) { $skipped++; continue; }
+
+        if ($isExtern) {
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,import_quelle,erstellt_von,extern,verein) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,?)",
+                [$vid,$aid,$ak,$disziplin,$dmInfo ? (int)$dmInfo['id'] : null,$resultat,$rnum,$akp,$mstr,$akpm,$quelle,$user['id'],$verein ?: null]);
+        } else {
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$dmInfo ? (int)$dmInfo['id'] : null,$resultat,$rnum,$akp,$mstr,$akpm,$quelle,$user['id']]);
+        }
         autoMapDisziplin($disziplin);
         $imported++;
     }
@@ -5711,15 +5661,13 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'verwaist' && $method
     Auth::requireAdmin();
     $eTbl = ergebnisTbl('strasse', $unified, $_sys);
     $vTbl = DB::tbl('veranstaltungen');
-    $pbTbl = DB::tbl('athlet_pb');
     $rows = DB::fetchAll(
         "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.erstellt_am
          FROM $vTbl v
          LEFT JOIN $eTbl e ON e.veranstaltung_id=v.id AND e.geloescht_am IS NULL
-         LEFT JOIN $pbTbl pb ON pb.veranstaltung_id=v.id AND pb.geloescht_am IS NULL
          WHERE v.geloescht_am IS NULL
          GROUP BY v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.erstellt_am
-         HAVING COUNT(e.id) = 0 AND COUNT(pb.id) = 0
+         HAVING COUNT(e.id) = 0
          ORDER BY v.datum DESC
          LIMIT 500"
     );
