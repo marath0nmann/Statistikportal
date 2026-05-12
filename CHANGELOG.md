@@ -1,3 +1,6 @@
+## v1307
+- Bulk-Eintragen: „Unbekannte Altersklassen"-Dialog – Default-Auswahl von „DLV-AK zuordnen" auf „So übernehmen" geändert
+
 ## v1306
 - Bulk-Eintragen: „Laufserie erkannt"-Dialog entfernt – mehrere Ergebnisse pro Athlet/Disziplin in einer Veranstaltung sind normal und kein Indiz für eine Laufserie
 

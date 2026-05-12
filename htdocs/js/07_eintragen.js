@@ -5305,16 +5305,16 @@ async function rrUnknownAKModal(unknownAKs) {
         '<td style="padding:6px 12px">' +
           '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
             '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
-              '<input type="radio" name="rruk-action-' + i + '" value="map" checked onchange="rrukToggle(' + i + ',\'map\')"> DLV-AK zuordnen' +
+              '<input type="radio" name="rruk-action-' + i + '" value="map" onchange="rrukToggle(' + i + ',\'map\')"> DLV-AK zuordnen' +
             '</label>' +
             '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
-              '<input type="radio" name="rruk-action-' + i + '" value="keep" onchange="rrukToggle(' + i + ',\'keep\')"> So übernehmen' +
+              '<input type="radio" name="rruk-action-' + i + '" value="keep" checked onchange="rrukToggle(' + i + ',\'keep\')"> So übernehmen' +
             '</label>' +
             '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">' +
               '<input type="radio" name="rruk-action-' + i + '" value="empty" onchange="rrukToggle(' + i + ',\'empty\')"> Leer lassen' +
             '</label>' +
           '</div>' +
-          '<div id="rruk-map-' + i + '" style="margin-top:6px">' +
+          '<div id="rruk-map-' + i + '" style="margin-top:6px;display:none">' +
             '<select id="rruk-sel-' + i + '" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text);width:120px">' +
               dlvOpts +
             '</select>' +
