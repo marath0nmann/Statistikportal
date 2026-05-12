@@ -1,3 +1,6 @@
+## v1312
+- Athletenprofil: „Externes Ergebnis bearbeiten"-Modal verwendet jetzt Veranstaltungs-Picker statt Freitext-Felder (Datum/Wettkampf); Veranstaltung ist Pflichtfeld
+
 ## v1311
 - Admin Veranstaltungen: Neue Veranstaltung anlegen (Button im Panel-Header, POST /veranstaltungen in API)
 

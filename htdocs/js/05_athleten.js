@@ -851,6 +851,8 @@ function _pbUpdateDiszDropdown() {
 
 function showPbModal(athletId, pbId) {
   var isEdit = !!pbId;
+  window._pbVid = null;
+  window._pbVname = '';
 
   // Kategorie-Optionen aus state.disziplinen
   var katsSeen = {};
@@ -883,13 +885,13 @@ function showPbModal(athletId, pbId) {
         '<label>Altersklasse</label>' +
         '<input id="_pb-ak" type="text" placeholder="z.B. M40">' +
       '</div>' +
-      '<div class="form-group">' +
-        '<label>Datum</label>' +
-        '<input id="_pb-datum" type="date" onchange="_pbAutoAk(' + athletId + ')">' +
-      '</div>' +
-      '<div class="form-group">' +
-        '<label>Wettkampf</label>' +
-        '<input id="_pb-wk" type="text" placeholder="z.B. Berlin-Marathon">' +
+      '<div class="form-group full">' +
+        '<label>Veranstaltung <span style="color:var(--accent)">*</span></label>' +
+        '<input type="text" id="_pb-veranst-search" placeholder="Name suchen…" oninput="_pbVeranstSearch(this.value)" autocomplete="off"/>' +
+        '<div id="_pb-veranst-results" style="margin-top:4px"></div>' +
+        '<div id="_pb-veranst-current" style="font-size:12px;color:var(--text2);margin-top:4px">' +
+          '<span style="color:var(--accent)">Pflichtfeld – bitte Veranstaltung auswählen</span>' +
+        '</div>' +
       '</div>' +
       '<div class="form-group full">' +
         '<label>Verein <span style="font-size:11px;color:var(--text2)">(leer = kein Verein angegeben)</span></label>' +
@@ -912,8 +914,12 @@ function showPbModal(athletId, pbId) {
       for (var i = 0; i < list.length; i++) {
         if (String(list[i].id) === String(pbId)) {
           document.getElementById('_pb-res').value   = list[i].resultat   || '';
-          document.getElementById('_pb-datum').value = list[i].datum      || '';
-          document.getElementById('_pb-wk').value    = list[i].wettkampf  || '';
+          if (list[i].veranstaltung_id) {
+            var vname = (list[i].wettkampf || '') + (list[i].datum ? ' (' + list[i].datum.slice(0,4) + ')' : '');
+            _pbVeranstSelect(list[i].veranstaltung_id, vname);
+            var pbSearchInp = document.getElementById('_pb-veranst-search');
+            if (pbSearchInp) pbSearchInp.value = window._pbVname;
+          }
           if (document.getElementById('_pb-verein')) document.getElementById('_pb-verein').value = list[i].verein || '';
           if (document.getElementById('_pb-ak')) document.getElementById('_pb-ak').value = list[i].altersklasse || '';
           // Kategorie + Disziplin-Dropdown vorbelegen
@@ -936,10 +942,10 @@ function showPbModal(athletId, pbId) {
 async function savePb(athletId, pbId) {
   var disz = (document.getElementById('_pb-disz').value || '').trim();
   var res  = (document.getElementById('_pb-res').value  || '').trim();
-  var dat  = (document.getElementById('_pb-datum').value || '').trim();
-  var wk   = (document.getElementById('_pb-wk').value   || '').trim();
+  var vid  = window._pbVid || null;
   var err  = document.getElementById('_pb-err');
   if (!disz || !res) { err.textContent = 'Disziplin und Ergebnis sind Pflichtfelder.'; return; }
+  if (!vid) { err.textContent = 'Bitte eine Veranstaltung auswählen.'; return; }
   var vr   = (document.getElementById('_pb-verein') ? document.getElementById('_pb-verein').value.trim() : '') || '';
   var ak   = (document.getElementById('_pb-ak') ? document.getElementById('_pb-ak').value.trim() : '') || '';
   var dmId = null;
@@ -951,7 +957,7 @@ async function savePb(athletId, pbId) {
     if (dm) disz = dm.disziplin;
   }
   if (!dmId) { err.textContent = 'Bitte Kategorie und Disziplin wählen.'; return; }
-  var body = { disziplin: disz, resultat: res, datum: dat || null, wettkampf: wk || null, verein: vr || null, altersklasse: ak || null, disziplin_mapping_id: dmId };
+  var body = { disziplin: disz, resultat: res, veranstaltung_id: vid, verein: vr || null, altersklasse: ak || null, disziplin_mapping_id: dmId };
   var r = pbId ? await apiPut('athleten/' + athletId + '/pb/' + pbId, body)
                : await apiPost('athleten/' + athletId + '/pb', body);
   if (!r || !r.ok) { err.textContent = r ? r.fehler : 'Fehler'; return; }
@@ -960,6 +966,43 @@ async function savePb(athletId, pbId) {
   _apState.pbs = (reloaded && reloaded.ok) ? (reloaded.data || []) : _apState.pbs;
   closeModal();
   _apRender();
+}
+
+var _pbSearchTimer = null;
+function _pbVeranstSearch(q) {
+  var box = document.getElementById('_pb-veranst-results');
+  if (!box) return;
+  if (!q || q.length < 2) { box.innerHTML = ''; return; }
+  clearTimeout(_pbSearchTimer);
+  box.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:4px 0">Suche…</div>';
+  _pbSearchTimer = setTimeout(async function() {
+    var r = await apiGet('veranstaltungen?suche=' + encodeURIComponent(q) + '&limit=200');
+    var matches = (r && r.ok && r.data && r.data.veranst) ? r.data.veranst : [];
+    if (!matches.length) { box.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:4px 0">Keine Treffer</div>'; return; }
+    box.innerHTML = '<div style="border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-top:2px;max-height:200px;overflow-y:auto">' +
+      matches.map(function(v) {
+        var label = (v.name || v.kuerzel || '') + (v.datum ? ' (' + v.datum.slice(0,4) + ')' : '');
+        return '<div class="ext-veranst-option" data-vid="' + v.id + '" data-vname="' + label.replace(/"/g,'&quot;') + '" ' +
+          'style="padding:7px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);background:var(--surf)">' +
+          label + '</div>';
+      }).join('') +
+    '</div>';
+    box.addEventListener('click', function(ev) {
+      var opt = ev.target.closest('.ext-veranst-option');
+      if (opt) _pbVeranstSelect(parseInt(opt.dataset.vid), opt.dataset.vname);
+    }, { once: true });
+  }, 300);
+}
+
+function _pbVeranstSelect(id, name) {
+  window._pbVid = id;
+  window._pbVname = name;
+  var inp = document.getElementById('_pb-veranst-search');
+  if (inp) inp.value = name;
+  var box = document.getElementById('_pb-veranst-results');
+  if (box) box.innerHTML = '';
+  var cur = document.getElementById('_pb-veranst-current');
+  if (cur) cur.innerHTML = '&#x1F517; ' + name;
 }
 
 function deletePb(athletId, pbId, disz) {

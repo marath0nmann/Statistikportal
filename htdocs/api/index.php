@@ -2352,12 +2352,12 @@ if ($res === 'athleten') {
             $res2 = sanitize($body['resultat']  ?? '');
             if (!$disz || !$res2) jsonErr('Disziplin und Ergebnis erforderlich.');
             $vid  = intOrNull($body['veranstaltung_id'] ?? null);
+            if (!$vid) jsonErr('Veranstaltung erforderlich.');
             $vr   = sanitize($body['verein']    ?? '');
             $ak   = sanitize($body['altersklasse'] ?? '');
             $dmId = intOrNull($body['disziplin_mapping_id'] ?? null);
-            $felder = ['disziplin=?','resultat=?','verein=?','altersklasse=?','disziplin_mapping_id=?'];
-            $params = [$disz, $res2, $vr ?: null, $ak ?: null, $dmId];
-            if ($vid) { $felder[] = 'veranstaltung_id=?'; $params[] = $vid; }
+            $felder = ['disziplin=?','resultat=?','verein=?','altersklasse=?','disziplin_mapping_id=?','veranstaltung_id=?'];
+            $params = [$disz, $res2, $vr ?: null, $ak ?: null, $dmId, $vid];
             $params[] = $pbId; $params[] = $athletId;
             DB::query('UPDATE ' . DB::tbl('ergebnisse') . ' SET ' . implode(',', $felder) . ' WHERE id=? AND athlet_id=? AND extern=1', $params);
             jsonOk('OK');
