@@ -1,3 +1,6 @@
+## v1308
+- Fix: RaceResult-Import entfernt Jahrgang in Klammern am Namensende (z.B. „Schulte, Julius (2001)") – verhindert Duplikate wenn dieselbe Person in Ziel- und Altersklassenliste unterschiedlich formatiert ist
+
 ## v1307
 - Bulk-Eintragen: „Unbekannte Altersklassen"-Dialog – Default-Auswahl von „DLV-AK zuordnen" auf „So übernehmen" geändert
 

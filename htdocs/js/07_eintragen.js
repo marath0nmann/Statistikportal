@@ -1601,7 +1601,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
           if(!Array.isArray(row)||row.length<3)return;
           var club=iClub>=0?String(row[iClub]||'').trim():'';
           if(!externMode){if(clubPhrase&&club.toLowerCase().indexOf(clubPhrase)<0)return;}
-          var rName=String(row[iName]||'').trim();
+          var rName=String(row[iName]||'').trim().replace(/\s*\(\d{4}\)\s*$/,''); // "(2001)" am Namensende entfernen
           var rZeit=String(row[iNetto>=0?iNetto:iZeit]||'').trim();
           if(!rZeit||!/\d{1,2}:\d{2}|\d+[,.]\d+/.test(rZeit))return;
           rZeit=fmtRes(rZeit); // Komma als Dezimaltrennzeichen für Anzeige
