@@ -1815,7 +1815,7 @@ if ($res === 'dashboard' && $method === 'GET') {
         $mergeAKTl = ($_GET['merge_ak_tl'] ?? '1') !== '0';
         $akExprTl  = buildAkCaseExpr($mergeAKTl);
         $extOnly = $dInfo['ext_only'] ?? false;
-        $extWhere = $extOnly ? " AND e.extern=1" : "";
+        $extWhere = $extOnly ? " AND e.extern=1" : " AND e.extern=0";
         $ergs = DB::fetchAll(
             "SELECT e.resultat, $valExpr AS val_sort, v.datum, ($akExprTl) AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht, e.extern
@@ -2019,7 +2019,7 @@ if ($res === 'dashboard' && $method === 'GET') {
          JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
          LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
          LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
-         WHERE e.geloescht_am IS NULL AND v.genehmigt = 1
+         WHERE e.geloescht_am IS NULL AND e.extern=0 AND v.genehmigt = 1
          ORDER BY v.datum DESC, e.id DESC LIMIT 20"
     );
 
@@ -2425,7 +2425,7 @@ if ($res === 'athleten') {
                     ' JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id = e.veranstaltung_id' .
                     ' LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' m ON m.id = e.disziplin_mapping_id' .
                     ' LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' k ON k.id = m.kategorie_id' .
-                    ' WHERE e.athlet_id = ? AND e.ak_platzierung = 1 AND e.meisterschaft IS NOT NULL AND e.geloescht_am IS NULL',
+                    ' WHERE e.athlet_id = ? AND e.ak_platzierung = 1 AND e.meisterschaft IS NOT NULL AND e.geloescht_am IS NULL AND e.extern=0',
                     [$athletId]
                 );
                 // Athleten-Geschlecht für Suffix
@@ -2464,7 +2464,7 @@ if ($res === 'athleten') {
                  FROM " . DB::tbl('ergebnisse') . " e
                  LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
                  LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
-                 WHERE e.geloescht_am IS NULL
+                 WHERE e.geloescht_am IS NULL AND e.extern=0
                  ORDER BY COALESCE(k.reihenfolge, 99), e.disziplin",
                 []
             );
@@ -2482,13 +2482,13 @@ if ($res === 'athleten') {
                 $hofParam = $mappingId ?? $disz;
                 // Bestes dieses Athleten in dieser Disziplin
                 $bestMe = DB::fetchOne(
-                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
+                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
                     [$hofParam, $athletId]
                 );
                 if (!$bestMe) continue;
                 $myVal = (float)$bestMe['val'];
                 // 1. Gesamtbestleistung?
-                $bestAll = DB::fetchOne("SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1", [$hofParam]);
+                $bestAll = DB::fetchOne("SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1", [$hofParam]);
                 $isGesamtBest = $bestAll && abs($myVal - (float)$bestAll['val']) < 0.001;
                 if ($isGesamtBest) {
                     $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Gesamtbestleistung', 'kat_name' => $katName];
@@ -2497,7 +2497,7 @@ if ($res === 'athleten') {
                 // 2. Geschlechts-Bestleistung? (nur wenn nicht bereits Tier 1)
                 if (!$isGesamtBest && ($athGeschlecht2 === 'M' || $athGeschlecht2 === 'W')) {
                     $bestG = DB::fetchOne(
-                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id WHERE $hofWhere AND a.geschlecht=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
+                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id WHERE $hofWhere AND a.geschlecht=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
                         [$hofParam, $athGeschlecht2]
                     );
                     if ($bestG && abs($myVal - (float)$bestG['val']) < 0.001) {
@@ -2509,19 +2509,19 @@ if ($res === 'athleten') {
                 // Altersklasse(n) dieses Athleten in dieser Disziplin ermitteln
                 // AKs dieses Athleten MIT merge (identisch zu HoF)
                 $myAKs = DB::fetchAll(
-                    "SELECT DISTINCT ($akExprAusz) AS altersklasse FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz) IS NOT NULL AND ($akExprAusz) != '' AND e.geloescht_am IS NULL",
+                    "SELECT DISTINCT ($akExprAusz) AS altersklasse FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz) IS NOT NULL AND ($akExprAusz) != '' AND e.geloescht_am IS NULL AND e.extern=0",
                     [$hofParam, $athletId]
                 );
                 foreach ($myAKs as $akRow) {
                     $ak = $akRow['altersklasse'];
                     // Bestes in dieser (merged) AK über alle Athleten
                     $bestAK = DB::fetchOne(
-                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND ($akExprAusz)=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
+                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND ($akExprAusz)=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
                         [$hofParam, $ak]
                     );
                     // Bestes dieses Athleten in dieser (merged) AK
                     $bestMeAK = DB::fetchOne(
-                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz)=? AND e.geloescht_am IS NULL ORDER BY val $dir LIMIT 1",
+                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz)=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
                         [$hofParam, $athletId, $ak]
                     );
                     if ($bestAK && $bestMeAK && abs((float)$bestMeAK['val'] - (float)$bestAK['val']) < 0.001) {
@@ -2560,7 +2560,7 @@ if ($res === 'athleten') {
                  JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
                  LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
                  LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
-                 WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY dk.reihenfolge, v.datum DESC', [$id]);
+                 WHERE e.athlet_id=? AND e.extern=0 AND e.geloescht_am IS NULL ORDER BY dk.reihenfolge, v.datum DESC', [$id]);
             // Gruppieren nach Kategorie
             $kategorien = [];
             foreach ($alle as $row) {
@@ -2972,7 +2972,7 @@ if ($res === 'vereinsrekorde') {
              FROM $tbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
              JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
-             WHERE e.disziplin_mapping_id=? AND e.geloescht_am IS NULL
+             WHERE e.disziplin_mapping_id=? AND e.geloescht_am IS NULL AND e.extern=0
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
                AND a.geschlecht = ?
              ORDER BY $sortCol $dir LIMIT 1", [$mid, $geschlecht]);
@@ -2987,7 +2987,7 @@ if ($res === 'vereinsrekorde') {
         $info   = $mappingRows[$mid];
         $dir    = $info['sort_dir'] ?? 'ASC';
         $fmt    = $info['fmt']      ?? 'min';
-        $cnt    = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin_mapping_id=? AND geloescht_am IS NULL", [$mid]);
+        $cnt    = DB::fetchOne("SELECT COUNT(*) AS c FROM $tbl WHERE disziplin_mapping_id=? AND geloescht_am IS NULL AND extern=0", [$mid]);
         $n      = $cnt ? (int)$cnt['c'] : 0;
         $key    = $info['tbl_key'];
         $katCounts[$key] = ($katCounts[$key] ?? 0) + $n;
@@ -4839,7 +4839,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
              FROM $eTbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              JOIN $vTbl v ON v.id=e.veranstaltung_id
-             WHERE $diszCond AND v.serie_id=? AND e.geloescht_am IS NULL
+             WHERE $diszCond AND v.serie_id=? AND e.geloescht_am IS NULL AND e.extern=0
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL AND v.genehmigt=1
              ORDER BY _sv $sortDir", [$diszParam, $id]
         );
@@ -5805,7 +5805,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
              FROM " . DB::tbl('ergebnisse') . " e
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
-             WHERE e.geloescht_am IS NULL AND e.resultat IS NOT NULL";
+             WHERE e.geloescht_am IS NULL AND e.extern=0 AND e.resultat IS NOT NULL";
         $diszParams = [];
         if ($katFilter) {
             // Kommagetrennte Kategorie-Keys (z.B. "strasse,sprint")
@@ -5863,7 +5863,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                  JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
                  JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
                  LEFT JOIN " . DB::tbl('benutzer') . " b ON b.athlet_id = a.id
-                 WHERE $hofWhere AND e.geloescht_am IS NULL
+                 WHERE $hofWhere AND e.geloescht_am IS NULL AND e.extern=0
                    AND e.resultat IS NOT NULL
                  ORDER BY v.datum ASC",
                 [$hofParam]

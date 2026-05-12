@@ -1,3 +1,6 @@
+## v1310
+- Fix: Externe Ergebnisse (extern=1) erscheinen nicht mehr in Timeline, Bestleistungen, Vereinsrekorden, Hall of Fame, Meisterschaftstiteln und Serien-Ranglisten
+
 ## v1309
 - Externe Ergebnisse: strukturell in `ergebnisse`-Tabelle vereint (neues Feld `extern=1`), Datenmigration aus `athlet_pb` automatisch beim ersten Start
 - Externe Ergebnisse erfordern zwingend eine Veranstaltung – Freitext `wettkampf` entfällt
