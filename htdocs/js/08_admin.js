@@ -582,6 +582,7 @@ var _RECHTE_LISTE = [
   { key: 'inaktive_athleten_sehen', label: 'Inaktive Athleten sehen' },
   { key: 'athleten_editieren',     label: 'Athleten editieren' },
   { key: 'wartung_login',          label: 'Im Wartungsmodus einloggen' },
+  { key: 'trainingsplan_bearbeiten', label: 'Trainingsplan erstellen / ändern (Trainingsportal)' },
 ];
 
 async function _ladeRollenManager() {
