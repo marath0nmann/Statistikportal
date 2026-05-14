@@ -351,7 +351,18 @@ try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " MODIFY COLUMN rolle ENU
 // Migration: trainer-Rolle anlegen falls nicht vorhanden
 try {
     if (!DB::fetchOne('SELECT id FROM ' . DB::tbl('rollen') . " WHERE name='trainer'")) {
-        DB::query('INSERT IGNORE INTO ' . DB::tbl('rollen') . " (name, rechte, label, oeffentlich) VALUES ('trainer','[\"eigene_ergebnisse\",\"lesen\",\"personenbezogene_daten\",\"athleten_details\"]','Trainer*in',1)");
+        DB::query('INSERT IGNORE INTO ' . DB::tbl('rollen') . " (name, rechte, label, oeffentlich) VALUES ('trainer','[\"eigene_ergebnisse\",\"lesen\",\"personenbezogene_daten\",\"athleten_details\",\"trainingsplan_bearbeiten\"]','Trainer*in',1)");
+    }
+} catch (\Exception $e) {}
+// Migration: trainingsplan_bearbeiten-Recht zur trainer-Rolle hinzufügen
+try {
+    $_trRow = DB::fetchOne('SELECT id, rechte FROM ' . DB::tbl('rollen') . " WHERE name='trainer'");
+    if ($_trRow) {
+        $_trRechte = json_decode($_trRow['rechte'] ?? '[]', true) ?: [];
+        if (!in_array('trainingsplan_bearbeiten', $_trRechte)) {
+            $_trRechte[] = 'trainingsplan_bearbeiten';
+            DB::query('UPDATE ' . DB::tbl('rollen') . ' SET rechte=? WHERE id=?', [json_encode($_trRechte), $_trRow['id']]);
+        }
     }
 } catch (\Exception $e) {}
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('ergebnis_aenderungen') . " (
@@ -6477,7 +6488,7 @@ if ($res === 'rollen') {
     if ($method === 'POST') {
         $name   = trim($body['name'] ?? '');
         $rechte = $body['rechte'] ?? [];
-        $validRechte = ['vollzugriff','benutzer_verwalten','rekorde_bearbeiten','einstellungen_aendern','alle_ergebnisse','eigene_ergebnisse','lesen','externe_ergebnisse_sehen'];
+        $validRechte = ['vollzugriff','benutzer_verwalten','rekorde_bearbeiten','einstellungen_aendern','alle_ergebnisse','eigene_ergebnisse','lesen','externe_ergebnisse_sehen','trainingsplan_bearbeiten'];
         $rechte = array_values(array_intersect((array)$rechte, $validRechte));
         if (!$name || strlen($name) < 2) jsonErr('Name erforderlich (min. 2 Zeichen).');
         if ($id) {

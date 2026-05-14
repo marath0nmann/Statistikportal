@@ -1,3 +1,6 @@
+## v1316
+- Neue Berechtigung `trainingsplan_bearbeiten` für Trainer-Rolle (Trainingsportal): Trainingspläne erstellen und ändern
+
 ## v1315
 - Docs: Claude-Workflow um Auto-Merge + PR-Monitoring erweitert (CLAUDE.md)
 
