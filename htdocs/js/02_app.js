@@ -2103,7 +2103,7 @@ async function disableTotp() {
 }
 
 function rolleLabel(r, oeffentlichOnly) {
-  var m = { admin: 'Administrator', editor: 'Editor', athlet: 'Athlet', leser: 'Leser' };
+  var m = { admin: 'Administrator', editor: 'Editor', athlet: 'Athlet', leser: 'Leser', trainer: 'Trainer' };
   if (window._rollenMap) {
     var rd = window._rollenMap[r];
     if (rd) {

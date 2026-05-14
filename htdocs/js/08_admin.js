@@ -624,7 +624,7 @@ async function _ladeRollenManager() {
       var r2 = _RECHTE_LISTE.find(function(x){ return x.key===k; });
       return r2 ? r2.label : k;
     }).join(', ');
-    var sysRolle = (rolle.name === 'admin' || rolle.name === 'athlet' || rolle.name === 'leser' || rolle.name === 'nicht-eingeloggt');
+    var sysRolle = (rolle.name === 'admin' || rolle.name === 'athlet' || rolle.name === 'leser' || rolle.name === 'trainer' || rolle.name === 'nicht-eingeloggt');
     var lockIcon = sysRolle ? ' <span title="Systemrolle: Name änderbar, Rechte gesperrt" style="font-size:11px;opacity:.5">🔐</span>' : '';
     var labelDisp = (rolle.label && rolle.label !== rolle.name) ? rolle.label : '<span style="opacity:.4;font-style:italic">—</span>';
     var pubIcon = rolle.oeffentlich ? '<span title="Öffentlich sichtbar" style="font-size:11px;margin-left:4px">👁️</span>' : '<span title="Nicht öffentlich" style="font-size:11px;margin-left:4px;opacity:.4">🙈</span>';
@@ -646,7 +646,7 @@ async function _ladeRollenManager() {
 
 function _rolleModal(titel, rolle) {
   var r = rolle || { id: null, name: '', rechte: [], label: '', oeffentlich: 1 };
-  var isAdmin = (r.name === 'admin' || r.name === 'athlet' || r.name === 'leser'); // Systemrollen: Rechte gesperrt
+  var isAdmin = (r.name === 'admin' || r.name === 'athlet' || r.name === 'leser' || r.name === 'trainer'); // Systemrollen: Rechte gesperrt
   var checkboxes = _RECHTE_LISTE.map(function(re) {
     var checked = (r.rechte || []).indexOf(re.key) >= 0;
     var disabledAttr = isAdmin ? ' disabled' : '';

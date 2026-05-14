@@ -42,6 +42,9 @@ GitHub Actions deployed automatisch per FTP nach all-inkl.com (`/html/statistik/
    - `index.html`: alle `?v=NNN` Cache-Buster + `header-version`-Span (`v=NNN` → `v=NNN+1`)
    - `CHANGELOG.md`: `## vCUR` → `## vNNN+1`
 3. `git add <geänderte Dateien>`, `git commit`, `git push`
+4. Pull Request als Draft erstellen (falls noch keiner existiert)
+5. Auto-Merge aktivieren (`mcp__github__enable_pr_auto_merge`, SQUASH) – falls nicht möglich (Feature im Repo deaktiviert), PR manuell mergen sobald CI grün ist (`mcp__github__merge_pull_request`)
+6. PR-Aktivität abonnieren (`mcp__github__subscribe_pr_activity`) und auf CI-Ergebnisse/Review-Kommentare reagieren
 
 **Wichtig:** PHP OPcache auf dem Server wird per GitHub Actions automatisch geleert (`opcache-clear.php`).
 

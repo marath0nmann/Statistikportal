@@ -1,3 +1,6 @@
+## v1314
+- Neue Systemrolle „Trainer": gleiche Rechte wie Athlet im Statistikportal, für Trainingsportal-Erweiterungen vorbereitet (isTrainer(), ENUM-Migration, Rollen-Manager)
+
 ## v1313
 - Fix: Bestleistungen-Seite zeigt keine externen Ergebnisse mehr (extern=1 aus rekorde-Endpunkt gefiltert)
 
