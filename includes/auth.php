@@ -341,10 +341,11 @@ class Auth {
     }
 
     // Rollen-Schema:
-    //   admin  – Vollzugriff, Benutzer verwalten, Einstellungen
-    //   editor – Ergebnisse eintragen/bearbeiten/löschen (alle, sofort)
-    //   athlet – eigene Ergebnisse eintragen; Änderungen/Löschungen mit Genehmigung
-    //   leser  – nur Ansicht, keine Bearbeitung
+    //   admin   – Vollzugriff, Benutzer verwalten, Einstellungen
+    //   editor  – Ergebnisse eintragen/bearbeiten/löschen (alle, sofort)
+    //   athlet  – eigene Ergebnisse eintragen; Änderungen/Löschungen mit Genehmigung
+    //   trainer – wie athlet im Statistikportal; zusätzliche Rechte im Trainingsportal
+    //   leser   – nur Ansicht, keine Bearbeitung
 
     // Mindest-Rolle: editor (nicht athlet/leser)
     public static function requireEditor(): array {
@@ -357,12 +358,12 @@ class Auth {
         return $user;
     }
 
-    // Mindest-Rolle: athlet (darf eigene Ergebnisse eintragen)
+    // Mindest-Rolle: athlet (darf eigene Ergebnisse eintragen); trainer = athlet im Statistikportal
     public static function requireAthlet(): array {
         $user = self::requireLogin();
-        if (!in_array($user['rolle'], ['admin','editor','athlet'])) {
+        if (!in_array($user['rolle'], ['admin','editor','athlet','trainer'])) {
             http_response_code(403);
-            echo json_encode(['fehler' => 'Keine Berechtigung. Nur Athleten, Editoren und Admins dürfen Ergebnisse eintragen.']);
+            echo json_encode(['fehler' => 'Keine Berechtigung. Nur Athleten, Trainer, Editoren und Admins dürfen Ergebnisse eintragen.']);
             exit;
         }
         return $user;
@@ -382,9 +383,14 @@ class Auth {
         return in_array($_SESSION['user_rolle'] ?? '', ['admin','editor']);
     }
 
-    // Ist der User ein Athlet?
+    // Ist der User ein Athlet oder Trainer? (trainer = athlet im Statistikportal)
     public static function isAthlet(): bool {
-        return ($_SESSION['user_rolle'] ?? '') === 'athlet';
+        return in_array($_SESSION['user_rolle'] ?? '', ['athlet','trainer']);
+    }
+
+    // Ist der User ein Trainer? (für Trainingsportal-spezifische Prüfungen)
+    public static function isTrainer(): bool {
+        return ($_SESSION['user_rolle'] ?? '') === 'trainer';
     }
 
     // Prüft ein einzelnes Recht (aus rollen-Tabelle) – benötigt aktive Session

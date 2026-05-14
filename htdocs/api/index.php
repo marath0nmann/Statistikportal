@@ -347,7 +347,13 @@ try {
     }
 } catch (\Exception $e) {}
 // Migration: athlet-Rolle + Genehmigungssystem
-try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " MODIFY COLUMN rolle ENUM('admin','editor','athlet','leser') NOT NULL DEFAULT 'leser'"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " MODIFY COLUMN rolle ENUM('admin','editor','athlet','leser','trainer') NOT NULL DEFAULT 'leser'"); } catch (\Exception $e) {}
+// Migration: trainer-Rolle anlegen falls nicht vorhanden
+try {
+    if (!DB::fetchOne('SELECT id FROM ' . DB::tbl('rollen') . " WHERE name='trainer'")) {
+        DB::query('INSERT IGNORE INTO ' . DB::tbl('rollen') . " (name, rechte, label, oeffentlich) VALUES ('trainer','[\"eigene_ergebnisse\",\"lesen\",\"personenbezogene_daten\",\"athleten_details\"]','Trainer*in',1)");
+    }
+} catch (\Exception $e) {}
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('ergebnis_aenderungen') . " (
     id INT AUTO_INCREMENT PRIMARY KEY,
     ergebnis_id INT NULL COMMENT 'NULL fuer neue Eintragung (insert)',
@@ -1641,7 +1647,7 @@ if ($res === 'benutzer') {
         $email = strtolower(trim($body['email'] ?? ''));
         $bname = sanitize($body['benutzername'] ?? '') ?: $email;
         $pw    = $body['passwort'] ?? '';
-        $rolle = in_array($body['rolle'] ?? '', ['admin','editor','athlet','leser']) ? $body['rolle'] : 'leser';
+        $rolle = in_array($body['rolle'] ?? '', ['admin','editor','athlet','leser','trainer']) ? $body['rolle'] : 'leser';
         if (!$email || strlen($pw) < 8)
             jsonErr('Benutzername, E-Mail und Passwort (min. 8 Zeichen) erforderlich.');
         try {
@@ -6460,7 +6466,7 @@ if ($res === 'rollen') {
     Auth::requireAdmin();
     if ($method === 'GET') {
         $rows = DB::fetchAll('SELECT * FROM ' . DB::tbl('rollen') . ' ORDER BY id');
-        $defaultLabels = ['admin'=>'Administrator','editor'=>'Editor','athlet'=>'Athlet*in','leser'=>'Leser*in'];
+        $defaultLabels = ['admin'=>'Administrator','editor'=>'Editor','athlet'=>'Athlet*in','leser'=>'Leser*in','trainer'=>'Trainer*in'];
         foreach ($rows as &$r) {
             $r['rechte']     = json_decode($r['rechte'] ?? '[]', true) ?: [];
             $r['label']      = $r['label'] ?: ($defaultLabels[$r['name']] ?? $r['name']);
@@ -6480,7 +6486,7 @@ if ($res === 'rollen') {
             $label      = trim($body['label'] ?? '');
             $oeffentlich = isset($body['oeffentlich']) ? (int)(bool)$body['oeffentlich'] : 1;
             // Systemrollen (admin/athlet/leser): nur Name + Label + oeffentlich änderbar, Rechte unveränderbar
-            if (in_array($existingName, ['admin','athlet','leser'])) {
+            if (in_array($existingName, ['admin','athlet','leser','trainer'])) {
                 DB::query('UPDATE ' . DB::tbl('rollen') . ' SET name=?, label=?, oeffentlich=? WHERE id=?', [$name, $label ?: null, $oeffentlich, (int)$id]);
                 jsonOk('Aktualisiert.');
             }
@@ -6497,7 +6503,7 @@ if ($res === 'rollen') {
     }
     if ($method === 'DELETE' && $id) {
         $row = DB::fetchOne('SELECT name FROM ' . DB::tbl('rollen') . ' WHERE id=?', [$id]);
-        if ($row && in_array($row['name'], ['admin','athlet','leser'])) jsonErr('Diese Rolle kann nicht gelöscht werden.');
+        if ($row && in_array($row['name'], ['admin','athlet','leser','trainer'])) jsonErr('Diese Rolle kann nicht gelöscht werden.');
         DB::query('DELETE FROM ' . DB::tbl('rollen') . ' WHERE id=?', [(int)$id]);
         jsonOk('Gelöscht.');
     }

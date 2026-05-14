@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS benutzer (
     benutzername          VARCHAR(60)  NOT NULL UNIQUE,
     email                 VARCHAR(120) NOT NULL UNIQUE,
     passwort              VARCHAR(255) NOT NULL,
-    rolle                 ENUM('admin','editor','athlet','leser') NOT NULL DEFAULT 'leser',
+    rolle                 ENUM('admin','editor','athlet','leser','trainer') NOT NULL DEFAULT 'leser',
     aktiv                 TINYINT(1)   NOT NULL DEFAULT 1,
     erstellt_am           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     letzter_login         DATETIME     NULL,
@@ -89,7 +89,8 @@ INSERT IGNORE INTO rollen (name, rechte, label, oeffentlich) VALUES
 ('admin',  '["vollzugriff","benutzer_verwalten","rekorde_bearbeiten","einstellungen_aendern","alle_ergebnisse","eigene_ergebnisse","lesen","personenbezogene_daten","athleten_details","athleten_editieren","bulk_eintragen","veranstaltung_eintragen","veranstaltung_loeschen","inaktive_athleten_sehen"]', 'Administrator', 1),
 ('editor', '["alle_ergebnisse","lesen","personenbezogene_daten","athleten_details","athleten_editieren","bulk_eintragen","veranstaltung_eintragen","veranstaltung_loeschen","inaktive_athleten_sehen"]',                                                                                                            'Editor',        1),
 ('athlet', '["eigene_ergebnisse","lesen","personenbezogene_daten","athleten_details"]',                                                                                                                                                                                                                             'Athlet*in',     1),
-('leser',  '["lesen","personenbezogene_daten","athleten_details"]',                                                                                                                                                                                                                                                 'Leser*in',      1);
+('leser',  '["lesen","personenbezogene_daten","athleten_details"]',                                                                                                                                                                                                                                                 'Leser*in',      1),
+('trainer','["eigene_ergebnisse","lesen","personenbezogene_daten","athleten_details"]',                                                                                                                                                                                                                                'Trainer*in',    1);
 
 -- ------------------------------------------------------------
 -- Athleten
