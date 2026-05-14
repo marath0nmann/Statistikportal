@@ -1,3 +1,6 @@
+## v1315
+- Docs: Claude-Workflow um Auto-Merge + PR-Monitoring erweitert (CLAUDE.md)
+
 ## v1314
 - Neue Systemrolle „Trainer": gleiche Rechte wie Athlet im Statistikportal, für Trainingsportal-Erweiterungen vorbereitet (isTrainer(), ENUM-Migration, Rollen-Manager)
 
