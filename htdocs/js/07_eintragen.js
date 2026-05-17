@@ -4460,6 +4460,7 @@ function rrBestDisz(rrName, diszList) {
   var q = rrName.toLowerCase()
     .replace(/^#\d+_/, '')  // "#1_STADTWERKE Halbmarathon" → "stadtwerke halbmarathon"
     .replace(/lauf|rennen|wettbewerb|gesamt|einzel|lauf-/gi, '')
+    .replace(/-/g, ' ')     // "5-km-Lauf" → "5 km " (Bindestriche normalisieren)
     .replace(/\s+/g, ' ').trim();
 
   // Zahl + Einheit extrahieren und in Meter normalisieren

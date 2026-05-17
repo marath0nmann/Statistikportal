@@ -1,3 +1,6 @@
+## v1318
+- RaceResult-Import: Bindestriche in Disziplin-Erkennung normalisieren ("5-km-Lauf" → "5km" wird jetzt korrekt erkannt)
+
 ## v1317
 - RaceResult-Import: Listenname (le.name) als zusätzlicher Disziplin-Kandidat (behebt "(keine)" wenn Distanz im Listennamen statt Contestnamen steht)
 - RaceResult-Import: Debug-Log zeigt jetzt cnD-Quelle + erkannte Disziplin für ersten Treffer pro Liste
