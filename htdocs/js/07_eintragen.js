@@ -1752,6 +1752,19 @@ async function bulkImportFromRR(url, kat, statusEl) {
     _bkDbgLine('Extern-Gefunden',(allResults.length-_externPre)+' Eintr\u00e4ge');
   }
 
+  // Post-Dedup: Athlet sowohl intern als auch extern gefunden \u2192 extern gewinnt
+  // (z.B. Athlet in kombinierter Liste als TuS, in distanzspez. Liste unter anderem Verein)
+  (function(){
+    var _byName = {};
+    allResults.forEach(function(r){ var k=(r.name||'').toLowerCase(); if(!_byName[k])_byName[k]=[];_byName[k].push(r); });
+    allResults = allResults.filter(function(r){
+      var k=(r.name||'').toLowerCase();
+      var g=_byName[k];
+      if(g.length>1 && g.some(function(x){return x.extern;}) && !r.extern) return false;
+      return true;
+    });
+  })();
+
   if(allResults.length){
     _bkDbgSep();
     _bkDbgHeader('Ergebnisse');

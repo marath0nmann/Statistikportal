@@ -1,3 +1,6 @@
+## v1319
+- RaceResult-Import: Athlet intern+extern doppelt gefunden → Duplikat entfernen, Extern-Eintrag gewinnt
+
 ## v1318
 - RaceResult-Import: Bindestriche in Disziplin-Erkennung normalisieren ("5-km-Lauf" → "5km" wird jetzt korrekt erkannt)
 
