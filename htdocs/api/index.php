@@ -5044,7 +5044,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
-             WHERE e.veranstaltung_id=? AND e.geloescht_am IS NULL
+             WHERE e.veranstaltung_id=? AND e.geloescht_am IS NULL AND (e.extern=0 OR e.extern IS NULL)
              ORDER BY e.resultat_num ASC, e.resultat ASC",
             [$v['id']]
         );
@@ -5219,7 +5219,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
-             WHERE e.veranstaltung_id=? AND e.geloescht_am IS NULL
+             WHERE e.veranstaltung_id=? AND e.geloescht_am IS NULL AND (e.extern=0 OR e.extern IS NULL)
              ORDER BY e.resultat_num ASC, e.resultat ASC",
             [$v['id']]
         );

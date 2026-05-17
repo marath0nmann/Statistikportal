@@ -1,3 +1,6 @@
+## v1320
+- API: Veranstaltungen-Endpoint extern-Ergebnisse wurden doppelt geliefert (vereinErg-Query fehlte extern=0-Filter)
+
 ## v1319
 - RaceResult-Import: Athlet intern+extern doppelt gefunden → Duplikat entfernen, Extern-Eintrag gewinnt
 
