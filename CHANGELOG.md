@@ -1,3 +1,7 @@
+## v1317
+- RaceResult-Import: Listenname (le.name) als zusätzlicher Disziplin-Kandidat (behebt "(keine)" wenn Distanz im Listennamen statt Contestnamen steht)
+- RaceResult-Import: Debug-Log zeigt jetzt cnD-Quelle + erkannte Disziplin für ersten Treffer pro Liste
+
 ## v1316
 - Neue Berechtigung `trainingsplan_bearbeiten` für Trainer-Rolle (Trainingsportal): Trainingspläne erstellen und ändern
 

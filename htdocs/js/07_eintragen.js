@@ -1550,7 +1550,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
     if(iNetto>=0&&iNetto===iClub)iNetto=(iZeit>=0&&iZeit!==iClub)?iZeit:-1;
   }
 
-  function _proc(payload, contestName, le, externMode) { le = le || {};
+  function _proc(payload, contestName, le, externMode) { le = le || {}; var _cnDLogged = false;
     var df=payload.DataFields||[];
     if(Array.isArray(df)&&df.length>0)_cal(df);
     var dRaw=payload.data||{};
@@ -1590,13 +1590,20 @@ async function bulkImportFromRR(url, kat, statusEl) {
           else{akFG=normalizeAK(k2clean)||'';}
         }
         // Disziplin-Name: beste Quelle mit Distanz-Treffer wählen
+        // Kandidaten-Reihenfolge: contestName, le.name (Listenname, enthält oft Distanz), kClean, gk
         var cnD=(function(){
-          var cands=[contestName,kClean,gk].filter(Boolean);
+          var cands=[contestName, le.name||'', kClean, gk].filter(Boolean);
           for(var ci=0;ci<cands.length;ci++){
             if(rrBestDisz(cands[ci],diszList))return cands[ci];
           }
-          return contestName||kClean||gk;
+          return contestName||le.name||kClean||gk;
         })();
+        var _cnDDisz = rrBestDisz(cnD, diszList);
+        if (!_cnDLogged) {
+          _bkDbgLines.push('  cnD: "' + cnD + '" → "' + (_cnDDisz||'(keine)') + '"' +
+            (cnD !== contestName ? ' [via List: ' + (le.name||'') + ']' : ''));
+          _cnDLogged = true;
+        }
         rowsArr.forEach(function(row){
           if(!Array.isArray(row)||row.length<3)return;
           var club=iClub>=0?String(row[iClub]||'').trim():'';
