@@ -1,0 +1,8 @@
+# Alle Pfade unterhalb /athlet/ → index.php (Slug aus REQUEST_URI)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /athlet/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^(.*)$ index.php [L,QSA]
+</IfModule>
+DirectoryIndex index.php

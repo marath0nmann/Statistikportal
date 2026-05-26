@@ -1,3 +1,6 @@
+## v1324
+- Fix: `/athlet/slug` landete auf Startseite – statt .htaccess-Rewrite jetzt echtes Verzeichnis `athlet/` mit eigenem `.htaccess` + `index.php` (liest Slug aus REQUEST_URI, kein mod_rewrite im Root nötig)
+
 ## v1323
 - Athlet-Profil-Link: `athlet.php` mit korrekten Open-Graph-Tags (og:title, og:description) für WhatsApp/Telegram/Twitter-Vorschau; `.htaccess`-Rewrite für `/athlet/slug`; kopierter Link nutzt Pfad-URL statt Hash
 
