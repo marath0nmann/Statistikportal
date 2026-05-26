@@ -1,3 +1,6 @@
+## v1321
+- Athletenprofil: Vollseiten-Ansicht mit Share-Button und kopierbarem Direktlink (`#athlet/vorname-nachname`); Seitentitel „Verein – Statistik – Vorname Nachname"; öffentlich aufrufbar ohne Login
+
 ## v1320
 - API: Veranstaltungen-Endpoint extern-Ergebnisse wurden doppelt geliefert (vereinErg-Query fehlte extern=0-Filter)
 
