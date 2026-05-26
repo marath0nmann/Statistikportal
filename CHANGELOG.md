@@ -1,3 +1,6 @@
+## v1325
+- Fix: athlet/index.php robusteres Fehler-Handling (DB-Fehler, fehlende geloescht_am-Spalte, Settings-Fehler → alle im globalen try-catch; kein PHP-Absturz mehr)
+
 ## v1324
 - Fix: `/athlet/slug` landete auf Startseite – statt .htaccess-Rewrite jetzt echtes Verzeichnis `athlet/` mit eigenem `.htaccess` + `index.php` (liest Slug aus REQUEST_URI, kein mod_rewrite im Root nötig)
 
