@@ -1,3 +1,6 @@
+## v1322
+- Fix: Athlet-Vollseite per Direktlink (#athlet/slug) konnte Athlet nicht finden – API-Suche trifft name_nv-Format nicht; jetzt alle Athleten laden und client-seitig per Slug abgleichen
+
 ## v1321
 - Athletenprofil: Vollseiten-Ansicht mit Share-Button und kopierbarem Direktlink (`#athlet/vorname-nachname`); Seitentitel „Verein – Statistik – Vorname Nachname"; öffentlich aufrufbar ohne Login
 

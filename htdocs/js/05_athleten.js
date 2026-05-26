@@ -1231,17 +1231,15 @@ async function renderAthletDetail(slug) {
   var el = document.getElementById('main-content');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
 
-  // ID aus State (interne Navigation) oder per Slug-Suche (Hash-Restore / Direktaufruf)
+  // ID aus State (interne Navigation) oder per Slug-Lookup (Hash-Restore / Direktaufruf)
+  // name_nv ist "Nachname, Vorname" → API-suche= trifft nicht; alle laden + client-seitig filtern
   var id = state.athletId || null;
   if (!id && slug) {
-    var searchName = slug.replace(/-/g, ' ');
-    var rList = await apiGet('athleten?suche=' + encodeURIComponent(searchName));
+    var rList = await apiGet('athleten');
     if (rList && rList.ok && rList.data && rList.data.length) {
-      var found = null;
       for (var fi = 0; fi < rList.data.length; fi++) {
-        if (_athSlug(rList.data[fi].vorname, rList.data[fi].nachname) === slug) { found = rList.data[fi]; break; }
+        if (_athSlug(rList.data[fi].vorname, rList.data[fi].nachname) === slug) { id = rList.data[fi].id; break; }
       }
-      id = (found || rList.data[0]).id;
     }
   }
   if (!id) {
