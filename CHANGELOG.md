@@ -1,3 +1,6 @@
+## v1323
+- Athlet-Profil-Link: `athlet.php` mit korrekten Open-Graph-Tags (og:title, og:description) für WhatsApp/Telegram/Twitter-Vorschau; `.htaccess`-Rewrite für `/athlet/slug`; kopierter Link nutzt Pfad-URL statt Hash
+
 ## v1322
 - Fix: Athlet-Vollseite per Direktlink (#athlet/slug) konnte Athlet nicht finden – API-Suche trifft name_nv-Format nicht; jetzt alle Athleten laden und client-seitig per Slug abgleichen
 
