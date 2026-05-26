@@ -1223,8 +1223,8 @@ async function renderAthletenKarten() {
   el.innerHTML =
     buildSection('Aktive Athleten', aktiveAthleten, false) +
     buildSection('Inaktive Athleten mit bestehenden Bestleistungen', inaktiveAthleten, true) +
-    '<style>@media(max-width:900px){#main-content>div[style*="repeat(5"]{grid-template-columns:repeat(3,1fr)}}' +
-    '@media(max-width:560px){#main-content>div[style*="repeat(5"]{grid-template-columns:repeat(2,1fr)}}</style>';
+    '<style>@media(max-width:900px){#main-content>div[style*="repeat(5"]{grid-template-columns:repeat(3,1fr)!important}}' +
+    '@media(max-width:560px){#main-content>div[style*="repeat(5"]{grid-template-columns:repeat(2,1fr)!important}}</style>';
 }
 
 // ── Athlet-Vollseite ─────────────────────────────────────────────────────────

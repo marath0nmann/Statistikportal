@@ -1,3 +1,6 @@
+## v1326
+- Athleten-Karten: Mobile Breakpoints korrigiert (!important gegen Inline-Style-Spezifität)
+
 ## v1325
 - Fix: athlet/index.php robusteres Fehler-Handling (DB-Fehler, fehlende geloescht_am-Spalte, Settings-Fehler → alle im globalen try-catch; kein PHP-Absturz mehr)
 
