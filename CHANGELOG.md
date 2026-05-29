@@ -1,3 +1,6 @@
+## v1327
+- Veranstaltungen: Sub-Tab-Navigation mit „Regelmäßige Veranstaltungen", „Letzte Veranstaltungen" und „Meine Veranstaltungen"; neuer API-Endpoint meine-veranstaltungen liefert alle Wettkämpfe des eingeloggten Athleten mit Ergebnissen und Platzierungen
+
 ## v1326
 - Athleten-Karten: Mobile Breakpoints korrigiert (!important gegen Inline-Style-Spezifität)
 

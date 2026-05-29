@@ -6520,6 +6520,50 @@ if ($res === 'rollen') {
     }
 }
 
+// ── GET meine-veranstaltungen – Wettkämpfe des eingeloggten Athleten ─────
+if ($res === 'meine-veranstaltungen' && $method === 'GET') {
+    $user  = Auth::requireLogin();
+    $buRow = DB::fetchOne('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [$user['id']]);
+    if (!$buRow || !$buRow['athlet_id']) jsonErr('Kein Athletenprofil verknüpft.', 404);
+    $athletId = (int)$buRow['athlet_id'];
+    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $vTbl = DB::tbl('veranstaltungen');
+    $sTbl = DB::tbl('veranstaltung_serien');
+
+    // Alle Veranstaltungen des Athleten (distinct), neueste zuerst
+    $veranst = DB::fetchAll(
+        "SELECT DISTINCT v.id, v.kuerzel, v.name, v.datum, v.ort, v.datenquelle, v.serie_id,
+                s.name AS serie_name
+         FROM $eTbl e
+         JOIN $vTbl v ON v.id=e.veranstaltung_id
+         LEFT JOIN $sTbl s ON s.id=v.serie_id
+         WHERE e.athlet_id=? AND e.geloescht_am IS NULL AND v.geloescht_am IS NULL AND v.genehmigt=1
+         ORDER BY v.datum DESC",
+        [$athletId]
+    );
+
+    $dmTbl = DB::tbl('disziplin_mapping');
+    $dkTbl = DB::tbl('disziplin_kategorien');
+
+    foreach ($veranst as &$v) {
+        $ergs = DB::fetchAll(
+            "SELECT e.id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.altersklasse,
+                    e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft,
+                    COALESCE(dm.fmt_override, dk.fmt, 'min') AS fmt
+             FROM $eTbl e
+             LEFT JOIN $dmTbl dm ON dm.id=e.disziplin_mapping_id
+             LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id
+             WHERE e.veranstaltung_id=? AND e.athlet_id=? AND e.geloescht_am IS NULL
+             ORDER BY dk.reihenfolge, e.disziplin",
+            [$v['id'], $athletId]
+        );
+        $v['ergebnisse'] = $ergs;
+    }
+    unset($v);
+
+    jsonOk($veranst);
+}
+
 jsonErr('Unbekannte Route.', 404);
 
 } catch (Throwable $e) {

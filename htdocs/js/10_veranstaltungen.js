@@ -6,15 +6,53 @@ var setVeranstSuche = debounce(function(val) {
   renderVeranstaltungen();
 }, 300);
 
-// state.veranstView  = 'liste' | 'serien' | 'serie-detail'
-// state.serieId      = ID der aktuell angezeigten Serie
-// state.serieView    = 'jahre' | 'bestleistungen'
-// state.serieDisz    = aktuell gewählte Disziplin im Bestleistungen-View
+// state.veranstView    = 'liste' | 'serie-detail'
+// state.veranstSubTab  = 'serien' | 'letzte' | 'meine'
+// state.serieId        = ID der aktuell angezeigten Serie
+// state.serieView      = 'jahre' | 'bestleistungen'
+// state.serieDisz      = aktuell gewählte Disziplin im Bestleistungen-View
 // state.serieMappingId = mapping_id der Disziplin
+
+function _veranstSubtabs(active) {
+  var hasMeine = !!(currentUser && currentUser.athlet_id);
+  function btn(id, label) {
+    return '<button class="subtab' + (active === id ? ' active' : '') + '" onclick="navVeranstTab(\'' + id + '\')">' + label + '</button>';
+  }
+  return '<div class="subtabs" style="margin-bottom:20px">' +
+    btn('serien',  '🔄 Regelmäßige Veranstaltungen') +
+    btn('letzte',  '📅 Letzte Veranstaltungen') +
+    (hasMeine ? btn('meine', '🏃 Meine Veranstaltungen') : '') +
+  '</div>';
+}
+
+function navVeranstTab(tab) {
+  state.veranstSubTab = tab;
+  state.veranstPage   = 1;
+  state.veranstSuche  = '';
+  renderVeranstaltungen();
+}
+
+function switchVeranstView(to) {
+  // Compat: 'serien' → Sub-Tab wechseln, nicht separate View
+  if (to === 'serien') { navVeranstTab('serien'); return; }
+  state.veranstView = to;
+  renderVeranstaltungen();
+}
 
 async function renderVeranstaltungen() {
   if ((state.veranstView || 'liste') === 'serie-detail') { await renderSerieDetail(state.serieId); return; }
-  await renderVeranstaltungenListe();
+  var el = document.getElementById('main-content');
+  var tab = state.veranstSubTab || 'letzte';
+
+  // Äußere Shell einmalig aufbauen
+  if (!document.getElementById('veranst-subtabs')) {
+    el.innerHTML = '<div id="veranst-subtabs"></div><div id="veranst-view"></div>';
+  }
+  document.getElementById('veranst-subtabs').innerHTML = _veranstSubtabs(tab);
+
+  if      (tab === 'serien') await _renderVeranstSerien();
+  else if (tab === 'meine')  await renderMeineVeranstaltungen();
+  else                       await renderVeranstaltungenListe();
 }
 
 function _buildVeranstErgTable(ergebnisse) {
@@ -62,14 +100,15 @@ function _buildVeranstErgTable(ergebnisse) {
     '</table></div>';
 }
 
-// ── LISTE ──────────────────────────────────────────────────
+// ── LETZTE VERANSTALTUNGEN ─────────────────────────────────
 async function renderVeranstaltungenListe() {
-  var el = document.getElementById('main-content');
+  var viewEl = document.getElementById('veranst-view');
+  if (!viewEl) return;
 
-  // Shell (Serien + Suchfeld) nur einmalig rendern – nie beim Suchen ersetzen
+  // Shell (Suchfeld) nur einmalig rendern – nie beim Suchen ersetzen
   var shellEl = document.getElementById('veranst-shell');
   if (!shellEl) {
-    el.innerHTML =
+    viewEl.innerHTML =
       '<div id="veranst-shell"></div>' +
       '<div id="veranst-results"><div class="loading"><div class="spinner"></div>Laden&hellip;</div></div>';
     shellEl = document.getElementById('veranst-shell');
@@ -92,17 +131,11 @@ async function renderVeranstaltungenListe() {
   for (var ci = 0; ci < veranst.length; ci++) state._veranstMap[veranst[ci].id] = veranst[ci];
 
   // Suchleiste (einmalig)
-  var searchBar = '<div class="filter-bar" style="margin-bottom:16px">' +
-    '<div class="fg"><label>Suche</label><input type="search" id="veranst-suche" placeholder="Veranstaltung suchen&hellip;" value="' + (state.veranstSuche || '').replace(/"/g,'&quot;') + '" oninput="setVeranstSuche(this.value)" style="min-width:0;width:100%"/></div>' +
-  '</div>';
   if (!shellEl.dataset.built) {
-    shellEl.innerHTML = searchBar + '<div id="veranst-serien"></div>';
+    shellEl.innerHTML = '<div class="filter-bar" style="margin-bottom:16px">' +
+      '<div class="fg"><label>Suche</label><input type="search" id="veranst-suche" placeholder="Veranstaltung suchen&hellip;" value="' + (state.veranstSuche || '').replace(/"/g,'&quot;') + '" oninput="setVeranstSuche(this.value)" style="min-width:0;width:100%"/></div>' +
+    '</div>';
     shellEl.dataset.built = '1';
-  }
-  // Serien-Tabelle (nach jeder Suche neu, da gefiltert)
-  var serienEl = document.getElementById('veranst-serien');
-  if (serienEl) {
-    serienEl.innerHTML = serien && serien.length ? _serienTabelle(serien) : '';
   }
 
   var html = '';
@@ -155,6 +188,108 @@ async function renderVeranstaltungenListe() {
   var secStyleR = 'font-family:\'Barlow Condensed\',sans-serif;font-size:16px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);margin:0 0 12px';
   var letzteHeading = veranst.length ? '<div style="' + secStyleR + '">📅 Letzte Veranstaltungen</div>' : '';
   resultsEl.innerHTML = massenbtn + letzteHeading + html + buildPagination(state.veranstPage, Math.ceil(total/10), total, 'goPageVeranst');
+}
+
+// ── REGELMÄSSIGE VERANSTALTUNGEN (Sub-Tab) ─────────────────
+async function _renderVeranstSerien() {
+  var viewEl = document.getElementById('veranst-view');
+  viewEl.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
+  // veranstaltungen?limit=0 liefert leere Veranst-Liste, aber vollständige Serien-Daten
+  var r = await apiGet('veranstaltungen?limit=0');
+  if (!r || !r.ok) {
+    viewEl.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)">Fehler: ' + (r && r.fehler || 'Unbekannt') + '</div>';
+    return;
+  }
+  var serien = r.data.serien || [];
+  window._lastSerienList = serien;
+  viewEl.innerHTML = serien.length ? _serienTabelle(serien)
+    : '<div class="empty"><div class="empty-icon">🔄</div><div class="empty-text">Noch keine regelmäßigen Veranstaltungen angelegt.</div></div>';
+}
+
+// ── MEINE VERANSTALTUNGEN (Sub-Tab) ────────────────────────
+async function renderMeineVeranstaltungen() {
+  var viewEl = document.getElementById('veranst-view');
+  if (!currentUser || !currentUser.athlet_id) {
+    viewEl.innerHTML =
+      '<div class="empty"><div class="empty-icon">🔒</div>' +
+      '<div class="empty-text">Kein Athletenprofil verknüpft.<br>' +
+      '<small style="color:var(--text2)">Bitte unter <em>Konto</em> ein Athletenprofil zuordnen.</small></div></div>';
+    return;
+  }
+  viewEl.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
+
+  var r = await apiGet('meine-veranstaltungen');
+  if (!r || !r.ok) {
+    viewEl.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)">Fehler: ' + (r && r.fehler || 'Unbekannt') + '</div>';
+    return;
+  }
+  var veranst = r.data || [];
+  if (!veranst.length) {
+    viewEl.innerHTML = '<div class="empty"><div class="empty-icon">🏃</div>' +
+      '<div class="empty-text">Noch keine Wettkämpfe erfasst.</div></div>';
+    return;
+  }
+
+  var html = '';
+  for (var vi = 0; vi < veranst.length; vi++) {
+    var v = veranst[vi];
+    var name = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel || '';
+    var ortHtml = v.ort ? ' &middot; ' + (flagEmoji && flagEmoji(v.ort_land_code) ? flagEmoji(v.ort_land_code) + ' ' : '') + v.ort : '';
+    var serieBadge = v.serie_id && v.serie_name
+      ? '<span style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:2px 8px;cursor:pointer;margin-left:6px" onclick="event.stopPropagation();openSerieDetail(' + v.serie_id + ')">🔄 ' + v.serie_name + '</span>'
+      : '';
+    var ergs = v.ergebnisse || [];
+    var ergRows = '';
+    for (var ei = 0; ei < ergs.length; ei++) {
+      var e = ergs[ei];
+      var fmt = e.fmt || 'min';
+      var res = fmt === 'm' ? fmtMeter(e.resultat) : fmtTime(e.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
+      var _km = diszKm ? diszKm(e.disziplin) : 0;
+      var pace = (_km >= 1 && fmt !== 'm' && fmt !== 's' && calcPace) ? calcPace(e.disziplin, e.resultat) : '';
+      var showPace = pace && pace !== '00:00';
+      ergRows +=
+        '<tr>' +
+          '<td style="padding:6px 10px;border-bottom:1px solid var(--border)">' + (e.disziplin || '') + '</td>' +
+          '<td style="padding:6px 10px;border-bottom:1px solid var(--border)">' + akBadge(e.altersklasse) + '</td>' +
+          '<td class="result" style="padding:6px 10px;border-bottom:1px solid var(--border)">' + res + '</td>' +
+          '<td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2)">' + (showPace ? fmtTime(pace, 'min/km') : '') + '</td>' +
+          '<td style="padding:6px 10px;border-bottom:1px solid var(--border)">' + medalBadge(e.ak_platzierung) + '</td>' +
+          '<td style="padding:6px 10px;border-bottom:1px solid var(--border)">' + (e.meisterschaft ? mstrBadge(e.meisterschaft) : '') + '</td>' +
+          '<td style="padding:6px 10px;border-bottom:1px solid var(--border)">' + (e.meisterschaft && e.ak_platz_meisterschaft ? medalBadge(e.ak_platz_meisterschaft) : '') + '</td>' +
+        '</tr>';
+    }
+    var ergTable = ergs.length
+      ? '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
+          '<thead><tr style="border-bottom:2px solid var(--border)">' +
+            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Disziplin</th>' +
+            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">AK</th>' +
+            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Ergebnis</th>' +
+            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Pace</th>' +
+            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Pl. AK</th>' +
+            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Meisterschaft</th>' +
+            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Pl. MS</th>' +
+          '</tr></thead>' +
+          '<tbody>' + ergRows + '</tbody>' +
+        '</table></div>'
+      : '<div class="empty" style="padding:12px">Keine Ergebnisse</div>';
+    html +=
+      '<div class="panel" style="margin-bottom:16px">' +
+        '<div class="panel-header">' +
+          '<div>' +
+            '<div class="panel-title" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + v.id + '\',\'_blank\')">' + name + serieBadge + '</div>' +
+            '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + ortHtml + '</div>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            (v.datenquelle ? '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" class="btn btn-ghost btn-sm" title="Ergebnisquelle">🌐</a>' : '') +
+            '<button class="btn btn-ghost btn-sm" title="Teilen" onclick="shareVeranstaltung(' + v.id + ')">📤</button>' +
+          '</div>' +
+        '</div>' +
+        ergTable +
+      '</div>';
+  }
+  viewEl.innerHTML = '<div style="font-size:13px;color:var(--text2);margin-bottom:14px">' +
+    veranst.length + ' Wettkampf' + (veranst.length !== 1 ? 'auftritte' : 'auftritt') + ' erfasst</div>' +
+    html;
 }
 
 // ── SERIEN-TABELLE ─────────────────────────────────────────
