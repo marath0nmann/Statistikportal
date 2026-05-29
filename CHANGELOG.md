@@ -1,3 +1,6 @@
+## v1328
+- Veranstaltungen → Regelmäßige Veranstaltungen: Serien mit 0 Austragungen ausgeblendet
+
 ## v1327
 - Veranstaltungen: Sub-Tab-Navigation mit „Regelmäßige Veranstaltungen", „Letzte Veranstaltungen" und „Meine Veranstaltungen"; neuer API-Endpoint meine-veranstaltungen liefert alle Wettkämpfe des eingeloggten Athleten mit Ergebnissen und Platzierungen
 

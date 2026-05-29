@@ -294,6 +294,7 @@ async function renderMeineVeranstaltungen() {
 
 // ── SERIEN-TABELLE ─────────────────────────────────────────
 function _serienTabelle(serien) {
+  serien = serien.filter(function(s) { return Number(s.anz_austragungen) > 0; });
   var today = new Date();
   var todayMmdd = (today.getMonth() + 1) * 100 + today.getDate();
 
