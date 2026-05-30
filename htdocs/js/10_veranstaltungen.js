@@ -656,8 +656,10 @@ async function renderSerieDetail(id) {
   html += '<div class="panel" style="padding:20px 24px;display:inline-block;width:auto;max-width:100%"><div id="serie-teilnahmen-content"><div class="loading" style="padding:8px"><div class="spinner"></div>Lade…</div></div></div>';
 
   if (currentUser && currentUser.athlet_id) {
-    html += '<div style="' + secStyle + ';margin:32px 0 10px">&#x1F3C3; Meine Teilnahmen</div>';
-    html += '<div id="serie-meine-content"></div>';
+    html += '<div id="serie-meine-section" style="display:none">' +
+      '<div style="' + secStyle + ';margin:32px 0 10px">&#x1F3C3; Meine Teilnahmen</div>' +
+      '<div id="serie-meine-content"></div>' +
+    '</div>';
   }
 
   html += '<div style="' + secStyle + ';margin:32px 0 10px">&#x1F3C6; Bestleistungen</div>';
@@ -938,12 +940,10 @@ function _buildSerieMeineTeilnahmen(veranst) {
     }
   }
 
-  if (!rows.length) {
-    container.innerHTML =
-      '<div class="panel" style="padding:14px 18px;color:var(--text2);font-size:13px">' +
-      'Keine eigenen Ergebnisse in dieser Veranstaltungsreihe erfasst.</div>';
-    return;
-  }
+  if (!rows.length) return; // Section bleibt versteckt
+
+  var section = document.getElementById('serie-meine-section');
+  if (section) section.style.display = '';
 
   // Bedingte Spalten
   var hasMstr   = rows.some(function(r) { return !!r.meisterschaft; });

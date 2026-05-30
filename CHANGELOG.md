@@ -1,3 +1,6 @@
+## v1332
+- Meine Teilnahmen: Abschnitt (Überschrift + Tabelle) wird nur angezeigt, wenn eigene Ergebnisse vorhanden
+
 ## v1331
 - Meine Teilnahmen (Serie-Detail): Zähler mit mehr Rand (außerhalb Tabelle im Panel); Meisterschaft/Pl.MS-Spalten nur bei vorhandenen Werten; Verein-Spalte nur bei externen Ergebnissen; API liefert e.verein für externe Ergebnisse
 
