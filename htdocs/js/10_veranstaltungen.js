@@ -933,6 +933,7 @@ function _buildSerieMeineTeilnahmen(veranst) {
         meisterschaft: e.meisterschaft || '',
         ak_platz_meisterschaft: e.ak_platz_meisterschaft || null,
         extern: parseInt(e.extern) === 1,
+        verein: e.verein || '',
       });
     }
   }
@@ -944,6 +945,10 @@ function _buildSerieMeineTeilnahmen(veranst) {
     return;
   }
 
+  // Bedingte Spalten
+  var hasMstr   = rows.some(function(r) { return !!r.meisterschaft; });
+  var hasExtern = rows.some(function(r) { return r.extern; });
+
   var td  = 'padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
   var tdR = td + ';text-align:right;font-variant-numeric:tabular-nums';
 
@@ -953,15 +958,16 @@ function _buildSerieMeineTeilnahmen(veranst) {
     return '<tr onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
       '<td style="' + td + ';white-space:nowrap">' + formatDate(r.datum) + '</td>' +
       '<td style="' + td + ';font-weight:600;cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' +
-        r.veranst_name + (r.extern ? ' <span style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>' : '') +
+        r.veranst_name +
       '</td>' +
+      (hasExtern ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + (r.extern ? (r.verein || '–') : '') + '</td>' : '') +
       '<td style="' + td + '">' + r.disziplin + '</td>' +
       '<td style="' + td + '">' + akBadge(r.altersklasse) + '</td>' +
       '<td style="' + tdR + '" class="result">' + res + '</td>' +
       '<td style="' + tdR + ';font-size:12px;color:var(--text2)">' + (showPace ? fmtTime(r.pace, 'min/km') : '') + '</td>' +
       '<td style="' + td + ';text-align:center">' + medalBadge(r.ak_platzierung) + '</td>' +
-      '<td style="' + td + '">' + (r.meisterschaft ? mstrBadge(r.meisterschaft) : '') + '</td>' +
-      '<td style="' + td + ';text-align:center">' + (r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : '') + '</td>' +
+      (hasMstr ? '<td style="' + td + '">' + (r.meisterschaft ? mstrBadge(r.meisterschaft) : '') + '</td>' : '') +
+      (hasMstr ? '<td style="' + td + ';text-align:center">' + (r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : '') + '</td>' : '') +
     '</tr>';
   }).join('');
 
@@ -969,24 +975,25 @@ function _buildSerieMeineTeilnahmen(veranst) {
   var thR = thS + ';text-align:right';
 
   var anzJahre = Object.keys(rows.reduce(function(m,r){ m[r.datum.slice(0,4)]=1; return m; }, {})).length;
-  var countHtml = '<div style="font-size:13px;color:var(--text2);padding:0 2px 8px">' +
+  var countHtml = '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">' +
     rows.length + ' Ergebnis' + (rows.length !== 1 ? 'se' : '') + ' in ' +
     anzJahre + ' Austragung' + (anzJahre !== 1 ? 'en' : '') + '</div>';
 
   container.innerHTML =
     '<div class="panel">' +
-      countHtml +
+      '<div style="padding:16px 18px 0">' + countHtml + '</div>' +
       '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
         '<thead><tr style="border-bottom:2px solid var(--border)">' +
           '<th style="' + thS + '">Datum</th>' +
           '<th style="' + thS + '">Veranstaltung</th>' +
+          (hasExtern ? '<th style="' + thS + '">Verein</th>' : '') +
           '<th style="' + thS + '">Disziplin</th>' +
           '<th style="' + thS + '">AK</th>' +
           '<th style="' + thR + '">Ergebnis</th>' +
           '<th style="' + thR + '">Pace</th>' +
           '<th style="' + thS + ';text-align:center">Pl. AK</th>' +
-          '<th style="' + thS + '">Meisterschaft</th>' +
-          '<th style="' + thS + ';text-align:center">Pl. MS</th>' +
+          (hasMstr ? '<th style="' + thS + '">Meisterschaft</th>' : '') +
+          (hasMstr ? '<th style="' + thS + ';text-align:center">Pl. MS</th>' : '') +
         '</tr></thead>' +
         '<tbody>' + tableRows + '</tbody>' +
       '</table></div>' +

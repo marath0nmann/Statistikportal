@@ -5053,7 +5053,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
                     e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
                     e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
                     COALESCE(m.fmt_override, k.fmt) AS fmt,
-                    1 AS extern
+                    1 AS extern, e.verein
              FROM $eTbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id

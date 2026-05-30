@@ -1,3 +1,6 @@
+## v1331
+- Meine Teilnahmen (Serie-Detail): Zähler mit mehr Rand (außerhalb Tabelle im Panel); Meisterschaft/Pl.MS-Spalten nur bei vorhandenen Werten; Verein-Spalte nur bei externen Ergebnissen; API liefert e.verein für externe Ergebnisse
+
 ## v1330
 - Serie-Detail: neuer Abschnitt „Meine Teilnahmen" (nur für eingeloggte Nutzer mit Athletenprofil) zeigt eigene Ergebnisse der Veranstaltungsreihe als Tabelle mit Datum, Disziplin, AK, Ergebnis, Pace, Platzierungen
 
