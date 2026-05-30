@@ -230,66 +230,188 @@ async function renderMeineVeranstaltungen() {
     return;
   }
 
-  var html = '';
+  // Flache Zeilen-Liste aufbauen (eine Zeile pro Ergebnis)
+  var allRows = [];
   for (var vi = 0; vi < veranst.length; vi++) {
     var v = veranst[vi];
-    var name = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel || '';
-    var ortHtml = v.ort ? ' &middot; ' + (flagEmoji && flagEmoji(v.ort_land_code) ? flagEmoji(v.ort_land_code) + ' ' : '') + v.ort : '';
-    var serieBadge = v.serie_id && v.serie_name
-      ? '<span style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:2px 8px;cursor:pointer;margin-left:6px" onclick="event.stopPropagation();openSerieDetail(' + v.serie_id + ')">🔄 ' + v.serie_name + '</span>'
-      : '';
+    var vName = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel || '';
     var ergs = v.ergebnisse || [];
-    var ergRows = '';
     for (var ei = 0; ei < ergs.length; ei++) {
       var e = ergs[ei];
       var fmt = e.fmt || 'min';
-      var res = fmt === 'm' ? fmtMeter(e.resultat) : fmtTime(e.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
       var _km = diszKm ? diszKm(e.disziplin) : 0;
       var pace = (_km >= 1 && fmt !== 'm' && fmt !== 's' && calcPace) ? calcPace(e.disziplin, e.resultat) : '';
-      var showPace = pace && pace !== '00:00';
-      ergRows +=
-        '<tr>' +
-          '<td style="padding:6px 10px;border-bottom:1px solid var(--border)">' + (e.disziplin || '') + '</td>' +
-          '<td style="padding:6px 10px;border-bottom:1px solid var(--border)">' + akBadge(e.altersklasse) + '</td>' +
-          '<td class="result" style="padding:6px 10px;border-bottom:1px solid var(--border)">' + res + '</td>' +
-          '<td style="padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2)">' + (showPace ? fmtTime(pace, 'min/km') : '') + '</td>' +
-          '<td style="padding:6px 10px;border-bottom:1px solid var(--border)">' + medalBadge(e.ak_platzierung) + '</td>' +
-          '<td style="padding:6px 10px;border-bottom:1px solid var(--border)">' + (e.meisterschaft ? mstrBadge(e.meisterschaft) : '') + '</td>' +
-          '<td style="padding:6px 10px;border-bottom:1px solid var(--border)">' + (e.meisterschaft && e.ak_platz_meisterschaft ? medalBadge(e.ak_platz_meisterschaft) : '') + '</td>' +
-        '</tr>';
+      allRows.push({
+        veranst_id:            v.id,
+        veranst_name:          vName,
+        datum:                 v.datum || '',
+        ort:                   v.ort || '',
+        ort_land_code:         v.ort_land_code || '',
+        datenquelle:           v.datenquelle || '',
+        serie_id:              v.serie_id || null,
+        serie_name:            v.serie_name || '',
+        disziplin:             e.disziplin || '',
+        altersklasse:          e.altersklasse || '',
+        resultat:              e.resultat || '',
+        resultat_num:          parseFloat(e.resultat_num) || 0,
+        fmt:                   fmt,
+        pace:                  pace,
+        ak_platzierung:        parseInt(e.ak_platzierung) || 0,
+        meisterschaft:         e.meisterschaft || '',
+        ak_platz_meisterschaft: parseInt(e.ak_platz_meisterschaft) || 0,
+      });
     }
-    var ergTable = ergs.length
-      ? '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
-          '<thead><tr style="border-bottom:2px solid var(--border)">' +
-            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Disziplin</th>' +
-            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">AK</th>' +
-            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Ergebnis</th>' +
-            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Pace</th>' +
-            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Pl. AK</th>' +
-            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Meisterschaft</th>' +
-            '<th style="padding:6px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)">Pl. MS</th>' +
-          '</tr></thead>' +
-          '<tbody>' + ergRows + '</tbody>' +
-        '</table></div>'
-      : '<div class="empty" style="padding:12px">Keine Ergebnisse</div>';
-    html +=
-      '<div class="panel" style="margin-bottom:16px">' +
-        '<div class="panel-header">' +
-          '<div>' +
-            '<div class="panel-title" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + v.id + '\',\'_blank\')">' + name + serieBadge + '</div>' +
-            '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(v.datum) + ortHtml + '</div>' +
-          '</div>' +
-          '<div style="display:flex;align-items:center;gap:8px">' +
-            (v.datenquelle ? '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" class="btn btn-ghost btn-sm" title="Ergebnisquelle">🌐</a>' : '') +
-            '<button class="btn btn-ghost btn-sm" title="Teilen" onclick="shareVeranstaltung(' + v.id + ')">📤</button>' +
-          '</div>' +
-        '</div>' +
-        ergTable +
-      '</div>';
   }
-  viewEl.innerHTML = '<div style="font-size:13px;color:var(--text2);margin-bottom:14px">' +
-    veranst.length + ' Wettkampf' + (veranst.length !== 1 ? 'auftritte' : 'auftritt') + ' erfasst</div>' +
-    html;
+  window._meinVeranstRows = allRows;
+  if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: { suche: '', jahr: '', disziplin: '' } };
+  _renderMeineTabelle();
+}
+
+function _renderMeineTabelle() {
+  var viewEl = document.getElementById('veranst-view');
+  if (!viewEl || !window._meinVeranstRows) return;
+
+  var allRows = window._meinVeranstRows;
+  var sf = state.meine ? state.meine.filter : {};
+  var ss = state.meine ? state.meine.sort   : { col: 'datum', dir: 'desc' };
+
+  // ── Filter ──────────────────────────────────────────────
+  var rows = allRows.filter(function(r) {
+    if (sf.jahr && r.datum.slice(0, 4) !== sf.jahr) return false;
+    if (sf.disziplin && r.disziplin !== sf.disziplin) return false;
+    if (sf.suche) {
+      var q = sf.suche.toLowerCase();
+      if (r.veranst_name.toLowerCase().indexOf(q) < 0 &&
+          r.disziplin.toLowerCase().indexOf(q) < 0 &&
+          r.ort.toLowerCase().indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+
+  // ── Sortierung ───────────────────────────────────────────
+  rows.sort(function(a, b) {
+    var av, bv, d = ss.dir === 'asc' ? 1 : -1;
+    switch (ss.col) {
+      case 'datum':
+        return d * a.datum.localeCompare(b.datum);
+      case 'veranst_name':
+        return d * a.veranst_name.localeCompare(b.veranst_name);
+      case 'disziplin':
+        return d * a.disziplin.localeCompare(b.disziplin);
+      case 'altersklasse':
+        return d * a.altersklasse.localeCompare(b.altersklasse);
+      case 'resultat':
+        av = a.resultat_num; bv = b.resultat_num;
+        return d * (av - bv);
+      case 'ak_platzierung':
+        av = a.ak_platzierung || 9999; bv = b.ak_platzierung || 9999;
+        return d * (av - bv);
+      default:
+        return 0;
+    }
+  });
+
+  // ── Dropdown-Optionen aus Rohdaten ───────────────────────
+  var jahre = [], jahreSet = {}, diszMap = {}, diszList = [];
+  for (var ri = 0; ri < allRows.length; ri++) {
+    var yr = allRows[ri].datum.slice(0, 4);
+    if (yr && !jahreSet[yr]) { jahreSet[yr] = 1; jahre.push(yr); }
+    if (allRows[ri].disziplin && !diszMap[allRows[ri].disziplin]) { diszMap[allRows[ri].disziplin] = 1; diszList.push(allRows[ri].disziplin); }
+  }
+  jahre.sort(function(a, b) { return b - a; });
+  diszList.sort();
+
+  function selOpts(arr, cur) {
+    return '<option value="">Alle</option>' +
+      arr.map(function(v) { return '<option value="' + v.replace(/"/g,'&quot;') + '"' + (cur === v ? ' selected' : '') + '>' + v + '</option>'; }).join('');
+  }
+
+  // ── Sortierpfeil ─────────────────────────────────────────
+  function th(col, label, alignRight) {
+    var active = ss.col === col;
+    var arrow  = active ? ' <span style="color:var(--primary)">' + (ss.dir === 'asc' ? '↑' : '↓') + '</span>'
+                        : ' <span style="opacity:.3;font-size:10px">↕</span>';
+    var base = 'cursor:pointer;user-select:none;white-space:nowrap;padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:' + (alignRight ? 'right' : 'left');
+    return '<th style="' + base + '" onclick="_sortMeine(\'' + col + '\')">' + label + arrow + '</th>';
+  }
+
+  var td  = 'padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
+  var tdR = td + ';text-align:right;font-variant-numeric:tabular-nums';
+
+  var tableRows = rows.map(function(r) {
+    var fmt = r.fmt;
+    var res = fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
+    var showPace = r.pace && r.pace !== '00:00';
+    var ortText = r.ort ? (r.ort_land_code && flagEmoji ? flagEmoji(r.ort_land_code) + ' ' + r.ort : r.ort) : '';
+    return '<tr onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+      '<td style="' + td + ';white-space:nowrap">' + formatDate(r.datum) + '</td>' +
+      '<td style="' + td + ';font-weight:600;cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' + r.veranst_name +
+        (r.serie_id ? ' <span style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:pointer" onclick="event.stopPropagation();openSerieDetail(' + r.serie_id + ')">🔄</span>' : '') +
+      '</td>' +
+      '<td style="' + td + ';font-size:12px;color:var(--text2)">' + ortText + '</td>' +
+      '<td style="' + td + '">' + r.disziplin + '</td>' +
+      '<td style="' + td + '">' + akBadge(r.altersklasse) + '</td>' +
+      '<td style="' + tdR + '" class="result">' + res + '</td>' +
+      '<td style="' + tdR + ';font-size:12px;color:var(--text2)">' + (showPace ? fmtTime(r.pace, 'min/km') : '') + '</td>' +
+      '<td style="' + td + ';text-align:center">' + medalBadge(r.ak_platzierung) + '</td>' +
+      '<td style="' + td + '">' + (r.meisterschaft ? mstrBadge(r.meisterschaft) : '') + '</td>' +
+      '<td style="' + td + ';text-align:center">' + (r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : '') + '</td>' +
+    '</tr>';
+  }).join('');
+
+  var filterBar =
+    '<div class="filter-bar" style="margin-bottom:16px;flex-wrap:wrap">' +
+      '<div class="fg" style="flex:2;min-width:160px"><label>Suche</label>' +
+        '<input type="search" id="mv-suche" placeholder="Veranstaltung, Disziplin, Ort&hellip;" value="' + (sf.suche || '').replace(/"/g,'&quot;') + '" oninput="_filterMeine()" style="width:100%;min-width:0"/></div>' +
+      '<div class="fg" style="flex:0 0 auto;min-width:90px"><label>Jahr</label>' +
+        '<select id="mv-jahr" onchange="_filterMeine()">' + selOpts(jahre, sf.jahr) + '</select></div>' +
+      '<div class="fg" style="flex:0 0 auto;min-width:130px"><label>Disziplin</label>' +
+        '<select id="mv-disz" onchange="_filterMeine()">' + selOpts(diszList, sf.disziplin) + '</select></div>' +
+    '</div>';
+
+  var total = allRows.length;
+  var countHtml = '<div style="font-size:13px;color:var(--text2);margin-bottom:4px">' +
+    (rows.length < total
+      ? rows.length + ' von ' + total + ' Ergebnis' + (total !== 1 ? 'sen' : '')
+      : total + ' Ergebnis' + (total !== 1 ? 'se' : '')) +
+    ' in ' + Object.keys(allRows.reduce(function(m,r){ m[r.veranst_id]=1; return m; }, {})).length + ' Wettkämpfen</div>';
+
+  var table = rows.length
+    ? '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
+        '<thead><tr style="border-bottom:2px solid var(--border)">' +
+          th('datum',        'Datum',           false) +
+          th('veranst_name', 'Veranstaltung',   false) +
+          '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Ort</th>' +
+          th('disziplin',    'Disziplin',        false) +
+          th('altersklasse', 'AK',               false) +
+          th('resultat',     'Ergebnis',          true) +
+          '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:right">Pace</th>' +
+          th('ak_platzierung','Pl. AK',          false) +
+          '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Meisterschaft</th>' +
+          '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:center">Pl. MS</th>' +
+        '</tr></thead>' +
+        '<tbody>' + tableRows + '</tbody>' +
+      '</table></div>'
+    : '<div class="empty" style="padding:20px"><div class="empty-text">Keine Ergebnisse für diesen Filter.</div></div>';
+
+  viewEl.innerHTML = filterBar + '<div class="panel">' + countHtml + table + '</div>';
+}
+
+function _sortMeine(col) {
+  if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: {} };
+  var cur = state.meine.sort;
+  state.meine.sort = { col: col, dir: cur.col === col && cur.dir === 'asc' ? 'desc' : 'asc' };
+  _renderMeineTabelle();
+}
+
+function _filterMeine() {
+  if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: {} };
+  state.meine.filter = {
+    suche:     (document.getElementById('mv-suche') || {}).value || '',
+    jahr:      (document.getElementById('mv-jahr')  || {}).value || '',
+    disziplin: (document.getElementById('mv-disz')  || {}).value || '',
+  };
+  _renderMeineTabelle();
 }
 
 // ── SERIEN-TABELLE ─────────────────────────────────────────

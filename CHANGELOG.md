@@ -1,3 +1,6 @@
+## v1329
+- Meine Veranstaltungen: einzelne Tabelle statt Panels; sortierbar (Datum, Veranstaltung, Disziplin, AK, Ergebnis, Pl. AK); filterbar nach Freitext, Jahr und Disziplin; API liefert jetzt resultat_num für korrekte numerische Sortierung
+
 ## v1328
 - Veranstaltungen → Regelmäßige Veranstaltungen: Serien mit 0 Austragungen ausgeblendet
 

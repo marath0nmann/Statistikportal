@@ -6547,9 +6547,10 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
 
     foreach ($veranst as &$v) {
         $ergs = DB::fetchAll(
-            "SELECT e.id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.altersklasse,
-                    e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft,
-                    COALESCE(dm.fmt_override, dk.fmt, 'min') AS fmt
+            "SELECT e.id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.resultat_num,
+                    e.altersklasse, e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft,
+                    COALESCE(dm.fmt_override, dk.fmt, 'min') AS fmt,
+                    dk.name AS kategorie_name
              FROM $eTbl e
              LEFT JOIN $dmTbl dm ON dm.id=e.disziplin_mapping_id
              LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id
