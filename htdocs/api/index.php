@@ -6551,7 +6551,7 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
                     e.altersklasse, e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft,
                     e.verein,
                     COALESCE(dm.fmt_override, dk.fmt, 'min') AS fmt,
-                    dk.name AS kategorie_name
+                    dk.name AS kategorie_name, dk.tbl_key
              FROM $eTbl e
              LEFT JOIN $dmTbl dm ON dm.id=e.disziplin_mapping_id
              LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id

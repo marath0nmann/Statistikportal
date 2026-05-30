@@ -242,6 +242,9 @@ async function renderMeineVeranstaltungen() {
       var _km = diszKm ? diszKm(e.disziplin) : 0;
       var pace = (_km >= 1 && fmt !== 'm' && fmt !== 's' && calcPace) ? calcPace(e.disziplin, e.resultat) : '';
       allRows.push({
+        erg_id:                e.id,
+        tbl_key:               e.tbl_key || 'strasse',
+        disziplin_mapping_id:  e.disziplin_mapping_id || null,
         veranst_id:            v.id,
         veranst_name:          vName,
         datum:                 v.datum || '',
@@ -275,6 +278,11 @@ function _renderMeineTabelle() {
   var allRows = window._meinVeranstRows;
   var sf = state.meine ? state.meine.filter : {};
   var ss = state.meine ? state.meine.sort   : { col: 'datum', dir: 'desc' };
+  var ownClub = (appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '';
+
+  // Zeilenindex für Edit-Zugriff
+  window._meineTblRowMap = {};
+  allRows.forEach(function(r) { window._meineTblRowMap[r.erg_id] = r; });
 
   // ── Filter ──────────────────────────────────────────────
   var rows = allRows.filter(function(r) {
@@ -293,26 +301,19 @@ function _renderMeineTabelle() {
   rows.sort(function(a, b) {
     var av, bv, d = ss.dir === 'asc' ? 1 : -1;
     switch (ss.col) {
-      case 'datum':
-        return d * a.datum.localeCompare(b.datum);
-      case 'veranst_name':
-        return d * a.veranst_name.localeCompare(b.veranst_name);
-      case 'disziplin':
-        return d * a.disziplin.localeCompare(b.disziplin);
-      case 'altersklasse':
-        return d * a.altersklasse.localeCompare(b.altersklasse);
-      case 'resultat':
-        av = a.resultat_num; bv = b.resultat_num;
-        return d * (av - bv);
+      case 'datum':        return d * a.datum.localeCompare(b.datum);
+      case 'veranst_name': return d * a.veranst_name.localeCompare(b.veranst_name);
+      case 'disziplin':    return d * a.disziplin.localeCompare(b.disziplin);
+      case 'altersklasse': return d * a.altersklasse.localeCompare(b.altersklasse);
+      case 'resultat':     return d * (a.resultat_num - b.resultat_num);
       case 'ak_platzierung':
         av = a.ak_platzierung || 9999; bv = b.ak_platzierung || 9999;
         return d * (av - bv);
-      default:
-        return 0;
+      default: return 0;
     }
   });
 
-  // ── Dropdown-Optionen aus Rohdaten ───────────────────────
+  // ── Dropdown-Optionen ────────────────────────────────────
   var jahre = [], jahreSet = {}, diszMap = {}, diszList = [];
   for (var ri = 0; ri < allRows.length; ri++) {
     var yr = allRows[ri].datum.slice(0, 4);
@@ -321,7 +322,6 @@ function _renderMeineTabelle() {
   }
   jahre.sort(function(a, b) { return b - a; });
   diszList.sort();
-
   function selOpts(arr, cur) {
     return '<option value="">Alle</option>' +
       arr.map(function(v) { return '<option value="' + v.replace(/"/g,'&quot;') + '"' + (cur === v ? ' selected' : '') + '>' + v + '</option>'; }).join('');
@@ -336,25 +336,30 @@ function _renderMeineTabelle() {
     return '<th style="' + base + '" onclick="_sortMeine(\'' + col + '\')">' + label + arrow + '</th>';
   }
 
-  // Bedingte Spalten (aus Gesamtdaten, nicht nur gefilterten Zeilen)
+  // Bedingte Spalten (aus Gesamtdaten)
   var hasVerein = allRows.some(function(r) { return !!r.verein; });
   var hasMstr   = allRows.some(function(r) { return !!r.meisterschaft; });
 
-  var td  = 'padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
-  var tdR = td + ';text-align:right;font-variant-numeric:tabular-nums';
+  var td   = 'padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
+  var tdR  = td + ';text-align:right;font-variant-numeric:tabular-nums';
+  var tdCb = 'padding:7px 8px 7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;width:32px';
 
   var tableRows = rows.map(function(r) {
     var fmt = r.fmt;
     var res = fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
     var showPace = r.pace && r.pace !== '00:00';
-    var ortText = r.ort ? (r.ort_land_code && flagEmoji ? flagEmoji(r.ort_land_code) + ' ' + r.ort : r.ort) : '';
+    var ortText  = r.ort ? (r.ort_land_code && flagEmoji ? flagEmoji(r.ort_land_code) + ' ' + r.ort : r.ort) : '';
+    var vereinText = r.verein || ownClub;
     return '<tr onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+      '<td style="' + tdCb + '">' +
+        '<input type="checkbox" class="mv-row-cb" value="' + r.erg_id + '" onchange="_meineRowCbChange()" style="width:14px;height:14px;cursor:pointer">' +
+      '</td>' +
       '<td style="' + td + ';white-space:nowrap">' + formatDate(r.datum) + '</td>' +
       '<td style="' + td + ';font-weight:600;cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' + r.veranst_name +
         (r.serie_id ? ' <span style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:pointer" onclick="event.stopPropagation();openSerieDetail(' + r.serie_id + ')">🔄</span>' : '') +
       '</td>' +
       '<td style="' + td + ';font-size:12px;color:var(--text2)">' + ortText + '</td>' +
-      (hasVerein ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + (r.verein || '') + '</td>' : '') +
+      (hasVerein ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + vereinText + '</td>' : '') +
       '<td style="' + td + '">' + r.disziplin + '</td>' +
       '<td style="' + td + '">' + akBadge(r.altersklasse) + '</td>' +
       '<td style="' + tdR + '" class="result">' + res + '</td>' +
@@ -362,8 +367,52 @@ function _renderMeineTabelle() {
       '<td style="' + td + ';text-align:center">' + medalBadge(r.ak_platzierung) + '</td>' +
       (hasMstr ? '<td style="' + td + '">' + (r.meisterschaft ? mstrBadge(r.meisterschaft) : '') + '</td>' : '') +
       (hasMstr ? '<td style="' + td + ';text-align:center">' + (r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : '') + '</td>' : '') +
+      '<td style="' + td + ';white-space:nowrap">' +
+        '<button class="btn btn-ghost btn-sm" title="Bearbeiten" onclick="_openMeineErgEdit(' + r.erg_id + ')">&#x270F;&#xFE0F;</button>' +
+      '</td>' +
     '</tr>';
   }).join('');
+
+  var total = allRows.length;
+  var totalWettkampfe = Object.keys(allRows.reduce(function(m,r){ m[r.veranst_id]=1; return m; }, {})).length;
+  var countHtml =
+    '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">' +
+    (rows.length < total
+      ? rows.length + ' von ' + total + ' Ergebnis' + (total !== 1 ? 'sen' : '')
+      : total + ' Ergebnis' + (total !== 1 ? 'se' : '')) +
+    ' in ' + totalWettkampfe + ' Wettkampf' + (totalWettkampfe !== 1 ? 'auftr.' : 'auftritt') +
+    '</div>';
+
+  var bulkBar =
+    '<div id="mv-bulk-bar" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--surf2);border-radius:8px;display:none;align-items:center;gap:12px">' +
+      '<span id="mv-bulk-count" style="font-size:13px;font-weight:600"></span>' +
+      '<button class="btn btn-danger btn-sm" onclick="_bulkDeleteMeine()">&#x1F5D1;&#xFE0F; L&ouml;schen</button>' +
+      '<button class="btn btn-ghost btn-sm" onclick="_meineDeselectAll()">Auswahl aufheben</button>' +
+    '</div>';
+
+  var thCb = 'padding:8px 8px 8px 10px;width:32px';
+  var thAct = 'padding:8px 10px;width:60px';
+
+  var table = rows.length
+    ? '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
+        '<thead><tr style="border-bottom:2px solid var(--border)">' +
+          '<th style="' + thCb + '"><input type="checkbox" id="mv-select-all" onchange="_meineSelectAll(this)" style="width:14px;height:14px;cursor:pointer"></th>' +
+          th('datum',        'Datum',         false) +
+          th('veranst_name', 'Veranstaltung', false) +
+          '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Ort</th>' +
+          (hasVerein ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Verein</th>' : '') +
+          th('disziplin',     'Disziplin',    false) +
+          th('altersklasse',  'AK',           false) +
+          th('resultat',      'Ergebnis',     true)  +
+          '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:right">Pace</th>' +
+          th('ak_platzierung','Pl. AK',       false) +
+          (hasMstr ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Meisterschaft</th>' : '') +
+          (hasMstr ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:center">Pl. MS</th>' : '') +
+          '<th style="' + thAct + '"></th>' +
+        '</tr></thead>' +
+        '<tbody>' + tableRows + '</tbody>' +
+      '</table></div>'
+    : '<div class="empty" style="padding:20px"><div class="empty-text">Keine Ergebnisse f&uuml;r diesen Filter.</div></div>';
 
   var filterBar =
     '<div class="filter-bar" style="margin-bottom:16px;flex-wrap:wrap">' +
@@ -375,33 +424,7 @@ function _renderMeineTabelle() {
         '<select id="mv-disz" onchange="_filterMeine()">' + selOpts(diszList, sf.disziplin) + '</select></div>' +
     '</div>';
 
-  var total = allRows.length;
-  var countHtml = '<div style="font-size:13px;color:var(--text2);margin-bottom:4px">' +
-    (rows.length < total
-      ? rows.length + ' von ' + total + ' Ergebnis' + (total !== 1 ? 'sen' : '')
-      : total + ' Ergebnis' + (total !== 1 ? 'se' : '')) +
-    ' in ' + Object.keys(allRows.reduce(function(m,r){ m[r.veranst_id]=1; return m; }, {})).length + ' Wettkämpfen</div>';
-
-  var table = rows.length
-    ? '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
-        '<thead><tr style="border-bottom:2px solid var(--border)">' +
-          th('datum',        'Datum',           false) +
-          th('veranst_name', 'Veranstaltung',   false) +
-          '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Ort</th>' +
-          (hasVerein ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Verein</th>' : '') +
-          th('disziplin',    'Disziplin',        false) +
-          th('altersklasse', 'AK',               false) +
-          th('resultat',     'Ergebnis',          true) +
-          '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:right">Pace</th>' +
-          th('ak_platzierung','Pl. AK',          false) +
-          (hasMstr ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Meisterschaft</th>' : '') +
-          (hasMstr ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:center">Pl. MS</th>' : '') +
-        '</tr></thead>' +
-        '<tbody>' + tableRows + '</tbody>' +
-      '</table></div>'
-    : '<div class="empty" style="padding:20px"><div class="empty-text">Keine Ergebnisse für diesen Filter.</div></div>';
-
-  viewEl.innerHTML = filterBar + '<div class="panel">' + countHtml + table + '</div>';
+  viewEl.innerHTML = filterBar + countHtml + bulkBar + '<div class="panel">' + table + '</div>';
 }
 
 function _sortMeine(col) {
@@ -419,6 +442,113 @@ function _filterMeine() {
     disziplin: (document.getElementById('mv-disz')  || {}).value || '',
   };
   _renderMeineTabelle();
+}
+
+// ── Checkbox-Handling ────────────────────────────────────
+function _meineRowCbChange() {
+  var cbs  = document.querySelectorAll('.mv-row-cb:checked');
+  var all  = document.querySelectorAll('.mv-row-cb');
+  var bar  = document.getElementById('mv-bulk-bar');
+  var cnt  = document.getElementById('mv-bulk-count');
+  var sa   = document.getElementById('mv-select-all');
+  if (bar)  { bar.style.display  = cbs.length ? 'flex' : 'none'; }
+  if (cnt)  { cnt.textContent    = cbs.length + ' Ergebnis' + (cbs.length !== 1 ? 'se' : '') + ' ausgewählt'; }
+  if (sa)   { sa.indeterminate   = cbs.length > 0 && cbs.length < all.length; sa.checked = cbs.length === all.length && all.length > 0; }
+}
+function _meineSelectAll(cb) {
+  document.querySelectorAll('.mv-row-cb').forEach(function(c) { c.checked = cb.checked; });
+  _meineRowCbChange();
+}
+function _meineDeselectAll() {
+  document.querySelectorAll('.mv-row-cb').forEach(function(c) { c.checked = false; });
+  _meineRowCbChange();
+}
+
+// ── Einzelnes Ergebnis bearbeiten ────────────────────────
+function _openMeineErgEdit(ergId) {
+  var r = window._meineTblRowMap && window._meineTblRowMap[ergId];
+  if (!r) return;
+  var mstrOpts = buildSelectOptions(
+    (window._mstrList || []), '— keine —',
+    function(m) { return m.id; }, function(m) { return m.label; },
+    function(m) { return String(m.id) === String(r.meisterschaft); }
+  );
+  showModal(
+    modalH2('&#x270F;&#xFE0F; Ergebnis bearbeiten') +
+    '<div style="font-size:12px;color:var(--text2);margin:-6px 0 14px">' +
+      r.veranst_name + ' &middot; ' + formatDate(r.datum) +
+    '</div>' +
+    '<div class="form-grid">' +
+      '<div class="form-group full"><label>Disziplin</label>' +
+        '<input type="text" id="mee-disz" value="' + r.disziplin.replace(/"/g,'&quot;') + '" list="disz-list"/></div>' +
+      '<div class="form-group"><label>Ergebnis</label>' +
+        '<input type="text" id="mee-res" value="' + r.resultat.replace(/"/g,'&quot;') + '" placeholder="z.B. 00:40:08 oder 8,45"/></div>' +
+      '<div class="form-group"><label>Altersklasse</label>' +
+        '<input type="text" id="mee-ak" value="' + (r.altersklasse || '').replace(/"/g,'&quot;') + '" placeholder="z.B. M40"/></div>' +
+      '<div class="form-group"><label>Platz AK</label>' +
+        '<input type="number" id="mee-akp" value="' + (r.ak_platzierung || '') + '" min="1" placeholder="—"/></div>' +
+      '<div class="form-group"><label>Meisterschaft</label>' +
+        '<select id="mee-mstr">' + mstrOpts + '</select></div>' +
+      '<div class="form-group"><label>Platz MS</label>' +
+        '<input type="number" id="mee-mstr-platz" value="' + (r.ak_platz_meisterschaft || '') + '" min="1" placeholder="—"/></div>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="_saveMeineErgEdit(' + ergId + ',\'' + (r.tbl_key || 'strasse') + '\')">Speichern</button>' +
+    '</div>'
+  );
+}
+
+async function _saveMeineErgEdit(ergId, tblKey) {
+  var disz  = (document.getElementById('mee-disz')       || {}).value.trim();
+  var res   = (document.getElementById('mee-res')        || {}).value.trim();
+  var ak    = (document.getElementById('mee-ak')         || {}).value.trim();
+  var akp   = (document.getElementById('mee-akp')        || {}).value.trim();
+  var mstr  = (document.getElementById('mee-mstr')       || {}).value.trim();
+  var mstrP = (document.getElementById('mee-mstr-platz') || {}).value.trim();
+  if (!disz || !res) { notify('Disziplin und Ergebnis sind Pflicht!', 'err'); return; }
+  var body = { disziplin: disz, resultat: res, altersklasse: ak };
+  if (akp)   body.ak_platzierung = parseInt(akp);
+  if (mstr)  body.meisterschaft = parseInt(mstr);
+  body.ak_platz_meisterschaft = mstrP ? parseInt(mstrP) : null;
+  var r = await apiPut((tblKey || 'strasse') + '/' + ergId, body);
+  if (r && r.ok) {
+    closeModal();
+    if (r.data && r.data.pending) {
+      notify('Änderungsantrag gestellt. Ein Editor wird ihn prüfen.', 'ok');
+    } else {
+      notify('Ergebnis gespeichert.', 'ok');
+    }
+    window._meinVeranstRows = null;
+    await renderMeineVeranstaltungen();
+  } else {
+    notify((r && r.fehler) || 'Fehler beim Speichern', 'err');
+  }
+}
+
+// ── Bulk-Löschen ─────────────────────────────────────────
+async function _bulkDeleteMeine() {
+  var cbs = Array.from(document.querySelectorAll('.mv-row-cb:checked'));
+  if (!cbs.length) return;
+  var n = cbs.length;
+  if (!await confirmModal(n + ' Ergebnis' + (n !== 1 ? 'se' : '') + ' in den Papierkorb verschieben?')) return;
+  var ok = 0, fail = 0, pending = 0;
+  for (var i = 0; i < cbs.length; i++) {
+    var eid = parseInt(cbs[i].value);
+    var row = window._meineTblRowMap && window._meineTblRowMap[eid];
+    var tbl = (row && row.tbl_key) || 'strasse';
+    var r = await api('DELETE', tbl + '/' + eid);
+    if (r && r.ok) {
+      if (r.data && r.data.pending) pending++; else ok++;
+    } else fail++;
+  }
+  var msg = [];
+  if (ok)      msg.push(ok + ' gelöscht');
+  if (pending) msg.push(pending + ' Löschantrag' + (pending > 1 ? 'anträge' : '') + ' gestellt');
+  if (fail)    msg.push(fail + ' Fehler');
+  notify(msg.join(', ') + '.', fail ? 'err' : 'ok');
+  window._meinVeranstRows = null;
+  await renderMeineVeranstaltungen();
 }
 
 // ── SERIEN-TABELLE ─────────────────────────────────────────
@@ -955,6 +1085,7 @@ function _buildSerieMeineTeilnahmen(veranst) {
   // Bedingte Spalten
   var hasMstr   = rows.some(function(r) { return !!r.meisterschaft; });
   var hasExtern = rows.some(function(r) { return r.extern; });
+  var ownClubSerie = (appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '';
 
   var td  = 'padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
   var tdR = td + ';text-align:right;font-variant-numeric:tabular-nums';
@@ -967,7 +1098,7 @@ function _buildSerieMeineTeilnahmen(veranst) {
       '<td style="' + td + ';font-weight:600;cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' +
         r.veranst_name +
       '</td>' +
-      (hasExtern ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + (r.extern ? (r.verein || '–') : '') + '</td>' : '') +
+      (hasExtern ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + (r.verein || ownClubSerie) + '</td>' : '') +
       '<td style="' + td + '">' + r.disziplin + '</td>' +
       '<td style="' + td + '">' + akBadge(r.altersklasse) + '</td>' +
       '<td style="' + tdR + '" class="result">' + res + '</td>' +
