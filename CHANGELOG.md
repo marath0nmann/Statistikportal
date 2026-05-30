@@ -1,3 +1,6 @@
+## v1337
+- Bulk-Bearbeitung: Feld „Verein" ergänzt; API-PUT-Handler akzeptiert jetzt verein-Feld für Ergebnisse
+
 ## v1336
 - Meine Veranstaltungen: Verein-Filterdropdown (erscheint nur wenn mind. 2 verschiedene Vereine vorhanden); leerer Verein wird als eigener Vereinsname behandelt
 

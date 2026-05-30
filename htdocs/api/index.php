@@ -2250,6 +2250,7 @@ if (in_array($res, $ergebnisTabellen)) {
             elseif (!$aid && $curRolle === 'athlet') { $felder[] = 'rolle=?'; $params[] = 'leser'; }
         }
         if (isset($body['altersklasse']))  { $felder[] = 'altersklasse=?';  $params[] = sanitize($body['altersklasse']); }
+        if (array_key_exists('verein', $body)) { $felder[] = 'verein=?'; $params[] = sanitize($body['verein']) ?: null; }
         if (isset($body['disziplin'])) {
             $felder[] = 'disziplin=?'; $params[] = sanitize($body['disziplin']);
             // disziplin_mapping_id: direkt aus Body wenn vorhanden, sonst per Lookup

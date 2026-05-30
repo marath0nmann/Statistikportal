@@ -602,6 +602,7 @@ function _openBulkEditMeine() {
     '<table style="width:100%;border-collapse:collapse">' +
       fieldRow('disz',      'Disziplin',     inp('disz',  'text', 'z.B. 10km', ' list="disz-list"')) +
       fieldRow('ak',        'Altersklasse',  inp('ak',    'text', 'z.B. M40')) +
+      fieldRow('verein',    'Verein',        inp('verein','text', (appConfig && appConfig.verein_name) || '')) +
       fieldRow('akp',       'Pl. AK',        inp('akp',   'number', '—', ' min="1"')) +
       fieldRow('mstr',      'Meisterschaft', sel('mstr',  mstrOpts)) +
       fieldRow('mstr-platz','Pl. MS',        inp('mstr-platz', 'number', '—', ' min="1"')) +
@@ -640,6 +641,7 @@ async function _saveBulkEditMeine() {
   }
   chkField('disz',       'disziplin',    null);
   chkField('ak',         'altersklasse', null);
+  chkField('verein',     'verein',       null);
   chkField('akp',        'ak_platzierung', function(v) { return v ? parseInt(v) : null; });
   chkField('mstr',       'meisterschaft',  function(v) { return v ? parseInt(v) : null; });
   chkField('mstr-platz', 'ak_platz_meisterschaft', function(v) { return v ? parseInt(v) : null; });
