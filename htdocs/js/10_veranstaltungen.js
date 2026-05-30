@@ -384,8 +384,9 @@ function _renderMeineTabelle() {
     '</div>';
 
   var bulkBar =
-    '<div id="mv-bulk-bar" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--surf2);border-radius:8px;display:none;align-items:center;gap:12px">' +
+    '<div id="mv-bulk-bar" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--surf2);border-radius:8px;display:none;align-items:center;gap:12px;flex-wrap:wrap">' +
       '<span id="mv-bulk-count" style="font-size:13px;font-weight:600"></span>' +
+      '<button class="btn btn-primary btn-sm" onclick="_openBulkEditMeine()">&#x270F;&#xFE0F; Bearbeiten&hellip;</button>' +
       '<button class="btn btn-danger btn-sm" onclick="_bulkDeleteMeine()">&#x1F5D1;&#xFE0F; L&ouml;schen</button>' +
       '<button class="btn btn-ghost btn-sm" onclick="_meineDeselectAll()">Auswahl aufheben</button>' +
     '</div>';
@@ -546,6 +547,113 @@ async function _bulkDeleteMeine() {
   if (ok)      msg.push(ok + ' gelöscht');
   if (pending) msg.push(pending + ' Löschantrag' + (pending > 1 ? 'anträge' : '') + ' gestellt');
   if (fail)    msg.push(fail + ' Fehler');
+  notify(msg.join(', ') + '.', fail ? 'err' : 'ok');
+  window._meinVeranstRows = null;
+  await renderMeineVeranstaltungen();
+}
+
+// ── Bulk-Bearbeiten ───────────────────────────────────────
+function _openBulkEditMeine() {
+  var cbs = Array.from(document.querySelectorAll('.mv-row-cb:checked'));
+  if (!cbs.length) return;
+  var n = cbs.length;
+  var mstrOpts = buildSelectOptions(
+    (window._mstrList || []), '— keine —',
+    function(m) { return m.id; }, function(m) { return m.label; },
+    function() { return false; }
+  );
+
+  // Hilfsfunktion: Zeile mit Aktivier-Checkbox + Feld
+  function fieldRow(fieldId, label, inputHtml) {
+    return '<tr>' +
+      '<td style="padding:8px 12px 8px 0;vertical-align:middle;width:28px">' +
+        '<input type="checkbox" id="be-chk-' + fieldId + '" onchange="_beToggle(\'' + fieldId + '\')" style="width:15px;height:15px;cursor:pointer">' +
+      '</td>' +
+      '<td style="padding:8px 12px 8px 0;font-size:13px;font-weight:600;white-space:nowrap;vertical-align:middle">' +
+        '<label for="be-chk-' + fieldId + '" style="cursor:pointer">' + label + '</label>' +
+      '</td>' +
+      '<td style="padding:8px 0;width:100%">' + inputHtml + '</td>' +
+    '</tr>';
+  }
+  function inp(id, type, placeholder, extra) {
+    return '<input type="' + (type||'text') + '" id="be-' + id + '" placeholder="' + (placeholder||'') + '" disabled ' +
+           'style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surf2);color:var(--text2);opacity:.5"' +
+           (extra||'') + '>';
+  }
+  function sel(id, optsHtml) {
+    return '<select id="be-' + id + '" disabled style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surf2);color:var(--text2);opacity:.5">' + optsHtml + '</select>';
+  }
+
+  showModal(
+    modalH2('&#x270F;&#xFE0F; Bulk-Bearbeitung (' + n + ' Ergebnis' + (n !== 1 ? 'se' : '') + ')') +
+    '<p style="font-size:12px;color:var(--text2);margin:-4px 0 14px">' +
+      'Nur Felder mit aktivierter Checkbox werden ge&auml;ndert.' +
+    '</p>' +
+    '<table style="width:100%;border-collapse:collapse">' +
+      fieldRow('disz',      'Disziplin',     inp('disz',  'text', 'z.B. 10km', ' list="disz-list"')) +
+      fieldRow('ak',        'Altersklasse',  inp('ak',    'text', 'z.B. M40')) +
+      fieldRow('akp',       'Pl. AK',        inp('akp',   'number', '—', ' min="1"')) +
+      fieldRow('mstr',      'Meisterschaft', sel('mstr',  mstrOpts)) +
+      fieldRow('mstr-platz','Pl. MS',        inp('mstr-platz', 'number', '—', ' min="1"')) +
+    '</table>' +
+    '<div class="modal-actions" style="margin-top:18px">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="_saveBulkEditMeine()">Auf ' + n + ' Ergebnis' + (n !== 1 ? 'se' : '') + ' anwenden</button>' +
+    '</div>',
+    true // wide modal
+  );
+}
+
+// Aktiviert/deaktiviert ein Feld im Bulk-Edit-Modal
+function _beToggle(fieldId) {
+  var chk = document.getElementById('be-chk-' + fieldId);
+  var el  = document.getElementById('be-' + fieldId);
+  if (!el || !chk) return;
+  var on = chk.checked;
+  el.disabled = !on;
+  el.style.background = on ? 'var(--surface)' : 'var(--surf2)';
+  el.style.color      = on ? 'var(--text)'    : 'var(--text2)';
+  el.style.opacity    = on ? '1'              : '.5';
+  if (on) el.focus();
+}
+
+async function _saveBulkEditMeine() {
+  // Nur aktivierte Felder sammeln
+  var body = {};
+  function chkField(id, key, transform) {
+    var chk = document.getElementById('be-chk-' + id);
+    var el  = document.getElementById('be-' + id);
+    if (chk && chk.checked && el) {
+      var val = el.value.trim();
+      body[key] = transform ? transform(val) : val;
+    }
+  }
+  chkField('disz',       'disziplin',    null);
+  chkField('ak',         'altersklasse', null);
+  chkField('akp',        'ak_platzierung', function(v) { return v ? parseInt(v) : null; });
+  chkField('mstr',       'meisterschaft',  function(v) { return v ? parseInt(v) : null; });
+  chkField('mstr-platz', 'ak_platz_meisterschaft', function(v) { return v ? parseInt(v) : null; });
+
+  if (!Object.keys(body).length) { notify('Kein Feld ausgewählt.', 'err'); return; }
+
+  var cbs = Array.from(document.querySelectorAll('.mv-row-cb:checked'));
+  if (!cbs.length) { closeModal(); return; }
+
+  var okDirect = 0, okPending = 0, fail = 0;
+  for (var i = 0; i < cbs.length; i++) {
+    var eid = parseInt(cbs[i].value);
+    var row = window._meineTblRowMap && window._meineTblRowMap[eid];
+    var tbl = (row && row.tbl_key) || 'strasse';
+    var r = await apiPut(tbl + '/' + eid, body);
+    if (r && r.ok) {
+      if (r.data && r.data.pending) okPending++; else okDirect++;
+    } else fail++;
+  }
+  closeModal();
+  var msg = [];
+  if (okDirect)  msg.push(okDirect + ' gespeichert');
+  if (okPending) msg.push(okPending + ' Antrag' + (okPending > 1 ? 'anträge' : '') + ' gestellt');
+  if (fail)      msg.push(fail + ' Fehler');
   notify(msg.join(', ') + '.', fail ? 'err' : 'ok');
   window._meinVeranstRows = null;
   await renderMeineVeranstaltungen();

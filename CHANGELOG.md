@@ -1,3 +1,6 @@
+## v1335
+- Meine Veranstaltungen: Bulk-Edit-Modal – Felder einzeln per Checkbox aktivierbar (Disziplin, AK, Pl. AK, Meisterschaft, Pl. MS); nur aktivierte Felder werden auf alle ausgewählten Ergebnisse angewendet
+
 ## v1334
 - Meine Veranstaltungen: Zähler außerhalb Panel; Edit-Button pro Zeile (Modal mit Disziplin/Ergebnis/AK/Platz/Meisterschaft, Athleten-Rolle stellt Änderungsantrag); Bulk-Select+Löschen; leerer Verein zeigt eigenen Vereinsnamen; gleicher Fallback in Meine Teilnahmen (Serie-Detail); API liefert tbl_key für Ergebnisse
 
