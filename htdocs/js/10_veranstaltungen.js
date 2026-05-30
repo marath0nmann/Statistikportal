@@ -655,6 +655,11 @@ async function renderSerieDetail(id) {
   html += '<div style="' + secStyle + ';margin:0 0 10px">&#x1F4CA; Anzahl Teilnahmen</div>';
   html += '<div class="panel" style="padding:20px 24px;display:inline-block;width:auto;max-width:100%"><div id="serie-teilnahmen-content"><div class="loading" style="padding:8px"><div class="spinner"></div>Lade…</div></div></div>';
 
+  if (currentUser && currentUser.athlet_id) {
+    html += '<div style="' + secStyle + ';margin:32px 0 10px">&#x1F3C3; Meine Teilnahmen</div>';
+    html += '<div id="serie-meine-content"></div>';
+  }
+
   html += '<div style="' + secStyle + ';margin:32px 0 10px">&#x1F3C6; Bestleistungen</div>';
   html += _buildSerieBestleistungenShell(disziplinen, id);
 
@@ -687,6 +692,7 @@ async function renderSerieDetail(id) {
     _loadSerieBestleistungen(id, state.serieDisz, state.serieMappingId);
   }
   _loadSerieTeilnahmen(id);
+  if (currentUser && currentUser.athlet_id) _buildSerieMeineTeilnahmen(veranst);
 }
 
 
@@ -899,6 +905,92 @@ async function _loadSerieBestleistungen(serieId, disz, mappingId) {
       '</label>' +
     '</div>';
   container.innerHTML = '<div class="panel" style="padding:20px 24px">' + shtml + optsHtml + '</div>';
+}
+
+// ── Meine Teilnahmen in einer Serie ───────────────────────
+function _buildSerieMeineTeilnahmen(veranst) {
+  var container = document.getElementById('serie-meine-content');
+  if (!container || !currentUser || !currentUser.athlet_id) return;
+  var myId = parseInt(currentUser.athlet_id);
+
+  // Flache Zeilen: eine pro eigenes Ergebnis, mit Veranstaltungs-Kontext
+  var rows = [];
+  for (var vi = 0; vi < veranst.length; vi++) {
+    var v = veranst[vi];
+    var vName = v.name || (v.kuerzel || '').split(' ').slice(1).join(' ') || v.kuerzel || '';
+    var ergs = v.ergebnisse || [];
+    for (var ei = 0; ei < ergs.length; ei++) {
+      var e = ergs[ei];
+      if (parseInt(e.athlet_id) !== myId) continue;
+      var fmt = e.fmt || 'min';
+      var _km = diszKm ? diszKm(e.disziplin) : 0;
+      var pace = (_km >= 1 && fmt !== 'm' && fmt !== 's' && calcPace) ? calcPace(e.disziplin, e.resultat) : '';
+      rows.push({
+        veranst_id: v.id, veranst_name: vName, datum: v.datum || '', jahr: v.jahr || '',
+        disziplin: e.disziplin || '', altersklasse: e.altersklasse || '',
+        resultat: e.resultat || '', fmt: fmt, pace: pace,
+        ak_platzierung: e.ak_platzierung || null,
+        meisterschaft: e.meisterschaft || '',
+        ak_platz_meisterschaft: e.ak_platz_meisterschaft || null,
+        extern: parseInt(e.extern) === 1,
+      });
+    }
+  }
+
+  if (!rows.length) {
+    container.innerHTML =
+      '<div class="panel" style="padding:14px 18px;color:var(--text2);font-size:13px">' +
+      'Keine eigenen Ergebnisse in dieser Veranstaltungsreihe erfasst.</div>';
+    return;
+  }
+
+  var td  = 'padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
+  var tdR = td + ';text-align:right;font-variant-numeric:tabular-nums';
+
+  var tableRows = rows.map(function(r) {
+    var res = r.fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, r.fmt === 's' ? 's' : (r.fmt === 'min_h' ? 'min_h' : undefined));
+    var showPace = r.pace && r.pace !== '00:00';
+    return '<tr onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+      '<td style="' + td + ';white-space:nowrap">' + formatDate(r.datum) + '</td>' +
+      '<td style="' + td + ';font-weight:600;cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' +
+        r.veranst_name + (r.extern ? ' <span style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>' : '') +
+      '</td>' +
+      '<td style="' + td + '">' + r.disziplin + '</td>' +
+      '<td style="' + td + '">' + akBadge(r.altersklasse) + '</td>' +
+      '<td style="' + tdR + '" class="result">' + res + '</td>' +
+      '<td style="' + tdR + ';font-size:12px;color:var(--text2)">' + (showPace ? fmtTime(r.pace, 'min/km') : '') + '</td>' +
+      '<td style="' + td + ';text-align:center">' + medalBadge(r.ak_platzierung) + '</td>' +
+      '<td style="' + td + '">' + (r.meisterschaft ? mstrBadge(r.meisterschaft) : '') + '</td>' +
+      '<td style="' + td + ';text-align:center">' + (r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : '') + '</td>' +
+    '</tr>';
+  }).join('');
+
+  var thS = 'padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text2)';
+  var thR = thS + ';text-align:right';
+
+  var anzJahre = Object.keys(rows.reduce(function(m,r){ m[r.datum.slice(0,4)]=1; return m; }, {})).length;
+  var countHtml = '<div style="font-size:13px;color:var(--text2);padding:0 2px 8px">' +
+    rows.length + ' Ergebnis' + (rows.length !== 1 ? 'se' : '') + ' in ' +
+    anzJahre + ' Austragung' + (anzJahre !== 1 ? 'en' : '') + '</div>';
+
+  container.innerHTML =
+    '<div class="panel">' +
+      countHtml +
+      '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
+        '<thead><tr style="border-bottom:2px solid var(--border)">' +
+          '<th style="' + thS + '">Datum</th>' +
+          '<th style="' + thS + '">Veranstaltung</th>' +
+          '<th style="' + thS + '">Disziplin</th>' +
+          '<th style="' + thS + '">AK</th>' +
+          '<th style="' + thR + '">Ergebnis</th>' +
+          '<th style="' + thR + '">Pace</th>' +
+          '<th style="' + thS + ';text-align:center">Pl. AK</th>' +
+          '<th style="' + thS + '">Meisterschaft</th>' +
+          '<th style="' + thS + ';text-align:center">Pl. MS</th>' +
+        '</tr></thead>' +
+        '<tbody>' + tableRows + '</tbody>' +
+      '</table></div>' +
+    '</div>';
 }
 
 // ── Modale: Serie anlegen / bearbeiten ────────────────────

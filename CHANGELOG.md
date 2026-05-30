@@ -1,3 +1,6 @@
+## v1330
+- Serie-Detail: neuer Abschnitt „Meine Teilnahmen" (nur für eingeloggte Nutzer mit Athletenprofil) zeigt eigene Ergebnisse der Veranstaltungsreihe als Tabelle mit Datum, Disziplin, AK, Ergebnis, Pace, Platzierungen
+
 ## v1329
 - Meine Veranstaltungen: einzelne Tabelle statt Panels; sortierbar (Datum, Veranstaltung, Disziplin, AK, Ergebnis, Pl. AK); filterbar nach Freitext, Jahr und Disziplin; API liefert jetzt resultat_num für korrekte numerische Sortierung
 
