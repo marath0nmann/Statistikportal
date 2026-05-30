@@ -1,3 +1,6 @@
+## v1333
+- Meine Veranstaltungen: Spalte „Verein" eingeblendet wenn mind. ein Ergebnis einen Vereinsnamen trägt; Meisterschaft/Pl.MS nur bei vorhandenen Werten; API liefert e.verein
+
 ## v1332
 - Meine Teilnahmen: Abschnitt (Überschrift + Tabelle) wird nur angezeigt, wenn eigene Ergebnisse vorhanden
 

@@ -259,6 +259,7 @@ async function renderMeineVeranstaltungen() {
         ak_platzierung:        parseInt(e.ak_platzierung) || 0,
         meisterschaft:         e.meisterschaft || '',
         ak_platz_meisterschaft: parseInt(e.ak_platz_meisterschaft) || 0,
+        verein:                e.verein || '',
       });
     }
   }
@@ -335,6 +336,10 @@ function _renderMeineTabelle() {
     return '<th style="' + base + '" onclick="_sortMeine(\'' + col + '\')">' + label + arrow + '</th>';
   }
 
+  // Bedingte Spalten (aus Gesamtdaten, nicht nur gefilterten Zeilen)
+  var hasVerein = allRows.some(function(r) { return !!r.verein; });
+  var hasMstr   = allRows.some(function(r) { return !!r.meisterschaft; });
+
   var td  = 'padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
   var tdR = td + ';text-align:right;font-variant-numeric:tabular-nums';
 
@@ -349,13 +354,14 @@ function _renderMeineTabelle() {
         (r.serie_id ? ' <span style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:pointer" onclick="event.stopPropagation();openSerieDetail(' + r.serie_id + ')">🔄</span>' : '') +
       '</td>' +
       '<td style="' + td + ';font-size:12px;color:var(--text2)">' + ortText + '</td>' +
+      (hasVerein ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + (r.verein || '') + '</td>' : '') +
       '<td style="' + td + '">' + r.disziplin + '</td>' +
       '<td style="' + td + '">' + akBadge(r.altersklasse) + '</td>' +
       '<td style="' + tdR + '" class="result">' + res + '</td>' +
       '<td style="' + tdR + ';font-size:12px;color:var(--text2)">' + (showPace ? fmtTime(r.pace, 'min/km') : '') + '</td>' +
       '<td style="' + td + ';text-align:center">' + medalBadge(r.ak_platzierung) + '</td>' +
-      '<td style="' + td + '">' + (r.meisterschaft ? mstrBadge(r.meisterschaft) : '') + '</td>' +
-      '<td style="' + td + ';text-align:center">' + (r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : '') + '</td>' +
+      (hasMstr ? '<td style="' + td + '">' + (r.meisterschaft ? mstrBadge(r.meisterschaft) : '') + '</td>' : '') +
+      (hasMstr ? '<td style="' + td + ';text-align:center">' + (r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : '') + '</td>' : '') +
     '</tr>';
   }).join('');
 
@@ -382,13 +388,14 @@ function _renderMeineTabelle() {
           th('datum',        'Datum',           false) +
           th('veranst_name', 'Veranstaltung',   false) +
           '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Ort</th>' +
+          (hasVerein ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Verein</th>' : '') +
           th('disziplin',    'Disziplin',        false) +
           th('altersklasse', 'AK',               false) +
           th('resultat',     'Ergebnis',          true) +
           '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:right">Pace</th>' +
           th('ak_platzierung','Pl. AK',          false) +
-          '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Meisterschaft</th>' +
-          '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:center">Pl. MS</th>' +
+          (hasMstr ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Meisterschaft</th>' : '') +
+          (hasMstr ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:center">Pl. MS</th>' : '') +
         '</tr></thead>' +
         '<tbody>' + tableRows + '</tbody>' +
       '</table></div>'

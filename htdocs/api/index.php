@@ -6549,6 +6549,7 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
         $ergs = DB::fetchAll(
             "SELECT e.id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.resultat_num,
                     e.altersklasse, e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft,
+                    e.verein,
                     COALESCE(dm.fmt_override, dk.fmt, 'min') AS fmt,
                     dk.name AS kategorie_name
              FROM $eTbl e
