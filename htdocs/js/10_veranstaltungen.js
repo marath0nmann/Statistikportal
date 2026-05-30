@@ -288,6 +288,7 @@ function _renderMeineTabelle() {
   var rows = allRows.filter(function(r) {
     if (sf.jahr && r.datum.slice(0, 4) !== sf.jahr) return false;
     if (sf.disziplin && r.disziplin !== sf.disziplin) return false;
+    if (sf.verein && (r.verein || ownClub) !== sf.verein) return false;
     if (sf.suche) {
       var q = sf.suche.toLowerCase();
       if (r.veranst_name.toLowerCase().indexOf(q) < 0 &&
@@ -314,14 +315,18 @@ function _renderMeineTabelle() {
   });
 
   // ── Dropdown-Optionen ────────────────────────────────────
-  var jahre = [], jahreSet = {}, diszMap = {}, diszList = [];
+  var jahre = [], jahreSet = {}, diszMap = {}, diszList = {}, vereinMap = {}, vereinList = [];
   for (var ri = 0; ri < allRows.length; ri++) {
-    var yr = allRows[ri].datum.slice(0, 4);
+    var _r = allRows[ri];
+    var yr = _r.datum.slice(0, 4);
     if (yr && !jahreSet[yr]) { jahreSet[yr] = 1; jahre.push(yr); }
-    if (allRows[ri].disziplin && !diszMap[allRows[ri].disziplin]) { diszMap[allRows[ri].disziplin] = 1; diszList.push(allRows[ri].disziplin); }
+    if (_r.disziplin && !diszMap[_r.disziplin]) { diszMap[_r.disziplin] = 1; }
+    var vDisp = _r.verein || ownClub;
+    if (vDisp && !vereinMap[vDisp]) { vereinMap[vDisp] = 1; vereinList.push(vDisp); }
   }
   jahre.sort(function(a, b) { return b - a; });
-  diszList.sort();
+  var diszList = Object.keys(diszMap).sort();
+  vereinList.sort();
   function selOpts(arr, cur) {
     return '<option value="">Alle</option>' +
       arr.map(function(v) { return '<option value="' + v.replace(/"/g,'&quot;') + '"' + (cur === v ? ' selected' : '') + '>' + v + '</option>'; }).join('');
@@ -423,6 +428,10 @@ function _renderMeineTabelle() {
         '<select id="mv-jahr" onchange="_filterMeine()">' + selOpts(jahre, sf.jahr) + '</select></div>' +
       '<div class="fg" style="flex:0 0 auto;min-width:130px"><label>Disziplin</label>' +
         '<select id="mv-disz" onchange="_filterMeine()">' + selOpts(diszList, sf.disziplin) + '</select></div>' +
+      (hasVerein && vereinList.length > 1
+        ? '<div class="fg" style="flex:0 0 auto;min-width:130px"><label>Verein</label>' +
+            '<select id="mv-verein" onchange="_filterMeine()">' + selOpts(vereinList, sf.verein || '') + '</select></div>'
+        : '') +
     '</div>';
 
   viewEl.innerHTML = filterBar + countHtml + bulkBar + '<div class="panel">' + table + '</div>';
@@ -438,9 +447,10 @@ function _sortMeine(col) {
 function _filterMeine() {
   if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: {} };
   state.meine.filter = {
-    suche:     (document.getElementById('mv-suche') || {}).value || '',
-    jahr:      (document.getElementById('mv-jahr')  || {}).value || '',
-    disziplin: (document.getElementById('mv-disz')  || {}).value || '',
+    suche:     (document.getElementById('mv-suche')   || {}).value || '',
+    jahr:      (document.getElementById('mv-jahr')    || {}).value || '',
+    disziplin: (document.getElementById('mv-disz')    || {}).value || '',
+    verein:    (document.getElementById('mv-verein')  || {}).value || '',
   };
   _renderMeineTabelle();
 }

@@ -1,3 +1,6 @@
+## v1336
+- Meine Veranstaltungen: Verein-Filterdropdown (erscheint nur wenn mind. 2 verschiedene Vereine vorhanden); leerer Verein wird als eigener Vereinsname behandelt
+
 ## v1335
 - Meine Veranstaltungen: Bulk-Edit-Modal – Felder einzeln per Checkbox aktivierbar (Disziplin, AK, Pl. AK, Meisterschaft, Pl. MS); nur aktivierte Felder werden auf alle ausgewählten Ergebnisse angewendet
 
