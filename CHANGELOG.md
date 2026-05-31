@@ -1,3 +1,6 @@
+## v1340
+- Fix: Pace für Bahn-Disziplinen mit deutschem Tausendertrennpunkt (z.B. „5.000m", „10.000m") wird jetzt korrekt berechnet – _parseDiszNum erkennt X.XXX als Tausender, nicht als Dezimalzahl
+
 ## v1339
 - Fix: RaceResult Post-Dedup entfernt TuS-Eintrag eines Athleten jetzt nur noch wenn ein Extern-Eintrag mit **identischer Zeit** existiert – Athleten die TuS-intern UND extern verschiedene Strecken laufen (z.B. Gottschalk: 10km TuS + 5km extern) werden jetzt beide angezeigt
 
