@@ -1039,6 +1039,16 @@ function bkKatChanged() {
 }
 
 // Pace berechnen: Disziplin-Name → Distanz in km → min:sec/km
+// Parst deutsche Zahlen mit Tausendertrennpunkt: "5.000" → 5000, "5.5" → 5.5
+function _parseDiszNum(s) {
+  // Punkt gefolgt von genau 3 Ziffern am Ende = Tausendertrennzeichen
+  var clean = s.replace(/\./g, function(_, offset, str) {
+    var after = str.slice(offset + 1);
+    return /^\d{3}(?:\.|$)/.test(after) ? '' : '.';
+  });
+  return parseFloat(clean);
+}
+
 function diszKm(disz) {
   if (!disz) return 0;
   // 1. Prio: distanz aus state.disziplinen (in Metern gespeichert)
@@ -1048,10 +1058,10 @@ function diszKm(disz) {
   var dl = disz.toLowerCase();
   if (dl.indexOf('marathon') >= 0 && dl.indexOf('halb') >= 0) return 21.0975;
   if (dl.indexOf('marathon') >= 0) return 42.195;
-  var m = dl.match(/(\d+[\.,]?\d*)\s*km/);
-  if (m) return parseFloat(m[1].replace(',', '.'));
-  var mm = dl.match(/(\d+[\.,]?\d*)\s*m\b/);
-  if (mm) return parseFloat(mm[1].replace(',', '.')) / 1000;
+  var m = dl.match(/([\d.,]+)\s*km/);
+  if (m) return _parseDiszNum(m[1].replace(',', '.'));
+  var mm = dl.match(/([\d.,]+)\s*m\b/);
+  if (mm) return _parseDiszNum(mm[1].replace(',', '.')) / 1000;
   return 0;
 }
 
@@ -1064,11 +1074,11 @@ function calcPace(disz, resultat) {
   if (dl.indexOf('marathon') >= 0 && dl.indexOf('halb') >= 0) km = 21.0975;
   else if (dl.indexOf('marathon') >= 0) km = 42.195;
   else {
-    var m = dl.match(/(\d+[\.,]?\d*)\s*km/);
-    if (m) km = parseFloat(m[1].replace(',', '.'));
+    var m = dl.match(/([\d.,]+)\s*km/);
+    if (m) km = _parseDiszNum(m[1].replace(',', '.'));
     else {
-      var mm = dl.match(/(\d+[\.,]?\d*)\s*m\b/);
-      if (mm) km = parseFloat(mm[1].replace(',', '.')) / 1000;
+      var mm = dl.match(/([\d.,]+)\s*m\b/);
+      if (mm) km = _parseDiszNum(mm[1].replace(',', '.')) / 1000;
     }
   }
   if (km < 1) return ''; // unter 1km keine Pace
@@ -1527,13 +1537,16 @@ async function bulkImportFromRR(url, kat, statusEl) {
   var allResults  = [], listsChecked = 0, _externPayloads = [];
   var base        = 'https://my.raceresult.com/' + eid + '/RRPublish/data/list';
   var hdrs        = {'Origin':'https://my.raceresult.com','Referer':'https://my.raceresult.com/'};
-  var iName=3,iClub=6,iAK=-1,iZeit=8,iNetto=7,iPlatz=2,iYear=-1,iGeschlecht=-1,iAKPlatz=-1;
+  var iName=3,iClub=6,iAK=-1,iZeit=8,iNetto=7,iPlatz=2,iYear=-1,iGeschlecht=-1,iAKPlatz=-1,iFirstname=-1;
 
   function _cal(df) {
-    iAK=-1;iYear=-1;iGeschlecht=-1;iAKPlatz=-1;iName=3;iClub=6;iNetto=-1;iZeit=-1;iPlatz=2;
+    iAK=-1;iYear=-1;iGeschlecht=-1;iAKPlatz=-1;iName=3;iClub=6;iNetto=-1;iZeit=-1;iPlatz=2;iFirstname=-1;
+    var _hnf=false;
     for(var fi=0;fi<df.length;fi++){
       var f=df[fi].toLowerCase();
-      if(f.indexOf('anzeigename')>=0||f.indexOf('flname')>=0||f.indexOf('lfname')>=0||f==='displayname'||f==='fullname'||f==='name'||f.indexOf('lastname')>=0||f.indexOf('nachname')>=0||f.indexOf('surname')>=0)iName=fi;
+      if(f.indexOf('anzeigename')>=0||f.indexOf('flname')>=0||f.indexOf('lfname')>=0||f==='displayname'||f==='fullname'||f==='name'){iName=fi;_hnf=true;}
+      else if((f.indexOf('lastname')>=0||f.indexOf('nachname')>=0||f.indexOf('surname')>=0)&&!_hnf)iName=fi;
+      else if(f.indexOf('firstname')>=0||f.indexOf('vorname')>=0||f==='first')iFirstname=fi;
       else if(f.indexOf('club')>=0||f.indexOf('verein')>=0)iClub=fi;
       else if(f.indexOf('autorankp')>=0||f.indexOf('overallrank')>=0||f.indexOf('withstatus')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0||f.indexOf('agegrouprank')>=0){if(f.indexOf('akpl')>=0||f.indexOf('agegrouprank')>=0)iAKPlatz=fi;else iPlatz=fi;}
       else if(f.indexOf('akpl')>=0)iAKPlatz=fi;
@@ -1545,6 +1558,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
       else if(f.indexOf('gun')>=0||f.indexOf('brutto')>=0||f==='ziel'||f.indexOf('ziel')>=0||f.indexOf('finish')>=0)iZeit=fi;
       else if(f==='time'||f.indexOf('time')===0||f.indexOf('timetext')>=0)iZeit=fi;
     }
+    if(_hnf)iFirstname=-1; // Vollname-Feld gefunden → kein separates Vorname-Feld nötig
     if(iNetto>=0&&iZeit<0)iZeit=iNetto;
     if(iNetto<0&&iZeit>=0)iNetto=iZeit;
     if(iNetto>=0&&iNetto===iClub)iNetto=(iZeit>=0&&iZeit!==iClub)?iZeit:-1;
@@ -1609,6 +1623,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
           var club=iClub>=0?String(row[iClub]||'').trim():'';
           if(!externMode){if(clubPhrase&&club.toLowerCase().indexOf(clubPhrase)<0)return;}
           var rName=String(row[iName]||'').trim().replace(/\s*\(\d{4}\)\s*$/,''); // "(2001)" am Namensende entfernen
+          if(iFirstname>=0){var _rFn=String(row[iFirstname]||'').trim();if(_rFn&&rName)rName=rName+', '+_rFn;}
           var rZeit=String(row[iNetto>=0?iNetto:iZeit]||'').trim();
           if(!rZeit||!/\d{1,2}:\d{2}|\d+[,.]\d+/.test(rZeit))return;
           rZeit=fmtRes(rZeit); // Komma als Dezimaltrennzeichen für Anzeige
@@ -4062,7 +4077,7 @@ async function rrFetch() {
 
     // Spaltenindizes: Defaults, werden per DataFields überschrieben
     var iName=3; var iClub=6; var iAK=-1; var iZeit=8; var iNetto=7; var iPlatz=2;
-    var iYear=-1; var iGeschlecht=-1;
+    var iYear=-1; var iGeschlecht=-1; var iFirstname=-1;
 
     var base4 = 'https://my.raceresult.com/' + eventId + '/RRPublish/data/list';
     var hdrs  = { 'Origin': 'https://my.raceresult.com', 'Referer': 'https://my.raceresult.com/' };
@@ -4133,11 +4148,14 @@ async function rrFetch() {
         }
         // Immer zurücksetzen — auch wenn df leer (wird dann mit Defaults gespeichert)
         iAK = -1; iYear = -1; iGeschlecht = -1; var iAKPlatz = -1;
-        iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
+        iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2; iFirstname = -1;
         if (Array.isArray(df) && df.length > 0) {
+          var _hnf2 = false;
           for (var fi = 0; fi < df.length; fi++) {
             var f = df[fi].toLowerCase();
-            if (f.indexOf('anzeigename') >= 0 || f.indexOf('flname') >= 0 || f.indexOf('lfname') >= 0 || f === 'displayname' || f === 'fullname' || f === 'name' || f.indexOf('lastname') >= 0 || f.indexOf('nachname') >= 0 || f.indexOf('surname') >= 0) iName = fi;
+            if (f.indexOf('anzeigename') >= 0 || f.indexOf('flname') >= 0 || f.indexOf('lfname') >= 0 || f === 'displayname' || f === 'fullname' || f === 'name') { iName = fi; _hnf2 = true; }
+            else if ((f.indexOf('lastname') >= 0 || f.indexOf('nachname') >= 0 || f.indexOf('surname') >= 0) && !_hnf2) iName = fi;
+            else if (f.indexOf('firstname') >= 0 || f.indexOf('vorname') >= 0 || f === 'first') iFirstname = fi;
             else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
             else if ((f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]' || f.indexOf('akabk') >= 0 || f.indexOf('ak_abk') >= 0 || f === 'es_akabkürzung' || f.indexOf('agegroupname') >= 0) && f.indexOf('rank') < 0) iAK = fi;
             else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* skip */ }
@@ -4154,6 +4172,7 @@ async function rrFetch() {
               else iPlatz = fi;
             }
           }
+          if (_hnf2) iFirstname = -1; // Vollname-Feld gefunden → kein separates Vorname-Feld nötig
           if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
           // Kein Netto-Feld gefunden: iZeit als Netto verwenden (Brutto als Fallback)
           if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
@@ -4181,10 +4200,13 @@ async function rrFetch() {
                 _rrDebug.dataFields = _dfAll;
                 // Kalibrierung wiederholen
                 iAK = -1; iYear = -1; iGeschlecht = -1; var iAKPlatz = -1;
-                iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
+                iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2; iFirstname = -1;
+                var _hnf3 = false;
                 for (var _fai = 0; _fai < _dfAll.length; _fai++) {
                   var _fa = _dfAll[_fai].toLowerCase();
-                  if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('flname') >= 0 || _fa.indexOf('lfname') >= 0 || _fa === 'displayname' || _fa === 'fullname' || _fa === 'name' || _fa.indexOf('lastname') >= 0 || _fa.indexOf('nachname') >= 0 || _fa.indexOf('surname') >= 0) iName = _fai;
+                  if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('flname') >= 0 || _fa.indexOf('lfname') >= 0 || _fa === 'displayname' || _fa === 'fullname' || _fa === 'name') { iName = _fai; _hnf3 = true; }
+                  else if ((_fa.indexOf('lastname') >= 0 || _fa.indexOf('nachname') >= 0 || _fa.indexOf('surname') >= 0) && !_hnf3) iName = _fai;
+                  else if (_fa.indexOf('firstname') >= 0 || _fa.indexOf('vorname') >= 0 || _fa === 'first') iFirstname = _fai;
                   else if (_fa.indexOf('club') >= 0 || _fa.indexOf('verein') >= 0) iClub = _fai;
                   else if ((_fa.indexOf('agegroup') >= 0 || _fa.indexOf('akabk') >= 0 || _fa.indexOf('agegroupname') >= 0) && _fa.indexOf('rank') < 0) iAK = _fai;
                   else if (_fa === 'year' || _fa === 'yob') iYear = _fai;
@@ -4194,6 +4216,7 @@ async function rrFetch() {
                   else if (_fa.indexOf('akpl') >= 0) iAKPlatz = _fai;
                   else if (_fa.indexOf('mitstatus') >= 0 || _fa.indexOf('statusplatz') >= 0) { if (_fa.indexOf('akpl') >= 0) iAKPlatz = _fai; else iPlatz = _fai; }
                 }
+                if (_hnf3) iFirstname = -1;
                 if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
                 if (iNetto >= 0 && iNetto === iClub) iNetto = (iZeit >= 0 && iZeit !== iClub) ? iZeit : -1;
                 _rrDebug.iClub = iClub; _rrDebug.dfLog = _dfAll.join(', ');
@@ -4280,7 +4303,7 @@ async function rrFetch() {
               }
               allResults.push({ raw: row, contestName: cname, groupKey: gk, akFromGroup: _akFromGroup, akPlatzFromRow: _akPlatzFromRow, iAKPlatz: iAKPlatz,
                 iYear: iYear, iGeschlecht: iGeschlecht,
-                iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
+                iName: iName, iFirstname: iFirstname, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
             });
           });
         });
@@ -4301,10 +4324,13 @@ async function rrFetch() {
           var df2 = payload2.DataFields || [];
           if (Array.isArray(df2) && df2.length > 0) {
             iAK = -1; iYear = -1; iGeschlecht = -1; iAKPlatz = -1;
-            iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
+            iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2; iFirstname = -1;
+            var _hnf4 = false;
             for (var fi2 = 0; fi2 < df2.length; fi2++) {
               var f2 = df2[fi2].toLowerCase();
-              if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('flname') >= 0 || f2.indexOf('lfname') >= 0 || f2 === 'displayname' || f2 === 'fullname' || f2 === 'name' || f2.indexOf('lastname') >= 0 || f2.indexOf('nachname') >= 0 || f2.indexOf('surname') >= 0) iName = fi2;
+              if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('flname') >= 0 || f2.indexOf('lfname') >= 0 || f2 === 'displayname' || f2 === 'fullname' || f2 === 'name') { iName = fi2; _hnf4 = true; }
+              else if ((f2.indexOf('lastname') >= 0 || f2.indexOf('nachname') >= 0 || f2.indexOf('surname') >= 0) && !_hnf4) iName = fi2;
+              else if (f2.indexOf('firstname') >= 0 || f2.indexOf('vorname') >= 0 || f2 === 'first') iFirstname = fi2;
               else if (f2.indexOf('club') >= 0 || f2.indexOf('verein') >= 0) iClub = fi2;
               else if ((f2.indexOf('agegroup') >= 0 || f2.indexOf('akabk') >= 0 || f2.indexOf('ak_abk') >= 0 || f2 === 'es_akabkürzung') && f2.indexOf('rank') < 0) iAK = fi2;
               else if (f2 === 'year' || f2 === 'yob' || f2 === 'es_jahrgang') iYear = fi2;
@@ -4317,6 +4343,7 @@ async function rrFetch() {
                 else iPlatz = fi2;
               }
             }
+            if (_hnf4) iFirstname = -1;
             if (iNetto >= 0 && iZeit < 0) iZeit = iNetto;
             if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
             if (iNetto >= 0 && iNetto === iClub) iNetto = iZeit >= 0 && iZeit !== iClub ? iZeit : -1;
@@ -4334,7 +4361,7 @@ async function rrFetch() {
                 if (!clubPhrase || clubVal2.toLowerCase().indexOf(clubPhrase) >= 0) {
                   allResults.push({ raw: row, contestName: cname2, groupKey: gkClean2, akFromGroup: '',
                     iYear: iYear, iGeschlecht: iGeschlecht,
-                    iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
+                    iName: iName, iFirstname: iFirstname, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
                 }
               });
             });
@@ -4360,10 +4387,13 @@ async function rrFetch() {
           if (!Array.isArray(_fdf) || _fdf.length === 0) continue;
           // Kalibrieren
           iAK = -1; iYear = -1; iGeschlecht = -1; var _fiAKPlatz = -1;
-          iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2;
+          iName = 3; iClub = 6; iNetto = -1; iZeit = -1; iPlatz = 2; iFirstname = -1;
+          var _hnf5 = false;
           for (var _ffi = 0; _ffi < _fdf.length; _ffi++) {
             var _ff = _fdf[_ffi].toLowerCase();
-            if (_ff.indexOf('anzeigename') >= 0 || _ff.indexOf('flname') >= 0 || _ff.indexOf('lfname') >= 0 || _ff === 'displayname' || _ff === 'fullname' || _ff === 'name' || _ff.indexOf('lastname') >= 0 || _ff.indexOf('nachname') >= 0 || _ff.indexOf('surname') >= 0) iName = _ffi;
+            if (_ff.indexOf('anzeigename') >= 0 || _ff.indexOf('flname') >= 0 || _ff.indexOf('lfname') >= 0 || _ff === 'displayname' || _ff === 'fullname' || _ff === 'name') { iName = _ffi; _hnf5 = true; }
+            else if ((_ff.indexOf('lastname') >= 0 || _ff.indexOf('nachname') >= 0 || _ff.indexOf('surname') >= 0) && !_hnf5) iName = _ffi;
+            else if (_ff.indexOf('firstname') >= 0 || _ff.indexOf('vorname') >= 0 || _ff === 'first') iFirstname = _ffi;
             else if (_ff.indexOf('club') >= 0 || _ff.indexOf('verein') >= 0) iClub = _ffi;
             else if ((_ff.indexOf('agegroup') >= 0 || _ff.indexOf('akabk') >= 0 || _ff === 'es_akabkürzung') && _ff.indexOf('rank') < 0) iAK = _ffi;
             else if (_ff === 'year' || _ff === 'yob' || _ff === 'es_jahrgang') iYear = _ffi;
@@ -4373,6 +4403,7 @@ async function rrFetch() {
             else if (_ff === 'time' || _ff.indexOf('time') === 0 || _ff.indexOf('timetext') >= 0) iZeit = _ffi;
             else if (_ff.indexOf('mitstatus') >= 0 || _ff.indexOf('statusplatz') >= 0) { if (_ff.indexOf('akpl') >= 0) _fiAKPlatz = _ffi; else iPlatz = _ffi; }
           }
+          if (_hnf5) iFirstname = -1;
           if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
           if (iNetto >= 0 && iNetto === iClub) iNetto = (iZeit >= 0 && iZeit !== iClub) ? iZeit : -1;
           _rrDebug.iClub = iClub; _rrDebug.dfLog = _fdf.join(', ');
@@ -4395,7 +4426,7 @@ async function rrFetch() {
                 var gkey = k2 ? (k + '/' + k2) : k;
                 var gk = gkey;
                 allResults.push({ raw: row, contestName: _fdf[0] || _fbListName, groupKey: gk, akFromGroup: '', akPlatzFromRow: '', iAKPlatz: _fiAKPlatz,
-                  iYear: iYear, iGeschlecht: iGeschlecht, iName: iName, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
+                  iYear: iYear, iGeschlecht: iGeschlecht, iName: iName, iFirstname: iFirstname, iClub: iClub, iAK: iAK, iZeit: iZeit, iNetto: iNetto, iPlatz: iPlatz });
               });
             });
           });
@@ -4762,7 +4793,9 @@ function rrRenderPreview(results, eventId, eventName, eventDate, contestObj, eve
   for (var i = 0; i < results.length; i++) {
     var r = results[i];
     var raw = r.raw;
-    var name  = String(raw[r.iName]  || '').trim();
+    var name  = String(raw[r.iName]  || '').trim().replace(/\s*\(\d{4}\)\s*$/, '');
+    // Separates Vorname-Feld kombinieren (LASTNAME + FIRSTNAME → "Nachname, Vorname")
+    if ((r.iFirstname || -1) >= 0) { var _fn2 = String(raw[r.iFirstname]||'').trim(); if (_fn2 && name) name = name + ', ' + _fn2; }
     // "Nachname, Vorname" (LFNAME-Format) → "Vorname Nachname"
     if (name.indexOf(',') > 0) { var _np = name.split(','); name = (_np[1]||'').trim() + ' ' + (_np[0]||'').trim(); name = name.trim(); }
     var club  = String(raw[r.iClub]  || '').trim();

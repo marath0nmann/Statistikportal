@@ -1,3 +1,6 @@
+## v1338
+- Fix: RaceResult-Import erkennt separates FIRSTNAME/VORNAME-Feld und kombiniert es mit LASTNAME zu „Nachname, Vorname" – Events ohne kombiniertes FLNAME-Feld (z.B. 8. Ra(h)ser-Run) zeigen jetzt vollständige Namen
+
 ## v1337
 - Bulk-Bearbeitung: Feld „Verein" ergänzt; API-PUT-Handler akzeptiert jetzt verein-Feld für Ergebnisse
 
