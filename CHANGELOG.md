@@ -1,3 +1,6 @@
+## v1343
+- Meine Veranstaltungen: Ergebnis-Sortierung korrigiert (NULL→Infinity, nicht→0); Pace als sortierbare Spalte; pace_num (Sekunden/km) in Zeilendaten
+
 ## v1342
 - Fix: API /disziplinen liefert jetzt dm.distanz mit – diszKm() konnte distanz nie finden weil das Feld fehlte
 

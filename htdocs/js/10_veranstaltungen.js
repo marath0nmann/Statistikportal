@@ -256,9 +256,10 @@ async function renderMeineVeranstaltungen() {
         disziplin:             e.disziplin || '',
         altersklasse:          e.altersklasse || '',
         resultat:              e.resultat || '',
-        resultat_num:          parseFloat(e.resultat_num) || 0,
+        resultat_num:          e.resultat_num != null ? parseFloat(e.resultat_num) : null,
         fmt:                   fmt,
         pace:                  pace,
+        pace_num:              (function() { if (!pace || pace === '00:00') return null; var p = pace.split(':'); return parseInt(p[0]) * 60 + parseInt(p[1] || 0); })(),
         ak_platzierung:        parseInt(e.ak_platzierung) || 0,
         meisterschaft:         e.meisterschaft || '',
         ak_platz_meisterschaft: parseInt(e.ak_platz_meisterschaft) || 0,
@@ -299,6 +300,9 @@ function _renderMeineTabelle() {
   });
 
   // ── Sortierung ───────────────────────────────────────────
+  // Null-safe Zahl: fehlende Werte immer ans Ende
+  function _num(v) { return v != null ? v : Infinity; }
+
   rows.sort(function(a, b) {
     var av, bv, d = ss.dir === 'asc' ? 1 : -1;
     switch (ss.col) {
@@ -306,10 +310,15 @@ function _renderMeineTabelle() {
       case 'veranst_name': return d * a.veranst_name.localeCompare(b.veranst_name);
       case 'disziplin':    return d * a.disziplin.localeCompare(b.disziplin);
       case 'altersklasse': return d * a.altersklasse.localeCompare(b.altersklasse);
-      case 'resultat':     return d * (a.resultat_num - b.resultat_num);
+      case 'resultat':
+        av = _num(a.resultat_num); bv = _num(b.resultat_num);
+        return d * (av === bv ? 0 : av < bv ? -1 : 1);
+      case 'pace':
+        av = _num(a.pace_num); bv = _num(b.pace_num);
+        return d * (av === bv ? 0 : av < bv ? -1 : 1);
       case 'ak_platzierung':
-        av = a.ak_platzierung || 9999; bv = b.ak_platzierung || 9999;
-        return d * (av - bv);
+        av = _num(a.ak_platzierung || null); bv = _num(b.ak_platzierung || null);
+        return d * (av === bv ? 0 : av < bv ? -1 : 1);
       default: return 0;
     }
   });
@@ -410,7 +419,7 @@ function _renderMeineTabelle() {
           th('disziplin',     'Disziplin',    false) +
           th('altersklasse',  'AK',           false) +
           th('resultat',      'Ergebnis',     true)  +
-          '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:right">Pace</th>' +
+          th('pace',          'Pace',          true)  +
           th('ak_platzierung','Pl. AK',       false) +
           (hasMstr ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Meisterschaft</th>' : '') +
           (hasMstr ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:center">Pl. MS</th>' : '') +
