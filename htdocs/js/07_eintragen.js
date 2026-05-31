@@ -1767,15 +1767,19 @@ async function bulkImportFromRR(url, kat, statusEl) {
     _bkDbgLine('Extern-Gefunden',(allResults.length-_externPre)+' Eintr\u00e4ge');
   }
 
-  // Post-Dedup: Athlet sowohl intern als auch extern gefunden \u2192 extern gewinnt
-  // (z.B. Athlet in kombinierter Liste als TuS, in distanzspez. Liste unter anderem Verein)
+  // Post-Dedup: Athlet in Allgemein-Liste als TuS UND in distanzspez. Liste unter anderem Verein
+  // \u2192 TuS-Eintrag nur entfernen wenn ein Extern-Eintrag mit IDENTISCHER Zeit existiert (= selber Lauf)
+  // Achtung: selber Athlet kann legitim mehrere Strecken laufen (z.B. TuS 10km + extern 5km)!
   (function(){
     var _byName = {};
     allResults.forEach(function(r){ var k=(r.name||'').toLowerCase(); if(!_byName[k])_byName[k]=[];_byName[k].push(r); });
     allResults = allResults.filter(function(r){
       var k=(r.name||'').toLowerCase();
       var g=_byName[k];
-      if(g.length>1 && g.some(function(x){return x.extern;}) && !r.extern) return false;
+      if(g.length>1 && !r.extern) {
+        // TuS-Eintrag nur streichen wenn exakt gleiche Zeit extern vorhanden (selber Lauf, anderer Verein)
+        return !g.some(function(x){return x.extern && x.resultat===r.resultat;});
+      }
       return true;
     });
   })();

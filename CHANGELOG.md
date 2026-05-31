@@ -1,3 +1,6 @@
+## v1339
+- Fix: RaceResult Post-Dedup entfernt TuS-Eintrag eines Athleten jetzt nur noch wenn ein Extern-Eintrag mit **identischer Zeit** existiert – Athleten die TuS-intern UND extern verschiedene Strecken laufen (z.B. Gottschalk: 10km TuS + 5km extern) werden jetzt beide angezeigt
+
 ## v1338
 - Fix: RaceResult-Import erkennt separates FIRSTNAME/VORNAME-Feld und kombiniert es mit LASTNAME zu „Nachname, Vorname" – Events ohne kombiniertes FLNAME-Feld (z.B. 8. Ra(h)ser-Run) zeigen jetzt vollständige Namen
 
