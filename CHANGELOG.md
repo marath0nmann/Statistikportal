@@ -1,3 +1,6 @@
+## v1344
+- Meine Veranstaltungen: Disziplin-Spalte sortiert nach Distanz (km) statt alphabetisch; gleiche Distanz → alphabetischer Fallback
+
 ## v1343
 - Meine Veranstaltungen: Ergebnis-Sortierung korrigiert (NULL→Infinity, nicht→0); Pace als sortierbare Spalte; pace_num (Sekunden/km) in Zeilendaten
 

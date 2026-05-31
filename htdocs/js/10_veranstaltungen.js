@@ -254,6 +254,7 @@ async function renderMeineVeranstaltungen() {
         serie_id:              v.serie_id || null,
         serie_name:            v.serie_name || '',
         disziplin:             e.disziplin || '',
+        disz_km:               diszKm(e.disziplin, e.disziplin_mapping_id),
         altersklasse:          e.altersklasse || '',
         resultat:              e.resultat || '',
         resultat_num:          e.resultat_num != null ? parseFloat(e.resultat_num) : null,
@@ -308,7 +309,10 @@ function _renderMeineTabelle() {
     switch (ss.col) {
       case 'datum':        return d * a.datum.localeCompare(b.datum);
       case 'veranst_name': return d * a.veranst_name.localeCompare(b.veranst_name);
-      case 'disziplin':    return d * a.disziplin.localeCompare(b.disziplin);
+      case 'disziplin':
+        av = _num(a.disz_km || null); bv = _num(b.disz_km || null);
+        if (av !== bv) return d * (av < bv ? -1 : 1);
+        return a.disziplin.localeCompare(b.disziplin); // Gleiche Distanz → alphabetisch
       case 'altersklasse': return d * a.altersklasse.localeCompare(b.altersklasse);
       case 'resultat':
         av = _num(a.resultat_num); bv = _num(b.resultat_num);
