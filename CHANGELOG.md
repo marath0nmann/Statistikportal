@@ -1,3 +1,6 @@
+## v1342
+- Fix: API /disziplinen liefert jetzt dm.distanz mit – diszKm() konnte distanz nie finden weil das Feld fehlte
+
 ## v1341
 - diszKm/calcPace: Regex-Parsing des Disziplinnamens entfernt – Distanz kommt ausschließlich aus state.disziplinen[].distanz (lookup per mapping_id bevorzugt, Fallback per Name); alle Aufrufer übergeben jetzt disziplin_mapping_id
 
