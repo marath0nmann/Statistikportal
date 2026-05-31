@@ -218,7 +218,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
       '<td>' + akBadge(rr.altersklasse) + '</td>' +
       '<td class="disziplin-text">' + (rr.disziplin_mapping_id ? ergDiszLabel(rr) : diszMitKat(rr.disziplin)) + '</td>' +
       '<td class="result">' + ergebnis + '</td>';
-    var paceVal = diszKm(rr.disziplin) >= 1 ? calcPace(rr.disziplin, rr.resultat) : '';
+    var paceVal = diszKm(rr.disziplin, rr.disziplin_mapping_id) >= 1 ? calcPace(rr.disziplin, rr.resultat, rr.disziplin_mapping_id) : '';
     if (hasPace) cells += '<td class="ort-text">' + (paceVal ? fmtTime(paceVal, 'min/km') : '') + '</td>';
     cells += '<td>' + medalBadge(rr.ak_platzierung) + '</td>';
     if (subTab !== 'mittelstrecke') {
@@ -404,7 +404,7 @@ async function saveEditErgebnis(id, subTab) {
     ak = _resolved[ak] || ak;
   }
   var newAthletId = ((document.getElementById('edit-athlet-id') || {}).value || '').trim();
-  var body = { disziplin: disz, resultat: res, altersklasse: ak, pace: calcPace(disz, res) };
+  var body = { disziplin: disz, resultat: res, altersklasse: ak, pace: calcPace(disz, res, editMappingId) };
   if (editMappingId) body.disziplin_mapping_id = editMappingId;
   if (akp)  body.ak_platzierung = parseInt(akp);
   if (mstr) body.meisterschaft = parseInt(mstr);

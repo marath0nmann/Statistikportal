@@ -321,7 +321,7 @@ function buildRekTable(rows, fmt, compact, showPace, athletLabel, disz) {
     var athletInner = r.athlet_id ? '<span class="athlet-link" data-athlet-id="' + r.athlet_id + '">' + (r.athlet || '&ndash;') + '</span>' : (r.athlet || '&ndash;');
     html += '<td style="font-weight:600"><div class="rek-name-cell">' + athletInner + '</div></td>';
     html += '<td class="result">' + result + '</td>';
-    if (showPace) html += '<td class="ort-text">' + (diszKm(_disz) >= 1 && calcPace(_disz, r.resultat) ? fmtTime(calcPace(_disz, r.resultat), 'min/km') : '&ndash;') + '</td>';
+    if (showPace) html += '<td class="ort-text">' + (diszKm(_disz, r.disziplin_mapping_id) >= 1 && calcPace(_disz, r.resultat, r.disziplin_mapping_id) ? fmtTime(calcPace(_disz, r.resultat, r.disziplin_mapping_id), 'min/km') : '&ndash;') + '</td>';
     if (!compact) html += '<td>' + akBadge(r.altersklasse) + '</td>';
     html += '<td class="ort-text">' + formatDate(r.datum) + '</td>';
     html += '</tr>';

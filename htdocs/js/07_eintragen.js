@@ -1039,49 +1039,29 @@ function bkKatChanged() {
 }
 
 // Pace berechnen: Disziplin-Name → Distanz in km → min:sec/km
-// Parst deutsche Zahlen mit Tausendertrennpunkt: "5.000" → 5000, "5.5" → 5.5
-function _parseDiszNum(s) {
-  // Punkt gefolgt von genau 3 Ziffern am Ende = Tausendertrennzeichen
-  var clean = s.replace(/\./g, function(_, offset, str) {
-    var after = str.slice(offset + 1);
-    return /^\d{3}(?:\.|$)/.test(after) ? '' : '.';
-  });
-  return parseFloat(clean);
-}
-
-function diszKm(disz) {
-  if (!disz) return 0;
-  // 1. Prio: distanz aus state.disziplinen (in Metern gespeichert)
-  var dObj = (state.disziplinen || []).find(function(d){ return d.disziplin === disz; });
-  if (dObj && dObj.distanz) return dObj.distanz / 1000;
-  // 2. Fallback: aus Disziplin-Name parsen
-  var dl = disz.toLowerCase();
-  if (dl.indexOf('marathon') >= 0 && dl.indexOf('halb') >= 0) return 21.0975;
-  if (dl.indexOf('marathon') >= 0) return 42.195;
-  var m = dl.match(/([\d.,]+)\s*km/);
-  if (m) return _parseDiszNum(m[1].replace(',', '.'));
-  var mm = dl.match(/([\d.,]+)\s*m\b/);
-  if (mm) return _parseDiszNum(mm[1].replace(',', '.')) / 1000;
+// Liefert die Streckenlänge in km anhand mapping_id (bevorzugt) oder Disziplin-Name.
+// Nutzt ausschließlich den konfigurierten distanz-Wert aus state.disziplinen –
+// kein Regex-Parsing des Namens.
+function diszKm(disz, mappingId) {
+  var disziplinen = (state && state.disziplinen) || [];
+  // 1. Prio: exakte Suche per mapping_id
+  if (mappingId) {
+    var dById = disziplinen.find(function(d) { return d.id == mappingId; });
+    if (dById && dById.distanz) return dById.distanz / 1000;
+  }
+  // 2. Suche per Disziplin-Name
+  if (disz) {
+    var dByName = disziplinen.find(function(d) { return d.disziplin === disz; });
+    if (dByName && dByName.distanz) return dByName.distanz / 1000;
+  }
   return 0;
 }
 
-function calcPace(disz, resultat) {
-  if (!disz || !resultat) return '';
+function calcPace(disz, resultat, mappingId) {
+  if (!resultat) return '';
   resultat = dbRes(resultat); // Komma→Punkt für Berechnung
-  // Distanz aus Disziplinname extrahieren (z.B. "Halbmarathon"→21.0975, "10km"→10, "5 km"→5)
-  var km = 0;
-  var dl = disz.toLowerCase();
-  if (dl.indexOf('marathon') >= 0 && dl.indexOf('halb') >= 0) km = 21.0975;
-  else if (dl.indexOf('marathon') >= 0) km = 42.195;
-  else {
-    var m = dl.match(/([\d.,]+)\s*km/);
-    if (m) km = _parseDiszNum(m[1].replace(',', '.'));
-    else {
-      var mm = dl.match(/([\d.,]+)\s*m\b/);
-      if (mm) km = _parseDiszNum(mm[1].replace(',', '.')) / 1000;
-    }
-  }
-  if (km < 1) return ''; // unter 1km keine Pace
+  var km = diszKm(disz, mappingId);
+  if (km < 1) return ''; // unter 1 km keine Pace
   // Zeit in Sekunden
   var secs = 0;
   var parts = resultat.split(':');

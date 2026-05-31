@@ -1,3 +1,6 @@
+## v1341
+- diszKm/calcPace: Regex-Parsing des Disziplinnamens entfernt – Distanz kommt ausschließlich aus state.disziplinen[].distanz (lookup per mapping_id bevorzugt, Fallback per Name); alle Aufrufer übergeben jetzt disziplin_mapping_id
+
 ## v1340
 - Fix: Pace für Bahn-Disziplinen mit deutschem Tausendertrennpunkt (z.B. „5.000m", „10.000m") wird jetzt korrekt berechnet – _parseDiszNum erkennt X.XXX als Tausender, nicht als Dezimalzahl
 

@@ -2277,7 +2277,7 @@ async function renderVeranstaltungDetail(vid) {
       var e2 = dErgs[ei2];
       var fmt = e2.fmt || '';
       var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
-      var _ePace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
+      var _ePace = diszKm(e2.disziplin, e2.disziplin_mapping_id) >= 1 ? calcPace(e2.disziplin, e2.resultat, e2.disziplin_mapping_id) : '';
       var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
       rows +=
         '<tr>' +

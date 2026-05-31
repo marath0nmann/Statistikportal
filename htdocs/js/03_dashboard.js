@@ -327,7 +327,7 @@ function timelineBadges(rek) {
         var e2 = ergs[ei2];
         var vfmt = e2.fmt || '';
         var vres = vfmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, vfmt === 's' ? 's' : (vfmt === 'min_h' ? 'min_h' : undefined));
-        var _vPace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
+        var _vPace = diszKm(e2.disziplin, e2.disziplin_mapping_id) >= 1 ? calcPace(e2.disziplin, e2.resultat, e2.disziplin_mapping_id) : '';
         var vShowPace = _vPace && _vPace !== '00:00' && vfmt !== 'm' && vfmt !== 's';
         vrows +=
           '<tr>' +
@@ -591,7 +591,7 @@ function timelineBadges(rek) {
               var ve2 = vergs[vei2];
               var vvfmt = ve2.fmt || '';
               var vvres = vvfmt === 'm' ? fmtMeter(ve2.resultat) : fmtTime(ve2.resultat, vvfmt === 's' ? 's' : (vvfmt === 'min_h' ? 'min_h' : undefined));
-              var vvpace = diszKm(ve2.disziplin) >= 1 ? calcPace(ve2.disziplin, ve2.resultat) : '';
+              var vvpace = diszKm(ve2.disziplin, ve2.disziplin_mapping_id) >= 1 ? calcPace(ve2.disziplin, ve2.resultat, ve2.disziplin_mapping_id) : '';
               var vvShowPace = vvpace && vvpace !== '00:00' && vvfmt !== 'm' && vvfmt !== 's';
               var vvCells = { athlet: '<td><span class="athlet-link" onclick="openAthletById('+ve2.athlet_id+')">'+ve2.athlet+'</span>'+(parseInt(ve2.extern)?' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>':'')+'</td>', ak: '<td>'+akBadge(ve2.altersklasse)+'</td>', result: '<td class="result">'+vvres+'</td>', pace: '<td class="ort-text">'+(vvShowPace?fmtTime(vvpace,'min/km'):'')+'</td>', platz: '<td>'+medalBadge(ve2.ak_platzierung)+'</td>', ms: '<td>'+mstrBadge(ve2.meisterschaft)+'</td>' };
               var vvRow = '<tr>';

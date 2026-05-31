@@ -79,7 +79,7 @@ function _buildVeranstErgTable(ergebnisse) {
       var e2 = ergs[ei2];
       var fmt = e2.fmt || '';
       var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
-      var _ePace = diszKm(e2.disziplin) >= 1 ? calcPace(e2.disziplin, e2.resultat) : '';
+      var _ePace = diszKm(e2.disziplin, e2.disziplin_mapping_id) >= 1 ? calcPace(e2.disziplin, e2.resultat, e2.disziplin_mapping_id) : '';
       var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
       rows +=
         '<tr>' +
@@ -239,8 +239,8 @@ async function renderMeineVeranstaltungen() {
     for (var ei = 0; ei < ergs.length; ei++) {
       var e = ergs[ei];
       var fmt = e.fmt || 'min';
-      var _km = diszKm ? diszKm(e.disziplin) : 0;
-      var pace = (_km >= 1 && fmt !== 'm' && fmt !== 's' && calcPace) ? calcPace(e.disziplin, e.resultat) : '';
+      var _km = diszKm ? diszKm(e.disziplin, e.disziplin_mapping_id) : 0;
+      var pace = (_km >= 1 && fmt !== 'm' && fmt !== 's' && calcPace) ? calcPace(e.disziplin, e.resultat, e.disziplin_mapping_id) : '';
       allRows.push({
         erg_id:                e.id,
         tbl_key:               e.tbl_key || 'strasse',
@@ -1082,7 +1082,7 @@ async function _loadSerieBestleistungen(serieId, disz, mappingId) {
     return rows.slice(0, TOP); // dedup happens server-side based on unique param
   }
 
-  var showPace = diszKm(disz) >= 1 && fmt !== 'm' && fmt !== 's';
+  var showPace = diszKm(disz, state.serieMappingId) >= 1 && fmt !== 'm' && fmt !== 's';
   var rs2 = rs2 || state.rekState || {}; // already declared above
 
   function sectionHead(label) {
@@ -1182,8 +1182,8 @@ function _buildSerieMeineTeilnahmen(veranst) {
       var e = ergs[ei];
       if (parseInt(e.athlet_id) !== myId) continue;
       var fmt = e.fmt || 'min';
-      var _km = diszKm ? diszKm(e.disziplin) : 0;
-      var pace = (_km >= 1 && fmt !== 'm' && fmt !== 's' && calcPace) ? calcPace(e.disziplin, e.resultat) : '';
+      var _km = diszKm ? diszKm(e.disziplin, e.disziplin_mapping_id) : 0;
+      var pace = (_km >= 1 && fmt !== 'm' && fmt !== 's' && calcPace) ? calcPace(e.disziplin, e.resultat, e.disziplin_mapping_id) : '';
       rows.push({
         veranst_id: v.id, veranst_name: vName, datum: v.datum || '', jahr: v.jahr || '',
         disziplin: e.disziplin || '', altersklasse: e.altersklasse || '',
