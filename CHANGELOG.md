@@ -1,3 +1,6 @@
+## v1346
+- Menü-Buttons (Haupt-Navigation + Mobile-Drawer) ohne Icons – einheitliche reine Text-Darstellung wie im Trainingsportal
+
 ## v1345
 - Admin/Benutzer: Rollen-Dropdown (Anlegen + Bearbeiten) zeigt jetzt alle definierten Rollen aus der `rollen`-Tabelle – inkl. Trainingsportal-Rollen wie „Trainer*in“ – statt nur leser/athlet/editor/admin
 

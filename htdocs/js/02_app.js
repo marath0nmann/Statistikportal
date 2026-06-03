@@ -2487,10 +2487,7 @@ function _renderNavTabs(tabs) {
   for (var i = 0; i < tabs.length; i++) {
     var t = tabs[i];
     html += '<button class="' + (state.tab === t.id ? 'active' : '') +
-            '" onclick="navigate(\'' + t.id + '\')">' +
-            '<span class="nav-icon">' + (t.icon || '') + '</span>' +
-            '<span class="nav-label">' + t.label + '</span>' +
-            '</button>';
+            '" onclick="navigate(\'' + t.id + '\')">' + t.label + '</button>';
   }
   document.getElementById('main-nav').innerHTML = html;
 
@@ -2499,16 +2496,16 @@ function _renderNavTabs(tabs) {
   for (var i = 0; i < tabs.length; i++) {
     var t = tabs[i];
     mhtml += '<button class="' + (state.tab === t.id ? 'active' : '') +
-             '" onclick="mobileNavTo(\'' + t.id + '\')">' + (t.icon ? t.icon + ' ' : '') + t.label + '</button>';
+             '" onclick="mobileNavTo(\'' + t.id + '\')">' + t.label + '</button>';
   }
   // Divider + Konto-Aktionen im Drawer
   mhtml += '<div class="mobile-nav-divider"></div>';
   if (currentUser) {
-    mhtml += '<button onclick="mobileNavClose();navigate(\'konto\')">🔑 Konto / Passwort</button>';
-    mhtml += '<button onclick="mobileNavClose();logout()" style="color:rgba(255,150,150,.9)">⏻ Abmelden</button>';
+    mhtml += '<button onclick="mobileNavClose();navigate(\'konto\')">Konto / Passwort</button>';
+    mhtml += '<button onclick="mobileNavClose();logout()" style="color:rgba(255,150,150,.9)">Abmelden</button>';
   } else {
-    mhtml += '<button onclick="mobileNavClose();showLogin()">🔐 Anmelden</button>';
-    mhtml += '<button onclick="mobileNavClose();showRegister()">📝 Registrieren</button>';
+    mhtml += '<button onclick="mobileNavClose();showLogin()">Anmelden</button>';
+    mhtml += '<button onclick="mobileNavClose();showRegister()">Registrieren</button>';
   }
   var el = document.getElementById('mobile-nav-items');
   if (el) el.innerHTML = mhtml;
