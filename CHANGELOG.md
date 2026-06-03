@@ -1,3 +1,6 @@
+## v1345
+- Admin/Benutzer: Rollen-Dropdown (Anlegen + Bearbeiten) zeigt jetzt alle definierten Rollen aus der `rollen`-Tabelle – inkl. Trainingsportal-Rollen wie „Trainer*in“ – statt nur leser/athlet/editor/admin
+
 ## v1344
 - Meine Veranstaltungen: Disziplin-Spalte sortiert nach Distanz (km) statt alphabetisch; gleiche Distanz → alphabetischer Fallback
 

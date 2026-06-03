@@ -432,6 +432,16 @@ async function renderAdmin() {
   var benutzer = r.data.benutzer || r.data; // Rückwärtskompatibel
   state._adminAthleten = r.data.athleten || [];
 
+  // Rollen laden (inkl. Trainingsportal-Rollen wie trainer) für Dropdowns + rolleLabel()
+  try {
+    var _rolR = await apiGet('rollen');
+    if (_rolR && _rolR.ok && _rolR.data) {
+      state._adminRollen = _rolR.data;
+      window._rollenMap = {};
+      state._adminRollen.forEach(function(ro) { window._rollenMap[ro.name] = ro; });
+    }
+  } catch(e) {}
+
   state._adminBenutzerMap = {};
   // Server-seitiger Online-Status für alle User laden
   var _onlineUserIds = [];
@@ -703,6 +713,20 @@ async function deleteRolle(id, name) {
   else notify((r && r.fehler) || 'Fehler', 'err');
 }
 
+// Baut <option>-Liste für Rollen-Dropdowns aus allen vorhandenen Rollen (inkl. Trainingsportal-Rollen)
+function _rolleOptions(selected) {
+  var rollen = state._adminRollen;
+  if (!rollen || !rollen.length) {
+    // Fallback, falls Rollen (noch) nicht geladen
+    rollen = [{name:'leser'},{name:'athlet'},{name:'editor'},{name:'admin'}];
+  }
+  var esc = function(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  return rollen.map(function(ro) {
+    var label = (ro.label && ro.label !== ro.name) ? ro.label : rolleLabel(ro.name);
+    return '<option value="' + esc(ro.name) + '"' + (ro.name === selected ? ' selected' : '') + '>' + esc(label) + '</option>';
+  }).join('');
+}
+
 function showNeuerBenutzerModal() {
   showModal(
     modalH2('&#x1F464; Neuer Benutzer') +
@@ -710,7 +734,7 @@ function showNeuerBenutzerModal() {
       '<div style="display:none"><input type="text" id="nb-user" value=""/></div>' +
       '<div class="form-group"><label>E-Mail *</label><input type="email" id="nb-email" placeholder="max@example.com"/></div>' +
       '<div class="form-group"><label>Passwort * (min. 8 Zeichen)</label><input type="password" id="nb-pw"/></div>' +
-      '<div class="form-group"><label>Rolle</label><select id="nb-rolle"><option value="leser">Leser</option><option value="athlet">Athlet</option><option value="editor">Editor</option><option value="admin">Admin</option></select></div>' +
+      '<div class="form-group"><label>Rolle</label><select id="nb-rolle">' + _rolleOptions('leser') + '</select></div>' +
     '</div>' +
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button><button class="btn btn-primary" onclick="createBenutzer()">Erstellen</button></div>'
   );
@@ -749,7 +773,7 @@ function showBenutzerEditModal(id) {
     '<div style="color:var(--text2);margin-bottom:16px">' + b.email + '</div>' +
     '<div class="form-grid">' +
       '<div class="form-group"><label>E-Mail</label><input type="email" id="eb-email" value="' + b.email + '"/></div>' +
-      '<div class="form-group"><label>Rolle</label><select id="eb-rolle"><option value="leser"' + (b.rolle==='leser'?' selected':'') + '>Leser</option><option value="athlet"' + (b.rolle==='athlet'?' selected':'') + '>Athlet</option><option value="editor"' + (b.rolle==='editor'?' selected':'') + '>Editor</option><option value="admin"' + (b.rolle==='admin'?' selected':'') + '>Admin</option></select></div>' +
+      '<div class="form-group"><label>Rolle</label><select id="eb-rolle">' + _rolleOptions(b.rolle) + '</select></div>' +
       '<div class="form-group"><label>Status</label><select id="eb-aktiv"><option value="1"' + (b.aktiv?' selected':'') + '>Aktiv</option><option value="0"' + (!b.aktiv?' selected':'') + '>Inaktiv</option></select></div>' +
       '<div class="form-group"><label>Neues Passwort (leer = unver&auml;ndert)</label><input type="password" id="eb-pw"/></div>' +
       '<div class="form-group full"><label>&#x1F3C3; Verkn&uuml;pftes Athletenprofil</label>' +
