@@ -1,4 +1,5 @@
 ## v1347
+- favicon.ico via .htaccess auf favicon.php?size=32 umgeleitet; ICO-Link aus index.html entfernt
 - Favicon: dynamisches `favicon.php` (identische Logik wie Trainingsportal/Planungstool) ersetzt statische `favicon.svg`/`apple-touch-icon.png`; Fallback-Buchstabe aus `login_portal_apps`
 - Menü-Buttons (Haupt-Navigation + Mobile-Drawer) ohne Icons – einheitliche reine Text-Darstellung wie im Trainingsportal
 

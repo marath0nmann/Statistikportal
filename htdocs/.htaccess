@@ -1,5 +1,8 @@
 Options -Indexes
 
+# favicon.ico → dynamisches favicon.php umleiten
+RedirectMatch 302 ^/favicon\.ico$ /favicon.php?size=32
+
 
 # index.html nie cachen damit ?v=XXX Cache-Busting immer greift
 <IfModule mod_headers.c>
