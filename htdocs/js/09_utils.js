@@ -257,7 +257,7 @@ function notify(msg, type) {
 
 function showModal(html, wide, noClose) {
   var cls = wide === 'profile' ? 'modal modal-profile' : (wide ? 'modal modal-wide' : 'modal');
-  var overlayClick = noClose ? '' : ' onclick="if(event.target===this)closeModal()"';
+  var overlayClick = '';
   document.getElementById('modal-container').innerHTML =
     '<div class="modal-overlay"' + overlayClick + '>' +
       '<div class="' + cls + '">' + html + '</div>' +

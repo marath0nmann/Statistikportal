@@ -81,10 +81,11 @@ var r = await apiDel('externe-ergebnisse/7');
 
 **showModal:**
 ```js
-showModal(html)              // normal, Klick außerhalb schließt
+showModal(html)              // normal
 showModal(html, true)        // wide
-showModal(html, false, true) // noClose: Klick außerhalb schließt NICHT
+showModal(html, false, true) // (noClose-Parameter wird ignoriert, Verhalten identisch)
 ```
+Modals schließen **ausschließlich per Button** – Klick außerhalb des Modals hat keine Wirkung.
 
 **fmtTime():** gibt HTML zurück (`<span style="...">h</span>`) → für Tooltips/title-Attribute immer Klartext-Formatierung verwenden und HTML-escapen.
 
