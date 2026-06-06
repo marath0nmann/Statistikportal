@@ -239,11 +239,12 @@ function _renderAthletenTable() {
         '<td>' + renderGruppenInline(a.gruppen) + '</td>' +
         (showDetails ? '<td><span class="badge badge-platz">' + a.anz_ergebnisse + '</span></td>' : '') +
         (showDetails ? '<td style="color:var(--text2);font-size:13px;text-align:center">' + (a.letzte_aktivitaet || '–') + '</td>' : '') +
-        (showDetails ? '<td>' + (a.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>') + '</td>' : '') +
+        (showDetails ? '<td>' + (a.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : (a.orga ? '<span class="badge" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80" title="Inaktiv, aber in der Organisation aktiv">&#x1F9E9; Orga</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>')) + '</td>' : '') +
         (canEdit || isAdmin ? '<td style="white-space:nowrap">' +
           (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showAthletEditModal(' + a.id + ')">&#x270F;&#xFE0E;</button>' : '') +
           (isAdmin && a.aktiv ? '<button class="btn btn-ghost btn-sm" title="Deaktivieren" style="color:var(--text2)" onclick="toggleAthletAktiv(' + a.id + ',0)">&#x23FC;&#xFE0E;</button>' : '') +
           (isAdmin && !a.aktiv ? '<button class="btn btn-ghost btn-sm" title="Aktivieren" style="color:var(--green)" onclick="toggleAthletAktiv(' + a.id + ',1)">&#x23FB;&#xFE0E;</button>' : '') +
+          (isAdmin && !a.aktiv ? '<button class="btn btn-ghost btn-sm" title="' + (a.orga ? 'Orga-Markierung entfernen' : 'Als Orga-Mitglied markieren') + '" style="color:#e65100" onclick="toggleAthletOrga(' + a.id + ',' + (a.orga ? 0 : 1) + ')">&#x1F9E9;</button>' : '') +
           (canDel ? _mkDelBtn(a.id) : '') +
         '</td>' : '') +
       '</tr>';

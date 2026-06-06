@@ -242,6 +242,7 @@ try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXIST
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS reset_code_hash VARCHAR(255) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS reset_code_expires DATETIME NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('athleten') . " MODIFY COLUMN geschlecht ENUM('M','W','D','') NOT NULL DEFAULT ''"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('athleten') . " ADD COLUMN IF NOT EXISTS orga TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
 // Migration: Rollen-System (rollen-Tabelle)
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rollen') . " (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -2674,6 +2675,7 @@ if ($res === 'athleten') {
         if (isset($body['gruppe']))      { $felder[] = 'gruppe=?';      $params[] = sanitize($body['gruppe']); }
         if (isset($body['geburtsjahr'])){ $felder[] = 'geburtsjahr=?';$params[] = ($body['geburtsjahr'] ? intval($body['geburtsjahr']) : null); }
         if (isset($body['aktiv']))       { $felder[] = 'aktiv=?';       $params[] = (int)$body['aktiv']; }
+        if (isset($body['orga']))        { $felder[] = 'orga=?';        $params[] = (int)$body['orga']; }
         if (!$felder) jsonErr('Keine Änderungen.');
         try {
             DB::updateById(DB::tbl('athleten'), $felder, $params, $id);

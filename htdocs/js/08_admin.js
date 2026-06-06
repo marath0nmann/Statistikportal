@@ -906,13 +906,26 @@ function showAthletEditModal(id) {
       '</select></div>' +
       '<div class="form-group"><label>Geburtsjahr</label><input type="number" id="ea-gebj" value="' + gebJahr + '" min="1930" max="2020" placeholder="z.B. 1988" style="width:120px"/></div>' +
       '<div class="form-group full"><label>Gruppen <span style="font-size:11px;color:var(--text2)">(kommagetrennt)</span></label><input type="text" id="ea-gr" value="' + curGruppen + '" placeholder="z.B. Senioren, Masters"/></div>' +
-      '<div class="form-group"><label>Status</label><select id="ea-aktiv">' +
+      '<div class="form-group"><label>Status</label><select id="ea-aktiv" onchange="_eaAktivChanged()">' +
         '<option value="1"' + (a.aktiv?' selected':'') + '>Aktiv</option>' +
         '<option value="0"' + (!a.aktiv?' selected':'') + '>Inaktiv</option>' +
       '</select></div>' +
     '</div>' +
+    '<div id="ea-orga-row" style="margin:4px 0 16px;display:' + (a.aktiv ? 'none' : 'block') + '">' +
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">' +
+        '<input type="checkbox" id="ea-orga" ' + (a.orga ? 'checked' : '') + ' style="width:15px;height:15px"> ' +
+        '&#x1F9E9; Orga-Mitglied (inaktiv, aber in der Organisation aktiv &ndash; z.B. für Sportfest-Planung)' +
+      '</label>' +
+    '</div>' +
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button><button class="btn btn-primary" onclick="saveAthlet(' + id + ')">Speichern</button></div>'
   , false, true);
+}
+
+function _eaAktivChanged() {
+  var aktiv = document.getElementById('ea-aktiv').value === '1';
+  var row = document.getElementById('ea-orga-row');
+  if (row) row.style.display = aktiv ? 'none' : 'block';
+  if (aktiv) { var cb = document.getElementById('ea-orga'); if (cb) cb.checked = false; }
 }
 
 async function saveAthlet(id) {
@@ -921,6 +934,8 @@ async function saveAthlet(id) {
   if (!nn) { notify('Nachname erforderlich.', 'err'); return; }
   var grStr = document.getElementById('ea-gr').value;
   var gruppen = grStr.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+  var aktiv = parseInt(document.getElementById('ea-aktiv').value);
+  var orgaCb = document.getElementById('ea-orga');
   var r = await apiPut('athleten/' + id, {
     nachname:    nn,
     vorname:     vn,
@@ -928,7 +943,8 @@ async function saveAthlet(id) {
     geschlecht:  document.getElementById('ea-g').value,
     geburtsjahr: document.getElementById('ea-gebj').value ? parseInt(document.getElementById('ea-gebj').value) : null,
     gruppen:     gruppen,
-    aktiv:       parseInt(document.getElementById('ea-aktiv').value),
+    aktiv:       aktiv,
+    orga:        (aktiv ? 0 : (orgaCb && orgaCb.checked ? 1 : 0)),
   });
   if (r && r.ok) { closeModal(); notify('Gespeichert.', 'ok'); await loadAthleten(); await renderAthleten(); }
   else notify((r && r.fehler) || 'Fehler', 'err');
@@ -942,6 +958,20 @@ async function toggleAthletAktiv(id, aktiv) {
     var cached = _athLetenCache.alleAthleten || [];
     for (var ci = 0; ci < cached.length; ci++) {
       if (cached[ci].id === id) { cached[ci].aktiv = aktiv; break; }
+    }
+    _renderAthletenTable();
+  } else {
+    notify((r && r.fehler) || 'Fehler', 'err');
+  }
+}
+
+async function toggleAthletOrga(id, orga) {
+  var r = await apiPut('athleten/' + id, { orga: orga });
+  if (r && r.ok) {
+    notify('Orga-Markierung ' + (orga ? 'gesetzt' : 'entfernt') + '.', 'ok');
+    var cached = _athLetenCache.alleAthleten || [];
+    for (var ci = 0; ci < cached.length; ci++) {
+      if (cached[ci].id === id) { cached[ci].orga = orga; break; }
     }
     _renderAthletenTable();
   } else {

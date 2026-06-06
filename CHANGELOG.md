@@ -1,3 +1,6 @@
+## v1350
+- Feature: Orga-Flag für Athleten – kennzeichnet inaktive Mitglieder, die in der Organisation mithelfen (z.B. Sportfest-Planung); Badge 🧩 Orga in Athleten-Tabelle; Toggle-Button und Checkbox im Bearbeiten-Modal
+
 ## v1347
 - favicon.ico via .htaccess auf favicon.php?size=32 umgeleitet; ICO-Link aus index.html entfernt
 - Favicon: dynamisches `favicon.php` (identische Logik wie Trainingsportal/Planungstool) ersetzt statische `favicon.svg`/`apple-touch-icon.png`; Fallback-Buchstabe aus `login_portal_apps`
