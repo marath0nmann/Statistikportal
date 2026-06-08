@@ -1,3 +1,6 @@
+## v1351
+- Debug: RaceResult Extern-Suche zeigt DataFields + iName/iFirstname/iClub-Indices + erste Roh-Namen wenn 0 Einträge gefunden – erleichtert Diagnose bei fehlendem Vorname-Feld
+
 ## v1350
 - Feature: Orga-Flag für Athleten – kennzeichnet inaktive Mitglieder, die in der Organisation mithelfen (z.B. Sportfest-Planung); Badge 🧩 Orga in Athleten-Tabelle; Toggle-Button und Checkbox im Bearbeiten-Modal
 

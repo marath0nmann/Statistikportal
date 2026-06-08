@@ -1547,6 +1547,16 @@ async function bulkImportFromRR(url, kat, statusEl) {
   function _proc(payload, contestName, le, externMode) { le = le || {}; var _cnDLogged = false;
     var df=payload.DataFields||[];
     if(Array.isArray(df)&&df.length>0)_cal(df);
+    // Debug: DataFields + Namens-Indices beim ersten Extern-Aufruf pro Liste
+    if(externMode && !_proc._dfLogged){
+      _proc._dfLogged=true;
+      _bkDbgLine('DF['+contestName+']','iName='+iName+' iFirst='+iFirstname+' iClub='+iClub+' | '+df.join(', '));
+      // Erste 3 Roh-Namen aus den Daten zeigen
+      var _dRawE=payload.data||{};
+      var _rSamples=[];
+      (function _walk(o){if(_rSamples.length>=3||!o||typeof o!=='object')return;if(Array.isArray(o)){if(o.length>0&&Array.isArray(o[0])){o.slice(0,3).forEach(function(r){if(_rSamples.length<3&&Array.isArray(r)&&r.length>iName)_rSamples.push('"'+(r[iName]||'')+(iFirstname>=0?' / '+(r[iFirstname]||''):'')+'" club='+(iClub>=0?r[iClub]:'?')+' zeit='+(r[Math.max(iNetto,iZeit)]||'?'));});}else{o.forEach(function(x){_walk(x);});}}else{Object.values(o).forEach(function(v){_walk(v);});}})(_dRawE);
+      if(_rSamples.length)_bkDbgLine('Roh-Namen',_rSamples.join(' | '));
+    }
     var dRaw=payload.data||{};
     // Rekursiv beliebig tief verschachtelte Gruppen abarbeiten
     function _walkGroups(obj, path) {
