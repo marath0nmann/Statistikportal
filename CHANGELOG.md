@@ -1,3 +1,6 @@
+## v1352
+- Fix: RaceResult-Import erkennt `ZeitMitStatus`-Felder jetzt korrekt als Zeitfeld – alle Felder die mit `zeit` beginnen werden vor dem `mitstatus`-Check geprüft (verhinderte 0 Treffer bei TV Schwafheim / Volkslauf 2026)
+
 ## v1351
 - Debug: RaceResult Extern-Suche zeigt DataFields + iName/iFirstname/iClub-Indices + erste Roh-Namen wenn 0 Einträge gefunden – erleichtert Diagnose bei fehlendem Vorname-Feld
 
