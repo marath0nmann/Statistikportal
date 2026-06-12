@@ -1990,9 +1990,9 @@ if ($res === 'dashboard' && $method === 'GET') {
                 // Club-Labels haben immer höhere Priorität als persönliche
                 $prio = 3; // default: PB/Debüt
                 if ($labelClub) {
-                    if (strpos($labelClub, 'Gesamt') !== false) $prio = 0;
-                    elseif (strpos($labelClub, 'Männer') !== false || strpos($labelClub, 'Frauen') !== false
-                         || strpos($labelClub, 'Ergebnis M') !== false || strpos($labelClub, 'Ergebnis W') !== false) $prio = 1;
+                    if (str_contains($labelClub, 'Gesamt')) $prio = 0;
+                    elseif (str_contains($labelClub, 'Männer') || str_contains($labelClub, 'Frauen')
+                         || str_contains($labelClub, 'Ergebnis M') || str_contains($labelClub, 'Ergebnis W')) $prio = 1;
                     else $prio = 2; // AK
                 }
                 $timelineEvents[] = [
@@ -2881,7 +2881,7 @@ if ($res === 'rekorde') {
                          ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END)"
                 : "LPAD(e.resultat, 10, '0')";
         }
-        $paceField = ($fmt === 'min' && (strpos($tbl,'strasse') !== false || $unified)) ? ", e.pace" : "";
+        $paceField = ($fmt === 'min' && (str_contains($tbl,'strasse') || $unified)) ? ", e.pace" : "";
 
         // Hilfsfunktion: Bestleistung pro Athlet
         // Strategie: SQL liefert ALLE Ergebnisse sortiert nach Ergebnis,
@@ -2908,11 +2908,11 @@ if ($res === 'rekorde') {
         $top_gesamt = array_slice($pbDedup($all_rows), 0, 50);
 
         $top_m = array_slice($pbDedup(array_values(array_filter($all_rows, function($r) {
-            return $r['geschlecht'] === 'M' || ($r['geschlecht'] === null && strpos((string)$r['altersklasse'], 'M') === 0);
+            return $r['geschlecht'] === 'M' || ($r['geschlecht'] === null && str_starts_with((string)$r['altersklasse'], 'M'));
         }))), 0, 50);
 
         $top_w = array_slice($pbDedup(array_values(array_filter($all_rows, function($r) {
-            return $r['geschlecht'] === 'W' || ($r['geschlecht'] === null && (strpos((string)$r['altersklasse'], 'W') === 0 || strpos((string)$r['altersklasse'], 'F') === 0));
+            return $r['geschlecht'] === 'W' || ($r['geschlecht'] === null && (str_starts_with((string)$r['altersklasse'], 'W') || str_starts_with((string)$r['altersklasse'], 'F')));
         }))), 0, 50);
 
         $aks_rows = DB::fetchAll(
@@ -3743,9 +3743,9 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     // 2. Interface-Erkennung: alle r.mikatiming.com-Sites nutzen den Form-POST-Pfad
     //    (historisch v2-JSON-API probiert, aber die antwortet seit Jahren still mit 0 Byte)
     //    → Priorisiere den bewährten POST-Pfad. v2 nur als letzter Fallback.
-    $hasSearchProvider = strpos($mainHtml, 'SearchProvider.js') !== false;
-    $hasSimpleSearchName = strpos($mainHtml, 'simple-search-name') !== false;
-    $hasSearchForm = strpos($mainHtml, 'name="search[name]"') !== false || strpos($mainHtml, "name='search[name]'") !== false;
+    $hasSearchProvider = str_contains($mainHtml, 'SearchProvider.js');
+    $hasSimpleSearchName = str_contains($mainHtml, 'simple-search-name');
+    $hasSearchForm = str_contains($mainHtml, 'name="search[name]"') || str_contains($mainHtml, "name='search[name]'");
     // newInterface ist der default, wenn die Seite irgendeinen Marker hat, der auf klassischen Form-POST zeigt
     $isNewInterface = $hasSimpleSearchName || $hasSearchForm || $hasSearchProvider;
     // v2 nur als Ausweich-Fallback, wenn newInterface leer liefert
@@ -3848,7 +3848,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     // Fallback: erstes String-Feld mit Komma (Nachname, Vorname)
                     foreach ($row as $v) {
                         $vs = trim(strip_tags((string)$v));
-                        if (strpos($vs, ',') !== false && strlen($vs) > 4 && strlen($vs) < 60) { $name = $vs; break; }
+                        if (str_contains($vs, ',') && strlen($vs) > 4 && strlen($vs) < 60) { $name = $vs; break; }
                     }
                 }
                 if (!$name) continue;
@@ -3955,7 +3955,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     // Fallback: erster Text-Knoten mit Komma (Nachname, Vorname)
                     foreach ($xp2->query('.//td|.//div[contains(@class,"list-field")]', $li) as $td) {
                         $t = trim($td->textContent);
-                        if (strpos($t, ',') !== false && strlen($t) > 4 && strlen($t) < 60) { $name = $t; break; }
+                        if (str_contains($t, ',') && strlen($t) > 4 && strlen($t) < 60) { $name = $t; break; }
                     }
                 }
                 if (!$name) continue;
@@ -4425,10 +4425,10 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             foreach ($allNodes as $n) {
                 $t = trim($n->textContent);
                 $c = $n->getAttribute('class');
-                if ($t && strlen($t) < 30 && strpos($c,'f-') !== false)
+                if ($t && strlen($t) < 30 && str_contains($c,'f-'))
                     $sample[] = $c . ': ' . $t;
             }
-            $debug['detailHasTime'] = strpos($dHtml, 'f-time_finish_netto') !== false;
+            $debug['detailHasTime'] = str_contains($dHtml, 'f-time_finish_netto');
             $debug['detailLen'] = strlen($dHtml);
             $debug['detailFields'] = array_slice($sample, 0, 15);
             $debug['detailUrl'] = $detailUrls[$ri];
@@ -6181,7 +6181,7 @@ if ($res === 'uits-fetch' && $method === 'GET') {
 
     // Fallback: Wenn curl SPA-Shell bekommt (>50KB ohne <option>-Elemente),
     // PHP-Streams versuchen — hat anderen TLS-JA3-Fingerprint als libcurl
-    if ($html && strlen($html) > 50000 && strpos($html, '<option') === false) {
+    if ($html && strlen($html) > 50000 && !str_contains($html, '<option')) {
         $ctx = stream_context_create([
             'ssl' => [
                 'verify_peer'       => true,
@@ -6205,7 +6205,7 @@ if ($res === 'uits-fetch' && $method === 'GET') {
             ],
         ]);
         $htmlStream = @file_get_contents($url, false, $ctx);
-        if ($htmlStream && strlen($htmlStream) < 50000 && (strpos($htmlStream, '<option') !== false || strpos($htmlStream, '<tr') !== false)) {
+        if ($htmlStream && strlen($htmlStream) < 50000 && (str_contains($htmlStream, '<option') || str_contains($htmlStream, '<tr'))) {
             $html = $htmlStream; // Stream-Fallback hat echte Daten geliefert
         }
     }

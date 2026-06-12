@@ -1,3 +1,6 @@
+## v1354
+- Modernisierung (PHP 8): `strpos(...) !== false` → `str_contains(...)` und `strpos(...) === 0` → `str_starts_with(...)` an 14 Stellen in `api/index.php`. Identisches Verhalten, lesbarer.
+
 ## v1353
 - Refactor: `includes/db.php` lädt `config.php` nur noch, wenn `DB_NAME` nicht bereits gesetzt ist – ermöglicht den Stub-Mechanismus in Login/Planung/Training
 - Refactor: `favicon.php` auto-detektiert `STATISTIKPORTAL_PATH` (falls definiert) oder fällt auf `__DIR__` zurück – damit byteweise identisch in allen vier Portalen
