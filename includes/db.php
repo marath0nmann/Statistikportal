@@ -1,5 +1,7 @@
 <?php
-require_once __DIR__ . '/config.php';
+// Wird auch von Schwesterportalen (Login/Planung/Training) per Stub geladen –
+// dort ist die config.php bereits gesetzt; deshalb defensiv.
+if (!defined('DB_NAME')) require_once __DIR__ . '/config.php';
 
 class DB {
     private static ?PDO $pdo = null;

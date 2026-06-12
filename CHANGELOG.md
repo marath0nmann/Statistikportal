@@ -1,3 +1,8 @@
+## v1353
+- Refactor: `includes/db.php` lädt `config.php` nur noch, wenn `DB_NAME` nicht bereits gesetzt ist – ermöglicht den Stub-Mechanismus in Login/Planung/Training
+- Refactor: `favicon.php` auto-detektiert `STATISTIKPORTAL_PATH` (falls definiert) oder fällt auf `__DIR__` zurück – damit byteweise identisch in allen vier Portalen
+- `htdocs/js/Statistikportal.code-workspace` ins Repo-Root verschoben (gehörte nicht in den Deploy)
+
 ## v1352
 - Fix: RaceResult-Import erkennt `ZeitMitStatus`-Felder jetzt korrekt als Zeitfeld – alle Felder die mit `zeit` beginnen werden vor dem `mitstatus`-Check geprüft (verhinderte 0 Treffer bei TV Schwafheim / Volkslauf 2026)
 
