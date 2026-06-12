@@ -1,3 +1,7 @@
+## v1355
+- Shared Helper: `DB::insert(table, data)` und `DB::deleteById(table, id, col='id')` – ergänzen die bestehende `DB::updateById()`. Neuer Code kann sie nutzen, bestehende SQL-Statements bleiben unverändert.
+- Shared Helper: neue Klasse `Migrations` in `includes/migrate.php` – ersetzt den ~25-LOC-Boilerplate-Migrationsläufer in Planung/Training durch `Migrations::run(versionKey, [num=>stmts])`. Unterstützt SQL-Listen und Closures, mit eingebautem static-done-Guard pro Versionskey.
+
 ## v1354
 - Modernisierung (PHP 8): `strpos(...) !== false` → `str_contains(...)` und `strpos(...) === 0` → `str_starts_with(...)` an 14 Stellen in `api/index.php`. Identisches Verhalten, lesbarer.
 

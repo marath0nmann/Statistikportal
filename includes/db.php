@@ -48,4 +48,18 @@ class DB {
         $params[] = $id;
         return self::query("UPDATE $table SET " . implode(',', $felder) . " WHERE $idCol=?", $params)->rowCount();
     }
+
+    // INSERT mit Assoc-Array: ['col' => 'wert', ...]; gibt lastInsertId zurück.
+    public static function insert(string $table, array $data): string {
+        $cols = array_keys($data);
+        $ph   = array_fill(0, count($cols), '?');
+        $sql  = "INSERT INTO $table (" . implode(',', $cols) . ") VALUES (" . implode(',', $ph) . ")";
+        self::query($sql, array_values($data));
+        return self::lastInsertId();
+    }
+
+    // DELETE … WHERE $idCol = ?
+    public static function deleteById(string $table, $id, string $idCol = 'id'): int {
+        return self::query("DELETE FROM $table WHERE $idCol=?", [$id])->rowCount();
+    }
 }
