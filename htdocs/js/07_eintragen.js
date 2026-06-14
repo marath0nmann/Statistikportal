@@ -1477,8 +1477,16 @@ async function bulkImportFromRR(url, kat, statusEl) {
 
 
   var listSource = cfg.list || cfg.lists || {};
+  if (!Array.isArray(listSource) && typeof listSource === 'object') {
+    _bkDbgLine('ListSource (raw)', JSON.stringify(listSource).slice(0, 400));
+  }
   var listArr    = Array.isArray(listSource) ? listSource
-    : Object.keys(listSource).map(function(k) { return { Name: k, Contest: '0' }; });
+    : Object.keys(listSource).map(function(k) {
+        var v = listSource[k]; var c = '0';
+        if (typeof v === 'string' || typeof v === 'number') c = String(v);
+        else if (v && typeof v === 'object') c = String(v.Contest || v.contest || v.ContestID || v.id || '0');
+        return { Name: k, Contest: c };
+      });
 
   var _bl = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','OVERALL RANKING',
     'MANNSCHAFT','TEAM RANKING','LIVE','TOP10','TOP 10','LEADERBOARD',

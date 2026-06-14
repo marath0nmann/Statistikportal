@@ -1,3 +1,6 @@
+## v1358
+- Debug: RaceResult Objekt-listSource wird im Debug-Log angezeigt; Contest-ID wird jetzt aus dem Wert gelesen (statt immer '0') – Diagnose Fründe-Lauf "Online|Final"
+
 ## v1357
 - Debug: RaceResult-Listen die keinen Payload liefern zeigen jetzt Grund im Debug-Log (search/all Fehlercode, HTTP-Status, Exception)
 
