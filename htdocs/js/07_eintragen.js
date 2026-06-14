@@ -1686,10 +1686,12 @@ async function bulkImportFromRR(url, kat, statusEl) {
     }
 
     var payload=null; var _dbgSkipReason='';
+    // Pipe-Zeichen NICHT url-encodieren – RaceResult erwartet "Online|Final" literal
+    var _encName=encodeURIComponent(le.name).replace(/%7C/gi,'|');
 
     // r=search zuerst
     try{
-      var rs=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=search&l=9999&term=',{headers:hdrs});
+      var rs=await fetch(base+'?key='+currentKey+'&listname='+_encName+'&page=results&contest='+le.contest+'&r=search&l=9999&term=',{headers:hdrs});
       if(rs.ok){var ps=await rs.json();if(!ps.error&&(ps.DataFields||[]).length>0)payload=ps;else _dbgSkipReason='search: '+(ps.error||'kein DF');}
       else _dbgSkipReason='search HTTP '+rs.status;
     }catch(e){_dbgSkipReason='search ex: '+e.message;}
@@ -1697,7 +1699,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
     // r=all als Fallback
     if(!payload){
       try{
-        var ra=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1',{headers:hdrs});
+        var ra=await fetch(base+'?key='+currentKey+'&listname='+_encName+'&page=results&contest='+le.contest+'&r=all&l=de&_=1',{headers:hdrs});
         if(ra.ok){
           var pa=await ra.json();
           if(!pa.error)payload=pa;
@@ -1705,7 +1707,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
             _dbgSkipReason='key invalid – erneuern…';
             // Key erneuern + sofort nochmal
             try{var fc2=await _freshCfg();currentKey=fc2.key||currentKey;keyAt=Date.now();
-              var rr=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1',{headers:hdrs});
+              var rr=await fetch(base+'?key='+currentKey+'&listname='+_encName+'&page=results&contest='+le.contest+'&r=all&l=de&_=1',{headers:hdrs});
               if(rr.ok){var pr=await rr.json();if(!pr.error)payload=pr;else _dbgSkipReason='all(retry) err: '+pr.error;}
             }catch(e2){_dbgSkipReason='all retry ex: '+e2.message;}
           } else { _dbgSkipReason+=' | all: '+pa.error; }
@@ -1717,20 +1719,26 @@ async function bulkImportFromRR(url, kat, statusEl) {
       // contest=0 → 404: spezifische Contest-IDs einzeln versuchen
       // (Events mit einer einzigen Gesamtliste, gruppiert nach Contest)
       if(le.contest==='0' && _specificContestIds.length>0){
+        // Auch Teil nach letztem Pipe versuchen (z.B. "Online|Final" → "Final")
+        var _nameParts=[_encName];
+        if(le.name.indexOf('|')>=0){var _pip=le.name.split('|');_nameParts.push(encodeURIComponent(_pip[_pip.length-1]));}
         for(var _ci=0;_ci<_specificContestIds.length;_ci++){
           var _cid=_specificContestIds[_ci];
           var _cle=Object.assign({},le,{contest:_cid});
           var _cname2=contestObj[_cid]||cname;
           var _cpayload=null;
-          try{
-            var _cr=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+_cid+'&r=search&l=9999&term=',{headers:hdrs});
-            if(_cr.ok){var _cps=await _cr.json();if(!_cps.error&&(_cps.DataFields||[]).length>0)_cpayload=_cps;}
-          }catch(e){}
-          if(!_cpayload){
+          for(var _ni=0;_ni<_nameParts.length&&!_cpayload;_ni++){
+            var _nEnc=_nameParts[_ni];
             try{
-              var _cra=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+_cid+'&r=all&l=de&_=1',{headers:hdrs});
-              if(_cra.ok){var _cpa=await _cra.json();if(!_cpa.error)_cpayload=_cpa;}
+              var _cr=await fetch(base+'?key='+currentKey+'&listname='+_nEnc+'&page=results&contest='+_cid+'&r=search&l=9999&term=',{headers:hdrs});
+              if(_cr.ok){var _cps=await _cr.json();if(!_cps.error&&(_cps.DataFields||[]).length>0)_cpayload=_cps;}
             }catch(e){}
+            if(!_cpayload){
+              try{
+                var _cra=await fetch(base+'?key='+currentKey+'&listname='+_nEnc+'&page=results&contest='+_cid+'&r=all&l=de&_=1',{headers:hdrs});
+                if(_cra.ok){var _cpa=await _cra.json();if(!_cpa.error)_cpayload=_cpa;}
+              }catch(e){}
+            }
           }
           if(_cpayload){
             listsChecked++;

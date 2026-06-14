@@ -1,3 +1,6 @@
+## v1360
+- Fix RaceResult: Pipe-Zeichen im Listennamen nicht URL-encodieren ("Online|Final" statt "Online%7CFinal"); Fallback auf Teil nach letztem Pipe ("Final") für contest-spezifische Versuche
+
 ## v1359
 - Fix RaceResult: wenn contest=0 → HTTP 404, werden jetzt alle spezifischen Contest-IDs einzeln versucht (Events mit einer kombinierten Liste für mehrere Läufe, z.B. Fründe-Lauf "Online|Final")
 
