@@ -1677,13 +1677,14 @@ async function bulkImportFromRR(url, kat, statusEl) {
       try{var fc=await _freshCfg();currentKey=fc.key||currentKey;keyAt=Date.now();}catch(e){}
     }
 
-    var payload=null;
+    var payload=null; var _dbgSkipReason='';
 
     // r=search zuerst
     try{
       var rs=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=search&l=9999&term=',{headers:hdrs});
-      if(rs.ok){var ps=await rs.json();if(!ps.error&&(ps.DataFields||[]).length>0)payload=ps;}
-    }catch(e){}
+      if(rs.ok){var ps=await rs.json();if(!ps.error&&(ps.DataFields||[]).length>0)payload=ps;else _dbgSkipReason='search: '+(ps.error||'kein DF');}
+      else _dbgSkipReason='search HTTP '+rs.status;
+    }catch(e){_dbgSkipReason='search ex: '+e.message;}
 
     // r=all als Fallback
     if(!payload){
@@ -1693,17 +1694,18 @@ async function bulkImportFromRR(url, kat, statusEl) {
           var pa=await ra.json();
           if(!pa.error)payload=pa;
           else if(pa.error==='key invalid'){
+            _dbgSkipReason='key invalid – erneuern…';
             // Key erneuern + sofort nochmal
             try{var fc2=await _freshCfg();currentKey=fc2.key||currentKey;keyAt=Date.now();
               var rr=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+le.contest+'&r=all&l=de&_=1',{headers:hdrs});
-              if(rr.ok){var pr=await rr.json();if(!pr.error)payload=pr;}
-            }catch(e2){}
-          }
-        }
-      }catch(e){}
+              if(rr.ok){var pr=await rr.json();if(!pr.error)payload=pr;else _dbgSkipReason='all(retry) err: '+pr.error;}
+            }catch(e2){_dbgSkipReason='all retry ex: '+e2.message;}
+          } else { _dbgSkipReason+=' | all: '+pa.error; }
+        } else { _dbgSkipReason+=' | all HTTP '+ra.status; }
+      }catch(e){_dbgSkipReason+=' | all ex: '+e.message;}
     }
 
-    if(!payload)continue;
+    if(!payload){_bkDbgLines.push('  skip: "'+le.name+'" contest='+le.contest+' → '+_dbgSkipReason);continue;}
     listsChecked++;
     _externPayloads.push({payload:payload,cname:cname,le:le});
     _proc(payload, cname, le);

@@ -1,3 +1,6 @@
+## v1357
+- Debug: RaceResult-Listen die keinen Payload liefern zeigen jetzt Grund im Debug-Log (search/all Fehlercode, HTTP-Status, Exception)
+
 ## v1356
 - Fix RaceResult: Disziplin-Erkennung für "5er"-Schreibweise (z.B. "Speira-Jedermann 5er" → "5km") – `\b(\d+)er\b` wird in `rrBestDisz` zu `N km` normalisiert
 
