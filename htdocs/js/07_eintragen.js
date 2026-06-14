@@ -4508,7 +4508,8 @@ function rrBestDisz(rrName, diszList) {
     .replace(/\s+/g, ' ').trim();
 
   // Zahl + Einheit extrahieren und in Meter normalisieren
-  var qNorm = q.replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2'); // 5.000 → 5000
+  var qNorm = q.replace(/(\d)\.(\d{3})(?!\d)/g, '$1$2') // 5.000 → 5000
+               .replace(/\b(\d+)er\b/g, '$1 km'); // "5er" → "5 km", "10er" → "10 km"
   var numMatch = qNorm.match(/(\d+[,.]?\d*)\s*(km|m\b)/);
   var numKey = ''; var numMeters = null;
   if (numMatch) {

@@ -1,3 +1,6 @@
+## v1356
+- Fix RaceResult: Disziplin-Erkennung für "5er"-Schreibweise (z.B. "Speira-Jedermann 5er" → "5km") – `\b(\d+)er\b` wird in `rrBestDisz` zu `N km` normalisiert
+
 ## v1355
 - Shared Helper: `DB::insert(table, data)` und `DB::deleteById(table, id, col='id')` – ergänzen die bestehende `DB::updateById()`. Neuer Code kann sie nutzen, bestehende SQL-Statements bleiben unverändert.
 - Shared Helper: neue Klasse `Migrations` in `includes/migrate.php` – ersetzt den ~25-LOC-Boilerplate-Migrationsläufer in Planung/Training durch `Migrations::run(versionKey, [num=>stmts])`. Unterstützt SQL-Listen und Closures, mit eingebautem static-done-Guard pro Versionskey.
