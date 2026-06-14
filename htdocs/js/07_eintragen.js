@@ -1713,7 +1713,37 @@ async function bulkImportFromRR(url, kat, statusEl) {
       }catch(e){_dbgSkipReason+=' | all ex: '+e.message;}
     }
 
-    if(!payload){_bkDbgLines.push('  skip: "'+le.name+'" contest='+le.contest+' → '+_dbgSkipReason);continue;}
+    if(!payload){
+      // contest=0 → 404: spezifische Contest-IDs einzeln versuchen
+      // (Events mit einer einzigen Gesamtliste, gruppiert nach Contest)
+      if(le.contest==='0' && _specificContestIds.length>0){
+        for(var _ci=0;_ci<_specificContestIds.length;_ci++){
+          var _cid=_specificContestIds[_ci];
+          var _cle=Object.assign({},le,{contest:_cid});
+          var _cname2=contestObj[_cid]||cname;
+          var _cpayload=null;
+          try{
+            var _cr=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+_cid+'&r=search&l=9999&term=',{headers:hdrs});
+            if(_cr.ok){var _cps=await _cr.json();if(!_cps.error&&(_cps.DataFields||[]).length>0)_cpayload=_cps;}
+          }catch(e){}
+          if(!_cpayload){
+            try{
+              var _cra=await fetch(base+'?key='+currentKey+'&listname='+encodeURIComponent(le.name)+'&page=results&contest='+_cid+'&r=all&l=de&_=1',{headers:hdrs});
+              if(_cra.ok){var _cpa=await _cra.json();if(!_cpa.error)_cpayload=_cpa;}
+            }catch(e){}
+          }
+          if(_cpayload){
+            listsChecked++;
+            _externPayloads.push({payload:_cpayload,cname:_cname2,le:_cle});
+            _proc(_cpayload,_cname2,_cle);
+          }
+        }
+        if(listsChecked===0)_bkDbgLines.push('  skip: "'+le.name+'" (contest=0+spezifisch → alle 404)');
+      } else {
+        _bkDbgLines.push('  skip: "'+le.name+'" contest='+le.contest+' → '+_dbgSkipReason);
+      }
+      continue;
+    }
     listsChecked++;
     _externPayloads.push({payload:payload,cname:cname,le:le});
     _proc(payload, cname, le);

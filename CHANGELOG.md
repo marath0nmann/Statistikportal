@@ -1,3 +1,6 @@
+## v1359
+- Fix RaceResult: wenn contest=0 → HTTP 404, werden jetzt alle spezifischen Contest-IDs einzeln versucht (Events mit einer kombinierten Liste für mehrere Läufe, z.B. Fründe-Lauf "Online|Final")
+
 ## v1358
 - Debug: RaceResult Objekt-listSource wird im Debug-Log angezeigt; Contest-ID wird jetzt aus dem Wert gelesen (statt immer '0') – Diagnose Fründe-Lauf "Online|Final"
 
