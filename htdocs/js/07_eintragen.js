@@ -1416,7 +1416,18 @@ async function bulkImportFromRR(url, kat, statusEl) {
       'https://my.raceresult.com/' + eid + '/RRPublish/data/config?lang=de&page=results&noVisitor=1'
     );
     if (!r.ok) throw new Error('Config HTTP ' + r.status);
-    return await r.json();
+    var c = await r.json();
+    // Zusätzlich Tab-Config holen: TabConfig.Lists enthält die ECHTEN, abrufbaren
+    // Listennamen (das Top-Level "lists" kann veraltete interne Namen liefern,
+    // z.B. "Online|Final" statt "Online|Online Ergebnisse" beim Fründe-Lauf)
+    try {
+      var rt = await fetch('https://my.raceresult.com/' + eid + '/results/config?lang=de&noVisitor=1&oldFavs=');
+      if (rt.ok) {
+        var ct = await rt.json();
+        if (ct && ct.TabConfig && Array.isArray(ct.TabConfig.Lists)) c._tabLists = ct.TabConfig.Lists;
+      }
+    } catch(e) {}
+    return c;
   }
 
   var cfg;
@@ -1477,16 +1488,19 @@ async function bulkImportFromRR(url, kat, statusEl) {
 
 
   var listSource = cfg.list || cfg.lists || {};
-  if (!Array.isArray(listSource) && typeof listSource === 'object') {
-    _bkDbgLine('ListSource (raw)', JSON.stringify(listSource).slice(0, 400));
-  }
-  var listArr    = Array.isArray(listSource) ? listSource
+  var listArr    = Array.isArray(listSource) ? listSource.slice()
     : Object.keys(listSource).map(function(k) {
         var v = listSource[k]; var c = '0';
         if (typeof v === 'string' || typeof v === 'number') c = String(v);
         else if (v && typeof v === 'object') c = String(v.Contest || v.contest || v.ContestID || v.id || '0');
         return { Name: k, Contest: c };
       });
+  // TabConfig.Lists voranstellen: enthält die echten abrufbaren Listennamen
+  // (Top-Level "lists" kann veraltete interne Namen liefern). Dedup folgt unten.
+  if (Array.isArray(cfg._tabLists) && cfg._tabLists.length) {
+    listArr = cfg._tabLists.concat(listArr);
+    _bkDbgLine('TabConfig.Lists', cfg._tabLists.map(function(l){return (l.Name||'')+'@'+(l.Contest||'0');}).join(' | ').slice(0,400));
+  }
 
   var _bl = ['STAFF','RELAY','KING','QUEEN','AGGREGATE','OVERALL RANKING',
     'MANNSCHAFT','TEAM RANKING','LIVE','TOP10','TOP 10','LEADERBOARD',

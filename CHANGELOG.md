@@ -1,3 +1,6 @@
+## v1361
+- Fix RaceResult: echte Listennamen aus `TabConfig.Lists` (`/results/config`) lesen – das Top-Level `lists` kann veraltete interne Namen liefern (z.B. "Online|Final" statt fetchbarem "Online|Online Ergebnisse" beim Fründe-Lauf → vorher 0 Treffer trotz vorhandener Ergebnisse)
+
 ## v1360
 - Fix RaceResult: Pipe-Zeichen im Listennamen nicht URL-encodieren ("Online|Final" statt "Online%7CFinal"); Fallback auf Teil nach letztem Pipe ("Final") für contest-spezifische Versuche
 
