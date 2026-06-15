@@ -1918,7 +1918,7 @@ async function bulkImportFromMika(url, kat, statusEl) {
           return;
         }
         // Debug: Roh-Treffer zählen
-        _allMikaResults.push.apply(_allMikaResults, (_nr.data.results || []).map(function(res) { return { q: _nn, name: res.name }; }));
+        _allMikaResults.push.apply(_allMikaResults, (_nr.data.results || []).map(function(res) { return { q: _nn, name: res.name, club: res.club || '' }; }));
         if (!_bkDbgLines._namDebugShown && _nr.data.debug) {
           var _d = _nr.data.debug;
           _bkDbgLine('Name-API-Debug', ['noEventResults','noEventIdpRaw','noEventFirstLiSample','detailHasTime','detailLen'].filter(function(k){return _d[k]!==undefined;}).map(function(k){return k+'='+JSON.stringify(_d[k]).slice(0,120);}).join(' | '));
@@ -1935,7 +1935,7 @@ async function bulkImportFromMika(url, kat, statusEl) {
     }
     _bkDbgLine('Namens-Treffer', _nameRows.length + ' Athleten gefunden (' + _searchedNames.length + ' Namen gesucht, ' + _allMikaResults.length + ' Roh-Treffer)');
     if (_allMikaResults.length > 0 && _nameRows.length === 0) {
-      _bkDbgLine('Roh-Namen', _allMikaResults.slice(0, 8).map(function(r){ return r.q + '→' + r.name; }).join(', '));
+      _bkDbgLine('Roh-Namen', _allMikaResults.slice(0, 8).map(function(r){ return r.q + '→' + r.name + ' [' + (r.club || '?') + ']'; }).join(', '));
     }
     _bkDbgFlush();
     // Vereins-Ergebnisse mit Namens-Ergebnissen zusammenführen (dedup via idp)

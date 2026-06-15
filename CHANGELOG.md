@@ -1,3 +1,6 @@
+## v1363
+- MikaTiming Debug: Roh-Namen zeigen jetzt zusätzlich das Vereinsfeld `[Verein]` (Diagnose ob Namens-Treffer wirklich TuS-Oedt-Mitglieder sind, Citylauf Erkelenz)
+
 ## v1362
 - MikaTiming: Kurzname-Fallback bei 0 Treffern — wenn "TuS Oedt" keinen Treffer gibt, nochmal mit letztem Nicht-Abkürzungs-Wort suchen (z.B. "Oedt")
 - MikaTiming Debug: Roh-Namen bei Namens-Treffer=0 anzeigen (welche Namen gefunden aber nicht gematcht wurden)
