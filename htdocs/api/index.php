@@ -3708,13 +3708,35 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     }
     $debug['eventId'] = $eventId;
 
+    // v1364: Event-Optionen direkt aus <select name="event"> lesen (canonical).
+    // Erfasst auch rein numerische Event-IDs (z.B. "5", "10", "3") die die alte
+    // Buchstaben-Regex verwarf → Citylauf Erkelenz: 5km/10km-Läufe wurden übersehen.
+    $eventOptions = []; // value => label
+    if ($mainHtml && preg_match_all('/<select[^>]*name="event"[^>]*>(.*?)<\/select>/is', $mainHtml, $selBlocks)) {
+        foreach ($selBlocks[1] as $selInner) {
+            if (preg_match_all('/<option[^>]*value="([^"]*)"[^>]*>([^<]*)</i', $selInner, $optm)) {
+                for ($oi = 0; $oi < count($optm[1]); $oi++) {
+                    $ov = trim($optm[1][$oi]);
+                    if ($ov === '' || $ov === '%' || strlen($ov) > 8) continue;
+                    if (!isset($eventOptions[$ov])) $eventOptions[$ov] = trim($optm[2][$oi]);
+                }
+            }
+        }
+    }
+    $debug['eventOptions'] = $eventOptions;
+
     // Dynamische contestMap aus Option-Werten + Heuristik:
     //   <option value="HML">Marathon</option>           → HML→Marathon (Klartext)
     //   <option value="HML">Runner</option> + Title "Marathon" → HML→Marathon (Heuristik)
     $dynContest = [];
     if ($mainHtml) {
         // a) direkte Klartext-Optionen mit Disziplin-Wort
-        preg_match_all('/<option\s+value="([A-Z][A-Z0-9]{0,5})"[^>]*>([^<]+)</', $mainHtml, $opAll);
+        //    Bevorzugt aus <select name="event"> (inkl. numerischer IDs), sonst Seiten-Scan
+        if (!empty($eventOptions)) {
+            $opAll = [array_keys($eventOptions), array_values($eventOptions)];
+        } else {
+            preg_match_all('/<option\s+value="([A-Z][A-Z0-9]{0,5})"[^>]*>([^<]+)</', $mainHtml, $opAll);
+        }
         for ($i = 0; $i < count($opAll[1]); $i++) {
             $val = $opAll[1][$i];
             $txt = trim($opAll[2][$i]);
@@ -3887,16 +3909,21 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         $searchName = $nameSearch ?: $club;
         // Event-IDs aus Hauptseite extrahieren oder Defaults
         $eventIds = [];
-        preg_match_all('/value="([A-Z][A-Z0-9]{0,5})"[^>]*>[^<]+(?:km|Lauf|Marathon)/i', $mainHtml, $evm);
-        foreach ($evm[1] as $ev) $eventIds[] = $ev;
-        // option-Values aus select: nur Werte die mit einem Buchstaben beginnen (kein 25/50/100/ASC/DESC etc.)
-        preg_match_all('/<option[^>]+value="([A-Z][A-Z0-9]{0,5})"/', $mainHtml, $opm);
-        $badOpts = ['ASC','DESC','NAME','CLUB','ALL','YES','NO','DE','EN'];
-        foreach ($opm[1] as $ev) { if (!in_array($ev,$eventIds) && !in_array(strtoupper($ev),$badOpts)) $eventIds[] = $ev; }
+        // v1364: zuerst kanonische IDs aus <select name="event"> (inkl. numerischer wie "5"/"10")
+        foreach (array_keys($eventOptions) as $ev) { if (!in_array($ev, $eventIds)) $eventIds[] = $ev; }
+        // Fallback-Heuristik (nur wenn select nicht geparst werden konnte)
+        if (empty($eventIds)) {
+            preg_match_all('/value="([A-Z][A-Z0-9]{0,5})"[^>]*>[^<]+(?:km|Lauf|Marathon)/i', $mainHtml, $evm);
+            foreach ($evm[1] as $ev) $eventIds[] = $ev;
+            // option-Values aus select: nur Werte die mit einem Buchstaben beginnen (kein 25/50/100/ASC/DESC etc.)
+            preg_match_all('/<option[^>]+value="([A-Z][A-Z0-9]{0,5})"/', $mainHtml, $opm);
+            $badOpts = ['ASC','DESC','NAME','CLUB','ALL','YES','NO','DE','EN'];
+            foreach ($opm[1] as $ev) { if (!in_array($ev,$eventIds) && !in_array(strtoupper($ev),$badOpts)) $eventIds[] = $ev; }
+        }
         // Häufige Standard-Event-IDs immer mit einschließen (z.B. HM bei Hamburg Marathon 2019)
         foreach (['HM','M','10L','5L','10K','5K'] as $_std) { if (!in_array($_std,$eventIds)) $eventIds[] = $_std; }
         if (empty($eventIds)) $eventIds = ['HM','10L','5L'];
-        $eventIds = array_unique(array_slice($eventIds, 0, 16));
+        $eventIds = array_values(array_unique(array_slice($eventIds, 0, 16)));
         $debug['newIf_eventIds'] = $eventIds;
 
         $searchUrl = $baseUrl . '?pid=search&pidp=start';

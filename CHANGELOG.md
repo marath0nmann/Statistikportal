@@ -1,3 +1,7 @@
+## v1364
+- MikaTiming: Event-IDs jetzt direkt aus `<select name="event">` gelesen — erfasst auch rein numerische IDs wie `5`/`10`/`3` (Citylauf Erkelenz: 5km/10km-Läufe wurden komplett übersehen, weil die alte Regex einen Buchstaben am Anfang verlangte → Vereinssuche fand 0 obwohl 8 TuS-Oedt-Läufer in 5km/10km starteten)
+- MikaTiming: contestMap (`dynContest`) ebenfalls aus `<select name="event">` → numerische Events erhalten korrekten Namen (`10`→`10km` usw.)
+
 ## v1363
 - MikaTiming Debug: Roh-Namen zeigen jetzt zusätzlich das Vereinsfeld `[Verein]` (Diagnose ob Namens-Treffer wirklich TuS-Oedt-Mitglieder sind, Citylauf Erkelenz)
 
