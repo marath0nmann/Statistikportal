@@ -1,3 +1,7 @@
+## v1362
+- MikaTiming: Kurzname-Fallback bei 0 Treffern — wenn "TuS Oedt" keinen Treffer gibt, nochmal mit letztem Nicht-Abkürzungs-Wort suchen (z.B. "Oedt")
+- MikaTiming Debug: Roh-Namen bei Namens-Treffer=0 anzeigen (welche Namen gefunden aber nicht gematcht wurden)
+
 ## v1361
 - Fix RaceResult: echte Listennamen aus `TabConfig.Lists` (`/results/config`) lesen – das Top-Level `lists` kann veraltete interne Namen liefern (z.B. "Online|Final" statt fetchbarem "Online|Online Ergebnisse" beim Fründe-Lauf → vorher 0 Treffer trotz vorhandener Ergebnisse)
 

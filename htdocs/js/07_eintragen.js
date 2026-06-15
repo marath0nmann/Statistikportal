@@ -1934,6 +1934,9 @@ async function bulkImportFromMika(url, kat, statusEl) {
       });
     }
     _bkDbgLine('Namens-Treffer', _nameRows.length + ' Athleten gefunden (' + _searchedNames.length + ' Namen gesucht, ' + _allMikaResults.length + ' Roh-Treffer)');
+    if (_allMikaResults.length > 0 && _nameRows.length === 0) {
+      _bkDbgLine('Roh-Namen', _allMikaResults.slice(0, 8).map(function(r){ return r.q + '→' + r.name; }).join(', '));
+    }
     _bkDbgFlush();
     // Vereins-Ergebnisse mit Namens-Ergebnissen zusammenführen (dedup via idp)
     var _clubIdps = {};

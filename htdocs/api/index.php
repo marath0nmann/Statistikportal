@@ -4030,6 +4030,86 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 }
         } // end parse block per LI
         } // end foreach ($eventIds as $_evLoop)
+
+        // v1362: Kurzname-Fallback — wenn Vereinssuche 0 Treffer gab und Club-Name mehrere Wörter hat,
+        // nochmal mit letztem Nicht-Abkürzungs-Wort suchen (z.B. "TuS Oedt" → "Oedt").
+        // Deckt den Fall ab, dass Verein in MikaTiming als "TuS Oedt 1913 e.V." o.Ä. gespeichert ist.
+        if (empty($allResults) && !$nameSearch && $club !== '') {
+            $clubAbbrevs = ['tus','sv','fc','vfl','tsv','mtv','spvgg','tv','sc','ac','bc','vc','dfb','dlv','bv','1fc','ssg','asc'];
+            $clubWords = preg_split('/\s+/', trim($club));
+            $clubShortWord = '';
+            foreach (array_reverse($clubWords) as $_cw) {
+                if (strlen($_cw) >= 3 && !in_array(strtolower($_cw), $clubAbbrevs)) { $clubShortWord = $_cw; break; }
+            }
+            if ($clubShortWord && $clubShortWord !== $club) {
+                $debug['clubShortFallback'] = $clubShortWord;
+                $_postBodies2 = [];
+                foreach ($eventIds as $_evLoop) {
+                    $_postBodies2[$_evLoop] = http_build_query([
+                        'lang' => 'DE', 'startpage' => 'start_responsive', 'startpage_type' => 'search',
+                        'event' => $_evLoop, 'search[name]' => '', 'search[firstname]' => '',
+                        'search[start_no]' => '', 'search[club]' => $clubShortWord,
+                        'search[age_class]' => '%', 'search[sex]' => '%', 'search[nation]' => '%',
+                        'search_sort' => 'name',
+                    ]);
+                }
+                $_htmlByEvent2 = mikaPostCurlMulti($searchUrl, $_postBodies2, $cookieFile, $ua);
+                foreach ($_htmlByEvent2 as $_evLoop => $_html2) {
+                    if (!$_html2) continue;
+                    $_d2 = new DOMDocument('1.0', 'UTF-8');
+                    @$_d2->loadHTML('<?xml encoding="UTF-8">' . $_html2);
+                    $_x2 = new DOMXPath($_d2);
+                    foreach ($_x2->query('//li[contains(@class,"list-group-item") and not(contains(@class,"list-group-header")) and not(contains(@class,"list-info"))]') as $_li2) {
+                        $_idp2 = '';
+                        foreach ($_x2->query('.//a[@href]', $_li2) as $_a2) {
+                            if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $_a2->getAttribute('href'), $_im2)) { $_idp2 = $_im2[1]; break; }
+                        }
+                        if (!$_idp2 || isset($allResults[$_idp2])) continue;
+                        $_name2 = '';
+                        foreach ($_x2->query('.//*[contains(@class,"type-fullname") or contains(@class,"name-standard") or contains(@class,"fullname")]', $_li2) as $_n2) {
+                            $_t2 = trim($_n2->textContent);
+                            if ($_t2) { $_name2 = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $_t2); break; }
+                        }
+                        if (!$_name2) continue;
+                        $_evId2 = $_evLoop;
+                        foreach ($_x2->query('.//a[@href]', $_li2) as $_a2) {
+                            if (preg_match('/[?&]event=([A-Z0-9]{1,5})/i', $_a2->getAttribute('href'), $_em2)) { $_evId2 = $_em2[1]; break; }
+                        }
+                        $_liNetto2 = ''; $_liAK2 = ''; $_liClub2 = ''; $_pg2 = ''; $_pa2 = '';
+                        // v1288: Netto bevorzugen (letztes type-time Element)
+                        $_timeLast2 = '';
+                        foreach ($_x2->query('.//*[contains(@class,"type-time")]', $_li2) as $_tn2) {
+                            $_lbl2 = trim(($_x2->query('.//*[contains(@class,"list-label")]', $_tn2)->item(0) ?: new DOMText(''))->textContent);
+                            $_raw2 = trim(str_replace($_lbl2, '', $_tn2->textContent));
+                            if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $_raw2, $_tm2)) {
+                                if ($_lbl2 === 'Netto') { $_liNetto2 = $_tm2[1]; break; }
+                                $_timeLast2 = $_tm2[1];
+                            }
+                        }
+                        if (!$_liNetto2) $_liNetto2 = $_timeLast2;
+                        foreach ($_x2->query('.//*[contains(@class,"place-primary") or contains(@class,"place_all")]', $_li2) as $_pn2) {
+                            $_t2 = trim($_pn2->textContent); if (ctype_digit($_t2)) { $_pg2 = $_t2; break; }
+                        }
+                        foreach ($_x2->query('.//*[contains(@class,"place-secondary") or contains(@class,"place_age")]', $_li2) as $_pn2) {
+                            $_t2 = trim($_pn2->textContent); if (ctype_digit($_t2)) { $_pa2 = $_t2; break; }
+                        }
+                        foreach ($_x2->query('.//*[contains(@class,"type-field")]', $_li2) as $_fn2) {
+                            $_lbl2 = trim(($_x2->query('.//*[contains(@class,"list-label")]', $_fn2)->item(0) ?: new DOMText(''))->textContent);
+                            $_raw2 = trim(str_replace($_lbl2, '', $_fn2->textContent));
+                            if ($_lbl2 === 'AK' && $_raw2 && !$_liAK2) $_liAK2 = $_raw2;
+                            if ($_lbl2 === 'Verein' && $_raw2 && !$_liClub2) $_liClub2 = $_raw2;
+                        }
+                        $allResults[$_idp2] = [
+                            'name' => trim($_name2), 'contest' => $_evId2,
+                            'netto' => $_liNetto2, 'ak' => $_liAK2, 'platz_ak' => $_pa2, 'platz_ges' => $_pg2,
+                            'event_id' => $_evId2, 'idp' => $_idp2, 'club' => $_liClub2,
+                        ];
+                    }
+                }
+                $debug['rowsFoundShort'] = count($allResults);
+            }
+        }
+
         $results = array_values($allResults);
         $debug['rowsFound'] = count($results);
         if (!empty($results)) $debug['firstResult'] = $results[0];
