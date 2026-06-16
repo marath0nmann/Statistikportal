@@ -1,3 +1,7 @@
+## v1368
+- MikaTiming: Namens-Suche stark entlastet — schlanker Backend-Pfad postet direkt an die (vom Frontend übergebenen) echten Events, ohne pro Name die 39-KB-Hauptseite zu laden. Der Such-POST braucht keinen Session-Cookie. Behebt das Rate-Limit (vorher ~2900 Requests/Import → einzelne Namens-Suchen wie „Peil" scheiterten still → externer Teilnehmer Thorsten Peil fehlte)
+- MikaTiming: contest-ID der Namens-Treffer wird im Frontend via dynContest gemappt (z.B. „5" → „5km")
+
 ## v1367
 - MikaTiming Debug: Roh-Namen werden jetzt immer angezeigt (vorher nur bei 0 Treffern) mit Match-Status (✓/✗) und Verein — Diagnose für fehlende externe Teilnehmer (z.B. Thorsten Peil unter Firmenteam)
 

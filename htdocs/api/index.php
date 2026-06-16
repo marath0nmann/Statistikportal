@@ -3621,6 +3621,77 @@ if ($res === 'mika-fetch' && $method === 'GET') {
     $ua = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0 Safari/537.36';
     $cookieFile = tempnam(sys_get_temp_dir(), 'mika_');
 
+    // v1368: Schlanker Namens-Such-Pfad — wenn das Frontend bereits bekannte Events übergibt,
+    // KEINE mainHtml-Ladung (39 KB × 181 Namen = Rate-Limit-Auslöser). Der Such-POST funktioniert
+    // ohne Session-Cookie und ohne Interface-Erkennung. Reduziert die Last drastisch.
+    $nameSearchLight = trim($_GET['name'] ?? '');
+    $eventsLight     = trim($_GET['events'] ?? '');
+    if ($nameSearchLight !== '' && $eventsLight !== '') {
+        $evList = array_values(array_filter(array_map('trim', explode(',', $eventsLight)), function($e){ return $e !== ''; }));
+        $searchUrlL = $baseUrl . '?pid=search&pidp=start';
+        $postBodiesL = [];
+        foreach ($evList as $evL) {
+            $postBodiesL[$evL] = http_build_query([
+                'lang'=>'DE','startpage'=>'start_responsive','startpage_type'=>'search',
+                'event'=>$evL,'search[name]'=>$nameSearchLight,'search[firstname]'=>'','search[start_no]'=>'',
+            ]);
+        }
+        $htmlByEventL = mikaPostCurlMulti($searchUrlL, $postBodiesL, $cookieFile, $ua);
+        $resL = [];
+        foreach ($htmlByEventL as $evL => $htmlL) {
+            if (!$htmlL) continue;
+            $dL = new DOMDocument('1.0','UTF-8');
+            @$dL->loadHTML('<?xml encoding="UTF-8">' . $htmlL);
+            $xL = new DOMXPath($dL);
+            foreach ($xL->query('//li[contains(@class,"list-group-item") and not(contains(@class,"list-group-header")) and not(contains(@class,"list-info"))]') as $liL) {
+                $idpL = '';
+                foreach ($xL->query('.//a[@href]', $liL) as $aL) {
+                    if (preg_match('/[?&]idp=([A-Z0-9]{8,})/i', $aL->getAttribute('href'), $imL)) { $idpL = $imL[1]; break; }
+                }
+                if (!$idpL || isset($resL[$idpL])) continue;
+                $nameL = '';
+                foreach ($xL->query('.//*[contains(@class,"type-fullname") or contains(@class,"name-standard") or contains(@class,"fullname")]', $liL) as $nL) {
+                    $tL = trim($nL->textContent);
+                    if ($tL) { $nameL = preg_replace('/\s*\([A-Z]{2,3}\)\s*$/', '', $tL); break; }
+                }
+                if (!$nameL) continue;
+                $evIdL = $evL;
+                foreach ($xL->query('.//a[@href]', $liL) as $aL) {
+                    if (preg_match('/[?&]event=([A-Z0-9]{1,8})/i', $aL->getAttribute('href'), $emL)) { $evIdL = $emL[1]; break; }
+                }
+                // Netto bevorzugen (letztes type-time), Plätze, AK, Verein
+                $nettoL=''; $akL=''; $clubL=''; $pgL=''; $paL=''; $timeLastL='';
+                foreach ($xL->query('.//*[contains(@class,"type-time")]', $liL) as $tnL) {
+                    $lblL = trim(($xL->query('.//*[contains(@class,"list-label")]', $tnL)->item(0) ?: new DOMText(''))->textContent);
+                    $rawL = trim(str_replace($lblL, '', $tnL->textContent));
+                    if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $rawL, $tmL)) {
+                        if ($lblL === 'Netto') { $nettoL = $tmL[1]; break; }
+                        if ($lblL !== 'Brutto') $timeLastL = $tmL[1];
+                    }
+                }
+                if (!$nettoL) $nettoL = $timeLastL;
+                foreach ($xL->query('.//*[contains(@class,"place-primary") or contains(@class,"place_all")]', $liL) as $pnL) {
+                    $tL = trim($pnL->textContent); if (ctype_digit($tL)) { $pgL = $tL; break; }
+                }
+                foreach ($xL->query('.//*[contains(@class,"place-secondary") or contains(@class,"place_age")]', $liL) as $pnL) {
+                    $tL = trim($pnL->textContent); if (ctype_digit($tL)) { $paL = $tL; break; }
+                }
+                foreach ($xL->query('.//*[contains(@class,"type-field")]', $liL) as $fnL) {
+                    $lblL = trim(($xL->query('.//*[contains(@class,"list-label")]', $fnL)->item(0) ?: new DOMText(''))->textContent);
+                    $rawL = trim(str_replace($lblL, '', $fnL->textContent));
+                    if ($lblL === 'AK' && $rawL && !$akL) { if (preg_match('/[MW]\d{2,3}/', $rawL, $mmL)) $akL = $mmL[0]; else $akL = $rawL; }
+                    if ($lblL === 'Verein' && $rawL && !$clubL) $clubL = $rawL;
+                }
+                $resL[$idpL] = [
+                    'name'=>trim($nameL), 'contest'=>$evIdL, 'netto'=>$nettoL, 'ak'=>$akL,
+                    'platz_ak'=>$paL, 'platz_ges'=>$pgL, 'event_id'=>$evIdL, 'idp'=>$idpL, 'club'=>$clubL,
+                ];
+            }
+        }
+        @unlink($cookieFile);
+        jsonOk(['results'=>array_values($resL), 'debug'=>['lightNameSearch'=>true, 'events'=>$evList, 'count'=>count($resL)]]);
+    }
+
     // 1. Hauptseite: Session-Cookie + Datum/Ort/EventName
     $mainHtml = mikaCurl($baseUrl, $cookieFile, $ua);
     $eventName = ''; $eventDate = ''; $eventOrt = '';

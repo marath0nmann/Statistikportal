@@ -1881,6 +1881,12 @@ async function bulkImportFromMika(url, kat, statusEl) {
   // Zusätzliche Suche nach bekannten Athleten-Namen (immer, nicht nur als Fallback)
   if (true) {
     _bkDbgLine('Athleten-Suche', 'Suche nach bekannten Athleten-Namen…');
+    // v1368: echte Events + Disziplin-Map aus der Vereinssuche übernehmen → schlanker
+    // Namens-Such-Pfad (ohne 181× mainHtml-Ladung). dynContest mappt Event-ID → "10km".
+    var _dbg = (r.data && r.data.debug) || {};
+    var _realEvents = _dbg.eventOptions ? Object.keys(_dbg.eventOptions) : [];
+    var _dynContest = _dbg.dynContest || {};
+    var _eventsParam = _realEvents.join(',');
     var _athleten = state.athleten || [];
     var _activeAth = _athleten;  // alle Athleten, nicht nur aktive
     // Einzigartige Nachnamen sammeln (aus name_nv: "Nachname, Vorname")
@@ -1904,7 +1910,8 @@ async function bulkImportFromMika(url, kat, statusEl) {
       if (statusEl) statusEl.textContent = '⏳ Athleten-Suche ' + Math.min(_ni + _BATCH, _nachnamen.length) + '/' + _nachnamen.length + '…';
       var _batchResults = await Promise.all(_batch.map(function(_nn) {
         _searchedNames.push(_nn);
-        return apiGet('mika-fetch?base_url=' + encodeURIComponent(baseUrl) + '&club=' + encodeURIComponent(vereinRaw) + '&name=' + encodeURIComponent(_nn))
+        return apiGet('mika-fetch?base_url=' + encodeURIComponent(baseUrl) + '&club=' + encodeURIComponent(vereinRaw) + '&name=' + encodeURIComponent(_nn)
+          + (_eventsParam ? '&events=' + encodeURIComponent(_eventsParam) : ''))
           .then(function(_r) { return { name: _nn, r: _r }; });
       }));
       _batchResults.forEach(function(_wrap) {
@@ -1928,6 +1935,8 @@ async function bulkImportFromMika(url, kat, statusEl) {
           if (_idpSeen[res.idp]) return;
           if (uitsAutoMatch(res.name, _athleten) !== null) {
             _idpSeen[res.idp] = true;
+            // v1368: contest-ID (z.B. "5") via dynContest → "5km" mappen (schlanker Pfad liefert roh)
+            if (res.contest && _dynContest[res.contest]) res.contest = _dynContest[res.contest];
             _nameRows.push(res);
           }
         });
