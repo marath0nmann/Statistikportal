@@ -3783,6 +3783,9 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         'mainHtmlLen' => strlen($mainHtml),
         'mainHtmlHead' => substr($mainHtml, 0, 200),
     ];
+    // v1365: nach $debug-Reset wieder anhängen (sonst überschrieben)
+    if (!empty($eventOptions)) $debug['eventOptions'] = $eventOptions;
+    if (!empty($dynContest))   $debug['dynContest']   = $dynContest;
 
     if (false /* v2-JSON-API seit v1095 nie funktioniert (Server liefert HTTP 200 mit 0 Byte) - deaktiviert in v1103; newInterface-POST ist zuverlässig */) {
         // V2-Interface: JSON-API via content=ajax2&func=getList + X-Requested-With Header
@@ -4143,7 +4146,9 @@ if ($res === 'mika-fetch' && $method === 'GET') {
 
         // contestMap setzen + neues Interface markieren (kein Detail-Fetch nötig)
         // Dynamische Map (aus Hauptseiten-Optionen) hat Vorrang vor Default-Defaults.
-        $contestMap = array_merge(['HM'=>'Halbmarathon','10L'=>'10km','5L'=>'5km'], $dynContest);
+        // v1365: Union-Operator (+) statt array_merge — array_merge nummeriert numerische
+        // Keys (z.B. 10/5/3 vom Citylauf Erkelenz) neu und zerstört das Mapping.
+        $contestMap = $dynContest + ['HM'=>'Halbmarathon','10L'=>'10km','5L'=>'5km'];
         foreach ($results as &$res) {
             if (isset($contestMap[$res['event_id']])) $res['contest'] = $contestMap[$res['event_id']];
             $res['_fromNewInterface'] = true;
@@ -4518,11 +4523,10 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         }
 
         // Dynamische contestMap (aus Optionen + Heuristik) hat Vorrang vor Defaults
+        // v1365: Union-Operator (+) statt array_merge — array_merge nummeriert numerische Keys neu.
         $contestPfx = strtoupper(preg_replace('/_.*$/', '', $evId));
-        $contestMap = array_merge(
-            ['M'=>'Marathon','HM'=>'Halbmarathon','10K'=>'10km','5K'=>'5km','H'=>'Halbmarathon'],
-            $dynContest ?? []
-        );
+        $contestMap = ($dynContest ?? [])
+            + ['M'=>'Marathon','HM'=>'Halbmarathon','10K'=>'10km','5K'=>'5km','H'=>'Halbmarathon'];
         if (isset($contestMap[$evId])) $res['contest'] = $contestMap[$evId];
         elseif (isset($contestMap[$contestPfx])) $res['contest'] = $contestMap[$contestPfx];
 

@@ -1,3 +1,7 @@
+## v1365
+- MikaTiming: Disziplin-Matching bei numerischen Event-IDs gefixt — `array_merge` nummerierte die numerischen contestMap-Keys (10/5/3) neu, wodurch `contest` nicht von `"10"` → `"10km"` umgeschrieben wurde und die Disziplin leer blieb (Citylauf Erkelenz). Jetzt Union-Operator (`+`), der Keys erhält. Betrifft new- und old-Interface-Pfad.
+- MikaTiming Debug: `eventOptions` + `dynContest` wieder sichtbar (wurden vom `$debug`-Reset überschrieben)
+
 ## v1364
 - MikaTiming: Event-IDs jetzt direkt aus `<select name="event">` gelesen — erfasst auch rein numerische IDs wie `5`/`10`/`3` (Citylauf Erkelenz: 5km/10km-Läufe wurden komplett übersehen, weil die alte Regex einen Buchstaben am Anfang verlangte → Vereinssuche fand 0 obwohl 8 TuS-Oedt-Läufer in 5km/10km starteten)
 - MikaTiming: contestMap (`dynContest`) ebenfalls aus `<select name="event">` → numerische Events erhalten korrekten Namen (`10`→`10km` usw.)
