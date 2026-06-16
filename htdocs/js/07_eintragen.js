@@ -2187,6 +2187,7 @@ function mikaExtractRowsForBulk(data, kat) {
       disziplin: diszObj ? diszObj.disziplin : disz,
       diszMid:   diszObj ? (diszObj.id || diszObj.mapping_id) : null,
       extern:    isExtern,
+      verein:    isExtern ? (res.club || '') : '',
     };
   });
 }

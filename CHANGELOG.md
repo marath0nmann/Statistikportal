@@ -1,3 +1,6 @@
+## v1369
+- MikaTiming: alternativer Vereinsname externer Teilnehmer wird jetzt ins „Verein"-Feld übernommen (`mikaExtractRowsForBulk` gibt `verein` zurück) — z.B. Thorsten Peil „Volksbank im Rheinland"
+
 ## v1368
 - MikaTiming: Namens-Suche stark entlastet — schlanker Backend-Pfad postet direkt an die (vom Frontend übergebenen) echten Events, ohne pro Name die 39-KB-Hauptseite zu laden. Der Such-POST braucht keinen Session-Cookie. Behebt das Rate-Limit (vorher ~2900 Requests/Import → einzelne Namens-Suchen wie „Peil" scheiterten still → externer Teilnehmer Thorsten Peil fehlte)
 - MikaTiming: contest-ID der Namens-Treffer wird im Frontend via dynContest gemappt (z.B. „5" → „5km")
