@@ -1,3 +1,6 @@
+## v1367
+- MikaTiming Debug: Roh-Namen werden jetzt immer angezeigt (vorher nur bei 0 Treffern) mit Match-Status (✓/✗) und Verein — Diagnose für fehlende externe Teilnehmer (z.B. Thorsten Peil unter Firmenteam)
+
 ## v1366
 - MikaTiming: dynContest war leer bei numerischen Event-IDs — Off-by-one in der `$opAll`-Array-Struktur (Keys lagen auf Index 0/1 statt 1/2, wodurch `$val`/`$txt` vertauscht waren und der km-Match nie griff). Jetzt korrekt `[0]=Voll, [1]=Wert, [2]=Label`. Disziplin (`10km`/`5km`/`3km`) wird endlich gemappt (Citylauf Erkelenz).
 
