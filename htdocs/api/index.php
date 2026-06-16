@@ -3733,7 +3733,8 @@ if ($res === 'mika-fetch' && $method === 'GET') {
         // a) direkte Klartext-Optionen mit Disziplin-Wort
         //    Bevorzugt aus <select name="event"> (inkl. numerischer IDs), sonst Seiten-Scan
         if (!empty($eventOptions)) {
-            $opAll = [array_keys($eventOptions), array_values($eventOptions)];
+            // Struktur wie preg_match_all: [0]=Voll, [1]=Wert(Key), [2]=Label
+            $opAll = [[], array_map('strval', array_keys($eventOptions)), array_values($eventOptions)];
         } else {
             preg_match_all('/<option\s+value="([A-Z][A-Z0-9]{0,5})"[^>]*>([^<]+)</', $mainHtml, $opAll);
         }
