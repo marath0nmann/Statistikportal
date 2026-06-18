@@ -2311,7 +2311,7 @@ if ($res === 'athleten-aktivitaet' && $method === 'GET') {
         "SELECT e.athlet_id, YEAR(MAX(v.datum)) AS letzte_aktivitaet
          FROM $eT e
          JOIN $vT v ON v.id = e.veranstaltung_id
-         WHERE e.geloescht_am IS NULL AND v.datum IS NOT NULL
+         WHERE e.geloescht_am IS NULL AND v.datum IS NOT NULL AND e.extern = 0
          GROUP BY e.athlet_id");
     $map = [];
     foreach ($rows as $r) { $map[(int)$r['athlet_id']] = (int)$r['letzte_aktivitaet']; }

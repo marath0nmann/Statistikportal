@@ -1,3 +1,6 @@
+## v1370
+- Fix: „Letzte Aktivität" in Athleten-Tabelle berücksichtigt nur eigene Vereinsergebnisse (extern=0), keine fremden Vereinsergebnisse mehr
+
 ## v1369
 - MikaTiming: alternativer Vereinsname externer Teilnehmer wird jetzt ins „Verein"-Feld übernommen (`mikaExtractRowsForBulk` gibt `verein` zurück) — z.B. Thorsten Peil „Volksbank im Rheinland"
 
