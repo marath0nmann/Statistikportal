@@ -1,3 +1,6 @@
+## v1374
+- Fix RaceResult: Zeitfelder `BruttozeitMitStatus`/`NettozeitMitStatus` wurden als Platz-Feld fehlerkannt (`zeit` nicht an Position 0 wegen Präfix) → landeten im `mitstatus`-Zweig → `iZeit=-1` → alle Zeilen ohne Zeit gefiltert → 0 Treffer. Zeit-Erkennung jetzt `indexOf('zeit')>=0` (statt `===0`) in allen 5 Kalibrierungs-Blöcken. Behebt Hennefer Europalauf (TuS-Athleten wie Maren Klinkenberg/Guido Wender wurden nicht gefunden)
+
 ## v1373
 - Athleten-Seite: Neuer Abschnitt „Aktivste Athleten pro Jahr" – Balkendiagramm (Top 10 je Jahr, letzte 6 Jahre) aus API-Endpunkt `athleten-wettkampfe-pro-jahr`
 

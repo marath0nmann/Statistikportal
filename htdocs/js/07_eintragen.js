@@ -1564,8 +1564,8 @@ async function bulkImportFromRR(url, kat, statusEl) {
       else if((f.indexOf('lastname')>=0||f.indexOf('nachname')>=0||f.indexOf('surname')>=0)&&!_hnf)iName=fi;
       else if(f.indexOf('firstname')>=0||f.indexOf('vorname')>=0||f==='first')iFirstname=fi;
       else if(f.indexOf('club')>=0||f.indexOf('verein')>=0)iClub=fi;
-      // "ZeitMitStatus" starts with "zeit" → Zeitfeld (vor dem mitstatus-Check!)
-      else if(f.indexOf('zeit')===0){if(f.indexOf('netto')>=0)iNetto=fi;else iZeit=fi;}
+      // "ZeitMitStatus"/"BruttozeitMitStatus"/"NettozeitMitStatus" → Zeitfeld (vor dem mitstatus-Check!)
+      else if(f.indexOf('zeit') >= 0){if(f.indexOf('netto')>=0)iNetto=fi;else iZeit=fi;}
       else if(f.indexOf('autorankp')>=0||f.indexOf('overallrank')>=0||f.indexOf('withstatus')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0||f.indexOf('agegrouprank')>=0){if(f.indexOf('akpl')>=0||f.indexOf('agegrouprank')>=0)iAKPlatz=fi;else iPlatz=fi;}
       else if(f.indexOf('akpl')>=0)iAKPlatz=fi;
       else if(/^rank\dp$/.test(f)){if(f==='rank1p')iPlatz=fi;else iAKPlatz=fi;}
@@ -4246,7 +4246,7 @@ async function rrFetch() {
             else if ((f.indexOf('lastname') >= 0 || f.indexOf('nachname') >= 0 || f.indexOf('surname') >= 0) && !_hnf2) iName = fi;
             else if (f.indexOf('firstname') >= 0 || f.indexOf('vorname') >= 0 || f === 'first') iFirstname = fi;
             else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
-            else if (f.indexOf('zeit') === 0) { if (f.indexOf('netto') >= 0) iNetto = fi; else iZeit = fi; } // "ZeitMitStatus" vor mitstatus-Check!
+            else if (f.indexOf('zeit') >= 0) { if (f.indexOf('netto') >= 0) iNetto = fi; else iZeit = fi; } // "ZeitMitStatus" vor mitstatus-Check!
             else if ((f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]' || f.indexOf('akabk') >= 0 || f.indexOf('ak_abk') >= 0 || f === 'es_akabkürzung' || f.indexOf('agegroupname') >= 0) && f.indexOf('rank') < 0) iAK = fi;
             else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* skip */ }
             else if (f === 'year' || f === 'yob' || f === 'birthyear' || f === 'es_jahrgang') iYear = fi;
@@ -4298,7 +4298,7 @@ async function rrFetch() {
                   else if ((_fa.indexOf('lastname') >= 0 || _fa.indexOf('nachname') >= 0 || _fa.indexOf('surname') >= 0) && !_hnf3) iName = _fai;
                   else if (_fa.indexOf('firstname') >= 0 || _fa.indexOf('vorname') >= 0 || _fa === 'first') iFirstname = _fai;
                   else if (_fa.indexOf('club') >= 0 || _fa.indexOf('verein') >= 0) iClub = _fai;
-                  else if (_fa.indexOf('zeit') === 0) { if (_fa.indexOf('netto') >= 0) iNetto = _fai; else iZeit = _fai; }
+                  else if (_fa.indexOf('zeit') >= 0) { if (_fa.indexOf('netto') >= 0) iNetto = _fai; else iZeit = _fai; }
                   else if ((_fa.indexOf('agegroup') >= 0 || _fa.indexOf('akabk') >= 0 || _fa.indexOf('agegroupname') >= 0) && _fa.indexOf('rank') < 0) iAK = _fai;
                   else if (_fa === 'year' || _fa === 'yob') iYear = _fai;
                   else if (_fa.indexOf('geschlechtmw') >= 0 || _fa === 'gendermf' || _fa === 'gender') iGeschlecht = _fai;
@@ -4423,7 +4423,7 @@ async function rrFetch() {
               else if ((f2.indexOf('lastname') >= 0 || f2.indexOf('nachname') >= 0 || f2.indexOf('surname') >= 0) && !_hnf4) iName = fi2;
               else if (f2.indexOf('firstname') >= 0 || f2.indexOf('vorname') >= 0 || f2 === 'first') iFirstname = fi2;
               else if (f2.indexOf('club') >= 0 || f2.indexOf('verein') >= 0) iClub = fi2;
-              else if (f2.indexOf('zeit') === 0) { if (f2.indexOf('netto') >= 0) iNetto = fi2; else iZeit = fi2; }
+              else if (f2.indexOf('zeit') >= 0) { if (f2.indexOf('netto') >= 0) iNetto = fi2; else iZeit = fi2; }
               else if ((f2.indexOf('agegroup') >= 0 || f2.indexOf('akabk') >= 0 || f2.indexOf('ak_abk') >= 0 || f2 === 'es_akabkürzung') && f2.indexOf('rank') < 0) iAK = fi2;
               else if (f2 === 'year' || f2 === 'yob' || f2 === 'es_jahrgang') iYear = fi2;
               else if (f2.indexOf('geschlechtmw') >= 0 || f2 === 'es_geschlecht') iGeschlecht = fi2;
@@ -4487,7 +4487,7 @@ async function rrFetch() {
             else if ((_ff.indexOf('lastname') >= 0 || _ff.indexOf('nachname') >= 0 || _ff.indexOf('surname') >= 0) && !_hnf5) iName = _ffi;
             else if (_ff.indexOf('firstname') >= 0 || _ff.indexOf('vorname') >= 0 || _ff === 'first') iFirstname = _ffi;
             else if (_ff.indexOf('club') >= 0 || _ff.indexOf('verein') >= 0) iClub = _ffi;
-            else if (_ff.indexOf('zeit') === 0) { if (_ff.indexOf('netto') >= 0) iNetto = _ffi; else iZeit = _ffi; }
+            else if (_ff.indexOf('zeit') >= 0) { if (_ff.indexOf('netto') >= 0) iNetto = _ffi; else iZeit = _ffi; }
             else if ((_ff.indexOf('agegroup') >= 0 || _ff.indexOf('akabk') >= 0 || _ff === 'es_akabkürzung') && _ff.indexOf('rank') < 0) iAK = _ffi;
             else if (_ff === 'year' || _ff === 'yob' || _ff === 'es_jahrgang') iYear = _ffi;
             else if (_ff.indexOf('geschlechtmw') >= 0 || _ff === 'es_geschlecht') iGeschlecht = _ffi;
