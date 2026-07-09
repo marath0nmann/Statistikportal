@@ -1234,7 +1234,7 @@ async function renderAthletenKarten() {
 async function _loadWettkampfChart() {
   var el = document.getElementById('athleten-wettkampf-chart');
   if (!el) return;
-  var r = await apiGet('athleten-wettkampfe-pro-jahr?jahre=6&top=10');
+  var r = await apiGet('athleten-wettkampfe-pro-jahr?jahre=6');
   if (!r || !r.ok) { el.innerHTML = ''; return; }
   var byJahr = r.data;
   var jahre = Object.keys(byJahr).sort(function(a,b){ return b-a; });

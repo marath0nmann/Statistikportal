@@ -2331,9 +2331,7 @@ if ($res === 'athleten-wettkampfe-pro-jahr' && $method === 'GET') {
     $vT = DB::tbl('veranstaltungen');
     $aT = DB::tbl('athleten');
     $jahre = (int)($_GET['jahre'] ?? 6);
-    $top   = (int)($_GET['top']   ?? 10);
     if ($jahre < 1 || $jahre > 20) $jahre = 6;
-    if ($top   < 1 || $top   > 30) $top   = 10;
     $minJahr = (int)date('Y') - $jahre + 1;
     $rows = DB::fetchAll(
         "SELECT YEAR(v.datum) AS jahr, e.athlet_id,
@@ -2347,20 +2345,18 @@ if ($res === 'athleten-wettkampfe-pro-jahr' && $method === 'GET') {
            AND v.datum IS NOT NULL
            AND YEAR(v.datum) >= ?
          GROUP BY YEAR(v.datum), e.athlet_id
+         HAVING anz >= 2
          ORDER BY YEAR(v.datum) DESC, anz DESC",
         [$minJahr]);
-    // Pro Jahr: nur Top-N behalten
     $byJahr = [];
     foreach ($rows as $r) {
         $j = (int)$r['jahr'];
         if (!isset($byJahr[$j])) $byJahr[$j] = [];
-        if (count($byJahr[$j]) < $top) {
-            $byJahr[$j][] = [
-                'id'     => (int)$r['athlet_id'],
-                'name'   => trim(($r['vorname'] ? $r['vorname'] . ' ' : '') . $r['nachname']),
-                'anz'    => (int)$r['anz'],
-            ];
-        }
+        $byJahr[$j][] = [
+            'id'   => (int)$r['athlet_id'],
+            'name' => trim(($r['vorname'] ? $r['vorname'] . ' ' : '') . $r['nachname']),
+            'anz'  => (int)$r['anz'],
+        ];
     }
     krsort($byJahr);
     jsonOk($byJahr);
