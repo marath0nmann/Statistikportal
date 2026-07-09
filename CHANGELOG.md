@@ -1,3 +1,6 @@
+## v1378
+- Aktivste Athleten: Ø basiert auf tatsächlich aktiven Jahren (nicht immer ÷5); Ranking nach Ø; Jahreszahl-Hinweis bei <5 aktiven Jahren
+
 ## v1377
 - Aktivste Athleten: Platzierung (1., 2., ...) vor dem Namen
 

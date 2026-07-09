@@ -2334,7 +2334,8 @@ if ($res === 'athleten-wettkampfe-pro-jahr' && $method === 'GET') {
     $rows = DB::fetchAll(
         "SELECT e.athlet_id,
                 a.vorname, a.nachname,
-                COUNT(DISTINCT e.veranstaltung_id) AS anz
+                COUNT(DISTINCT e.veranstaltung_id)  AS anz,
+                COUNT(DISTINCT YEAR(v.datum))        AS jahre_aktiv
          FROM $eT e
          JOIN $vT v ON v.id = e.veranstaltung_id
          JOIN $aT a ON a.id = e.athlet_id
@@ -2343,19 +2344,25 @@ if ($res === 'athleten-wettkampfe-pro-jahr' && $method === 'GET') {
            AND v.datum IS NOT NULL
            AND YEAR(v.datum) >= ?
          GROUP BY e.athlet_id
-         HAVING anz >= 2
-         ORDER BY anz DESC",
+         HAVING anz >= 2",
         [$minJahr]);
     $result = [];
     foreach ($rows as $r) {
-        $anz = (int)$r['anz'];
+        $anz         = (int)$r['anz'];
+        $jahreAktiv  = max(1, (int)$r['jahre_aktiv']);
         $result[] = [
-            'id'   => (int)$r['athlet_id'],
-            'name' => trim(($r['vorname'] ? $r['vorname'] . ' ' : '') . $r['nachname']),
-            'anz'  => $anz,
-            'avg'  => round($anz / 5, 1),
+            'id'          => (int)$r['athlet_id'],
+            'name'        => trim(($r['vorname'] ? $r['vorname'] . ' ' : '') . $r['nachname']),
+            'anz'         => $anz,
+            'jahre_aktiv' => $jahreAktiv,
+            'avg'         => round($anz / $jahreAktiv, 1),
         ];
     }
+    // Ranking nach Durchschnitt (Ø/aktives Jahr), Gesamtzahl als Tiebreaker
+    usort($result, function($a, $b) {
+        if ($b['avg'] !== $a['avg']) return $b['avg'] <=> $a['avg'];
+        return $b['anz'] <=> $a['anz'];
+    });
     jsonOk($result);
 }
 

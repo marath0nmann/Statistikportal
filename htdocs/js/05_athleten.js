@@ -1239,16 +1239,20 @@ async function _loadWettkampfChart() {
   var athleten = r.data;
   if (!athleten || !athleten.length) { el.innerHTML = ''; return; }
 
-  var maxAnz = athleten[0].anz || 1;
+  // Balken-Skalierung auf dem Ø-Wert (= Ranking-Basis)
+  var maxAvg = athleten[0].avg || 1;
 
   var html =
     '<div style="font-weight:700;font-size:15px;margin:0 0 2px;color:var(--text)">&#x1F3C6; Aktivste Athleten der letzten 5 Jahre</div>' +
-    '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">mind. 2 Wettkämpfe &middot; Ø Wettkämpfe pro Jahr</div>';
+    '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">mind. 2 Wettkämpfe &middot; Ranking nach Ø Wettkämpfe pro aktivem Jahr</div>';
 
   for (var i = 0; i < athleten.length; i++) {
     var a = athleten[i];
-    var pct = Math.round(a.anz / maxAnz * 100);
+    var pct = Math.round(a.avg / maxAvg * 100);
     var avgStr = String(a.avg).replace('.', ',');
+    var jahrHint = a.jahre_aktiv < 5
+      ? '<span style="opacity:.55;font-size:11px"> (' + a.jahre_aktiv + ' J.)</span>'
+      : '';
     html +=
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:13px">' +
         '<div style="width:26px;text-align:right;color:var(--text2);font-size:12px;flex-shrink:0;font-variant-numeric:tabular-nums">' + (i + 1) + '.</div>' +
@@ -1256,8 +1260,8 @@ async function _loadWettkampfChart() {
         '<div style="flex:1;background:var(--surf2);border-radius:3px;overflow:hidden;height:14px">' +
           '<div style="width:' + pct + '%;background:var(--primary);height:100%;border-radius:3px"></div>' +
         '</div>' +
-        '<div style="min-width:90px;text-align:right;color:var(--text2);font-size:12px;font-variant-numeric:tabular-nums;flex-shrink:0">' +
-          a.anz + ' <span style="opacity:.65">(Ø&thinsp;' + avgStr + '/J.)</span>' +
+        '<div style="min-width:105px;text-align:right;color:var(--text2);font-size:12px;font-variant-numeric:tabular-nums;flex-shrink:0">' +
+          'Ø&thinsp;' + avgStr + '/J.' + jahrHint +
         '</div>' +
       '</div>';
   }
