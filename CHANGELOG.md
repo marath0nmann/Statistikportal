@@ -1,3 +1,6 @@
+## v1376
+- Athleten: "Aktivste Athleten der letzten 5 Jahre" – aggregiertes Ranking statt Jahres-Split; Ø Wettkämpfe pro Jahr; mind. 2 Wettkämpfe
+
 ## v1375
 - Aktivste Athleten pro Jahr: kein Top-N-Limit mehr, Mindest-Filter ≥2 Wettkämpfe; externe Ergebnisse ausgeschlossen (e.extern=0)
 
