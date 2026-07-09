@@ -1,3 +1,7 @@
+## v1372
+- RaceResult White-Label-Domains importierbar (z.B. `portal.run-timing.de/977/results`): Frontend erkennt das RR-Muster (`/{id}/results` bzw. Hash `#N_HEX`) und lässt die echte RaceResult-Event-ID serverseitig aus dem `RRPublish(...)`-Aufruf auflösen
+- Fix: `rr-fetch?proxy_url=`-Regex im Backend erkannte `RRPublish(document.getElementById(...), ID, ...)` nicht (geschachtelte Klammer brach `[^,)]+` ab) → jetzt `[^;]*?`
+
 ## v1371
 - Feature: Alternative Athleten-Namen (Namensänderungen, Schreibweisen) – Admin → Athleten → Bearbeiten; werden in allen Bulk-Import-Matchern berücksichtigt
 

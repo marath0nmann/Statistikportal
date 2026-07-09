@@ -4688,7 +4688,9 @@ if ($res === 'rr-fetch' && $method === 'GET') {
         $foundId = null;
 
         // 1. Inline-Script: RRPublish(element, 334519, ...) oder new RRPublish(..., 334519, ...)
-        if (preg_match('/RRPublish\s*\([^,)]+,\s*(\d{4,7})\s*[,)]/i', $html, $m)) {
+        // [^;]*? statt [^,)]+ : erstes Argument kann geschachtelte Klammern/Kommas
+        // enthalten, z.B. RRPublish(document.getElementById("divRRPublish"), 383217, "results")
+        if (preg_match('/RRPublish\s*\([^;]*?,\s*(\d{4,7})\s*[,)]/i', $html, $m)) {
             $foundId = $m[1];
         }
         // 2. URL-Muster: raceresult.com/334519/

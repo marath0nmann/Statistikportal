@@ -1321,6 +1321,9 @@ function bulkDetectUrl(text) {
   if (/^https?:\/\/evenementen\.uitslagen\.nl\//i.test(t)) return 'evenementen';
   if (/^https?:\/\/ergebnisse\.leichtathletik\.de\//i.test(t)) return 'leichtathletik';
   if (/^https?:\/\/(www\.)?acn-timing\.com/i.test(t)) return 'acn';
+  // RaceResult White-Label (eigene Domain, aber RRPublish): /{id}/results oder RR-Hash #N_HEX
+  // z.B. https://portal.run-timing.de/977/results#8_D13BA9 → echte RR-Event-ID wird serverseitig aufgelöst
+  if (/^https?:\/\//i.test(t) && (/\/\d+\/results\b/i.test(t) || /#\d+_[0-9A-Fa-f]{4,}/.test(t))) return 'raceresult';
   return null;
 }
 
@@ -1406,9 +1409,20 @@ async function bulkImportUrl() {
 
 // ── RR → Bulk ────────────────────────────────────────────────────────────────────────────
 async function bulkImportFromRR(url, kat, statusEl) {
+  var eid = null;
   var _eidM = url.match(/raceresult\.com\/(\d+)/i);
-  if (!_eidM) { if (statusEl) statusEl.textContent = '\u274c Keine Event-ID in URL'; return; }
-  var eid = _eidM[1];
+  if (_eidM) {
+    eid = _eidM[1];
+  } else {
+    // White-Label-Domain (z.B. portal.run-timing.de): echte RaceResult-Event-ID
+    // serverseitig aus dem RRPublish(...)-Aufruf im Seitenquelltext aufl\u00f6sen
+    if (statusEl) statusEl.textContent = '\u23f3 L\u00f6se RaceResult-Event-ID auf\u2026';
+    try {
+      var _pr = await apiGet('rr-fetch?proxy_url=' + encodeURIComponent(url));
+      if (_pr && _pr.ok && _pr.data && _pr.data.event_id) eid = String(_pr.data.event_id);
+    } catch(e) {}
+  }
+  if (!eid) { if (statusEl) statusEl.textContent = '\u274c Keine RaceResult-Event-ID gefunden'; return; }
   if (statusEl) statusEl.textContent = '\u23f3 Lade RaceResult-Konfiguration\u2026';
 
   async function _freshCfg() {
