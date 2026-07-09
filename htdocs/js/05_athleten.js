@@ -1251,7 +1251,8 @@ async function _loadWettkampfChart() {
     var avgStr = String(a.avg).replace('.', ',');
     html +=
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:13px">' +
-        '<div style="width:150px;min-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);flex-shrink:0;cursor:pointer" onclick="openAthletById(' + a.id + ')">' + a.name + '</div>' +
+        '<div style="width:26px;text-align:right;color:var(--text2);font-size:12px;flex-shrink:0;font-variant-numeric:tabular-nums">' + (i + 1) + '.</div>' +
+        '<div style="width:130px;min-width:60px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);flex-shrink:0;cursor:pointer" onclick="openAthletById(' + a.id + ')">' + a.name + '</div>' +
         '<div style="flex:1;background:var(--surf2);border-radius:3px;overflow:hidden;height:14px">' +
           '<div style="width:' + pct + '%;background:var(--primary);height:100%;border-radius:3px"></div>' +
         '</div>' +

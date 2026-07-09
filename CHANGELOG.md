@@ -1,3 +1,6 @@
+## v1377
+- Aktivste Athleten: Platzierung (1., 2., ...) vor dem Namen
+
 ## v1376
 - Athleten: "Aktivste Athleten der letzten 5 Jahre" – aggregiertes Ranking statt Jahres-Split; Ø Wettkämpfe pro Jahr; mind. 2 Wettkämpfe
 
