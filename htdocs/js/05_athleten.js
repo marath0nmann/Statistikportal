@@ -1224,8 +1224,55 @@ async function renderAthletenKarten() {
   el.innerHTML =
     buildSection('Aktive Athleten', aktiveAthleten, false) +
     buildSection('Inaktive Athleten mit bestehenden Bestleistungen', inaktiveAthleten, true) +
+    '<div id="athleten-wettkampf-chart" style="margin-top:24px"><div class="loading" style="padding:16px"><div class="spinner"></div>Lade Statistik&hellip;</div></div>' +
     '<style>@media(max-width:900px){#main-content>div[style*="repeat(5"]{grid-template-columns:repeat(3,1fr)!important}}' +
     '@media(max-width:560px){#main-content>div[style*="repeat(5"]{grid-template-columns:repeat(2,1fr)!important}}</style>';
+
+  _loadWettkampfChart();
+}
+
+async function _loadWettkampfChart() {
+  var el = document.getElementById('athleten-wettkampf-chart');
+  if (!el) return;
+  var r = await apiGet('athleten-wettkampfe-pro-jahr?jahre=6&top=10');
+  if (!r || !r.ok) { el.innerHTML = ''; return; }
+  var byJahr = r.data;
+  var jahre = Object.keys(byJahr).sort(function(a,b){ return b-a; });
+  if (!jahre.length) { el.innerHTML = ''; return; }
+
+  // Globales Maximum für Balken-Skalierung
+  var globalMax = 1;
+  jahre.forEach(function(j) {
+    byJahr[j].forEach(function(a) { if (a.anz > globalMax) globalMax = a.anz; });
+  });
+
+  // Farbpalette (CSS-Vars und feste Farben, die in beiden Themes sichtbar sind)
+  var COLORS = ['#e05a5a','#e08c3a','#c9b32e','#5ab85a','#3aabe0','#7a6ce0','#e05ab0','#3ae0c5','#a0a0e0','#e0a05a'];
+
+  var html = '<div style="font-weight:700;font-size:15px;margin:0 0 16px;color:var(--text)">&#x1F3C6; Aktivste Athleten pro Jahr</div>';
+
+  jahre.forEach(function(jahr) {
+    var eintraege = byJahr[jahr];
+    html += '<div style="margin-bottom:20px">' +
+      '<div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:4px">' + jahr + '</div>';
+
+    eintraege.forEach(function(a, idx) {
+      var pct = Math.round(a.anz / globalMax * 100);
+      var color = COLORS[idx % COLORS.length];
+      html +=
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:13px">' +
+          '<div style="width:140px;min-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);flex-shrink:0;cursor:pointer" onclick="openAthletById(' + a.id + ')">' + a.name + '</div>' +
+          '<div style="flex:1;background:var(--surf2);border-radius:3px;overflow:hidden;height:14px">' +
+            '<div style="width:' + pct + '%;background:' + color + ';height:100%;border-radius:3px;transition:width .3s"></div>' +
+          '</div>' +
+          '<div style="width:32px;text-align:right;color:var(--text2);font-size:12px;font-variant-numeric:tabular-nums;flex-shrink:0">' + a.anz + '</div>' +
+        '</div>';
+    });
+
+    html += '</div>';
+  });
+
+  el.innerHTML = '<div class="panel" style="padding:16px 20px">' + html + '</div>';
 }
 
 // ── Athlet-Vollseite ─────────────────────────────────────────────────────────

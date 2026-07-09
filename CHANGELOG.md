@@ -1,3 +1,6 @@
+## v1373
+- Athleten-Seite: Neuer Abschnitt „Aktivste Athleten pro Jahr" – Balkendiagramm (Top 10 je Jahr, letzte 6 Jahre) aus API-Endpunkt `athleten-wettkampfe-pro-jahr`
+
 ## v1372
 - RaceResult White-Label-Domains importierbar (z.B. `portal.run-timing.de/977/results`): Frontend erkennt das RR-Muster (`/{id}/results` bzw. Hash `#N_HEX`) und lässt die echte RaceResult-Event-ID serverseitig aus dem `RRPublish(...)`-Aufruf auflösen
 - Fix: `rr-fetch?proxy_url=`-Regex im Backend erkannte `RRPublish(document.getElementById(...), ID, ...)` nicht (geschachtelte Klammer brach `[^,)]+` ab) → jetzt `[^;]*?`
