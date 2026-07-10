@@ -1,3 +1,6 @@
+## v1380
+- Aktivste Athleten: Ranking-Fix – Floating-Point-Vergleich auf Integer×10 umgestellt; weniger aktive Jahre bei gleichem Ø korrekt vor mehr Jahren
+
 ## v1379
 - Aktivste Athleten: Olympisches Ranking – Gleichstand zeigt gleiche Platznummer, kein Platz für gebundene Folgeeinträge
 

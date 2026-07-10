@@ -2358,9 +2358,13 @@ if ($res === 'athleten-wettkampfe-pro-jahr' && $method === 'GET') {
             'avg'         => round($anz / $jahreAktiv, 1),
         ];
     }
-    // Ranking nach Durchschnitt (Ø/aktives Jahr), Gesamtzahl als Tiebreaker
+    // Ranking: 1. Ø DESC, 2. weniger aktive Jahre = besser, 3. Gesamtzahl DESC
+    // Vergleich als Integer (×10) wegen Floating-Point-Ungenauigkeiten bei round()
     usort($result, function($a, $b) {
-        if ($b['avg'] !== $a['avg']) return $b['avg'] <=> $a['avg'];
+        $avgA = (int)round($a['avg'] * 10);
+        $avgB = (int)round($b['avg'] * 10);
+        if ($avgB !== $avgA) return $avgB - $avgA;
+        if ($a['jahre_aktiv'] !== $b['jahre_aktiv']) return $a['jahre_aktiv'] <=> $b['jahre_aktiv'];
         return $b['anz'] <=> $a['anz'];
     });
     jsonOk($result);

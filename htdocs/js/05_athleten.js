@@ -1254,9 +1254,10 @@ async function _loadWettkampfChart() {
     var jahrHint = a.jahre_aktiv < 5
       ? '<span style="opacity:.55;font-size:11px"> (' + a.jahre_aktiv + ' J.)</span>'
       : '';
-    var isTied = (_prevAvg !== null && a.avg === _prevAvg && a.jahre_aktiv === _prevJahre);
+    var avgKey = String(a.avg);
+    var isTied = (_prevAvg !== null && avgKey === _prevAvg && a.jahre_aktiv === _prevJahre);
     if (!isTied) _rankBase = i + 1;
-    _prevAvg = a.avg; _prevJahre = a.jahre_aktiv;
+    _prevAvg = avgKey; _prevJahre = a.jahre_aktiv;
     var rankCell = isTied
       ? '<div style="width:26px;flex-shrink:0"></div>'
       : '<div style="width:26px;text-align:right;color:var(--text2);font-size:12px;flex-shrink:0;font-variant-numeric:tabular-nums">' + _rankBase + '.</div>';
