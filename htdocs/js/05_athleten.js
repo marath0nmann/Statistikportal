@@ -1246,6 +1246,7 @@ async function _loadWettkampfChart() {
     '<div style="font-weight:700;font-size:15px;margin:0 0 2px;color:var(--text)">&#x1F3C6; Aktivste Athleten der letzten 5 Jahre</div>' +
     '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">mind. 2 Wettkämpfe &middot; Ranking nach Ø Wettkämpfe pro aktivem Jahr</div>';
 
+  var _prevAvg = null, _prevJahre = null, _rankBase = 0;
   for (var i = 0; i < athleten.length; i++) {
     var a = athleten[i];
     var pct = Math.round(a.avg / maxAvg * 100);
@@ -1253,9 +1254,15 @@ async function _loadWettkampfChart() {
     var jahrHint = a.jahre_aktiv < 5
       ? '<span style="opacity:.55;font-size:11px"> (' + a.jahre_aktiv + ' J.)</span>'
       : '';
+    var isTied = (_prevAvg !== null && a.avg === _prevAvg && a.jahre_aktiv === _prevJahre);
+    if (!isTied) _rankBase = i + 1;
+    _prevAvg = a.avg; _prevJahre = a.jahre_aktiv;
+    var rankCell = isTied
+      ? '<div style="width:26px;flex-shrink:0"></div>'
+      : '<div style="width:26px;text-align:right;color:var(--text2);font-size:12px;flex-shrink:0;font-variant-numeric:tabular-nums">' + _rankBase + '.</div>';
     html +=
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:13px">' +
-        '<div style="width:26px;text-align:right;color:var(--text2);font-size:12px;flex-shrink:0;font-variant-numeric:tabular-nums">' + (i + 1) + '.</div>' +
+        rankCell +
         '<div style="width:130px;min-width:60px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);flex-shrink:0;cursor:pointer" onclick="openAthletById(' + a.id + ')">' + a.name + '</div>' +
         '<div style="flex:1;background:var(--surf2);border-radius:3px;overflow:hidden;height:14px">' +
           '<div style="width:' + pct + '%;background:var(--primary);height:100%;border-radius:3px"></div>' +

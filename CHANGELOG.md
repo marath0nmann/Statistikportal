@@ -1,3 +1,6 @@
+## v1379
+- Aktivste Athleten: Olympisches Ranking – Gleichstand zeigt gleiche Platznummer, kein Platz für gebundene Folgeeinträge
+
 ## v1378
 - Aktivste Athleten: Ø basiert auf tatsächlich aktiven Jahren (nicht immer ÷5); Ranking nach Ø; Jahreszahl-Hinweis bei <5 aktiven Jahren
 
