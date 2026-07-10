@@ -1251,9 +1251,7 @@ async function _loadWettkampfChart() {
     var a = athleten[i];
     var pct = Math.round(a.avg / maxAvg * 100);
     var avgStr = String(a.avg).replace('.', ',');
-    var jahrHint = a.jahre_aktiv < 5
-      ? '<span style="opacity:.55;font-size:11px"> (' + a.jahre_aktiv + ' J.)</span>'
-      : '';
+    var jahrHint = '<span style="opacity:.55;font-size:11px"> (' + a.jahre_aktiv + ' J.)</span>';
     var avgKey = String(a.avg);
     var isTied = (_prevAvg !== null && avgKey === _prevAvg && a.jahre_aktiv === _prevJahre);
     if (!isTied) _rankBase = i + 1;

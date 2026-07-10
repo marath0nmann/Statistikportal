@@ -1,3 +1,6 @@
+## v1381
+- Aktivste Athleten: Jahreszahl-Hinweis jetzt immer anzeigen (auch 5 J.)
+
 ## v1380
 - Aktivste Athleten: Ranking-Fix – Floating-Point-Vergleich auf Integer×10 umgestellt; weniger aktive Jahre bei gleichem Ø korrekt vor mehr Jahren
 
