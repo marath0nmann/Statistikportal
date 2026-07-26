@@ -1669,7 +1669,8 @@ async function bulkImportFromRR(url, kat, statusEl) {
           // calcDlvAK wenn kein AK oder nur generisches MHK/WHK (kein Jahrgangs-AK)
           var _needCalcAK = !rAK || rAK==='MHK' || rAK==='WHK';
           if(_needCalcAK&&rYear>1900){var ey=parseInt(((document.getElementById('bk-datum')||{}).value||'').slice(0,4))||new Date().getFullYear();var _calc=calcDlvAK(rYear,/^[WwFf]/.test(rGschl)?'W':'M',ey)||'';if(_calc)rAK=_calc;}
-          var rP=0,pi=iAKPlatz>=0?iAKPlatz:iPlatz;
+          var _pIsAk=iAKPlatz>=0; // Platz stammt aus AK-Platz-Feld (AKPlp) → hat Vorrang vor Gesamt/MW-Platz
+          var rP=0,pi=_pIsAk?iAKPlatz:iPlatz;
           if(pi>=0){var pr=String(row[pi]||'').trim().replace(/\.$/,'');if(/^\d+$/.test(pr))rP=parseInt(pr)||0;}
           if(!rName)return;
           // Extern-Modus: Vereinsname darf nicht eigener Verein sein, Name muss bekanntem Athleten entsprechen
@@ -1681,16 +1682,17 @@ async function bulkImportFromRR(url, kat, statusEl) {
           var dObj=findDiszObj(disz,kat,disziplinen);
           var _dup=allResults.find(function(r){return r.name===rName&&r.resultat===rZeit;});
           if(_dup){
-            // Platz: AK-Listen haben Priorität (isAkList). Aus Nicht-AK-Listen nur wenn noch kein Platz.
-            var _canUpdatePlatz = rP>0 && (_dup.platz===0 || (le && le.isAkList && !_dup.isAkList));
-            if(_canUpdatePlatz){_dup.platz=rP; if(le&&le.isAkList)_dup.isAkList=true;}
+            // Platz: AK-Platz hat Vorrang (reihenfolge-unabhängig via platzIsAk). Übernehmen wenn
+            // noch kein Platz ODER dieser ist ein AK-Platz und der gespeicherte war keiner.
+            var _canUpdatePlatz = rP>0 && (_dup.platz===0 || (_pIsAk && !_dup.platzIsAk) || (le && le.isAkList && !_dup.isAkList));
+            if(_canUpdatePlatz){_dup.platz=rP; _dup.platzIsAk=_pIsAk; if(le&&le.isAkList)_dup.isAkList=true;}
             // AK übernehmen wenn besser (echter Wert > Punkt/leer)
             var _dupAkOk = _dup.ak && _dup.ak !== '.' && _dup.ak.length > 1;
             if(rAK && rAK !== '.' && rAK.length > 1 && !_dupAkOk) _dup.ak = rAK;
             // Disziplin übernehmen wenn bisher leer (z.B. Allgemein-Gesamtliste vor distanzspez. Liste verarbeitet)
             if(!_dup.disziplin && disz){_dup.disziplin=dObj?dObj.disziplin:disz;_dup.diszMid=dObj?(dObj.id||dObj.mapping_id):null;}
           } else {
-            allResults.push({name:rName,resultat:rZeit,ak:rAK,platz:rP,
+            allResults.push({name:rName,resultat:rZeit,ak:rAK,platz:rP,platzIsAk:_pIsAk,
               disziplin:dObj?dObj.disziplin:disz,diszMid:dObj?(dObj.id||dObj.mapping_id):null,
               year:rYear||'',geschlecht:rGschl||'',
               contestId:String(le ? le.contest : ''),

@@ -1,3 +1,6 @@
+## v1391
+- Fix RaceResult: AK-Platz statt Gesamtplatz wird importiert, wenn eine Liste den AK-Platz enthält (z.B. „Ergebnisliste MW+AK" mit `AKPlp`). Priorität ist jetzt reihenfolge-unabhängig (Flag `platzIsAk`) – vorher gewann der zuerst verarbeitete Gesamtplatz, weil „MW+AK" nicht als AK-Liste erkannt wurde (Rheinuferlauf Duisburg: Nina Mayer AK-Platz 4 statt Gesamt 83)
+
 ## v1390
 - Fix: Teilen-Button ohne Funktion – `_rekLabel` ist in `03_dashboard.js` nicht global (in eine Funktion verschachtelt), der Aufruf aus `02_app.js` warf einen ReferenceError, der als unbehandelte Promise-Rejection verpuffte. Eigene Label-Funktion `_shareRekLabel` ergänzt; Dashboard-Abruf zusätzlich in try/catch, damit ein Fehler dort das Modal nicht mehr blockiert.
 
