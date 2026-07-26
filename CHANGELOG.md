@@ -1,3 +1,6 @@
+## v1390
+- Fix: Teilen-Button ohne Funktion – `_rekLabel` ist in `03_dashboard.js` nicht global (in eine Funktion verschachtelt), der Aufruf aus `02_app.js` warf einen ReferenceError, der als unbehandelte Promise-Rejection verpuffte. Eigene Label-Funktion `_shareRekLabel` ergänzt; Dashboard-Abruf zusätzlich in try/catch, damit ein Fehler dort das Modal nicht mehr blockiert.
+
 ## v1389
 - Teilen-Dialog überarbeitet: Markdown entfällt, stattdessen zwei Formate – **WordPress** (Gutenberg-Blöcke mit Tabellen, Link zur offiziellen Ergebnisliste des Veranstalters) und **WhatsApp** (kompakter Text mit Medaillen-Emojis, direkter „In WhatsApp öffnen"-Button)
 - Beide Formate enthalten jetzt die Bestleistungs-Auszeichnungen aus „Neueste Bestleistungen" (PB, Debüt, Vereinsrekord, Bestleistung AK/Männer/Frauen)

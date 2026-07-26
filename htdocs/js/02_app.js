@@ -2143,6 +2143,15 @@ function _veranstFormatResult(e) {
 }
 
 // \u2500\u2500 Teilen: Bestleistungs-Badges pro Ergebnis \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Label-Normalisierung (eigenst\u00e4ndig \u2013 _rekLabel in 03_dashboard.js ist nicht global)
+function _shareRekLabel(lbl) {
+  if (!lbl) return lbl;
+  if (lbl === 'Bestleistung M\u00e4nner'  || lbl === 'Gesamtbestleistung M\u00e4nner') return 'Vereinsrekord';
+  if (lbl === 'Bestleistung Frauen'  || lbl === 'Gesamtbestleistung Frauen') return 'Vereinsrekord';
+  if (lbl === 'Gesamtbestleistung') return 'Vereinsrekord';
+  return lbl;
+}
+
 // Baut aus den Timeline-Events eine Map athlet_id|disziplin \u2192 ['PB', 'Vereinsrekord', \u2026]
 function _shareBuildBadgeMap(timelineEvents) {
   var map = {};
@@ -2151,9 +2160,9 @@ function _shareBuildBadgeMap(timelineEvents) {
     if (!map[key]) map[key] = [];
     var lc = ev.label_club || null;
     var lp = ev.label_pers || null;
-    if (lc) map[key].push(_rekLabel(lc));
-    if (lp) map[key].push(_rekLabel(lp));
-    if (!lc && !lp && ev.label) map[key].push(_rekLabel(ev.label));
+    if (lc) map[key].push(_shareRekLabel(lc));
+    if (lp) map[key].push(_shareRekLabel(lp));
+    if (!lc && !lp && ev.label) map[key].push(_shareRekLabel(ev.label));
   });
   // Duplikate entfernen
   Object.keys(map).forEach(function(k) {
@@ -2275,11 +2284,15 @@ async function shareVeranstaltung(vid) {
   }
   if (!v) { notify('Veranstaltung nicht gefunden.', 'err'); return; }
 
-  // Bestleistungs-Events dieser Veranstaltung laden
+  // Bestleistungs-Events dieser Veranstaltung laden (optional – Fehler blockiert das Modal nicht)
   var badgeMap = {};
-  var rT = await apiGet('dashboard?timeline_limit=200&tl_veranstaltung_id=' + vid);
-  if (rT && rT.ok && rT.data && rT.data.rekordeTimeline) {
-    badgeMap = _shareBuildBadgeMap(rT.data.rekordeTimeline);
+  try {
+    var rT = await apiGet('dashboard?timeline_limit=200&tl_veranstaltung_id=' + vid);
+    if (rT && rT.ok && rT.data && rT.data.rekordeTimeline) {
+      badgeMap = _shareBuildBadgeMap(rT.data.rekordeTimeline);
+    }
+  } catch (err) {
+    console.warn('Bestleistungen konnten nicht geladen werden:', err);
   }
 
   window._shareWpText = _veranstWordpress(v, badgeMap);
