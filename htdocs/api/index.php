@@ -5803,6 +5803,7 @@ if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
     if (array_key_exists('ort_id', $body)) { $felder[] = 'ort_id=?'; $params[] = $body['ort_id'] ? (int)$body['ort_id'] : null; }
     if (isset($body['genehmigt']))   { $felder[] = 'genehmigt=?';   $params[] = $body['genehmigt'] ? 1 : 0; }
     if (array_key_exists('serie_id', $body)) { $felder[] = 'serie_id=?'; $params[] = $body['serie_id'] ? (int)$body['serie_id'] : null; }
+    if (array_key_exists('datenquelle', $body)) { $felder[] = 'datenquelle=?'; $params[] = trim((string)$body['datenquelle']) ?: null; }
     if (!empty($body['restore']))    { $felder[] = 'geloescht_am=NULL'; } // Aus Papierkorb wiederherstellen
     if (!$felder) jsonErr('Keine Änderungen.');
     DB::updateById(DB::tbl('veranstaltungen'), $felder, $params, $id);
@@ -5974,6 +5975,8 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         $mstr      = intOrNull($item['meisterschaft'] ?? null);
         $akpm      = intOrNull($item['ak_platz_meisterschaft'] ?? null);
         $quelle    = sanitize($item['import_quelle'] ?? '');
+        $dquelle   = trim((string)($item['datenquelle'] ?? ''));
+        if ($dquelle !== '' && !preg_match('#^https?://#i', $dquelle)) $dquelle = ''; // nur echte URLs
         // Validierung: bei bestehender Veranstaltung kein Datum/Ort nötig
         if (!$vid && (!$datum || !$ort)) {
             $errors[] = 'Zeile ' . ($idx+1) . ': Datum und Ort oder bestehende Veranstaltung erforderlich';
@@ -5987,20 +5990,25 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
             // Bestehende Veranstaltung – Existenz prüfen
             $vRow = DB::fetchOne('SELECT id,ort,datum FROM ' . DB::tbl('veranstaltungen') . ' WHERE id=?', [$vid]);
             if (!$vRow) { $errors[] = 'Zeile ' . ($idx+1) . ': Veranstaltung nicht gefunden'; $skipped++; continue; }
+            // Ergebnisquelle nachtragen, wenn noch keine hinterlegt ist
+            if ($dquelle !== '') {
+                DB::query('UPDATE ' . DB::tbl('veranstaltungen') . " SET datenquelle=? WHERE id=? AND (datenquelle IS NULL OR datenquelle='')", [$dquelle, $vid]);
+            }
         } else {
             $kuerzel  = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
             $serieId  = isset($item['serie_id']) && is_numeric($item['serie_id']) ? (int)$item['serie_id'] : null;
             $ortId    = isset($item['ort_id'])   && is_numeric($item['ort_id'])   ? (int)$item['ort_id']   : null;
             $v = DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=?', [$kuerzel]);
             if (!$v) {
-                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,ort_id,datum,serie_id) VALUES (?,?,?,?,?,?)',
-                    [$kuerzel, $evname ?: $kuerzel, $ort, $ortId, $datum, $serieId]);
+                DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,ort_id,datum,serie_id,datenquelle) VALUES (?,?,?,?,?,?,?)',
+                    [$kuerzel, $evname ?: $kuerzel, $ort, $ortId, $datum, $serieId, $dquelle ?: null]);
                 $vid = DB::lastInsertId();
             } else {
                 $vid = $v['id'];
-                // Serie + ort_id nachträglich setzen wenn noch nicht zugeordnet
+                // Serie + ort_id + Datenquelle nachträglich setzen wenn noch nicht zugeordnet
                 if ($serieId) DB::query('UPDATE ' . DB::tbl('veranstaltungen') . ' SET serie_id=? WHERE id=? AND serie_id IS NULL', [$serieId, $vid]);
                 if ($ortId)   DB::query('UPDATE ' . DB::tbl('veranstaltungen') . ' SET ort_id=?   WHERE id=? AND ort_id IS NULL',   [$ortId,   $vid]);
+                if ($dquelle !== '') DB::query('UPDATE ' . DB::tbl('veranstaltungen') . " SET datenquelle=? WHERE id=? AND (datenquelle IS NULL OR datenquelle='')", [$dquelle, $vid]);
             }
         }
         // mapping_id: vom Client bevorzugen (exakter Kategorie-Treffer)

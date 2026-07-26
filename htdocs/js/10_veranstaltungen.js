@@ -1428,6 +1428,8 @@ async function showVeranstEditModal(id) {
       '</div>' +
       '<div class="form-group full"><label>\uD83D\uDD04 Serie (optional)</label>' +
         '<select id="ve-serie">' + serieOptHtml + '</select></div>' +
+      '<div class="form-group full"><label>\uD83C\uDF10 Ergebnisquelle (URL, optional)</label>' +
+        '<input type="url" id="ve-quelle" value="' + (v.datenquelle || '').replace(/"/g,'&quot;') + '" placeholder="z.B. https://my.raceresult.com/..."/></div>' +
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -1451,11 +1453,13 @@ async function saveVeranstaltung(id) {
   } else if (ortInpEl) {
     ortFreitext = ortInpEl.value.trim() || null;
   }
+  var quelleEl = document.getElementById('ve-quelle');
   var body = {
     name:     document.getElementById('ve-name').value.trim() || null,
     datum:    document.getElementById('ve-datum').value,
     ort:      ortFreitext,
     ort_id:   ortId,
+    datenquelle: quelleEl ? (quelleEl.value.trim() || null) : undefined,
     serie_id: serieEl ? (serieEl.value ? parseInt(serieEl.value) : null) : undefined,
   };
   var r = await apiPut('veranstaltungen/' + id, body);

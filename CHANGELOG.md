@@ -1,3 +1,7 @@
+## v1393
+- Fix: Ergebnisquelle (`datenquelle`) wurde beim Bulk-Import nie gespeichert – das Frontend sendete das Feld je Zeile, die API las es aber nirgends aus. Jetzt beim Anlegen mitgeschrieben und bei bestehenden Veranstaltungen nachgetragen (nur wenn noch leer, überschreibt also nichts).
+- Veranstaltung bearbeiten: neues Feld „🌐 Ergebnisquelle (URL)" – damit lassen sich Altbestände ohne Quelle nachpflegen. `datenquelle` wird im PUT-Handler unterstützt.
+
 ## v1392
 - Fix Papierkorb „Alles löschen": FK-Fehler `ergebnisse_ibfk_1` (Cannot delete or update a parent row) – gelöschte Veranstaltungen/Athleten wurden gelöscht, obwohl noch aktive (nicht gelöschte) Ergebnisse darauf verwiesen. Jetzt werden solche Einträge übersprungen und im Ergebnis-Hinweis gezählt; Benutzer-Löschung trennt zusätzlich `erstellt_von`-Referenzen. Einzel-Löschung von Veranstaltung/Athlet gibt statt eines SQL-Fehlers eine verständliche Meldung aus.
 
