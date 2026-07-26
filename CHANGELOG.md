@@ -1,3 +1,6 @@
+## v1397
+- Admin → Orte: Aliase je Ort definierbar (eine Schreibweise pro Zeile). Beim Bulk-Import gefundene Ortsnamen werden darüber automatisch dem richtigen Ort zugeordnet und auf den kanonischen Namen normalisiert – z.B. „Grefrath" → „Grefrath-Oedt". Aliase werden auch in der Ortssuche (Admin, Bulk-Import, Ort-Picker) berücksichtigt; beim Zusammenführen zweier Orte wird der Name des aufgelösten Ortes automatisch zum Alias des Ziel-Ortes. Serverseitig löst auch `ergebnisse/bulk` Aliase auf, falls das Frontend keine `ort_id` mitschickt.
+
 ## v1396
 - Fix: Bei der Veranstaltungssuche fehlte manchmal das Serien-Badge („🔄 Name der regelmäßigen Veranstaltung"). Die Serienliste wurde ausschließlich nach dem Suchbegriff gefiltert – passte der Begriff nur auf den Veranstaltungsnamen, nicht auf den Seriennamen, fand das Frontend die Serie nicht. Jetzt werden zusätzlich immer die Serien der gefundenen Veranstaltungen mitgeliefert.
 

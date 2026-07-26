@@ -907,17 +907,32 @@ async function _bkLoadOrte() {
   window._bkOrte = r.data || [];
 }
 
+// Sucht einen Ort per Name oder hinterlegtem Alias (Admin → Orte).
+// z.B. Alias "Grefrath" → Ort "Grefrath-Oedt"
+function _bkOrtFindByNameOrAlias(name) {
+  var n = (name || '').toLowerCase().trim();
+  if (!n) return null;
+  var orte = window._bkOrte || [];
+  var oi, ai;
+  for (oi = 0; oi < orte.length; oi++) {
+    if ((orte[oi].name || '').toLowerCase().trim() === n) return orte[oi];
+  }
+  for (oi = 0; oi < orte.length; oi++) {
+    var al = orte[oi].aliase || [];
+    for (ai = 0; ai < al.length; ai++) {
+      if ((al[ai] || '').toLowerCase().trim() === n) return orte[oi];
+    }
+  }
+  return null;
+}
+
 function _bkAutoSetOrt(name) {
   if (!name) return;
-  var ortEl = document.getElementById('bk-ort');
-  if (ortEl) ortEl.value = name;
   _bkSelectedOrtId = null;
-  var orte = window._bkOrte || [];
-  var n = (name || '').toLowerCase().trim();
-  var match = null;
-  for (var oi = 0; oi < orte.length; oi++) {
-    if ((orte[oi].name || '').toLowerCase().trim() === n) { match = orte[oi]; break; }
-  }
+  var match = _bkOrtFindByNameOrAlias(name);
+  var ortEl = document.getElementById('bk-ort');
+  // Alias-Treffer: kanonischen Ortsnamen übernehmen
+  if (ortEl) ortEl.value = match ? match.name : name;
   if (match) _bkSelectedOrtId = match.id;
 }
 
@@ -949,11 +964,14 @@ function bkOrtSearch(val) {
     var orte = window._bkOrte || [];
     var filtered = q ? orte.filter(function(o) {
       return (o.name || '').toLowerCase().indexOf(q) >= 0 ||
-             (o.region && o.region.toLowerCase().indexOf(q) >= 0);
+             (o.region && o.region.toLowerCase().indexOf(q) >= 0) ||
+             (o.aliase || []).some(function(a) { return (a || '').toLowerCase().indexOf(q) >= 0; });
     }) : orte;
     filtered = filtered.slice(0, 25);
     var html = filtered.map(function(o, i) {
       var extra = o.region ? ' (' + o.region + (o.land_code ? ', ' + o.land_code : '') + ')' : (o.land_code ? ' (' + o.land_code + ')' : '');
+      var aliasHit = q ? (o.aliase || []).filter(function(a) { return (a || '').toLowerCase().indexOf(q) >= 0; }) : [];
+      if (aliasHit.length && (o.name || '').toLowerCase().indexOf(q) < 0) extra += ' · Alias: ' + aliasHit.join(', ');
       return '<div style="padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border)"' +
         ' onmousedown="bkOrtSelectIdx(' + i + ')"' +
         ' onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +

@@ -128,6 +128,37 @@ function floatOrNull(mixed $v): ?float {
     return ($v !== null && $v !== '') ? (float)$v : null;
 }
 
+// Ort-Aliase: Rohwert (Zeilen/Komma-getrennt oder Array) → bereinigte Liste
+function ortAliaseSplit(mixed $raw): array {
+    if ($raw === null || $raw === '') return [];
+    $parts = is_array($raw) ? $raw : preg_split('/[\r\n,;]+/', (string)$raw);
+    $out = [];
+    foreach ($parts as $p) {
+        $p = trim((string)$p);
+        if ($p === '') continue;
+        $p = sanitize($p);
+        if ($p === null || $p === '') continue;
+        $p = mb_substr($p, 0, 160);
+        $key = mb_strtolower($p);
+        if (!isset($out[$key])) $out[$key] = $p;
+    }
+    return array_values($out);
+}
+
+// Ort-Aliase eines Ortes komplett ersetzen; Aliase, die anderen Orten gehören, werden übernommen
+function ortAliaseSpeichern(int $ortId, array $aliase): void {
+    $alTbl = DB::tbl('ort_aliase');
+    $oTbl  = DB::tbl('orte');
+    $ortName = (string)(DB::fetchOne("SELECT name FROM $oTbl WHERE id=?", [$ortId])['name'] ?? '');
+    DB::query("DELETE FROM $alTbl WHERE ort_id=?", [$ortId]);
+    foreach ($aliase as $a) {
+        // Alias = Ortsname selbst ist überflüssig
+        if (mb_strtolower($a) === mb_strtolower($ortName)) continue;
+        DB::query("INSERT INTO $alTbl (ort_id, alias) VALUES (?,?)
+                   ON DUPLICATE KEY UPDATE ort_id=VALUES(ort_id)", [$ortId, $a]);
+    }
+}
+
 // Passwort-Hashing Hilfsfunktionen
 function hashCode(string $code): string { return password_hash($code, PASSWORD_BCRYPT, ['cost' => 10]); }
 function hashPw(string $pw): string    { return password_hash($pw,   PASSWORD_BCRYPT, ['cost' => 12]); }
@@ -238,6 +269,14 @@ try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('orte') . " (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS ort_id INT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD INDEX idx_ort_id (ort_id)"); } catch (\Exception $e) {}
+// v1397: Ort-Aliase (alternative Schreibweisen für die Zuordnung beim Bulk-Import)
+try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('ort_aliase') . " (
+    id     INT AUTO_INCREMENT PRIMARY KEY,
+    ort_id INT NOT NULL,
+    alias  VARCHAR(160) NOT NULL,
+    UNIQUE KEY uq_alias (alias),
+    INDEX idx_ort_id (ort_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS geloescht_am DATETIME NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS reset_code_hash VARCHAR(255) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS reset_code_expires DATETIME NULL"); } catch (\Exception $e) {}
@@ -4837,24 +4876,33 @@ if ($res === 'autocomplete' && $id === 'athleten') {
 if ($res === 'orte' && $method === 'GET' && !$id) {
     $oTbl = DB::tbl('orte');
     $vTbl = DB::tbl('veranstaltungen');
+    $alTbl = DB::tbl('ort_aliase');
     $suche = trim($_GET['suche'] ?? $_GET['q'] ?? '');
     $limit = min((int)($_GET['limit'] ?? 200), 500);
     $where = '';
     $params = [];
     if ($suche !== '') {
-        $where = " WHERE o.name LIKE ? OR o.region LIKE ? OR o.land LIKE ? OR o.display_name LIKE ?";
+        $where = " WHERE o.name LIKE ? OR o.region LIKE ? OR o.land LIKE ? OR o.display_name LIKE ?
+                     OR EXISTS (SELECT 1 FROM $alTbl al WHERE al.ort_id = o.id AND al.alias LIKE ?)";
         $s = '%' . $suche . '%';
-        $params = [$s, $s, $s, $s];
+        $params = [$s, $s, $s, $s, $s];
     }
     $rows = DB::fetchAll(
         "SELECT o.*,
-                (SELECT COUNT(*) FROM $vTbl v WHERE v.ort_id = o.id AND v.geloescht_am IS NULL) AS anz_veranstaltungen
+                (SELECT COUNT(*) FROM $vTbl v WHERE v.ort_id = o.id AND v.geloescht_am IS NULL) AS anz_veranstaltungen,
+                (SELECT GROUP_CONCAT(al2.alias ORDER BY al2.alias SEPARATOR '\\n')
+                   FROM $alTbl al2 WHERE al2.ort_id = o.id) AS aliase_raw
            FROM $oTbl o
            $where
            ORDER BY o.name ASC
            LIMIT $limit",
         $params
     );
+    foreach ($rows as &$row) {
+        $row['aliase'] = ortAliaseSplit($row['aliase_raw'] ?? '');
+        unset($row['aliase_raw']);
+    }
+    unset($row);
     jsonOk($rows);
 }
 
@@ -4863,6 +4911,10 @@ if ($res === 'orte' && $method === 'GET' && $id && ctype_digit((string)$id)) {
     $oTbl = DB::tbl('orte');
     $row = DB::fetchOne("SELECT * FROM $oTbl WHERE id=?", [(int)$id]);
     if (!$row) jsonErr('Ort nicht gefunden.', 404);
+    $row['aliase'] = array_column(
+        DB::fetchAll("SELECT alias FROM " . DB::tbl('ort_aliase') . " WHERE ort_id=? ORDER BY alias", [(int)$id]),
+        'alias'
+    );
     jsonOk($row);
 }
 
@@ -4897,7 +4949,9 @@ if ($res === 'orte' && $method === 'POST' && !$id) {
         ]
     );
     $newId = DB::lastInsertId();
+    if (array_key_exists('aliase', $body)) ortAliaseSpeichern((int)$newId, ortAliaseSplit($body['aliase']));
     $row = DB::fetchOne("SELECT * FROM $oTbl WHERE id=?", [$newId]);
+    $row['aliase'] = array_column(DB::fetchAll("SELECT alias FROM " . DB::tbl('ort_aliase') . " WHERE ort_id=? ORDER BY alias", [(int)$newId]), 'alias');
     jsonOk($row);
 }
 
@@ -4921,9 +4975,11 @@ if ($res === 'orte' && $method === 'PUT' && $id) {
             $params[] = $val;
         }
     }
-    if (!$felder) jsonErr('Keine Änderungen.');
-    DB::updateById($oTbl, $felder, $params, (int)$id);
+    if (!$felder && !array_key_exists('aliase', $body)) jsonErr('Keine Änderungen.');
+    if ($felder) DB::updateById($oTbl, $felder, $params, (int)$id);
+    if (array_key_exists('aliase', $body)) ortAliaseSpeichern((int)$id, ortAliaseSplit($body['aliase']));
     $row = DB::fetchOne("SELECT * FROM $oTbl WHERE id=?", [(int)$id]);
+    $row['aliase'] = array_column(DB::fetchAll("SELECT alias FROM " . DB::tbl('ort_aliase') . " WHERE ort_id=? ORDER BY alias", [(int)$id]), 'alias');
     jsonOk($row);
 }
 
@@ -4938,6 +4994,7 @@ if ($res === 'orte' && $method === 'DELETE' && $id) {
         jsonErr('Ort wird noch von ' . $cnt . ' Veranstaltung(en) verwendet. Erst zuweisen/zusammenführen.', 409);
     }
     if ($force) DB::query("UPDATE $vTbl SET ort_id=NULL WHERE ort_id=?", [(int)$id]);
+    DB::query("DELETE FROM " . DB::tbl('ort_aliase') . " WHERE ort_id=?", [(int)$id]);
     DB::query("DELETE FROM $oTbl WHERE id=?", [(int)$id]);
     jsonOk('Gelöscht.');
 }
@@ -4949,9 +5006,18 @@ if ($res === 'orte' && $method === 'POST' && $id && ($body['action'] ?? '') === 
     $vTbl = DB::tbl('veranstaltungen');
     $zielId = (int)($body['ziel_id'] ?? 0);
     if (!$zielId || $zielId === (int)$id) jsonErr('Ungültiges Merge-Ziel.');
-    $ziel = DB::fetchOne("SELECT id FROM $oTbl WHERE id=?", [$zielId]);
+    $ziel = DB::fetchOne("SELECT id,name FROM $oTbl WHERE id=?", [$zielId]);
     if (!$ziel) jsonErr('Ziel-Ort nicht gefunden.', 404);
+    $alTbl = DB::tbl('ort_aliase');
+    $quelle = DB::fetchOne("SELECT name FROM $oTbl WHERE id=?", [(int)$id]);
     DB::query("UPDATE $vTbl SET ort_id=? WHERE ort_id=?", [$zielId, (int)$id]);
+    // Aliase übernehmen; alter Ortsname wird selbst zum Alias des Ziel-Ortes
+    DB::query("UPDATE IGNORE $alTbl SET ort_id=? WHERE ort_id=?", [$zielId, (int)$id]);
+    DB::query("DELETE FROM $alTbl WHERE ort_id=?", [(int)$id]);
+    if (!empty($quelle['name']) && mb_strtolower($quelle['name']) !== mb_strtolower((string)$ziel['name'])) {
+        DB::query("INSERT INTO $alTbl (ort_id, alias) VALUES (?,?)
+                   ON DUPLICATE KEY UPDATE ort_id=VALUES(ort_id)", [$zielId, $quelle['name']]);
+    }
     DB::query("DELETE FROM $oTbl WHERE id=?", [(int)$id]);
     jsonOk('Zusammengeführt.');
 }
@@ -5970,9 +6036,27 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
     $items = $body['items'] ?? [];
     if (!is_array($items) || !count($items)) jsonErr('Keine Einträge.');
     $imported = 0; $skipped = 0; $errors = [];
+    $ortAliasCache = [];   // lowercase Alias => ['id'=>…, 'name'=>…] | false
     foreach ($items as $idx => $item) {
         $datum     = sanitize($item['datum'] ?? '');
         $ort       = sanitize($item['ort'] ?? '');
+        // Ort-Alias auflösen (z.B. "Grefrath" → "Grefrath-Oedt")
+        $aliasOrtId = null;
+        if ($ort) {
+            $aliasKey = mb_strtolower($ort);
+            if (!array_key_exists($aliasKey, $ortAliasCache)) {
+                $ortAliasCache[$aliasKey] = DB::fetchOne(
+                    "SELECT o.id, o.name FROM " . DB::tbl('ort_aliase') . " al
+                       JOIN " . DB::tbl('orte') . " o ON o.id = al.ort_id
+                      WHERE al.alias = ? LIMIT 1",
+                    [$ort]
+                ) ?: false;
+            }
+            if ($ortAliasCache[$aliasKey]) {
+                $ort        = $ortAliasCache[$aliasKey]['name'];
+                $aliasOrtId = (int)$ortAliasCache[$aliasKey]['id'];
+            }
+        }
         $evname    = sanitize($item['veranstaltung_name'] ?? '');
         $vid       = intOrNull($item['veranstaltung_id'] ?? null);
         $aid       = intOrNull($item['athlet_id'] ?? null);
@@ -6007,6 +6091,7 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
             $kuerzel  = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
             $serieId  = isset($item['serie_id']) && is_numeric($item['serie_id']) ? (int)$item['serie_id'] : null;
             $ortId    = isset($item['ort_id'])   && is_numeric($item['ort_id'])   ? (int)$item['ort_id']   : null;
+            if (!$ortId && $aliasOrtId) $ortId = $aliasOrtId;
             $v = DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=?', [$kuerzel]);
             if (!$v) {
                 DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,ort_id,datum,serie_id,datenquelle) VALUES (?,?,?,?,?,?,?)',

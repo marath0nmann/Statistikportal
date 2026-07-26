@@ -21,43 +21,6 @@ async function renderAdminOrte() {
 }
 
 function _renderOrteUI() {
-  var f = (_orteFilter || '').toLowerCase();
-  var filtered = _orteCache.filter(function(o) {
-    if (!f) return true;
-    var hay = (o.name || '') + ' ' + (o.region || '') + ' ' + (o.land || '') + ' ' + (o.land_code || '');
-    return hay.toLowerCase().indexOf(f) >= 0;
-  });
-  filtered.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
-
-  var rows = '';
-  if (!filtered.length) {
-    rows = '<tr><td colspan="5" style="padding:18px;text-align:center;color:var(--text2)">Keine Orte vorhanden.</td></tr>';
-  } else {
-    for (var i = 0; i < filtered.length; i++) {
-      var o = filtered[i];
-      var flag = flagEmoji(o.land_code);
-      var sub = [];
-      if (o.region) sub.push(_ortEsc(o.region));
-      if (o.land) sub.push(_ortEsc(o.land));
-      var subTxt = sub.length ? '<div style="font-size:11px;color:var(--text2)">' + sub.join(' · ') + '</div>' : '';
-      var coords = (o.lat != null && o.lon != null)
-        ? '<a href="https://www.openstreetmap.org/?mlat=' + o.lat + '&mlon=' + o.lon + '#map=12/' + o.lat + '/' + o.lon + '" target="_blank" rel="noopener" style="font-size:12px;color:var(--text2)">' + (Number(o.lat).toFixed(3)) + ', ' + (Number(o.lon).toFixed(3)) + '</a>'
-        : '<span style="color:var(--text2);font-size:12px">—</span>';
-      rows +=
-        '<tr>' +
-          '<td style="padding:8px 10px;font-size:18px;text-align:center">' + (flag || '') + '</td>' +
-          '<td style="padding:8px 10px"><div style="font-weight:600">' + _ortEsc(o.name) + '</div>' + subTxt + '</td>' +
-          '<td style="padding:8px 10px">' + coords + '</td>' +
-          '<td style="padding:8px 10px;text-align:right;color:var(--text2);font-variant-numeric:tabular-nums">' + (o.anz_veranstaltungen || 0) + '</td>' +
-          '<td style="padding:8px 10px;text-align:right;white-space:nowrap">' +
-            '<button class="btn btn-ghost btn-sm" title="Bearbeiten" onclick="_ortEdit(' + o.id + ')">&#x270F;&#xFE0F;</button> ' +
-            '<button class="btn btn-ghost btn-sm" title="Zusammenführen mit anderem Ort" onclick="_ortMerge(' + o.id + ')">&#x1F517;</button> ' +
-            '<button class="btn btn-danger btn-sm" title="Löschen" onclick="_ortDelete(' + o.id + ')">&#x1F5D1;&#xFE0F;</button>' +
-          '</td>' +
-        '</tr>';
-    }
-  }
-
   return (
     '<div class="panel" style="padding:0">' +
       '<div class="panel-header" style="padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
@@ -68,7 +31,7 @@ function _renderOrteUI() {
         '<button class="btn btn-ghost btn-sm" onclick="_orteEnrichAll()" title="Alle Orte ohne Koordinaten via OpenStreetMap anreichern">&#x1F30D; Alle anreichern</button>' +
         '<button class="btn btn-primary btn-sm" onclick="_ortAdd()">+ Neuer Ort</button>' +
       '</div>' +
-      '<div id="orte-tbody-wrap">' + _renderOrteTableInner(rows) + '</div>' +
+      '<div id="orte-tbody-wrap">' + _renderOrteTableInner() + '</div>' +
     '</div>'
   );
 }
@@ -78,7 +41,8 @@ function _renderOrteTableInner(prebuiltRows) {
     var f = (_orteFilter || '').toLowerCase();
     var filtered = _orteCache.filter(function(o) {
       if (!f) return true;
-      var hay = (o.name || '') + ' ' + (o.region || '') + ' ' + (o.land || '') + ' ' + (o.land_code || '');
+      var hay = (o.name || '') + ' ' + (o.region || '') + ' ' + (o.land || '') + ' ' + (o.land_code || '') +
+                ' ' + (o.aliase || []).join(' ');
       return hay.toLowerCase().indexOf(f) >= 0;
     });
     filtered.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
@@ -93,13 +57,16 @@ function _renderOrteTableInner(prebuiltRows) {
         if (o.region) sub.push(_ortEsc(o.region));
         if (o.land) sub.push(_ortEsc(o.land));
         var subTxt = sub.length ? '<div style="font-size:11px;color:var(--text2)">' + sub.join(' · ') + '</div>' : '';
+        var aliasTxt = (o.aliase && o.aliase.length)
+          ? '<div style="font-size:11px;color:var(--text2)" title="Aliase f&uuml;r den Bulk-Import">&#x21B3; ' + _ortEsc(o.aliase.join(', ')) + '</div>'
+          : '';
         var coords = (o.lat != null && o.lon != null)
           ? '<a href="https://www.openstreetmap.org/?mlat=' + o.lat + '&mlon=' + o.lon + '#map=12/' + o.lat + '/' + o.lon + '" target="_blank" rel="noopener" style="font-size:12px;color:var(--text2)">' + (Number(o.lat).toFixed(3)) + ', ' + (Number(o.lon).toFixed(3)) + '</a>'
           : '<span style="color:var(--text2);font-size:12px">—</span>';
         prebuiltRows +=
           '<tr>' +
             '<td style="padding:8px 10px;font-size:18px;text-align:center">' + (flag || '') + '</td>' +
-            '<td style="padding:8px 10px"><div style="font-weight:600">' + _ortEsc(o.name) + '</div>' + subTxt + '</td>' +
+            '<td style="padding:8px 10px"><div style="font-weight:600">' + _ortEsc(o.name) + '</div>' + subTxt + aliasTxt + '</td>' +
             '<td style="padding:8px 10px">' + coords + '</td>' +
             '<td style="padding:8px 10px;text-align:right;color:var(--text2);font-variant-numeric:tabular-nums">' + (o.anz_veranstaltungen || 0) + '</td>' +
             '<td style="padding:8px 10px;text-align:right;white-space:nowrap">' +
@@ -135,6 +102,10 @@ function _ortFormHtml(o) {
         '<div id="ort-nom-results" style="margin-top:6px;max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:7px;display:none"></div>' +
       '</div>' +
       '<div class="form-group full"><label>Name *</label><input type="text" id="ort-name" value="' + _ortEsc(o.name || '') + '"/></div>' +
+      '<div class="form-group full">' +
+        '<label>Aliase <span style="font-weight:400;color:var(--text2);font-size:11px">(eine Schreibweise pro Zeile – beim Bulk-Import gefundene Orte werden diesem Ort zugeordnet)</span></label>' +
+        '<textarea id="ort-aliase" rows="3" placeholder="z.B. Grefrath" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;font-size:13px">' + _ortEsc((o.aliase || []).join('\n')) + '</textarea>' +
+      '</div>' +
       '<div class="form-group"><label>Region/Bundesland</label><input type="text" id="ort-region" value="' + _ortEsc(o.region || '') + '"/></div>' +
       '<div class="form-group"><label>Land</label><input type="text" id="ort-land" value="' + _ortEsc(o.land || '') + '"/></div>' +
       '<div class="form-group"><label>ISO-Code (2)</label><input type="text" id="ort-landcode" maxlength="2" style="text-transform:uppercase" value="' + _ortEsc(o.land_code || '') + '"/></div>' +
@@ -257,6 +228,10 @@ async function _ortSave(id) {
     osm_id:       (document.getElementById('ort-osmid').value || '').trim(),
     osm_typ:      (document.getElementById('ort-osmtyp').value || '').trim(),
     display_name: (document.getElementById('ort-display').value || '').trim(),
+    aliase:       ((document.getElementById('ort-aliase') || {}).value || '')
+                    .split(/[\r\n,;]+/)
+                    .map(function(s) { return s.trim(); })
+                    .filter(function(s) { return !!s; }),
   };
   if (!body.name) { notify('Name erforderlich.', 'err'); return; }
   var r = id ? await apiPut('orte/' + id, body) : await apiPost('orte', body);
@@ -356,7 +331,8 @@ function _ortePickerSearch(inputId, hiddenId, q) {
   var ql = (q || '').toLowerCase().trim();
   var hits = _orteCache.filter(function(o) {
     if (!ql) return true;
-    return ((o.name || '') + ' ' + (o.region || '') + ' ' + (o.land || '')).toLowerCase().indexOf(ql) >= 0;
+    return ((o.name || '') + ' ' + (o.region || '') + ' ' + (o.land || '') + ' ' + (o.aliase || []).join(' '))
+             .toLowerCase().indexOf(ql) >= 0;
   });
   hits.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
   hits = hits.slice(0, 50);
@@ -422,6 +398,10 @@ async function _ortePickerNewSave(inputId, hiddenId) {
     osm_id:       (document.getElementById('ort-osmid').value || '').trim(),
     osm_typ:      (document.getElementById('ort-osmtyp').value || '').trim(),
     display_name: (document.getElementById('ort-display').value || '').trim(),
+    aliase:       ((document.getElementById('ort-aliase') || {}).value || '')
+                    .split(/[\r\n,;]+/)
+                    .map(function(s) { return s.trim(); })
+                    .filter(function(s) { return !!s; }),
   };
   if (!body.name) { notify('Name erforderlich.', 'err'); return; }
   var r = await apiPost('orte', body);
