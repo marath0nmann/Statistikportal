@@ -2251,10 +2251,11 @@ function _veranstWhatsapp(v, badgeMap) {
     out += '\n*' + disz + '*\n';
     g.byDisz[disz].forEach(function(e) {
       var badges = _shareBadgesFor(badgeMap, e);
-      var platz  = e.ak_platzierung ? _shareMedal(e.ak_platzierung) + ' ' : '\u2022 ';
-      var line   = platz + _shareAthletName(e);
+      var line   = (e.ak_platzierung ? e.ak_platzierung + '. ' : '\u2022 ') + _shareAthletName(e);
       if (e.altersklasse) line += ' (' + e.altersklasse + ')';
       line += ' \u2013 ' + _veranstFormatResult(e);
+      var medal = _shareMedal(e.ak_platzierung);
+      if (medal) line += ' ' + medal;
       if (badges.length) line += '  \ud83c\udfc5 ' + badges.join(', ');
       out += line + '\n';
     });
@@ -2265,12 +2266,13 @@ function _veranstWhatsapp(v, badgeMap) {
   return out;
 }
 
+// Medaillen-Emoji f\u00fcr Podestpl\u00e4tze, sonst leer
 function _shareMedal(platz) {
   var p = parseInt(platz);
   if (p === 1) return '\ud83e\udd47';
   if (p === 2) return '\ud83e\udd48';
   if (p === 3) return '\ud83e\udd49';
-  return p + '.';
+  return '';
 }
 
 async function shareVeranstaltung(vid) {

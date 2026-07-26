@@ -1,3 +1,6 @@
+## v1394
+- WhatsApp-Teilen: Platzierung jetzt immer als Zahl am Zeilenanfang, Medaille ans Zeilenende (`2. Simon Heiß (M35) – 39:57 🥈`). Vorher ersetzte das Emoji die Platzziffer, wodurch bei Podestplätzen die Nummer fehlte.
+
 ## v1393
 - Fix: Ergebnisquelle (`datenquelle`) wurde beim Bulk-Import nie gespeichert – das Frontend sendete das Feld je Zeile, die API las es aber nirgends aus. Jetzt beim Anlegen mitgeschrieben und bei bestehenden Veranstaltungen nachgetragen (nur wenn noch leer, überschreibt also nichts).
 - Veranstaltung bearbeiten: neues Feld „🌐 Ergebnisquelle (URL)" – damit lassen sich Altbestände ohne Quelle nachpflegen. `datenquelle` wird im PUT-Handler unterstützt.
