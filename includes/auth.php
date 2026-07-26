@@ -101,8 +101,10 @@ class Auth {
                 'has_passkey'          => $hasPasskey,
                 'email_login_bevorzugt'=> $emailLoginBevorzugt,
             ];
-        } elseif ($emailLoginBevorzugt) {
-            // User bevorzugt E-Mail-Code statt TOTP
+        } else {
+            // Weder TOTP noch Passkey → automatischer E-Mail-Code-Fallback.
+            // Kein Setup-Zwang mehr: E-Mail-Code ist die universelle Rückfallebene
+            // (der explizite Flag $emailLoginBevorzugt ist damit optional geworden).
             $_SESSION['totp_pending_user'] = $user['id'];
             session_regenerate_id(true);
             return [
@@ -112,17 +114,6 @@ class Auth {
                 'has_totp'             => false,
                 'has_passkey'          => false,
                 'email_login_bevorzugt'=> true,
-            ];
-        } else {
-            // Kein 2FA eingerichtet → Setup erzwingen
-            $_SESSION['totp_pending_user'] = $user['id'];
-            session_regenerate_id(true);
-            return [
-                'ok'           => true,
-                'totp_required'=> true,
-                'totp_setup'   => true,
-                'has_totp'     => false,
-                'has_passkey'  => false,
             ];
         }
     }

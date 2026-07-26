@@ -1,3 +1,6 @@
+## v1384
+- Login: E-Mail-Code ist jetzt der automatische 2FA-Fallback. Benutzer ohne TOTP und ohne Passkey werden nicht mehr zum Setup gezwungen, sondern bekommen beim Login automatisch einen E-Mail-Code (der explizite Flag `email_login_bevorzugt` ist damit optional). Admin → Benutzer zeigt bei diesen Benutzern konsequent das „📧 E-Mail"-Badge in der 2FA-Spalte.
+
 ## v1383
 - Fix RaceResult: benannte Standarddistanzen werden distanzbasiert erkannt – Contest „21,1 Km Rheinuferlauf" → Halbmarathon, „42,195 km" → Marathon. `rrBestDisz` mappt ~21,1 km auf „Halbmarathon" und ~42,2 km auf „Marathon", auch wenn die System-Disziplin keine Ziffern enthält (behebt fehlende Disziplin bei Nina Mayer, Rheinuferlauf Duisburg)
 
