@@ -1,3 +1,6 @@
+## v1387
+- Fix: Top-Bar-Badge „Admin" spiegelt jetzt tatsächlich die Summe aller Subtab-Badges (inkl. Benutzer ohne Athletenprofil). Ursache: `_patchAdminNavBadge()` schrieb in ein nicht existierendes `.nav-label`-Element; jetzt wird – analog zum „Eintragen"-Badge – der komplette Button-Inhalt gesetzt.
+
 ## v1386
 - Fix: Badge „Benutzer ohne Athletenprofil" zählt jetzt auch Benutzer mit verwaister `athlet_id` (Athlet gelöscht → keine Zuordnung mehr auflösbar), nicht nur solche mit `athlet_id = NULL`. Neuer Helper `_userOhneAthlet()`.
 

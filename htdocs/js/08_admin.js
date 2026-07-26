@@ -370,13 +370,12 @@ function _patchAdminNavBadge() {
   var _total = (window._adminPendingAntraege||0) + (window._adminPendingRegs||0)
     + (window._adminPendingFreigabe||0) + (window._adminPendingPapierkorb||0) + ohne;
   window._adminNavBadgeCount = _total;
+  var _badge = _total > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _total + '</span>' : '';
   var _adminBtns = document.querySelectorAll('#main-nav button, #mobile-nav-items button');
   for (var _bi = 0; _bi < _adminBtns.length; _bi++) {
-    var _btn = _adminBtns[_bi];
-    if (_btn.getAttribute('onclick') && _btn.getAttribute('onclick').indexOf('admin') >= 0) {
-      var _lbl = _btn.querySelector('.nav-label');
-      if (_lbl) _lbl.innerHTML = 'Admin' + (_total > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _total + '</span>' : '');
-    }
+    var _oc = _adminBtns[_bi].getAttribute('onclick') || '';
+    // Desktop: navigate('admin'), Mobile: mobileNavTo('admin') – Label steht direkt im Button
+    if (_oc.indexOf('\'admin\'') >= 0) _adminBtns[_bi].innerHTML = 'Admin' + _badge;
   }
 }
 
