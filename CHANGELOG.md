@@ -1,3 +1,6 @@
+## v1392
+- Fix Papierkorb „Alles löschen": FK-Fehler `ergebnisse_ibfk_1` (Cannot delete or update a parent row) – gelöschte Veranstaltungen/Athleten wurden gelöscht, obwohl noch aktive (nicht gelöschte) Ergebnisse darauf verwiesen. Jetzt werden solche Einträge übersprungen und im Ergebnis-Hinweis gezählt; Benutzer-Löschung trennt zusätzlich `erstellt_von`-Referenzen. Einzel-Löschung von Veranstaltung/Athlet gibt statt eines SQL-Fehlers eine verständliche Meldung aus.
+
 ## v1391
 - Fix RaceResult: AK-Platz statt Gesamtplatz wird importiert, wenn eine Liste den AK-Platz enthält (z.B. „Ergebnisliste MW+AK" mit `AKPlp`). Priorität ist jetzt reihenfolge-unabhängig (Flag `platzIsAk`) – vorher gewann der zuerst verarbeitete Gesamtplatz, weil „MW+AK" nicht als AK-Liste erkannt wurde (Rheinuferlauf Duisburg: Nina Mayer AK-Platz 4 statt Gesamt 83)
 

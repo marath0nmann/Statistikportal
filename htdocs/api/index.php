@@ -6283,17 +6283,47 @@ if ($res === 'papierkorb') {
         $rtyp = $parts[1] ?? '';
         $rid  = (int)($parts[2] ?? 0);
 
+        // Alle Ergebnistabellen (unified + legacy), doppelte Namen entfernen
+        $ergTbls = array_values(array_unique([DB::tbl('ergebnisse'), $eTbl]));
+        // Zählt noch vorhandene (auch aktive) Ergebnisse mit Fremdschlüssel auf $col=$val
+        $ergRefs = function($col, $val) use ($ergTbls) {
+            $n = 0;
+            foreach ($ergTbls as $t) {
+                try { $n += (int)(DB::fetchOne("SELECT COUNT(*) c FROM $t WHERE $col=?", [$val])['c'] ?? 0); } catch (\Exception $e) {}
+            }
+            return $n;
+        };
+
         // Papierkorb komplett leeren
         if ($rtyp === 'alle') {
-            // Alle Ergebnistabellen leeren (unified + legacy)
-            try { DB::query("DELETE FROM " . DB::tbl('ergebnisse') . " WHERE geloescht_am IS NOT NULL"); } catch (\Exception $e) {}
-            try { DB::query("DELETE FROM $eTbl WHERE geloescht_am IS NOT NULL"); } catch (\Exception $e) {}
-            DB::query("DELETE FROM " . DB::tbl('athleten') . " WHERE geloescht_am IS NOT NULL");
-            DB::query("DELETE FROM " . DB::tbl('veranstaltungen') . " WHERE geloescht_am IS NOT NULL");
-            // Benutzer: erst athlet_id trennen, dann löschen
+            // 1) Ergebnisse im Papierkorb endgültig löschen
+            foreach ($ergTbls as $t) {
+                try { DB::query("DELETE FROM $t WHERE geloescht_am IS NOT NULL"); } catch (\Exception $e) {}
+            }
+
+            // 2) Veranstaltungen/Athleten nur löschen, wenn keine aktiven Ergebnisse
+            //    mehr darauf verweisen (sonst FK-Fehler bzw. Datenverlust)
+            $skipped = 0;
+            foreach ([['veranstaltungen', 'veranstaltung_id'], ['athleten', 'athlet_id']] as $ref) {
+                list($tbl, $col) = $ref;
+                $rows = DB::fetchAll("SELECT id FROM " . DB::tbl($tbl) . " WHERE geloescht_am IS NOT NULL");
+                foreach ($rows as $row) {
+                    if ($ergRefs($col, (int)$row['id']) > 0) { $skipped++; continue; }
+                    DB::query("DELETE FROM " . DB::tbl($tbl) . " WHERE id=?", [(int)$row['id']]);
+                }
+            }
+
+            // 3) Benutzer: athlet_id und erstellt_von-Referenzen trennen, dann löschen
+            $bSub = "SELECT id FROM (SELECT id FROM " . DB::tbl('benutzer') . " WHERE geloescht_am IS NOT NULL) x";
             DB::query("UPDATE " . DB::tbl('benutzer') . " SET athlet_id=NULL WHERE geloescht_am IS NOT NULL");
+            foreach ($ergTbls as $t) {
+                try { DB::query("UPDATE $t SET erstellt_von=NULL WHERE erstellt_von IN ($bSub)"); } catch (\Exception $e) {}
+            }
             DB::query("DELETE FROM " . DB::tbl('benutzer') . " WHERE geloescht_am IS NOT NULL");
-            jsonOk('Papierkorb geleert.');
+
+            jsonOk($skipped
+                ? "Papierkorb geleert. $skipped Eintrag/Einträge wurden übersprungen, weil noch aktive Ergebnisse darauf verweisen."
+                : 'Papierkorb geleert.');
         }
 
         if (!$rid) jsonErr('Ungültige ID.');
@@ -6301,15 +6331,24 @@ if ($res === 'papierkorb') {
         if ($rtyp === 'ergebnis') {
             DB::query("DELETE FROM $eTbl WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
         } elseif ($rtyp === 'athlet') {
+            foreach ($ergTbls as $t) {
+                try { DB::query("DELETE FROM $t WHERE athlet_id=? AND geloescht_am IS NOT NULL", [$rid]); } catch (\Exception $e) {}
+            }
+            if ($ergRefs('athlet_id', $rid) > 0) jsonErr('Athlet hat noch aktive Ergebnisse – bitte zuerst diese Ergebnisse löschen.');
             DB::query("DELETE FROM " . DB::tbl('athleten') . " WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
         } elseif ($rtyp === 'benutzer') {
-            // Erst athlet_id trennen, dann endgültig löschen
+            // Erst athlet_id und erstellt_von-Referenzen trennen, dann endgültig löschen
             DB::query("UPDATE " . DB::tbl('benutzer') . " SET athlet_id=NULL WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
+            foreach ($ergTbls as $t) {
+                try { DB::query("UPDATE $t SET erstellt_von=NULL WHERE erstellt_von=?", [$rid]); } catch (\Exception $e) {}
+            }
             DB::query("DELETE FROM " . DB::tbl('benutzer') . " WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
         } elseif ($rtyp === 'veranstaltung') {
             // Ergebnisse aus allen Tabellen löschen (FK constraint!)
-            try { DB::query("DELETE FROM " . DB::tbl('ergebnisse') . " WHERE veranstaltung_id=? AND geloescht_am IS NOT NULL", [$rid]); } catch (\Exception $e) {}
-            try { DB::query("DELETE FROM $eTbl WHERE veranstaltung_id=? AND geloescht_am IS NOT NULL", [$rid]); } catch (\Exception $e) {}
+            foreach ($ergTbls as $t) {
+                try { DB::query("DELETE FROM $t WHERE veranstaltung_id=? AND geloescht_am IS NOT NULL", [$rid]); } catch (\Exception $e) {}
+            }
+            if ($ergRefs('veranstaltung_id', $rid) > 0) jsonErr('Veranstaltung hat noch aktive Ergebnisse – bitte zuerst diese Ergebnisse löschen.');
             DB::query("DELETE FROM " . DB::tbl('veranstaltungen') . " WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
         } else jsonErr('Unbekannter Typ.');
         jsonOk('Endgültig gelöscht.');
