@@ -374,8 +374,10 @@ function _patchAdminNavBadge() {
   var _adminBtns = document.querySelectorAll('#main-nav button, #mobile-nav-items button');
   for (var _bi = 0; _bi < _adminBtns.length; _bi++) {
     var _oc = _adminBtns[_bi].getAttribute('onclick') || '';
-    // Desktop: navigate('admin'), Mobile: mobileNavTo('admin') – Label steht direkt im Button
-    if (_oc.indexOf('\'admin\'') >= 0) _adminBtns[_bi].innerHTML = 'Admin' + _badge;
+    // Desktop: navigate('admin'), Mobile: mobileNavTo('admin') – Label steht direkt im Button.
+    // Nav-Buttons sind flex-column → Text + Badge in einen Inline-Wrapper packen,
+    // damit die Zahl NEBEN „Admin" steht und nicht darunter umbricht.
+    if (_oc.indexOf('\'admin\'') >= 0) _adminBtns[_bi].innerHTML = '<span style="white-space:nowrap">Admin' + _badge + '</span>';
   }
 }
 

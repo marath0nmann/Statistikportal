@@ -1,3 +1,6 @@
+## v1388
+- Fix: Nav-Badges (Admin + Eintragen) stehen jetzt NEBEN dem Text statt darunter. Nav-Buttons sind `flex-column`, wodurch Text und Badge-Span als getrennte Flex-Items untereinander umbrachen – jetzt in einen Inline-Wrapper (`white-space:nowrap`) gepackt.
+
 ## v1387
 - Fix: Top-Bar-Badge „Admin" spiegelt jetzt tatsächlich die Summe aller Subtab-Badges (inkl. Benutzer ohne Athletenprofil). Ursache: `_patchAdminNavBadge()` schrieb in ein nicht existierendes `.nav-label`-Element; jetzt wird – analog zum „Eintragen"-Badge – der komplette Button-Inhalt gesetzt.
 
