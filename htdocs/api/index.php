@@ -2188,14 +2188,16 @@ if (in_array($res, $ergebnisTabellen)) {
                        $extraCols
                        e.ak_platzierung, e.meisterschaft,
                        e.veranstaltung_id,
-                       v.kuerzel AS veranstaltung, v.datum, v.ort, v.ort AS veranstaltung_ort, v.name AS veranstaltung_name, v.datenquelle AS veranstaltung_quelle,
+                       v.kuerzel AS veranstaltung, v.datum, v.ort, COALESCE(o.name, v.ort) AS veranstaltung_ort, v.name AS veranstaltung_name, v.datenquelle AS veranstaltung_quelle,
                        v.serie_id AS verknuepfte_serie_id, v.name AS verknuepfte_veranstaltung_name,
+                       o.land_code AS ort_land_code,
                        COALESCE(CONCAT(ab.vorname,' ',ab.nachname), b.benutzername) AS eingetragen_von, e.erstellt_am,
                        COALESCE(dm.fmt_override, dk.fmt) AS fmt,
                        dk.name AS kategorie_name, dk.tbl_key AS kategorie_key
                 FROM $tbl e
                 JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
                 JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
+                LEFT JOIN " . DB::tbl('orte') . " o ON o.id=v.ort_id
                 LEFT JOIN " . DB::tbl('benutzer') . " b ON b.id=e.erstellt_von
                 LEFT JOIN " . DB::tbl('athleten') . " ab ON ab.id=b.athlet_id
                 LEFT JOIN " . DB::tbl('disziplin_mapping') . " dm ON dm.id=e.disziplin_mapping_id
@@ -2708,12 +2710,14 @@ if ($res === 'athleten') {
         if ($unified) {
             $alle = DB::fetchAll(
                 'SELECT e.id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.pace, e.altersklasse, e.meisterschaft,
-                        v.kuerzel AS veranstaltung, v.ort AS veranstaltung_ort, v.name AS veranstaltung_name, v.datum,
+                        v.kuerzel AS veranstaltung, COALESCE(o.name, v.ort) AS veranstaltung_ort, v.name AS veranstaltung_name, v.datum,
+                        o.land_code AS ort_land_code,
                         COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
                         COALESCE(dk.name, \'Sonstige\') AS kat_name,
                         COALESCE(dk.reihenfolge, 99) AS kat_sort
                  FROM ' . DB::tbl('ergebnisse') . ' e
                  JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
+                 LEFT JOIN ' . DB::tbl('orte') . ' o ON o.id=v.ort_id
                  LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
                  LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
                  WHERE e.athlet_id=? AND e.extern=0 AND e.geloescht_am IS NULL ORDER BY dk.reihenfolge, v.datum DESC', [$id]);
@@ -2746,10 +2750,11 @@ if ($res === 'athleten') {
                  ORDER BY dk.reihenfolge, e.disziplin', [(int)$id]);
             jsonOk(compact('athlet','kategorien','pbs'));
         } else {
-            $strasse = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_strasse') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
-            $sprint  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprint') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
-            $mittel  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_mittelstrecke') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
-            $sw      = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,v.ort AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum FROM ' . DB::tbl('ergebnisse_sprungwurf') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
+            $oTbl2   = DB::tbl('orte');
+            $strasse = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,COALESCE(o.name,v.ort) AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum,o.land_code AS ort_land_code FROM ' . DB::tbl('ergebnisse_strasse') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id LEFT JOIN '.$oTbl2.' o ON o.id=v.ort_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
+            $sprint  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,COALESCE(o.name,v.ort) AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum,o.land_code AS ort_land_code FROM ' . DB::tbl('ergebnisse_sprint') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id LEFT JOIN '.$oTbl2.' o ON o.id=v.ort_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
+            $mittel  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,COALESCE(o.name,v.ort) AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum,o.land_code AS ort_land_code FROM ' . DB::tbl('ergebnisse_mittelstrecke') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id LEFT JOIN '.$oTbl2.' o ON o.id=v.ort_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
+            $sw      = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,COALESCE(o.name,v.ort) AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum,o.land_code AS ort_land_code FROM ' . DB::tbl('ergebnisse_sprungwurf') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id LEFT JOIN '.$oTbl2.' o ON o.id=v.ort_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
             jsonOk(compact('athlet','strasse','sprint','mittel','sw'));
         }
     }
@@ -5924,6 +5929,7 @@ if ($res === 'externe-ergebnisse' && $method === 'GET' && !$id) {
                    e.disziplin, e.disziplin_mapping_id, e.resultat,
                    v.datum, v.name AS veranstaltung, e.veranstaltung_id, e.verein,
                    COALESCE(o.name, v.ort) AS ort, COALESCE(o.name, v.ort) AS veranstaltung_ort,
+                   o.land_code AS ort_land_code,
                    v.name AS veranstaltung_name, NULL AS veranstaltung_quelle,
                    v.serie_id AS verknuepfte_serie_id, v.name AS verknuepfte_veranstaltung_name,
                    COALESCE(CONCAT(ab.vorname,' ',ab.nachname), b.benutzername) AS eingetragen_von,

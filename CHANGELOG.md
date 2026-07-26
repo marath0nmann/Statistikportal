@@ -1,3 +1,6 @@
+## v1398
+- Ergebnisse: Orte aus der Datenbank werden jetzt mit Landesflagge angezeigt (`🇩🇪 Düsseldorf`), Orts-Freitexte aus Importen bleiben ohne Flagge – so ist sofort erkennbar, ob ein Ort verknüpft ist. API-Queries für Ergebnisse, Athletenprofil und externe Ergebnisse joinen jetzt `orte` und liefern `ort_land_code`; `fmtVeranstName` nutzt die Flagge.
+
 ## v1397
 - Admin → Orte: Aliase je Ort definierbar (eine Schreibweise pro Zeile). Beim Bulk-Import gefundene Ortsnamen werden darüber automatisch dem richtigen Ort zugeordnet und auf den kanonischen Namen normalisiert – z.B. „Grefrath" → „Grefrath-Oedt". Aliase werden auch in der Ortssuche (Admin, Bulk-Import, Ort-Picker) berücksichtigt; beim Zusammenführen zweier Orte wird der Name des aufgelösten Ortes automatisch zum Alias des Ziel-Ortes. Serverseitig löst auch `ergebnisse/bulk` Aliase auf, falls das Frontend keine `ort_id` mitschickt.
 

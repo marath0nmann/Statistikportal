@@ -393,8 +393,9 @@ async function init() {
 function fmtVeranstName(e) {
   var pref = (window.appConfig && window.appConfig.veranstaltung_anzeige) || 'ort';
   if (pref === 'name' && e.veranstaltung_name) return e.veranstaltung_name;
-  // Fallback: ort aus veranstaltung_ort, dann aus kuerzel
-  return e.veranstaltung_ort || (e.veranstaltung || '').split(' ').slice(1).join(' ') || e.veranstaltung_name || '';
+  var ortText = e.veranstaltung_ort || (e.veranstaltung || '').split(' ').slice(1).join(' ') || e.veranstaltung_name || '';
+  var flag = e.ort_land_code ? (flagEmoji(e.ort_land_code) || '') : '';
+  return flag ? flag + ' ' + ortText : ortText;
 }
 // ── SETUP-WIZARD ─────────────────────────────────────────────
 var _setup = { step: 1, reason: '', hasConfig: false,
