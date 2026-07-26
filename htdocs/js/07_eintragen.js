@@ -1247,6 +1247,8 @@ async function bulkSubmit() {
     renderEintragen();
     var _st = document.getElementById('bulk-status');
     if (_st) _st.innerHTML = _savedMsg;
+    // Nav-Badge „offene Wettkämpfe" neu berechnen (gerade erfasste fallen ggf. weg)
+    if (typeof _ladeEintragenBadge === 'function') _ladeEintragenBadge(true);
   } else {
     notify((r && r.fehler) ? r.fehler : 'Fehler', 'err');
     document.getElementById('bulk-status').innerHTML = '';
@@ -5752,6 +5754,9 @@ async function _bkLoadOffeneWK() {
   if (!box) return;
   var r = await apiGet('offene-wettkaempfe');
   _owItems = (r && r.ok && Array.isArray(r.data)) ? r.data : [];
+  // Nav-Badge synchron halten (spart einen separaten Request beim Tab-Öffnen)
+  window._eintragenOffeneWK = _owItems.length;
+  if (typeof _patchEintragenNavBadge === 'function') _patchEintragenNavBadge(_owItems.length);
   box = document.getElementById('bk-offene-wk');
   if (!box) return;
   if (!_owItems.length) { box.innerHTML = ''; return; }

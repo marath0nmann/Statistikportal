@@ -1,6 +1,9 @@
 ## v1383
 - Fix RaceResult: benannte Standarddistanzen werden distanzbasiert erkannt – Contest „21,1 Km Rheinuferlauf" → Halbmarathon, „42,195 km" → Marathon. `rrBestDisz` mappt ~21,1 km auf „Halbmarathon" und ~42,2 km auf „Marathon", auch wenn die System-Disziplin keine Ziffern enthält (behebt fehlende Disziplin bei Nina Mayer, Rheinuferlauf Duisburg)
 
+## v1383
+- Navigation: Zahl-Badge am Tab „Eintragen" zeigt, wie viele Wettkämpfe aus dem Trainingsportal auf die Ergebnis-Erfassung warten (analog zum Admin-Badge). Aktualisiert sich beim Öffnen des Tabs und nach dem Speichern.
+
 ## v1382
 - Bulk-Eintragen: Panel „Ergebnisse ausstehend" – Wettkämpfe mit Anmeldungen aus dem Trainingsportal, deren Termin vorbei ist und für die noch kein Ergebnis erfasst wurde. Ein Klick füllt Veranstaltung, Serie, Ort, Datum und je eine Zeile pro angemeldeter Athlet:in/Disziplin vor.
 - Neuer Endpunkt `GET offene-wettkaempfe` (liest die gemeinsam genutzten `training_wettkampf_*`-Tabellen)

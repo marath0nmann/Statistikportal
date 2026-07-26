@@ -2470,8 +2470,11 @@ function buildNav() {
     return;
   }
   // Eingeloggte User: gleiche Tabs + Eintragen/Admin
-  if (currentUser.rolle === 'editor' || currentUser.rolle === 'admin' || currentUser.rolle === 'athlet')
-    tabs.push({ id: 'eintragen', icon: '➕️', label: 'Eintragen' });
+  if (currentUser.rolle === 'editor' || currentUser.rolle === 'admin' || currentUser.rolle === 'athlet') {
+    var _eintN = window._eintragenOffeneWK || 0;
+    var _eintLabel = 'Eintragen' + (_eintN > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _eintN + '</span>' : '');
+    tabs.push({ id: 'eintragen', icon: '➕️', label: _eintLabel, rawLabel: true });
+  }
   if (currentUser.rolle === 'admin') {
     var _adminN = (window._adminPendingAntraege||0) + (window._adminPendingRegs||0) + (window._adminPendingFreigabe||0);
     var _adminLabel = 'Admin' + (_adminN > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _adminN + '</span>' : '');
@@ -2479,6 +2482,36 @@ function buildNav() {
   }
   _renderNavTabs(tabs);
   if (currentUser && currentUser.rolle === 'admin') setTimeout(function(){ _ladeAntraegeBadge(); }, 150);
+  // Eintragen-Badge: offene Wettkämpfe aus dem Trainingsportal.
+  // Nur einmal automatisch laden (window._eintragenOffeneWK noch nicht gesetzt),
+  // damit nicht jeder Tab-Wechsel eine Anfrage auslöst. Manuelles Refresh via
+  // _ladeEintragenBadge(true) nach dem Speichern von Ergebnissen.
+  if (_canBulkEintragen() && window._eintragenOffeneWK === undefined)
+    setTimeout(function(){ _ladeEintragenBadge(); }, 150);
+}
+
+// Offene Wettkämpfe zählen und das „Eintragen"-Nav-Badge aktualisieren.
+// force=true erzwingt ein Neuladen (z.B. nach dem Speichern von Ergebnissen).
+async function _ladeEintragenBadge(force) {
+  if (!_canBulkEintragen()) { window._eintragenOffeneWK = 0; return; }
+  if (!force && window._eintragenOffeneWK !== undefined) { _patchEintragenNavBadge(window._eintragenOffeneWK); return; }
+  try {
+    var r = await apiGet('offene-wettkaempfe');
+    var n = (r && r.ok && Array.isArray(r.data)) ? r.data.length : 0;
+    window._eintragenOffeneWK = n;
+    _patchEintragenNavBadge(n);
+  } catch (e) {}
+}
+
+// Nav-Buttons (Desktop + Mobile-Drawer) direkt patchen – ohne buildNav(),
+// um einen Render-Loop zu vermeiden (analog zum Admin-Badge).
+function _patchEintragenNavBadge(n) {
+  var badge = n > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + n + '</span>' : '';
+  var btns = document.querySelectorAll('#main-nav button, #mobile-nav-items button');
+  for (var i = 0; i < btns.length; i++) {
+    var oc = btns[i].getAttribute('onclick') || '';
+    if (oc.indexOf("'eintragen'") >= 0) btns[i].innerHTML = 'Eintragen' + badge;
+  }
 }
 
 function _renderNavTabs(tabs) {
