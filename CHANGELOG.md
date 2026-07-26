@@ -1,3 +1,7 @@
+## v1382
+- Bulk-Eintragen: Panel „Ergebnisse ausstehend" – Wettkämpfe mit Anmeldungen aus dem Trainingsportal, deren Termin vorbei ist und für die noch kein Ergebnis erfasst wurde. Ein Klick füllt Veranstaltung, Serie, Ort, Datum und je eine Zeile pro angemeldeter Athlet:in/Disziplin vor.
+- Neuer Endpunkt `GET offene-wettkaempfe` (liest die gemeinsam genutzten `training_wettkampf_*`-Tabellen)
+
 ## v1381
 - Aktivste Athleten: Jahreszahl-Hinweis jetzt immer anzeigen (auch 5 J.)
 

@@ -5392,6 +5392,215 @@ if ($res === 'veranstaltung-serien' && $method === 'DELETE' && $id) {
 }
 
 // ============================================================
+// OFFENE WETTKÄMPFE – Trainingsportal-Anmeldungen ohne Ergebnis
+// ============================================================
+// Prognose des Termins einer Serie in einem Zieljahr: gleicher n-ter Wochentag
+// im gleichen Monat wie beim letzten bekannten Termin.
+// (identisch zur Logik im Trainingsportal, damit beide Portale dasselbe Datum zeigen)
+function owPredictDate(?string $letztesDatum, int $jahr): ?string {
+    if (!$letztesDatum) return null;
+    try { $last = new DateTime($letztesDatum . 'T00:00:00'); } catch (\Exception $e) { return null; }
+    $month    = (int)$last->format('n');
+    $dow      = (int)$last->format('w');
+    $nth      = (int)(((int)$last->format('j') - 1) / 7);
+    $first    = new DateTime(sprintf('%04d-%02d-01', $jahr, $month));
+    $firstDow = (int)$first->format('w');
+    $tag      = 1 + (($dow - $firstDow + 7) % 7) + $nth * 7;
+    if ($tag > (int)$first->format('t')) $tag -= 7;
+    return sprintf('%04d-%02d-%02d', $jahr, $month, $tag);
+}
+
+// GET offene-wettkaempfe[?tage=400]
+// Liefert Serien, für die sich im Trainingsportal Athlet:innen angemeldet haben,
+// deren Termin bereits vorbei ist und für die hier noch kein Ergebnis erfasst wurde.
+// Liest die gemeinsam genutzten training_*-Tabellen (gleiche DB + TABLE_PREFIX);
+// fehlen sie, ist das Ergebnis schlicht leer.
+if ($res === 'offene-wettkaempfe' && $method === 'GET') {
+    Auth::requireRecht('bulk_eintragen');
+
+    $tage  = max(1, min(1000, (int)($_GET['tage'] ?? 400)));
+    $heute = date('Y-m-d');
+    $ab    = date('Y-m-d', strtotime("-$tage days"));
+    $out   = [];
+
+    try {
+        $sTbl = DB::tbl('veranstaltung_serien');
+        $vTbl = DB::tbl('veranstaltungen');
+        $bTbl = DB::tbl('benutzer');
+        $aTbl = DB::tbl('athleten');
+        $twp  = DB::tbl('training_wettkampf_planung');
+        $twa  = DB::tbl('training_wettkampf_anmeldungen');
+        $tst  = DB::tbl('training_wettkampf_status');
+
+        // ── 1) Kandidaten (serie_id, jahr, benutzer_id) sammeln ──────────────
+        // a) explizit gesetzter Status „angemeldet" (jahresgenau)
+        $kand   = [];   // "serie|jahr|user" => [serie_id, jahr, benutzer_id]
+        $statusMap = []; // "serie|jahr|user" => status
+        foreach (DB::fetchAll("SELECT serie_id, jahr, benutzer_id, status FROM `$tst`") as $r) {
+            $k = $r['serie_id'] . '|' . $r['jahr'] . '|' . $r['benutzer_id'];
+            $statusMap[$k] = $r['status'];
+            if ($r['status'] === 'angemeldet') {
+                $kand[$k] = [(int)$r['serie_id'], (int)$r['jahr'], (int)$r['benutzer_id']];
+            }
+        }
+
+        // b) Disziplin-Anmeldungen (kein Jahr in der Tabelle → Jahr aus naechstes_datum,
+        //    sonst laufendes Jahr). Endstatus im selben Jahr hebt sie auf.
+        $final   = ['absolviert', 'nicht_angetreten', 'findet_nicht_statt', 'passt_nicht'];
+        $diszMap = []; // "serie|jahr|user" => [disziplin, …]
+        $anmRows = DB::fetchAll(
+            "SELECT wp.serie_id, wp.naechstes_datum, twa.benutzer_id, twa.disziplin, twa.bemerkung
+               FROM `$twa` twa JOIN `$twp` wp ON wp.id = twa.planung_id"
+        );
+        foreach ($anmRows as $r) {
+            $jahr = $r['naechstes_datum'] ? (int)substr((string)$r['naechstes_datum'], 0, 4) : (int)date('Y');
+            $k    = $r['serie_id'] . '|' . $jahr . '|' . $r['benutzer_id'];
+            $diszMap[$k][] = ['disziplin' => $r['disziplin'], 'bemerkung' => $r['bemerkung']];
+            if (!isset($kand[$k]) && !in_array($statusMap[$k] ?? '', $final, true)) {
+                $kand[$k] = [(int)$r['serie_id'], $jahr, (int)$r['benutzer_id']];
+            }
+        }
+        // Kandidaten mit Endstatus entfernen (b) kann sie über a) nicht überschreiben,
+        // aber ein zwischenzeitlich gesetzter Endstatus muss immer gewinnen)
+        foreach (array_keys($kand) as $k) {
+            if (in_array($statusMap[$k] ?? '', $final, true)) unset($kand[$k]);
+        }
+        if (!$kand) jsonOk([]);
+
+        $serieIds = array_values(array_unique(array_map(fn($x) => $x[0], $kand)));
+        $userIds  = array_values(array_unique(array_map(fn($x) => $x[2], $kand)));
+        $sIn      = implode(',', array_map('intval', $serieIds));
+        $uIn      = implode(',', array_map('intval', $userIds));
+
+        // ── 2) Stammdaten der Serien + Planung ───────────────────────────────
+        $serien = [];
+        foreach (DB::fetchAll("SELECT * FROM `$sTbl` WHERE id IN ($sIn)") as $s) $serien[(int)$s['id']] = $s;
+        $planung = [];
+        foreach (DB::fetchAll("SELECT serie_id, naechstes_datum, abgesagt_datum FROM `$twp` WHERE serie_id IN ($sIn)") as $p) {
+            $planung[(int)$p['serie_id']] = $p;
+        }
+
+        // Veranstaltungen der Serien nach Jahr (für Datum, Ort und Verknüpfung)
+        $vByJahr    = [];  // serie_id => jahr => row
+        $letztes    = [];  // serie_id => letztes bekanntes Datum
+        $letzterOrt = [];  // serie_id => ['ort'=>…, 'ort_id'=>…] der letzten Austragung
+        foreach (DB::fetchAll(
+            "SELECT serie_id, YEAR(datum) AS jahr, MAX(id) AS veranstaltung_id, MAX(datum) AS datum,
+                    MAX(ort) AS ort, MAX(ort_id) AS ort_id, MAX(name) AS name
+               FROM `$vTbl` WHERE serie_id IN ($sIn) AND geloescht_am IS NULL
+              GROUP BY serie_id, YEAR(datum)"
+        ) as $v) {
+            $vByJahr[(int)$v['serie_id']][(int)$v['jahr']] = $v;
+            $sid = (int)$v['serie_id'];
+            if (!isset($letztes[$sid]) || $v['datum'] > $letztes[$sid]) {
+                $letztes[$sid]   = $v['datum'];
+                $letzterOrt[$sid] = ['ort' => $v['ort'], 'ort_id' => $v['ort_id']];
+            }
+        }
+
+        // ── 3) Benutzer → Athlet auflösen ────────────────────────────────────
+        $benutzer = [];
+        foreach (DB::fetchAll(
+            "SELECT b.id, b.benutzername, b.athlet_id, a.vorname, a.nachname, a.geschlecht, a.geburtsjahr
+               FROM `$bTbl` b LEFT JOIN `$aTbl` a ON a.id = b.athlet_id
+              WHERE b.id IN ($uIn)"
+        ) as $b) $benutzer[(int)$b['id']] = $b;
+
+        // ── 4) Bereits erfasste Ergebnisse (Athlet + Serie + Jahr) ───────────
+        $ergTbls = $unified ? [DB::tbl('ergebnisse')] : array_values(array_unique(array_map([DB::class, 'tbl'], $_sys)));
+        $erfasst = []; // "athlet|serie|jahr" => true
+        foreach ($ergTbls as $et) {
+            try {
+                foreach (DB::fetchAll(
+                    "SELECT DISTINCT e.athlet_id, v.serie_id, YEAR(v.datum) AS jahr
+                       FROM `$et` e JOIN `$vTbl` v ON v.id = e.veranstaltung_id
+                      WHERE v.serie_id IN ($sIn) AND e.geloescht_am IS NULL AND v.geloescht_am IS NULL"
+                ) as $e) $erfasst[$e['athlet_id'] . '|' . $e['serie_id'] . '|' . $e['jahr']] = true;
+            } catch (\Exception $ignored) {}
+        }
+        // Externe Ergebnisse (athlet_pb) zählen ebenfalls als erfasst
+        try {
+            foreach (DB::fetchAll(
+                "SELECT DISTINCT p.athlet_id, v.serie_id, YEAR(v.datum) AS jahr
+                   FROM " . DB::tbl('athlet_pb') . " p JOIN `$vTbl` v ON v.id = p.veranstaltung_id
+                  WHERE v.serie_id IN ($sIn) AND v.geloescht_am IS NULL"
+            ) as $e) $erfasst[$e['athlet_id'] . '|' . $e['serie_id'] . '|' . $e['jahr']] = true;
+        } catch (\Exception $ignored) {}
+
+        // ── 5) Pro Serie+Jahr zusammenbauen ──────────────────────────────────
+        $gruppen = [];
+        foreach ($kand as $k => $c) {
+            [$sid, $jahr, $uid] = $c;
+            if (!isset($serien[$sid])) continue;
+            $ath = $benutzer[$uid] ?? null;
+            if (!$ath) continue;
+            // Ergebnis schon da → diese Person ist erledigt
+            if ($ath['athlet_id'] && isset($erfasst[$ath['athlet_id'] . '|' . $sid . '|' . $jahr])) continue;
+
+            $gruppen[$sid . '|' . $jahr]['serie_id'] = $sid;
+            $gruppen[$sid . '|' . $jahr]['jahr']     = $jahr;
+            $gruppen[$sid . '|' . $jahr]['athleten'][] = [
+                'benutzer_id'  => $uid,
+                'benutzername' => $ath['benutzername'],
+                'athlet_id'    => $ath['athlet_id'] ? (int)$ath['athlet_id'] : null,
+                'name'         => trim(($ath['vorname'] ?? '') . ' ' . ($ath['nachname'] ?? '')) ?: $ath['benutzername'],
+                // Anzeigeform der Athletensuche im Bulk-Formular („Nachname, Vorname")
+                'name_nv'      => trim(($ath['nachname'] ?? '') . (($ath['vorname'] ?? '') !== '' ? ', ' . $ath['vorname'] : '')) ?: $ath['benutzername'],
+                'geschlecht'   => $ath['geschlecht'] ?? null,
+                'geburtsjahr'  => $ath['geburtsjahr'] ? (int)$ath['geburtsjahr'] : null,
+                'status'       => $statusMap[$k] ?? 'angemeldet',
+                'disziplinen'  => $diszMap[$k] ?? [],
+            ];
+        }
+
+        foreach ($gruppen as $g) {
+            $sid  = $g['serie_id'];
+            $jahr = $g['jahr'];
+            $s    = $serien[$sid];
+            $p    = $planung[$sid] ?? null;
+            $v    = $vByJahr[$sid][$jahr] ?? null;
+
+            // Termin bestimmen: Veranstaltung im Statistikportal > Admin-Termin > Prognose
+            $datum   = null;
+            $quelle  = 'prognose';
+            if ($v) { $datum = $v['datum']; $quelle = 'veranstaltung'; }
+            elseif (!empty($p['naechstes_datum']) && str_starts_with((string)$p['naechstes_datum'], (string)$jahr)) {
+                $datum = $p['naechstes_datum']; $quelle = 'planung';
+            } else {
+                $ref  = $s['referenz_datum'] ?? null;
+                $base = $letztes[$sid] ?? null;
+                if ($ref && (!$base || $ref > $base)) $base = $ref;
+                $datum = owPredictDate($base, $jahr);
+            }
+            if (!$datum) continue;
+            if (!empty($p['abgesagt_datum']) && $p['abgesagt_datum'] === $datum) continue;  // abgesagt
+            if ($datum >= $heute || $datum < $ab) continue;                                  // nur vergangene im Zeitfenster
+
+            usort($g['athleten'], fn($x, $y) => strcmp($x['name'], $y['name']));
+            $out[] = [
+                'serie_id'         => $sid,
+                'serie_name'       => $s['name'],
+                'jahr'             => $jahr,
+                'datum'            => $datum,
+                'datum_quelle'     => $quelle,
+                'veranstaltung_id' => $v ? (int)$v['veranstaltung_id'] : null,
+                'name'             => $v['name'] ?? $s['name'],
+                'ort'              => $v['ort'] ?? ($letzterOrt[$sid]['ort'] ?? null),
+                'ort_id'           => (int)($v['ort_id'] ?? $letzterOrt[$sid]['ort_id'] ?? 0) ?: null,
+                'url'              => $s['url'] ?? null,
+                'athleten'         => array_values($g['athleten']),
+            ];
+        }
+        usort($out, fn($x, $y) => strcmp($y['datum'], $x['datum']));
+    } catch (\Exception $e) {
+        // training_*-Tabellen nicht vorhanden (Statistikportal ohne Trainingsportal) → leer
+        $out = [];
+    }
+
+    jsonOk($out);
+}
+
+// ============================================================
 // VERANSTALTUNGEN
 // ============================================================
 // Admin-Übersicht: alle Veranstaltungen (inkl. ungenehmigter), ohne Detail-Ergebnisse

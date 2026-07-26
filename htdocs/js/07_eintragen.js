@@ -304,6 +304,7 @@ function renderEintragen() {
       '<div class="panel" style="padding:24px">' +
         '<div class="panel-title" style="margin-bottom:4px">&#x1F4CB; Bulk-Eintragen</div>' +
         '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Mehrere Ergebnisse auf einmal eintragen &ndash; alle geh&ouml;ren zur selben Veranstaltung.</div>' +
+        '<div id="bk-offene-wk"></div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
           '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Seltec/Track&amp;Field PDF hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
@@ -413,6 +414,7 @@ function renderEintragen() {
   document.getElementById('main-content').innerHTML = tabHtml + content;
   _bkLoadSerien();
   _bkLoadOrte();
+  _bkLoadOffeneWK();
   _bkSelectedOrtId = null;
 
   if (isBulk) {
@@ -5714,4 +5716,172 @@ function rrtdConfirm() {
   });
   closeModal();
   window._rrtdResolve(dates);
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Offene Wettkämpfe aus dem Trainingsportal
+// ---------------------------------------------------------------
+// Zeigt oben auf der Bulk-Seite alle Wettkämpfe, für die sich im
+// Trainingsportal (https://training.tus-oedt.de/#wettkampfplanung)
+// Athlet:innen angemeldet haben, deren Termin vorbei ist und für die
+// hier noch kein Ergebnis erfasst wurde. Ein Klick füllt Veranstaltung
+// und Athletenzeilen vor.
+// ═══════════════════════════════════════════════════════════════
+
+var _owItems = [];
+
+function _owEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function _bkLoadOffeneWK() {
+  var box = document.getElementById('bk-offene-wk');
+  if (!box) return;
+  var r = await apiGet('offene-wettkaempfe');
+  _owItems = (r && r.ok && Array.isArray(r.data)) ? r.data : [];
+  box = document.getElementById('bk-offene-wk');
+  if (!box) return;
+  if (!_owItems.length) { box.innerHTML = ''; return; }
+
+  var html =
+    '<div style="margin-bottom:18px;border:1px solid var(--border);border-left:3px solid var(--primary);border-radius:8px;padding:14px 16px;background:var(--surf2)">' +
+      '<div style="font-size:13px;font-weight:700;margin-bottom:2px">&#x1F4CC; Ergebnisse ausstehend</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">' +
+        _owItems.length + ' Wettkampf' + (_owItems.length !== 1 ? 'e' : '') +
+        ' mit Anmeldungen aus dem Trainingsportal, aber noch ohne Ergebnis.' +
+      '</div>';
+
+  for (var i = 0; i < _owItems.length; i++) {
+    var it = _owItems[i];
+    var athHtml = it.athleten.map(function(a) {
+      var disz = (a.disziplinen || []).map(function(d) { return d.disziplin; }).filter(Boolean);
+      return '<span style="display:inline-block;padding:3px 9px;border-radius:12px;background:var(--surface);' +
+        'border:1px solid var(--border);font-size:12px;margin:2px 4px 2px 0"' +
+        (a.athlet_id ? '' : ' title="Kein Athletenprofil verkn&uuml;pft"') + '>' +
+        (a.athlet_id ? '' : '&#x26A0;&#xFE0F; ') + _owEsc(a.name) +
+        (disz.length ? '<span style="color:var(--text2)"> &middot; ' + _owEsc(disz.join(', ')) + '</span>' : '') +
+        '</span>';
+    }).join('');
+
+    html +=
+      '<div style="display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;' +
+        'padding:10px 0' + (i ? ';border-top:1px solid var(--border)' : '') + '">' +
+        '<div style="flex:1;min-width:240px">' +
+          '<div style="font-size:14px;font-weight:600">' + _owEsc(it.name || it.serie_name) + '</div>' +
+          '<div style="font-size:12px;color:var(--text2);margin:2px 0 6px">' +
+            formatDate(it.datum) +
+            (it.datum_quelle === 'prognose' ? ' <span title="Termin gesch&auml;tzt – bitte pr&uuml;fen">(gesch&auml;tzt)</span>' : '') +
+            (it.ort ? ' &middot; ' + _owEsc(it.ort) : '') +
+            (it.veranstaltung_id ? ' &middot; Veranstaltung bereits angelegt' : '') +
+          '</div>' +
+          '<div>' + athHtml + '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:6px;align-items:center">' +
+          (it.url ? '<a href="' + _owEsc(it.url) + '" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" title="Website der Veranstaltung">&#x1F310;</a>' : '') +
+          '<a href="#veranstaltungen/serie/' + it.serie_id + '" class="btn btn-ghost btn-sm" title="Zur Serie">&#x1F4CA;</a>' +
+          '<button class="btn btn-primary btn-sm" onclick="owPrefill(' + i + ')">&#x270D;&#xFE0F; Ergebnisse eintragen</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  box.innerHTML = html + '</div>';
+}
+
+// Disziplin einer Bulk-Zeile über den Anzeigenamen setzen.
+function _owSetDisz(tr, name) {
+  if (!tr || !name) return;
+  var n = String(name).toLowerCase().trim();
+  var list = state.disziplinen || [];
+  var hit = null;
+  for (var i = 0; i < list.length; i++) {
+    if ((list[i].disziplin || '').toLowerCase().trim() === n) { hit = list[i]; break; }
+  }
+  var sel = tr.querySelector('.bk-disz');
+  var inp = tr.querySelector('.bk-disz-search');
+  if (hit && sel) {
+    var mid = hit.id || hit.mapping_id || '';
+    sel.value = String(mid || hit.disziplin);
+    if (mid) sel.setAttribute('data-mid', String(mid));
+    if (inp) inp.value = hit.disziplin;
+  } else if (inp) {
+    // Unbekannte Disziplin (z.B. Admin-Extra aus dem Trainingsportal) → nur als Text
+    inp.value = name;
+  }
+}
+
+// Athlet einer Bulk-Zeile aus den Trainingsportal-Daten setzen.
+// Unabhängig von state.athleten, damit auch inaktive Athlet:innen funktionieren.
+function _owSetAthlet(tr, a) {
+  var hidden = tr.querySelector('.bk-athlet');
+  var search = tr.querySelector('.bk-athlet-search');
+  if (search) search.value = a.name_nv || a.name || '';
+  if (!hidden || !a.athlet_id) return;
+  hidden.value = a.athlet_id;
+  hidden.dataset.g    = a.geschlecht || '';
+  hidden.dataset.gebj = a.geburtsjahr ? String(a.geburtsjahr) : '';
+  var idx = tr.id ? parseInt(tr.id.replace('bkrow-', '')) : -1;
+  if (idx >= 0) bkUpdateAK(hidden, idx);
+}
+
+function owPrefill(i) {
+  var it = _owItems[i];
+  if (!it) return;
+
+  // ── Veranstaltung ──
+  var datEl = document.getElementById('bk-datum');
+  if (datEl) datEl.value = it.datum;
+
+  if (it.veranstaltung_id) {
+    // Veranstaltung existiert schon → bestehende auswählen
+    bkToggleVeranst('best');
+    _bkSelectedVeranst = { id: it.veranstaltung_id, name: it.name || it.serie_name, datum: it.datum, ort: it.ort };
+    var vInp = document.getElementById('bk-veranst-search');
+    if (vInp) vInp.value = _bkVeranstLabel(_bkSelectedVeranst);
+  } else {
+    bkToggleVeranst('neu');
+    var nEl = document.getElementById('bk-evname');
+    if (nEl) nEl.value = it.name || it.serie_name || '';
+    if (it.ort) _bkAutoSetOrt(it.ort);
+    if (it.ort_id) {
+      _bkSelectedOrtId = it.ort_id;
+      var oEl = document.getElementById('bk-ort');
+      var oName = _bkOrtNameById(it.ort_id);
+      if (oEl && oName) oEl.value = oName;
+    }
+    var qEl = document.getElementById('bk-quelle');
+    if (qEl && it.url && !qEl.value) qEl.value = it.url;
+    bkSerieSetById(it.serie_id);
+  }
+
+  // ── Zeilen: eine je Athlet × angemeldeter Disziplin ──
+  var tbody = document.getElementById('bulk-rows');
+  if (tbody) tbody.innerHTML = '';
+  var plan = [];
+  (it.athleten || []).forEach(function(a) {
+    var disz = (a.disziplinen || []).map(function(d) { return d.disziplin; }).filter(Boolean);
+    if (disz.length) disz.forEach(function(d) { plan.push({ a: a, d: d }); });
+    else plan.push({ a: a, d: null });
+  });
+  if (!plan.length) plan.push({ a: null, d: null });
+
+  plan.forEach(function(p) {
+    bulkAddRow();
+    var tb = document.getElementById('bulk-rows');
+    var tr = tb && tb.lastElementChild;
+    if (!tr) return;
+    if (p.a) _owSetAthlet(tr, p.a);
+    if (p.d) _owSetDisz(tr, p.d);
+  });
+
+  bkSyncDatum(it.datum);
+
+  var fehlend = (it.athleten || []).filter(function(a) { return !a.athlet_id; }).length;
+  notify(
+    plan.length + ' Zeile' + (plan.length !== 1 ? 'n' : '') + ' vorbelegt' +
+    (fehlend ? ' – ' + fehlend + ' ohne verknüpftes Athletenprofil' : '') + '.',
+    fehlend ? 'err' : 'ok'
+  );
+  var paste = document.getElementById('bk-paste-area');
+  if (paste) paste.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
