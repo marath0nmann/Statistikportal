@@ -1,3 +1,6 @@
+## v1386
+- Fix: Badge „Benutzer ohne Athletenprofil" zählt jetzt auch Benutzer mit verwaister `athlet_id` (Athlet gelöscht → keine Zuordnung mehr auflösbar), nicht nur solche mit `athlet_id = NULL`. Neuer Helper `_userOhneAthlet()`.
+
 ## v1385
 - Admin → Benutzer: Notification-Badge zeigt jetzt die Anzahl aktiver Benutzer **ohne zugeordnetes Athletenprofil** (kombiniert mit ausstehenden Registrierungen).
 - Top-Bar „Admin": Badge summiert nun **alle** Notification-Badges (Anträge + Registrierungen + Veranstaltungs-Freigaben + Papierkorb + Benutzer ohne Athletenprofil) statt nur einiger davon.

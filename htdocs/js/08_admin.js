@@ -346,10 +346,17 @@ async function _ladeAntraegeBadge() {
     if (currentUser.rolle === 'admin') {
       var _rb = await apiGet('benutzer');
       var _bl = _rb && _rb.ok ? (_rb.data.benutzer || _rb.data || []) : [];
-      window._adminUsersOhneAthlet = _bl.filter(function(u){ return u.aktiv && !u.athlet_id; }).length;
+      window._adminUsersOhneAthlet = _bl.filter(function(u){ return u.aktiv && _userOhneAthlet(u); }).length;
     }
   } catch(e) {}
   _patchAdminNavBadge();
+}
+
+// Benutzer gilt als „ohne zugeordnetes Athletenprofil", wenn keine athlet_id
+// gesetzt ist ODER die athlet_id auf keinen (mehr existierenden) Athleten auflöst
+// (dangling – Athlet gelöscht). Dann ist auch athlet_name leer.
+function _userOhneAthlet(u) {
+  return !u.athlet_id || !String(u.athlet_name || '').trim();
 }
 
 // Benutzer-Subtab + kombinierten Top-Bar-„Admin"-Badge patchen –
@@ -448,7 +455,7 @@ async function renderAdmin() {
   var benutzer = r.data.benutzer || r.data; // Rückwärtskompatibel
   state._adminAthleten = r.data.athleten || [];
   // Benutzer ohne zugeordnetes Athletenprofil zählen (aktive Benutzer) → Badge
-  window._adminUsersOhneAthlet = benutzer.filter(function(u){ return u.aktiv && !u.athlet_id; }).length;
+  window._adminUsersOhneAthlet = benutzer.filter(function(u){ return u.aktiv && _userOhneAthlet(u); }).length;
 
   // Rollen laden (inkl. Trainingsportal-Rollen wie trainer) für Dropdowns + rolleLabel()
   try {
