@@ -5738,8 +5738,17 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     $serienWhere = '';
     $serienParams = [];
     if ($suche !== '') {
-        $serienWhere = " WHERE s.name LIKE ? OR s.kuerzel LIKE ?";
+        $serienWhere = " WHERE (s.name LIKE ? OR s.kuerzel LIKE ?";
         $serienParams = ['%'.$suche.'%', '%'.$suche.'%'];
+        // Serien der gefundenen Veranstaltungen immer mitliefern (für Serien-Badge)
+        $trefferSerien = [];
+        foreach ($veranst as $vv) {
+            if (!empty($vv['serie_id'])) $trefferSerien[(int)$vv['serie_id']] = true;
+        }
+        if ($trefferSerien) {
+            $serienWhere .= " OR s.id IN (" . implode(',', array_keys($trefferSerien)) . ")";
+        }
+        $serienWhere .= ")";
     }
     $vTbl2  = DB::tbl('veranstaltungen');
     $sTbl2  = DB::tbl('veranstaltung_serien');

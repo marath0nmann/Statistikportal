@@ -1,3 +1,6 @@
+## v1396
+- Fix: Bei der Veranstaltungssuche fehlte manchmal das Serien-Badge („🔄 Name der regelmäßigen Veranstaltung"). Die Serienliste wurde ausschließlich nach dem Suchbegriff gefiltert – passte der Begriff nur auf den Veranstaltungsnamen, nicht auf den Seriennamen, fand das Frontend die Serie nicht. Jetzt werden zusätzlich immer die Serien der gefundenen Veranstaltungen mitgeliefert.
+
 ## v1395
 - Eintragen: Externe PDF-Links werden jetzt direkt unterstützt – eine `.pdf`-URL im Textarea-Feld wird erkannt und über einen serverseitigen Proxy (`api/pdf-fetch`) geladen und geparst (Seltec/Track&Field-Format). Kein lokales Hochladen oder Herunterladen nötig.
 
