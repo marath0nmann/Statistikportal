@@ -7108,6 +7108,41 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
     jsonOk($veranst);
 }
 
+// ── PDF-Proxy: externe PDF-URL serverseitig laden (CORS-Bypass) ──────────────
+if ($res === 'pdf-fetch' && $method === 'GET') {
+    Auth::requireLogin();
+    $url = trim($_GET['url'] ?? '');
+    if (!$url || !preg_match('/^https?:\/\/.+\.pdf(\?[^#]*)?$/i', $url))
+        jsonErr('Ungültige PDF-URL. Nur direkte .pdf-Links werden unterstützt.', 400);
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS      => 5,
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; StatistikportalBot/1.0)',
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_BUFFERSIZE     => 131072,
+    ]);
+    $data = curl_exec($ch);
+    $info = curl_getinfo($ch);
+    curl_close($ch);
+
+    if ($data === false || ($info['http_code'] ?? 0) !== 200)
+        jsonErr('PDF konnte nicht geladen werden (HTTP ' . ($info['http_code'] ?? 0) . ').', 502);
+    if (strlen($data) > 20 * 1024 * 1024)
+        jsonErr('PDF zu groß (max. 20 MB).', 413);
+    if (substr($data, 0, 4) !== '%PDF')
+        jsonErr('Keine gültige PDF-Datei.', 422);
+
+    header('Content-Type: application/pdf');
+    header('Content-Length: ' . strlen($data));
+    header('Cache-Control: no-store');
+    echo $data;
+    exit;
+}
+
 jsonErr('Unbekannte Route.', 404);
 
 } catch (Throwable $e) {

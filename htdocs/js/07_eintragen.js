@@ -307,7 +307,7 @@ function renderEintragen() {
         '<div id="bk-offene-wk"></div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
-          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Seltec/Track&amp;Field PDF hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;Seltec PDF URL: https://example.com/ergebnisse.pdf&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Seltec/Track&amp;Field PDF hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
             '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
             '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
@@ -1325,6 +1325,7 @@ function bulkDetectUrl(text) {
   if (/^https?:\/\/evenementen\.uitslagen\.nl\//i.test(t)) return 'evenementen';
   if (/^https?:\/\/ergebnisse\.leichtathletik\.de\//i.test(t)) return 'leichtathletik';
   if (/^https?:\/\/(www\.)?acn-timing\.com/i.test(t)) return 'acn';
+  if (/^https?:\/\/.+\.pdf(\?[^#]*)?$/i.test(t))      return 'pdf';
   // RaceResult White-Label (eigene Domain, aber RRPublish): /{id}/results oder RR-Hash #N_HEX
   // z.B. https://portal.run-timing.de/977/results#8_D13BA9 → echte RR-Event-ID wird serverseitig aufgelöst
   if (/^https?:\/\//i.test(t) && (/\/\d+\/results\b/i.test(t) || /#\d+_[0-9A-Fa-f]{4,}/.test(t))) return 'raceresult';
@@ -1343,8 +1344,9 @@ function bulkPasteInput() {
     var srcText = urlType === 'raceresult'      ? '🌍︎ RaceResult' :
                   urlType === 'mikatiming'      ? '⌛︎ MikaTiming' :
                   urlType === 'leichtathletik'  ? '🏃︎ leichtathletik.de' :
-        urlType === 'acn'            ? '🇳🇱 ACN Timing' :
-                  urlType === 'evenementen'    ? '🇳🇱 evenementen.uitslagen.nl' : '🇳🇱 uitslagen.nl';
+                  urlType === 'acn'             ? '🇳🇱 ACN Timing' :
+                  urlType === 'evenementen'     ? '🇳🇱 evenementen.uitslagen.nl' :
+                  urlType === 'pdf'             ? '📄 Seltec/Track&Field PDF (URL)' : '🇳🇱 uitslagen.nl';
     if (srcLabel) srcLabel.textContent = srcText;
     if (statusEl) statusEl.textContent = '';
   } else {
@@ -1365,7 +1367,28 @@ async function bulkImportUrl() {
   var kat = ((document.getElementById('bk-import-kat') || {}).value || '').trim();
   var statusEl = document.getElementById('bk-import-status');
   var urlType = bulkDetectUrl(raw);
-  if (!urlType || !kat) return;
+  if (!urlType) return;
+
+  // PDF-URL: kein Kat-Selector erforderlich – direkt über Proxy laden
+  if (urlType === 'pdf') {
+    window._bkLastImportUrl = raw;
+    var einlesenBtn = document.getElementById('bk-einlesen-btn');
+    if (einlesenBtn) einlesenBtn.style.display = 'none';
+    if (statusEl) { statusEl.style.display = 'inline-flex'; statusEl.textContent = '⏳ Lade PDF…'; }
+    var _quelleElPdf = document.getElementById('bk-quelle');
+    if (_quelleElPdf && !_quelleElPdf.value) _quelleElPdf.value = raw;
+    _bkDebugInit(raw, 'Seltec PDF (URL)', '');
+    try {
+      await bulkImportFromSeltecPdfUrl(raw, statusEl);
+    } catch(e) {
+      if (statusEl) statusEl.textContent = '❌ ' + e.message;
+    } finally {
+      if (einlesenBtn) einlesenBtn.style.display = '';
+    }
+    return;
+  }
+
+  if (!kat) return;
 
   // Einlesen-Button ausblenden, Status-Button anzeigen
   window._bkLastImportUrl = raw; // für "Schlechten Import melden"
@@ -1377,7 +1400,9 @@ async function bulkImportUrl() {
   }
   var _bkQuelle = urlType === 'raceresult'     ? 'RaceResult' :
                   urlType === 'mikatiming'     ? 'MikaTiming' :
-                  urlType === 'leichtathletik' ? 'leichtathletik.de' : urlType === 'acn' ? 'ACN Timing' : urlType === 'evenementen' ? 'evenementen.uitslagen.nl' : 'uitslagen.nl';
+                  urlType === 'leichtathletik' ? 'leichtathletik.de' :
+                  urlType === 'acn'            ? 'ACN Timing' :
+                  urlType === 'evenementen'    ? 'evenementen.uitslagen.nl' : 'uitslagen.nl';
 
   // Datenquelle-Feld mit der eingelesenen URL vorbelegen
   var _quelleEl = document.getElementById('bk-quelle');
@@ -1400,8 +1425,6 @@ async function bulkImportUrl() {
       await bulkImportFromEvenementenUits(raw, kat, statusEl);
     } else if (urlType === 'acn') {
       await bulkImportFromAcn(raw, kat, statusEl);
-    } else if (urlType === 'leichtathletik') {
-      await bulkImportFromLA(raw, kat, statusEl);
     }
   } catch(e) {
     if (statusEl) statusEl.textContent = '❌ ' + e.message;
@@ -2970,6 +2993,29 @@ async function bulkImportFromSeltecPdf(file, statusEl) {
 
     if (statusEl) statusEl.textContent = '⏳ Lese PDF…';
     var arrayBuffer = await file.arrayBuffer();
+    await _seltecProcessArrayBuffer(arrayBuffer, file.name, pdfjs, statusEl);
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '❌ ' + e.message;
+    _bkDbgLine('Fehler', e.message);
+  } finally {
+    if (einlesenBtn) einlesenBtn.style.display = '';
+  }
+}
+
+async function bulkImportFromSeltecPdfUrl(url, statusEl) {
+  if (statusEl) statusEl.textContent = '⏳ Lade PDF.js…';
+  var pdfjs = await _seltecLoadPdfJs();
+  if (statusEl) statusEl.textContent = '⏳ Lade PDF…';
+  var resp = await fetch('api/?_route=pdf-fetch&url=' + encodeURIComponent(url));
+  if (!resp.ok) {
+    var errData = await resp.json().catch(function() { return {}; });
+    throw new Error(errData.fehler || 'HTTP ' + resp.status);
+  }
+  var arrayBuffer = await resp.arrayBuffer();
+  await _seltecProcessArrayBuffer(arrayBuffer, url, pdfjs, statusEl);
+}
+
+async function _seltecProcessArrayBuffer(arrayBuffer, sourceLabel, pdfjs, statusEl) {
     var pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
 
     if (statusEl) statusEl.textContent = '⏳ Extrahiere Text (' + pdf.numPages + ' Seiten)…';
@@ -3050,7 +3096,7 @@ async function bulkImportFromSeltecPdf(file, statusEl) {
     var evnEl = document.getElementById('bk-evname');
     if (evnEl && !evnEl.value && parsed.eventName) evnEl.value = parsed.eventName;
     var quelleEl = document.getElementById('bk-quelle');
-    if (quelleEl && !quelleEl.value) quelleEl.value = file.name;
+    if (quelleEl && !quelleEl.value) quelleEl.value = sourceLabel;
     if (parsed.location) {
       // Ersten Teil vor Komma als Ort (z.B. "Grefrath, Nierskampfbahn" → "Grefrath")
       _bkAutoSetOrt(parsed.location.split(',')[0].trim());
@@ -3118,13 +3164,6 @@ async function bulkImportFromSeltecPdf(file, statusEl) {
     });
 
     await bulkFillFromImport(bulkRows, statusEl);
-
-  } catch(e) {
-    if (statusEl) statusEl.textContent = '❌ ' + e.message;
-    _bkDbgLine('Fehler', e.message);
-  } finally {
-    if (einlesenBtn) einlesenBtn.style.display = '';
-  }
 }
 
 function _parseSeltecLines(lines) {
@@ -3533,12 +3572,14 @@ function bulkEinlesen() {
   if (!raw) return;
   var urlType = bulkDetectUrl(raw);
   if (urlType) {
-    var kat = ((document.getElementById('bk-import-kat') || {}).value || '');
-    if (!kat) {
-      notify('Bitte Importkategorie wählen.', 'err');
-      var katWrap = document.getElementById('bk-import-kat-wrap');
-      if (katWrap) katWrap.style.display = 'flex';
-      return;
+    if (urlType !== 'pdf') {
+      var kat = ((document.getElementById('bk-import-kat') || {}).value || '');
+      if (!kat) {
+        notify('Bitte Importkategorie wählen.', 'err');
+        var katWrap = document.getElementById('bk-import-kat-wrap');
+        if (katWrap) katWrap.style.display = 'flex';
+        return;
+      }
     }
     bulkImportUrl();
   } else {
@@ -3553,12 +3594,14 @@ function bulkParsePaste() {
   // URL-Erkennung: wenn URL → Import starten
   var urlType = bulkDetectUrl(raw.trim());
   if (urlType) {
-    var kat = ((document.getElementById('bk-import-kat') || {}).value || '');
-    if (!kat) {
-      notify('Bitte Importkategorie wählen.', 'err');
-      var katWrap = document.getElementById('bk-import-kat-wrap');
-      if (katWrap) katWrap.style.display = 'flex';
-      return;
+    if (urlType !== 'pdf') {
+      var kat = ((document.getElementById('bk-import-kat') || {}).value || '');
+      if (!kat) {
+        notify('Bitte Importkategorie wählen.', 'err');
+        var katWrap = document.getElementById('bk-import-kat-wrap');
+        if (katWrap) katWrap.style.display = 'flex';
+        return;
+      }
     }
     bulkImportUrl();
     return;

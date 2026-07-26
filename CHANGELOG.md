@@ -1,3 +1,6 @@
+## v1395
+- Eintragen: Externe PDF-Links werden jetzt direkt unterstützt – eine `.pdf`-URL im Textarea-Feld wird erkannt und über einen serverseitigen Proxy (`api/pdf-fetch`) geladen und geparst (Seltec/Track&Field-Format). Kein lokales Hochladen oder Herunterladen nötig.
+
 ## v1394
 - WhatsApp-Teilen: Platzierung jetzt immer als Zahl am Zeilenanfang, Medaille ans Zeilenende (`2. Simon Heiß (M35) – 39:57 🥈`). Vorher ersetzte das Emoji die Platzziffer, wodurch bei Podestplätzen die Nummer fehlte.
 
