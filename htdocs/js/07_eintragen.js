@@ -4624,6 +4624,15 @@ function rrBestDisz(rrName, diszList) {
     return m[2] === 'km' ? v * 1000 : v;
   }
 
+  // Benannte Standarddistanzen: "Halbmarathon" (~21,1 km) / "Marathon" (~42,2 km)
+  // haben in den System-Disziplinen keine Ziffern → per Distanz auf den Namen mappen
+  // (z.B. Contest "21,1 Km Rheinuferlauf" → Halbmarathon)
+  var _named = '';
+  if (numMeters !== null) {
+    if (numMeters >= 20900 && numMeters <= 21300) _named = 'halb';
+    else if (numMeters >= 41900 && numMeters <= 42500) _named = 'full';
+  }
+
   var best = ''; var bestScore = -1;
   for (var i = 0; i < diszList.length; i++) {
     var d = diszList[i]; var dl = d.toLowerCase(); var score = 0;
@@ -4636,6 +4645,9 @@ function rrBestDisz(rrName, diszList) {
         score += (dl === numKey) ? 20 : 15;
       }
     }
+    // Distanz → benannte Disziplin (Halbmarathon/Marathon ohne Ziffern)
+    if (_named === 'halb' && dl.indexOf('halbmara') >= 0) score += 20;
+    else if (_named === 'full' && dl.indexOf('marathon') >= 0 && dl.indexOf('halb') < 0) score += 20;
     // Einzelne Wörter matchen
     var words = q.split(/\s+/);
     for (var w = 0; w < words.length; w++) {
