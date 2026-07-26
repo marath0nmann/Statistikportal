@@ -1,3 +1,7 @@
+## v1385
+- Admin → Benutzer: Notification-Badge zeigt jetzt die Anzahl aktiver Benutzer **ohne zugeordnetes Athletenprofil** (kombiniert mit ausstehenden Registrierungen).
+- Top-Bar „Admin": Badge summiert nun **alle** Notification-Badges (Anträge + Registrierungen + Veranstaltungs-Freigaben + Papierkorb + Benutzer ohne Athletenprofil) statt nur einiger davon.
+
 ## v1384
 - Login: E-Mail-Code ist jetzt der automatische 2FA-Fallback. Benutzer ohne TOTP und ohne Passkey werden nicht mehr zum Setup gezwungen, sondern bekommen beim Login automatisch einen E-Mail-Code (der explizite Flag `email_login_bevorzugt` ist damit optional). Admin → Benutzer zeigt bei diesen Benutzern konsequent das „📧 E-Mail"-Badge in der 2FA-Spalte.
 

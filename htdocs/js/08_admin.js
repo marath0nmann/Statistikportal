@@ -336,32 +336,48 @@ async function _ladeAntraegeBadge() {
     var pkBtn = document.querySelector('.subtab[onclick*=\'papierkorb\']');
     if (pkBtn) pkBtn.innerHTML = '\uD83D\uDDD1\uFE0F Papierkorb' + _adminBadge(np);
   } catch(e) {}
-  // Admin-Nav-Button: kombinierter Badge (Registrierungen + Anträge)
-  try {
-    window._adminNavBadgeCount = (window._adminPendingAntraege || 0) + (window._adminPendingRegs || 0);
-    // Admin-Nav-Button direkt aktualisieren (KEIN buildNav() - das erzeugt einen Loop)
-    var _totalN = (window._adminPendingAntraege||0) + (window._adminPendingRegs||0);
-    var _adminBtns = document.querySelectorAll('#main-nav button, #mobile-nav-items button');
-    for (var _bi = 0; _bi < _adminBtns.length; _bi++) {
-      var _btn = _adminBtns[_bi];
-      if (_btn.getAttribute('onclick') && _btn.getAttribute('onclick').indexOf('admin') >= 0) {
-        var _lbl = _btn.querySelector('.nav-label');
-        if (_lbl) _lbl.innerHTML = 'Admin' + (_totalN > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _totalN + '</span>' : '');
-      }
-    }
-  } catch(e) {}
-  // Ausstehende Veranstaltungen: zum Antraege-Badge addieren
+  // Ausstehende Veranstaltungen (Freigabe)
   try {
     var _rfr = await apiGet('veranstaltungen?pending=1');
     window._adminPendingFreigabe = (_rfr && _rfr.ok && _rfr.data.pending) ? _rfr.data.pending.length : 0;
   } catch(e) {}
+  // Benutzer ohne zugeordnetes Athletenprofil (nur Admin sieht die Liste)
+  try {
+    if (currentUser.rolle === 'admin') {
+      var _rb = await apiGet('benutzer');
+      var _bl = _rb && _rb.ok ? (_rb.data.benutzer || _rb.data || []) : [];
+      window._adminUsersOhneAthlet = _bl.filter(function(u){ return u.aktiv && !u.athlet_id; }).length;
+    }
+  } catch(e) {}
+  _patchAdminNavBadge();
+}
+
+// Benutzer-Subtab + kombinierten Top-Bar-„Admin"-Badge patchen –
+// ohne buildNav()/Re-Render (das würde einen Loop erzeugen).
+function _patchAdminNavBadge() {
+  var ohne = (window._adminUsersOhneAthlet||0);
+  // Benutzer-Subtab: ausstehende Registrierungen + Benutzer ohne Athletenprofil
+  var benBtn = document.querySelector('.subtab[onclick*=\'benutzer\']');
+  if (benBtn) benBtn.innerHTML = '👥 Benutzer' + _adminBadge((window._adminPendingRegs||0) + ohne);
+  // Top-Bar „Admin": Summe ALLER Notification-Badges
+  var _total = (window._adminPendingAntraege||0) + (window._adminPendingRegs||0)
+    + (window._adminPendingFreigabe||0) + (window._adminPendingPapierkorb||0) + ohne;
+  window._adminNavBadgeCount = _total;
+  var _adminBtns = document.querySelectorAll('#main-nav button, #mobile-nav-items button');
+  for (var _bi = 0; _bi < _adminBtns.length; _bi++) {
+    var _btn = _adminBtns[_bi];
+    if (_btn.getAttribute('onclick') && _btn.getAttribute('onclick').indexOf('admin') >= 0) {
+      var _lbl = _btn.querySelector('.nav-label');
+      if (_lbl) _lbl.innerHTML = 'Admin' + (_total > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _total + '</span>' : '');
+    }
+  }
 }
 
 function adminSubtabs() {
   var t = state.adminTab || 'system';
   return '<div class="subtabs" style="margin-bottom:20px">' +
     '<button class="subtab' + (t==='system'         ? ' active' : '') + '" onclick="navAdmin(\'system\')">&#x1F5A5;&#xFE0E; System</button>' +
-    '<button class="subtab' + (t==='benutzer'       ? ' active' : '') + '" onclick="navAdmin(\'benutzer\')">&#x1F465; Benutzer' + _adminBadge(window._adminPendingRegs||0) + '</button>' +
+    '<button class="subtab' + (t==='benutzer'       ? ' active' : '') + '" onclick="navAdmin(\'benutzer\')">&#x1F465; Benutzer' + _adminBadge((window._adminPendingRegs||0)+(window._adminUsersOhneAthlet||0)) + '</button>' +
     '<button class="subtab' + (t==='disziplinen'    ? ' active' : '') + '" onclick="navAdmin(\'disziplinen\')">&#x1F3F7;&#xFE0F; Disziplinen</button>' +
     '<button class="subtab' + (t==='altersklassen'  ? ' active' : '') + '" onclick="navAdmin(\'altersklassen\')">&#x1F464; Altersklassen</button>' +
     '<button class="subtab' + (t==='meisterschaften'? ' active' : '') + '" onclick="navAdmin(\'meisterschaften\')">&#x1F3C5; Meisterschaften</button>' +
@@ -431,6 +447,8 @@ async function renderAdmin() {
   if (!r || !r.ok) return;
   var benutzer = r.data.benutzer || r.data; // Rückwärtskompatibel
   state._adminAthleten = r.data.athleten || [];
+  // Benutzer ohne zugeordnetes Athletenprofil zählen (aktive Benutzer) → Badge
+  window._adminUsersOhneAthlet = benutzer.filter(function(u){ return u.aktiv && !u.athlet_id; }).length;
 
   // Rollen laden (inkl. Trainingsportal-Rollen wie trainer) für Dropdowns + rolleLabel()
   try {

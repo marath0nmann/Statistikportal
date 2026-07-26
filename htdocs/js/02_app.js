@@ -2476,7 +2476,7 @@ function buildNav() {
     tabs.push({ id: 'eintragen', icon: '➕️', label: _eintLabel, rawLabel: true });
   }
   if (currentUser.rolle === 'admin') {
-    var _adminN = (window._adminPendingAntraege||0) + (window._adminPendingRegs||0) + (window._adminPendingFreigabe||0);
+    var _adminN = (window._adminPendingAntraege||0) + (window._adminPendingRegs||0) + (window._adminPendingFreigabe||0) + (window._adminPendingPapierkorb||0) + (window._adminUsersOhneAthlet||0);
     var _adminLabel = 'Admin' + (_adminN > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _adminN + '</span>' : '');
     tabs.push({ id: 'admin', icon: '⚙️️', label: _adminLabel, rawLabel: true });
   }
