@@ -2142,93 +2142,225 @@ function _veranstFormatResult(e) {
   return res;
 }
 
-function _veranstMarkdown(v) {
-  var url  = location.origin + location.pathname + '#veranstaltung/' + v.id;
-  var date = v.datum ? v.datum.split('-').reverse().join('.') : v.kuerzel?.split(' ')[0] || '';
-  var header = '## ' + (v.name || v.kuerzel) + '\n';
-  header += '\u{1F4CD} ' + date + (v.ort ? ' \u00b7 ' + v.ort : '') + '\n\n';
+// \u2500\u2500 Teilen: Bestleistungs-Badges pro Ergebnis \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Baut aus den Timeline-Events eine Map athlet_id|disziplin \u2192 ['PB', 'Vereinsrekord', \u2026]
+function _shareBuildBadgeMap(timelineEvents) {
+  var map = {};
+  (timelineEvents || []).forEach(function(ev) {
+    var key = ev.athlet_id + '|' + (ev.disziplin || '');
+    if (!map[key]) map[key] = [];
+    var lc = ev.label_club || null;
+    var lp = ev.label_pers || null;
+    if (lc) map[key].push(_rekLabel(lc));
+    if (lp) map[key].push(_rekLabel(lp));
+    if (!lc && !lp && ev.label) map[key].push(_rekLabel(ev.label));
+  });
+  // Duplikate entfernen
+  Object.keys(map).forEach(function(k) {
+    map[k] = map[k].filter(function(v, i, a) { return a.indexOf(v) === i; });
+  });
+  return map;
+}
 
-  // Group by disziplin
-  var ergs = v.ergebnisse || [];
+function _shareBadgesFor(badgeMap, e) {
+  var key = e.athlet_id + '|' + (e.disziplin || '');
+  return badgeMap[key] || [];
+}
+
+// Ergebnisse nach Disziplin gruppieren (gemeinsam f\u00fcr beide Formate)
+function _shareGroupByDisz(v) {
   var byDisz = {}, diszOrder = [];
-  ergs.forEach(function(e) {
+  (v.ergebnisse || []).forEach(function(e) {
     var d = e.disziplin || '?';
     if (!byDisz[d]) { byDisz[d] = []; diszOrder.push(d); }
     byDisz[d].push(e);
   });
+  if (typeof sortDisziplinen === 'function') sortDisziplinen(diszOrder);
+  return { byDisz: byDisz, order: diszOrder };
+}
 
-  var body = '';
-  diszOrder.forEach(function(disz) {
-    body += '### ' + disz + '\n';
-    body += '| Athlet | AK | Zeit | Platz AK |\n';
-    body += '|--------|----|----- |---------|\n';
-    byDisz[disz].forEach(function(e) {
-      var name = (e.athlet || '').split(', ').reverse().join(' ');
-      body += '| ' + name + ' | ' + (e.altersklasse || '') + ' | ' + _veranstFormatResult(e) + ' | ' + (e.ak_platzierung || '') + ' |\n';
+function _shareAthletName(e) {
+  var p = (e.athlet || '').split(', ');
+  return p.length >= 2 ? (p.slice(1).join(' ') + ' ' + p[0]).trim() : (e.athlet || '');
+}
+
+function _esc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// \u2500\u2500 WordPress-HTML (Gutenberg-kompatible Tabellen) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+function _veranstWordpress(v, badgeMap) {
+  var url   = location.origin + location.pathname + '#veranstaltung/' + v.id;
+  var date  = v.datum ? v.datum.split('-').reverse().join('.') : '';
+  var title = v.name || v.kuerzel || 'Veranstaltung';
+  var g     = _shareGroupByDisz(v);
+
+  var out = '<!-- wp:heading -->\n<h2>' + _esc(title) + '</h2>\n<!-- /wp:heading -->\n\n';
+
+  var meta = date + (v.ort ? ' &middot; ' + _esc(v.ort) : '');
+  out += '<!-- wp:paragraph -->\n<p><strong>' + meta + '</strong></p>\n<!-- /wp:paragraph -->\n\n';
+
+  g.order.forEach(function(disz) {
+    out += '<!-- wp:heading {"level":3} -->\n<h3>' + _esc(disz) + '</h3>\n<!-- /wp:heading -->\n\n';
+    out += '<!-- wp:table -->\n<figure class="wp-block-table"><table><thead><tr>' +
+           '<th>Platz AK</th><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Bestleistung</th>' +
+           '</tr></thead><tbody>\n';
+    g.byDisz[disz].forEach(function(e) {
+      var badges = _shareBadgesFor(badgeMap, e);
+      out += '<tr>' +
+        '<td>' + _esc(e.ak_platzierung || '') + '</td>' +
+        '<td>' + _esc(_shareAthletName(e)) + '</td>' +
+        '<td>' + _esc(e.altersklasse || '') + '</td>' +
+        '<td>' + _esc(_veranstFormatResult(e)) + '</td>' +
+        '<td>' + (badges.length ? '<strong>' + _esc(badges.join(', ')) + '</strong>' : '') + '</td>' +
+        '</tr>\n';
     });
-    body += '\n';
+    out += '</tbody></table></figure>\n<!-- /wp:table -->\n\n';
   });
 
-  return header + body + '\u{1F517} [' + (v.name || v.kuerzel) + '](' + url + ')';
+  // Links: Statistikportal + externe Ergebnisseite
+  out += '<!-- wp:paragraph -->\n<p>' +
+         '<a href="' + _esc(url) + '" target="_blank" rel="noopener">Alle Ergebnisse im Statistikportal</a>';
+  if (v.datenquelle) {
+    out += '<br><a href="' + _esc(v.datenquelle) + '" target="_blank" rel="noopener">Offizielle Ergebnisliste des Veranstalters</a>';
+  }
+  out += '</p>\n<!-- /wp:paragraph -->';
+  return out;
+}
+
+// \u2500\u2500 WhatsApp-Text (Unicode-Formatierung, *fett*) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+function _veranstWhatsapp(v, badgeMap) {
+  var url   = location.origin + location.pathname + '#veranstaltung/' + v.id;
+  var date  = v.datum ? v.datum.split('-').reverse().join('.') : '';
+  var title = v.name || v.kuerzel || 'Veranstaltung';
+  var g     = _shareGroupByDisz(v);
+
+  var out = '*' + title + '*\n';
+  out += '\ud83d\udcc5 ' + date + (v.ort ? ' \u00b7 \ud83d\udccd ' + v.ort : '') + '\n';
+
+  g.order.forEach(function(disz) {
+    out += '\n*' + disz + '*\n';
+    g.byDisz[disz].forEach(function(e) {
+      var badges = _shareBadgesFor(badgeMap, e);
+      var platz  = e.ak_platzierung ? _shareMedal(e.ak_platzierung) + ' ' : '\u2022 ';
+      var line   = platz + _shareAthletName(e);
+      if (e.altersklasse) line += ' (' + e.altersklasse + ')';
+      line += ' \u2013 ' + _veranstFormatResult(e);
+      if (badges.length) line += '  \ud83c\udfc5 ' + badges.join(', ');
+      out += line + '\n';
+    });
+  });
+
+  out += '\n\ud83d\udd17 ' + url;
+  if (v.datenquelle) out += '\n\ud83d\udcca Offizielle Ergebnisse: ' + v.datenquelle;
+  return out;
+}
+
+function _shareMedal(platz) {
+  var p = parseInt(platz);
+  if (p === 1) return '\ud83e\udd47';
+  if (p === 2) return '\ud83e\udd48';
+  if (p === 3) return '\ud83e\udd49';
+  return p + '.';
 }
 
 async function shareVeranstaltung(vid) {
-  // Load veranstaltung data
-  var r = await apiGet('veranstaltungen?limit=1&offset=0&id=' + vid);
-  // veranstaltungen endpoint doesn't filter by id - find from list or use inline data
-  // Try to get from current rendered data
   var v = null;
-  // Search in the page's rendered veranst cards
   if (window._lastVeranstList) {
     v = window._lastVeranstList.find(function(x) { return x.id == vid; });
   }
   if (!v) {
-    // Fallback: load fresh
-    var r2 = await apiGet('veranstaltungen?limit=200&offset=0');
-    if (r2 && r2.ok) {
-      window._lastVeranstList = r2.data.veranst || [];
-      v = window._lastVeranstList.find(function(x) { return x.id == vid; });
-    }
+    var r2 = await apiGet('veranstaltungen?id=' + vid);
+    if (r2 && r2.ok) v = (r2.data.veranst || [])[0];
   }
   if (!v) { notify('Veranstaltung nicht gefunden.', 'err'); return; }
 
-  var url  = location.origin + location.pathname + '#veranstaltung/' + vid;
-  var md   = _veranstMarkdown(v);
-  var date = v.datum ? v.datum.split('-').reverse().join('.') : '';
+  // Bestleistungs-Events dieser Veranstaltung laden
+  var badgeMap = {};
+  var rT = await apiGet('dashboard?timeline_limit=200&tl_veranstaltung_id=' + vid);
+  if (rT && rT.ok && rT.data && rT.data.rekordeTimeline) {
+    badgeMap = _shareBuildBadgeMap(rT.data.rekordeTimeline);
+  }
+
+  window._shareWpText = _veranstWordpress(v, badgeMap);
+  window._shareWaText = _veranstWhatsapp(v, badgeMap);
+  var url = location.origin + location.pathname + '#veranstaltung/' + vid;
+
+  var tabBtn = 'padding:9px 16px;border:none;background:none;cursor:pointer;font-family:inherit;' +
+               'font-size:13px;font-weight:600;color:var(--text2);border-bottom:2px solid transparent';
 
   showModal(
-    '<h2 style="margin-bottom:16px">\u{1F517} Veranstaltung teilen' +
+    '<h2 style="margin-bottom:14px">\ud83d\udce4 Veranstaltung teilen' +
     ' <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
 
     '<div style="margin-bottom:16px">' +
       '<div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Direktlink</div>' +
       '<div style="display:flex;gap:8px;align-items:center">' +
-        '<input type="text" id="share-url-input" value="' + url.replace(/"/g,'&quot;') + '"' +
-          ' readonly style="flex:1;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;' +
+        '<input type="text" id="share-url-input" value="' + _esc(url) + '"' +
+          ' readonly style="flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;' +
           'background:var(--surf2);color:var(--text);font-size:13px;font-family:monospace"/>' +
-        '<button class="btn btn-primary btn-sm" onclick="' +
-          'navigator.clipboard.writeText(document.getElementById(\'share-url-input\').value).then(function(){' +
-          'var b=this;b.textContent=\'\\u2705 Kopiert!\';setTimeout(function(){b.textContent=\'Kopieren\'},2000)}.bind(this))"' +
-          '>Kopieren</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="_shareCopy(\'share-url-input\',this)">Kopieren</button>' +
       '</div>' +
     '</div>' +
 
-    '<div>' +
-      '<div style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Markdown</div>' +
-      '<textarea id="share-md-area" readonly style="width:100%;height:240px;box-sizing:border-box;padding:10px 12px;' +
+    '<div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:12px">' +
+      '<button id="share-tab-wp" style="' + tabBtn + ';color:var(--primary);border-bottom-color:var(--primary)" onclick="_shareTab(\'wp\')">\ud83d\udcdd WordPress</button>' +
+      '<button id="share-tab-wa" style="' + tabBtn + '" onclick="_shareTab(\'wa\')">\ud83d\udcac WhatsApp</button>' +
+    '</div>' +
+
+    '<div id="share-pane-wp">' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">' +
+        'Gutenberg-Bl\u00f6cke inkl. Bestleistungs-Spalte und Link zur offiziellen Ergebnisliste. ' +
+        'Im WordPress-Editor als <em>Code-Editor</em> einf\u00fcgen.' +
+      '</div>' +
+      '<textarea id="share-wp-area" readonly style="width:100%;height:250px;box-sizing:border-box;padding:10px 12px;' +
         'border:1.5px solid var(--border);border-radius:7px;background:var(--surf2);color:var(--text);' +
         'font-size:12px;font-family:monospace;resize:vertical;line-height:1.5">' +
-        md.replace(/</g,'&lt;').replace(/>/g,'&gt;') +
+        _esc(window._shareWpText) +
       '</textarea>' +
       '<div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">' +
-        '<button class="btn btn-ghost btn-sm" onclick="' +
-          'navigator.clipboard.writeText(document.getElementById(\'share-md-area\').value).then(function(){' +
-          'var b=this;b.textContent=\'\\u2705 Kopiert!\';setTimeout(function(){b.textContent=\'Markdown kopieren\'},2000)}.bind(this))"' +
-          '>Markdown kopieren</button>' +
-        '<button class="btn btn-primary btn-sm" onclick="closeModal();window.open(location.origin+location.pathname+\'#veranstaltung/' + vid + '\',\'_blank\')">Seite \u00f6ffnen &#x2192;</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="_shareCopy(\'share-wp-area\',this)">HTML kopieren</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div id="share-pane-wa" style="display:none">' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">' +
+        'Kompakter Text mit *Fettschrift*, Medaillen und Bestleistungs-Hinweisen.' +
+      '</div>' +
+      '<textarea id="share-wa-area" readonly style="width:100%;height:250px;box-sizing:border-box;padding:10px 12px;' +
+        'border:1.5px solid var(--border);border-radius:7px;background:var(--surf2);color:var(--text);' +
+        'font-size:13px;resize:vertical;line-height:1.55">' +
+        _esc(window._shareWaText) +
+      '</textarea>' +
+      '<div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">' +
+        '<button class="btn btn-ghost btn-sm" onclick="_shareCopy(\'share-wa-area\',this)">Text kopieren</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="window.open(\'https://wa.me/?text=\'+encodeURIComponent(window._shareWaText),\'_blank\')">In WhatsApp \u00f6ffnen &#x2192;</button>' +
       '</div>' +
     '</div>'
-  , false, true);
+  , true, true);
+}
+
+function _shareTab(which) {
+  var wp = document.getElementById('share-pane-wp'), wa = document.getElementById('share-pane-wa');
+  var bwp = document.getElementById('share-tab-wp'), bwa = document.getElementById('share-tab-wa');
+  var on = which === 'wp';
+  if (wp) wp.style.display = on ? '' : 'none';
+  if (wa) wa.style.display = on ? 'none' : '';
+  [[bwp, on], [bwa, !on]].forEach(function(p) {
+    if (!p[0]) return;
+    p[0].style.color = p[1] ? 'var(--primary)' : 'var(--text2)';
+    p[0].style.borderBottomColor = p[1] ? 'var(--primary)' : 'transparent';
+  });
+}
+
+function _shareCopy(elId, btn) {
+  var el = document.getElementById(elId);
+  if (!el) return;
+  var orig = btn.textContent;
+  navigator.clipboard.writeText(el.value).then(function() {
+    btn.textContent = '\u2705 Kopiert!';
+    setTimeout(function() { btn.textContent = orig; }, 2000);
+  });
 }
 
 // ── Einzelseite: Veranstaltung ──────────────────────────────────────────────

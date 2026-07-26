@@ -1,3 +1,8 @@
+## v1389
+- Teilen-Dialog überarbeitet: Markdown entfällt, stattdessen zwei Formate – **WordPress** (Gutenberg-Blöcke mit Tabellen, Link zur offiziellen Ergebnisliste des Veranstalters) und **WhatsApp** (kompakter Text mit Medaillen-Emojis, direkter „In WhatsApp öffnen"-Button)
+- Beide Formate enthalten jetzt die Bestleistungs-Auszeichnungen aus „Neueste Bestleistungen" (PB, Debüt, Vereinsrekord, Bestleistung AK/Männer/Frauen)
+- API: Dashboard-Timeline-Events liefern `veranstaltung_id`, neuer Filter `?tl_veranstaltung_id=` für veranstaltungsbezogene Bestleistungen
+
 ## v1388
 - Fix: Nav-Badges (Admin + Eintragen) stehen jetzt NEBEN dem Text statt darunter. Nav-Buttons sind `flex-column`, wodurch Text und Badge-Span als getrennte Flex-Items untereinander umbrachen – jetzt in einen Inline-Wrapper (`white-space:nowrap`) gepackt.
 

@@ -1844,7 +1844,8 @@ if ($res === 'dashboard' && $method === 'GET') {
         $extWhere = $extOnly ? " AND e.extern=1" : " AND e.extern=0";
         $ergs = DB::fetchAll(
             "SELECT e.resultat, $valExpr AS val_sort, v.datum, ($akExprTl) AS altersklasse,
-                    $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht, e.extern
+                    $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht, e.extern,
+                    v.id AS veranstaltung_id
              FROM $tblN e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              LEFT JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
@@ -2005,6 +2006,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                 }
                 $timelineEvents[] = [
                     'datum'               => $datum,
+                    'veranstaltung_id'    => $e['veranstaltung_id'] ?? null,
                     'disziplin'           => $disz,
                     'disziplin_mapping_id'=> $mappingId,
                     'kategorie_name'      => $dInfo['kategorie_name'] ?? null,
@@ -2029,6 +2031,14 @@ if ($res === 'dashboard' && $method === 'GET') {
         $cmp = strcmp($b['datum'], $a['datum']);
         return $cmp !== 0 ? $cmp : ($a['priority'] - $b['priority']);
     });
+
+    // Optional: nur Timeline-Events einer bestimmten Veranstaltung (für Teilen-Funktion)
+    if (!empty($_GET['tl_veranstaltung_id'])) {
+        $tlVid = (int)$_GET['tl_veranstaltung_id'];
+        $timelineEvents = array_values(array_filter($timelineEvents, function($ev) use ($tlVid) {
+            return (int)($ev['veranstaltung_id'] ?? 0) === $tlVid;
+        }));
+    }
 
     // (externe Ergebnisse sind bereits in ergebnisse.extern=1 enthalten)
     $rekordeTimeline = array_slice($timelineEvents, 0, min((int)($_GET['timeline_limit'] ?? 20), 200));
