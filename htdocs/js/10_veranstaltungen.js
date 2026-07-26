@@ -21,7 +21,7 @@ function _veranstSubtabs(active) {
   return '<div class="subtabs" style="margin-bottom:20px">' +
     btn('serien',  '🔄 Regelmäßige Veranstaltungen') +
     btn('letzte',  '📅 Letzte Veranstaltungen') +
-    (hasMeine ? btn('meine', '🏃 Meine Veranstaltungen') : '') +
+    (hasMeine ? btn('meine', '🏃 Meine Ergebnisse') : '') +
   '</div>';
 }
 

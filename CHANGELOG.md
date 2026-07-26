@@ -1,3 +1,6 @@
+## v1399
+- Veranstaltungen: Der Sub-Tab „Meine Veranstaltungen" heißt jetzt „Meine Ergebnisse".
+
 ## v1398
 - Ergebnisse: Orte aus der Datenbank werden jetzt mit Landesflagge angezeigt (`🇩🇪 Düsseldorf`), Orts-Freitexte aus Importen bleiben ohne Flagge – so ist sofort erkennbar, ob ein Ort verknüpft ist. API-Queries für Ergebnisse, Athletenprofil und externe Ergebnisse joinen jetzt `orte` und liefern `ort_land_code`; `fmtVeranstName` nutzt die Flagge.
 
