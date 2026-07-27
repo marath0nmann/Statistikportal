@@ -1,3 +1,7 @@
+## v1406
+- CSV-Import: Auswahl-Häkchen entfernt. Stattdessen lässt sich jeder Wettkampf einzeln über „⬇ Import" in seiner Zeile importieren, zusätzlich gibt es „Gruppe importieren" je Statusgruppe und „Alle importieren". Importierte Zeilen wandern in die Gruppe „Bereits importiert" und werden nicht erneut gesendet; die API meldet jetzt pro Zeile Status und Meldung zurück.
+- Ort wird nur noch aus den im System hinterlegten Orten gewählt (Vorschau, Zeilen-Editor und Einzelformular) – inklusive Option „+ Neuen Ort anlegen…". Beim Anlegen einer Veranstaltung wird die `ort_id` mitgespeichert, sodass Ortsdaten (z.B. Landesflagge) direkt verknüpft sind. Orte aus der CSV werden über Name oder Alias aufgelöst, unbekannte Schreibweisen bleiben leer und müssen ausgewählt werden.
+
 ## v1405
 - CSV-Vorschau ist jetzt nach Status gruppiert: „Unvollständig", „Duplikate mit abweichenden Feldwerten", „Duplikate ohne Konflikt" und „Neu – werden importiert". Jede Gruppe ist auf-/zuklappbar, zeigt ihre Anzahl und hat Sammelaktionen (alle zusammenführen / überspringen / trotzdem anlegen). Die Kopfzeile fasst weiterhin importierbar, Duplikate, abweichende Feldwerte und unvollständige Zeilen zusammen.
 - Neuer Zeilen-Editor (✏️ bzw. „Details"): **alle** Felder einer Importzeile sind editierbar – auch leere wie Schuh, Startnummer, Bemerkungen, Positionen, Verein oder Meisterschaft. Änderungen an Datum, Ort, Wettkampf oder Disziplin lösen automatisch eine erneute Veranstaltungs- und Dublettenprüfung aus.

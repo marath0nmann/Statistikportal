@@ -32,7 +32,7 @@ function renderEigenesEintragen() {
         '</div>' +
         '<div class="form-group">' +
           '<label>Ort *</label>' +
-          '<input type="text" id="ee-ort" placeholder="z.B. Düsseldorf"/>' +
+          '<select id="ee-ort" onchange="eeOrtChanged(this)"><option value="">– wird geladen –</option></select>' +
         '</div>' +
         '<div class="form-group full">' +
           '<label>Veranstaltungsname</label>' +
@@ -116,12 +116,58 @@ function renderEigenesEintragen() {
   );
   _eeSelectedVeranst = null;
   _eeCsvRows = [];
-  if (!window._bkOrte) _bkLoadOrte();
+  // Ortsauswahl aus den hinterlegten Orten befüllen
+  (async function() {
+    if (!window._bkOrte) await _bkLoadOrte();
+    eeOrtSelectFuellen();
+  })();
+}
+
+// Ort-Dropdown des Einzelformulars befüllen (nur hinterlegte Orte + Anlegen)
+function eeOrtSelectFuellen(selectedId) {
+  var sel = document.getElementById('ee-ort');
+  if (!sel) return;
+  var orte = window._bkOrte || [];
+  var cur = selectedId !== undefined ? String(selectedId || '') : String(sel.value || '');
+  sel.innerHTML = '<option value="">– Ort wählen –</option>' +
+    orte.map(function(o) {
+      return '<option value="' + o.id + '"' + (String(o.id) === cur ? ' selected' : '') + '>' + _owEsc(o.name) + '</option>';
+    }).join('') +
+    '<option value="__neu__">+ Neuen Ort anlegen…</option>';
+}
+
+function eeOrtChanged(sel) {
+  if (sel.value !== '__neu__') return;
+  sel.value = '';
+  showModal(
+    '<div class="modal-header"><div class="modal-title">&#x1F4CD; Neuer Ort</div></div>' +
+    '<div class="form-group full" style="margin-bottom:16px">' +
+      '<label>Name *</label>' +
+      '<input type="text" id="ee-neuer-ort-name" placeholder="z.B. Bottrop" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"/>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="eeOrtAnlegenEinzel()">Anlegen &amp; ausw&auml;hlen</button>' +
+    '</div>', false);
+  setTimeout(function() { var el = document.getElementById('ee-neuer-ort-name'); if (el) el.focus(); }, 50);
+}
+
+async function eeOrtAnlegenEinzel() {
+  var name = ((document.getElementById('ee-neuer-ort-name') || {}).value || '').trim();
+  if (!name) { notify('Name erforderlich.', 'err'); return; }
+  var r = await apiPost('orte', { name: name });
+  if (!r || !r.ok) { notify((r && r.fehler) || 'Ort konnte nicht angelegt werden.', 'err'); return; }
+  if (!window._bkOrte) window._bkOrte = [];
+  window._bkOrte.push(r.data);
+  window._bkOrte.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+  closeModal();
+  eeOrtSelectFuellen(r.data.id);
+  notify('Ort „' + r.data.name + '" angelegt.', 'ok');
 }
 
 function resetEigenesErgebnis() {
   var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : '';
-  var fields = ['ee-datum','ee-ort','ee-evname','ee-res','ee-ak',
+  var fields = ['ee-datum','ee-evname','ee-res','ee-ak',
                 'ee-startnr','ee-pos-ak','ee-pos-mw','ee-pos-ges','ee-schuh','ee-bemerkungen'];
   fields.forEach(function(id) {
     var el = document.getElementById(id);
@@ -131,6 +177,7 @@ function resetEigenesErgebnis() {
   });
   var vereinEl = document.getElementById('ee-verein');
   if (vereinEl) vereinEl.value = clubName;
+  eeOrtSelectFuellen('');
   var katEl = document.getElementById('ee-kat');
   if (katEl) { katEl.value = ''; _eeUpdateDisz(); }
   var searchEl = document.getElementById('ee-veranst-search');
@@ -258,9 +305,12 @@ async function saveEigenesErgebnis(andNew) {
     if (!veranstId) { if (errEl) errEl.textContent = 'Bitte Veranstaltung auswählen.'; return; }
   } else {
     datum = document.getElementById('ee-datum') ? document.getElementById('ee-datum').value : '';
-    ort = document.getElementById('ee-ort') ? document.getElementById('ee-ort').value.trim() : '';
+    var _ortSel = document.getElementById('ee-ort');
+    var _ortId  = _ortSel && _ortSel.value && _ortSel.value !== '__neu__' ? parseInt(_ortSel.value, 10) : null;
+    var _ortObj = _ortId ? (window._bkOrte || []).find(function(o) { return o.id === _ortId; }) : null;
+    ort = _ortObj ? _ortObj.name : '';
     evname = document.getElementById('ee-evname') ? document.getElementById('ee-evname').value.trim() : '';
-    if (!datum || !ort) { if (errEl) errEl.textContent = 'Datum und Ort sind Pflichtfelder.'; return; }
+    if (!datum || !ort) { if (errEl) errEl.textContent = 'Datum und Ort sind Pflichtfelder – bitte einen hinterlegten Ort wählen.'; return; }
   }
 
   // Anderer Verein → externes Ergebnis
@@ -279,7 +329,7 @@ async function saveEigenesErgebnis(andNew) {
   };
   if (isExternal) { body.externer_verein = verein; body.verein = verein; }
   if (veranstId) body.veranstaltung_id = veranstId;
-  else { body.datum = datum; body.ort = ort; body.veranstaltung_name = evname; }
+  else { body.datum = datum; body.ort = ort; body.ort_id = (typeof _ortId !== 'undefined' ? _ortId : null); body.veranstaltung_name = evname; }
 
   var r = await apiPost('ergebnisse/eigenes', body);
   // Dublette → Nachfragen (zusammenführen / trotzdem anlegen / abbrechen)
@@ -534,6 +584,8 @@ function _eeCsvInt(raw) {
 
 async function _eeCsvVerarbeiten(text, dateiname) {
   var statusEl = document.getElementById('ee-csv-status');
+  // Ortsliste wird für die Zuordnung benötigt
+  if (!window._bkOrte) await _bkLoadOrte();
   var erste = text.split('\n')[0] || '';
   var sep = (erste.split(';').length > erste.split(',').length) ? ';' : ',';
   var raw = _eeCsvSplit(text, sep);
@@ -575,20 +627,25 @@ async function _eeCsvVerarbeiten(text, dateiname) {
     var diszObj = _eeCsvDisz(get(iWb));
     var evname  = get(iWk);
     var ortRaw  = get(iOrt);
-    // Ort aus Veranstaltungsnamen erraten (Orte-Liste inkl. Aliase)
-    if (!ortRaw && evname) {
+    var ortId   = null;
+    // Nur hinterlegte Orte zulassen: Name/Alias in der Orte-Liste suchen
+    var ortTreffer = ortRaw ? _bkOrtFindByNameOrAlias(ortRaw) : null;
+    // Ort aus dem Veranstaltungsnamen erraten (Orte-Liste inkl. Aliase)
+    if (!ortTreffer && evname) {
       var teile = evname.split(/[\s\-–]+/);
-      for (var t = teile.length - 1; t >= 0 && !ortRaw; t--) {
-        var tr = _bkOrtFindByNameOrAlias(teile[t]);
-        if (tr) ortRaw = tr.name;
+      for (var t = teile.length - 1; t >= 0 && !ortTreffer; t--) {
+        ortTreffer = _bkOrtFindByNameOrAlias(teile[t]);
       }
     }
+    if (ortTreffer) { ortRaw = ortTreffer.name; ortId = ortTreffer.id; }
+    else ortRaw = '';
     // Leere Vereinsangabe bleibt leer (kein Vorbelegen mit dem eigenen Verein)
     var verein = get(iVerein);
     zeilen.push({
       datum: datum,
       veranstaltung_name: evname,
       ort: ortRaw,
+      ort_id: ortId,
       wettbewerb: get(iWb),
       disziplin: diszObj ? diszObj.disziplin : '',
       disziplin_mapping_id: diszObj ? (diszObj.id || diszObj.mapping_id) : null,
@@ -603,7 +660,6 @@ async function _eeCsvVerarbeiten(text, dateiname) {
       verein: verein,
       meisterschaft: _eeCsvMstr(get(iSw)),
       ak_platz_meisterschaft: _eeCsvInt(get(iSwPos)),
-      _aktiv: true,
       _aktion: 'insert',
       _check: null,
       _zeile: r + 1,
@@ -665,8 +721,27 @@ function _eeCsvItem(row) {
     meisterschaft: row.meisterschaft,
     ak_platz_meisterschaft: row.ak_platz_meisterschaft,
   };
+  if (row.ort_id) it.ort_id = row.ort_id;
   if (row.veranstaltung_id) it.veranstaltung_id = row.veranstaltung_id;
   return it;
+}
+
+// Ortsauswahl: ausschließlich im System hinterlegte Orte + Anlegen-Option
+function _eeCsvOrtOptions(row) {
+  var orte = window._bkOrte || [];
+  var opts = '<option value="">– Ort wählen –</option>';
+  var gewaehlt = row.ort_id ? String(row.ort_id) : '';
+  // Ort aus dem Namen auflösen, falls nur ein Name aus der CSV bekannt ist
+  if (!gewaehlt && row.ort) {
+    var t = _bkOrtFindByNameOrAlias(row.ort);
+    if (t) { row.ort_id = t.id; row.ort = t.name; gewaehlt = String(t.id); }
+  }
+  for (var i = 0; i < orte.length; i++) {
+    opts += '<option value="' + orte[i].id + '"' + (String(orte[i].id) === gewaehlt ? ' selected' : '') + '>' +
+      _owEsc(orte[i].name) + '</option>';
+  }
+  opts += '<option value="__neu__">+ Neuen Ort anlegen…</option>';
+  return opts;
 }
 
 function _eeCsvDiszOptions(row) {
@@ -690,8 +765,9 @@ function _eeCsvProblem(row) {
        : '';
 }
 
-// Gruppe einer Zeile: 'unvollstaendig' | 'konflikt' | 'duplikat' | 'neu'
+// Gruppe einer Zeile: 'importiert' | 'unvollstaendig' | 'konflikt' | 'duplikat' | 'neu'
 function _eeCsvGruppe(row) {
+  if (row._importiert) return 'importiert';
   if (_eeCsvProblem(row)) return 'unvollstaendig';
   var chk = row._check || {};
   if (chk.dublette) return _eeVergleichZaehler(chk.dublette, row).konflikte ? 'konflikt' : 'duplikat';
@@ -705,18 +781,22 @@ function _eeCsvRenderPreview() {
   if (!wrap) return;
   var fld = 'box-sizing:border-box;height:30px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px;width:100%';
   var dubletten = 0, fehlend = 0, aktiv = 0, konflikte = 0;
-  var gruppen = { neu: [], konflikt: [], duplikat: [], unvollstaendig: [] };
+  var gruppen = { neu: [], konflikt: [], duplikat: [], unvollstaendig: [], importiert: [] };
 
   var zeilenHtml = _eeCsvRows.map(function(row, i) {
     var chk = row._check || {};
     var problem = _eeCsvProblem(row);
-    if (problem) fehlend++;
-    if (chk.dublette || chk.antrag) dubletten++;
-    if (row._aktiv && !problem && row._aktion !== 'skip') aktiv++;
+    if (!row._importiert) {
+      if (problem) fehlend++;
+      if (chk.dublette || chk.antrag) dubletten++;
+      if (!problem && row._aktion !== 'skip') aktiv++;
+    }
     gruppen[_eeCsvGruppe(row)].push(i);
 
     var statusHtml;
-    if (problem) {
+    if (row._importiert) {
+      statusHtml = '<span style="color:var(--primary);font-size:12px">&#x2713; ' + _owEsc(row._importMsg || 'importiert') + '</span>';
+    } else if (problem) {
       statusHtml = '<span style="color:var(--accent);font-size:12px">⚠︎ ' + _owEsc(problem) + '</span>';
     } else if (chk.dublette) {
       var z = _eeVergleichZaehler(chk.dublette, row);
@@ -751,13 +831,12 @@ function _eeCsvRenderPreview() {
     }
 
     return '<tr style="border-bottom:1px solid var(--border)' + (problem ? ';background:color-mix(in srgb,var(--accent) 6%,transparent)' : '') + '">' +
-      '<td style="padding:4px 6px"><input type="checkbox" ' + (row._aktiv ? 'checked' : '') + ' onchange="eeCsvToggle(' + i + ',this.checked)"></td>' +
       '<td style="padding:4px 6px;font-size:12px;white-space:nowrap">' + _owEsc(row.datum ? formatDate(row.datum) : (row._zeile + ': ?')) + '</td>' +
       '<td style="padding:4px 6px;font-size:12px">' + _owEsc(row.veranstaltung_name || '–') + '</td>' +
-      '<td style="padding:4px 6px;min-width:120px">' +
+      '<td style="padding:4px 6px;min-width:140px">' +
         (row.veranstaltung_id
           ? '<span style="font-size:12px;color:var(--text2)">' + _owEsc(row.ort || '–') + '</span>'
-          : '<input type="text" value="' + _owEsc(row.ort || '') + '" placeholder="Ort" oninput="eeCsvSetOrt(' + i + ',this.value)" style="' + fld + '">') +
+          : '<select onchange="eeCsvSetOrt(' + i + ',this.value)" style="' + fld + '">' + _eeCsvOrtOptions(row) + '</select>') +
       '</td>' +
       '<td style="padding:4px 6px;min-width:160px">' +
         '<select onchange="eeCsvSetDisz(' + i + ',this.value)" style="' + fld + '">' + _eeCsvDiszOptions(row) + '</select>' +
@@ -771,29 +850,34 @@ function _eeCsvRenderPreview() {
       '<td style="padding:4px 6px;font-size:12px">' + (row.verein ? _owEsc(row.verein) :
         '<span style="color:var(--text2)" title="Keine Vereinsangabe – wird ohne Verein als externes Ergebnis gespeichert">– ohne –</span>') + '</td>' +
       '<td style="padding:4px 6px;min-width:150px">' + statusHtml + '</td>' +
-      '<td style="padding:4px 6px;text-align:center">' +
+      '<td style="padding:4px 6px;white-space:nowrap;text-align:right">' +
         '<button class="btn btn-ghost btn-sm" title="Alle Felder dieser Zeile bearbeiten" onclick="eeCsvZeileModal(' + i + ')">&#x270F;&#xFE0F;</button>' +
+        (row._importiert ? ''
+          : '<button class="btn btn-primary btn-sm" style="margin-left:4px" title="Nur diesen Wettkampf importieren"' +
+            (problem ? ' disabled' : '') + ' onclick="eeCsvZeileImport(' + i + ')">&#x2B07;&#xFE0E; Import</button>') +
       '</td>' +
     '</tr>';
   });
 
   // ── Gruppierte Ausgabe ────────────────────────────────────────────────────
-  var kopf = ['', 'Datum', 'Wettkampf', 'Ort', 'Disziplin', 'Ergebnis', 'AK', 'StNr', 'Pos AK/mw/ges', 'Schuh', 'Verein', 'Status / Aktion', '']
+  var kopf = ['Datum', 'Wettkampf', 'Ort', 'Disziplin', 'Ergebnis', 'AK', 'StNr', 'Pos AK/mw/ges', 'Schuh', 'Verein', 'Status / Aktion', '']
     .map(function(h) { return '<th style="text-align:left;padding:6px;font-size:11px;color:var(--text2);white-space:nowrap">' + h + '</th>'; }).join('');
 
-  function gruppeHtml(key, titel, farbe, hinweis, sammelAktionen) {
+  function gruppeHtml(key, titel, farbe, hinweis, sammelAktionen, importierbar) {
     var idxs = gruppen[key];
     if (!idxs.length) return '';
     var sammel = '';
-    if (sammelAktionen) {
+    if (sammelAktionen || importierbar) {
       sammel = '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:var(--surf2);font-size:12px;color:var(--text2)">' +
         'Alle Zeilen dieser Gruppe:' +
-        sammelAktionen.map(function(a) {
+        (sammelAktionen || []).map(function(a) {
           return '<button class="btn btn-ghost btn-sm" onclick="eeCsvGruppenAktion(\'' + key + '\',\'' + a[0] + '\')">' + a[1] + '</button>';
         }).join('') +
+        (importierbar ? '<div style="flex:1"></div>' +
+          '<button class="btn btn-primary btn-sm" onclick="eeCsvGruppeImport(\'' + key + '\')">&#x2B07;&#xFE0E; Gruppe importieren</button>' : '') +
       '</div>';
     }
-    return '<details open style="border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden">' +
+    return '<details ' + (key === 'importiert' ? '' : 'open') + ' style="border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden">' +
       '<summary style="cursor:pointer;padding:10px 12px;background:var(--surf2);font-size:13px;font-weight:600;color:' + farbe + '">' +
         titel + ' <span style="color:var(--text2);font-weight:400">(' + idxs.length + ')</span>' +
         (hinweis ? '<div style="font-size:11px;font-weight:400;color:var(--text2);margin-top:2px">' + hinweis + '</div>' : '') +
@@ -811,20 +895,24 @@ function _eeCsvRenderPreview() {
       'Diese Zeilen werden nicht importiert, solange Datum, Disziplin, Ergebnis oder Ort fehlen &ndash; per &#x270F;&#xFE0F; erg&auml;nzen.') +
     gruppeHtml('konflikt', '&#x26A1;&#xFE0E; Duplikate mit abweichenden Feldwerten', 'var(--accent)',
       'Gespeicherter und importierter Wert unterscheiden sich. Unter &#x270F;&#xFE0F; l&auml;sst sich je Feld entscheiden, welcher Wert gilt.',
-      [['merge','Zusammenf&uuml;hren'],['skip','&Uuml;berspringen'],['insert','Trotzdem anlegen']]) +
+      [['merge','Zusammenf&uuml;hren'],['skip','&Uuml;berspringen'],['insert','Trotzdem anlegen']], true) +
     gruppeHtml('duplikat', '&#x1F501;&#xFE0E; Duplikate ohne Konflikt', 'var(--text)',
       'Bereits gespeichert. Zusammenf&uuml;hren erg&auml;nzt nur bisher leere Felder.',
-      [['merge','Zusammenf&uuml;hren'],['skip','&Uuml;berspringen'],['insert','Trotzdem anlegen']]) +
-    gruppeHtml('neu', '&#x2705;&#xFE0E; Neu &ndash; werden importiert', 'var(--primary)', '') +
+      [['merge','Zusammenf&uuml;hren'],['skip','&Uuml;berspringen'],['insert','Trotzdem anlegen']], true) +
+    gruppeHtml('neu', '&#x2705;&#xFE0E; Neu &ndash; noch nicht importiert', 'var(--primary)',
+      'Pro Wettkampf einzeln mit &#x2B07;&#xFE0E; Import oder alle zusammen.', null, true) +
+    gruppeHtml('importiert', '&#x2714;&#xFE0E; Bereits importiert', 'var(--primary)',
+      'In dieser Sitzung gespeichert &ndash; werden nicht erneut importiert.') +
     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
       '<button class="btn btn-ghost btn-sm" onclick="eeCsvAbbrechen()">&#x21BA; Verwerfen</button>' +
       '<div style="flex:1"></div>' +
-      '<button class="btn btn-primary" onclick="eeCsvImport()">&#x2B07;&#xFE0E; ' + aktiv + ' Zeile(n) importieren</button>' +
+      (aktiv ? '<button class="btn btn-primary" onclick="eeCsvImport()">&#x2B07;&#xFE0E; Alle ' + aktiv + ' importieren</button>' : '') +
     '</div>';
 
   if (statusEl) {
     var teile = [
       '<strong>' + aktiv + '</strong> importierbar',
+      gruppen.importiert.length ? '<span style="color:var(--primary)">' + gruppen.importiert.length + ' importiert</span>' : '',
       gruppen.duplikat.length + gruppen.konflikt.length ? (gruppen.duplikat.length + gruppen.konflikt.length) + ' Duplikat(e)' : '',
       konflikte ? '<span style="color:var(--accent)">' + konflikte + ' abweichende Feldwerte</span>' : '',
       fehlend ? '<span style="color:var(--accent)">' + fehlend + ' unvollständig</span>' : '',
@@ -849,7 +937,7 @@ function _eeCsvFelder() {
   return [
     ['datum',                  'Datum',            'date',   false],
     ['veranstaltung_name',     'Wettkampf',        'text',   false],
-    ['ort',                    'Ort',              'text',   false],
+    ['ort',                    'Ort',              'ort',    false],
     ['disziplin_mapping_id',   'Disziplin',        'disz',   false],
     ['resultat',               'Ergebnis',         'text',   true],
     ['altersklasse',           'Altersklasse',     'text',   true],
@@ -878,6 +966,9 @@ function eeCsvZeileModal(i) {
     var feld;
     if (typ === 'disz') {
       feld = '<select id="eecf-' + key + '" style="' + inp + '">' + _eeCsvDiszOptions(row) + '</select>';
+    } else if (typ === 'ort') {
+      feld = '<select id="eecf-' + key + '" onchange="if(this.value===\'__neu__\'){closeModal();eeCsvOrtNeu(' + i + ');}" style="' + inp + '">' +
+        _eeCsvOrtOptions(row) + '</select>';
     } else if (typ === 'mstr') {
       feld = '<select id="eecf-' + key + '" style="' + inp + '">' + mstrOptions(wert || 0) + '</select>';
     } else if (typ === 'date') {
@@ -958,6 +1049,10 @@ async function eeCsvZeileSpeichern(i) {
       var dz = (state.disziplinen || []).find(function(x) { return String(x.id || x.mapping_id) === v; });
       row.disziplin_mapping_id = dz ? (dz.id || dz.mapping_id) : null;
       row.disziplin = dz ? dz.disziplin : '';
+    } else if (typ === 'ort') {
+      var ot = (window._bkOrte || []).find(function(x) { return String(x.id) === v; });
+      row.ort_id = ot ? ot.id : null;
+      row.ort    = ot ? ot.name : '';
     } else if (key === 'resultat') {
       row.resultat = dbRes(v);
     } else {
@@ -980,14 +1075,54 @@ async function eeCsvZeileSpeichern(i) {
   }
 }
 
-function eeCsvToggle(i, val) { if (_eeCsvRows[i]) { _eeCsvRows[i]._aktiv = !!val; _eeCsvRenderPreview(); } }
 function eeCsvSetAktion(i, val) {
   if (!_eeCsvRows[i]) return;
   _eeCsvRows[i]._aktion = val;
   _eeCsvRows[i]._aktionManuell = true;
   _eeCsvRenderPreview();
 }
-function eeCsvSetOrt(i, val) { if (_eeCsvRows[i]) _eeCsvRows[i].ort = String(val || '').trim(); }
+function eeCsvSetOrt(i, val) {
+  var row = _eeCsvRows[i];
+  if (!row) return;
+  if (val === '__neu__') { eeCsvOrtNeu(i); return; }
+  var ort = (window._bkOrte || []).find(function(o) { return String(o.id) === String(val); });
+  row.ort_id = ort ? ort.id : null;
+  row.ort    = ort ? ort.name : '';
+  _eeCsvRenderPreview();
+}
+
+// Neuen Ort anlegen und der Zeile zuweisen
+function eeCsvOrtNeu(i) {
+  var row = _eeCsvRows[i] || {};
+  var vorschlag = row.ort || '';
+  showModal(
+    '<div class="modal-header"><div class="modal-title">&#x1F4CD; Neuer Ort</div></div>' +
+    '<div class="form-group full" style="margin-bottom:16px">' +
+      '<label>Name *</label>' +
+      '<input type="text" id="ee-neuer-ort-name" value="' + _owEsc(vorschlag) + '" placeholder="z.B. Bottrop" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"/>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal();_eeCsvRenderPreview()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="eeCsvOrtAnlegen(' + i + ')">Anlegen &amp; ausw&auml;hlen</button>' +
+    '</div>', false);
+  setTimeout(function() { var el = document.getElementById('ee-neuer-ort-name'); if (el) el.focus(); }, 50);
+}
+
+async function eeCsvOrtAnlegen(i) {
+  var name = ((document.getElementById('ee-neuer-ort-name') || {}).value || '').trim();
+  if (!name) { notify('Name erforderlich.', 'err'); return; }
+  var r = await apiPost('orte', { name: name });
+  if (!r || !r.ok) { notify((r && r.fehler) || 'Ort konnte nicht angelegt werden.', 'err'); return; }
+  var neu = r.data;
+  if (!window._bkOrte) window._bkOrte = [];
+  window._bkOrte.push(neu);
+  window._bkOrte.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+  closeModal();
+  var row = _eeCsvRows[i];
+  if (row) { row.ort_id = neu.id; row.ort = neu.name; }
+  notify('Ort „' + neu.name + '" angelegt.', 'ok');
+  _eeCsvRenderPreview();
+}
 function eeCsvSetDisz(i, val) {
   var row = _eeCsvRows[i];
   if (!row) return;
@@ -1002,45 +1137,87 @@ function eeCsvAbbrechen() {
   var s = document.getElementById('ee-csv-status'); if (s) s.textContent = '';
 }
 
-// Phase 2: Import ausführen
-async function eeCsvImport() {
+// ── Phase 2: Import ausführen ───────────────────────────────────────────────
+// Baut das API-Item einer Zeile inkl. gewählter Aktion
+function _eeCsvImportItem(row) {
+  var it = _eeCsvItem(row);
+  var hatteDup = !!(row._check && (row._check.dublette || row._check.antrag));
+  // Ohne erkanntes Duplikat keine Aktion mitschicken → Server prüft erneut
+  // (fängt auch Duplikate innerhalb derselben CSV ab)
+  if (row._aktion === 'merge') {
+    it.aktion = 'merge';
+    // Feldweise Entscheidung „Import übernehmen" aus dem Zeilen-Editor
+    if (row._ueberschreiben && row._ueberschreiben.length) it.felder_ueberschreiben = row._ueberschreiben;
+  } else if (hatteDup) it.aktion = 'insert';
+  return it;
+}
+
+function _eeCsvStatusText(stats) {
+  var teile = [];
+  if (stats.gespeichert)   teile.push(stats.gespeichert + ' gespeichert');
+  if (stats.pending)       teile.push(stats.pending + ' zur Prüfung eingereicht');
+  if (stats.gemergt)       teile.push(stats.gemergt + ' zusammengeführt');
+  if (stats.uebersprungen) teile.push(stats.uebersprungen + ' übersprungen');
+  if (stats.fehler)        teile.push(stats.fehler + ' fehlerhaft');
+  return teile.join(', ');
+}
+
+// Importiert die übergebenen Zeilenindizes (Einzelzeile, Gruppe oder alles)
+async function _eeCsvImportIndizes(indizes, label) {
   var statusEl = document.getElementById('ee-csv-status');
-  var items = [];
-  var uebersprungen = 0;
-  _eeCsvRows.forEach(function(row) {
-    var unvollstaendig = !row.disziplin_mapping_id || !row.datum || !row.resultat || (!row.veranstaltung_id && !row.ort);
-    if (!row._aktiv || unvollstaendig) { uebersprungen++; return; }
-    if (row._aktion === 'skip') { uebersprungen++; return; }
-    var it = _eeCsvItem(row);
-    var hatteDup = !!(row._check && (row._check.dublette || row._check.antrag));
-    // Ohne erkanntes Duplikat keine Aktion mitschicken → Server prüft erneut
-    // (fängt auch Duplikate innerhalb derselben CSV ab)
-    if (row._aktion === 'merge') {
-      it.aktion = 'merge';
-      // Feldweise Entscheidung „Import übernehmen" aus dem Zeilen-Editor
-      if (row._ueberschreiben && row._ueberschreiben.length) it.felder_ueberschreiben = row._ueberschreiben;
-    } else if (hatteDup) it.aktion = 'insert';
-    items.push(it);
+  var items = [], rowIdx = [];
+  indizes.forEach(function(i) {
+    var row = _eeCsvRows[i];
+    if (!row || row._importiert || _eeCsvProblem(row) || row._aktion === 'skip') return;
+    items.push(_eeCsvImportItem(row));
+    rowIdx.push(i);
   });
-  if (!items.length) { if (statusEl) statusEl.textContent = '⚠︎ Keine importierbaren Zeilen ausgewählt.'; return; }
-  if (statusEl) statusEl.textContent = '⏳ Importiere ' + items.length + ' Zeile(n)…';
+  if (!items.length) { if (statusEl) statusEl.textContent = '⚠︎ Nichts zu importieren.'; return; }
+  if (statusEl) statusEl.textContent = '⏳ Importiere ' + label + '…';
   var r = await apiPost('ergebnisse/eigenes-bulk', { items: items });
   if (!r || !r.ok) {
     if (statusEl) statusEl.textContent = '❌ ' + ((r && r.fehler) || 'Import fehlgeschlagen.');
     return;
   }
-  var st = r.data.stats || {};
-  var teile = [];
-  if (st.gespeichert)   teile.push(st.gespeichert + ' gespeichert');
-  if (st.pending)       teile.push(st.pending + ' zur Prüfung eingereicht');
-  if (st.gemergt)       teile.push(st.gemergt + ' zusammengeführt');
-  if (st.uebersprungen || uebersprungen) teile.push(((st.uebersprungen || 0) + uebersprungen) + ' übersprungen');
-  if (st.fehler)        teile.push(st.fehler + ' fehlerhaft');
-  notify(teile.join(', ') || 'Fertig.', st.fehler ? 'err' : 'ok');
-  if (statusEl) statusEl.innerHTML = '✅ ' + _owEsc(teile.join(', '));
+  // Rückmeldung je Zeile übernehmen
+  (r.data.zeilen || []).forEach(function(z) {
+    var row = _eeCsvRows[rowIdx[z.idx]];
+    if (!row) return;
+    if (z.status === 'fehler') { row._importFehler = z.msg || 'Fehler'; return; }
+    row._importiert = true;
+    row._importMsg = z.status === 'pending' ? 'eingereicht – wird geprüft'
+                   : z.status === 'gemergt' ? (z.msg || 'zusammengeführt')
+                   : z.status === 'uebersprungen' ? (z.msg || 'übersprungen')
+                   : 'importiert';
+    if (z.status === 'uebersprungen') row._importiert = true;
+  });
+  var txt = _eeCsvStatusText(r.data.stats || {});
+  notify(txt || 'Fertig.', (r.data.stats && r.data.stats.fehler) ? 'err' : 'ok');
+  if (statusEl) statusEl.innerHTML = '✅ ' + _owEsc(txt);
   if (r.data.meldungen && r.data.meldungen.length) console.warn('CSV-Import:', r.data.meldungen);
-  _eeCsvRows = [];
-  var w = document.getElementById('ee-csv-preview'); if (w) w.innerHTML = '';
+  _eeCsvRenderPreview();
+}
+
+// Einzelnen Wettkampf importieren
+async function eeCsvZeileImport(i) {
+  var row = _eeCsvRows[i];
+  if (!row) return;
+  var problem = _eeCsvProblem(row);
+  if (problem) { notify(problem + ' – Zeile zuerst über ✏️ vervollständigen.', 'err'); return; }
+  await _eeCsvImportIndizes([i], 'Zeile ' + (row._zeile || (i + 1)));
+}
+
+// Alle Zeilen einer Gruppe importieren
+async function eeCsvGruppeImport(gruppe) {
+  var idxs = [];
+  _eeCsvRows.forEach(function(row, i) { if (_eeCsvGruppe(row) === gruppe) idxs.push(i); });
+  await _eeCsvImportIndizes(idxs, idxs.length + ' Zeile(n)');
+}
+
+// Alle importierbaren Zeilen importieren
+async function eeCsvImport() {
+  var idxs = _eeCsvRows.map(function(_, i) { return i; });
+  await _eeCsvImportIndizes(idxs, 'alle offenen Zeilen');
 }
 
 function renderEintragen() {

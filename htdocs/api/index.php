@@ -6175,6 +6175,12 @@ function veranstaltungFuerEigenes(array $item, bool $anlegen, bool $veranstPruef
     $ort    = sanitize($item['ort'] ?? '');
     $evname = sanitize($item['veranstaltung_name'] ?? '');
     if (!$datum) return array_merge($leer, ['fehler'=>'Datum fehlt']);
+    // Hinterlegten Ort auflösen – der kanonische Name gilt für Kürzel und Suche
+    $ortId = intOrNull($item['ort_id'] ?? null);
+    if ($ortId) {
+        $oRow = DB::fetchOne('SELECT id,name FROM ' . DB::tbl('orte') . ' WHERE id=?', [$ortId]);
+        if ($oRow) $ort = (string)$oRow['name']; else $ortId = null;
+    }
     // 1. Exakter Treffer über Kürzel (Datum + Ort)
     if ($ort) {
         $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
@@ -6202,8 +6208,8 @@ function veranstaltungFuerEigenes(array $item, bool $anlegen, bool $veranstPruef
     if (!$anlegen) return array_merge($leer, ['datum'=>$datum, 'name'=>$evname, 'ort'=>$ort]);
     if (!$ort) return array_merge($leer, ['datum'=>$datum, 'name'=>$evname, 'fehler'=>'Ort erforderlich']);
     $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
-    DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum,genehmigt) VALUES (?,?,?,?,?)',
-        [$kuerzel, $evname ?: $kuerzel, $ort, $datum, $veranstPruefen ? 0 : 1]);
+    DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,ort_id,datum,genehmigt) VALUES (?,?,?,?,?,?)',
+        [$kuerzel, $evname ?: $kuerzel, $ort, $ortId, $datum, $veranstPruefen ? 0 : 1]);
     return ['id'=>(int)DB::lastInsertId(),'treffer'=>'neu','ort'=>$ort,'name'=>$evname ?: $kuerzel,'datum'=>$datum,'fehler'=>null];
 }
 
@@ -6380,7 +6386,7 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes-bulk') {
 
     // Phase 2: speichern
     $stats = ['gespeichert'=>0,'pending'=>0,'gemergt'=>0,'uebersprungen'=>0,'fehler'=>0];
-    $meldungen = [];
+    $meldungen = []; $zeilen = [];
     foreach ($items as $idx => $it) {
         if (!is_array($it)) continue;
         $aktion = in_array($it['aktion'] ?? '', ['merge','insert','skip'], true) ? $it['aktion'] : 'auto';
@@ -6388,10 +6394,14 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes-bulk') {
         $st = $r['status'] === 'dublette' ? 'uebersprungen' : $r['status'];
         if (!isset($stats[$st])) $stats[$st] = 0;
         $stats[$st]++;
+        $msg = $r['msg'] ?? '';
+        if ($r['status'] === 'dublette') $msg = 'Duplikat – nicht importiert.';
+        // Rückmeldung je gesendeter Zeile, damit das Frontend sie einzeln markieren kann
+        $zeilen[] = ['idx' => (int)$idx, 'status' => $st, 'msg' => $msg, 'ergebnis_id' => $r['ergebnis_id'] ?? null];
         if ($r['status'] === 'fehler')    $meldungen[] = 'Zeile ' . ((int)$idx + 1) . ': ' . ($r['msg'] ?? 'Fehler');
         if ($r['status'] === 'dublette')  $meldungen[] = 'Zeile ' . ((int)$idx + 1) . ': Duplikat übersprungen';
     }
-    jsonOk(['stats' => $stats, 'meldungen' => $meldungen]);
+    jsonOk(['stats' => $stats, 'meldungen' => $meldungen, 'zeilen' => $zeilen]);
 }
 
 if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
