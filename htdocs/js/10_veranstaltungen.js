@@ -265,6 +265,7 @@ async function renderMeineVeranstaltungen() {
         meisterschaft:         e.meisterschaft || '',
         ak_platz_meisterschaft: parseInt(e.ak_platz_meisterschaft) || 0,
         verein:                e.verein || '',
+        extern:                e.extern ? 1 : 0,
         startnummer:           e.startnummer || '',
         pos_gesamt:            parseInt(e.pos_gesamt) || 0,
         pos_geschlecht:        parseInt(e.pos_geschlecht) || 0,
@@ -276,6 +277,13 @@ async function renderMeineVeranstaltungen() {
   window._meinVeranstRows = allRows;
   if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: { suche: '', jahr: '', disziplin: '' } };
   _renderMeineTabelle();
+}
+
+// Vereinsanzeige: leere Angabe bei externen Ergebnissen bleibt leer
+// (nur Vereinsergebnisse ohne eigene Angabe zeigen den eigenen Verein)
+function _meinVereinText(r, ownClub) {
+  if (r.verein) return r.verein;
+  return r.extern ? '' : ownClub;
 }
 
 function _renderMeineTabelle() {
@@ -295,7 +303,7 @@ function _renderMeineTabelle() {
   var rows = allRows.filter(function(r) {
     if (sf.jahr && r.datum.slice(0, 4) !== sf.jahr) return false;
     if (sf.disziplin && r.disziplin !== sf.disziplin) return false;
-    if (sf.verein && (r.verein || ownClub) !== sf.verein) return false;
+    if (sf.verein && _meinVereinText(r, ownClub) !== sf.verein) return false;
     if (sf.suche) {
       var q = sf.suche.toLowerCase();
       if (r.veranst_name.toLowerCase().indexOf(q) < 0 &&
@@ -339,7 +347,7 @@ function _renderMeineTabelle() {
     var yr = _r.datum.slice(0, 4);
     if (yr && !jahreSet[yr]) { jahreSet[yr] = 1; jahre.push(yr); }
     if (_r.disziplin && !diszMap[_r.disziplin]) { diszMap[_r.disziplin] = 1; }
-    var vDisp = _r.verein || ownClub;
+    var vDisp = _meinVereinText(_r, ownClub);
     if (vDisp && !vereinMap[vDisp]) { vereinMap[vDisp] = 1; vereinList.push(vDisp); }
   }
   jahre.sort(function(a, b) { return b - a; });
@@ -375,7 +383,7 @@ function _renderMeineTabelle() {
     var res = fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
     var showPace = r.pace && r.pace !== '00:00';
     var ortText  = r.ort ? (r.ort_land_code && flagEmoji ? flagEmoji(r.ort_land_code) + ' ' + r.ort : r.ort) : '';
-    var vereinText = r.verein || ownClub;
+    var vereinText = _meinVereinText(r, ownClub);
     return '<tr' + (r.bemerkungen ? ' title="' + String(r.bemerkungen).replace(/"/g, '&quot;') + '"' : '') +
       ' onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
       '<td style="' + tdCb + '">' +

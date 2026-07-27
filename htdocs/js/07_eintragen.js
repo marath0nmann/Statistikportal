@@ -305,31 +305,96 @@ async function saveEigenesErgebnis(andNew) {
 }
 
 // Dialog bei erkanntem Duplikat – liefert 'merge' | 'insert' | null (Abbruch)
+// ── Vergleich gespeichertes ↔ zu importierendes Ergebnis ────────────────────
+function _eeDecode(v) {
+  if (v === null || v === undefined) return '';
+  var t = document.createElement('textarea');
+  t.innerHTML = String(v);
+  return t.value.trim();
+}
+
+// Zeiten vergleichbar machen: "00:40:58" und "40:58" sind dasselbe Ergebnis
+function _eeWertNorm(v) {
+  var s = _eeDecode(v).toLowerCase().replace(',', '.');
+  var m = s.match(/^(\d+):(\d{2}):(\d{2}(?:\.\d+)?)$/);
+  if (m) return String(parseInt(m[1], 10) * 3600 + parseInt(m[2], 10) * 60 + parseFloat(m[3]));
+  m = s.match(/^(\d+):(\d{2}(?:\.\d+)?)$/);
+  if (m) return String(parseInt(m[1], 10) * 60 + parseFloat(m[2]));
+  return s;
+}
+
+// Liefert [{label, alt, neu, art}] – art: 'konflikt' | 'ergaenzung' | 'gleich'
+function _eeVergleich(dup, neu) {
+  var felder = [
+    ['Ergebnis',     dup.resultat,               neu.resultat],
+    ['Altersklasse', dup.altersklasse,           neu.altersklasse],
+    ['Startnummer',  dup.startnummer,            neu.startnummer],
+    ['Pos (AK)',     dup.ak_platzierung,         neu.ak_platzierung],
+    ['Pos (m/w)',    dup.pos_geschlecht,         neu.pos_geschlecht],
+    ['Pos (gesamt)', dup.pos_gesamt,             neu.pos_gesamt],
+    ['Schuh',        dup.schuh,                  neu.schuh],
+    ['Bemerkungen',  dup.bemerkungen,            neu.bemerkungen],
+    ['Verein',       dup.verein,                 neu.verein],
+    ['Meisterschaft', dup.meisterschaft ? mstrLabel(dup.meisterschaft) : '', neu.meisterschaft ? mstrLabel(neu.meisterschaft) : ''],
+    ['Platz MS',     dup.ak_platz_meisterschaft, neu.ak_platz_meisterschaft],
+  ];
+  var out = [];
+  felder.forEach(function(f) {
+    var alt = _eeDecode(f[1]), nv = _eeDecode(f[2]);
+    if (!alt && !nv) return;
+    var art = (!alt && nv) ? 'ergaenzung'
+            : (alt && nv && _eeWertNorm(alt) !== _eeWertNorm(nv)) ? 'konflikt'
+            : 'gleich';
+    out.push({ label: f[0], alt: alt, neu: nv, art: art });
+  });
+  return out;
+}
+
+function _eeVergleichZaehler(dup, neu) {
+  var v = _eeVergleich(dup, neu);
+  return {
+    konflikte:   v.filter(function(x) { return x.art === 'konflikt'; }).length,
+    ergaenzungen:v.filter(function(x) { return x.art === 'ergaenzung'; }).length,
+    liste: v,
+  };
+}
+
+function _eeVergleichTabelle(dup, neu) {
+  var v = _eeVergleich(dup, neu);
+  if (!v.length) return '';
+  var zeilen = v.map(function(x) {
+    var farbe = x.art === 'konflikt'   ? 'var(--accent)'
+              : x.art === 'ergaenzung' ? 'var(--primary)' : 'var(--text2)';
+    var hinweis = x.art === 'konflikt'   ? '&#x26A0;&#xFE0F; bleibt gespeichert'
+                : x.art === 'ergaenzung' ? '&#x2795; wird ergänzt' : 'identisch';
+    return '<tr style="border-bottom:1px solid var(--border)' + (x.art === 'konflikt' ? ';background:color-mix(in srgb,var(--accent) 8%,transparent)' : '') + '">' +
+      '<td style="padding:5px 8px;color:var(--text2);font-size:12px;white-space:nowrap">' + _owEsc(x.label) + '</td>' +
+      '<td style="padding:5px 8px;font-size:13px">' + (x.alt ? _owEsc(x.alt) : '<span style="color:var(--text2)">– leer –</span>') + '</td>' +
+      '<td style="padding:5px 8px;font-size:13px' + (x.art === 'konflikt' ? ';font-weight:600;color:var(--accent)' : '') + '">' +
+        (x.neu ? _owEsc(x.neu) : '<span style="color:var(--text2)">– leer –</span>') + '</td>' +
+      '<td style="padding:5px 8px;font-size:11px;color:' + farbe + ';white-space:nowrap">' + hinweis + '</td>' +
+    '</tr>';
+  }).join('');
+  return '<table style="width:100%;border-collapse:collapse;margin-bottom:14px">' +
+      '<tr style="border-bottom:1px solid var(--border)">' +
+        '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Feld</th>' +
+        '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Gespeichert</th>' +
+        '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Import</th>' +
+        '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Beim Zusammenführen</th>' +
+      '</tr>' + zeilen +
+    '</table>';
+}
+
 function eeDublettenDialog(data, neu) {
   return new Promise(function(resolve) {
     var d = data.dublette;
-    var rowsHtml = '';
-    function _z(label, alt, neuWert) {
-      if ((alt === null || alt === undefined || alt === '') && (neuWert === null || neuWert === undefined || neuWert === '')) return;
-      rowsHtml += '<tr style="border-bottom:1px solid var(--border)">' +
-        '<td style="padding:5px 8px;color:var(--text2);font-size:12px">' + _owEsc(label) + '</td>' +
-        '<td style="padding:5px 8px;font-size:13px">' + _owEsc(alt === null || alt === undefined ? '–' : String(alt)) + '</td>' +
-        '<td style="padding:5px 8px;font-size:13px">' + _owEsc(neuWert === null || neuWert === undefined ? '–' : String(neuWert)) + '</td>' +
-      '</tr>';
-    }
+    var rowsHtml = d ? _eeVergleichTabelle(d, neu) : '';
+    var z = d ? _eeVergleichZaehler(d, neu) : { konflikte: 0, ergaenzungen: 0 };
     var kopf = d
-      ? 'Für <strong>' + _owEsc((d.veranstaltung || '') + (d.datum ? ' (' + formatDate(d.datum) + ')' : '')) + '</strong> ist bereits ein Ergebnis in <strong>' + _owEsc(d.disziplin || '') + '</strong> gespeichert.'
+      ? 'Für <strong>' + _owEsc((d.veranstaltung || '') + (d.datum ? ' (' + formatDate(d.datum) + ')' : '')) + '</strong> ist bereits ein Ergebnis in <strong>' + _owEsc(d.disziplin || '') + '</strong> gespeichert.' +
+        (z.konflikte ? ' <span style="color:var(--accent);font-weight:600">' + z.konflikte + ' abweichende(s) Feld(er).</span>' : '') +
+        (z.ergaenzungen ? ' <span style="color:var(--primary)">' + z.ergaenzungen + ' Feld(er) können ergänzt werden.</span>' : '')
       : 'Für diese Veranstaltung und Disziplin liegt bereits ein noch nicht geprüfter Antrag vor.';
-    if (d) {
-      _z('Ergebnis', d.resultat, neu.resultat);
-      _z('Altersklasse', d.altersklasse, neu.altersklasse);
-      _z('Startnummer', d.startnummer, neu.startnummer);
-      _z('Pos (AK)', d.ak_platzierung, neu.ak_platzierung);
-      _z('Pos (m/w)', d.pos_geschlecht, neu.pos_geschlecht);
-      _z('Pos (gesamt)', d.pos_gesamt, neu.pos_gesamt);
-      _z('Schuh', d.schuh, neu.schuh);
-      _z('Bemerkungen', d.bemerkungen, neu.bemerkungen);
-    }
     window._eeDupResolve = function(val) {
       window._eeDupResolve = null;
       closeModal();
@@ -338,14 +403,7 @@ function eeDublettenDialog(data, neu) {
     showModal(
       '<div class="modal-header"><div class="modal-title">&#x26A0;&#xFE0F; Ergebnis bereits vorhanden</div></div>' +
       '<div style="font-size:13px;margin-bottom:12px">' + kopf + '</div>' +
-      (rowsHtml ?
-        '<table style="width:100%;border-collapse:collapse;margin-bottom:14px">' +
-          '<tr style="border-bottom:1px solid var(--border)">' +
-            '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Feld</th>' +
-            '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Gespeichert</th>' +
-            '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Neu</th>' +
-          '</tr>' + rowsHtml +
-        '</table>' : '') +
+      rowsHtml +
       '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Beim Zusammenführen werden nur bisher <em>leere</em> Felder ergänzt – vorhandene Werte bleiben unverändert.</div>' +
       '<div class="modal-actions" style="gap:8px">' +
         '<button class="btn btn-ghost" onclick="_eeDupResolve(null)">Abbrechen</button>' +
@@ -507,7 +565,6 @@ async function _eeCsvVerarbeiten(text, dateiname) {
     return;
   }
 
-  var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : '';
   var zeilen = [];
   for (var r = 1; r < raw.length; r++) {
     var c = raw[r];
@@ -526,6 +583,7 @@ async function _eeCsvVerarbeiten(text, dateiname) {
         if (tr) ortRaw = tr.name;
       }
     }
+    // Leere Vereinsangabe bleibt leer (kein Vorbelegen mit dem eigenen Verein)
     var verein = get(iVerein);
     zeilen.push({
       datum: datum,
@@ -542,7 +600,7 @@ async function _eeCsvVerarbeiten(text, dateiname) {
       pos_gesamt: _eeCsvInt(get(iPosGes)),
       schuh: get(iSchuh),
       bemerkungen: get(iBem),
-      verein: verein || clubName,
+      verein: verein,
       meisterschaft: _eeCsvMstr(get(iSw)),
       ak_platz_meisterschaft: _eeCsvInt(get(iSwPos)),
       _aktiv: true,
@@ -625,7 +683,7 @@ function _eeCsvRenderPreview() {
   var statusEl = document.getElementById('ee-csv-status');
   if (!wrap) return;
   var fld = 'box-sizing:border-box;height:30px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px;width:100%';
-  var dubletten = 0, fehlend = 0, aktiv = 0;
+  var dubletten = 0, fehlend = 0, aktiv = 0, konflikte = 0;
 
   var body = _eeCsvRows.map(function(row, i) {
     var chk = row._check || {};
@@ -641,9 +699,22 @@ function _eeCsvRenderPreview() {
     if (problem) {
       statusHtml = '<span style="color:var(--accent);font-size:12px">⚠︎ ' + _owEsc(problem) + '</span>';
     } else if (chk.dublette) {
-      statusHtml = '<div style="font-size:11px;color:var(--text2);margin-bottom:3px" title="' + _owEsc('Vorhanden: ' + (chk.dublette.resultat || '')) + '">Duplikat (' + _owEsc(chk.dublette.resultat || '') + ')</div>' +
-        '<select onchange="eeCsvSetAktion(' + i + ',this.value)" style="' + fld + '">' +
-          '<option value="merge"' + (row._aktion === 'merge' ? ' selected' : '') + '>Zusammenführen</option>' +
+      var z = _eeVergleichZaehler(chk.dublette, row);
+      konflikte += z.konflikte;
+      var badges = '';
+      if (z.konflikte) badges += '<span style="display:inline-block;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);border-radius:9px;padding:1px 7px;font-size:11px;font-weight:600;margin-right:4px">' + z.konflikte + ' Konflikt' + (z.konflikte !== 1 ? 'e' : '') + '</span>';
+      if (z.ergaenzungen) badges += '<span style="display:inline-block;background:color-mix(in srgb,var(--primary) 16%,transparent);color:var(--primary);border-radius:9px;padding:1px 7px;font-size:11px;font-weight:600;margin-right:4px">+' + z.ergaenzungen + '</span>';
+      if (!z.konflikte && !z.ergaenzungen) badges += '<span style="font-size:11px;color:var(--text2)">identisch</span>';
+      // Abweichende Felder direkt im Klartext zeigen (max. 2, Rest im Detail-Dialog)
+      var kListe = z.liste.filter(function(x) { return x.art === 'konflikt'; }).slice(0, 2).map(function(x) {
+        return '<div style="font-size:11px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">' +
+          _owEsc(x.label) + ': ' + _owEsc(x.alt) + ' &rarr; ' + _owEsc(x.neu) + '</div>';
+      }).join('');
+      statusHtml = '<div style="margin-bottom:3px">' + badges +
+          '<a href="#" onclick="eeCsvKonfliktDetails(' + i + ');return false;" style="font-size:11px;color:var(--text2);text-decoration:underline">Details</a>' +
+        '</div>' + kListe +
+        '<select onchange="eeCsvSetAktion(' + i + ',this.value)" style="' + fld + ';margin-top:3px">' +
+          '<option value="merge"' + (row._aktion === 'merge' ? ' selected' : '') + '>Zusammenführen (leere Felder)</option>' +
           '<option value="skip"' + (row._aktion === 'skip' ? ' selected' : '') + '>Überspringen</option>' +
           '<option value="insert"' + (row._aktion === 'insert' ? ' selected' : '') + '>Trotzdem anlegen</option>' +
         '</select>';
@@ -677,7 +748,8 @@ function _eeCsvRenderPreview() {
       '<td style="padding:4px 6px;font-size:12px;white-space:nowrap">' +
         _owEsc((row.ak_platzierung || '–') + ' / ' + (row.pos_geschlecht || '–') + ' / ' + (row.pos_gesamt || '–')) + '</td>' +
       '<td style="padding:4px 6px;font-size:12px" title="' + _owEsc(row.bemerkungen || '') + '">' + _owEsc(row.schuh || '–') + '</td>' +
-      '<td style="padding:4px 6px;font-size:12px">' + _owEsc(row.verein || '–') + '</td>' +
+      '<td style="padding:4px 6px;font-size:12px">' + (row.verein ? _owEsc(row.verein) :
+        '<span style="color:var(--text2)" title="Keine Vereinsangabe – wird ohne Verein als externes Ergebnis gespeichert">– ohne –</span>') + '</td>' +
       '<td style="padding:4px 6px;min-width:150px">' + statusHtml + '</td>' +
     '</tr>';
   }).join('');
@@ -700,8 +772,29 @@ function _eeCsvRenderPreview() {
   if (statusEl) {
     statusEl.innerHTML = _eeCsvRows.length + ' Zeilen – ' + aktiv + ' importierbar' +
       (dubletten ? ', <strong>' + dubletten + ' Duplikat(e)</strong>' : '') +
+      (konflikte ? ', <span style="color:var(--accent)">' + konflikte + ' abweichende Feldwerte</span>' : '') +
       (fehlend ? ', <span style="color:var(--accent)">' + fehlend + ' unvollständig</span>' : '');
   }
+}
+
+// Detail-Ansicht: gespeichertes Ergebnis vs. CSV-Zeile
+function eeCsvKonfliktDetails(i) {
+  var row = _eeCsvRows[i];
+  if (!row || !row._check || !row._check.dublette) return;
+  var d = row._check.dublette;
+  showModal(
+    '<div class="modal-header"><div class="modal-title">&#x1F50D; Vergleich &ndash; Zeile ' + (row._zeile || (i + 1)) + '</div></div>' +
+    '<div style="font-size:13px;margin-bottom:12px">' +
+      _owEsc(row.veranstaltung_name || '') + (row.datum ? ' &middot; ' + formatDate(row.datum) : '') +
+      ' &middot; ' + _owEsc(row.disziplin || '') +
+      '<div style="font-size:12px;color:var(--text2);margin-top:4px">Gespeichert als „' + _owEsc(d.veranstaltung || '') + '" (' + _owEsc(d.disziplin || '') + ')</div>' +
+    '</div>' +
+    _eeVergleichTabelle(d, row) +
+    '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">' +
+      '<strong>Zusammenführen</strong> ergänzt nur leere Felder – abweichende Werte bleiben wie gespeichert. ' +
+      'Soll der CSV-Wert gewinnen, ändere das Ergebnis nach dem Import unter „Meine Ergebnisse".' +
+    '</div>' +
+    '<div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Schlie&szlig;en</button></div>', true);
 }
 
 function eeCsvToggle(i, val) { if (_eeCsvRows[i]) { _eeCsvRows[i]._aktiv = !!val; _eeCsvRenderPreview(); } }

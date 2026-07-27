@@ -1670,6 +1670,63 @@ function zusatzFelder(array $src): array {
     ];
 }
 
+/** Veranstaltungsname für den Vergleich normalisieren (Umlaute, Satzzeichen, Groß/Klein). */
+function veranstNameNorm(string $s): string {
+    $s = mb_strtolower(html_entity_decode($s, ENT_QUOTES, 'UTF-8'));
+    $s = strtr($s, ['ä'=>'a','ö'=>'o','ü'=>'u','ß'=>'ss','é'=>'e','è'=>'e','ê'=>'e','á'=>'a','à'=>'a','ó'=>'o','í'=>'i']);
+    $s = preg_replace('/[^a-z0-9]+/', ' ', $s);
+    return trim(preg_replace('/\s+/', ' ', $s));
+}
+
+/**
+ * Vergleicht zwei Veranstaltungs-/Ortsbezeichnungen tolerant:
+ * identisch, enthalten oder überwiegend gleiche Wortstämme
+ * („Bottroper Herbstwaldlauf" ↔ „Herbstwaldlauf Bottrop").
+ */
+function veranstNameAehnlich(string $a, string $b): bool {
+    $na = veranstNameNorm($a); $nb = veranstNameNorm($b);
+    if ($na === '' || $nb === '') return false;
+    if ($na === $nb) return true;
+    // Enthalten, aber nur an Wortgrenzen – sonst würde „Marathon" in „Halbmarathon" greifen
+    $enthalten = fn(string $gross, string $klein) =>
+        mb_strlen($klein) >= 4 && preg_match('/(^| )' . preg_quote($klein, '/') . '( |$)/u', $gross) === 1;
+    if ($enthalten($na, $nb) || $enthalten($nb, $na)) return true;
+    $wa = array_values(array_filter(explode(' ', $na), fn($w) => mb_strlen($w) >= 4));
+    $wb = array_values(array_filter(explode(' ', $nb), fn($w) => mb_strlen($w) >= 4));
+    if (!$wa || !$wb) return false;
+    $treffer = 0;
+    foreach ($wa as $x) {
+        foreach ($wb as $y) {
+            // Wortstamm-Toleranz: „bottroper" ~ „bottrop", „koelnmarathon" ~ „koeln"
+            $kurz = min(mb_strlen($x), mb_strlen($y));
+            if ($kurz >= 4 && mb_substr($x, 0, $kurz) === mb_substr($y, 0, $kurz)) { $treffer++; break; }
+        }
+    }
+    return $treffer > 0 && $treffer >= (int)ceil(min(count($wa), count($wb)) * 0.6);
+}
+
+/**
+ * Sucht ein bestehendes Ergebnis desselben Athleten am selben Tag in derselben
+ * Disziplin – unabhängig davon, ob die Veranstaltung zugeordnet werden konnte.
+ * Fängt Duplikate mit abweichender Wettkampfbezeichnung oder fehlendem Ort ab.
+ */
+function findeErgebnisDubletteNachDatum(int $athId, string $datum, string $disziplin, ?int $dmId): ?array {
+    if (!$datum) return null;
+    $cond = 'e.disziplin=?'; $params = [$athId, $datum, $disziplin];
+    if ($dmId) { $cond = '(e.disziplin=? OR e.disziplin_mapping_id=?)'; $params[] = $dmId; }
+    $row = DB::fetchOne(
+        'SELECT e.id, e.veranstaltung_id, e.disziplin, e.resultat, e.altersklasse, e.startnummer, e.pos_gesamt, e.pos_geschlecht,
+                e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft, e.schuh, e.bemerkungen,
+                e.extern, e.verein, v.datum, v.name AS veranstaltung
+           FROM ' . DB::tbl('ergebnisse') . ' e
+           JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id = e.veranstaltung_id
+          WHERE e.athlet_id=? AND v.datum=? AND e.geloescht_am IS NULL AND v.geloescht_am IS NULL AND ' . $cond . '
+          ORDER BY e.id LIMIT 1',
+        $params
+    );
+    return $row ?: null;
+}
+
 /**
  * Sucht ein bestehendes Ergebnis desselben Athleten an derselben Veranstaltung
  * in derselben Disziplin (Dubletten-Abgleich).
@@ -1678,7 +1735,7 @@ function findeErgebnisDublette(int $athId, int $vid, string $disziplin, ?int $dm
     $cond = 'e.disziplin=?'; $params = [$athId, $vid, $disziplin];
     if ($dmId) { $cond = '(e.disziplin=? OR e.disziplin_mapping_id=?)'; $params[] = $dmId; }
     $row = DB::fetchOne(
-        'SELECT e.id, e.disziplin, e.resultat, e.altersklasse, e.startnummer, e.pos_gesamt, e.pos_geschlecht,
+        'SELECT e.id, e.veranstaltung_id, e.disziplin, e.resultat, e.altersklasse, e.startnummer, e.pos_gesamt, e.pos_geschlecht,
                 e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft, e.schuh, e.bemerkungen,
                 e.extern, e.verein, v.datum, v.name AS veranstaltung
            FROM ' . DB::tbl('ergebnisse') . ' e
@@ -6101,17 +6158,23 @@ function veranstaltungFuerEigenes(array $item, bool $anlegen, bool $veranstPruef
         $v = DB::fetchOne('SELECT id,name,ort,datum FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=? AND geloescht_am IS NULL', [$kuerzel]);
         if ($v) return ['id'=>(int)$v['id'],'treffer'=>'kuerzel','ort'=>(string)$v['ort'],'name'=>(string)$v['name'],'datum'=>(string)$v['datum'],'fehler'=>null];
     }
-    // 2. Treffer über Datum + Veranstaltungsname
-    if ($evname) {
-        $v = DB::fetchOne('SELECT id,name,ort,datum FROM ' . DB::tbl('veranstaltungen') .
-            ' WHERE datum=? AND geloescht_am IS NULL AND (LOWER(name)=LOWER(?) OR LOWER(kuerzel)=LOWER(?)) LIMIT 1',
-            [$datum, $evname, $evname]);
-        if (!$v) {
-            $v = DB::fetchOne('SELECT id,name,ort,datum FROM ' . DB::tbl('veranstaltungen') .
-                ' WHERE datum=? AND geloescht_am IS NULL AND LOWER(name) LIKE LOWER(?) LIMIT 1',
-                [$datum, '%' . $evname . '%']);
+    // 2. Treffer über Datum + ähnlichen Veranstaltungsnamen bzw. Ort
+    //    (z.B. CSV „Bottroper Herbstwaldlauf" ↔ DB „Herbstwaldlauf" in Bottrop)
+    if ($evname || $ort) {
+        $kandidaten = DB::fetchAll('SELECT id,name,kuerzel,ort,datum FROM ' . DB::tbl('veranstaltungen') .
+            ' WHERE datum=? AND geloescht_am IS NULL ORDER BY id LIMIT 100', [$datum]);
+        foreach ($kandidaten as $k) {
+            $trefferArt = null;
+            if ($ort && veranstNameAehnlich($ort, (string)$k['ort'])) $trefferArt = 'datum_ort';
+            if (!$trefferArt && $evname) {
+                if (veranstNameAehnlich($evname, (string)$k['name'])
+                    || veranstNameAehnlich($evname, (string)$k['kuerzel'])
+                    || veranstNameAehnlich($evname, trim($k['name'] . ' ' . $k['ort']))) $trefferArt = 'datum_name';
+            }
+            if ($trefferArt) {
+                return ['id'=>(int)$k['id'],'treffer'=>$trefferArt,'ort'=>(string)$k['ort'],'name'=>(string)$k['name'],'datum'=>(string)$k['datum'],'fehler'=>null];
+            }
         }
-        if ($v) return ['id'=>(int)$v['id'],'treffer'=>'datum_name','ort'=>(string)$v['ort'],'name'=>(string)$v['name'],'datum'=>(string)$v['datum'],'fehler'=>null];
     }
     if (!$anlegen) return array_merge($leer, ['datum'=>$datum, 'name'=>$evname, 'ort'=>$ort]);
     if (!$ort) return array_merge($leer, ['datum'=>$datum, 'name'=>$evname, 'fehler'=>'Ort erforderlich']);
@@ -6136,6 +6199,16 @@ function eigenesErgebnisVerarbeiten(array $item, int $athId, int $userId, string
     $veranstPruefen  = Settings::get('eigenes_veranst_prufen',  '1') !== '0';
     $ergebnisPruefen = Settings::get('eigenes_ergebnis_prufen', '1') !== '0';
 
+    // Duplikat am selben Datum finden, BEVOR eine Veranstaltung angelegt wird –
+    // sonst entstünde bei abweichender Wettkampfbezeichnung eine zweite Veranstaltung.
+    $dupDatum = null;
+    if (!intOrNull($item['veranstaltung_id'] ?? null)) {
+        $dupDatum = findeErgebnisDubletteNachDatum($athId, sanitize($item['datum'] ?? '') ?: '', $disziplin, $dmId);
+        if ($dupDatum && $dupDatum['veranstaltung_id'] && $aktion !== 'insert') {
+            $item['veranstaltung_id'] = (int)$dupDatum['veranstaltung_id'];
+        }
+    }
+
     $v = veranstaltungFuerEigenes($item, true, $veranstPruefen);
     if ($v['fehler']) return ['status'=>'fehler','msg'=>$v['fehler']];
     $vid = (int)$v['id'];
@@ -6144,13 +6217,14 @@ function eigenesErgebnisVerarbeiten(array $item, int $athId, int $userId, string
     $akp    = intOrNull($item['ak_platzierung'] ?? null);
     $mstr   = intOrNull($item['meisterschaft'] ?? null);
     $akpm   = intOrNull($item['ak_platz_meisterschaft'] ?? null);
-    // Vereinsangabe: anderer Verein → externes Ergebnis
-    $verein   = sanitize($item['verein'] ?? ($item['externer_verein'] ?? ''));
+    // Vereinsangabe: anderer oder KEIN Verein → externes Ergebnis.
+    // Eine leere Angabe bleibt leer und wird nicht durch den eigenen Verein ersetzt.
+    $verein   = (string)(sanitize($item['verein'] ?? ($item['externer_verein'] ?? '')) ?? '');
     $clubName = (string)Settings::get('verein_name', '');
-    $isExtern = $verein !== '' && mb_strtolower($verein) !== mb_strtolower($clubName);
+    $isExtern = $verein === '' || mb_strtolower($verein) !== mb_strtolower($clubName);
 
     // Dubletten-Abgleich
-    $dup     = findeErgebnisDublette($athId, $vid, $disziplin, $dmId);
+    $dup     = findeErgebnisDublette($athId, $vid, $disziplin, $dmId) ?: $dupDatum;
     $pending = $dup ? null : findeOffenenErgebnisAntrag($athId, $vid, $disziplin);
     if (($dup || $pending) && $aktion === 'auto') {
         return ['status'=>'dublette', 'dublette'=>$dup, 'antrag'=>$pending, 'veranstaltung_id'=>$vid,
@@ -6159,7 +6233,7 @@ function eigenesErgebnisVerarbeiten(array $item, int $athId, int $userId, string
     if ($dup && $aktion === 'merge') {
         $gefuellt = mergeErgebnisFelder((int)$dup['id'], array_merge($zusatz, [
             'altersklasse'=>$ak ?: null, 'ak_platzierung'=>$akp, 'meisterschaft'=>$mstr,
-            'ak_platz_meisterschaft'=>$akpm, 'verein'=>$isExtern ? $verein : null,
+            'ak_platz_meisterschaft'=>$akpm, 'verein'=>$verein !== '' ? $verein : null,
         ]));
         return ['status'=>'gemergt','ergebnis_id'=>(int)$dup['id'],'felder'=>$gefuellt,
                 'msg'=>$gefuellt ? 'Ergänzt: ' . implode(', ', $gefuellt) : 'Keine neuen Angaben – unverändert.'];
@@ -6171,7 +6245,7 @@ function eigenesErgebnisVerarbeiten(array $item, int $athId, int $userId, string
             'veranstaltung_id'=>$vid,'athlet_id'=>$athId,'disziplin'=>$disziplin,
             'disziplin_mapping_id'=>$dmId,'resultat'=>$resultat,'altersklasse'=>$ak,
             'ak_platzierung'=>$akp,'meisterschaft'=>$mstr,'ak_platz_meisterschaft'=>$akpm,
-            'extern'=>$isExtern ? 1 : 0,'verein'=>$isExtern ? $verein : null,
+            'extern'=>$isExtern ? 1 : 0,'verein'=>$verein !== '' ? $verein : null,
             'erstellt_von'=>$userId,
         ], $zusatz));
         DB::query('INSERT INTO ' . DB::tbl('ergebnis_aenderungen') .
@@ -6192,7 +6266,7 @@ function eigenesErgebnisVerarbeiten(array $item, int $athId, int $userId, string
            extern,verein,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         [$vid, $athId, $disziplin, $dmId, $resultat, $rnum, $ak ?: null,
          $akp, $mstr, $akpm, $zusatz['startnummer'], $zusatz['pos_gesamt'], $zusatz['pos_geschlecht'],
-         $zusatz['schuh'], $zusatz['bemerkungen'], $isExtern ? 1 : 0, $isExtern ? $verein : null, $userId]);
+         $zusatz['schuh'], $zusatz['bemerkungen'], $isExtern ? 1 : 0, $verein !== '' ? $verein : null, $userId]);
     return ['status'=>'gespeichert','ergebnis_id'=>(int)DB::lastInsertId(),'msg'=>'Ergebnis gespeichert.'];
 }
 
@@ -6251,9 +6325,25 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes-bulk') {
                 'antrag'            => null,
             ];
             $disziplin = sanitize($it['disziplin'] ?? '');
-            if ($v['id'] && $disziplin) {
-                $zeile['dublette'] = findeErgebnisDublette((int)$athId, (int)$v['id'], $disziplin, intOrNull($it['disziplin_mapping_id'] ?? null));
-                if (!$zeile['dublette']) $zeile['antrag'] = findeOffenenErgebnisAntrag((int)$athId, (int)$v['id'], $disziplin);
+            $dmIdChk   = intOrNull($it['disziplin_mapping_id'] ?? null);
+            if ($disziplin) {
+                if ($v['id']) $zeile['dublette'] = findeErgebnisDublette((int)$athId, (int)$v['id'], $disziplin, $dmIdChk);
+                // Auch ohne Veranstaltungs-Treffer: gleicher Tag + gleiche Disziplin = Duplikat
+                if (!$zeile['dublette']) {
+                    $dupD = findeErgebnisDubletteNachDatum((int)$athId, sanitize($it['datum'] ?? '') ?: '', $disziplin, $dmIdChk);
+                    if ($dupD) {
+                        $zeile['dublette'] = $dupD;
+                        // Veranstaltung des vorhandenen Ergebnisses übernehmen, damit keine zweite entsteht
+                        if (!$zeile['veranstaltung_id'] && $dupD['veranstaltung_id']) {
+                            $zeile['veranstaltung_id']   = (int)$dupD['veranstaltung_id'];
+                            $zeile['veranstaltung_name'] = (string)($dupD['veranstaltung'] ?? '');
+                            $zeile['treffer']            = 'datum_ergebnis';
+                            $vRow = DB::fetchOne('SELECT ort FROM ' . DB::tbl('veranstaltungen') . ' WHERE id=?', [(int)$dupD['veranstaltung_id']]);
+                            $zeile['veranstaltung_ort'] = (string)($vRow['ort'] ?? '');
+                        }
+                    }
+                }
+                if (!$zeile['dublette'] && $v['id']) $zeile['antrag'] = findeOffenenErgebnisAntrag((int)$athId, (int)$v['id'], $disziplin);
             }
             $out[] = $zeile;
         }
@@ -7447,7 +7537,7 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
         $ergs = DB::fetchAll(
             "SELECT e.id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.resultat_num,
                     e.altersklasse, e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft,
-                    e.verein, e.startnummer, e.pos_gesamt, e.pos_geschlecht, e.schuh, e.bemerkungen,
+                    e.verein, e.extern, e.startnummer, e.pos_gesamt, e.pos_geschlecht, e.schuh, e.bemerkungen,
                     COALESCE(dm.fmt_override, dk.fmt, 'min') AS fmt,
                     dk.name AS kategorie_name, dk.tbl_key
              FROM $eTbl e

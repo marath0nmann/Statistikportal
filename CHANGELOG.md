@@ -1,3 +1,9 @@
+## v1404
+- CSV-Import/eigenes Ergebnis: Eine leere Vereinsangabe bleibt jetzt wirklich leer und wird nicht mehr durch den eigenen Verein ersetzt. Ohne Vereinsangabe zählt das Ergebnis als externes Ergebnis; in „Meine Ergebnisse" wird der eigene Verein nur noch bei echten Vereinsergebnissen als Fallback angezeigt.
+- Dubletten-Erkennung greift jetzt auch bei abweichender Wettkampfbezeichnung oder fehlendem Ort: Ein vorhandenes Ergebnis desselben Athleten am selben Tag in derselben Disziplin gilt als Duplikat, unabhängig von der Veranstaltungszuordnung (z.B. „Bottroper Herbstwaldlauf" ↔ „Herbstwaldlauf"). Die Veranstaltung des vorhandenen Ergebnisses wird übernommen, sodass keine zweite Veranstaltung angelegt wird.
+- Veranstaltungs-Zuordnung vergleicht Namen tolerant (Umlaute, Bindestriche, Wortstämme, Wortreihenfolge) und prüft zusätzlich den Ort – „Bottroper Herbstwaldlauf" findet „Herbstwaldlauf Bottrop".
+- Konflikte werden klar angezeigt: Vergleichstabelle Gespeichert ↔ Import mit Kennzeichnung je Feld (Konflikt / wird ergänzt / identisch), Badges und Klartext-Abweichungen direkt in der CSV-Vorschau sowie ein Detail-Dialog je Zeile. Unterschiedliche Schreibweisen derselben Zeit (`00:40:58` ↔ `40:58`) gelten nicht als Konflikt.
+
 ## v1403
 - Claude-Prompt auf die Newsblog-Konventionen von tus-oedt.de umgestellt: Gutenberg-Aufbau (h2-Titel, Datum am Anfang der Einleitung, More-Block, h3-Disziplinen), Ergebnisse als Absatzzeilen statt Tabelle, festes Zeilenformat mit Altersklasse vor dem Medaillen-Emoji, Korrekturregeln (Komposita, Dezimalkomma) und Sonderfall für heimische Veranstaltungen
 - Längenbegrenzung entfernt – nur die Einleitung bleibt bewusst kurz (More-Block), der Bericht selbst darf ausführlich sein
