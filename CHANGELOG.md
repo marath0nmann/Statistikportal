@@ -1,3 +1,9 @@
+## v1403
+- Claude-Prompt auf die Newsblog-Konventionen von tus-oedt.de umgestellt: Gutenberg-Aufbau (h2-Titel, Datum am Anfang der Einleitung, More-Block, h3-Disziplinen), Ergebnisse als Absatzzeilen statt Tabelle, festes Zeilenformat mit Altersklasse vor dem Medaillen-Emoji, Korrekturregeln (Komposita, Dezimalkomma) und Sonderfall für heimische Veranstaltungen
+- Längenbegrenzung entfernt – nur die Einleitung bleibt bewusst kurz (More-Block), der Bericht selbst darf ausführlich sein
+- Externe Starts (anderer Verein) werden aus den Daten gefiltert und die Anzahl gemeldet
+- Leistungen werden im Prompt fertig formatiert übergeben (`16,55 sec`, `3:00,95 min`, `4,57 m`, `3:36:19 h`) – deutsches Dezimalkomma und Einheit kommen aus dem Code, nicht vom Modell
+
 ## v1402
 - Claude-Prompt überarbeitet: Einstieg und Tonalität wie im bisher manuell genutzten Prompt („lebhafter Text für den Newsblog"), Länge auf 250–400 Wörter erhöht
 - Neuer Abschnitt „Ergebnisliste auswerten": Claude wird angewiesen, die hinterlegte Ergebnisquelle zu öffnen und Teilnehmerzahl, Gesamtplatzierungen, Siegerzeiten und Auffälligkeiten zu ermitteln – mit ausdrücklichem Hinweis, bei fehlenden Angaben nicht zu raten. Ohne hinterlegte Quelle erscheint stattdessen ein Hinweis, entsprechende Angaben wegzulassen.

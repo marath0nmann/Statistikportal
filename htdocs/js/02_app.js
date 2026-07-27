@@ -2267,57 +2267,107 @@ function _veranstWhatsapp(v, badgeMap) {
   return out;
 }
 
+// Ergebniswert im Newsblog-Format: deutsches Dezimalkomma + Einheit
+// 16.55 (s) \u2192 "16,55 sec" \u00b7 4.57 (m) \u2192 "4,57 m" \u00b7 00:39:57 \u2192 "39:57 min" \u00b7 3:36:19 \u2192 "3:36:19 h"
+function _sharePromptResult(e) {
+  var raw = String(e.resultat == null ? '' : e.resultat).trim();
+  var fmt = e.fmt || 'min';
+  if (fmt === 'm') return raw.replace('.', ',') + ' m';
+  var v = raw.replace(/^0+:?/, '').replace(/^:/, '').replace('.', ',');
+  if (fmt === 's') return v + ' sec';
+  return v + (raw.split(':').length >= 3 && !/^0+:/.test(raw) ? ' h' : ' min');
+}
+
 // \u2500\u2500 Claude-Prompt: fertiger Auftrag + strukturierte Daten \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function _veranstClaudePrompt(v, badgeMap) {
-  var url    = location.origin + location.pathname + '#veranstaltung/' + v.id;
-  var date   = v.datum ? v.datum.split('-').reverse().join('.') : '';
-  var title  = v.name || v.kuerzel || 'Veranstaltung';
-  var club   = (typeof appConfig !== 'undefined' && (appConfig.verein_name || appConfig.verein_kuerzel)) || 'unseren Verein';
-  var g      = _shareGroupByDisz(v);
-  var ownClub = (typeof appConfig !== 'undefined' && (appConfig.verein_name || appConfig.verein_kuerzel)) || '';
+  var url     = location.origin + location.pathname + '#veranstaltung/' + v.id;
+  var date    = v.datum ? v.datum.split('-').reverse().join('.') : '';
+  var title   = v.name || v.kuerzel || 'Veranstaltung';
+  var club    = (typeof appConfig !== 'undefined' && (appConfig.verein_name || appConfig.verein_kuerzel)) || 'unseren Verein';
+  var g       = _shareGroupByDisz(v);
 
   var p = '';
-  p += 'Ich sende dir Informationen zu Wettk\u00e4mpfen und du schreibst auf dieser Basis einen ' +
-       'lebhaften Text f\u00fcr den Newsblog unserer Vereinshomepage (' + club + ').\n\n';
+  p += 'Ich sende dir Informationen zu Wettkämpfen und du schreibst auf dieser Basis einen ' +
+       'lebhaften Text für den Newsblog unserer Vereinshomepage (' + club + ').\n\n';
 
-  p += '## Vorgaben\n\n';
-  p += '- **Tonalit\u00e4t:** lebhaft und mitrei\u00dfend, so wie man im Verein \u00fcber einen gelungenen ' +
-       'Wettkampftag erz\u00e4hlt \u2013 aber alle Zahlen, Namen und Platzierungen m\u00fcssen exakt stimmen\n';
-  p += '- **L\u00e4nge:** 250\u2013400 W\u00f6rter Flie\u00dftext\n';
-  p += '- **Aufbau:** \u00dcberschrift \u00b7 Einstieg (Wettkampf, Ort, Datum, Gr\u00f6\u00dfe des Teilnehmerfelds) \u00b7 ' +
-       'Abs\u00e4tze zu den H\u00f6hepunkten \u00b7 kurzes Fazit\n';
-  p += '- **Danach** die vollst\u00e4ndige Ergebnistabelle je Disziplin\n';
-  p += '- **Hebe besondere Leistungen hervor:** pers\u00f6nliche Bestleistungen, Deb\u00fcts, Vereinsrekorde, ' +
-       'Podestpl\u00e4tze \u2013 und ordne die Ergebnisse ins Teilnehmerfeld ein\n';
-  p += '- **Keine Erfindungen:** Wetter, Streckenverlauf, Zitate oder Emotionen einzelner Personen ' +
-       'nur dann, wenn sie aus den Daten oder der Ergebnisliste hervorgehen\n';
-  p += '- **Ausgabeformat:** WordPress-Gutenberg-Bl\u00f6cke (`<!-- wp:heading -->`, `<!-- wp:paragraph -->`, ' +
-       '`<!-- wp:table -->`), damit ich sie direkt in den WordPress-Code-Editor einf\u00fcgen kann\n';
-  p += '- Verlinke am Ende das Statistikportal' + (v.datenquelle ? ' und die offizielle Ergebnisliste' : '') + '\n\n';
+  // ── Ausgabeformat ──
+  p += '## Ausgabeformat\n\n';
+  p += '- **Gutenberg-Block-HTML** mit `<!-- wp: -->`-Kommentaren, fertig zum Einfügen in den ' +
+       'WordPress-Code-Editor\n';
+  p += '- **Keine Tabellen.** Ergebnisse stehen als einzelne Textzeilen (je ein Absatz pro Person).\n';
+  p += '- Die Daten unten sind aus Platzgründen als Tabelle notiert – **im Beitrag dürfen sie ' +
+       'nicht als Tabelle erscheinen.**\n\n';
 
-  // \u2500\u2500 Auswertung der offiziellen Ergebnisliste \u2500\u2500
+  // ── Aufbau ──
+  p += '## Aufbau des Beitrags\n\n';
+  p += '| Element | Umsetzung |\n|---|---|\n';
+  p += '| Titel | `h2`-Überschrift (`<!-- wp:heading -->`) |\n';
+  p += '| Einleitung | Ein Absatz, bewusst **kurz** als Teaser |\n';
+  p += '| Wettkampfdatum | **Am Anfang des Einleitungsabsatzes** im Format `' + date + ' - …` ' +
+       '(Datum, Leerzeichen, Bindestrich, Leerzeichen, Text). **Kein** eigener Datumsabsatz. |\n';
+  p += '| More-Block | Direkt nach der Einleitung: `<!-- wp:more --><!--more--><!-- /wp:more -->` |\n';
+  p += '| Disziplin | `h3`-Überschrift (z. B. „5.000 m", „Weitsprung") |\n';
+  p += '| Mehrtägige Events | Tage als `h3`, Disziplinen darunter als `h4` |\n';
+  p += '| Ergebniszeilen | je ein `<!-- wp:paragraph -->` pro Athlet:in |\n';
+  p += '| Abschluss | Glückwunsch-/Dank- und Regenerationsabsatz |\n';
+  p += '| Ergebnislink | Abschlussabsatz mit Link zur offiziellen Ergebnisliste |\n\n';
+
+  // ── Format der Ergebniszeilen ──
+  p += '## Format der Ergebniszeilen\n\n';
+  p += '```\nName – Zeit/Weite – Zusätze (PB/SB/Vereinsrekord) – X. Platz [Altersklasse][Medaillen-Emoji]\n```\n\n';
+  p += '- Die **Altersklasse** steht am Zeilenende, direkt **vor** dem Medaillen-Emoji (ohne Leerzeichen).\n';
+  p += '- Medaillen-Emojis nur für das Podest: 🥇 (1.), 🥈 (2.), 🥉 (3.)\n';
+  p += '- Zusätze wie `PB`, `SB` oder `Vereinsrekord` stehen zwischen Leistung und Platz.\n';
+  p += '- Beispiele:\n';
+  p += '  - `Roger Simons – 16,55 sec – SB – 1. Platz M75🥇`\n';
+  p += '  - `Simon Heiß – 39:57 min – 2. Platz M35🥈`\n';
+  p += '  - `Leni Schmitz – 3:00,95 min – PB – 8. Platz W12`\n\n';
+
+  // ── Stil ──
+  p += '## Stil & Ton\n\n';
+  p += '- Lebhaft, freundlich und wertschätzend.\n';
+  p += '- **Einleitung kurz halten** (kompakter Teaser, passend zum More-Block).\n';
+  p += '- **Für den Rest gibt es keine Längenvorgabe** – lieber ausführlich als knapp. ' +
+       'Erzähle die Höhepunkte aus, ordne Leistungen ein, würdige einzelne Athlet:innen.\n';
+  p += '- Abschluss: Glückwunsch an alle Teilnehmenden + Wunsch für gute Regeneration.\n';
+  p += '- **Sonderfall heimische Veranstaltung:** Wenn wir selbst ausrichten, den Fokus verschieben – ' +
+       'Dank an alle Teilnehmenden, Vorfreude auf das nächste Jahr, Hinweis auf Fotos. ' +
+       'Bei eigenen Meets ggf. ein kurzer Prosa-Abschnitt zu den Gastvereinen vor den Vereinsergebnissen.\n\n';
+
+  // ── Korrekturen ──
+  p += '## Automatisch korrigieren\n\n';
+  p += 'Die Quelldaten enthalten häufig Fehler. Bitte immer stillschweigend berichtigen:\n\n';
+  p += '- Grammatik und Interpunktion\n';
+  p += '- Bindestrich-Komposita (z. B. `Sparkassen-Sportfest` statt „Sparkassen Sportfest")\n';
+  p += '- Deutsche Zahlenschreibung: Komma statt Punkt bei Weiten und Zeiten (`4,57 m`)\n';
+  p += '- Einheitliche Schreibweise von Namen – bei Unklarheit lieber nachfragen\n\n';
+
+  // ── Ergebnisliste auswerten ──
   if (v.datenquelle) {
     p += '## Ergebnisliste auswerten\n\n';
-    p += '\u00d6ffne vor dem Schreiben die offizielle Ergebnisliste und werte sie aus:\n\n';
+    p += 'Öffne vor dem Schreiben die offizielle Ergebnisliste und werte sie aus:\n\n';
     p += '`' + v.datenquelle + '`\n\n';
-    p += 'Ermittle daraus \u2013 soweit die Seite es hergibt:\n\n';
+    p += 'Ermittle daraus – soweit die Seite es hergibt:\n\n';
     p += '- **Teilnehmerzahl** insgesamt und je Disziplin (Finisher im Ziel)\n';
-    p += '- **Gesamtplatzierung** unserer Starterinnen und Starter im Feld ' +
-         '(unten stehen nur die Altersklassen-Pl\u00e4tze) sowie die Platzierung innerhalb der Geschlechterwertung\n';
-    p += '- **Siegerzeiten** zur Einordnung: Wie weit lagen unsere Leute vom Sieg bzw. vom Podest entfernt?\n';
-    p += '- **Auff\u00e4lligkeiten:** Rekordbeteiligung, besonders gro\u00dfes oder kleines Feld, ' +
-         'Streckenl\u00e4nge/Profil, Jubil\u00e4umsauflage, prominente Teilnehmende, Wetterhinweise\n\n';
-    p += 'Baue diese Erkenntnisse in den Text ein \u2013 gerade die Einordnung \u201ePlatz 2 von 148 in der ' +
-         'Altersklasse" macht den Bericht lebendig. Falls die Seite sich nicht auslesen l\u00e4sst oder ' +
-         'einzelne Angaben fehlen, schreibe den Text ohne diese Details und weise mich am Ende ' +
-         'kurz darauf hin \u2013 **rate nicht**.\n\n';
+    p += '- **Gesamtplatzierung** unserer Starter:innen im Feld – unten stehen nur die ' +
+         'Altersklassen-Plätze – sowie die Platzierung in der Geschlechterwertung\n';
+    p += '- **Siegerzeiten** zur Einordnung: Wie weit lagen unsere Leute vom Sieg bzw. Podest entfernt?\n';
+    p += '- **Auffälligkeiten:** Rekordbeteiligung, besonders großes oder kleines Feld, ' +
+         'Streckenprofil, Jubiläumsauflage, prominente Teilnehmende, Wetterhinweise\n';
+    p += '- Ggf. **Saisonbestleistungen (SB)**, falls die Liste frühere Zeiten desselben Jahres zeigt\n\n';
+    p += 'Diese Einordnung macht den Bericht lebendig („Platz 2 von 148 in der Altersklasse"). ' +
+         'Wenn `web_fetch` nur eine leere Hülle liefert (z. B. bei RaceResult), versuche es mit ' +
+         'Claude-in-Chrome (`navigate` + `get_page_text`). Lässt sich die Seite gar nicht auslesen ' +
+         'oder fehlen einzelne Angaben: Text ohne diese Details schreiben und mich am Ende kurz ' +
+         'darauf hinweisen – **nicht raten**.\n\n';
   } else {
-    p += '## Hinweis\n\n';
-    p += 'F\u00fcr diese Veranstaltung ist keine offizielle Ergebnisliste hinterlegt. ' +
-         'Angaben wie Teilnehmerzahl oder Gesamtplatzierung liegen daher nicht vor \u2013 ' +
-         'bitte nicht sch\u00e4tzen, sondern weglassen.\n\n';
+    p += '## Hinweis zur Ergebnisliste\n\n';
+    p += 'Für diese Veranstaltung ist keine offizielle Ergebnisliste hinterlegt. Angaben wie ' +
+         'Teilnehmerzahl oder Gesamtplatzierung liegen daher nicht vor – bitte weglassen statt schätzen. ' +
+         'Der Abschlussabsatz verlinkt in diesem Fall nur das Statistikportal.\n\n';
   }
 
+  // ── Veranstaltung ──
   p += '## Veranstaltung\n\n';
   p += '| Feld | Wert |\n|---|---|\n';
   p += '| Name | ' + title + ' |\n';
@@ -2328,51 +2378,52 @@ function _veranstClaudePrompt(v, badgeMap) {
   if (v.datenquelle) p += '| Offizielle Ergebnisliste | ' + v.datenquelle + ' |\n';
   p += '\n';
 
-  p += '## Ergebnisse\n';
+  // ── Ergebnisse (nur eigener Verein) ──
+  p += '## Ergebnisse\n\n';
+  p += 'Ausschließlich Athlet:innen von ' + club + '. Leistungen sind bereits korrekt formatiert ' +
+       '(deutsches Dezimalkomma, passende Einheit) – bitte unverändert übernehmen.\n';
 
-  var anyMstr = false, anyExtern = false;
+  var anyMstr = false, externCount = 0, hasAny = false;
   g.order.forEach(function(disz) {
-    var rows = g.byDisz[disz];
+    var rows = g.byDisz[disz].filter(function(e) {
+      if (parseInt(e.extern) === 1) { externCount++; return false; }
+      return true;
+    });
+    if (!rows.length) return;
+    hasAny = true;
     p += '\n### ' + disz + '\n\n';
-    p += '| Platz AK | Athlet*in | AK | Ergebnis | Pace | Auszeichnung |\n';
-    p += '|---|---|---|---|---|---|\n';
+    p += '| Athlet:in | Leistung | Platz AK | AK | Auszeichnung |\n|---|---|---|---|---|\n';
     rows.forEach(function(e) {
       var badges = _shareBadgesFor(badgeMap, e).slice();
       if (e.meisterschaft) {
         anyMstr = true;
-        var msTxt = 'Meisterschaft';
-        if (e.ak_platz_meisterschaft) msTxt += ' (Platz ' + e.ak_platz_meisterschaft + ')';
-        badges.push(msTxt);
+        badges.push('Meisterschaft' + (e.ak_platz_meisterschaft ? ' (Platz ' + e.ak_platz_meisterschaft + ')' : ''));
       }
-      var name = _shareAthletName(e);
-      if (parseInt(e.extern) === 1) {
-        anyExtern = true;
-        name += ' [f\u00fcr ' + (e.verein || 'anderen Verein') + ' gestartet]';
-      }
-      var pace = '';
-      if (typeof calcPace === 'function') {
-        var pv = calcPace(e.disziplin, e.resultat, e.disziplin_mapping_id);
-        if (pv && pv !== '00:00') pace = pv + ' min/km';
-      }
-      p += '| ' + (e.ak_platzierung || '\u2013') +
-           ' | ' + name +
-           ' | ' + (e.altersklasse || '\u2013') +
-           ' | ' + _veranstFormatResult(e) +
-           ' | ' + (pace || '\u2013') +
-           ' | ' + (badges.length ? badges.join(', ') : '\u2013') + ' |\n';
+      p += '| ' + _shareAthletName(e) +
+           ' | ' + _sharePromptResult(e) +
+           ' | ' + (e.ak_platzierung || '–') +
+           ' | ' + (e.altersklasse || '–') +
+           ' | ' + (badges.length ? badges.join(', ') : '–') + ' |\n';
     });
   });
+  if (!hasAny) p += '\n_Keine Vereinsergebnisse vorhanden._\n';
+  if (externCount) {
+    p += '\n> ' + externCount + ' weitere' + (externCount === 1 ? 's Ergebnis wurde' : ' Ergebnisse wurden') +
+         ' ausgelassen, weil die Person für einen anderen Verein gestartet ist.\n';
+  }
 
+  // ── Legende ──
   p += '\n## Legende\n\n';
-  p += '- **Platz AK** \u2013 Platzierung **innerhalb der Altersklasse**, nicht im Gesamtfeld' +
-       (v.datenquelle ? ' (Gesamtplatz bitte aus der Ergebnisliste erg\u00e4nzen)' : '') + '\n';
-  p += '- **PB** \u2013 pers\u00f6nliche Bestleistung (schnellste je gelaufene Zeit dieser Person auf dieser Strecke)\n';
-  p += '- **Deb\u00fct** \u2013 erster Start dieser Person auf dieser Strecke\n';
-  p += '- **Vereinsrekord** \u2013 beste jemals im Verein erzielte Leistung auf dieser Strecke\n';
-  p += '- **Bestleistung <AK>** \u2013 beste Leistung in der jeweiligen Altersklasse\n';
-  if (anyMstr)   p += '- **Meisterschaft** \u2013 Wertung im Rahmen einer offiziellen Meisterschaft\n';
-  if (anyExtern) p += '- **[f\u00fcr \u2026 gestartet]** \u2013 Person startete nicht f\u00fcr ' + (ownClub || 'den Verein') + ', im Text ggf. weglassen\n';
-  p += '- Altersklassen: M/W + Alter (z. B. M35 = M\u00e4nner ab 35), MHK/WHK = Hauptklasse\n';
+  p += '- **Platz AK** – Platzierung **innerhalb der Altersklasse**, nicht im Gesamtfeld' +
+       (v.datenquelle ? ' (Gesamtplatz bitte aus der Ergebnisliste ergänzen)' : '') + '\n';
+  p += '- **PB** – persönliche Bestleistung auf dieser Strecke\n';
+  p += '- **Debüt** – erster Start dieser Person auf dieser Strecke\n';
+  p += '- **Vereinsrekord** – beste jemals im Verein erzielte Leistung auf dieser Strecke\n';
+  p += '- **Bestleistung <AK>** – beste Leistung in der jeweiligen Altersklasse\n';
+  if (anyMstr) p += '- **Meisterschaft** – Wertung im Rahmen einer offiziellen Meisterschaft\n';
+  p += '- **SB** (Saisonbestleistung) liegt in diesen Daten nicht vor – nur ergänzen, wenn es ' +
+       'aus der offiziellen Ergebnisliste hervorgeht\n';
+  p += '- Altersklassen: M/W + Alter (z. B. M35 = Männer ab 35), MHK/WHK = Hauptklasse\n';
 
   return p;
 }
