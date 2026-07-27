@@ -2277,22 +2277,46 @@ function _veranstClaudePrompt(v, badgeMap) {
   var ownClub = (typeof appConfig !== 'undefined' && (appConfig.verein_name || appConfig.verein_kuerzel)) || '';
 
   var p = '';
-  p += 'Du schreibst einen Blogbeitrag f\u00fcr die Website von ' + club + '.\n\n';
-
-  p += '## Aufgabe\n\n';
-  p += 'Erstelle aus den unten stehenden Wettkampfdaten einen fertigen WordPress-Beitrag.\n\n';
+  p += 'Ich sende dir Informationen zu Wettk\u00e4mpfen und du schreibst auf dieser Basis einen ' +
+       'lebhaften Text f\u00fcr den Newsblog unserer Vereinshomepage (' + club + ').\n\n';
 
   p += '## Vorgaben\n\n';
-  p += '- **Tonalit\u00e4t:** sachlich-freundlich und vereinsnah, keine \u00fcbertriebenen Superlative\n';
-  p += '- **L\u00e4nge:** 200\u2013350 W\u00f6rter Flie\u00dftext\n';
-  p += '- **Aufbau:** \u00dcberschrift \u00b7 Einleitung (Wettkampf, Ort, Datum) \u00b7 Absatz zu den H\u00f6hepunkten \u00b7 kurzes Fazit\n';
+  p += '- **Tonalit\u00e4t:** lebhaft und mitrei\u00dfend, so wie man im Verein \u00fcber einen gelungenen ' +
+       'Wettkampftag erz\u00e4hlt \u2013 aber alle Zahlen, Namen und Platzierungen m\u00fcssen exakt stimmen\n';
+  p += '- **L\u00e4nge:** 250\u2013400 W\u00f6rter Flie\u00dftext\n';
+  p += '- **Aufbau:** \u00dcberschrift \u00b7 Einstieg (Wettkampf, Ort, Datum, Gr\u00f6\u00dfe des Teilnehmerfelds) \u00b7 ' +
+       'Abs\u00e4tze zu den H\u00f6hepunkten \u00b7 kurzes Fazit\n';
   p += '- **Danach** die vollst\u00e4ndige Ergebnistabelle je Disziplin\n';
-  p += '- **Hebe besondere Leistungen hervor** (pers\u00f6nliche Bestleistungen, Deb\u00fcts, Vereinsrekorde, Podestpl\u00e4tze)\n';
-  p += '- **Wichtig:** Verwende ausschlie\u00dflich die unten angegebenen Namen, Zeiten und Platzierungen. ' +
-       'Erfinde keine zus\u00e4tzlichen Details (Wetter, Streckenverlauf, Zitate), die hier nicht stehen.\n';
+  p += '- **Hebe besondere Leistungen hervor:** pers\u00f6nliche Bestleistungen, Deb\u00fcts, Vereinsrekorde, ' +
+       'Podestpl\u00e4tze \u2013 und ordne die Ergebnisse ins Teilnehmerfeld ein\n';
+  p += '- **Keine Erfindungen:** Wetter, Streckenverlauf, Zitate oder Emotionen einzelner Personen ' +
+       'nur dann, wenn sie aus den Daten oder der Ergebnisliste hervorgehen\n';
   p += '- **Ausgabeformat:** WordPress-Gutenberg-Bl\u00f6cke (`<!-- wp:heading -->`, `<!-- wp:paragraph -->`, ' +
-       '`<!-- wp:table -->`), damit ich sie direkt in den WordPress-Code-Editor einf\u00fcgen kann.\n';
-  p += '- Verlinke am Ende das Statistikportal' + (v.datenquelle ? ' und die offizielle Ergebnisliste' : '') + '.\n\n';
+       '`<!-- wp:table -->`), damit ich sie direkt in den WordPress-Code-Editor einf\u00fcgen kann\n';
+  p += '- Verlinke am Ende das Statistikportal' + (v.datenquelle ? ' und die offizielle Ergebnisliste' : '') + '\n\n';
+
+  // \u2500\u2500 Auswertung der offiziellen Ergebnisliste \u2500\u2500
+  if (v.datenquelle) {
+    p += '## Ergebnisliste auswerten\n\n';
+    p += '\u00d6ffne vor dem Schreiben die offizielle Ergebnisliste und werte sie aus:\n\n';
+    p += '`' + v.datenquelle + '`\n\n';
+    p += 'Ermittle daraus \u2013 soweit die Seite es hergibt:\n\n';
+    p += '- **Teilnehmerzahl** insgesamt und je Disziplin (Finisher im Ziel)\n';
+    p += '- **Gesamtplatzierung** unserer Starterinnen und Starter im Feld ' +
+         '(unten stehen nur die Altersklassen-Pl\u00e4tze) sowie die Platzierung innerhalb der Geschlechterwertung\n';
+    p += '- **Siegerzeiten** zur Einordnung: Wie weit lagen unsere Leute vom Sieg bzw. vom Podest entfernt?\n';
+    p += '- **Auff\u00e4lligkeiten:** Rekordbeteiligung, besonders gro\u00dfes oder kleines Feld, ' +
+         'Streckenl\u00e4nge/Profil, Jubil\u00e4umsauflage, prominente Teilnehmende, Wetterhinweise\n\n';
+    p += 'Baue diese Erkenntnisse in den Text ein \u2013 gerade die Einordnung \u201ePlatz 2 von 148 in der ' +
+         'Altersklasse" macht den Bericht lebendig. Falls die Seite sich nicht auslesen l\u00e4sst oder ' +
+         'einzelne Angaben fehlen, schreibe den Text ohne diese Details und weise mich am Ende ' +
+         'kurz darauf hin \u2013 **rate nicht**.\n\n';
+  } else {
+    p += '## Hinweis\n\n';
+    p += 'F\u00fcr diese Veranstaltung ist keine offizielle Ergebnisliste hinterlegt. ' +
+         'Angaben wie Teilnehmerzahl oder Gesamtplatzierung liegen daher nicht vor \u2013 ' +
+         'bitte nicht sch\u00e4tzen, sondern weglassen.\n\n';
+  }
 
   p += '## Veranstaltung\n\n';
   p += '| Feld | Wert |\n|---|---|\n';
@@ -2340,6 +2364,8 @@ function _veranstClaudePrompt(v, badgeMap) {
   });
 
   p += '\n## Legende\n\n';
+  p += '- **Platz AK** \u2013 Platzierung **innerhalb der Altersklasse**, nicht im Gesamtfeld' +
+       (v.datenquelle ? ' (Gesamtplatz bitte aus der Ergebnisliste erg\u00e4nzen)' : '') + '\n';
   p += '- **PB** \u2013 pers\u00f6nliche Bestleistung (schnellste je gelaufene Zeit dieser Person auf dieser Strecke)\n';
   p += '- **Deb\u00fct** \u2013 erster Start dieser Person auf dieser Strecke\n';
   p += '- **Vereinsrekord** \u2013 beste jemals im Verein erzielte Leistung auf dieser Strecke\n';

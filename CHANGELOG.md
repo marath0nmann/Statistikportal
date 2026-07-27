@@ -1,3 +1,8 @@
+## v1402
+- Claude-Prompt überarbeitet: Einstieg und Tonalität wie im bisher manuell genutzten Prompt („lebhafter Text für den Newsblog"), Länge auf 250–400 Wörter erhöht
+- Neuer Abschnitt „Ergebnisliste auswerten": Claude wird angewiesen, die hinterlegte Ergebnisquelle zu öffnen und Teilnehmerzahl, Gesamtplatzierungen, Siegerzeiten und Auffälligkeiten zu ermitteln – mit ausdrücklichem Hinweis, bei fehlenden Angaben nicht zu raten. Ohne hinterlegte Quelle erscheint stattdessen ein Hinweis, entsprechende Angaben wegzulassen.
+- Legende stellt klar, dass „Platz AK" der Altersklassen- und nicht der Gesamtplatz ist
+
 ## v1401
 - Teilen: dritter Tab „🤖 Claude-Prompt" – fertiger Auftrag mit Aufgabenstellung, Vorgaben (Tonalität, Länge, Aufbau, Gutenberg-Ausgabe), Veranstaltungs-Metadaten, Ergebnistabellen je Disziplin inkl. Pace und Auszeichnungen sowie einer Legende. Button „Kopieren & Claude öffnen" legt den Prompt in die Zwischenablage und öffnet claude.ai in einem neuen Tab.
 
