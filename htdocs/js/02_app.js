@@ -2267,6 +2267,90 @@ function _veranstWhatsapp(v, badgeMap) {
   return out;
 }
 
+// \u2500\u2500 Claude-Prompt: fertiger Auftrag + strukturierte Daten \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+function _veranstClaudePrompt(v, badgeMap) {
+  var url    = location.origin + location.pathname + '#veranstaltung/' + v.id;
+  var date   = v.datum ? v.datum.split('-').reverse().join('.') : '';
+  var title  = v.name || v.kuerzel || 'Veranstaltung';
+  var club   = (typeof appConfig !== 'undefined' && (appConfig.verein_name || appConfig.verein_kuerzel)) || 'unseren Verein';
+  var g      = _shareGroupByDisz(v);
+  var ownClub = (typeof appConfig !== 'undefined' && (appConfig.verein_name || appConfig.verein_kuerzel)) || '';
+
+  var p = '';
+  p += 'Du schreibst einen Blogbeitrag f\u00fcr die Website von ' + club + '.\n\n';
+
+  p += '## Aufgabe\n\n';
+  p += 'Erstelle aus den unten stehenden Wettkampfdaten einen fertigen WordPress-Beitrag.\n\n';
+
+  p += '## Vorgaben\n\n';
+  p += '- **Tonalit\u00e4t:** sachlich-freundlich und vereinsnah, keine \u00fcbertriebenen Superlative\n';
+  p += '- **L\u00e4nge:** 200\u2013350 W\u00f6rter Flie\u00dftext\n';
+  p += '- **Aufbau:** \u00dcberschrift \u00b7 Einleitung (Wettkampf, Ort, Datum) \u00b7 Absatz zu den H\u00f6hepunkten \u00b7 kurzes Fazit\n';
+  p += '- **Danach** die vollst\u00e4ndige Ergebnistabelle je Disziplin\n';
+  p += '- **Hebe besondere Leistungen hervor** (pers\u00f6nliche Bestleistungen, Deb\u00fcts, Vereinsrekorde, Podestpl\u00e4tze)\n';
+  p += '- **Wichtig:** Verwende ausschlie\u00dflich die unten angegebenen Namen, Zeiten und Platzierungen. ' +
+       'Erfinde keine zus\u00e4tzlichen Details (Wetter, Streckenverlauf, Zitate), die hier nicht stehen.\n';
+  p += '- **Ausgabeformat:** WordPress-Gutenberg-Bl\u00f6cke (`<!-- wp:heading -->`, `<!-- wp:paragraph -->`, ' +
+       '`<!-- wp:table -->`), damit ich sie direkt in den WordPress-Code-Editor einf\u00fcgen kann.\n';
+  p += '- Verlinke am Ende das Statistikportal' + (v.datenquelle ? ' und die offizielle Ergebnisliste' : '') + '.\n\n';
+
+  p += '## Veranstaltung\n\n';
+  p += '| Feld | Wert |\n|---|---|\n';
+  p += '| Name | ' + title + ' |\n';
+  p += '| Datum | ' + date + ' |\n';
+  if (v.ort)         p += '| Ort | ' + v.ort + ' |\n';
+  if (v.serie_name)  p += '| Veranstaltungsreihe | ' + v.serie_name + ' |\n';
+  p += '| Statistikportal | ' + url + ' |\n';
+  if (v.datenquelle) p += '| Offizielle Ergebnisliste | ' + v.datenquelle + ' |\n';
+  p += '\n';
+
+  p += '## Ergebnisse\n';
+
+  var anyMstr = false, anyExtern = false;
+  g.order.forEach(function(disz) {
+    var rows = g.byDisz[disz];
+    p += '\n### ' + disz + '\n\n';
+    p += '| Platz AK | Athlet*in | AK | Ergebnis | Pace | Auszeichnung |\n';
+    p += '|---|---|---|---|---|---|\n';
+    rows.forEach(function(e) {
+      var badges = _shareBadgesFor(badgeMap, e).slice();
+      if (e.meisterschaft) {
+        anyMstr = true;
+        var msTxt = 'Meisterschaft';
+        if (e.ak_platz_meisterschaft) msTxt += ' (Platz ' + e.ak_platz_meisterschaft + ')';
+        badges.push(msTxt);
+      }
+      var name = _shareAthletName(e);
+      if (parseInt(e.extern) === 1) {
+        anyExtern = true;
+        name += ' [f\u00fcr ' + (e.verein || 'anderen Verein') + ' gestartet]';
+      }
+      var pace = '';
+      if (typeof calcPace === 'function') {
+        var pv = calcPace(e.disziplin, e.resultat, e.disziplin_mapping_id);
+        if (pv && pv !== '00:00') pace = pv + ' min/km';
+      }
+      p += '| ' + (e.ak_platzierung || '\u2013') +
+           ' | ' + name +
+           ' | ' + (e.altersklasse || '\u2013') +
+           ' | ' + _veranstFormatResult(e) +
+           ' | ' + (pace || '\u2013') +
+           ' | ' + (badges.length ? badges.join(', ') : '\u2013') + ' |\n';
+    });
+  });
+
+  p += '\n## Legende\n\n';
+  p += '- **PB** \u2013 pers\u00f6nliche Bestleistung (schnellste je gelaufene Zeit dieser Person auf dieser Strecke)\n';
+  p += '- **Deb\u00fct** \u2013 erster Start dieser Person auf dieser Strecke\n';
+  p += '- **Vereinsrekord** \u2013 beste jemals im Verein erzielte Leistung auf dieser Strecke\n';
+  p += '- **Bestleistung <AK>** \u2013 beste Leistung in der jeweiligen Altersklasse\n';
+  if (anyMstr)   p += '- **Meisterschaft** \u2013 Wertung im Rahmen einer offiziellen Meisterschaft\n';
+  if (anyExtern) p += '- **[f\u00fcr \u2026 gestartet]** \u2013 Person startete nicht f\u00fcr ' + (ownClub || 'den Verein') + ', im Text ggf. weglassen\n';
+  p += '- Altersklassen: M/W + Alter (z. B. M35 = M\u00e4nner ab 35), MHK/WHK = Hauptklasse\n';
+
+  return p;
+}
+
 // Medaillen-Emoji f\u00fcr Podestpl\u00e4tze, sonst leer
 function _shareMedal(platz) {
   var p = parseInt(platz);
@@ -2300,6 +2384,7 @@ async function shareVeranstaltung(vid) {
 
   window._shareWpText = _veranstWordpress(v, badgeMap);
   window._shareWaText = _veranstWhatsapp(v, badgeMap);
+  window._shareAiText = _veranstClaudePrompt(v, badgeMap);
   var url = location.origin + location.pathname + '#veranstaltung/' + vid;
 
   var tabBtn = 'padding:9px 16px;border:none;background:none;cursor:pointer;font-family:inherit;' +
@@ -2322,6 +2407,7 @@ async function shareVeranstaltung(vid) {
     '<div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:12px">' +
       '<button id="share-tab-wp" style="' + tabBtn + ';color:var(--primary);border-bottom-color:var(--primary)" onclick="_shareTab(\'wp\')">\ud83d\udcdd WordPress</button>' +
       '<button id="share-tab-wa" style="' + tabBtn + '" onclick="_shareTab(\'wa\')">\ud83d\udcac WhatsApp</button>' +
+      '<button id="share-tab-ai" style="' + tabBtn + '" onclick="_shareTab(\'ai\')">\ud83e\udd16 Claude-Prompt</button>' +
     '</div>' +
 
     '<div id="share-pane-wp">' +
@@ -2352,21 +2438,53 @@ async function shareVeranstaltung(vid) {
         '<button class="btn btn-ghost btn-sm" onclick="_shareCopy(\'share-wa-area\',this)">Text kopieren</button>' +
         '<button class="btn btn-primary btn-sm" onclick="window.open(\'https://wa.me/?text=\'+encodeURIComponent(window._shareWaText),\'_blank\')">In WhatsApp \u00f6ffnen &#x2192;</button>' +
       '</div>' +
+    '</div>' +
+
+    '<div id="share-pane-ai" style="display:none">' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">' +
+        'Fertiger Auftrag inkl. aller Ergebnisse und Bestleistungen. Kopieren und bei ' +
+        '<strong>Claude</strong> einf\u00fcgen \u2013 die Antwort kommt als Gutenberg-Bl\u00f6cke zur\u00fcck und l\u00e4sst sich ' +
+        'direkt in den WordPress-Code-Editor \u00fcbernehmen.' +
+      '</div>' +
+      '<textarea id="share-ai-area" readonly style="width:100%;height:250px;box-sizing:border-box;padding:10px 12px;' +
+        'border:1.5px solid var(--border);border-radius:7px;background:var(--surf2);color:var(--text);' +
+        'font-size:12px;font-family:monospace;resize:vertical;line-height:1.5">' +
+        _esc(window._shareAiText) +
+      '</textarea>' +
+      '<div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">' +
+        '<button class="btn btn-ghost btn-sm" onclick="_shareCopy(\'share-ai-area\',this)">Prompt kopieren</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="_shareCopyAndOpenClaude(this)">Kopieren &amp; Claude \u00f6ffnen &#x2192;</button>' +
+      '</div>' +
     '</div>'
   , true, true);
 }
 
 function _shareTab(which) {
-  var wp = document.getElementById('share-pane-wp'), wa = document.getElementById('share-pane-wa');
-  var bwp = document.getElementById('share-tab-wp'), bwa = document.getElementById('share-tab-wa');
-  var on = which === 'wp';
-  if (wp) wp.style.display = on ? '' : 'none';
-  if (wa) wa.style.display = on ? 'none' : '';
-  [[bwp, on], [bwa, !on]].forEach(function(p) {
-    if (!p[0]) return;
-    p[0].style.color = p[1] ? 'var(--primary)' : 'var(--text2)';
-    p[0].style.borderBottomColor = p[1] ? 'var(--primary)' : 'transparent';
+  ['wp', 'wa', 'ai'].forEach(function(t) {
+    var pane = document.getElementById('share-pane-' + t);
+    var btn  = document.getElementById('share-tab-' + t);
+    var on   = (t === which);
+    if (pane) pane.style.display = on ? '' : 'none';
+    if (btn) {
+      btn.style.color = on ? 'var(--primary)' : 'var(--text2)';
+      btn.style.borderBottomColor = on ? 'var(--primary)' : 'transparent';
+    }
   });
+}
+
+// Prompt in die Zwischenablage legen und Claude in neuem Tab öffnen
+function _shareCopyAndOpenClaude(btn) {
+  var el = document.getElementById('share-ai-area');
+  if (!el) return;
+  var open = function() { window.open('https://claude.ai/new', '_blank'); };
+  navigator.clipboard.writeText(el.value).then(function() {
+    if (btn) {
+      var orig = btn.textContent;
+      btn.textContent = '✅ Kopiert – einfügen mit Strg+V';
+      setTimeout(function() { btn.textContent = orig; }, 3000);
+    }
+    open();
+  }).catch(open);
 }
 
 function _shareCopy(elId, btn) {

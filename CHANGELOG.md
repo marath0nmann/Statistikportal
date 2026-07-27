@@ -1,3 +1,6 @@
+## v1401
+- Teilen: dritter Tab „🤖 Claude-Prompt" – fertiger Auftrag mit Aufgabenstellung, Vorgaben (Tonalität, Länge, Aufbau, Gutenberg-Ausgabe), Veranstaltungs-Metadaten, Ergebnistabellen je Disziplin inkl. Pace und Auszeichnungen sowie einer Legende. Button „Kopieren & Claude öffnen" legt den Prompt in die Zwischenablage und öffnet claude.ai in einem neuen Tab.
+
 ## v1400
 - Ergebnisse haben neue optionale Felder: `startnummer`, `pos_geschlecht` (Pos m/w), `pos_gesamt`, `schuh`, `bemerkungen` (Migration per `ADD COLUMN IF NOT EXISTS`).
 - Eintragen → „Eigenes Ergebnis eintragen": neuer **CSV-Bulk-Import** (Datei wählen oder per Drag&Drop). Erkennt die Spalten `Datum, Wettkampf, Wettbewerb, Startnummer, AK, Pos (AK), Pos (m/w), Pos, Endzeit, Schuh, Verein / Team, Bemerkungen, Sonderwertung, Pos (Sonderwertung)`, versteht deutsche Datumsangaben („4. Januar 2026"), Komma-Zeiten („19:25,64") und quotierte Felder. Vorschau-Tabelle mit editierbarem Ort und Disziplin-Auswahl je Zeile; bestehende Veranstaltungen werden über Datum+Ort bzw. Datum+Name erkannt, der Ort wird aus der Orte-/Alias-Liste vorgeschlagen.
