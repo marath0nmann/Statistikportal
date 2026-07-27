@@ -71,6 +71,33 @@ function renderEigenesEintragen() {
           '<label>Verein <span style="font-size:11px;font-weight:400;color:var(--text2)">(anderer Verein = externes Ergebnis)</span></label>' +
           '<input type="text" id="ee-verein" value="' + clubName.replace(/"/g,'&quot;') + '"/>' +
         '</div>' +
+        '<div class="form-group full" style="margin-top:2px">' +
+          '<div style="font-size:12px;font-weight:600;color:var(--text2)">Optionale Angaben</div>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Startnummer</label>' +
+          '<input type="text" id="ee-startnr" maxlength="20" placeholder="z.B. 758"/>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Pos (AK)</label>' +
+          '<input type="number" min="1" id="ee-pos-ak" placeholder="z.B. 5"/>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Pos (m/w)</label>' +
+          '<input type="number" min="1" id="ee-pos-mw" placeholder="z.B. 23"/>' +
+        '</div>' +
+        '<div class="form-group">' +
+          '<label>Pos (gesamt)</label>' +
+          '<input type="number" min="1" id="ee-pos-ges" placeholder="z.B. 25"/>' +
+        '</div>' +
+        '<div class="form-group full">' +
+          '<label>Schuh</label>' +
+          '<input type="text" id="ee-schuh" maxlength="120" placeholder="z.B. Adidas Adios Pro 3"/>' +
+        '</div>' +
+        '<div class="form-group full">' +
+          '<label>Bemerkungen</label>' +
+          '<input type="text" id="ee-bemerkungen" maxlength="500" placeholder="frei"/>' +
+        '</div>' +
       '</div>' +
 
       (ergebnisPruefen ? '<div class="panel" style="background:color-mix(in srgb,var(--primary) 5%,transparent);border:none;padding:10px 14px;margin-bottom:16px;font-size:13px">' +
@@ -84,14 +111,18 @@ function renderEigenesEintragen() {
         '<button class="btn btn-ghost" onclick="saveEigenesErgebnis(true)">&#x1F4BE; Speichern &amp; Neues</button>' +
         '<button class="btn btn-primary" onclick="saveEigenesErgebnis(false)">&#x1F4BE; Speichern</button>' +
       '</div>' +
-    '</div>'
+    '</div>' +
+    _eeCsvPanelHtml()
   );
   _eeSelectedVeranst = null;
+  _eeCsvRows = [];
+  if (!window._bkOrte) _bkLoadOrte();
 }
 
 function resetEigenesErgebnis() {
   var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : '';
-  var fields = ['ee-datum','ee-ort','ee-evname','ee-res','ee-ak'];
+  var fields = ['ee-datum','ee-ort','ee-evname','ee-res','ee-ak',
+                'ee-startnr','ee-pos-ak','ee-pos-mw','ee-pos-ges','ee-schuh','ee-bemerkungen'];
   fields.forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
@@ -234,17 +265,35 @@ async function saveEigenesErgebnis(andNew) {
 
   // Anderer Verein → externes Ergebnis
   var isExternal = verein && verein.toLowerCase() !== clubName.toLowerCase();
+  var _v = function(id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; };
+  var _n = function(id) { var s = _v(id); return s ? (parseInt(s, 10) || null) : null; };
   var body = {
     disziplin: diszName, disziplin_mapping_id: diszMappingId,
     resultat: res, altersklasse: ak || null,
+    startnummer: _v('ee-startnr') || null,
+    ak_platzierung: _n('ee-pos-ak'),
+    pos_geschlecht: _n('ee-pos-mw'),
+    pos_gesamt: _n('ee-pos-ges'),
+    schuh: _v('ee-schuh') || null,
+    bemerkungen: _v('ee-bemerkungen') || null,
   };
-  if (isExternal) body.externer_verein = verein;
+  if (isExternal) { body.externer_verein = verein; body.verein = verein; }
   if (veranstId) body.veranstaltung_id = veranstId;
   else { body.datum = datum; body.ort = ort; body.veranstaltung_name = evname; }
 
   var r = await apiPost('ergebnisse/eigenes', body);
+  // Dublette → Nachfragen (zusammenführen / trotzdem anlegen / abbrechen)
+  if (r && r.ok && r.data && r.data.status === 'dublette') {
+    var aktion = await eeDublettenDialog(r.data, body);
+    if (!aktion) { if (errEl) errEl.textContent = 'Abgebrochen – nichts gespeichert.'; return; }
+    body.aktion = aktion;
+    r = await apiPost('ergebnisse/eigenes', body);
+  }
   if (r && r.ok) {
-    notify(r.data && r.data.pending ? 'Ergebnis eingereicht – wird geprüft.' : 'Gespeichert.', 'ok');
+    var st = (r.data && r.data.status) || '';
+    var msg = st === 'gemergt' ? ('Vorhandenes Ergebnis ergänzt. ' + ((r.data && r.data.msg) || ''))
+            : (r.data && r.data.pending) ? 'Ergebnis eingereicht – wird geprüft.' : 'Gespeichert.';
+    notify(msg, 'ok');
     if (andNew) {
       resetEigenesErgebnis();
     } else {
@@ -253,6 +302,461 @@ async function saveEigenesErgebnis(andNew) {
   } else if (errEl) {
     errEl.textContent = (r && r.fehler) ? r.fehler : 'Fehler beim Speichern.';
   }
+}
+
+// Dialog bei erkanntem Duplikat – liefert 'merge' | 'insert' | null (Abbruch)
+function eeDublettenDialog(data, neu) {
+  return new Promise(function(resolve) {
+    var d = data.dublette;
+    var rowsHtml = '';
+    function _z(label, alt, neuWert) {
+      if ((alt === null || alt === undefined || alt === '') && (neuWert === null || neuWert === undefined || neuWert === '')) return;
+      rowsHtml += '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:5px 8px;color:var(--text2);font-size:12px">' + _owEsc(label) + '</td>' +
+        '<td style="padding:5px 8px;font-size:13px">' + _owEsc(alt === null || alt === undefined ? '–' : String(alt)) + '</td>' +
+        '<td style="padding:5px 8px;font-size:13px">' + _owEsc(neuWert === null || neuWert === undefined ? '–' : String(neuWert)) + '</td>' +
+      '</tr>';
+    }
+    var kopf = d
+      ? 'Für <strong>' + _owEsc((d.veranstaltung || '') + (d.datum ? ' (' + formatDate(d.datum) + ')' : '')) + '</strong> ist bereits ein Ergebnis in <strong>' + _owEsc(d.disziplin || '') + '</strong> gespeichert.'
+      : 'Für diese Veranstaltung und Disziplin liegt bereits ein noch nicht geprüfter Antrag vor.';
+    if (d) {
+      _z('Ergebnis', d.resultat, neu.resultat);
+      _z('Altersklasse', d.altersklasse, neu.altersklasse);
+      _z('Startnummer', d.startnummer, neu.startnummer);
+      _z('Pos (AK)', d.ak_platzierung, neu.ak_platzierung);
+      _z('Pos (m/w)', d.pos_geschlecht, neu.pos_geschlecht);
+      _z('Pos (gesamt)', d.pos_gesamt, neu.pos_gesamt);
+      _z('Schuh', d.schuh, neu.schuh);
+      _z('Bemerkungen', d.bemerkungen, neu.bemerkungen);
+    }
+    window._eeDupResolve = function(val) {
+      window._eeDupResolve = null;
+      closeModal();
+      resolve(val);
+    };
+    showModal(
+      '<div class="modal-header"><div class="modal-title">&#x26A0;&#xFE0F; Ergebnis bereits vorhanden</div></div>' +
+      '<div style="font-size:13px;margin-bottom:12px">' + kopf + '</div>' +
+      (rowsHtml ?
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:14px">' +
+          '<tr style="border-bottom:1px solid var(--border)">' +
+            '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Feld</th>' +
+            '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Gespeichert</th>' +
+            '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Neu</th>' +
+          '</tr>' + rowsHtml +
+        '</table>' : '') +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Beim Zusammenführen werden nur bisher <em>leere</em> Felder ergänzt – vorhandene Werte bleiben unverändert.</div>' +
+      '<div class="modal-actions" style="gap:8px">' +
+        '<button class="btn btn-ghost" onclick="_eeDupResolve(null)">Abbrechen</button>' +
+        '<div style="flex:1"></div>' +
+        (d ? '<button class="btn btn-ghost" onclick="_eeDupResolve(\'insert\')">Trotzdem neu anlegen</button>' : '') +
+        (d ? '<button class="btn btn-primary" onclick="_eeDupResolve(\'merge\')">&#x1F517; Zusammenf&uuml;hren</button>'
+           : '<button class="btn btn-primary" onclick="_eeDupResolve(\'insert\')">Trotzdem einreichen</button>') +
+      '</div>', true);
+  });
+}
+
+// ── CSV-Bulk-Import für eigene Ergebnisse ────────────────────────────────────
+var _eeCsvRows = [];      // gemappte Zeilen inkl. Prüfergebnis
+var _eeCsvGeprueft = false;
+
+function _eeCsvPanelHtml() {
+  return '<div class="panel" style="padding:24px;margin-top:20px">' +
+    '<div class="panel-title" style="margin-bottom:4px">&#x1F4C4; CSV-Import (mehrere eigene Ergebnisse)</div>' +
+    '<div style="color:var(--text2);font-size:13px;margin-bottom:14px">' +
+      'CSV-Datei mit den Spalten <code>Datum, Wettkampf, Wettbewerb, Startnummer, AK, Pos (AK), Pos (m/w), Pos, Endzeit, Schuh, Verein / Team, Bemerkungen, Sonderwertung, Pos (Sonderwertung)</code> hochladen. ' +
+      'Alle Zeilen werden deinem eigenen Athletenprofil zugeordnet.' +
+    '</div>' +
+    '<div id="ee-csv-drop" ondragover="eeCsvDragOver(event)" ondragleave="eeCsvDragLeave(event)" ondrop="eeCsvDrop(event)"' +
+      ' style="border:2px dashed var(--border);border-radius:10px;padding:18px;text-align:center;color:var(--text2);font-size:13px;margin-bottom:12px">' +
+      'CSV-Datei hierher ziehen oder ' +
+      '<label style="color:var(--primary);cursor:pointer;text-decoration:underline">ausw&auml;hlen' +
+        '<input type="file" accept=".csv,text/csv" style="display:none" onchange="eeCsvFileChosen(this)">' +
+      '</label>' +
+    '</div>' +
+    '<div id="ee-csv-status" style="font-size:13px;color:var(--text2);min-height:18px;margin-bottom:8px"></div>' +
+    '<div id="ee-csv-preview"></div>' +
+  '</div>';
+}
+
+function eeCsvDragOver(e) { e.preventDefault(); var d = document.getElementById('ee-csv-drop'); if (d) d.style.borderColor = 'var(--primary)'; }
+function eeCsvDragLeave(e) { e.preventDefault(); var d = document.getElementById('ee-csv-drop'); if (d) d.style.borderColor = 'var(--border)'; }
+function eeCsvDrop(e) {
+  e.preventDefault(); eeCsvDragLeave(e);
+  var f = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
+  if (f) _eeCsvReadFile(f);
+}
+function eeCsvFileChosen(inp) { if (inp.files && inp.files[0]) _eeCsvReadFile(inp.files[0]); }
+
+function _eeCsvReadFile(file) {
+  var statusEl = document.getElementById('ee-csv-status');
+  if (!/\.csv$/i.test(file.name) && file.type !== 'text/csv') {
+    if (statusEl) statusEl.textContent = '❌ Bitte eine CSV-Datei wählen.';
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function() {
+    var txt = String(reader.result || '');
+    if (txt.charCodeAt(0) === 0xFEFF) txt = txt.slice(1); // BOM
+    _eeCsvVerarbeiten(txt, file.name);
+  };
+  reader.onerror = function() { if (statusEl) statusEl.textContent = '❌ Datei konnte nicht gelesen werden.'; };
+  reader.readAsText(file, 'utf-8');
+}
+
+// CSV in Zellen zerlegen (RFC4180: Anführungszeichen, eingebettete Zeilenumbrüche, "" als Escape)
+function _eeCsvSplit(text, sep) {
+  var rows = [], row = [], cell = '', inQ = false;
+  for (var i = 0; i < text.length; i++) {
+    var c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i+1] === '"') { cell += '"'; i++; } else inQ = false; }
+      else cell += c;
+      continue;
+    }
+    if (c === '"') { inQ = true; continue; }
+    if (c === sep) { row.push(cell); cell = ''; continue; }
+    if (c === '\r') continue;
+    if (c === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; continue; }
+    cell += c;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(function(r) { return r.some(function(c) { return String(c).trim() !== ''; }); });
+}
+
+var _EE_MONATE = { 'januar':1,'februar':2,'märz':3,'maerz':3,'april':4,'mai':5,'juni':6,'juli':7,
+                   'august':8,'september':9,'oktober':10,'november':11,'dezember':12 };
+
+function _eeCsvDatum(raw) {
+  var s = String(raw || '').trim();
+  if (!s) return '';
+  var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
+  if (m) { var y = parseInt(m[3], 10); if (y < 100) y += 2000; return y + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0'); }
+  // "4. Januar 2026"
+  m = s.match(/^(\d{1,2})\.?\s+([A-Za-zäöüÄÖÜ]+)\s+(\d{4})$/);
+  if (m) {
+    var mon = _EE_MONATE[m[2].toLowerCase()];
+    if (mon) return m[3] + '-' + String(mon).padStart(2,'0') + '-' + m[1].padStart(2,'0');
+  }
+  return '';
+}
+
+// Disziplin aus der CSV-Spalte "Wettbewerb" auf ein Disziplin-Mapping abbilden
+function _eeCsvDisz(raw) {
+  var s = String(raw || '').trim();
+  if (!s) return null;
+  var norm = function(x) { return String(x || '').toLowerCase().replace(/\s|\.|-/g, '').replace(/straße|strasse/g, '').replace(/,/g, '.'); };
+  var ziel = norm(s);
+  var disz = state.disziplinen || [];
+  var treffer = disz.find(function(d) { return norm(d.disziplin) === ziel; });
+  if (!treffer) treffer = disz.find(function(d) { var n = norm(d.disziplin); return n && (n === ziel.replace(/bahn/g, '') || ziel === n.replace(/bahn/g, '')); });
+  if (!treffer) treffer = disz.find(function(d) { var n = norm(d.disziplin); return n.length > 2 && (ziel.indexOf(n) >= 0 || n.indexOf(ziel) >= 0); });
+  return treffer || null;
+}
+
+function _eeCsvMstr(raw) {
+  var s = String(raw || '').trim().toLowerCase();
+  if (!s) return null;
+  for (var i = 0; i < (MSTR_LIST || []).length; i++) {
+    var lbl = String(MSTR_LIST[i].label || '').toLowerCase();
+    if (lbl === s || (lbl && (lbl.indexOf(s) >= 0 || s.indexOf(lbl) >= 0))) return parseInt(MSTR_LIST[i].id, 10) || null;
+  }
+  return null;
+}
+
+function _eeCsvInt(raw) {
+  var s = String(raw || '').trim().replace(/\.$/, '');
+  if (!/^\d+$/.test(s)) return null;
+  var n = parseInt(s, 10);
+  return n > 0 ? n : null;
+}
+
+async function _eeCsvVerarbeiten(text, dateiname) {
+  var statusEl = document.getElementById('ee-csv-status');
+  var erste = text.split('\n')[0] || '';
+  var sep = (erste.split(';').length > erste.split(',').length) ? ';' : ',';
+  var raw = _eeCsvSplit(text, sep);
+  if (raw.length < 2) { if (statusEl) statusEl.textContent = '❌ Keine Datenzeilen gefunden.'; return; }
+
+  var head = raw[0].map(function(h) { return String(h || '').trim().toLowerCase(); });
+  function col(names) {
+    for (var i = 0; i < names.length; i++) { var idx = head.indexOf(names[i]); if (idx >= 0) return idx; }
+    return -1;
+  }
+  var iDatum  = col(['datum','date']);
+  var iWk     = col(['wettkampf','veranstaltung','event']);
+  var iWb     = col(['wettbewerb','disziplin','strecke']);
+  var iSnr    = col(['startnummer','startnr','stnr','bib']);
+  var iAk     = col(['ak','altersklasse']);
+  var iPosAk  = col(['pos (ak)','pos ak','platz (ak)','ak-platz']);
+  var iPosMw  = col(['pos (m/w)','pos m/w','pos (mw)','geschlechtsplatz']);
+  var iPosGes = col(['pos','pos (gesamt)','gesamtplatz','platz']);
+  var iZeit   = col(['endzeit','ergebnis','zeit','resultat','leistung']);
+  var iSchuh  = col(['schuh','schuhe']);
+  var iVerein = col(['verein / team','verein/team','verein','team']);
+  var iBem    = col(['bemerkungen','bemerkung','notiz']);
+  var iSw     = col(['sonderwertung','meisterschaft']);
+  var iSwPos  = col(['pos (sonderwertung)','pos sonderwertung','platz (sonderwertung)']);
+  var iOrt    = col(['ort','stadt']);
+
+  if (iDatum < 0 || iZeit < 0) {
+    if (statusEl) statusEl.textContent = '❌ Spalten „Datum" und „Endzeit" werden benötigt. Gefunden: ' + head.join(', ');
+    return;
+  }
+
+  var clubName = (appConfig && appConfig.verein_name) ? appConfig.verein_name : '';
+  var zeilen = [];
+  for (var r = 1; r < raw.length; r++) {
+    var c = raw[r];
+    var get = function(idx) { return idx >= 0 && idx < c.length ? String(c[idx] || '').trim() : ''; };
+    var datum = _eeCsvDatum(get(iDatum));
+    var zeit  = get(iZeit);
+    if (!datum && !zeit) continue;
+    var diszObj = _eeCsvDisz(get(iWb));
+    var evname  = get(iWk);
+    var ortRaw  = get(iOrt);
+    // Ort aus Veranstaltungsnamen erraten (Orte-Liste inkl. Aliase)
+    if (!ortRaw && evname) {
+      var teile = evname.split(/[\s\-–]+/);
+      for (var t = teile.length - 1; t >= 0 && !ortRaw; t--) {
+        var tr = _bkOrtFindByNameOrAlias(teile[t]);
+        if (tr) ortRaw = tr.name;
+      }
+    }
+    var verein = get(iVerein);
+    zeilen.push({
+      datum: datum,
+      veranstaltung_name: evname,
+      ort: ortRaw,
+      wettbewerb: get(iWb),
+      disziplin: diszObj ? diszObj.disziplin : '',
+      disziplin_mapping_id: diszObj ? (diszObj.id || diszObj.mapping_id) : null,
+      resultat: dbRes(zeit),
+      altersklasse: get(iAk),
+      startnummer: get(iSnr),
+      ak_platzierung: _eeCsvInt(get(iPosAk)),
+      pos_geschlecht: _eeCsvInt(get(iPosMw)),
+      pos_gesamt: _eeCsvInt(get(iPosGes)),
+      schuh: get(iSchuh),
+      bemerkungen: get(iBem),
+      verein: verein || clubName,
+      meisterschaft: _eeCsvMstr(get(iSw)),
+      ak_platz_meisterschaft: _eeCsvInt(get(iSwPos)),
+      _aktiv: true,
+      _aktion: 'insert',
+      _check: null,
+      _zeile: r + 1,
+    });
+  }
+  _eeCsvRows = zeilen;
+  _eeCsvGeprueft = false;
+  if (statusEl) statusEl.textContent = '⏳ ' + zeilen.length + ' Zeilen aus „' + dateiname + '" gelesen – prüfe auf Duplikate…';
+  await eeCsvPruefen();
+}
+
+// Phase 1: Veranstaltungs-Zuordnung + Dubletten-Abgleich beim Server anfragen
+async function eeCsvPruefen() {
+  var statusEl = document.getElementById('ee-csv-status');
+  if (!_eeCsvRows.length) return;
+  var items = _eeCsvRows.map(_eeCsvItem);
+  var r = await apiPost('ergebnisse/eigenes-bulk', { pruefen: true, items: items });
+  if (!r || !r.ok) {
+    if (statusEl) statusEl.textContent = '❌ ' + ((r && r.fehler) || 'Prüfung fehlgeschlagen.');
+    return;
+  }
+  (r.data.rows || []).forEach(function(chk) {
+    var row = _eeCsvRows[chk.idx];
+    if (!row) return;
+    row._check = chk;
+    if (chk.veranstaltung_id) {
+      row.veranstaltung_id = chk.veranstaltung_id;
+      if (!row.ort && chk.veranstaltung_ort) row.ort = chk.veranstaltung_ort;
+    } else {
+      row.veranstaltung_id = null;
+    }
+    // Standardaktion: Duplikate zusammenführen statt doppelt anzulegen
+    row._aktion = (chk.dublette || chk.antrag) ? 'merge' : 'insert';
+    if (chk.antrag && !chk.dublette) row._aktion = 'skip';
+  });
+  _eeCsvGeprueft = true;
+  _eeCsvRenderPreview();
+}
+
+function _eeCsvItem(row) {
+  var it = {
+    datum: row.datum,
+    veranstaltung_name: row.veranstaltung_name,
+    ort: row.ort,
+    disziplin: row.disziplin,
+    disziplin_mapping_id: row.disziplin_mapping_id,
+    resultat: row.resultat,
+    altersklasse: row.altersklasse,
+    startnummer: row.startnummer,
+    ak_platzierung: row.ak_platzierung,
+    pos_geschlecht: row.pos_geschlecht,
+    pos_gesamt: row.pos_gesamt,
+    schuh: row.schuh,
+    bemerkungen: row.bemerkungen,
+    verein: row.verein,
+    meisterschaft: row.meisterschaft,
+    ak_platz_meisterschaft: row.ak_platz_meisterschaft,
+  };
+  if (row.veranstaltung_id) it.veranstaltung_id = row.veranstaltung_id;
+  return it;
+}
+
+function _eeCsvDiszOptions(row) {
+  var opts = '<option value="">– Disziplin wählen –</option>';
+  var disz = state.disziplinen || [];
+  for (var i = 0; i < disz.length; i++) {
+    var d = disz[i];
+    var mid = d.id || d.mapping_id;
+    opts += '<option value="' + mid + '"' + (String(mid) === String(row.disziplin_mapping_id) ? ' selected' : '') + '>' +
+      _owEsc(d.disziplin + (d.kategorie ? ' (' + d.kategorie + ')' : '')) + '</option>';
+  }
+  return opts;
+}
+
+function _eeCsvRenderPreview() {
+  var wrap = document.getElementById('ee-csv-preview');
+  var statusEl = document.getElementById('ee-csv-status');
+  if (!wrap) return;
+  var fld = 'box-sizing:border-box;height:30px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px;width:100%';
+  var dubletten = 0, fehlend = 0, aktiv = 0;
+
+  var body = _eeCsvRows.map(function(row, i) {
+    var chk = row._check || {};
+    var problem = !row.disziplin_mapping_id ? 'Disziplin fehlt'
+                : !row.datum ? 'Datum unlesbar'
+                : (!row.veranstaltung_id && !row.ort) ? 'Ort fehlt'
+                : (!row.resultat ? 'Ergebnis fehlt' : '');
+    if (problem) fehlend++;
+    if (chk.dublette || chk.antrag) dubletten++;
+    if (row._aktiv && !problem) aktiv++;
+
+    var statusHtml;
+    if (problem) {
+      statusHtml = '<span style="color:var(--accent);font-size:12px">⚠︎ ' + _owEsc(problem) + '</span>';
+    } else if (chk.dublette) {
+      statusHtml = '<div style="font-size:11px;color:var(--text2);margin-bottom:3px" title="' + _owEsc('Vorhanden: ' + (chk.dublette.resultat || '')) + '">Duplikat (' + _owEsc(chk.dublette.resultat || '') + ')</div>' +
+        '<select onchange="eeCsvSetAktion(' + i + ',this.value)" style="' + fld + '">' +
+          '<option value="merge"' + (row._aktion === 'merge' ? ' selected' : '') + '>Zusammenführen</option>' +
+          '<option value="skip"' + (row._aktion === 'skip' ? ' selected' : '') + '>Überspringen</option>' +
+          '<option value="insert"' + (row._aktion === 'insert' ? ' selected' : '') + '>Trotzdem anlegen</option>' +
+        '</select>';
+    } else if (chk.antrag) {
+      statusHtml = '<div style="font-size:11px;color:var(--text2);margin-bottom:3px">Antrag offen</div>' +
+        '<select onchange="eeCsvSetAktion(' + i + ',this.value)" style="' + fld + '">' +
+          '<option value="skip"' + (row._aktion === 'skip' ? ' selected' : '') + '>Überspringen</option>' +
+          '<option value="insert"' + (row._aktion === 'insert' ? ' selected' : '') + '>Trotzdem einreichen</option>' +
+        '</select>';
+    } else if (row.veranstaltung_id) {
+      statusHtml = '<span style="color:var(--text2);font-size:12px">✓ bestehende Veranstaltung</span>';
+    } else {
+      statusHtml = '<span style="color:var(--text2);font-size:12px">neu</span>';
+    }
+
+    return '<tr style="border-bottom:1px solid var(--border)' + (problem ? ';background:color-mix(in srgb,var(--accent) 6%,transparent)' : '') + '">' +
+      '<td style="padding:4px 6px"><input type="checkbox" ' + (row._aktiv ? 'checked' : '') + ' onchange="eeCsvToggle(' + i + ',this.checked)"></td>' +
+      '<td style="padding:4px 6px;font-size:12px;white-space:nowrap">' + _owEsc(row.datum ? formatDate(row.datum) : (row._zeile + ': ?')) + '</td>' +
+      '<td style="padding:4px 6px;font-size:12px">' + _owEsc(row.veranstaltung_name || '–') + '</td>' +
+      '<td style="padding:4px 6px;min-width:120px">' +
+        (row.veranstaltung_id
+          ? '<span style="font-size:12px;color:var(--text2)">' + _owEsc(row.ort || '–') + '</span>'
+          : '<input type="text" value="' + _owEsc(row.ort || '') + '" placeholder="Ort" oninput="eeCsvSetOrt(' + i + ',this.value)" style="' + fld + '">') +
+      '</td>' +
+      '<td style="padding:4px 6px;min-width:160px">' +
+        '<select onchange="eeCsvSetDisz(' + i + ',this.value)" style="' + fld + '">' + _eeCsvDiszOptions(row) + '</select>' +
+      '</td>' +
+      '<td style="padding:4px 6px;font-size:12px;white-space:nowrap">' + _owEsc(fmtRes(row.resultat)) + '</td>' +
+      '<td style="padding:4px 6px;font-size:12px">' + _owEsc(row.altersklasse || '–') + '</td>' +
+      '<td style="padding:4px 6px;font-size:12px">' + _owEsc(row.startnummer || '–') + '</td>' +
+      '<td style="padding:4px 6px;font-size:12px;white-space:nowrap">' +
+        _owEsc((row.ak_platzierung || '–') + ' / ' + (row.pos_geschlecht || '–') + ' / ' + (row.pos_gesamt || '–')) + '</td>' +
+      '<td style="padding:4px 6px;font-size:12px" title="' + _owEsc(row.bemerkungen || '') + '">' + _owEsc(row.schuh || '–') + '</td>' +
+      '<td style="padding:4px 6px;font-size:12px">' + _owEsc(row.verein || '–') + '</td>' +
+      '<td style="padding:4px 6px;min-width:150px">' + statusHtml + '</td>' +
+    '</tr>';
+  }).join('');
+
+  wrap.innerHTML =
+    '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:12px">' +
+      '<table style="width:100%;border-collapse:collapse;min-width:1000px">' +
+        '<thead><tr style="background:var(--surf2)">' +
+          ['', 'Datum', 'Wettkampf', 'Ort', 'Disziplin', 'Ergebnis', 'AK', 'StNr', 'Pos AK/mw/ges', 'Schuh', 'Verein', 'Status / Aktion']
+            .map(function(h) { return '<th style="text-align:left;padding:6px;font-size:11px;color:var(--text2);white-space:nowrap">' + h + '</th>'; }).join('') +
+        '</tr></thead><tbody>' + body + '</tbody>' +
+      '</table>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+      '<button class="btn btn-ghost btn-sm" onclick="eeCsvAbbrechen()">&#x21BA; Verwerfen</button>' +
+      '<div style="flex:1"></div>' +
+      '<button class="btn btn-primary" onclick="eeCsvImport()">&#x2B07;&#xFE0E; ' + aktiv + ' Zeile(n) importieren</button>' +
+    '</div>';
+
+  if (statusEl) {
+    statusEl.innerHTML = _eeCsvRows.length + ' Zeilen – ' + aktiv + ' importierbar' +
+      (dubletten ? ', <strong>' + dubletten + ' Duplikat(e)</strong>' : '') +
+      (fehlend ? ', <span style="color:var(--accent)">' + fehlend + ' unvollständig</span>' : '');
+  }
+}
+
+function eeCsvToggle(i, val) { if (_eeCsvRows[i]) { _eeCsvRows[i]._aktiv = !!val; _eeCsvRenderPreview(); } }
+function eeCsvSetAktion(i, val) { if (_eeCsvRows[i]) _eeCsvRows[i]._aktion = val; }
+function eeCsvSetOrt(i, val) { if (_eeCsvRows[i]) _eeCsvRows[i].ort = String(val || '').trim(); }
+function eeCsvSetDisz(i, val) {
+  var row = _eeCsvRows[i];
+  if (!row) return;
+  var d = (state.disziplinen || []).find(function(x) { return String(x.id || x.mapping_id) === String(val); });
+  row.disziplin_mapping_id = d ? (d.id || d.mapping_id) : null;
+  row.disziplin = d ? d.disziplin : '';
+  _eeCsvRenderPreview();
+}
+function eeCsvAbbrechen() {
+  _eeCsvRows = []; _eeCsvGeprueft = false;
+  var w = document.getElementById('ee-csv-preview'); if (w) w.innerHTML = '';
+  var s = document.getElementById('ee-csv-status'); if (s) s.textContent = '';
+}
+
+// Phase 2: Import ausführen
+async function eeCsvImport() {
+  var statusEl = document.getElementById('ee-csv-status');
+  var items = [];
+  var uebersprungen = 0;
+  _eeCsvRows.forEach(function(row) {
+    var unvollstaendig = !row.disziplin_mapping_id || !row.datum || !row.resultat || (!row.veranstaltung_id && !row.ort);
+    if (!row._aktiv || unvollstaendig) { uebersprungen++; return; }
+    if (row._aktion === 'skip') { uebersprungen++; return; }
+    var it = _eeCsvItem(row);
+    var hatteDup = !!(row._check && (row._check.dublette || row._check.antrag));
+    // Ohne erkanntes Duplikat keine Aktion mitschicken → Server prüft erneut
+    // (fängt auch Duplikate innerhalb derselben CSV ab)
+    if (row._aktion === 'merge') it.aktion = 'merge';
+    else if (hatteDup) it.aktion = 'insert';
+    items.push(it);
+  });
+  if (!items.length) { if (statusEl) statusEl.textContent = '⚠︎ Keine importierbaren Zeilen ausgewählt.'; return; }
+  if (statusEl) statusEl.textContent = '⏳ Importiere ' + items.length + ' Zeile(n)…';
+  var r = await apiPost('ergebnisse/eigenes-bulk', { items: items });
+  if (!r || !r.ok) {
+    if (statusEl) statusEl.textContent = '❌ ' + ((r && r.fehler) || 'Import fehlgeschlagen.');
+    return;
+  }
+  var st = r.data.stats || {};
+  var teile = [];
+  if (st.gespeichert)   teile.push(st.gespeichert + ' gespeichert');
+  if (st.pending)       teile.push(st.pending + ' zur Prüfung eingereicht');
+  if (st.gemergt)       teile.push(st.gemergt + ' zusammengeführt');
+  if (st.uebersprungen || uebersprungen) teile.push(((st.uebersprungen || 0) + uebersprungen) + ' übersprungen');
+  if (st.fehler)        teile.push(st.fehler + ' fehlerhaft');
+  notify(teile.join(', ') || 'Fertig.', st.fehler ? 'err' : 'ok');
+  if (statusEl) statusEl.innerHTML = '✅ ' + _owEsc(teile.join(', '));
+  if (r.data.meldungen && r.data.meldungen.length) console.warn('CSV-Import:', r.data.meldungen);
+  _eeCsvRows = [];
+  var w = document.getElementById('ee-csv-preview'); if (w) w.innerHTML = '';
 }
 
 function renderEintragen() {
@@ -1113,7 +1617,9 @@ function bulkRowHtml(idx) {
     '</td>' +
     '<td style="padding:4px 6px"><input class="bk-res" type="text" placeholder="00:45:00" style="' + fld + '"/></td>' +
     '<td style="padding:4px 6px"><input type="text" class="bk-ak" id="bk-ak-' + idx + '" placeholder="z.B. M45" maxlength="8" style="' + fld + '"/></td>' +
-    '<td style="padding:4px 6px"><input class="bk-platz" type="number" placeholder="1" min="1" style="' + fld + '"/></td>' +
+    '<td style="padding:4px 6px"><input class="bk-platz" type="number" placeholder="1" min="1" style="' + fld + '"/>' +
+      // Zusatzfelder aus dem Import (nicht editierbar, werden mitgespeichert)
+      '<input type="hidden" class="bk-startnr"><input type="hidden" class="bk-pos-ges"><input type="hidden" class="bk-pos-mw"></td>' +
     '<td class="bk-mstr" style="padding:4px 6px;display:none">' +
       '<select class="bk-mstr-sel" style="' + fld + '">' + mstrOptions(0) + '</select>' +
     '</td>' +
@@ -1229,6 +1735,9 @@ async function bulkSubmit() {
       altersklasse: row.querySelector('.bk-ak') ? row.querySelector('.bk-ak').value.trim() : '',
       _zeilendatum: row.querySelector('.bk-zeilendatum') ? row.querySelector('.bk-zeilendatum').value.trim() : '',
       ak_platzierung: row.querySelector('.bk-platz') && row.querySelector('.bk-platz').value ? parseInt(row.querySelector('.bk-platz').value) : null,
+      startnummer:    (function(){ var e = row.querySelector('.bk-startnr'); return e && e.value ? e.value : null; })(),
+      pos_gesamt:     (function(){ var e = row.querySelector('.bk-pos-ges'); return e && e.value ? (parseInt(e.value) || null) : null; })(),
+      pos_geschlecht: (function(){ var e = row.querySelector('.bk-pos-mw');  return e && e.value ? (parseInt(e.value) || null) : null; })(),
       verein: (function(){ var v = row.querySelector('.bk-verein'); return v ? v.value.trim() : ''; })(),
       extern: (function(){ var v = row.querySelector('.bk-verein'); var val = v ? v.value.trim() : ''; var club = (appConfig && appConfig.verein_name) || ''; return !val || val.toLowerCase() !== club.toLowerCase(); })(),
     });
@@ -2192,7 +2701,10 @@ function rrExtractRowsForBulk(data, vereinCfg, kat) {
       if (!name || !zeit) return;
       var disz = rrBestDisz(contestName || '', diszList);
       var diszObj = findDiszObj(disz, kat, disziplinen);
+      // Feld 0 ist bei RaceResult die Startnummer (BIB)
+      var bib = String(row[0] || '').trim();
       rows.push({ name: name, resultat: zeit, ak: ak, platz: platz,
+                  startnummer: /^\d{1,7}$/.test(bib) ? bib : null,
                   disziplin: diszObj ? diszObj.disziplin : disz,
                   diszMid: diszObj ? (diszObj.id || diszObj.mapping_id) : null });
     });
@@ -2245,6 +2757,8 @@ function mikaExtractRowsForBulk(data, kat) {
       resultat:  res.netto || res.zeit || '',
       ak:        res.ak || '',
       platz:     parseInt(res.platz_ak) || 0,
+      posGesamt:  parseInt(res.platz_ges) || null,
+      startnummer: (res.startnr || '').toString().trim() || null,
       disziplin: diszObj ? diszObj.disziplin : disz,
       diszMid:   diszObj ? (diszObj.id || diszObj.mapping_id) : null,
       extern:    isExtern,
@@ -2647,6 +3161,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
       var nameIdx   = 2; // Fallback: historische Position
       var genderIdx = 3;
       var akIdx     = 8;
+      var bibIdx    = -1;
       for (var ci2 = 0; ci2 < cols.length; ci2++) {
         var cName2 = (cols[ci2].Name || '');
         var dn2 = (cols[ci2].DisplayName || '').toLowerCase();
@@ -2659,6 +3174,9 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         if (cName2.indexOf('#NAME')   >= 0) nameIdx   = fi2;
         if (cName2.indexOf('#GENDER') >= 0) genderIdx = fi2;
         if (cName2.indexOf('#CAT')    >= 0) akIdx     = fi2;
+        // Startnummer (BIB / Dossard / Nr.)
+        if (cName2.indexOf('#BIB') >= 0 || dn2 === 'bib' || dn2 === 'nr' || dn2 === 'nr.' ||
+            dn2.indexOf('dossard') >= 0 || dn2.indexOf('startnummer') >= 0) bibIdx = fi2;
       }
       if (nettoIdx < 0) {
         var sample = rows[0] || [];
@@ -2732,7 +3250,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         });
         _bkDbgLine(id + ' AK-Rang', Object.keys(_akGroups).length + ' AK-Gruppen berechnet');
       }
-      return { id: id, rows: rows, nettoIdx: nettoIdx, akPlatzIdx: akPlatzIdx, akRankMap: akRankMap, diszHint: diszHint, nameIdx: nameIdx, genderIdx: genderIdx, akIdx: akIdx };
+      return { id: id, rows: rows, nettoIdx: nettoIdx, akPlatzIdx: akPlatzIdx, akRankMap: akRankMap, diszHint: diszHint, nameIdx: nameIdx, genderIdx: genderIdx, akIdx: akIdx, bibIdx: bibIdx };
     } catch(e) {
       _bkDbgLine(id + ' Fehler', e.message);
       return null;
@@ -2781,7 +3299,11 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         var _rk = race.akRankMap[_akRaw + '|' + _sec2];
         if (_rk) akPlatz = String(_rk);
       }
-      parsedRows.push({ name: name, zeit: zeit, ak: acnParseAk(akRaw, gender), platz: akPlatz, diszHint: race.diszHint });
+      // Startnummer + Gesamtplatzierung (Spalte 0 = Gesamtrang)
+      var bibRaw = (race.bibIdx >= 0 && race.bibIdx < row.length) ? (row[race.bibIdx] || '').toString().replace(/<[^>]*>/g, '').trim() : '';
+      parsedRows.push({ name: name, zeit: zeit, ak: acnParseAk(akRaw, gender), platz: akPlatz, diszHint: race.diszHint,
+                        startnummer: /^\d{1,7}$/.test(bibRaw) ? bibRaw : null,
+                        posGesamt: /^\d{1,6}$/.test(rankRaw) ? parseInt(rankRaw, 10) : null });
     }
   }
   _bkDbgLine('Geparste Zeilen (dedup)', parsedRows.length);
@@ -2820,7 +3342,8 @@ async function bulkImportFromAcn(url, kat, statusEl) {
 
   var bulkRows = rowsToImport.map(function(row) {
     var r2 = acnFindDisz(row.diszHint, kat);
-    return { name: row.name, resultat: row.zeit, ak: row.ak, platz: row.platz, disziplin: r2.disz, diszMid: r2.diszMid };
+    return { name: row.name, resultat: row.zeit, ak: row.ak, platz: row.platz, disziplin: r2.disz, diszMid: r2.diszMid,
+             startnummer: row.startnummer || null, posGesamt: row.posGesamt || null };
   });
 
   bulkFillFromImport(bulkRows, statusEl);
@@ -2921,6 +3444,13 @@ async function bulkFillFromImport(rows, statusEl) {
     // Platz
     var platzEl = tr.querySelector('.bk-platz');
     if (platzEl && row.platz) platzEl.value = row.platz;
+    // Zusatzfelder aus dem Import (Startnummer, Gesamt-/Geschlechtsplatzierung)
+    var snrEl = tr.querySelector('.bk-startnr');
+    if (snrEl && row.startnummer) snrEl.value = row.startnummer;
+    var pgEl = tr.querySelector('.bk-pos-ges');
+    if (pgEl && row.posGesamt) pgEl.value = row.posGesamt;
+    var pmEl = tr.querySelector('.bk-pos-mw');
+    if (pmEl && row.posGeschlecht) pmEl.value = row.posGeschlecht;
     // Datum pro Zeile (_datumOverride aus Tag-Dialog, sonst row.datum)
     var _rowDatum = row._datumOverride || row.datum || '';
     if (_rowDatum) {
@@ -5278,6 +5808,9 @@ async function rrImport() {
     var _mstrVal = _mstrSel ? (parseInt(_mstrSel.value) || null) : null;
     var _mstrPlatzEl = document.querySelectorAll('.rr-mstr-platz')[i];
     var _mstrPlatz = (_mstrPlatzEl && _mstrPlatzEl.value) ? (parseInt(_mstrPlatzEl.value) || null) : null;
+    // Startnummer (Feld 0 = BIB) + Gesamtplatzierung (iPlatz = AUTORANKP)
+    var _bibRaw = String(raw[0] || '').trim();
+    var _posGesRaw = (r.iPlatz >= 0) ? String(raw[r.iPlatz] || '').trim().replace(/\.$/, '') : '';
     items.push({
       datum: datum, ort: ort, veranstaltung_name: evname,
       athlet_id: athletId, disziplin: disziplin,
@@ -5285,6 +5818,8 @@ async function rrImport() {
       ak_platzierung: platzAKv,
       meisterschaft: _mstrVal,
       ak_platz_meisterschaft: _mstrPlatz,
+      startnummer: /^\d{1,7}$/.test(_bibRaw) ? _bibRaw : null,
+      pos_gesamt: /^\d{1,6}$/.test(_posGesRaw) ? parseInt(_posGesRaw, 10) : null,
       import_quelle: 'raceresult:' + eventId
     });
   }

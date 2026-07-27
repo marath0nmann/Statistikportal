@@ -265,6 +265,11 @@ async function renderMeineVeranstaltungen() {
         meisterschaft:         e.meisterschaft || '',
         ak_platz_meisterschaft: parseInt(e.ak_platz_meisterschaft) || 0,
         verein:                e.verein || '',
+        startnummer:           e.startnummer || '',
+        pos_gesamt:            parseInt(e.pos_gesamt) || 0,
+        pos_geschlecht:        parseInt(e.pos_geschlecht) || 0,
+        schuh:                 e.schuh || '',
+        bemerkungen:           e.bemerkungen || '',
       });
     }
   }
@@ -357,6 +362,9 @@ function _renderMeineTabelle() {
   // Bedingte Spalten (aus Gesamtdaten)
   var hasVerein = allRows.some(function(r) { return !!r.verein; });
   var hasMstr   = allRows.some(function(r) { return !!r.meisterschaft; });
+  var hasSnr    = allRows.some(function(r) { return !!r.startnummer; });
+  var hasPos    = allRows.some(function(r) { return r.pos_geschlecht || r.pos_gesamt; });
+  var hasSchuh  = allRows.some(function(r) { return !!r.schuh; });
 
   var td   = 'padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
   var tdR  = td + ';text-align:right;font-variant-numeric:tabular-nums';
@@ -368,7 +376,8 @@ function _renderMeineTabelle() {
     var showPace = r.pace && r.pace !== '00:00';
     var ortText  = r.ort ? (r.ort_land_code && flagEmoji ? flagEmoji(r.ort_land_code) + ' ' + r.ort : r.ort) : '';
     var vereinText = r.verein || ownClub;
-    return '<tr onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
+    return '<tr' + (r.bemerkungen ? ' title="' + String(r.bemerkungen).replace(/"/g, '&quot;') + '"' : '') +
+      ' onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
       '<td style="' + tdCb + '">' +
         '<input type="checkbox" class="mv-row-cb" value="' + r.erg_id + '" onchange="_meineRowCbChange()" style="width:14px;height:14px;cursor:pointer">' +
       '</td>' +
@@ -383,6 +392,10 @@ function _renderMeineTabelle() {
       '<td style="' + tdR + '" class="result">' + res + '</td>' +
       '<td style="' + tdR + ';font-size:12px;color:var(--text2)">' + (showPace ? fmtTime(r.pace, 'min/km') : '') + '</td>' +
       '<td style="' + td + ';text-align:center">' + medalBadge(r.ak_platzierung) + '</td>' +
+      (hasPos ? '<td style="' + tdR + ';font-size:12px;color:var(--text2)">' +
+        ((r.pos_geschlecht || '–') + ' / ' + (r.pos_gesamt || '–')) + '</td>' : '') +
+      (hasSnr ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + (r.startnummer || '') + '</td>' : '') +
+      (hasSchuh ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + (r.schuh || '') + '</td>' : '') +
       (hasMstr ? '<td style="' + td + '">' + (r.meisterschaft ? mstrBadge(r.meisterschaft) : '') + '</td>' : '') +
       (hasMstr ? '<td style="' + td + ';text-align:center">' + (r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : '') + '</td>' : '') +
       '<td style="' + td + ';white-space:nowrap">' +
@@ -425,6 +438,9 @@ function _renderMeineTabelle() {
           th('resultat',      'Ergebnis',     true)  +
           th('pace',          'Pace',          true)  +
           th('ak_platzierung','Pl. AK',       false) +
+          (hasPos   ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:right" title="Platzierung m/w bzw. gesamt">Pl. m/w &middot; ges.</th>' : '') +
+          (hasSnr   ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">StNr</th>' : '') +
+          (hasSchuh ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Schuh</th>' : '') +
           (hasMstr ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Meisterschaft</th>' : '') +
           (hasMstr ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:center">Pl. MS</th>' : '') +
           '<th style="' + thAct + '"></th>' +
@@ -515,6 +531,16 @@ function _openMeineErgEdit(ergId) {
         '<select id="mee-mstr">' + mstrOpts + '</select></div>' +
       '<div class="form-group"><label>Platz MS</label>' +
         '<input type="number" id="mee-mstr-platz" value="' + (r.ak_platz_meisterschaft || '') + '" min="1" placeholder="—"/></div>' +
+      '<div class="form-group"><label>Startnummer</label>' +
+        '<input type="text" id="mee-snr" maxlength="20" value="' + String(r.startnummer || '').replace(/"/g,'&quot;') + '" placeholder="—"/></div>' +
+      '<div class="form-group"><label>Pos (m/w)</label>' +
+        '<input type="number" id="mee-pos-mw" value="' + (r.pos_geschlecht || '') + '" min="1" placeholder="—"/></div>' +
+      '<div class="form-group"><label>Pos (gesamt)</label>' +
+        '<input type="number" id="mee-pos-ges" value="' + (r.pos_gesamt || '') + '" min="1" placeholder="—"/></div>' +
+      '<div class="form-group"><label>Schuh</label>' +
+        '<input type="text" id="mee-schuh" maxlength="120" value="' + String(r.schuh || '').replace(/"/g,'&quot;') + '" placeholder="—"/></div>' +
+      '<div class="form-group full"><label>Bemerkungen</label>' +
+        '<input type="text" id="mee-bem" maxlength="500" value="' + String(r.bemerkungen || '').replace(/"/g,'&quot;') + '" placeholder="—"/></div>' +
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -535,6 +561,12 @@ async function _saveMeineErgEdit(ergId, tblKey) {
   if (akp)   body.ak_platzierung = parseInt(akp);
   if (mstr)  body.meisterschaft = parseInt(mstr);
   body.ak_platz_meisterschaft = mstrP ? parseInt(mstrP) : null;
+  var _val = function(id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; };
+  body.startnummer    = _val('mee-snr') || null;
+  body.pos_geschlecht = _val('mee-pos-mw')  ? parseInt(_val('mee-pos-mw'))  : null;
+  body.pos_gesamt     = _val('mee-pos-ges') ? parseInt(_val('mee-pos-ges')) : null;
+  body.schuh          = _val('mee-schuh') || null;
+  body.bemerkungen    = _val('mee-bem') || null;
   var r = await apiPut((tblKey || 'strasse') + '/' + ergId, body);
   if (r && r.ok) {
     closeModal();

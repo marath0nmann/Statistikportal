@@ -231,6 +231,12 @@ try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXIS
 try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS extern TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS verein VARCHAR(120) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " MODIFY COLUMN veranstaltung_id INT NULL"); } catch (\Exception $e) {}
+// v1400: Zusatzfelder (Startnummer, Gesamt-/Geschlechtsplatzierung, Schuh, Bemerkungen)
+try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS startnummer VARCHAR(20) NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS pos_gesamt INT NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS pos_geschlecht INT NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS schuh VARCHAR(120) NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS bemerkungen VARCHAR(500) NULL"); } catch (\Exception $e) {}
 // Einmalige Datenmigration: athlet_pb → ergebnisse
 if (Settings::get('athlet_pb_migriert') !== '1') {
     try {
@@ -1649,6 +1655,84 @@ function normalizeResultat(string $r, string $fmt = 'min'): array {
     return [$r, null];
 }
 
+/**
+ * Zusatzfelder eines Ergebnisses aus einem Request-Item lesen.
+ * Rückgabe: ['startnummer'=>?string,'pos_gesamt'=>?int,'pos_geschlecht'=>?int,'schuh'=>?string,'bemerkungen'=>?string]
+ */
+function zusatzFelder(array $src): array {
+    $snr = trim((string)($src['startnummer'] ?? ''));
+    return [
+        'startnummer'    => $snr !== '' ? mb_substr(sanitize($snr), 0, 20) : null,
+        'pos_gesamt'     => intOrNull($src['pos_gesamt'] ?? null),
+        'pos_geschlecht' => intOrNull($src['pos_geschlecht'] ?? null),
+        'schuh'          => ($v = trim((string)($src['schuh'] ?? ''))) !== '' ? mb_substr(sanitize($v), 0, 120) : null,
+        'bemerkungen'    => ($b = trim((string)($src['bemerkungen'] ?? ''))) !== '' ? mb_substr(sanitize($b), 0, 500) : null,
+    ];
+}
+
+/**
+ * Sucht ein bestehendes Ergebnis desselben Athleten an derselben Veranstaltung
+ * in derselben Disziplin (Dubletten-Abgleich).
+ */
+function findeErgebnisDublette(int $athId, int $vid, string $disziplin, ?int $dmId): ?array {
+    $cond = 'e.disziplin=?'; $params = [$athId, $vid, $disziplin];
+    if ($dmId) { $cond = '(e.disziplin=? OR e.disziplin_mapping_id=?)'; $params[] = $dmId; }
+    $row = DB::fetchOne(
+        'SELECT e.id, e.disziplin, e.resultat, e.altersklasse, e.startnummer, e.pos_gesamt, e.pos_geschlecht,
+                e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft, e.schuh, e.bemerkungen,
+                e.extern, e.verein, v.datum, v.name AS veranstaltung
+           FROM ' . DB::tbl('ergebnisse') . ' e
+           LEFT JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id = e.veranstaltung_id
+          WHERE e.athlet_id=? AND e.veranstaltung_id=? AND e.geloescht_am IS NULL AND ' . $cond . '
+          ORDER BY e.id LIMIT 1',
+        $params
+    );
+    return $row ?: null;
+}
+
+/**
+ * Prüft, ob für Athlet/Veranstaltung/Disziplin bereits ein offener Antrag existiert.
+ */
+function findeOffenenErgebnisAntrag(int $athId, int $vid, string $disziplin): ?array {
+    $rows = DB::fetchAll(
+        'SELECT id, neue_werte, beantragt_am FROM ' . DB::tbl('ergebnis_aenderungen') .
+        " WHERE status='pending' AND typ='insert' ORDER BY id DESC LIMIT 500"
+    );
+    foreach ($rows as $r) {
+        $nv = json_decode($r['neue_werte'] ?? '{}', true) ?: [];
+        if ((int)($nv['athlet_id'] ?? 0) === $athId
+            && (int)($nv['veranstaltung_id'] ?? 0) === $vid
+            && mb_strtolower((string)($nv['disziplin'] ?? '')) === mb_strtolower($disziplin)) {
+            return ['id' => (int)$r['id'], 'resultat' => $nv['resultat'] ?? '', 'beantragt_am' => $r['beantragt_am']];
+        }
+    }
+    return null;
+}
+
+/**
+ * Füllt bei einem bestehenden Ergebnis nur die noch leeren Felder mit neuen Werten.
+ * Gibt die Namen der tatsächlich gefüllten Felder zurück.
+ */
+function mergeErgebnisFelder(int $ergId, array $neu): array {
+    $alt = DB::fetchOne('SELECT * FROM ' . DB::tbl('ergebnisse') . ' WHERE id=?', [$ergId]);
+    if (!$alt) return [];
+    $felder = []; $params = []; $gefuellt = [];
+    $kandidaten = ['altersklasse','startnummer','schuh','bemerkungen','verein',
+                   'ak_platzierung','pos_gesamt','pos_geschlecht','meisterschaft','ak_platz_meisterschaft'];
+    foreach ($kandidaten as $k) {
+        if (!array_key_exists($k, $neu)) continue;
+        $wert = $neu[$k];
+        if ($wert === null || $wert === '') continue;
+        $altWert = $alt[$k] ?? null;
+        if ($altWert !== null && trim((string)$altWert) !== '') continue; // vorhandenen Wert nie überschreiben
+        $felder[] = "$k=?"; $params[] = $wert; $gefuellt[] = $k;
+    }
+    if (!$felder) return [];
+    $params[] = $ergId;
+    DB::query('UPDATE ' . DB::tbl('ergebnisse') . ' SET ' . implode(',', $felder) . ' WHERE id=?', $params);
+    return $gefuellt;
+}
+
 if ($res === 'altersklassen' && $method === 'GET') {
     Auth::requireAdmin();
     $rows = DB::fetchAll(
@@ -2337,6 +2421,13 @@ if (in_array($res, $ergebnisTabellen)) {
         if (isset($body['ak_platzierung'])){ $felder[] = 'ak_platzierung=?';$params[] = intOrNull($body['ak_platzierung']); }
         if (isset($body['meisterschaft'])) { $felder[] = 'meisterschaft=?'; $params[] = intOrNull($body['meisterschaft']); }
         if (array_key_exists('ak_platz_meisterschaft', $body)) { $felder[] = 'ak_platz_meisterschaft=?'; $params[] = intOrNull($body['ak_platz_meisterschaft']); }
+        // Zusatzfelder (Startnummer, Positionen, Schuh, Bemerkungen)
+        if ($unified) {
+            $zusUpd = zusatzFelder($body);
+            foreach (['startnummer','pos_gesamt','pos_geschlecht','schuh','bemerkungen'] as $zk) {
+                if (array_key_exists($zk, $body)) { $felder[] = "$zk=?"; $params[] = $zusUpd[$zk]; }
+            }
+        }
         if (!$felder) jsonErr('Keine Felder zum Aktualisieren.');
         DB::updateById($tbl, $felder, $params, $id);
         jsonOk('OK');
@@ -3802,7 +3893,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     if (preg_match('/[?&]event=([A-Z0-9]{1,8})/i', $aL->getAttribute('href'), $emL)) { $evIdL = $emL[1]; break; }
                 }
                 // Netto bevorzugen (letztes type-time), Plätze, AK, Verein
-                $nettoL=''; $akL=''; $clubL=''; $pgL=''; $paL=''; $timeLastL='';
+                $nettoL=''; $akL=''; $clubL=''; $pgL=''; $paL=''; $timeLastL=''; $snrL='';
                 foreach ($xL->query('.//*[contains(@class,"type-time")]', $liL) as $tnL) {
                     $lblL = trim(($xL->query('.//*[contains(@class,"list-label")]', $tnL)->item(0) ?: new DOMText(''))->textContent);
                     $rawL = trim(str_replace($lblL, '', $tnL->textContent));
@@ -3823,10 +3914,12 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     $rawL = trim(str_replace($lblL, '', $fnL->textContent));
                     if ($lblL === 'AK' && $rawL && !$akL) { if (preg_match('/[MW]\d{2,3}/', $rawL, $mmL)) $akL = $mmL[0]; else $akL = $rawL; }
                     if ($lblL === 'Verein' && $rawL && !$clubL) $clubL = $rawL;
+                    if (preg_match('/^(startnummer|stnr|st\.-?nr\.?|bib)$/i', $lblL) && $rawL && !$snrL) $snrL = $rawL;
                 }
                 $resL[$idpL] = [
                     'name'=>trim($nameL), 'contest'=>$evIdL, 'netto'=>$nettoL, 'ak'=>$akL,
                     'platz_ak'=>$paL, 'platz_ges'=>$pgL, 'event_id'=>$evIdL, 'idp'=>$idpL, 'club'=>$clubL,
+                    'startnr'=>$snrL,
                 ];
             }
         }
@@ -4096,6 +4189,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 $platzAk = $getCol(['place_age','place_ak','platz_ak','rank_ak','place_category']);
                 $platzGs = $getCol(['place_all','place_ges','platz_ges','rank']);
                 $liClub  = $getCol(['club','verein','team']);
+                $startnr = $getCol(['bib','startnumber','startnummer','start_nr','stnr','number']);
                 $idp     = $getCol(['idp','id','ID']);
                 if (!$idp) $idp = $evId . '_' . md5($name);
                 if (isset($allResults[$idp])) continue;
@@ -4104,6 +4198,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     'netto' => $netto, 'ak' => $ak,
                     'platz_ak' => $platzAk, 'platz_ges' => $platzGs,
                     'event_id' => $evId, 'idp' => $idp, 'club' => $liClub,
+                    'startnr' => $startnr,
                     '_fromV2' => true,
                 ];
             }
@@ -5984,57 +6079,201 @@ if ($res === 'externe-ergebnisse' && $method === 'PUT' && $id) {
 
 // ERGEBNISSE/BULK
 // ============================================================
+/**
+ * Veranstaltung für ein eigenes Ergebnis auflösen (optional anlegen).
+ * Rückgabe: ['id'=>?int,'treffer'=>'id'|'kuerzel'|'datum_name'|'neu'|null,'ort'=>string,'name'=>string,'datum'=>string,'fehler'=>?string]
+ */
+function veranstaltungFuerEigenes(array $item, bool $anlegen, bool $veranstPruefen): array {
+    $leer = ['id'=>null,'treffer'=>null,'ort'=>'','name'=>'','datum'=>'','fehler'=>null];
+    $vid = intOrNull($item['veranstaltung_id'] ?? null);
+    if ($vid) {
+        $v = DB::fetchOne('SELECT id,name,ort,datum FROM ' . DB::tbl('veranstaltungen') . ' WHERE id=? AND geloescht_am IS NULL', [$vid]);
+        if (!$v) return array_merge($leer, ['fehler'=>'Veranstaltung nicht gefunden']);
+        return ['id'=>(int)$v['id'],'treffer'=>'id','ort'=>(string)$v['ort'],'name'=>(string)$v['name'],'datum'=>(string)$v['datum'],'fehler'=>null];
+    }
+    $datum  = sanitize($item['datum'] ?? '');
+    $ort    = sanitize($item['ort'] ?? '');
+    $evname = sanitize($item['veranstaltung_name'] ?? '');
+    if (!$datum) return array_merge($leer, ['fehler'=>'Datum fehlt']);
+    // 1. Exakter Treffer über Kürzel (Datum + Ort)
+    if ($ort) {
+        $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
+        $v = DB::fetchOne('SELECT id,name,ort,datum FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=? AND geloescht_am IS NULL', [$kuerzel]);
+        if ($v) return ['id'=>(int)$v['id'],'treffer'=>'kuerzel','ort'=>(string)$v['ort'],'name'=>(string)$v['name'],'datum'=>(string)$v['datum'],'fehler'=>null];
+    }
+    // 2. Treffer über Datum + Veranstaltungsname
+    if ($evname) {
+        $v = DB::fetchOne('SELECT id,name,ort,datum FROM ' . DB::tbl('veranstaltungen') .
+            ' WHERE datum=? AND geloescht_am IS NULL AND (LOWER(name)=LOWER(?) OR LOWER(kuerzel)=LOWER(?)) LIMIT 1',
+            [$datum, $evname, $evname]);
+        if (!$v) {
+            $v = DB::fetchOne('SELECT id,name,ort,datum FROM ' . DB::tbl('veranstaltungen') .
+                ' WHERE datum=? AND geloescht_am IS NULL AND LOWER(name) LIKE LOWER(?) LIMIT 1',
+                [$datum, '%' . $evname . '%']);
+        }
+        if ($v) return ['id'=>(int)$v['id'],'treffer'=>'datum_name','ort'=>(string)$v['ort'],'name'=>(string)$v['name'],'datum'=>(string)$v['datum'],'fehler'=>null];
+    }
+    if (!$anlegen) return array_merge($leer, ['datum'=>$datum, 'name'=>$evname, 'ort'=>$ort]);
+    if (!$ort) return array_merge($leer, ['datum'=>$datum, 'name'=>$evname, 'fehler'=>'Ort erforderlich']);
+    $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
+    DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum,genehmigt) VALUES (?,?,?,?,?)',
+        [$kuerzel, $evname ?: $kuerzel, $ort, $datum, $veranstPruefen ? 0 : 1]);
+    return ['id'=>(int)DB::lastInsertId(),'treffer'=>'neu','ort'=>$ort,'name'=>$evname ?: $kuerzel,'datum'=>$datum,'fehler'=>null];
+}
+
+/**
+ * Ein eigenes Ergebnis speichern / mergen / prüfen.
+ * $aktion: 'auto' (bei Dublette abbrechen und melden), 'merge', 'insert' (Dublette ignorieren), 'skip'
+ */
+function eigenesErgebnisVerarbeiten(array $item, int $athId, int $userId, string $aktion = 'auto'): array {
+    $disziplin = sanitize($item['disziplin'] ?? '');
+    $dmId      = intOrNull($item['disziplin_mapping_id'] ?? null);
+    $resultat  = sanitize($item['resultat'] ?? '');
+    $ak        = sanitize($item['altersklasse'] ?? '');
+    if ($aktion === 'skip') return ['status'=>'uebersprungen'];
+    if (!$disziplin || !$resultat) return ['status'=>'fehler','msg'=>'Disziplin und Ergebnis erforderlich.'];
+
+    $veranstPruefen  = Settings::get('eigenes_veranst_prufen',  '1') !== '0';
+    $ergebnisPruefen = Settings::get('eigenes_ergebnis_prufen', '1') !== '0';
+
+    $v = veranstaltungFuerEigenes($item, true, $veranstPruefen);
+    if ($v['fehler']) return ['status'=>'fehler','msg'=>$v['fehler']];
+    $vid = (int)$v['id'];
+
+    $zusatz = zusatzFelder($item);
+    $akp    = intOrNull($item['ak_platzierung'] ?? null);
+    $mstr   = intOrNull($item['meisterschaft'] ?? null);
+    $akpm   = intOrNull($item['ak_platz_meisterschaft'] ?? null);
+    // Vereinsangabe: anderer Verein → externes Ergebnis
+    $verein   = sanitize($item['verein'] ?? ($item['externer_verein'] ?? ''));
+    $clubName = (string)Settings::get('verein_name', '');
+    $isExtern = $verein !== '' && mb_strtolower($verein) !== mb_strtolower($clubName);
+
+    // Dubletten-Abgleich
+    $dup     = findeErgebnisDublette($athId, $vid, $disziplin, $dmId);
+    $pending = $dup ? null : findeOffenenErgebnisAntrag($athId, $vid, $disziplin);
+    if (($dup || $pending) && $aktion === 'auto') {
+        return ['status'=>'dublette', 'dublette'=>$dup, 'antrag'=>$pending, 'veranstaltung_id'=>$vid,
+                'msg'=>$dup ? 'Ergebnis existiert bereits.' : 'Für diese Veranstaltung liegt bereits ein offener Antrag vor.'];
+    }
+    if ($dup && $aktion === 'merge') {
+        $gefuellt = mergeErgebnisFelder((int)$dup['id'], array_merge($zusatz, [
+            'altersklasse'=>$ak ?: null, 'ak_platzierung'=>$akp, 'meisterschaft'=>$mstr,
+            'ak_platz_meisterschaft'=>$akpm, 'verein'=>$isExtern ? $verein : null,
+        ]));
+        return ['status'=>'gemergt','ergebnis_id'=>(int)$dup['id'],'felder'=>$gefuellt,
+                'msg'=>$gefuellt ? 'Ergänzt: ' . implode(', ', $gefuellt) : 'Keine neuen Angaben – unverändert.'];
+    }
+    if ($pending && $aktion === 'merge') return ['status'=>'uebersprungen','msg'=>'Offener Antrag – nicht ergänzt.'];
+
+    if ($ergebnisPruefen) {
+        $neueWerte = json_encode(array_merge([
+            'veranstaltung_id'=>$vid,'athlet_id'=>$athId,'disziplin'=>$disziplin,
+            'disziplin_mapping_id'=>$dmId,'resultat'=>$resultat,'altersklasse'=>$ak,
+            'ak_platzierung'=>$akp,'meisterschaft'=>$mstr,'ak_platz_meisterschaft'=>$akpm,
+            'extern'=>$isExtern ? 1 : 0,'verein'=>$isExtern ? $verein : null,
+            'erstellt_von'=>$userId,
+        ], $zusatz));
+        DB::query('INSERT INTO ' . DB::tbl('ergebnis_aenderungen') .
+            ' (ergebnis_id,ergebnis_tbl,typ,neue_werte,beantragt_von) VALUES (?,?,?,?,?)',
+            [null, 'ergebnisse', 'insert', $neueWerte, $userId]);
+        return ['status'=>'pending','msg'=>'Ergebnis eingereicht. Wird von einem Editor geprüft.'];
+    }
+    $dmFmt = 'min';
+    if ($dmId) {
+        $dmInfoE = DB::fetchOne('SELECT COALESCE(dm.fmt_override, dk.fmt) AS fmt FROM ' . DB::tbl('disziplin_mapping') . ' dm
+            LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id WHERE dm.id=?', [$dmId]);
+        $dmFmt = $dmInfoE['fmt'] ?? 'min';
+    }
+    [$resultat, $rnum] = normalizeResultat($resultat, $dmFmt);
+    DB::query('INSERT INTO ' . DB::tbl('ergebnisse') .
+        ' (veranstaltung_id,athlet_id,disziplin,disziplin_mapping_id,resultat,resultat_num,altersklasse,
+           ak_platzierung,meisterschaft,ak_platz_meisterschaft,startnummer,pos_gesamt,pos_geschlecht,schuh,bemerkungen,
+           extern,verein,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [$vid, $athId, $disziplin, $dmId, $resultat, $rnum, $ak ?: null,
+         $akp, $mstr, $akpm, $zusatz['startnummer'], $zusatz['pos_gesamt'], $zusatz['pos_geschlecht'],
+         $zusatz['schuh'], $zusatz['bemerkungen'], $isExtern ? 1 : 0, $isExtern ? $verein : null, $userId]);
+    return ['status'=>'gespeichert','ergebnis_id'=>(int)DB::lastInsertId(),'msg'=>'Ergebnis gespeichert.'];
+}
+
+/** Athlet-ID des eingeloggten Benutzers (oder null). */
+function eigenerAthletId(int $userId): ?int {
+    $buRow = DB::fetchOne('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$userId]);
+    return $buRow ? intOrNull($buRow['athlet_id']) : null;
+}
+
     // Eigenes Ergebnis (Athlet trägt für sich selbst ein → Genehmigung)
 if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes') {
     $user = Auth::requireLogin();
     if (!$user['id']) jsonErr('Nicht eingeloggt.', 401);
-    // Athlet-ID aus Benutzerprofil
-    $buRow = DB::fetchOne('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$user['id']]);
-    $athId = $buRow ? intOrNull($buRow['athlet_id']) : null;
+    $athId = eigenerAthletId((int)$user['id']);
     if (!$athId) jsonErr('Kein Athletenprofil verknüpft.');
 
-    $disziplin = sanitize($body['disziplin'] ?? '');
-    $dmId      = intOrNull($body['disziplin_mapping_id'] ?? null);
-    $resultat  = sanitize($body['resultat'] ?? '');
-    $ak        = sanitize($body['altersklasse'] ?? '');
-    if (!$disziplin || !$resultat) jsonErr('Disziplin und Ergebnis erforderlich.');
+    $aktion = in_array($body['aktion'] ?? '', ['merge','insert','skip'], true) ? $body['aktion'] : 'auto';
+    $r = eigenesErgebnisVerarbeiten($body, (int)$athId, (int)$user['id'], $aktion);
+    if ($r['status'] === 'fehler') jsonErr($r['msg'] ?? 'Fehler.');
+    jsonOk([
+        'status'      => $r['status'],
+        'pending'     => $r['status'] === 'pending',
+        'dublette'    => $r['dublette'] ?? null,
+        'antrag'      => $r['antrag'] ?? null,
+        'ergebnis_id' => $r['ergebnis_id'] ?? null,
+        'felder'      => $r['felder'] ?? [],
+        'msg'         => $r['msg'] ?? '',
+    ]);
+}
 
-    // Veranstaltung: bestehende oder neue
-    $veranstPruefen  = Settings::get('eigenes_veranst_prufen',  '1') !== '0';
-    $ergebnisPruefen = Settings::get('eigenes_ergebnis_prufen', '1') !== '0';
+// Eigene Ergebnisse per CSV-Bulk: Phase 1 „pruefen", Phase 2 „speichern"
+if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes-bulk') {
+    $user = Auth::requireLogin();
+    if (!$user['id']) jsonErr('Nicht eingeloggt.', 401);
+    $athId = eigenerAthletId((int)$user['id']);
+    if (!$athId) jsonErr('Kein Athletenprofil verknüpft.');
+    $items = $body['items'] ?? [];
+    if (!is_array($items) || !count($items)) jsonErr('Keine Einträge.');
+    if (count($items) > 500) jsonErr('Maximal 500 Zeilen pro Import.');
 
-    $vid = intOrNull($body['veranstaltung_id'] ?? null);
-    if (!$vid) {
-        $datum  = sanitize($body['datum'] ?? '');
-        $ort    = sanitize($body['ort'] ?? '');
-        $evname = sanitize($body['veranstaltung_name'] ?? '');
-        if (!$datum || !$ort) jsonErr('Datum und Ort erforderlich.');
-        $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
-        $v = DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=?', [$kuerzel]);
-        if (!$v) {
-            $genehmigt = $veranstPruefen ? 0 : 1;
-            DB::query('INSERT INTO ' . DB::tbl('veranstaltungen') . ' (kuerzel,name,ort,datum,genehmigt) VALUES (?,?,?,?,?)',
-                [$kuerzel, $evname ?: $kuerzel, $ort, $datum, $genehmigt]);
-            $vid = DB::lastInsertId();
-        } else $vid = $v['id'];
+    $veranstPruefen = Settings::get('eigenes_veranst_prufen', '1') !== '0';
+
+    // Phase 1: nur prüfen – keine Veranstaltung anlegen, keine Ergebnisse schreiben
+    if (!empty($body['pruefen'])) {
+        $out = [];
+        foreach ($items as $idx => $it) {
+            if (!is_array($it)) continue;
+            $v = veranstaltungFuerEigenes($it, false, $veranstPruefen);
+            $zeile = [
+                'idx' => (int)$idx,
+                'veranstaltung_id'  => $v['id'],
+                'veranstaltung_name'=> $v['name'],
+                'veranstaltung_ort' => $v['ort'],
+                'treffer'           => $v['treffer'],
+                'dublette'          => null,
+                'antrag'            => null,
+            ];
+            $disziplin = sanitize($it['disziplin'] ?? '');
+            if ($v['id'] && $disziplin) {
+                $zeile['dublette'] = findeErgebnisDublette((int)$athId, (int)$v['id'], $disziplin, intOrNull($it['disziplin_mapping_id'] ?? null));
+                if (!$zeile['dublette']) $zeile['antrag'] = findeOffenenErgebnisAntrag((int)$athId, (int)$v['id'], $disziplin);
+            }
+            $out[] = $zeile;
+        }
+        jsonOk(['rows' => $out]);
     }
 
-    if ($ergebnisPruefen) {
-        // Ergebnis als Antrag speichern
-        $neueWerte = json_encode(['veranstaltung_id'=>$vid,'athlet_id'=>$athId,'disziplin'=>$disziplin,
-            'disziplin_mapping_id'=>$dmId,'resultat'=>$resultat,'altersklasse'=>$ak,
-            'erstellt_von'=>$user['id']]);
-        DB::query('INSERT INTO ' . DB::tbl('ergebnis_aenderungen') .
-            ' (ergebnis_id,ergebnis_tbl,typ,neue_werte,beantragt_von) VALUES (?,?,?,?,?)',
-            [null, 'ergebnisse', 'insert', $neueWerte, $user['id']]);
-        jsonOk(['pending' => true, 'msg' => 'Ergebnis eingereicht. Wird von einem Editor geprüft.']);
-    } else {
-        // Direkt speichern
-        DB::query('INSERT INTO ' . DB::tbl('ergebnisse') .
-            ' (veranstaltung_id,athlet_id,disziplin,disziplin_mapping_id,resultat,altersklasse,erstellt_von) VALUES (?,?,?,?,?,?,?)',
-            [$vid, $athId, $disziplin, $dmId, $resultat, $ak ?: null, $user['id']]);
-        jsonOk(['pending' => false, 'msg' => 'Ergebnis gespeichert.']);
+    // Phase 2: speichern
+    $stats = ['gespeichert'=>0,'pending'=>0,'gemergt'=>0,'uebersprungen'=>0,'fehler'=>0];
+    $meldungen = [];
+    foreach ($items as $idx => $it) {
+        if (!is_array($it)) continue;
+        $aktion = in_array($it['aktion'] ?? '', ['merge','insert','skip'], true) ? $it['aktion'] : 'auto';
+        $r = eigenesErgebnisVerarbeiten($it, (int)$athId, (int)$user['id'], $aktion);
+        $st = $r['status'] === 'dublette' ? 'uebersprungen' : $r['status'];
+        if (!isset($stats[$st])) $stats[$st] = 0;
+        $stats[$st]++;
+        if ($r['status'] === 'fehler')    $meldungen[] = 'Zeile ' . ((int)$idx + 1) . ': ' . ($r['msg'] ?? 'Fehler');
+        if ($r['status'] === 'dublette')  $meldungen[] = 'Zeile ' . ((int)$idx + 1) . ': Duplikat übersprungen';
     }
+    jsonOk(['stats' => $stats, 'meldungen' => $meldungen]);
 }
 
 if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
@@ -6074,6 +6313,7 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         $mstr      = intOrNull($item['meisterschaft'] ?? null);
         $akpm      = intOrNull($item['ak_platz_meisterschaft'] ?? null);
         $quelle    = sanitize($item['import_quelle'] ?? '');
+        $zusatz    = zusatzFelder($item);
         $dquelle   = trim((string)($item['datenquelle'] ?? ''));
         if ($dquelle !== '' && !preg_match('#^https?://#i', $dquelle)) $dquelle = ''; // nur echte URLs
         // Validierung: bei bestehender Veranstaltung kein Datum/Ort nötig
@@ -6127,18 +6367,23 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         // Duplikat-Check: gleicher Athlet, gleiche Disziplin, gleiches Ergebnis in ergebnisse
         $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
             [$vid, $aid, $disziplin, $resultat]);
-        if ($dup) { $skipped++; continue; }
+        // Duplikat: fehlende Zusatzangaben (Startnummer, Positionen, …) trotzdem nachtragen
+        if ($dup) { mergeErgebnisFelder((int)$dup['id'], array_merge($zusatz, ['ak_platzierung'=>$akp,'meisterschaft'=>$mstr,'ak_platz_meisterschaft'=>$akpm])); $skipped++; continue; }
         // Auch cross-prüfen: externes ↔ internes am selben Wettkampf
         $dupCross = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE athlet_id=? AND disziplin=? AND resultat=? AND extern!=? AND geloescht_am IS NULL',
             [$aid, $disziplin, $resultat, $isExtern ? 1 : 0]);
-        if ($dupCross) { $skipped++; continue; }
+        if ($dupCross) { mergeErgebnisFelder((int)$dupCross['id'], array_merge($zusatz, ['ak_platzierung'=>$akp,'meisterschaft'=>$mstr,'ak_platz_meisterschaft'=>$akpm])); $skipped++; continue; }
 
         if ($isExtern) {
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,import_quelle,erstellt_von,extern,verein) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,?)",
-                [$vid,$aid,$ak,$disziplin,$dmInfo ? (int)$dmInfo['id'] : null,$resultat,$rnum,$akp,$mstr,$akpm,$quelle,$user['id'],$verein ?: null]);
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,startnummer,pos_gesamt,pos_geschlecht,schuh,bemerkungen,import_quelle,erstellt_von,extern,verein) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?)",
+                [$vid,$aid,$ak,$disziplin,$dmInfo ? (int)$dmInfo['id'] : null,$resultat,$rnum,$akp,$mstr,$akpm,
+                 $zusatz['startnummer'],$zusatz['pos_gesamt'],$zusatz['pos_geschlecht'],$zusatz['schuh'],$zusatz['bemerkungen'],
+                 $quelle,$user['id'],$verein ?: null]);
         } else {
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$dmInfo ? (int)$dmInfo['id'] : null,$resultat,$rnum,$akp,$mstr,$akpm,$quelle,$user['id']]);
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,startnummer,pos_gesamt,pos_geschlecht,schuh,bemerkungen,import_quelle,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                [$vid,$aid,$ak,$disziplin,$dmInfo ? (int)$dmInfo['id'] : null,$resultat,$rnum,$akp,$mstr,$akpm,
+                 $zusatz['startnummer'],$zusatz['pos_gesamt'],$zusatz['pos_geschlecht'],$zusatz['schuh'],$zusatz['bemerkungen'],
+                 $quelle,$user['id']]);
         }
         autoMapDisziplin($disziplin);
         $imported++;
@@ -7068,12 +7313,18 @@ if ($res === 'ergebnis-aenderungen') {
                 $res2  = $vals['resultat'] ?? '';
                 $ak2   = $vals['altersklasse'] ?? '';
                 $von2  = intOrNull($vals['erstellt_von'] ?? null);
+                $zus2  = zusatzFelder($vals);
                 if ($vid2 && $aid2 && $disz2 && $res2) {
                     DB::query(
                         'INSERT INTO ' . DB::tbl('ergebnisse') .
-                        ' (veranstaltung_id,athlet_id,disziplin,disziplin_mapping_id,resultat,altersklasse,erstellt_von)'
-                        . ' VALUES (?,?,?,?,?,?,?)',
-                        [$vid2,$aid2,$disz2,$dmId2,$res2,$ak2,$von2]
+                        ' (veranstaltung_id,athlet_id,disziplin,disziplin_mapping_id,resultat,altersklasse,erstellt_von,'
+                        . 'ak_platzierung,meisterschaft,ak_platz_meisterschaft,startnummer,pos_gesamt,pos_geschlecht,schuh,bemerkungen,extern,verein)'
+                        . ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                        [$vid2,$aid2,$disz2,$dmId2,$res2,$ak2,$von2,
+                         intOrNull($vals['ak_platzierung'] ?? null), intOrNull($vals['meisterschaft'] ?? null),
+                         intOrNull($vals['ak_platz_meisterschaft'] ?? null),
+                         $zus2['startnummer'], $zus2['pos_gesamt'], $zus2['pos_geschlecht'], $zus2['schuh'], $zus2['bemerkungen'],
+                         !empty($vals['extern']) ? 1 : 0, $vals['verein'] ?? null]
                     );
                     $newErgId = DB::lastInsertId();
                     // ergebnis_id im Antrag speichern (für spätere Referenz)
@@ -7099,7 +7350,12 @@ if ($res === 'ergebnis-aenderungen') {
                         $f2[] = 'name_nv=?'; $p2[] = $nn . ', ' . $vn;
                     }
                 } else {
-                    foreach (['altersklasse','disziplin','resultat','ak_platzierung','meisterschaft'] as $k2) {
+                    $updFelder = ['altersklasse','disziplin','resultat','ak_platzierung','meisterschaft'];
+                    // Zusatzfelder existieren nur in der vereinheitlichten Ergebnistabelle
+                    if ($tbl2 === DB::tbl('ergebnisse')) {
+                        $updFelder = array_merge($updFelder, ['ak_platz_meisterschaft','startnummer','pos_gesamt','pos_geschlecht','schuh','bemerkungen']);
+                    }
+                    foreach ($updFelder as $k2) {
                         if (array_key_exists($k2, $vals)) { $f2[] = "$k2=?"; $p2[] = $vals[$k2]; }
                     }
                 }
@@ -7191,7 +7447,7 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
         $ergs = DB::fetchAll(
             "SELECT e.id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.resultat_num,
                     e.altersklasse, e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft,
-                    e.verein,
+                    e.verein, e.startnummer, e.pos_gesamt, e.pos_geschlecht, e.schuh, e.bemerkungen,
                     COALESCE(dm.fmt_override, dk.fmt, 'min') AS fmt,
                     dk.name AS kategorie_name, dk.tbl_key
              FROM $eTbl e
