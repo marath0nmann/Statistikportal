@@ -1,3 +1,6 @@
+## v1407
+- Seltec-Import: Einstellige Altersklassen (z.B. W9, M7, W5) wurden aus den Sektions-Titeln nicht erkannt, weil das Muster zwingend zwei Ziffern erwartete – betroffene Ergebnisse kamen ohne Altersklasse in die Vorschau (z.B. „Kinder W9 - Zeitläufe"). Jetzt werden ein- und zweistellige Altersklassen gelesen.
+
 ## v1406
 - CSV-Import: Auswahl-Häkchen entfernt. Stattdessen lässt sich jeder Wettkampf einzeln über „⬇ Import" in seiner Zeile importieren, zusätzlich gibt es „Gruppe importieren" je Statusgruppe und „Alle importieren". Importierte Zeilen wandern in die Gruppe „Bereits importiert" und werden nicht erneut gesendet; die API meldet jetzt pro Zeile Status und Meldung zurück.
 - Ort wird nur noch aus den im System hinterlegten Orten gewählt (Vorschau, Zeilen-Editor und Einzelformular) – inklusive Option „+ Neuen Ort anlegen…". Beim Anlegen einer Veranstaltung wird die `ort_id` mitgespeichert, sodass Ortsdaten (z.B. Landesflagge) direkt verknüpft sind. Orte aus der CSV werden über Name oder Alias aufgelöst, unbekannte Schreibweisen bleiben leer und müssen ausgewählt werden.

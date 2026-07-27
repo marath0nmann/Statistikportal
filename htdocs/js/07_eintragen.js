@@ -4351,13 +4351,14 @@ function _parseSeltecLines(lines) {
 
 function _seltecAkFromTitle(title) {
   // "75m, Jugend W12 (aus gemeinsamem Bewerb)"           → "W12"
+  // "50m, Kinder W9 - Zeitläufe"                          → "W9"
   // "800m, Seniorinnen W45 (aus gemeinsamem Bewerb)"     → "W45"
   // "100m, Weibliche Jugend U18 (aus gemeinsamem Bewerb)"→ "WU18"
   // "800m, Männliche Jugend U20 (aus gemeinsamem Bewerb)"→ "MU20"
   // "100m, Frauen (aus gemeinsamem Bewerb)"              → "W"
   // "100m, Männer (aus gemeinsamem Bewerb)"              → "M"
   var m;
-  if ((m = title.match(/\b([MW]\d{2})\b/))) return m[1];
+  if ((m = title.match(/\b([MW]\d{1,2})\b/))) return m[1];
   if ((m = title.match(/Weibliche?\s+Jugend\s+U(\d+)/i))) return 'WU' + m[1];
   if ((m = title.match(/Männliche?\s+Jugend\s+U(\d+)/i))) return 'MU' + m[1];
   if ((m = title.match(/U(\d+)/i))) {
