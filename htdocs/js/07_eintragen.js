@@ -635,9 +635,12 @@ async function eeCsvPruefen() {
     } else {
       row.veranstaltung_id = null;
     }
-    // Standardaktion: Duplikate zusammenführen statt doppelt anzulegen
-    row._aktion = (chk.dublette || chk.antrag) ? 'merge' : 'insert';
-    if (chk.antrag && !chk.dublette) row._aktion = 'skip';
+    // Standardaktion: Duplikate zusammenführen statt doppelt anzulegen –
+    // eine vom Benutzer gewählte Aktion bleibt bei erneuter Prüfung erhalten
+    if (!row._aktionManuell) {
+      row._aktion = (chk.dublette || chk.antrag) ? 'merge' : 'insert';
+      if (chk.antrag && !chk.dublette) row._aktion = 'skip';
+    }
   });
   _eeCsvGeprueft = true;
   _eeCsvRenderPreview();
@@ -678,22 +681,39 @@ function _eeCsvDiszOptions(row) {
   return opts;
 }
 
+// Fehlende Pflichtangaben einer Zeile (leerer String = vollständig)
+function _eeCsvProblem(row) {
+  return !row.datum ? 'Datum unlesbar'
+       : !row.disziplin_mapping_id ? 'Disziplin fehlt'
+       : !row.resultat ? 'Ergebnis fehlt'
+       : (!row.veranstaltung_id && !row.ort) ? 'Ort fehlt'
+       : '';
+}
+
+// Gruppe einer Zeile: 'unvollstaendig' | 'konflikt' | 'duplikat' | 'neu'
+function _eeCsvGruppe(row) {
+  if (_eeCsvProblem(row)) return 'unvollstaendig';
+  var chk = row._check || {};
+  if (chk.dublette) return _eeVergleichZaehler(chk.dublette, row).konflikte ? 'konflikt' : 'duplikat';
+  if (chk.antrag) return 'duplikat';
+  return 'neu';
+}
+
 function _eeCsvRenderPreview() {
   var wrap = document.getElementById('ee-csv-preview');
   var statusEl = document.getElementById('ee-csv-status');
   if (!wrap) return;
   var fld = 'box-sizing:border-box;height:30px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px;width:100%';
   var dubletten = 0, fehlend = 0, aktiv = 0, konflikte = 0;
+  var gruppen = { neu: [], konflikt: [], duplikat: [], unvollstaendig: [] };
 
-  var body = _eeCsvRows.map(function(row, i) {
+  var zeilenHtml = _eeCsvRows.map(function(row, i) {
     var chk = row._check || {};
-    var problem = !row.disziplin_mapping_id ? 'Disziplin fehlt'
-                : !row.datum ? 'Datum unlesbar'
-                : (!row.veranstaltung_id && !row.ort) ? 'Ort fehlt'
-                : (!row.resultat ? 'Ergebnis fehlt' : '');
+    var problem = _eeCsvProblem(row);
     if (problem) fehlend++;
     if (chk.dublette || chk.antrag) dubletten++;
-    if (row._aktiv && !problem) aktiv++;
+    if (row._aktiv && !problem && row._aktion !== 'skip') aktiv++;
+    gruppen[_eeCsvGruppe(row)].push(i);
 
     var statusHtml;
     if (problem) {
@@ -711,7 +731,7 @@ function _eeCsvRenderPreview() {
           _owEsc(x.label) + ': ' + _owEsc(x.alt) + ' &rarr; ' + _owEsc(x.neu) + '</div>';
       }).join('');
       statusHtml = '<div style="margin-bottom:3px">' + badges +
-          '<a href="#" onclick="eeCsvKonfliktDetails(' + i + ');return false;" style="font-size:11px;color:var(--text2);text-decoration:underline">Details</a>' +
+          '<a href="#" onclick="eeCsvZeileModal(' + i + ');return false;" style="font-size:11px;color:var(--text2);text-decoration:underline">Details</a>' +
         '</div>' + kListe +
         '<select onchange="eeCsvSetAktion(' + i + ',this.value)" style="' + fld + ';margin-top:3px">' +
           '<option value="merge"' + (row._aktion === 'merge' ? ' selected' : '') + '>Zusammenführen (leere Felder)</option>' +
@@ -751,18 +771,51 @@ function _eeCsvRenderPreview() {
       '<td style="padding:4px 6px;font-size:12px">' + (row.verein ? _owEsc(row.verein) :
         '<span style="color:var(--text2)" title="Keine Vereinsangabe – wird ohne Verein als externes Ergebnis gespeichert">– ohne –</span>') + '</td>' +
       '<td style="padding:4px 6px;min-width:150px">' + statusHtml + '</td>' +
+      '<td style="padding:4px 6px;text-align:center">' +
+        '<button class="btn btn-ghost btn-sm" title="Alle Felder dieser Zeile bearbeiten" onclick="eeCsvZeileModal(' + i + ')">&#x270F;&#xFE0F;</button>' +
+      '</td>' +
     '</tr>';
-  }).join('');
+  });
+
+  // ── Gruppierte Ausgabe ────────────────────────────────────────────────────
+  var kopf = ['', 'Datum', 'Wettkampf', 'Ort', 'Disziplin', 'Ergebnis', 'AK', 'StNr', 'Pos AK/mw/ges', 'Schuh', 'Verein', 'Status / Aktion', '']
+    .map(function(h) { return '<th style="text-align:left;padding:6px;font-size:11px;color:var(--text2);white-space:nowrap">' + h + '</th>'; }).join('');
+
+  function gruppeHtml(key, titel, farbe, hinweis, sammelAktionen) {
+    var idxs = gruppen[key];
+    if (!idxs.length) return '';
+    var sammel = '';
+    if (sammelAktionen) {
+      sammel = '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:var(--surf2);font-size:12px;color:var(--text2)">' +
+        'Alle Zeilen dieser Gruppe:' +
+        sammelAktionen.map(function(a) {
+          return '<button class="btn btn-ghost btn-sm" onclick="eeCsvGruppenAktion(\'' + key + '\',\'' + a[0] + '\')">' + a[1] + '</button>';
+        }).join('') +
+      '</div>';
+    }
+    return '<details open style="border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden">' +
+      '<summary style="cursor:pointer;padding:10px 12px;background:var(--surf2);font-size:13px;font-weight:600;color:' + farbe + '">' +
+        titel + ' <span style="color:var(--text2);font-weight:400">(' + idxs.length + ')</span>' +
+        (hinweis ? '<div style="font-size:11px;font-weight:400;color:var(--text2);margin-top:2px">' + hinweis + '</div>' : '') +
+      '</summary>' +
+      sammel +
+      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:1050px">' +
+        '<thead><tr style="background:var(--surface)">' + kopf + '</tr></thead>' +
+        '<tbody>' + idxs.map(function(i) { return zeilenHtml[i]; }).join('') + '</tbody>' +
+      '</table></div>' +
+    '</details>';
+  }
 
   wrap.innerHTML =
-    '<div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:12px">' +
-      '<table style="width:100%;border-collapse:collapse;min-width:1000px">' +
-        '<thead><tr style="background:var(--surf2)">' +
-          ['', 'Datum', 'Wettkampf', 'Ort', 'Disziplin', 'Ergebnis', 'AK', 'StNr', 'Pos AK/mw/ges', 'Schuh', 'Verein', 'Status / Aktion']
-            .map(function(h) { return '<th style="text-align:left;padding:6px;font-size:11px;color:var(--text2);white-space:nowrap">' + h + '</th>'; }).join('') +
-        '</tr></thead><tbody>' + body + '</tbody>' +
-      '</table>' +
-    '</div>' +
+    gruppeHtml('unvollstaendig', '&#x26A0;&#xFE0F; Unvollst&auml;ndig', 'var(--accent)',
+      'Diese Zeilen werden nicht importiert, solange Datum, Disziplin, Ergebnis oder Ort fehlen &ndash; per &#x270F;&#xFE0F; erg&auml;nzen.') +
+    gruppeHtml('konflikt', '&#x26A1;&#xFE0E; Duplikate mit abweichenden Feldwerten', 'var(--accent)',
+      'Gespeicherter und importierter Wert unterscheiden sich. Unter &#x270F;&#xFE0F; l&auml;sst sich je Feld entscheiden, welcher Wert gilt.',
+      [['merge','Zusammenf&uuml;hren'],['skip','&Uuml;berspringen'],['insert','Trotzdem anlegen']]) +
+    gruppeHtml('duplikat', '&#x1F501;&#xFE0E; Duplikate ohne Konflikt', 'var(--text)',
+      'Bereits gespeichert. Zusammenf&uuml;hren erg&auml;nzt nur bisher leere Felder.',
+      [['merge','Zusammenf&uuml;hren'],['skip','&Uuml;berspringen'],['insert','Trotzdem anlegen']]) +
+    gruppeHtml('neu', '&#x2705;&#xFE0E; Neu &ndash; werden importiert', 'var(--primary)', '') +
     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
       '<button class="btn btn-ghost btn-sm" onclick="eeCsvAbbrechen()">&#x21BA; Verwerfen</button>' +
       '<div style="flex:1"></div>' +
@@ -770,35 +823,170 @@ function _eeCsvRenderPreview() {
     '</div>';
 
   if (statusEl) {
-    statusEl.innerHTML = _eeCsvRows.length + ' Zeilen – ' + aktiv + ' importierbar' +
-      (dubletten ? ', <strong>' + dubletten + ' Duplikat(e)</strong>' : '') +
-      (konflikte ? ', <span style="color:var(--accent)">' + konflikte + ' abweichende Feldwerte</span>' : '') +
-      (fehlend ? ', <span style="color:var(--accent)">' + fehlend + ' unvollständig</span>' : '');
+    var teile = [
+      '<strong>' + aktiv + '</strong> importierbar',
+      gruppen.duplikat.length + gruppen.konflikt.length ? (gruppen.duplikat.length + gruppen.konflikt.length) + ' Duplikat(e)' : '',
+      konflikte ? '<span style="color:var(--accent)">' + konflikte + ' abweichende Feldwerte</span>' : '',
+      fehlend ? '<span style="color:var(--accent)">' + fehlend + ' unvollständig</span>' : '',
+    ].filter(Boolean);
+    statusEl.innerHTML = _eeCsvRows.length + ' Zeilen – ' + teile.join(', ');
   }
 }
 
-// Detail-Ansicht: gespeichertes Ergebnis vs. CSV-Zeile
-function eeCsvKonfliktDetails(i) {
+// Sammelaktion für eine ganze Gruppe
+function eeCsvGruppenAktion(gruppe, aktion) {
+  _eeCsvRows.forEach(function(row) {
+    if (_eeCsvGruppe(row) !== gruppe) return;
+    row._aktion = aktion;
+    row._aktionManuell = true;
+  });
+  _eeCsvRenderPreview();
+}
+
+// ── Zeilen-Editor: alle Felder bearbeiten + Konflikte feldweise entscheiden ──
+// Feldliste des Editors: [Schlüssel, Beschriftung, Typ, vergleichbar mit Duplikat?]
+function _eeCsvFelder() {
+  return [
+    ['datum',                  'Datum',            'date',   false],
+    ['veranstaltung_name',     'Wettkampf',        'text',   false],
+    ['ort',                    'Ort',              'text',   false],
+    ['disziplin_mapping_id',   'Disziplin',        'disz',   false],
+    ['resultat',               'Ergebnis',         'text',   true],
+    ['altersklasse',           'Altersklasse',     'text',   true],
+    ['startnummer',            'Startnummer',      'text',   true],
+    ['ak_platzierung',         'Pos (AK)',         'number', true],
+    ['pos_geschlecht',         'Pos (m/w)',        'number', true],
+    ['pos_gesamt',             'Pos (gesamt)',     'number', true],
+    ['schuh',                  'Schuh',            'text',   true],
+    ['bemerkungen',            'Bemerkungen',      'text',   true],
+    ['verein',                 'Verein',           'text',   true],
+    ['meisterschaft',          'Meisterschaft',    'mstr',   true],
+    ['ak_platz_meisterschaft', 'Platz MS',         'number', true],
+  ];
+}
+
+function eeCsvZeileModal(i) {
   var row = _eeCsvRows[i];
-  if (!row || !row._check || !row._check.dublette) return;
-  var d = row._check.dublette;
+  if (!row) return;
+  var d = (row._check || {}).dublette || null;
+  var inp = 'box-sizing:border-box;width:100%;padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px';
+  row._ueberschreiben = row._ueberschreiben || [];
+
+  var zeilen = _eeCsvFelder().map(function(f) {
+    var key = f[0], label = f[1], typ = f[2], vergleichbar = f[3];
+    var wert = row[key];
+    var feld;
+    if (typ === 'disz') {
+      feld = '<select id="eecf-' + key + '" style="' + inp + '">' + _eeCsvDiszOptions(row) + '</select>';
+    } else if (typ === 'mstr') {
+      feld = '<select id="eecf-' + key + '" style="' + inp + '">' + mstrOptions(wert || 0) + '</select>';
+    } else if (typ === 'date') {
+      feld = '<input type="date" id="eecf-' + key + '" value="' + _owEsc(wert || '') + '" style="' + inp + '">';
+    } else {
+      feld = '<input type="' + (typ === 'number' ? 'number' : 'text') + '"' + (typ === 'number' ? ' min="1"' : '') +
+        ' id="eecf-' + key + '" value="' + _owEsc(wert === null || wert === undefined ? '' : (key === 'resultat' ? fmtRes(wert) : wert)) +
+        '" placeholder="– leer –" style="' + inp + '">';
+    }
+
+    // Gespeicherter Wert + Entscheidung, falls Duplikat und Feld vergleichbar
+    var altWert = '', aktion = '', altRoh = '';
+    if (d && vergleichbar) {
+      altRoh = key === 'meisterschaft'
+        ? (d.meisterschaft ? mstrLabel(d.meisterschaft) : '')
+        : _eeDecode(d[key]);
+      var neuRoh = key === 'meisterschaft' ? (wert ? mstrLabel(wert) : '') : _eeDecode(wert);
+      var konflikt = altRoh && neuRoh && _eeWertNorm(altRoh) !== _eeWertNorm(neuRoh);
+      altWert = altRoh
+        ? '<span style="font-size:13px' + (konflikt ? ';color:var(--accent);font-weight:600' : '') + '">' + _owEsc(altRoh) + '</span>'
+        : '<span style="font-size:12px;color:var(--text2)">– leer –</span>';
+      if (konflikt) {
+        var ueb = row._ueberschreiben.indexOf(key) >= 0;
+        aktion = '<select id="eeca-' + key + '" style="' + inp + ';font-size:12px;padding:4px 7px">' +
+            '<option value="alt"' + (ueb ? '' : ' selected') + '>Gespeicherten behalten</option>' +
+            '<option value="neu"' + (ueb ? ' selected' : '') + '>Import übernehmen</option>' +
+          '</select>';
+      } else if (!altRoh && neuRoh) {
+        aktion = '<span style="font-size:11px;color:var(--primary)">&#x2795; wird ergänzt</span>';
+      } else if (altRoh && neuRoh) {
+        aktion = '<span style="font-size:11px;color:var(--text2)">identisch</span>';
+      }
+    }
+
+    return '<tr style="border-bottom:1px solid var(--border)' + (aktion.indexOf('eeca-') >= 0 ? ';background:color-mix(in srgb,var(--accent) 7%,transparent)' : '') + '">' +
+      '<td style="padding:6px 8px;font-size:12px;color:var(--text2);white-space:nowrap">' + label + '</td>' +
+      (d ? '<td style="padding:6px 8px;min-width:120px">' + altWert + '</td>' : '') +
+      '<td style="padding:6px 8px;min-width:180px">' + feld + '</td>' +
+      (d ? '<td style="padding:6px 8px;min-width:160px">' + aktion + '</td>' : '') +
+    '</tr>';
+  }).join('');
+
+  var kopfZeile = '<tr style="border-bottom:1px solid var(--border)">' +
+      '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Feld</th>' +
+      (d ? '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Gespeichert</th>' : '') +
+      '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Import (bearbeitbar)</th>' +
+      (d ? '<th style="text-align:left;padding:5px 8px;font-size:11px;color:var(--text2)">Bei Konflikt gilt</th>' : '') +
+    '</tr>';
+
   showModal(
-    '<div class="modal-header"><div class="modal-title">&#x1F50D; Vergleich &ndash; Zeile ' + (row._zeile || (i + 1)) + '</div></div>' +
-    '<div style="font-size:13px;margin-bottom:12px">' +
-      _owEsc(row.veranstaltung_name || '') + (row.datum ? ' &middot; ' + formatDate(row.datum) : '') +
-      ' &middot; ' + _owEsc(row.disziplin || '') +
-      '<div style="font-size:12px;color:var(--text2);margin-top:4px">Gespeichert als „' + _owEsc(d.veranstaltung || '') + '" (' + _owEsc(d.disziplin || '') + ')</div>' +
-    '</div>' +
-    _eeVergleichTabelle(d, row) +
-    '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">' +
-      '<strong>Zusammenführen</strong> ergänzt nur leere Felder – abweichende Werte bleiben wie gespeichert. ' +
-      'Soll der CSV-Wert gewinnen, ändere das Ergebnis nach dem Import unter „Meine Ergebnisse".' +
-    '</div>' +
-    '<div class="modal-actions"><button class="btn btn-primary" onclick="closeModal()">Schlie&szlig;en</button></div>', true);
+    '<div class="modal-header"><div class="modal-title">&#x270F;&#xFE0F; Zeile ' + (row._zeile || (i + 1)) + ' bearbeiten</div></div>' +
+    (d ? '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Gespeichertes Ergebnis: „' +
+          _owEsc(d.veranstaltung || '') + '" &middot; ' + _owEsc(d.disziplin || '') +
+          (d.datum ? ' &middot; ' + formatDate(d.datum) : '') + '</div>'
+       : '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">Neuer Eintrag &ndash; alle Felder frei bearbeitbar.</div>') +
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;margin-bottom:14px">' + kopfZeile + zeilen + '</table></div>' +
+    (d ? '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">„Import übernehmen" ersetzt den gespeicherten Wert beim Zusammenführen. Leere gespeicherte Felder werden immer ergänzt.</div>' : '') +
+    '<div class="modal-actions" style="gap:8px">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<div style="flex:1"></div>' +
+      '<button class="btn btn-primary" onclick="eeCsvZeileSpeichern(' + i + ')">&#x2713; &Uuml;bernehmen</button>' +
+    '</div>', true);
+}
+
+async function eeCsvZeileSpeichern(i) {
+  var row = _eeCsvRows[i];
+  if (!row) return;
+  var vorher = { datum: row.datum, disziplin_mapping_id: row.disziplin_mapping_id, ort: row.ort, veranstaltung_name: row.veranstaltung_name };
+  var ueberschreiben = [];
+  _eeCsvFelder().forEach(function(f) {
+    var key = f[0], typ = f[2];
+    var el = document.getElementById('eecf-' + key);
+    if (!el) return;
+    var v = String(el.value || '').trim();
+    if (typ === 'number' || typ === 'mstr') {
+      row[key] = v ? (parseInt(v, 10) || null) : null;
+    } else if (typ === 'disz') {
+      var dz = (state.disziplinen || []).find(function(x) { return String(x.id || x.mapping_id) === v; });
+      row.disziplin_mapping_id = dz ? (dz.id || dz.mapping_id) : null;
+      row.disziplin = dz ? dz.disziplin : '';
+    } else if (key === 'resultat') {
+      row.resultat = dbRes(v);
+    } else {
+      row[key] = v;
+    }
+    var aktEl = document.getElementById('eeca-' + key);
+    if (aktEl && aktEl.value === 'neu') ueberschreiben.push(key);
+  });
+  row._ueberschreiben = ueberschreiben;
+  // Wenn Konflikte übernommen werden sollen, ist „Zusammenführen" die passende Aktion
+  if (ueberschreiben.length && row._aktion === 'skip') { row._aktion = 'merge'; row._aktionManuell = true; }
+  closeModal();
+  // Datum/Disziplin/Ort geändert → Veranstaltungs- und Dublettenprüfung wiederholen
+  if (vorher.datum !== row.datum || vorher.disziplin_mapping_id !== row.disziplin_mapping_id ||
+      vorher.ort !== row.ort || vorher.veranstaltung_name !== row.veranstaltung_name) {
+    row.veranstaltung_id = null;
+    await eeCsvPruefen();
+  } else {
+    _eeCsvRenderPreview();
+  }
 }
 
 function eeCsvToggle(i, val) { if (_eeCsvRows[i]) { _eeCsvRows[i]._aktiv = !!val; _eeCsvRenderPreview(); } }
-function eeCsvSetAktion(i, val) { if (_eeCsvRows[i]) _eeCsvRows[i]._aktion = val; }
+function eeCsvSetAktion(i, val) {
+  if (!_eeCsvRows[i]) return;
+  _eeCsvRows[i]._aktion = val;
+  _eeCsvRows[i]._aktionManuell = true;
+  _eeCsvRenderPreview();
+}
 function eeCsvSetOrt(i, val) { if (_eeCsvRows[i]) _eeCsvRows[i].ort = String(val || '').trim(); }
 function eeCsvSetDisz(i, val) {
   var row = _eeCsvRows[i];
@@ -827,8 +1015,11 @@ async function eeCsvImport() {
     var hatteDup = !!(row._check && (row._check.dublette || row._check.antrag));
     // Ohne erkanntes Duplikat keine Aktion mitschicken → Server prüft erneut
     // (fängt auch Duplikate innerhalb derselben CSV ab)
-    if (row._aktion === 'merge') it.aktion = 'merge';
-    else if (hatteDup) it.aktion = 'insert';
+    if (row._aktion === 'merge') {
+      it.aktion = 'merge';
+      // Feldweise Entscheidung „Import übernehmen" aus dem Zeilen-Editor
+      if (row._ueberschreiben && row._ueberschreiben.length) it.felder_ueberschreiben = row._ueberschreiben;
+    } else if (hatteDup) it.aktion = 'insert';
     items.push(it);
   });
   if (!items.length) { if (statusEl) statusEl.textContent = '⚠︎ Keine importierbaren Zeilen ausgewählt.'; return; }

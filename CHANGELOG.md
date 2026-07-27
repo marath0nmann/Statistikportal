@@ -1,3 +1,9 @@
+## v1405
+- CSV-Vorschau ist jetzt nach Status gruppiert: „Unvollständig", „Duplikate mit abweichenden Feldwerten", „Duplikate ohne Konflikt" und „Neu – werden importiert". Jede Gruppe ist auf-/zuklappbar, zeigt ihre Anzahl und hat Sammelaktionen (alle zusammenführen / überspringen / trotzdem anlegen). Die Kopfzeile fasst weiterhin importierbar, Duplikate, abweichende Feldwerte und unvollständige Zeilen zusammen.
+- Neuer Zeilen-Editor (✏️ bzw. „Details"): **alle** Felder einer Importzeile sind editierbar – auch leere wie Schuh, Startnummer, Bemerkungen, Positionen, Verein oder Meisterschaft. Änderungen an Datum, Ort, Wettkampf oder Disziplin lösen automatisch eine erneute Veranstaltungs- und Dublettenprüfung aus.
+- Bei Duplikaten wird pro abweichendem Feld entschieden, welcher Wert gilt („Gespeicherten behalten" / „Import übernehmen"). Zusammenführen ergänzt weiterhin alle leeren Felder, überschreibt aber genau die ausgewählten Felder – inklusive Ergebnis (mit neu berechnetem `resultat_num`) und Verein (setzt die Extern-Kennzeichnung passend).
+- Manuell gewählte Aktionen bleiben bei einer erneuten Prüfung erhalten.
+
 ## v1404
 - CSV-Import/eigenes Ergebnis: Eine leere Vereinsangabe bleibt jetzt wirklich leer und wird nicht mehr durch den eigenen Verein ersetzt. Ohne Vereinsangabe zählt das Ergebnis als externes Ergebnis; in „Meine Ergebnisse" wird der eigene Verein nur noch bei echten Vereinsergebnissen als Fallback angezeigt.
 - Dubletten-Erkennung greift jetzt auch bei abweichender Wettkampfbezeichnung oder fehlendem Ort: Ein vorhandenes Ergebnis desselben Athleten am selben Tag in derselben Disziplin gilt als Duplikat, unabhängig von der Veranstaltungszuordnung (z.B. „Bottroper Herbstwaldlauf" ↔ „Herbstwaldlauf"). Die Veranstaltung des vorhandenen Ergebnisses wird übernommen, sodass keine zweite Veranstaltung angelegt wird.

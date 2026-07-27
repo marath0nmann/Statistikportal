@@ -1766,28 +1766,51 @@ function findeOffenenErgebnisAntrag(int $athId, int $vid, string $disziplin): ?a
     return null;
 }
 
+/** Felder, die beim Zusammenführen ergänzt bzw. überschrieben werden dürfen. */
+function mergeFelder(): array {
+    return ['resultat','altersklasse','startnummer','schuh','bemerkungen','verein',
+            'ak_platzierung','pos_gesamt','pos_geschlecht','meisterschaft','ak_platz_meisterschaft'];
+}
+
 /**
- * Füllt bei einem bestehenden Ergebnis nur die noch leeren Felder mit neuen Werten.
- * Gibt die Namen der tatsächlich gefüllten Felder zurück.
+ * Führt neue Werte in ein bestehendes Ergebnis ein: standardmäßig werden nur leere
+ * Felder gefüllt. Felder aus $ueberschreiben ersetzen auch vorhandene Werte.
+ * Gibt die Namen der tatsächlich geänderten Felder zurück.
  */
-function mergeErgebnisFelder(int $ergId, array $neu): array {
+function mergeErgebnisFelder(int $ergId, array $neu, array $ueberschreiben = []): array {
     $alt = DB::fetchOne('SELECT * FROM ' . DB::tbl('ergebnisse') . ' WHERE id=?', [$ergId]);
     if (!$alt) return [];
-    $felder = []; $params = []; $gefuellt = [];
-    $kandidaten = ['altersklasse','startnummer','schuh','bemerkungen','verein',
-                   'ak_platzierung','pos_gesamt','pos_geschlecht','meisterschaft','ak_platz_meisterschaft'];
-    foreach ($kandidaten as $k) {
+    $ueberschreiben = array_values(array_intersect($ueberschreiben, mergeFelder()));
+    $felder = []; $params = []; $geaendert = [];
+    foreach (mergeFelder() as $k) {
         if (!array_key_exists($k, $neu)) continue;
         $wert = $neu[$k];
         if ($wert === null || $wert === '') continue;
         $altWert = $alt[$k] ?? null;
-        if ($altWert !== null && trim((string)$altWert) !== '') continue; // vorhandenen Wert nie überschreiben
-        $felder[] = "$k=?"; $params[] = $wert; $gefuellt[] = $k;
+        $belegt  = $altWert !== null && trim((string)$altWert) !== '';
+        $darfUeberschreiben = in_array($k, $ueberschreiben, true);
+        // Ergebnis selbst nur auf ausdrücklichen Wunsch ändern
+        if ($k === 'resultat' && !$darfUeberschreiben) continue;
+        if ($belegt && !$darfUeberschreiben) continue;
+        if ($belegt && (string)$altWert === (string)$wert) continue;
+        $felder[] = "$k=?"; $params[] = $wert; $geaendert[] = $k;
+        if ($k === 'resultat') {
+            $fmtM = DB::fetchOne('SELECT COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt FROM ' . DB::tbl('disziplin_mapping') . ' dm
+                LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id WHERE dm.id=?', [$alt['disziplin_mapping_id'] ?? 0]);
+            [$normRes, $rnumM] = normalizeResultat((string)$wert, $fmtM['fmt'] ?? 'min');
+            $params[count($params) - 1] = $normRes;
+            $felder[] = 'resultat_num=?'; $params[] = $rnumM;
+        }
+        if ($k === 'verein') {
+            // Vereinswechsel wirkt sich auf die Extern-Kennzeichnung aus
+            $clubM = (string)Settings::get('verein_name', '');
+            $felder[] = 'extern=?'; $params[] = mb_strtolower((string)$wert) === mb_strtolower($clubM) ? 0 : 1;
+        }
     }
     if (!$felder) return [];
     $params[] = $ergId;
     DB::query('UPDATE ' . DB::tbl('ergebnisse') . ' SET ' . implode(',', $felder) . ' WHERE id=?', $params);
-    return $gefuellt;
+    return $geaendert;
 }
 
 if ($res === 'altersklassen' && $method === 'GET') {
@@ -6231,12 +6254,17 @@ function eigenesErgebnisVerarbeiten(array $item, int $athId, int $userId, string
                 'msg'=>$dup ? 'Ergebnis existiert bereits.' : 'Für diese Veranstaltung liegt bereits ein offener Antrag vor.'];
     }
     if ($dup && $aktion === 'merge') {
+        // Feldweise Entscheidung des Benutzers: diese Felder dürfen auch belegte Werte ersetzen
+        $ueberschreiben = [];
+        foreach ((array)($item['felder_ueberschreiben'] ?? []) as $fu) {
+            if (is_string($fu) && in_array($fu, mergeFelder(), true)) $ueberschreiben[] = $fu;
+        }
         $gefuellt = mergeErgebnisFelder((int)$dup['id'], array_merge($zusatz, [
-            'altersklasse'=>$ak ?: null, 'ak_platzierung'=>$akp, 'meisterschaft'=>$mstr,
+            'resultat'=>$resultat, 'altersklasse'=>$ak ?: null, 'ak_platzierung'=>$akp, 'meisterschaft'=>$mstr,
             'ak_platz_meisterschaft'=>$akpm, 'verein'=>$verein !== '' ? $verein : null,
-        ]));
+        ]), $ueberschreiben);
         return ['status'=>'gemergt','ergebnis_id'=>(int)$dup['id'],'felder'=>$gefuellt,
-                'msg'=>$gefuellt ? 'Ergänzt: ' . implode(', ', $gefuellt) : 'Keine neuen Angaben – unverändert.'];
+                'msg'=>$gefuellt ? 'Übernommen: ' . implode(', ', $gefuellt) : 'Keine neuen Angaben – unverändert.'];
     }
     if ($pending && $aktion === 'merge') return ['status'=>'uebersprungen','msg'=>'Offener Antrag – nicht ergänzt.'];
 
