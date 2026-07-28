@@ -117,10 +117,52 @@ function sendMail(string $to, string $subject, string $body): bool {
     $headers = "From: " . Settings::get('noreply_email','') . "\r\nContent-Type: text/plain; charset=utf-8";
     return @mail($to, $subject, $body, $headers);
 }
+/**
+ * Eingaben entschärfen – idempotent.
+ * Wichtig: „&" bleibt als „&" erhalten, damit Namen wie „Run&Fun" auch so in der
+ * Datenbank stehen und gefunden werden. Zuvor führte htmlspecialchars() zu „Run&amp;Fun"
+ * und bei jedem weiteren Speichern zu „&amp;amp;". Tag-Zeichen und Anführungszeichen
+ * werden weiterhin maskiert (Ausgabe erfolgt vielerorts ohne zusätzliches Escaping).
+ */
 function sanitize(mixed $v): ?string {
     if ($v === null || $v === '') return null;
-    return htmlspecialchars(strip_tags((string)$v), ENT_QUOTES, 'UTF-8');
+    // Vorhandene Entities zuerst auflösen → doppeltes Encoding ist damit ausgeschlossen
+    $s = (string)$v;
+    for ($i = 0; $i < 3 && str_contains($s, '&'); $i++) {
+        $neu = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        if ($neu === $s) break;
+        $s = $neu;
+    }
+    $s = strip_tags($s);
+    $s = strtr($s, ['<' => '&lt;', '>' => '&gt;', '"' => '&quot;', "'" => '&#039;']);
+    return $s === '' ? null : $s;
 }
+/**
+ * Suchbegriff-Varianten: roh und HTML-kodiert. Findet „Run&Fun" auch dann,
+ * wenn ein Altbestand noch „Run&amp;Fun" enthält (und umgekehrt).
+ */
+function sucheVarianten(string $q): array {
+    $q = trim($q);
+    if ($q === '') return [];
+    $varianten = [$q];
+    $roh = html_entity_decode($q, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    if ($roh !== $q) $varianten[] = $roh;
+    $kod = str_replace('&', '&amp;', $roh);
+    if (!in_array($kod, $varianten, true)) $varianten[] = $kod;
+    return $varianten;
+}
+
+/** Baut „(sp1 LIKE ? OR sp2 LIKE ? …)" für alle Suchvarianten. Rückgabe: [sql, params] */
+function sucheWhere(array $spalten, string $q): array {
+    $varianten = sucheVarianten($q);
+    if (!$varianten || !$spalten) return ['', []];
+    $teile = []; $params = [];
+    foreach ($varianten as $v) {
+        foreach ($spalten as $sp) { $teile[] = "$sp LIKE ?"; $params[] = '%' . $v . '%'; }
+    }
+    return ['(' . implode(' OR ', $teile) . ')', $params];
+}
+
 function intOrNull(mixed $v): ?int {
     return ($v !== null && $v !== '') ? (int)$v : null;
 }
@@ -247,6 +289,33 @@ if (Settings::get('athlet_pb_migriert') !== '1') {
             FROM " . DB::tbl('athlet_pb') . " pb");
         Settings::set('athlet_pb_migriert', '1');
     } catch (\Exception $e) {}
+}
+// v1417: Einmalige Bereinigung doppelt kodierter HTML-Entities („Run&amp;Fun" → „Run&Fun").
+// Nur &amp;/&#38; werden aufgelöst – &lt;/&gt; bleiben maskiert, damit keine Tags entstehen.
+if (Settings::get('entities_bereinigt') !== '1') {
+    $entityFelder = [
+        'veranstaltungen'       => ['name', 'kuerzel', 'ort'],
+        'veranstaltung_serien'  => ['name'],
+        'orte'                  => ['name'],
+        'ergebnisse'            => ['disziplin', 'verein', 'schuh', 'bemerkungen'],
+        'athleten'              => ['vorname', 'nachname', 'name_nv'],
+        'disziplin_mapping'     => ['disziplin'],
+        'disziplin_kategorien'  => ['name'],
+        'gruppen'               => ['name'],
+    ];
+    foreach ($entityFelder as $tblE => $spalten) {
+        foreach ($spalten as $sp) {
+            // Mehrfach anwenden, damit auch „&amp;amp;" vollständig aufgelöst wird
+            for ($runde = 0; $runde < 3; $runde++) {
+                try {
+                    DB::query("UPDATE " . DB::tbl($tblE) . "
+                                  SET $sp = REPLACE(REPLACE($sp, '&amp;', '&'), '&#38;', '&')
+                                WHERE $sp LIKE '%&amp;%' OR $sp LIKE '%&#38;%'");
+                } catch (\Exception $e) { break; }
+            }
+        }
+    }
+    try { Settings::set('entities_bereinigt', '1'); } catch (\Exception $e) {}
 }
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS genehmigt TINYINT(1) NOT NULL DEFAULT 1"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS datenquelle VARCHAR(1024) NULL DEFAULT NULL"); } catch (\Exception $e) {}
@@ -2417,9 +2486,8 @@ if (in_array($res, $ergebnisTabellen)) {
             if (!$skip('ak')   && !empty($get['ak']))   { $w[]='e.altersklasse=?'; $p[]=$get['ak']; }
             if (!$skip('jahr') && !empty($get['jahr'])) { $w[]='YEAR(v.datum)=?';  $p[]=(int)$get['jahr']; }
             if (!$skip('suche') && !empty($get['suche'])) {
-                $s='%'.$get['suche'].'%';
-                $w[]='(a.name_nv LIKE ? OR e.disziplin LIKE ? OR v.kuerzel LIKE ?)';
-                $p = array_merge($p, [$s,$s,$s]);
+                [$sqlSu, $parSu] = sucheWhere(['a.name_nv', 'e.disziplin', 'v.kuerzel', 'v.name'], (string)$get['suche']);
+                if ($sqlSu) { $w[] = $sqlSu; $p = array_merge($p, $parSu); }
             }
             if (!$skip('meisterschaft') && !empty($get['meisterschaft'])) {
                 $mstrRaw = $get['meisterschaft'];
@@ -5986,9 +6054,9 @@ if ($res === 'veranstaltungen' && $method === 'GET' && !empty($_GET['admin'])) {
     $whereExtra = '';
     $searchParams = [];
     if ($suche !== '') {
-        $s = '%' . $suche . '%';
-        $whereExtra = ' AND (v.name LIKE ? OR v.kuerzel LIKE ? OR v.ort LIKE ?)';
-        $searchParams = [$s, $s, $s];
+        [$sqlS, $parS] = sucheWhere(['v.name', 'v.kuerzel', 'v.ort'], $suche);
+        $whereExtra = ' AND ' . $sqlS;
+        $searchParams = $parS;
     }
     $veranst = DB::fetchAll(
         "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.serie_id,
@@ -6048,9 +6116,9 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
         $searchParams = [(int)$_GET['id']];
         $limit = 1;
     } elseif ($suche !== '') {
-        $s = '%' . $suche . '%';
-        $whereExtra = ' AND (v.name LIKE ? OR v.kuerzel LIKE ? OR v.ort LIKE ?)';
-        $searchParams = [$s, $s, $s];
+        [$sqlS2, $parS2] = sucheWhere(['v.name', 'v.kuerzel', 'v.ort'], $suche);
+        $whereExtra = ' AND ' . $sqlS2;
+        $searchParams = $parS2;
     }
     $oTbl = DB::tbl('orte');
     $veranst = DB::fetchAll(
