@@ -113,11 +113,14 @@ async function _loadEigenesProfilWidget(elId, showErg) {
     var fmt = kat.fmt || 'min';
     var diszMap2 = {};
     ergs.forEach(function(e) {
+      // Disziplinen mit "Aus Hall of Fame ausschließen" hier ebenfalls ausblenden
+      if (e.hof_exclude == 1) return;
       var key = e.disziplin_mapping_id ? 'm'+e.disziplin_mapping_id : 'd_'+e.disziplin;
       if (!diszMap2[key]) diszMap2[key] = { ergs: [], pbs: [], fmt: fmt, label: e.disziplin };
       diszMap2[key].ergs.push(e);
     });
     (kat.pbs||[]).forEach(function(p) {
+      if (p.hof_exclude == 1) return;
       var key = p.disziplin_mapping_id ? 'm'+p.disziplin_mapping_id : 'd_'+(p.disziplin_mapped||p.disziplin);
       if (!diszMap2[key]) diszMap2[key] = { ergs: [], pbs: [], fmt: p.fmt||fmt, label: p.disziplin_mapped||p.disziplin };
       diszMap2[key].pbs.push(p);

@@ -1,3 +1,7 @@
+## v1421
+- **Dashboard → „Persönliche Bestleistungen": Disziplinen mit „Aus Hall of Fame ausschließen" werden jetzt ebenfalls ausgeblendet.** Bisher wirkte das Häkchen (Admin → Disziplinen → Disziplin bearbeiten) nur auf die Hall of Fame; das eigene PB-Widget zeigte auch Firmenläufe & Co. Die API (`athleten/{id}`) liefert `hof_exclude` jetzt sowohl für Vereins- als auch für externe Ergebnisse mit, das Widget filtert entsprechend.
+- Admin → Disziplinen: Hinweistext unter der Checkbox ergänzt (Anlegen- und Bearbeiten-Dialog), dass die Einstellung auch das Dashboard-Widget betrifft.
+
 ## v1420
 - **Fix: Doppelt kodierte Namen in der Datenbank („Run&amp;Fun" statt „Run&Fun").** `sanitize()` hat jedes `&` beim Speichern zu `&amp;` gemacht – bei jedem weiteren Speichern wuchs die Kette (`&amp;amp;`). Dadurch fand die Suche nach „Run&Fun" nur einen Teil der Einträge. `sanitize()` löst vorhandene Entities jetzt zuerst auf und lässt `&` unangetastet; `<`, `>`, `"` und `'` bleiben wie bisher maskiert. Die Funktion ist damit idempotent – mehrfaches Speichern verändert den Wert nicht mehr.
 - Einmalige Datenbereinigung beim ersten Aufruf nach dem Deploy: `&amp;`/`&#38;` werden in Veranstaltungen (Name, Kürzel, Ort), Serien, Orten, Ergebnissen (Disziplin, Verein, Schuh, Bemerkungen), Athleten, Disziplinen, Kategorien und Gruppen aufgelöst (mehrfach, damit auch `&amp;amp;` verschwindet). `&lt;`/`&gt;` bleiben bewusst maskiert.

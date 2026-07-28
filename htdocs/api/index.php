@@ -3072,7 +3072,8 @@ if ($res === 'athleten') {
                         o.land_code AS ort_land_code,
                         COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
                         COALESCE(dk.name, \'Sonstige\') AS kat_name,
-                        COALESCE(dk.reihenfolge, 99) AS kat_sort
+                        COALESCE(dk.reihenfolge, 99) AS kat_sort,
+                        COALESCE(dm.hof_exclude, 0) AS hof_exclude
                  FROM ' . DB::tbl('ergebnisse') . ' e
                  JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
                  LEFT JOIN ' . DB::tbl('orte') . ' o ON o.id=v.ort_id
@@ -3099,6 +3100,7 @@ if ($res === 'athleten') {
                         COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
                         COALESCE(dk.name, \'Sonstige\') AS kat_name,
                         COALESCE(dk.reihenfolge, 99) AS kat_sort,
+                        COALESCE(dm.hof_exclude, 0) AS hof_exclude,
                         COALESCE(dm.disziplin, e.disziplin) AS disziplin_mapped
                  FROM ' . DB::tbl('ergebnisse') . ' e
                  LEFT JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id

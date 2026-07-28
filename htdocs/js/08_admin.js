@@ -2900,6 +2900,7 @@ function showDiszEditModal(btn) {
           '<input type="checkbox" id="de-hofexclude"' + (hofExclude ? ' checked' : '') + ' style="width:16px;height:16px;cursor:pointer">' +
           '<span>Aus <strong>Hall of Fame</strong> ausschließen</span>' +
         '</label>' +
+        '<div style="font-size:11px;color:var(--text2);margin-top:4px">Blendet die Disziplin auch im Dashboard-Widget „Persönliche Bestleistungen“ aus</div>' +
       '</div>' +
     '</div>' +
     '<div class="modal-actions">' +
@@ -3006,6 +3007,7 @@ async function showNeueDiszModal(preSelKatId, preName, onSaved) {
           '<input type="checkbox" id="nd-hofexclude" checked style="width:16px;height:16px;cursor:pointer">' +
           '<span>Diese Disziplin aus der <strong>Hall of Fame</strong> ausschlie&szlig;en</span>' +
         '</label>' +
+        '<div style="font-size:11px;color:var(--text2);margin-top:4px">Blendet die Disziplin auch im Dashboard-Widget &bdquo;Pers&ouml;nliche Bestleistungen&ldquo; aus</div>' +
       '</div>' +
     '</div>' +
     '<div class="modal-actions">' +
