@@ -4534,17 +4534,24 @@ function _volksDiszCands(raceTitle) {
 }
 
 function _volksFindDisz(cands, kat, exactOnly) {
-  for (var i = 0; i < cands.length; i++) {
-    if (exactOnly) {
-      // Walking/Nordic: nur exakter Treffer – sonst würde "5km Walking" auf "5km" (Lauf) fallen
-      var cl = cands[i].toLowerCase().trim();
-      var hit = (state.disziplinen || []).find(function(d) {
-        return (!kat || d.tbl_key === kat) && (d.disziplin || '').toLowerCase() === cl;
-      });
-      if (hit) return { disz: hit.disziplin, diszMid: hit.id || hit.mapping_id };
-    } else {
-      var r = _seltecFindDisz(cands[i], kat);
-      if (r.diszMid) return r;
+  // Ein Volkslauf-PDF mischt Kategorien (z.B. Straße 5km + Bahn 400m beim Bambinilauf).
+  // Deshalb erst in der aktiven Importkategorie suchen, danach kategorieübergreifend –
+  // die Zeile wechselt die Kategorie dann automatisch (siehe bulkFillFromImport).
+  var kats = kat ? [kat, ''] : [''];
+  for (var k = 0; k < kats.length; k++) {
+    for (var i = 0; i < cands.length; i++) {
+      if (exactOnly) {
+        // Walking/Nordic: nur exakter Treffer – sonst würde "5km Walking" auf "5km" (Lauf) fallen
+        var cl = cands[i].toLowerCase().trim();
+        var _k = kats[k];
+        var hit = (state.disziplinen || []).find(function(d) {
+          return (!_k || d.tbl_key === _k) && (d.disziplin || '').toLowerCase() === cl;
+        });
+        if (hit) return { disz: hit.disziplin, diszMid: hit.id || hit.mapping_id };
+      } else {
+        var r = _seltecFindDisz(cands[i], kats[k]);
+        if (r.diszMid) return r;
+      }
     }
   }
   return { disz: cands[0] || '', diszMid: null };

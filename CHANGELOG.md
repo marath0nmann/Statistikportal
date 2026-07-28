@@ -1,3 +1,6 @@
+## v1409
+- Volkslauf-PDF-Import: Disziplinen, die nicht in der aktiven Importkategorie liegen, blieben leer (z.B. „400m" beim Bambinilauf, während die Kategorie auf Straße stand). Es wird jetzt zuerst in der aktiven Kategorie und danach kategorieübergreifend gesucht – die Zeile wechselt die Kategorie automatisch mit.
+
 ## v1408
 - Bulk-Eintragen: Neues PDF-Format „Ergebnisliste AK" (Volkslauf-Listen mit den Spalten AKPl / Startnr. / Name / Jahrg. / m/w / Verein / Zeit) wird erkannt und importiert – Läufe (z.B. „Jugendlauf 2 km", „Bambinilauf 400 m") werden als Disziplin, die Zwischenüberschriften als Altersklasse (WU14, MU12, W, M …) übernommen. Getestet mit dem Burg-Uda-Nettolauf 2015 (88 von 88 Zeilen, davon 21 Vereinsergebnisse).
 - Enthält das PDF kein Datum, wird es aus Dateiname bzw. URL gelesen (z.B. `2015_09_05_…pdf` → 05.09.2015).
