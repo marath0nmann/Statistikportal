@@ -1,3 +1,9 @@
+## v1408
+- Bulk-Eintragen: Neues PDF-Format „Ergebnisliste AK" (Volkslauf-Listen mit den Spalten AKPl / Startnr. / Name / Jahrg. / m/w / Verein / Zeit) wird erkannt und importiert – Läufe (z.B. „Jugendlauf 2 km", „Bambinilauf 400 m") werden als Disziplin, die Zwischenüberschriften als Altersklasse (WU14, MU12, W, M …) übernommen. Getestet mit dem Burg-Uda-Nettolauf 2015 (88 von 88 Zeilen, davon 21 Vereinsergebnisse).
+- Enthält das PDF kein Datum, wird es aus Dateiname bzw. URL gelesen (z.B. `2015_09_05_…pdf` → 05.09.2015).
+- Nordic-Walking-Läufe werden nicht mehr auf die gleich lange Laufdisziplin gemappt; ohne passende Walking-Disziplin bleibt die Auswahl offen.
+- PDF-Textextraktion: Wörter, die vom PDF ohne Leerzeichen geliefert werden, werden anhand der Abstände wieder getrennt – vorher konnten Spalten zusammenkleben.
+
 ## v1407
 - Seltec-Import: Einstellige Altersklassen (z.B. W9, M7, W5) wurden aus den Sektions-Titeln nicht erkannt, weil das Muster zwingend zwei Ziffern erwartete – betroffene Ergebnisse kamen ohne Altersklasse in die Vorschau (z.B. „Kinder W9 - Zeitläufe"). Jetzt werden ein- und zweistellige Altersklassen gelesen.
 

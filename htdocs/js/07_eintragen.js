@@ -1272,7 +1272,7 @@ function renderEintragen() {
         '<div id="bk-offene-wk"></div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
-          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;Seltec PDF URL: https://example.com/ergebnisse.pdf&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Seltec/Track&amp;Field PDF hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;Ergebnis-PDF URL: https://example.com/ergebnisse.pdf&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Ergebnis-PDF (Seltec, Volkslauf) hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
             '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
             '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
@@ -2334,7 +2334,7 @@ function bulkPasteInput() {
                   urlType === 'leichtathletik'  ? '🏃︎ leichtathletik.de' :
                   urlType === 'acn'             ? '🇳🇱 ACN Timing' :
                   urlType === 'evenementen'     ? '🇳🇱 evenementen.uitslagen.nl' :
-                  urlType === 'pdf'             ? '📄 Seltec/Track&Field PDF (URL)' : '🇳🇱 uitslagen.nl';
+                  urlType === 'pdf'             ? '📄 Ergebnis-PDF (URL)' : '🇳🇱 uitslagen.nl';
     if (srcLabel) srcLabel.textContent = srcText;
     if (statusEl) statusEl.textContent = '';
   } else {
@@ -2365,7 +2365,7 @@ async function bulkImportUrl() {
     if (statusEl) { statusEl.style.display = 'inline-flex'; statusEl.textContent = '⏳ Lade PDF…'; }
     var _quelleElPdf = document.getElementById('bk-quelle');
     if (_quelleElPdf && !_quelleElPdf.value) _quelleElPdf.value = raw;
-    _bkDebugInit(raw, 'Seltec PDF (URL)', '');
+    _bkDebugInit(raw, 'Ergebnis-PDF (URL)', '');
     try {
       await bulkImportFromSeltecPdfUrl(raw, statusEl);
     } catch(e) {
@@ -3973,7 +3973,7 @@ function bulkPdfDrop(e) {
   });
   if (!file) return;
   var statusEl = document.getElementById('bk-import-status');
-  _bkDebugInit(file.name, 'Seltec PDF', '');
+  _bkDebugInit(file.name, 'Ergebnis-PDF', '');
   bulkImportFromSeltecPdf(file, statusEl);
 }
 
@@ -4038,19 +4038,34 @@ async function _seltecProcessArrayBuffer(arrayBuffer, sourceLabel, pdfjs, status
         if (!item.str) return;
         var y = Math.round(item.transform[5] / 2) * 2;
         if (!yGroups[y]) yGroups[y] = [];
-        yGroups[y].push({ x: item.transform[4], str: item.str });
+        yGroups[y].push({ x: item.transform[4], str: item.str, w: item.width || 0 });
       });
       var ys = Object.keys(yGroups).map(Number).sort(function(a, b) { return b - a; });
       ys.forEach(function(y) {
         var items = yGroups[y].sort(function(a, b) { return a.x - b.x; });
-        var line = items.map(function(i) { return i.str; }).join('').replace(/\s+/g, ' ').trim();
+        // Manche PDFs liefern jedes Wort als eigenes Item ohne Leerzeichen →
+        // bei sichtbarer Lücke zwischen zwei Items ein Leerzeichen einfügen
+        var line = '';
+        items.forEach(function(it, idx) {
+          if (idx > 0) {
+            var prev = items[idx - 1];
+            var gap = it.x - (prev.x + prev.w);
+            if (gap > 1 && !/\s$/.test(line) && !/^\s/.test(it.str)) line += ' ';
+          }
+          line += it.str;
+        });
+        line = line.replace(/\s+/g, ' ').trim();
         if (line) allLines.push(line);
       });
     }
 
+    // Volkslauf-Ergebnisliste (Spalten AKPl/Startnr./Name/Jahrg./m/w/Verein/Zeit) –
+    // eigenes Format, nicht Seltec → eigener Parser ohne Header-Merge
+    var isVolks = _volksIsListe(allLines);
+
     // Mehrzeilige Abschnitts-Header zusammenfügen (PDF bricht Zeilen oft um, z.B.
     // "weibliche Jugend U18 -" + "Zeitläufe" oder "männliche" + "Jugend" + "U18 -" + "Zeitläufe")
-    var _changed = true;
+    var _changed = !isVolks;
     while (_changed) {
       _changed = false;
       var _merged = [];
@@ -4081,9 +4096,11 @@ async function _seltecProcessArrayBuffer(arrayBuffer, sourceLabel, pdfjs, status
       allLines = _merged;
     }
 
-    _bkDbgLine('Seltec Zeilen', allLines.length);
+    _bkDbgLine('PDF-Zeilen', allLines.length);
+    _bkDbgLine('Format', isVolks ? 'Volkslauf-Ergebnisliste' : 'Seltec / Track&Field');
 
-    var parsed = _parseSeltecLines(allLines);
+    var parsed = isVolks ? _parseVolkslaufLines(allLines, sourceLabel)
+                         : _parseSeltecLines(allLines);
 
     _bkDbgLine('Event', parsed.eventName || '(keiner)');
     _bkDbgLine('Datum', parsed.date || '(keins)');
@@ -4095,7 +4112,7 @@ async function _seltecProcessArrayBuffer(arrayBuffer, sourceLabel, pdfjs, status
     });
 
     if (!parsed.sections.length) {
-      if (statusEl) statusEl.textContent = '❌ Kein Seltec-Format erkannt';
+      if (statusEl) statusEl.textContent = '❌ Kein bekanntes PDF-Format erkannt';
       return;
     }
 
@@ -4116,7 +4133,8 @@ async function _seltecProcessArrayBuffer(arrayBuffer, sourceLabel, pdfjs, status
     // Collect all athletes across sections
     var allAthletes = [];
     parsed.sections.forEach(function(sec) {
-      var dResult = _seltecFindDisz(sec.disziplin, kat);
+      var dResult = sec.diszCands ? _volksFindDisz(sec.diszCands, kat, sec.diszExact)
+                                  : _seltecFindDisz(sec.disziplin, kat);
       sec.athletes.forEach(function(ath) {
         allAthletes.push({
           name:      ath.name,
@@ -4347,6 +4365,189 @@ function _parseSeltecLines(lines) {
   });
 
   return { eventName: eventName, location: location, date: date, ownClub: ownClub, sections: sections };
+}
+
+// ── Volkslauf-Ergebnisliste (AKPl / Startnr. / Name / Jahrg. / m/w / Verein / Zeit) ──
+// Beispiel: "Burg Uda Nettolauf – Ergebnisliste AK"
+//   Jugendlauf 2 km            ← Lauf (Disziplin)
+//   w                          ← Geschlechts-Trenner
+//   weibliche Jugend U 14      ← Altersklasse
+//   1.  392  Anna Bommes  2002  w  OSC Waldniel  0:08:01,7
+
+var _VOLKS_HDR = /(AKPl|Ges\.?\s?Pl\.?|Platz)\b[^\n]*Startnr/i;
+var _VOLKS_ROW = /^(\d{1,3})\.?\s+(\d{1,6})\s+(.+?)\s+((?:19|20)\d{2})\s+([mwMW])\s+(.*?)\s*(\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d{1,2})?)$/;
+
+function _volksIsListe(lines) {
+  return lines.some(function(l) { return _VOLKS_HDR.test(l); }) &&
+         lines.some(function(l) { return _VOLKS_ROW.test(l.trim()); });
+}
+
+function _parseVolkslaufLines(lines, sourceLabel) {
+  var eventName = '', date = '';
+  var sections = [];
+  var currentRace = '', currentAk = '', currentGender = '';
+  var currentSection = null;
+
+  var ownVerL = ((appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '').toLowerCase();
+
+  // Veranstaltungsname = erste Zeile vor der Spaltenüberschrift
+  for (var h = 0; h < lines.length; h++) {
+    var hl = lines[h].trim();
+    if (_VOLKS_HDR.test(hl)) break;
+    if (hl && !/^Ergebnislisten?\b/i.test(hl) && !/^\d+$/.test(hl)) { eventName = hl; break; }
+  }
+
+  // Datum: bevorzugt aus dem PDF-Text, sonst aus Dateiname/URL
+  for (var d = 0; d < Math.min(lines.length, 40) && !date; d++) {
+    var dm = lines[d].match(/\b(\d{1,2})\.(\d{1,2})\.((?:19|20)\d{2})\b/);
+    if (dm) date = dm[3] + '-' + _p2(dm[2]) + '-' + _p2(dm[1]);
+  }
+  if (!date) date = _volksDateFromSource(sourceLabel || '');
+
+  function newSection() {
+    currentSection = {
+      disziplin: currentRace || '',
+      diszCands: _volksDiszCands(currentRace),
+      diszExact: /walking|nordic/i.test(currentRace || ''),
+      date: date,
+      ak: currentAk,
+      athletes: []
+    };
+    sections.push(currentSection);
+  }
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+
+    // Ergebniszeile
+    var rM = line.match(_VOLKS_ROW);
+    if (rM) {
+      if (!currentSection) newSection();
+      var gesch = rM[5].toUpperCase();
+      var verein = rM[6].trim();
+      var verL = verein.toLowerCase();
+      currentSection.athletes.push({
+        name:       rM[3].trim(),
+        year:       rM[4],
+        geschlecht: gesch,
+        verein:     verein,
+        resultat:   _volksNormZeit(rM[7]),
+        platz:      parseInt(rM[1], 10) || 0,
+        ownClub:    !!(ownVerL && verL.indexOf(ownVerL) >= 0),
+        ak:         currentSection.ak || (gesch === 'W' ? 'W' : 'M')
+      });
+      continue;
+    }
+
+    // Kopf-/Fußzeilen und Wiederholungen auf Folgeseiten
+    if (_VOLKS_HDR.test(line)) continue;
+    if (/^\d+$/.test(line)) continue;                       // Seitenzahl
+    if (/^Ergebnislisten?\b/i.test(line)) continue;
+    if (/^Seite\s+\d+/i.test(line)) continue;
+    if (/^Anzahl\s+Teilnehmer/i.test(line)) continue;
+    if (eventName && line === eventName) continue;
+
+    // Geschlechts-Trenner ("w" / "m" allein auf einer Zeile)
+    if (/^[mw]$/i.test(line)) { currentGender = line.toUpperCase(); currentSection = null; continue; }
+
+    // Lauf-Überschrift (enthält eine Distanz, z.B. "Bambinilauf 400 m", "Burg Uda 5 km Lauf")
+    if (_volksDistFromTitle(line)) {
+      currentRace = line;
+      currentAk = '';
+      currentSection = null;
+      continue;
+    }
+
+    // sonst: Altersklassen-Überschrift ("Frauen", "Bambini W", "Kinder (weiblich) U12")
+    currentAk = _volksAkFromTitle(line, currentGender);
+    currentSection = null;
+  }
+
+  // Leere Sektionen entfernen
+  sections = sections.filter(function(s) { return s.athletes.length; });
+
+  return { eventName: eventName, location: '', date: date, ownClub: '', sections: sections };
+}
+
+function _p2(n) { return String(n).padStart(2, '0'); }
+
+function _volksNormZeit(z) {
+  // "0:08:01,7" → "8:01,7" (führende Null-Stunden und Minuten-Null entfernen)
+  var t = z.replace(/^0:(?=\d{1,2}:)/, '');
+  return t.replace(/^0(\d:)/, '$1');
+}
+
+function _volksDateFromSource(src) {
+  var m = src.match(/(20\d{2}|19\d{2})[-_.](\d{2})[-_.](\d{2})/);
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  m = src.match(/(\d{2})[-_.](\d{2})[-_.]((?:19|20)\d{2})/);
+  if (m) return m[3] + '-' + m[2] + '-' + m[1];
+  return '';
+}
+
+function _volksAkFromTitle(title, gender) {
+  // "weibliche Jugend U 14" → "WU14", "Kinder (weiblich) U12" → "WU12",
+  // "Frauen" → "W", "m Jugend" / "Bambini M" → "M"
+  var t = title.replace(/\bU\s+(\d+)/gi, 'U$1');
+  if (/\(weiblich\)?/i.test(t))  t = t.replace(/\(weiblich\)?/i, 'weibliche');
+  if (/\(männlich\)?/i.test(t))  t = t.replace(/\(männlich\)?/i, 'männliche');
+  var ak = _seltecAkFromTitle(t);
+  if (ak) return ak;
+  var uM = t.match(/U(\d+)/i);
+  var g = /\bW\b|weiblich|mädchen/i.test(t) ? 'W' : (/\bM\b|männlich|jungen/i.test(t) ? 'M' : gender);
+  if (uM && g) return g + 'U' + uM[1];
+  return g || '';
+}
+
+function _volksDistFromTitle(title) {
+  // "Jugendlauf 2 km" → { val: 2, unit: 'km' }; "Bambinilauf 400 m" → { val: 400, unit: 'm' }
+  var m = title.match(/(\d{1,3}(?:[.,]\d{1,3})?)\s*(km|m)\b/i);
+  if (!m) return null;
+  return { val: m[1].replace(',', '.'), unit: m[2].toLowerCase() };
+}
+
+function _volksDiszCands(raceTitle) {
+  var d = _volksDistFromTitle(raceTitle || '');
+  if (!d) return raceTitle ? [raceTitle] : [];
+  var cands = [];
+  // Walking/Nordic ist keine Laufdisziplin → nur passende Walking-Disziplinen suchen,
+  // sonst Rohtitel (Nutzer wählt die Disziplin selbst)
+  if (/walking|nordic/i.test(raceTitle)) {
+    var dist = d.unit === 'km' ? String(d.val).replace('.', ',') + 'km' : d.val + 'm';
+    return [dist + ' Walking', 'Walking ' + dist, dist + ' Nordic Walking', raceTitle];
+  }
+  if (d.unit === 'km') {
+    var kmInt = parseFloat(d.val);
+    var kmStr = String(d.val).replace('.', ',');
+    cands.push(kmStr + 'km', kmStr + ' km');
+    if (Number.isInteger(kmInt)) {
+      cands.push(kmInt + 'km', kmInt + ' km');
+      var meter = kmInt * 1000;
+      cands.push(meter + 'm', String(meter).replace(/(\d)(\d{3})$/, '$1.$2') + 'm');
+    }
+  } else {
+    cands.push(d.val + 'm', d.val + ' m');
+  }
+  if (raceTitle) cands.push(raceTitle);
+  return cands;
+}
+
+function _volksFindDisz(cands, kat, exactOnly) {
+  for (var i = 0; i < cands.length; i++) {
+    if (exactOnly) {
+      // Walking/Nordic: nur exakter Treffer – sonst würde "5km Walking" auf "5km" (Lauf) fallen
+      var cl = cands[i].toLowerCase().trim();
+      var hit = (state.disziplinen || []).find(function(d) {
+        return (!kat || d.tbl_key === kat) && (d.disziplin || '').toLowerCase() === cl;
+      });
+      if (hit) return { disz: hit.disziplin, diszMid: hit.id || hit.mapping_id };
+    } else {
+      var r = _seltecFindDisz(cands[i], kat);
+      if (r.diszMid) return r;
+    }
+  }
+  return { disz: cands[0] || '', diszMid: null };
 }
 
 function _seltecAkFromTitle(title) {
