@@ -6768,7 +6768,7 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
     $dups = DB::fetchAll(
         "SELECT e1.id AS id1, e2.id AS id2,
                 $nameExpr AS athlet, e1.athlet_id AS athlet_id1, e2.athlet_id AS athlet_id2,
-                e1.disziplin,
+                e1.disziplin, e1.disziplin AS disziplin1, e2.disziplin AS disziplin2,
                 e1.resultat AS res1, e1.altersklasse AS ak1,
                 e1.ak_platzierung AS akp1, e1.meisterschaft AS mstr1,
                 e1.ak_platz_meisterschaft AS mstr_platz1,

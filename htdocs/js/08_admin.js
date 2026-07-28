@@ -3185,6 +3185,9 @@ async function renderAdminDuplikate() {
   function fmtV(kuerzel) {
     return kuerzel ? (kuerzel.split(' ').slice(1).join(' ') || kuerzel) : '–';
   }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 
   window._dupData = dups;
   var pairsHtml = '';
@@ -3193,9 +3196,19 @@ async function renderAdminDuplikate() {
   } else {
     dups.forEach(function(d, i) {
       var veranstName = fmtV(d.veranst1); // datum is identical (hard criterion)
+      var dis1 = d.disziplin1 || d.disziplin || '';
+      var dis2 = d.disziplin2 || d.disziplin || '';
+      var disGleich = dis1 === dis2;
+      // Abweichende Disziplinen hervorheben – sie sind der eigentliche Unterschied
+      function disCell(txt) {
+        return '<td style="padding:6px 10px;font-size:12px' +
+          (disGleich ? ';color:var(--text2)' : ';color:var(--accent);font-weight:700') + '">' +
+          esc(txt || '–') + '</td>';
+      }
       var rows =
         '<tr style="border-bottom:1px solid var(--border)">' +
           '<td style="padding:6px 10px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700">' + (d.res1||'–') + '</td>' +
+          disCell(dis1) +
           '<td style="padding:6px 10px">' + (d.ak1 ? '<span class="badge badge-ak">' + d.ak1 + '</span>' : '–') + '</td>' +
           '<td style="padding:6px 10px;font-size:12px">' +
             '<a href="#veranstaltung/' + d.vid1 + '" style="color:var(--primary)" onclick="navigate(\'veranstaltung/' + d.vid1 + '\')">' +
@@ -3210,6 +3223,7 @@ async function renderAdminDuplikate() {
         '</tr>' +
         '<tr>' +
           '<td style="padding:6px 10px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700">' + (d.res2||'–') + '</td>' +
+          disCell(dis2) +
           '<td style="padding:6px 10px">' + (d.ak2 ? '<span class="badge badge-ak">' + d.ak2 + '</span>' : '–') + '</td>' +
           '<td style="padding:6px 10px;font-size:12px">' +
             '<a href="#veranstaltung/' + d.vid2 + '" style="color:var(--primary)" onclick="navigate(\'veranstaltung/' + d.vid2 + '\')">' +
@@ -3227,7 +3241,9 @@ async function renderAdminDuplikate() {
         '<div class="panel" style="margin-bottom:12px;padding:0;overflow:hidden" id="dup-pair-' + i + '">' +
           '<div style="padding:10px 14px;background:var(--surf2);display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
             '<span style="font-weight:700">' + (d.athlet||'–') + '</span>' +
-            '<span style="color:var(--text2);font-size:13px">' + (d.disziplin||'–') + '</span>' +
+            (disGleich
+              ? '<span style="color:var(--text2);font-size:13px">' + esc(dis1 || '–') + '</span>'
+              : '<span style="color:var(--accent);font-size:13px;font-weight:700">' + esc(dis1||'–') + ' / ' + esc(dis2||'–') + '</span>') +
             '<span style="font-size:12px;color:var(--text2)">📅 ' + formatDate(d.dat1) + '</span>' +
             (d.vid1 === d.vid2 ? '<span style="font-size:12px;color:var(--text2)">🏟 ' + veranstName + '</span>' : '') +
             '<button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:12px" title="Als kein Duplikat markieren" onclick="dupIgnore(' + d.id1 + ',' + d.id2 + ',this)">✅ Kein Duplikat</button>' +
@@ -3235,6 +3251,7 @@ async function renderAdminDuplikate() {
           '<table style="width:100%;border-collapse:collapse">' +
             '<thead><tr style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text2)">' +
               '<th style="padding:6px 10px;text-align:left">Ergebnis</th>' +
+              '<th style="padding:6px 10px;text-align:left">Disziplin</th>' +
               '<th style="padding:6px 10px;text-align:left">AK</th>' +
               '<th style="padding:6px 10px;text-align:left">Veranstaltung</th>' +
               '<th style="padding:6px 10px;text-align:left">Eingetragen von</th>' +
@@ -3266,7 +3283,7 @@ function dupEditErgebnis(idx, which) {
   openEditErgebnis(
     d['id'+n],
     d['tbl_key'+n] || 'ergebnisse',
-    d.disziplin,
+    d['disziplin'+n] || d.disziplin,
     d['res'+n],
     d['ak'+n],
     d['akp'+n],
