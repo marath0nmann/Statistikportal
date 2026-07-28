@@ -1,3 +1,6 @@
+## v1418
+- Admin → Wartung → Duplikate nennt zu jeder Disziplin zusätzlich die **Disziplin-Kategorie** (aus `disziplin_kategorien.name`) – in der Tabelle als Unterzeile, in der Kopfzeile in Klammern. Unterscheiden sich zwei Ergebnisse nur in der Kategorie (abweichende `disziplin_mapping_id`), gilt das jetzt ebenfalls als Abweichung und wird farbig hervorgehoben.
+
 ## v1417
 - Admin → Wartung → Duplikate zeigt die **Disziplin je Ergebnis** in einer eigenen Tabellenspalte. Weichen die beiden Disziplinen voneinander ab (mehrfach importierter Lauf), werden sie farbig hervorgehoben und in der Kopfzeile als „100 m / 110 m Hürden" nebeneinandergestellt. Der Bearbeiten-Dialog übernimmt jetzt die Disziplin der jeweiligen Zeile statt immer der des ersten Ergebnisses.
 

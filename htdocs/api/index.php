@@ -6779,6 +6779,7 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
                 e2.disziplin_mapping_id AS mid2,
                 COALESCE(k1.tbl_key, 'strasse') AS tbl_key1,
                 COALESCE(k2.tbl_key, 'strasse') AS tbl_key2,
+                k1.name AS kategorie1, k2.name AS kategorie2,
                 COALESCE(k1.fmt, 'min') AS fmt1, COALESCE(k2.fmt, 'min') AS fmt2,
                 v1.datum AS dat1, v1.kuerzel AS veranst1, v1.id AS vid1,
                 v2.datum AS dat2, v2.kuerzel AS veranst2, v2.id AS vid2,

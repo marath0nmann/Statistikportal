@@ -3198,17 +3198,25 @@ async function renderAdminDuplikate() {
       var veranstName = fmtV(d.veranst1); // datum is identical (hard criterion)
       var dis1 = d.disziplin1 || d.disziplin || '';
       var dis2 = d.disziplin2 || d.disziplin || '';
-      var disGleich = dis1 === dis2;
+      var kat1 = d.kategorie1 || '';
+      var kat2 = d.kategorie2 || '';
+      // Auch eine abweichende Kategorie ist ein Unterschied (andere disziplin_mapping_id)
+      var disGleich = dis1 === dis2 && kat1 === kat2;
       // Abweichende Disziplinen hervorheben – sie sind der eigentliche Unterschied
-      function disCell(txt) {
+      function disCell(txt, kat) {
         return '<td style="padding:6px 10px;font-size:12px' +
           (disGleich ? ';color:var(--text2)' : ';color:var(--accent);font-weight:700') + '">' +
-          esc(txt || '–') + '</td>';
+          esc(txt || '–') +
+          (kat ? '<div style="font-size:11px;font-weight:400;color:var(--text2)">' + esc(kat) + '</div>' : '') +
+          '</td>';
+      }
+      function disMitKat(txt, kat) {
+        return esc(txt || '–') + (kat ? ' (' + esc(kat) + ')' : '');
       }
       var rows =
         '<tr style="border-bottom:1px solid var(--border)">' +
           '<td style="padding:6px 10px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700">' + (d.res1||'–') + '</td>' +
-          disCell(dis1) +
+          disCell(dis1, kat1) +
           '<td style="padding:6px 10px">' + (d.ak1 ? '<span class="badge badge-ak">' + d.ak1 + '</span>' : '–') + '</td>' +
           '<td style="padding:6px 10px;font-size:12px">' +
             '<a href="#veranstaltung/' + d.vid1 + '" style="color:var(--primary)" onclick="navigate(\'veranstaltung/' + d.vid1 + '\')">' +
@@ -3223,7 +3231,7 @@ async function renderAdminDuplikate() {
         '</tr>' +
         '<tr>' +
           '<td style="padding:6px 10px;font-family:Barlow Condensed,sans-serif;font-size:15px;font-weight:700">' + (d.res2||'–') + '</td>' +
-          disCell(dis2) +
+          disCell(dis2, kat2) +
           '<td style="padding:6px 10px">' + (d.ak2 ? '<span class="badge badge-ak">' + d.ak2 + '</span>' : '–') + '</td>' +
           '<td style="padding:6px 10px;font-size:12px">' +
             '<a href="#veranstaltung/' + d.vid2 + '" style="color:var(--primary)" onclick="navigate(\'veranstaltung/' + d.vid2 + '\')">' +
@@ -3242,8 +3250,8 @@ async function renderAdminDuplikate() {
           '<div style="padding:10px 14px;background:var(--surf2);display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
             '<span style="font-weight:700">' + (d.athlet||'–') + '</span>' +
             (disGleich
-              ? '<span style="color:var(--text2);font-size:13px">' + esc(dis1 || '–') + '</span>'
-              : '<span style="color:var(--accent);font-size:13px;font-weight:700">' + esc(dis1||'–') + ' / ' + esc(dis2||'–') + '</span>') +
+              ? '<span style="color:var(--text2);font-size:13px">' + disMitKat(dis1, kat1) + '</span>'
+              : '<span style="color:var(--accent);font-size:13px;font-weight:700">' + disMitKat(dis1, kat1) + ' / ' + disMitKat(dis2, kat2) + '</span>') +
             '<span style="font-size:12px;color:var(--text2)">📅 ' + formatDate(d.dat1) + '</span>' +
             (d.vid1 === d.vid2 ? '<span style="font-size:12px;color:var(--text2)">🏟 ' + veranstName + '</span>' : '') +
             '<button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:12px" title="Als kein Duplikat markieren" onclick="dupIgnore(' + d.id1 + ',' + d.id2 + ',this)">✅ Kein Duplikat</button>' +
