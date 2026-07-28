@@ -624,7 +624,7 @@ async function _eeCsvVerarbeiten(text, dateiname) {
     var datum = _eeCsvDatum(get(iDatum));
     var zeit  = get(iZeit);
     if (!datum && !zeit) continue;
-    var diszObj = _eeCsvDisz(get(iWb));
+    var diszObj = _eeCsvDisz(get(iWb)) || _eeMerkDisz(get(iWb));
     var evname  = get(iWk);
     var ortRaw  = get(iOrt);
     var ortId   = null;
@@ -637,6 +637,8 @@ async function _eeCsvVerarbeiten(text, dateiname) {
         ortTreffer = _bkOrtFindByNameOrAlias(teile[t]);
       }
     }
+    // Zuletzt für diesen Wettkampf gewählter Ort
+    if (!ortTreffer && evname) ortTreffer = _eeMerkOrt(evname);
     if (ortTreffer) { ortRaw = ortTreffer.name; ortId = ortTreffer.id; }
     else ortRaw = '';
     // Leere Vereinsangabe bleibt leer (kein Vorbelegen mit dem eigenen Verein)
@@ -696,6 +698,8 @@ async function eeCsvPruefen() {
     if (!row._aktionManuell) {
       row._aktion = (chk.dublette || chk.antrag) ? 'merge' : 'insert';
       if (chk.antrag && !chk.dublette) row._aktion = 'skip';
+      // Duplikat ohne vollständige Zeile: nichts tun (Merge bräuchte eine Disziplin)
+      if (chk.dublette && _eeCsvProblem(row)) row._aktion = 'skip';
     }
   });
   _eeCsvGeprueft = true;
@@ -724,6 +728,39 @@ function _eeCsvItem(row) {
   if (row.ort_id) it.ort_id = row.ort_id;
   if (row.veranstaltung_id) it.veranstaltung_id = row.veranstaltung_id;
   return it;
+}
+
+// ── Gemerkte Zuordnungen: einmal gewählte Disziplin/Ort je CSV-Bezeichnung ──
+// So landen bereits zugeordnete Wettbewerbe („Firmenlauf") beim erneuten Einlesen
+// derselben Datei nicht wieder unter „Unvollständig".
+var _EE_MERK_DISZ = 'ee_csv_disz_map';
+var _EE_MERK_ORT  = 'ee_csv_ort_map';
+
+function _eeMerkKey(text) { return String(text || '').trim().toLowerCase(); }
+
+function _eeMerkLesen(key) {
+  try { return JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (e) { return {}; }
+}
+function _eeMerkSchreiben(key, text, wert) {
+  if (!_eeMerkKey(text) || !wert) return;
+  try {
+    var m = _eeMerkLesen(key);
+    m[_eeMerkKey(text)] = wert;
+    localStorage.setItem(key, JSON.stringify(m));
+  } catch (e) {}
+}
+
+// Gemerkte Disziplin – nur zurückgeben, wenn das Mapping noch existiert
+function _eeMerkDisz(text) {
+  var mid = _eeMerkLesen(_EE_MERK_DISZ)[_eeMerkKey(text)];
+  if (!mid) return null;
+  return (state.disziplinen || []).find(function(d) { return String(d.id || d.mapping_id) === String(mid); }) || null;
+}
+// Gemerkter Ort – nur zurückgeben, wenn der Ort noch existiert
+function _eeMerkOrt(text) {
+  var oid = _eeMerkLesen(_EE_MERK_ORT)[_eeMerkKey(text)];
+  if (!oid) return null;
+  return (window._bkOrte || []).find(function(o) { return String(o.id) === String(oid); }) || null;
 }
 
 // Ortsauswahl: ausschließlich im System hinterlegte Orte + Anlegen-Option
@@ -765,13 +802,15 @@ function _eeCsvProblem(row) {
        : '';
 }
 
-// Gruppe einer Zeile: 'importiert' | 'unvollstaendig' | 'konflikt' | 'duplikat' | 'neu'
+// Gruppe einer Zeile: 'importiert' | 'konflikt' | 'duplikat' | 'unvollstaendig' | 'neu'
+// Bereits gespeicherte Ergebnisse gelten als Duplikat – auch wenn Disziplin oder Ort
+// in der CSV-Zeile fehlen. Sonst landeten schon importierte Zeilen wieder in „Unvollständig".
 function _eeCsvGruppe(row) {
   if (row._importiert) return 'importiert';
-  if (_eeCsvProblem(row)) return 'unvollstaendig';
   var chk = row._check || {};
   if (chk.dublette) return _eeVergleichZaehler(chk.dublette, row).konflikte ? 'konflikt' : 'duplikat';
   if (chk.antrag) return 'duplikat';
+  if (_eeCsvProblem(row)) return 'unvollstaendig';
   return 'neu';
 }
 
@@ -786,16 +825,23 @@ function _eeCsvRenderPreview() {
   var zeilenHtml = _eeCsvRows.map(function(row, i) {
     var chk = row._check || {};
     var problem = _eeCsvProblem(row);
+    var gruppe = _eeCsvGruppe(row);
     if (!row._importiert) {
-      if (problem) fehlend++;
+      if (gruppe === 'unvollstaendig') fehlend++;
       if (chk.dublette || chk.antrag) dubletten++;
       if (!problem && row._aktion !== 'skip') aktiv++;
     }
-    gruppen[_eeCsvGruppe(row)].push(i);
+    gruppen[gruppe].push(i);
 
     var statusHtml;
     if (row._importiert) {
       statusHtml = '<span style="color:var(--primary);font-size:12px">&#x2713; ' + _owEsc(row._importMsg || 'importiert') + '</span>';
+    } else if (chk.dublette && problem) {
+      // Bereits gespeichert, aber die CSV-Zeile ist unvollständig → nichts zu tun
+      statusHtml = '<div style="font-size:12px;color:var(--text2)">&#x2713; bereits gespeichert' +
+          (chk.dublette_art === 'datum_ergebnis' ? ' <span style="font-size:11px">(über Datum + Ergebnis erkannt)</span>' : '') +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--text2)">' + _owEsc(problem) + ' – für ein Zusammenführen per ✏️ ergänzen</div>';
     } else if (problem) {
       statusHtml = '<span style="color:var(--accent);font-size:12px">⚠︎ ' + _owEsc(problem) + '</span>';
     } else if (chk.dublette) {
@@ -892,12 +938,13 @@ function _eeCsvRenderPreview() {
 
   wrap.innerHTML =
     gruppeHtml('unvollstaendig', '&#x26A0;&#xFE0F; Unvollst&auml;ndig', 'var(--accent)',
-      'Diese Zeilen werden nicht importiert, solange Datum, Disziplin, Ergebnis oder Ort fehlen &ndash; per &#x270F;&#xFE0F; erg&auml;nzen.') +
+      'Noch nicht gespeichert und unvollst&auml;ndig: Datum, Disziplin, Ergebnis oder Ort fehlen &ndash; per &#x270F;&#xFE0F; erg&auml;nzen. ' +
+      'Einmal gew&auml;hlte Disziplinen und Orte werden f&uuml;r den n&auml;chsten Import gemerkt.') +
     gruppeHtml('konflikt', '&#x26A1;&#xFE0E; Duplikate mit abweichenden Feldwerten', 'var(--accent)',
       'Gespeicherter und importierter Wert unterscheiden sich. Unter &#x270F;&#xFE0F; l&auml;sst sich je Feld entscheiden, welcher Wert gilt.',
       [['merge','Zusammenf&uuml;hren'],['skip','&Uuml;berspringen'],['insert','Trotzdem anlegen']], true) +
     gruppeHtml('duplikat', '&#x1F501;&#xFE0E; Duplikate ohne Konflikt', 'var(--text)',
-      'Bereits gespeichert. Zusammenf&uuml;hren erg&auml;nzt nur bisher leere Felder.',
+      'Bereits gespeichert &ndash; auch Zeilen, deren Disziplin oder Ort in der CSV fehlt. Zusammenf&uuml;hren erg&auml;nzt nur bisher leere Felder.',
       [['merge','Zusammenf&uuml;hren'],['skip','&Uuml;berspringen'],['insert','Trotzdem anlegen']], true) +
     gruppeHtml('neu', '&#x2705;&#xFE0E; Neu &ndash; noch nicht importiert', 'var(--primary)',
       'Pro Wettkampf einzeln mit &#x2B07;&#xFE0E; Import oder alle zusammen.', null, true) +
@@ -1049,10 +1096,12 @@ async function eeCsvZeileSpeichern(i) {
       var dz = (state.disziplinen || []).find(function(x) { return String(x.id || x.mapping_id) === v; });
       row.disziplin_mapping_id = dz ? (dz.id || dz.mapping_id) : null;
       row.disziplin = dz ? dz.disziplin : '';
+      if (dz) _eeMerkSchreiben(_EE_MERK_DISZ, row.wettbewerb, dz.id || dz.mapping_id);
     } else if (typ === 'ort') {
       var ot = (window._bkOrte || []).find(function(x) { return String(x.id) === v; });
       row.ort_id = ot ? ot.id : null;
       row.ort    = ot ? ot.name : '';
+      if (ot) _eeMerkSchreiben(_EE_MERK_ORT, row.veranstaltung_name, ot.id);
     } else if (key === 'resultat') {
       row.resultat = dbRes(v);
     } else {
@@ -1088,6 +1137,7 @@ function eeCsvSetOrt(i, val) {
   var ort = (window._bkOrte || []).find(function(o) { return String(o.id) === String(val); });
   row.ort_id = ort ? ort.id : null;
   row.ort    = ort ? ort.name : '';
+  if (ort) _eeMerkSchreiben(_EE_MERK_ORT, row.veranstaltung_name, ort.id);
   _eeCsvRenderPreview();
 }
 
@@ -1119,7 +1169,7 @@ async function eeCsvOrtAnlegen(i) {
   window._bkOrte.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
   closeModal();
   var row = _eeCsvRows[i];
-  if (row) { row.ort_id = neu.id; row.ort = neu.name; }
+  if (row) { row.ort_id = neu.id; row.ort = neu.name; _eeMerkSchreiben(_EE_MERK_ORT, row.veranstaltung_name, neu.id); }
   notify('Ort „' + neu.name + '" angelegt.', 'ok');
   _eeCsvRenderPreview();
 }
@@ -1129,6 +1179,7 @@ function eeCsvSetDisz(i, val) {
   var d = (state.disziplinen || []).find(function(x) { return String(x.id || x.mapping_id) === String(val); });
   row.disziplin_mapping_id = d ? (d.id || d.mapping_id) : null;
   row.disziplin = d ? d.disziplin : '';
+  if (d) _eeMerkSchreiben(_EE_MERK_DISZ, row.wettbewerb, d.id || d.mapping_id);
   _eeCsvRenderPreview();
 }
 function eeCsvAbbrechen() {

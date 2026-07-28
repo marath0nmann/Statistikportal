@@ -1728,6 +1728,32 @@ function findeErgebnisDubletteNachDatum(int $athId, string $datum, string $diszi
 }
 
 /**
+ * Letzte Rettung beim Dubletten-Abgleich: gleicher Athlet, gleicher Tag, gleiches
+ * Ergebnis – auch wenn die Disziplin (noch) nicht zugeordnet ist. Verhindert, dass
+ * bereits importierte Zeilen beim erneuten Einlesen wieder als offen erscheinen.
+ */
+function findeErgebnisDubletteNachErgebnis(int $athId, string $datum, string $resultat): ?array {
+    if (!$datum || $resultat === '') return null;
+    [$norm, $rnum] = normalizeResultat($resultat, 'min');
+    $params = [$athId, $datum, $resultat, $norm];
+    $cond = '(e.resultat=? OR e.resultat=?';
+    if ($rnum !== null) { $cond .= ' OR (e.resultat_num IS NOT NULL AND ABS(e.resultat_num - ?) < 0.01)'; $params[] = $rnum; }
+    $cond .= ')';
+    $row = DB::fetchOne(
+        'SELECT e.id, e.veranstaltung_id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.altersklasse,
+                e.startnummer, e.pos_gesamt, e.pos_geschlecht, e.ak_platzierung, e.meisterschaft,
+                e.ak_platz_meisterschaft, e.schuh, e.bemerkungen, e.extern, e.verein,
+                v.datum, v.name AS veranstaltung
+           FROM ' . DB::tbl('ergebnisse') . ' e
+           JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id = e.veranstaltung_id
+          WHERE e.athlet_id=? AND v.datum=? AND e.geloescht_am IS NULL AND v.geloescht_am IS NULL AND ' . $cond . '
+          ORDER BY e.id LIMIT 1',
+        $params
+    );
+    return $row ?: null;
+}
+
+/**
  * Sucht ein bestehendes Ergebnis desselben Athleten an derselben Veranstaltung
  * in derselben Disziplin (Dubletten-Abgleich).
  */
@@ -6356,29 +6382,31 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes-bulk') {
                 'veranstaltung_ort' => $v['ort'],
                 'treffer'           => $v['treffer'],
                 'dublette'          => null,
+                'dublette_art'      => null,
                 'antrag'            => null,
             ];
             $disziplin = sanitize($it['disziplin'] ?? '');
             $dmIdChk   = intOrNull($it['disziplin_mapping_id'] ?? null);
+            $datumChk  = sanitize($it['datum'] ?? '') ?: '';
             if ($disziplin) {
                 if ($v['id']) $zeile['dublette'] = findeErgebnisDublette((int)$athId, (int)$v['id'], $disziplin, $dmIdChk);
                 // Auch ohne Veranstaltungs-Treffer: gleicher Tag + gleiche Disziplin = Duplikat
-                if (!$zeile['dublette']) {
-                    $dupD = findeErgebnisDubletteNachDatum((int)$athId, sanitize($it['datum'] ?? '') ?: '', $disziplin, $dmIdChk);
-                    if ($dupD) {
-                        $zeile['dublette'] = $dupD;
-                        // Veranstaltung des vorhandenen Ergebnisses übernehmen, damit keine zweite entsteht
-                        if (!$zeile['veranstaltung_id'] && $dupD['veranstaltung_id']) {
-                            $zeile['veranstaltung_id']   = (int)$dupD['veranstaltung_id'];
-                            $zeile['veranstaltung_name'] = (string)($dupD['veranstaltung'] ?? '');
-                            $zeile['treffer']            = 'datum_ergebnis';
-                            $vRow = DB::fetchOne('SELECT ort FROM ' . DB::tbl('veranstaltungen') . ' WHERE id=?', [(int)$dupD['veranstaltung_id']]);
-                            $zeile['veranstaltung_ort'] = (string)($vRow['ort'] ?? '');
-                        }
-                    }
-                }
-                if (!$zeile['dublette'] && $v['id']) $zeile['antrag'] = findeOffenenErgebnisAntrag((int)$athId, (int)$v['id'], $disziplin);
+                if (!$zeile['dublette']) $zeile['dublette'] = findeErgebnisDubletteNachDatum((int)$athId, $datumChk, $disziplin, $dmIdChk);
             }
+            // Ohne (zugeordnete) Disziplin: gleicher Tag + gleiches Ergebnis erkennt bereits importierte Zeilen
+            if (!$zeile['dublette']) {
+                $dupR = findeErgebnisDubletteNachErgebnis((int)$athId, $datumChk, sanitize($it['resultat'] ?? '') ?: '');
+                if ($dupR) { $zeile['dublette'] = $dupR; $zeile['dublette_art'] = 'datum_ergebnis'; }
+            }
+            // Veranstaltung des vorhandenen Ergebnisses übernehmen, damit keine zweite entsteht
+            if ($zeile['dublette'] && !$zeile['veranstaltung_id'] && !empty($zeile['dublette']['veranstaltung_id'])) {
+                $zeile['veranstaltung_id']   = (int)$zeile['dublette']['veranstaltung_id'];
+                $zeile['veranstaltung_name'] = (string)($zeile['dublette']['veranstaltung'] ?? '');
+                $zeile['treffer']            = 'datum_ergebnis';
+                $vRow = DB::fetchOne('SELECT ort FROM ' . DB::tbl('veranstaltungen') . ' WHERE id=?', [(int)$zeile['veranstaltung_id']]);
+                $zeile['veranstaltung_ort'] = (string)($vRow['ort'] ?? '');
+            }
+            if (!$zeile['dublette'] && $disziplin && $v['id']) $zeile['antrag'] = findeOffenenErgebnisAntrag((int)$athId, (int)$v['id'], $disziplin);
             $out[] = $zeile;
         }
         jsonOk(['rows' => $out]);

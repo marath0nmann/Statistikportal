@@ -1,3 +1,7 @@
+## v1414
+- CSV-Import: Bereits gespeicherte Ergebnisse landen beim erneuten Einlesen derselben Datei nicht mehr unter „Unvollständig". Der Dubletten-Abgleich greift jetzt auch ohne zugeordnete Disziplin bzw. ohne Ort – erkannt über Athlet + Datum + Ergebnis (Zeitformat-unabhängig über `resultat_num`). Solche Zeilen stehen in der Duplikat-Gruppe mit dem Hinweis „bereits gespeichert" und stehen standardmäßig auf „Überspringen".
+- Einmal gewählte Zuordnungen werden gemerkt: die Disziplin je CSV-Wettbewerbsbezeichnung (z.B. „Firmenlauf" → 4,9km) und der Ort je Wettkampfnamen. Beim nächsten Import derselben Datei sind sie automatisch gesetzt – auch für neu angelegte Orte.
+
 ## v1413
 - Fehlende Altersklassen im Import: Die DLV-AK wurde bisher nur berechnet, wenn am Athleten ein Jahrgang hinterlegt war. Jetzt dient der Jahrgang aus dem Import (Jg.-Spalte des PDF) als Ersatz, und die AK-Angleichung läuft nach jedem Import automatisch über alle Zeilen.
 - Neu: Fehlt der Jahrgang in den Stammdaten und liefert der Wettkampf einen, wird er automatisch am Athleten nachgetragen (nur Editor/Admin, widersprüchliche Angaben innerhalb eines Imports werden ausgelassen). Die Ergänzungen stehen im Import-Debug-Log und werden als Hinweis gemeldet.
