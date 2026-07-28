@@ -1,3 +1,6 @@
+## v1419
+- **Admin → Wartung → Duplikate zeigt den echten Veranstaltungsnamen.** Angezeigt wurde bisher nur `kuerzel` ohne führendes Datum – und da `kuerzel` das Format „dd.mm.yyyy Ort" hat, blieb nur der Ort übrig. Jetzt wird `veranstaltungen.name` verwendet (Rückfall auf das Kürzel, wenn kein eigener Name hinterlegt ist), der Ort steht als Unterzeile darunter. Veranstaltungsnamen werden dabei HTML-escaped.
+
 ## v1418
 - Admin → Wartung → Duplikate nennt zu jeder Disziplin zusätzlich die **Disziplin-Kategorie** (aus `disziplin_kategorien.name`) – in der Tabelle als Unterzeile, in der Kopfzeile in Klammern. Unterscheiden sich zwei Ergebnisse nur in der Kategorie (abweichende `disziplin_mapping_id`), gilt das jetzt ebenfalls als Abweichung und wird farbig hervorgehoben.
 

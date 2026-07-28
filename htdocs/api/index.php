@@ -6782,7 +6782,9 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
                 k1.name AS kategorie1, k2.name AS kategorie2,
                 COALESCE(k1.fmt, 'min') AS fmt1, COALESCE(k2.fmt, 'min') AS fmt2,
                 v1.datum AS dat1, v1.kuerzel AS veranst1, v1.id AS vid1,
+                v1.name AS veranst_name1, v1.ort AS veranst_ort1,
                 v2.datum AS dat2, v2.kuerzel AS veranst2, v2.id AS vid2,
+                v2.name AS veranst_name2, v2.ort AS veranst_ort2,
                 e1.resultat_num AS rnum1, e2.resultat_num AS rnum2,
                 COALESCE(
                     NULLIF(TRIM(CONCAT(COALESCE(a1.vorname,''),' ',COALESCE(a1.nachname,''))),'' ),

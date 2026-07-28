@@ -3182,8 +3182,21 @@ async function renderAdminDuplikate() {
 
   var dups = r.data || [];
 
+  // kuerzel hat das Format "dd.mm.yyyy Ort" – der echte Name steht in v.name
+  // (beim Anlegen faellt name auf kuerzel zurueck, dann bleibt nur der Ort uebrig)
   function fmtV(kuerzel) {
     return kuerzel ? (kuerzel.split(' ').slice(1).join(' ') || kuerzel) : '–';
+  }
+  function vName(d, n) {
+    var name = d['veranst_name' + n] || '';
+    var kuerzel = d['veranst' + n] || '';
+    if (name && name !== kuerzel) return name;
+    return fmtV(kuerzel);
+  }
+  function vOrt(d, n) {
+    var ort = d['veranst_ort' + n] || '';
+    // Ort nur als Zusatz, wenn er nicht schon im angezeigten Namen steckt
+    return ort && vName(d, n).indexOf(ort) === -1 ? ort : '';
   }
   function esc(s) {
     return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -3195,7 +3208,7 @@ async function renderAdminDuplikate() {
     pairsHtml = '<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Keine Duplikate gefunden</div></div>';
   } else {
     dups.forEach(function(d, i) {
-      var veranstName = fmtV(d.veranst1); // datum is identical (hard criterion)
+      var veranstName = vName(d, 1); // datum is identical (hard criterion)
       var dis1 = d.disziplin1 || d.disziplin || '';
       var dis2 = d.disziplin2 || d.disziplin || '';
       var kat1 = d.kategorie1 || '';
@@ -3220,8 +3233,9 @@ async function renderAdminDuplikate() {
           '<td style="padding:6px 10px">' + (d.ak1 ? '<span class="badge badge-ak">' + d.ak1 + '</span>' : '–') + '</td>' +
           '<td style="padding:6px 10px;font-size:12px">' +
             '<a href="#veranstaltung/' + d.vid1 + '" style="color:var(--primary)" onclick="navigate(\'veranstaltung/' + d.vid1 + '\')">' +
-              (d.vid1 !== d.vid2 ? fmtV(d.veranst1) : veranstName) +
+              (d.vid1 !== d.vid2 ? esc(vName(d, 1)) : esc(veranstName)) +
             '</a>' +
+            (vOrt(d, 1) ? '<div style="font-size:11px;color:var(--text2)">' + esc(vOrt(d, 1)) + '</div>' : '') +
           '</td>' +
           '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.eingetragen_von1||'–') + '</td>' +
           '<td style="padding:6px 10px;white-space:nowrap">' +
@@ -3235,8 +3249,9 @@ async function renderAdminDuplikate() {
           '<td style="padding:6px 10px">' + (d.ak2 ? '<span class="badge badge-ak">' + d.ak2 + '</span>' : '–') + '</td>' +
           '<td style="padding:6px 10px;font-size:12px">' +
             '<a href="#veranstaltung/' + d.vid2 + '" style="color:var(--primary)" onclick="navigate(\'veranstaltung/' + d.vid2 + '\')">' +
-              (d.vid1 !== d.vid2 ? fmtV(d.veranst2) : veranstName) +
+              (d.vid1 !== d.vid2 ? esc(vName(d, 2)) : esc(veranstName)) +
             '</a>' +
+            (vOrt(d, 2) ? '<div style="font-size:11px;color:var(--text2)">' + esc(vOrt(d, 2)) + '</div>' : '') +
           '</td>' +
           '<td style="padding:6px 10px;font-size:12px;color:var(--text2)">' + (d.eingetragen_von2||'–') + '</td>' +
           '<td style="padding:6px 10px;white-space:nowrap">' +
@@ -3253,7 +3268,7 @@ async function renderAdminDuplikate() {
               ? '<span style="color:var(--text2);font-size:13px">' + disMitKat(dis1, kat1) + '</span>'
               : '<span style="color:var(--accent);font-size:13px;font-weight:700">' + disMitKat(dis1, kat1) + ' / ' + disMitKat(dis2, kat2) + '</span>') +
             '<span style="font-size:12px;color:var(--text2)">📅 ' + formatDate(d.dat1) + '</span>' +
-            (d.vid1 === d.vid2 ? '<span style="font-size:12px;color:var(--text2)">🏟 ' + veranstName + '</span>' : '') +
+            (d.vid1 === d.vid2 ? '<span style="font-size:12px;color:var(--text2)">🏟 ' + esc(veranstName) + (vOrt(d, 1) ? ' · ' + esc(vOrt(d, 1)) : '') + '</span>' : '') +
             '<button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:12px" title="Als kein Duplikat markieren" onclick="dupIgnore(' + d.id1 + ',' + d.id2 + ',this)">✅ Kein Duplikat</button>' +
           '</div>' +
           '<table style="width:100%;border-collapse:collapse">' +
