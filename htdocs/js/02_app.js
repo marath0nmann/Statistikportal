@@ -3131,6 +3131,7 @@ function syncHash() {
   if (!history.replaceState) return;
   var hash = state.tab;
   if (state.tab === 'veranstaltungen' && state.veranstView === 'serie-detail' && state.serieId) hash = 'veranstaltungen/serie/' + state.serieId;
+  else if (state.tab === 'veranstaltungen' && state.veranstSubTab) hash += '/' + state.veranstSubTab;
   else if (state.tab === 'veranstaltung' && state.veranstaltungId) hash += '/' + state.veranstaltungId;
   else if (state.tab === 'athlet' && state.athletSlug) hash = 'athlet/' + state.athletSlug;
   else if (state.tab === 'admin' && state.adminTab) hash += '/' + state.adminTab;
@@ -3163,6 +3164,9 @@ function restoreFromHash() {
   } else if (tab === 'veranstaltungen' && sub === 'serie' && parts[2]) {
     var _sid = parseInt(parts[2]) || null;
     if (_sid) { state.veranstView = 'serie-detail'; state.serieId = _sid; }
+  } else if (tab === 'veranstaltungen' && sub) {
+    var validVSub = ['serien','letzte','meine'];
+    if (validVSub.indexOf(sub) >= 0) { state.veranstView = 'list'; state.veranstSubTab = sub; }
   } else if (tab === 'rekorde' && sub) {
     state.subTab = sub;
   } else if (tab === 'eintragen') {

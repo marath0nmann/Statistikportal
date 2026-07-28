@@ -34,8 +34,8 @@ async function _loadEigenesProfilWidget(elId, showErg) {
   }
 
   // Header
-  // Wettkampf-Anzahl
-  var totalErg2 = 0;
+  // Wettkampf-Anzahl: Vereins- UND externe Ergebnisse (rawPbs werden erst später in kategorien eingebettet)
+  var totalErg2 = rawPbs.length;
   for (var _ki=0;_ki<kategorien.length;_ki++) totalErg2 += (kategorien[_ki].ergebnisse||[]).length + (kategorien[_ki].pbs||[]).length;
 
   // Auszeichnungen laden
@@ -49,7 +49,7 @@ async function _loadEigenesProfilWidget(elId, showErg) {
           (athlet.vorname||'') + ' ' + (athlet.nachname||'') +
         '</div>' +
         '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center">' +
-          '<span class="badge badge-ak">' + totalErg2 + ' ' + (totalErg2 === 1 ? 'Ergebnis' : 'Ergebnisse') + '</span>' +
+          '<span class="badge badge-ak" style="cursor:pointer" onclick="openMeineErgebnisse()" title="Alle eigenen Ergebnisse anzeigen">' + totalErg2 + ' ' + (totalErg2 === 1 ? 'Ergebnis' : 'Ergebnisse') + '</span>' +
           akBadgeHtml +
           (athlet.geburtsjahr ? '<span style="font-size:11px;color:var(--text2)">Jahrgang ' + athlet.geburtsjahr + '</span>' : '') +
         '</div>' +

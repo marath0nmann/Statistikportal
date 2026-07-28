@@ -29,7 +29,23 @@ function navVeranstTab(tab) {
   state.veranstSubTab = tab;
   state.veranstPage   = 1;
   state.veranstSuche  = '';
+  syncHash();
   renderVeranstaltungen();
+}
+
+// Direkt zu Veranstaltungen → Meine Ergebnisse (z.B. aus dem Dashboard-Widget)
+function openMeineErgebnisse() {
+  state.tab             = 'veranstaltungen';
+  state.veranstView     = 'list';
+  state.serieId         = null;
+  state.serieView       = null;
+  state.veranstaltungId = null;
+  state.veranstSubTab   = 'meine';
+  state.veranstPage     = 1;
+  state.veranstSuche    = '';
+  syncHash();
+  buildNav();
+  renderPage();
 }
 
 function switchVeranstView(to) {

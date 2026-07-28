@@ -1,3 +1,8 @@
+## v1422
+- **Dashboard → „Mein Athletenprofil": Der Ergebnis-Zähler zählt jetzt alle Ergebnisse.** Bisher waren nur Vereinsergebnisse enthalten – die externen Ergebnisse (`extern=1`) wurden ausgelassen, weil sie zum Zeitpunkt der Zählung noch nicht in die Kategorien eingebettet waren.
+- Das Ergebnis-Badge im Widget ist jetzt anklickbar und führt direkt zu **Veranstaltungen → Meine Ergebnisse** (`openMeineErgebnisse()`).
+- Der Veranstaltungen-Untertab steht jetzt im URL-Hash (`#veranstaltungen/meine`, `/letzte`, `/serien`) und wird beim Neuladen bzw. Zurück-Button wiederhergestellt.
+
 ## v1421
 - **Dashboard → „Persönliche Bestleistungen": Disziplinen mit „Aus Hall of Fame ausschließen" werden jetzt ebenfalls ausgeblendet.** Bisher wirkte das Häkchen (Admin → Disziplinen → Disziplin bearbeiten) nur auf die Hall of Fame; das eigene PB-Widget zeigte auch Firmenläufe & Co. Die API (`athleten/{id}`) liefert `hof_exclude` jetzt sowohl für Vereins- als auch für externe Ergebnisse mit, das Widget filtert entsprechend.
 - Admin → Disziplinen: Hinweistext unter der Checkbox ergänzt (Anlegen- und Bearbeiten-Dialog), dass die Einstellung auch das Dashboard-Widget betrifft.
