@@ -1,3 +1,9 @@
+## v1415
+- CSV-Import: Fehlt der Ort, schlägt das Portal ihn aus früheren Austragungen desselben Wettkampfs vor (Namensähnlichkeit, jüngste Austragung mit hinterlegtem Ort gewinnt). Der Vorschlag ist vorausgewählt und mit Quelle gekennzeichnet („💡 Run&Fun Krefeld 2023").
+- Fehlt die Disziplin, wird die vorgeschlagen, die der Athlet bei früheren Austragungen dieses Wettkampfs am häufigsten gelaufen ist – inklusive Kategorie und Häufigkeit („💡 Straße · 3× dort gelaufen").
+- Disziplin-Auswahl ist jetzt nach Kategorie gruppiert (`optgroup`) und innerhalb der Kategorie konsequent nach Distanz sortiert (hinterlegte Distanz, sonst aus dem Namen gelesen; Halbmarathon/Marathon korrekt einsortiert, Disziplinen ohne Distanz ans Ende).
+- Bearbeiten-Dialog und Einzelformular: Schuh und Verein bieten die bereits verwendeten eigenen Werte als Auswahlliste an (häufigste zuerst), freie Eingabe bleibt möglich. Neuer Endpunkt `GET ergebnisse/eigene-werte`.
+
 ## v1414
 - CSV-Import: Bereits gespeicherte Ergebnisse landen beim erneuten Einlesen derselben Datei nicht mehr unter „Unvollständig". Der Dubletten-Abgleich greift jetzt auch ohne zugeordnete Disziplin bzw. ohne Ort – erkannt über Athlet + Datum + Ergebnis (Zeitformat-unabhängig über `resultat_num`). Solche Zeilen stehen in der Duplikat-Gruppe mit dem Hinweis „bereits gespeichert" und stehen standardmäßig auf „Überspringen".
 - Einmal gewählte Zuordnungen werden gemerkt: die Disziplin je CSV-Wettbewerbsbezeichnung (z.B. „Firmenlauf" → 4,9km) und der Ort je Wettkampfnamen. Beim nächsten Import derselben Datei sind sie automatisch gesetzt – auch für neu angelegte Orte.

@@ -69,7 +69,8 @@ function renderEigenesEintragen() {
         '</div>' +
         '<div class="form-group full">' +
           '<label>Verein <span style="font-size:11px;font-weight:400;color:var(--text2)">(anderer Verein = externes Ergebnis)</span></label>' +
-          '<input type="text" id="ee-verein" value="' + clubName.replace(/"/g,'&quot;') + '"/>' +
+          '<input type="text" id="ee-verein" list="ee-verein-list" value="' + clubName.replace(/"/g,'&quot;') + '"/>' +
+          '<span id="ee-verein-list-wrap"></span>' +
         '</div>' +
         '<div class="form-group full" style="margin-top:2px">' +
           '<div style="font-size:12px;font-weight:600;color:var(--text2)">Optionale Angaben</div>' +
@@ -92,7 +93,8 @@ function renderEigenesEintragen() {
         '</div>' +
         '<div class="form-group full">' +
           '<label>Schuh</label>' +
-          '<input type="text" id="ee-schuh" maxlength="120" placeholder="z.B. Adidas Adios Pro 3"/>' +
+          '<input type="text" id="ee-schuh" list="ee-schuh-list" maxlength="120" placeholder="z.B. Adidas Adios Pro 3"/>' +
+          '<span id="ee-schuh-list-wrap"></span>' +
         '</div>' +
         '<div class="form-group full">' +
           '<label>Bemerkungen</label>' +
@@ -120,6 +122,12 @@ function renderEigenesEintragen() {
   (async function() {
     if (!window._bkOrte) await _bkLoadOrte();
     eeOrtSelectFuellen();
+    // Bekannte eigene Schuhe/Vereine als Vorschlagsliste
+    var w = await _eeLadeEigeneWerte();
+    var sw = document.getElementById('ee-schuh-list-wrap');
+    if (sw) sw.innerHTML = _eeDatalist('ee-schuh-list', w.schuhe);
+    var vw = document.getElementById('ee-verein-list-wrap');
+    if (vw) vw.innerHTML = _eeDatalist('ee-verein-list', w.vereine);
   })();
 }
 
@@ -693,6 +701,19 @@ async function eeCsvPruefen() {
     } else {
       row.veranstaltung_id = null;
     }
+    // Ortsvorschlag aus früheren Austragungen desselben Wettkampfs
+    if (!row.ort_id && chk.ort_vorschlag) {
+      row.ort_id = chk.ort_vorschlag.ort_id;
+      row.ort    = chk.ort_vorschlag.ort;
+      row._ortVorschlag = chk.ort_vorschlag.quelle || '';
+    }
+    // Disziplinvorschlag: was der Athlet dort bisher gelaufen ist
+    if (!row.disziplin_mapping_id && chk.disziplin_vorschlag) {
+      row.disziplin_mapping_id = chk.disziplin_vorschlag.disziplin_mapping_id;
+      row.disziplin            = chk.disziplin_vorschlag.disziplin;
+      row._diszVorschlag       = (chk.disziplin_vorschlag.kategorie || '') +
+        (chk.disziplin_vorschlag.anzahl ? ' · ' + chk.disziplin_vorschlag.anzahl + '× dort gelaufen' : '');
+    }
     // Standardaktion: Duplikate zusammenführen statt doppelt anzulegen –
     // eine vom Benutzer gewählte Aktion bleibt bei erneuter Prüfung erhalten
     if (!row._aktionManuell) {
@@ -782,15 +803,43 @@ function _eeCsvOrtOptions(row) {
 }
 
 function _eeCsvDiszOptions(row) {
+  var disz = (state.disziplinen || []).slice();
+  // Nach Kategorie gruppieren, innerhalb der Kategorie nach Distanz/Wert sortieren
+  var gruppen = [], nach = {};
+  disz.forEach(function(d) {
+    var kat = d.kategorie || 'Sonstige';
+    if (!nach[kat]) { nach[kat] = []; gruppen.push(kat); }
+    nach[kat].push(d);
+  });
+  var mid = row.disziplin_mapping_id;
   var opts = '<option value="">– Disziplin wählen –</option>';
-  var disz = state.disziplinen || [];
-  for (var i = 0; i < disz.length; i++) {
-    var d = disz[i];
-    var mid = d.id || d.mapping_id;
-    opts += '<option value="' + mid + '"' + (String(mid) === String(row.disziplin_mapping_id) ? ' selected' : '') + '>' +
-      _owEsc(d.disziplin + (d.kategorie ? ' (' + d.kategorie + ')' : '')) + '</option>';
-  }
+  gruppen.forEach(function(kat) {
+    var liste = nach[kat].slice().sort(function(a, b) {
+      var da = _eeDiszWert(a), db = _eeDiszWert(b);
+      if (da !== db) return da - db;
+      return String(a.disziplin || '').localeCompare(String(b.disziplin || ''));
+    });
+    opts += '<optgroup label="' + _owEsc(kat) + '">' +
+      liste.map(function(d) {
+        var v = d.id || d.mapping_id;
+        return '<option value="' + v + '"' + (String(v) === String(mid) ? ' selected' : '') + '>' + _owEsc(d.disziplin) + '</option>';
+      }).join('') +
+    '</optgroup>';
+  });
   return opts;
+}
+
+// Sortierwert einer Disziplin: hinterlegte Distanz, sonst aus dem Namen gelesen
+function _eeDiszWert(d) {
+  if (d.distanz && parseFloat(d.distanz) > 0) return parseFloat(d.distanz);
+  var n = String(d.disziplin || '').toLowerCase().replace(/\./g, '').replace(',', '.');
+  var m = n.match(/^([\d.]+)\s*km/);
+  if (m) return parseFloat(m[1]) * 1000;
+  m = n.match(/^([\d.]+)\s*m\b/);
+  if (m) return parseFloat(m[1]);
+  if (n.indexOf('halbmarathon') >= 0) return 21097;
+  if (n.indexOf('marathon') >= 0) return 42195;
+  return 9e6; // Namen ohne Distanz ans Ende
 }
 
 // Fehlende Pflichtangaben einer Zeile (leerer String = vollständig)
@@ -882,10 +931,12 @@ function _eeCsvRenderPreview() {
       '<td style="padding:4px 6px;min-width:140px">' +
         (row.veranstaltung_id
           ? '<span style="font-size:12px;color:var(--text2)">' + _owEsc(row.ort || '–') + '</span>'
-          : '<select onchange="eeCsvSetOrt(' + i + ',this.value)" style="' + fld + '">' + _eeCsvOrtOptions(row) + '</select>') +
+          : '<select onchange="eeCsvSetOrt(' + i + ',this.value)" style="' + fld + '">' + _eeCsvOrtOptions(row) + '</select>' +
+            (row._ortVorschlag ? '<div style="font-size:10px;color:var(--primary)" title="Vorschlag aus früherer Austragung">&#x1F4A1; ' + _owEsc(row._ortVorschlag) + '</div>' : '')) +
       '</td>' +
       '<td style="padding:4px 6px;min-width:160px">' +
         '<select onchange="eeCsvSetDisz(' + i + ',this.value)" style="' + fld + '">' + _eeCsvDiszOptions(row) + '</select>' +
+        (row._diszVorschlag ? '<div style="font-size:10px;color:var(--primary)" title="Vorschlag aus früheren Austragungen">&#x1F4A1; ' + _owEsc(row._diszVorschlag) + '</div>' : '') +
       '</td>' +
       '<td style="padding:4px 6px;font-size:12px;white-space:nowrap">' + _owEsc(fmtRes(row.resultat)) + '</td>' +
       '<td style="padding:4px 6px;font-size:12px">' + _owEsc(row.altersklasse || '–') + '</td>' +
@@ -978,6 +1029,21 @@ function eeCsvGruppenAktion(gruppe, aktion) {
   _eeCsvRenderPreview();
 }
 
+// Bereits verwendete eigene Werte (Schuhe, Vereine) für Auswahllisten
+async function _eeLadeEigeneWerte() {
+  if (window._eeEigeneWerte) return window._eeEigeneWerte;
+  var r = await apiGet('ergebnisse/eigene-werte');
+  window._eeEigeneWerte = (r && r.ok && r.data) ? r.data : { schuhe: [], vereine: [] };
+  return window._eeEigeneWerte;
+}
+
+// Auswahlliste (datalist) – freie Eingabe bleibt möglich
+function _eeDatalist(id, werte) {
+  return '<datalist id="' + id + '">' +
+    (werte || []).map(function(w) { return '<option value="' + _owEsc(w) + '"></option>'; }).join('') +
+  '</datalist>';
+}
+
 // ── Zeilen-Editor: alle Felder bearbeiten + Konflikte feldweise entscheiden ──
 // Feldliste des Editors: [Schlüssel, Beschriftung, Typ, vergleichbar mit Duplikat?]
 function _eeCsvFelder() {
@@ -992,17 +1058,18 @@ function _eeCsvFelder() {
     ['ak_platzierung',         'Pos (AK)',         'number', true],
     ['pos_geschlecht',         'Pos (m/w)',        'number', true],
     ['pos_gesamt',             'Pos (gesamt)',     'number', true],
-    ['schuh',                  'Schuh',            'text',   true],
+    ['schuh',                  'Schuh',            'liste',  true],
     ['bemerkungen',            'Bemerkungen',      'text',   true],
-    ['verein',                 'Verein',           'text',   true],
+    ['verein',                 'Verein',           'liste',  true],
     ['meisterschaft',          'Meisterschaft',    'mstr',   true],
     ['ak_platz_meisterschaft', 'Platz MS',         'number', true],
   ];
 }
 
-function eeCsvZeileModal(i) {
+async function eeCsvZeileModal(i) {
   var row = _eeCsvRows[i];
   if (!row) return;
+  var werte = await _eeLadeEigeneWerte();
   var d = (row._check || {}).dublette || null;
   var inp = 'box-sizing:border-box;width:100%;padding:6px 9px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:13px';
   row._ueberschreiben = row._ueberschreiben || [];
@@ -1020,6 +1087,12 @@ function eeCsvZeileModal(i) {
       feld = '<select id="eecf-' + key + '" style="' + inp + '">' + mstrOptions(wert || 0) + '</select>';
     } else if (typ === 'date') {
       feld = '<input type="date" id="eecf-' + key + '" value="' + _owEsc(wert || '') + '" style="' + inp + '">';
+    } else if (typ === 'liste') {
+      // Bekannte eigene Werte als Vorschlag, freie Eingabe weiterhin möglich
+      var lid = 'eecl-' + key;
+      feld = '<input type="text" list="' + lid + '" id="eecf-' + key + '" value="' + _owEsc(wert || '') +
+        '" placeholder="– leer – (eigene Werte als Vorschlag)" style="' + inp + '">' +
+        _eeDatalist(lid, key === 'schuh' ? werte.schuhe : werte.vereine);
     } else {
       feld = '<input type="' + (typ === 'number' ? 'number' : 'text') + '"' + (typ === 'number' ? ' min="1"' : '') +
         ' id="eecf-' + key + '" value="' + _owEsc(wert === null || wert === undefined ? '' : (key === 'resultat' ? fmtRes(wert) : wert)) +
@@ -1138,6 +1211,7 @@ function eeCsvSetOrt(i, val) {
   row.ort_id = ort ? ort.id : null;
   row.ort    = ort ? ort.name : '';
   if (ort) _eeMerkSchreiben(_EE_MERK_ORT, row.veranstaltung_name, ort.id);
+  row._ortVorschlag = '';
   _eeCsvRenderPreview();
 }
 
@@ -1180,6 +1254,7 @@ function eeCsvSetDisz(i, val) {
   row.disziplin_mapping_id = d ? (d.id || d.mapping_id) : null;
   row.disziplin = d ? d.disziplin : '';
   if (d) _eeMerkSchreiben(_EE_MERK_DISZ, row.wettbewerb, d.id || d.mapping_id);
+  row._diszVorschlag = '';
   _eeCsvRenderPreview();
 }
 function eeCsvAbbrechen() {

@@ -1776,6 +1776,91 @@ function findeErgebnisDublette(int $athId, int $vid, string $disziplin, ?int $dm
 /**
  * Prüft, ob für Athlet/Veranstaltung/Disziplin bereits ein offener Antrag existiert.
  */
+/**
+ * Frühere Austragungen einer Veranstaltung anhand des Namens finden
+ * (z.B. „Rhein City Run" 2019 → liefert Ort für den Import 2025).
+ * $ausserDatum blendet den Import-Tag selbst aus.
+ */
+function fruehereVeranstaltungen(string $evname, string $ausserDatum = '', int $limit = 25): array {
+    $norm = veranstNameNorm($evname);
+    if ($norm === '') return [];
+    // Längstes Wort als Suchanker – der Rest wird über die Ähnlichkeitsprüfung gefiltert
+    $worte = array_filter(explode(' ', $norm), fn($w) => mb_strlen($w) >= 4);
+    if (!$worte) return [];
+    usort($worte, fn($a, $b) => mb_strlen($b) <=> mb_strlen($a));
+    $anker = $worte[0];
+    $rows = DB::fetchAll(
+        'SELECT v.id, v.name, v.kuerzel, v.ort, v.ort_id, v.datum FROM ' . DB::tbl('veranstaltungen') . ' v
+          WHERE v.geloescht_am IS NULL AND (v.name LIKE ? OR v.kuerzel LIKE ?)' .
+          ($ausserDatum ? ' AND v.datum <> ?' : '') . '
+          ORDER BY v.datum DESC LIMIT 60',
+        $ausserDatum ? ['%' . $anker . '%', '%' . $anker . '%', $ausserDatum] : ['%' . $anker . '%', '%' . $anker . '%']
+    );
+    $treffer = [];
+    foreach ($rows as $r) {
+        if (veranstNameAehnlich($evname, (string)$r['name'])
+            || veranstNameAehnlich($evname, (string)$r['kuerzel'])
+            || veranstNameAehnlich($evname, trim($r['name'] . ' ' . $r['ort']))) {
+            $treffer[] = $r;
+            if (count($treffer) >= $limit) break;
+        }
+    }
+    return $treffer;
+}
+
+/**
+ * Ort- und Disziplinvorschlag aus früheren Austragungen desselben Wettkampfs.
+ * Rückgabe: ['ort'=>?array, 'disziplin'=>?array]
+ */
+function importVorschlaege(string $evname, string $datum, int $athId): array {
+    $out = ['ort' => null, 'disziplin' => null];
+    $frueher = fruehereVeranstaltungen($evname, $datum);
+    if (!$frueher) return $out;
+
+    // Ort: jüngste frühere Austragung mit hinterlegtem Ort
+    foreach ($frueher as $f) {
+        if (!empty($f['ort_id']) || !empty($f['ort'])) {
+            $ortId = intOrNull($f['ort_id']);
+            $ortName = (string)$f['ort'];
+            if (!$ortId && $ortName !== '') {
+                $o = DB::fetchOne('SELECT id,name FROM ' . DB::tbl('orte') . ' WHERE LOWER(name)=LOWER(?) LIMIT 1', [$ortName]);
+                if ($o) { $ortId = (int)$o['id']; $ortName = (string)$o['name']; }
+            }
+            if ($ortId) {
+                $out['ort'] = ['ort_id' => $ortId, 'ort' => $ortName,
+                               'quelle' => trim($f['name'] . ' ' . ($f['datum'] ? date('Y', strtotime($f['datum'])) : ''))];
+                break;
+            }
+        }
+    }
+
+    // Disziplin: was der Athlet bei früheren Austragungen am häufigsten gelaufen ist
+    $ids = array_map(fn($f) => (int)$f['id'], $frueher);
+    if ($athId && $ids) {
+        $platzhalter = implode(',', array_fill(0, count($ids), '?'));
+        $d = DB::fetchOne(
+            'SELECT e.disziplin, e.disziplin_mapping_id, dk.name AS kategorie, dk.tbl_key, COUNT(*) AS anz
+               FROM ' . DB::tbl('ergebnisse') . ' e
+               LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id = e.disziplin_mapping_id
+               LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id = dm.kategorie_id
+              WHERE e.athlet_id=? AND e.geloescht_am IS NULL AND e.disziplin_mapping_id IS NOT NULL
+                AND e.veranstaltung_id IN (' . $platzhalter . ')
+              GROUP BY e.disziplin, e.disziplin_mapping_id, dk.name, dk.tbl_key
+              ORDER BY anz DESC, e.disziplin LIMIT 1',
+            array_merge([$athId], $ids)
+        );
+        if ($d) {
+            $out['disziplin'] = [
+                'disziplin' => $d['disziplin'],
+                'disziplin_mapping_id' => (int)$d['disziplin_mapping_id'],
+                'kategorie' => $d['kategorie'], 'tbl_key' => $d['tbl_key'],
+                'anzahl' => (int)$d['anz'],
+            ];
+        }
+    }
+    return $out;
+}
+
 function findeOffenenErgebnisAntrag(int $athId, int $vid, string $disziplin): ?array {
     $rows = DB::fetchAll(
         'SELECT id, neue_werte, beantragt_am FROM ' . DB::tbl('ergebnis_aenderungen') .
@@ -6357,6 +6442,26 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes') {
     ]);
 }
 
+// Bereits verwendete eigene Werte (Schuhe, Vereine) für Auswahllisten
+if ($res === 'ergebnisse' && $method === 'GET' && $id === 'eigene-werte') {
+    $user = Auth::requireLogin();
+    $athId = eigenerAthletId((int)$user['id']);
+    if (!$athId) jsonOk(['schuhe' => [], 'vereine' => []]);
+    $eTblW = DB::tbl('ergebnisse');
+    $schuhe = array_column(DB::fetchAll(
+        "SELECT e.schuh, COUNT(*) c FROM $eTblW e
+          WHERE e.athlet_id=? AND e.geloescht_am IS NULL AND e.schuh IS NOT NULL AND e.schuh<>''
+          GROUP BY e.schuh ORDER BY c DESC, e.schuh LIMIT 100", [$athId]), 'schuh');
+    $vereine = array_column(DB::fetchAll(
+        "SELECT e.verein, COUNT(*) c FROM $eTblW e
+          WHERE e.athlet_id=? AND e.geloescht_am IS NULL AND e.verein IS NOT NULL AND e.verein<>''
+          GROUP BY e.verein ORDER BY c DESC, e.verein LIMIT 100", [$athId]), 'verein');
+    // Eigener Verein immer als Auswahl anbieten
+    $clubW = (string)Settings::get('verein_name', '');
+    if ($clubW !== '' && !in_array($clubW, $vereine, true)) array_unshift($vereine, $clubW);
+    jsonOk(['schuhe' => $schuhe, 'vereine' => $vereine]);
+}
+
 // Eigene Ergebnisse per CSV-Bulk: Phase 1 „pruefen", Phase 2 „speichern"
 if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes-bulk') {
     $user = Auth::requireLogin();
@@ -6407,6 +6512,16 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes-bulk') {
                 $zeile['veranstaltung_ort'] = (string)($vRow['ort'] ?? '');
             }
             if (!$zeile['dublette'] && $disziplin && $v['id']) $zeile['antrag'] = findeOffenenErgebnisAntrag((int)$athId, (int)$v['id'], $disziplin);
+
+            // Vorschläge aus früheren Austragungen desselben Wettkampfs
+            $evnameChk = sanitize($it['veranstaltung_name'] ?? '') ?: '';
+            $brauchtOrt   = !$zeile['veranstaltung_id'] && !trim((string)($it['ort'] ?? ''));
+            $brauchtDisz  = !$dmIdChk;
+            if ($evnameChk && ($brauchtOrt || $brauchtDisz)) {
+                $vs = importVorschlaege($evnameChk, $datumChk, (int)$athId);
+                if ($brauchtOrt  && $vs['ort'])       $zeile['ort_vorschlag']       = $vs['ort'];
+                if ($brauchtDisz && $vs['disziplin']) $zeile['disziplin_vorschlag'] = $vs['disziplin'];
+            }
             $out[] = $zeile;
         }
         jsonOk(['rows' => $out]);
