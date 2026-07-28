@@ -1,3 +1,9 @@
+## v1412
+- Unbekannte Import-Disziplinen lassen sich jetzt auch **korrigieren**, nicht nur neu anlegen: Ein Klick auf den Chip öffnet „Disziplin zuordnen" mit Suchfeld und Liste aller Disziplinen (inkl. Kategorie). Nach dem Zuordnen werden alle betroffenen Vorschauzeilen gesetzt.
+- Automatischer Vorschlag im Dialog: Zusätze wie „ca.", „circa", „etwa", „~" oder ein angehängter Klammerzusatz werden ignoriert, sodass z.B. „ca. 400m" direkt „400m" vorschlägt. Treffer in der aktiven Importkategorie (inkl. Kategoriegruppen) haben Vorrang.
+- „Neu anlegen…" bleibt als zweite Option im Dialog (nur Admins) und legt die Disziplin mit bereinigtem Namen an; die Zeilen werden trotzdem über den Rohnamen aus dem Import zugeordnet.
+- Der Hinweis ist jetzt auch für Nicht-Admins anklickbar, da das Zuordnen zu bestehenden Disziplinen keine Adminrechte braucht.
+
 ## v1411
 - Import-Disziplinsuche berücksichtigt jetzt die Kategoriegruppen: Disziplinen aus Partner-Kategorien (z.B. „Weitsprung" aus Sprung & Wurf beim Sportfest in der Kategorie Bahn) werden korrekt zugeordnet statt nur über den Namensvergleich in die Zeile zu rutschen. Gesucht wird zuerst in der gewählten Kategorie, dann in den Gruppenpartnern – Kategorien außerhalb der Gruppe bleiben ausgeschlossen.
 - Der Hinweis auf unbekannte Disziplinen wird jetzt aus den tatsächlich leer gebliebenen Vorschauzeilen gebildet. Dadurch erscheint er nicht mehr für Disziplinen, die über eine Kategoriegruppe sauber gesetzt wurden.

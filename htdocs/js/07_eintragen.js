@@ -4217,28 +4217,123 @@ function bkRenderUnknownDisz(namen, kat) {
   namen = (namen || []).filter(function(n) { return !!n; });
   if (!namen.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
 
-  var istAdmin = currentUser && currentUser.rolle === 'admin';
   var chips = namen.map(function(n) {
-    var lbl = '<strong>' + _esc(n) + '</strong>';
-    if (!istAdmin) return '<span style="padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12px">' + lbl + '</span>';
-    return '<button class="btn btn-ghost btn-sm" style="border-radius:20px" ' +
-           'onclick="bkNeueDiszAusImport(' + JSON.stringify(n).replace(/"/g, '&quot;') + ',' + JSON.stringify(kat || '').replace(/"/g, '&quot;') + ')">' +
-           '&#x2795; ' + lbl + '</button>';
+    return '<button class="btn btn-ghost btn-sm" style="border-radius:20px" title="Zuordnen oder anlegen" ' +
+           'onclick="bkUnknownDiszModal(' + JSON.stringify(n).replace(/"/g, '&quot;') + ',' + JSON.stringify(kat || '').replace(/"/g, '&quot;') + ')">' +
+           '&#x270E; <strong>' + _esc(n) + '</strong></button>';
   }).join(' ');
 
   box.innerHTML =
     '<div style="padding:10px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:8px">' +
       '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">' +
         '&#x26A0;&#xFE0F; ' + namen.length + ' Disziplin' + (namen.length === 1 ? '' : 'en') + ' konnte' + (namen.length === 1 ? '' : 'n') +
-        ' nicht zugeordnet werden. Die betroffenen Zeilen haben kein Disziplinfeld.' +
-        (istAdmin ? ' Zum Anlegen anklicken:' : ' Ein Admin kann sie in den Einstellungen anlegen.') +
+        ' nicht zugeordnet werden. Die betroffenen Zeilen haben kein Disziplinfeld. ' +
+        'Zum Zuordnen oder Anlegen anklicken:' +
       '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + chips + '</div>' +
     '</div>';
   box.style.display = '';
 }
 
-async function bkNeueDiszAusImport(name, kat) {
+// Name aus dem Import säubern: "ca. 400m" → "400m", "400 m (Bahn)" → "400 m"
+function bkDiszCleanName(name) {
+  return String(name || '')
+    .replace(/^\s*(ca\.?|circa|etwa|ungef[äa]hr|approx\.?|~)\s*/i, '')
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .trim();
+}
+
+// Bester Vorschlag für einen unbekannten Rohnamen
+function bkDiszVorschlag(name, kat) {
+  var norm = function(s) { return String(s || '').toLowerCase().replace(/[\s.]/g, ''); };
+  var ziel = norm(bkDiszCleanName(name));
+  if (!ziel) return null;
+  var alle = state.disziplinen || [];
+  var erlaubt = bkKatMitGruppen(kat);
+  // Treffer in der aktiven Kategorie (inkl. Gruppenpartner) bevorzugen
+  var sortiert = alle.slice().sort(function(a, b) {
+    var ain = erlaubt && erlaubt.indexOf(a.tbl_key) >= 0 ? 0 : 1;
+    var bin = erlaubt && erlaubt.indexOf(b.tbl_key) >= 0 ? 0 : 1;
+    return ain - bin;
+  });
+  return sortiert.find(function(d) { return norm(d.disziplin) === ziel; }) ||
+         sortiert.find(function(d) { var n = norm(d.disziplin); return n && (n.indexOf(ziel) === 0 || ziel.indexOf(n) === 0); }) ||
+         null;
+}
+
+function bkUnknownDiszModal(name, kat) {
+  var istAdmin = currentUser && currentUser.rolle === 'admin';
+  var alle = (state.disziplinen || []);
+  var vorschlag = bkDiszVorschlag(name, kat);
+  var vorschlagMid = vorschlag ? (vorschlag.id || vorschlag.mapping_id) : 0;
+
+  var opts = '';
+  alle.forEach(function(d) {
+    var mid = d.id || d.mapping_id;
+    opts += '<option value="' + mid + '"' + (String(mid) === String(vorschlagMid) ? ' selected' : '') + '>' +
+            _esc(d.disziplin) + ' (' + _esc(d.kategorie || d.tbl_key || '') + ')</option>';
+  });
+
+  showModal(
+    modalH2('&#x270E; Disziplin zuordnen') +
+    '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">' +
+      'Aus dem Import kam <strong>' + _esc(name) + '</strong>. ' +
+      'Wähle die passende Disziplin &ndash; alle betroffenen Zeilen werden gesetzt.' +
+    '</div>' +
+    (vorschlag
+      ? '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Vorschlag: <strong>' + _esc(vorschlag.disziplin) + '</strong> (' + _esc(vorschlag.kategorie || '') + ')</div>'
+      : '') +
+    '<div class="form-group full" style="margin-bottom:12px">' +
+      '<input type="text" id="bk-ud-filter" placeholder="&#x1F50D; Disziplin suchen&hellip;" oninput="bkUnknownDiszFilter(this.value)" ' +
+        'style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text);margin-bottom:6px"/>' +
+      '<select id="bk-ud-sel" size="10" style="width:100%;padding:4px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text)">' +
+        opts +
+      '</select>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      (istAdmin
+        ? '<button class="btn btn-ghost" onclick="bkUnknownDiszNeu(' + JSON.stringify(name).replace(/"/g, '&quot;') + ',' + JSON.stringify(kat || '').replace(/"/g, '&quot;') + ')">&#x2795; Neu anlegen&hellip;</button>'
+        : '') +
+      '<button class="btn btn-primary" onclick="bkUnknownDiszZuordnen(' + JSON.stringify(name).replace(/"/g, '&quot;') + ')">&#x2714; Zuordnen</button>' +
+    '</div>'
+  );
+
+  setTimeout(function() {
+    var sel = document.getElementById('bk-ud-sel');
+    if (sel && sel.selectedIndex >= 0 && sel.options[sel.selectedIndex]) {
+      sel.options[sel.selectedIndex].scrollIntoView({ block: 'center' });
+    }
+    var f = document.getElementById('bk-ud-filter');
+    if (f) f.focus();
+  }, 100);
+}
+
+function bkUnknownDiszFilter(q) {
+  var sel = document.getElementById('bk-ud-sel');
+  if (!sel) return;
+  var ql = (q || '').toLowerCase().trim();
+  for (var i = 0; i < sel.options.length; i++) {
+    var o = sel.options[i];
+    o.hidden = !!ql && o.text.toLowerCase().indexOf(ql) < 0;
+  }
+}
+
+function bkUnknownDiszZuordnen(name) {
+  var sel = document.getElementById('bk-ud-sel');
+  var mid = sel ? sel.value : '';
+  if (!mid) { notify('Bitte eine Disziplin wählen.', 'err'); return; }
+  closeModal();
+  bkDiszNachtragen(name, mid);
+}
+
+function bkUnknownDiszNeu(name, kat) {
+  closeModal();
+  bkNeueDiszAusImport(name, kat, bkDiszCleanName(name) || name);
+}
+
+// rawName = Name aus dem Import (Zuordnung der Zeilen), preName = Vorbelegung im Formular
+async function bkNeueDiszAusImport(rawName, kat, preName) {
   // Kategorie-ID zur aktiven Importkategorie ermitteln (tbl_key → id)
   var katId = 0;
   try {
@@ -4248,7 +4343,7 @@ async function bkNeueDiszAusImport(name, kat) {
       if (k) katId = k.id;
     }
   } catch(e) {}
-  showNeueDiszModal(katId, name, function(neuMid) { bkDiszNachtragen(name, neuMid); });
+  showNeueDiszModal(katId, preName || rawName, function(neuMid) { bkDiszNachtragen(rawName, neuMid); });
 }
 
 // Nach dem Anlegen einer Disziplin: alle passenden Importzeilen nachträglich füllen
