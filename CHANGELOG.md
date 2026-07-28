@@ -1,3 +1,8 @@
+## v1410
+- Import: Disziplinen werden wieder ausschließlich innerhalb der gewählten Importkategorie zugeordnet (Rücknahme aus v1409) – ein 400-m-Bambinilauf auf der Straße darf nicht auf die Bahn-Disziplin „400m" gebucht werden.
+- Neu: Nach dem Import erscheint unter dem Einlesen-Feld ein Hinweis mit allen nicht zugeordneten Disziplinen (z.B. „400m", „5km Walking"). Admins können sie per Klick direkt anlegen – das bekannte „Neue Disziplin"-Formular öffnet sich mit vorausgefülltem Namen und der aktiven Kategorie. Nach dem Speichern werden alle betroffenen Importzeilen automatisch auf die neue Disziplin gesetzt, ohne den Import zu wiederholen.
+- Nicht-Admins sehen die unbekannten Disziplinen als Hinweis, aber ohne Anlege-Button.
+
 ## v1409
 - Volkslauf-PDF-Import: Disziplinen, die nicht in der aktiven Importkategorie liegen, blieben leer (z.B. „400m" beim Bambinilauf, während die Kategorie auf Straße stand). Es wird jetzt zuerst in der aktiven Kategorie und danach kategorieübergreifend gesucht – die Zeile wechselt die Kategorie automatisch mit.
 

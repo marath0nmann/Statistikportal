@@ -1297,6 +1297,7 @@ function renderEintragen() {
             '</div>' +
             '<div id="bk-import-status" style="font-size:12px;color:var(--text2)"></div>' +
           '</div>' +
+          '<div id="bk-unknown-disz" style="display:none;margin-top:8px"></div>' +
           '<details id="bk-import-debug-wrap" style="display:none;margin-top:8px">' +
             '<summary style="cursor:pointer;font-size:12px;color:var(--text2);padding:4px 0">&#x1F50D; Import-Debug</summary>' +
             '<div style="position:relative">' +
@@ -3863,6 +3864,8 @@ async function bulkFillFromImport(rows, statusEl) {
     var diszSel = tr.querySelector('.bk-disz');
     if (diszSel && (row.disziplin || row.diszMid)) {
       var _matched = false;
+      // Rohnamen aus dem Import merken → nachträglich angelegte Disziplinen zuordenbar
+      if (row.disziplin) diszSel.setAttribute('data-import-disz', row.disziplin);
       // 1. Prio: diszMid (mapping_id) → exakter Kategorie-Treffer
       if (row.diszMid) {
         diszSel.setAttribute('data-mid', String(row.diszMid));
@@ -4191,6 +4194,85 @@ async function _seltecProcessArrayBuffer(arrayBuffer, sourceLabel, pdfjs, status
     });
 
     await bulkFillFromImport(bulkRows, statusEl);
+
+    // Nicht zugeordnete Disziplinen sammeln und zum Anlegen anbieten
+    var unbekannt = [];
+    bulkRows.forEach(function(r) {
+      if (r.diszMid || !r.disziplin) return;
+      if (unbekannt.indexOf(r.disziplin) < 0) unbekannt.push(r.disziplin);
+    });
+    bkRenderUnknownDisz(unbekannt, kat);
+}
+
+// ── Unbekannte Disziplinen aus einem Import ─────────────────────────────────
+
+function bkRenderUnknownDisz(namen, kat) {
+  var box = document.getElementById('bk-unknown-disz');
+  if (!box) return;
+  namen = (namen || []).filter(function(n) { return !!n; });
+  if (!namen.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+
+  var istAdmin = currentUser && currentUser.rolle === 'admin';
+  var chips = namen.map(function(n) {
+    var lbl = '<strong>' + _esc(n) + '</strong>';
+    if (!istAdmin) return '<span style="padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12px">' + lbl + '</span>';
+    return '<button class="btn btn-ghost btn-sm" style="border-radius:20px" ' +
+           'onclick="bkNeueDiszAusImport(' + JSON.stringify(n).replace(/"/g, '&quot;') + ',' + JSON.stringify(kat || '').replace(/"/g, '&quot;') + ')">' +
+           '&#x2795; ' + lbl + '</button>';
+  }).join(' ');
+
+  box.innerHTML =
+    '<div style="padding:10px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:8px">' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:8px">' +
+        '&#x26A0;&#xFE0F; ' + namen.length + ' Disziplin' + (namen.length === 1 ? '' : 'en') + ' konnte' + (namen.length === 1 ? '' : 'n') +
+        ' nicht zugeordnet werden. Die betroffenen Zeilen haben kein Disziplinfeld.' +
+        (istAdmin ? ' Zum Anlegen anklicken:' : ' Ein Admin kann sie in den Einstellungen anlegen.') +
+      '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + chips + '</div>' +
+    '</div>';
+  box.style.display = '';
+}
+
+async function bkNeueDiszAusImport(name, kat) {
+  // Kategorie-ID zur aktiven Importkategorie ermitteln (tbl_key → id)
+  var katId = 0;
+  try {
+    var r = await apiGet('kategorien');
+    if (r && r.ok) {
+      var k = (r.data || []).find(function(x) { return x.tbl_key === kat; });
+      if (k) katId = k.id;
+    }
+  } catch(e) {}
+  showNeueDiszModal(katId, name, function(neuMid) { bkDiszNachtragen(name, neuMid); });
+}
+
+// Nach dem Anlegen einer Disziplin: alle passenden Importzeilen nachträglich füllen
+function bkDiszNachtragen(importName, mid) {
+  if (!mid) return;
+  var dObj = (state.disziplinen || []).find(function(d) { return (d.id || d.mapping_id) == mid; });
+  var trs = document.querySelectorAll('#bulk-rows tr');
+  var n = 0;
+  Array.prototype.forEach.call(trs, function(tr) {
+    var sel = tr.querySelector('.bk-disz');
+    if (!sel || sel.value) return;
+    if (sel.getAttribute('data-import-disz') !== importName) return;
+    if (dObj && dObj.tbl_key) sel.innerHTML = bkDiszOpts(dObj.tbl_key);
+    sel.value = String(mid);
+    bkSyncDiszDisplay(tr);
+    n++;
+  });
+
+  // Chip aus dem Hinweis entfernen
+  var box = document.getElementById('bk-unknown-disz');
+  if (box && box.style.display !== 'none') {
+    var rest = [];
+    Array.prototype.forEach.call(document.querySelectorAll('#bulk-rows .bk-disz'), function(s) {
+      var imp = s.getAttribute('data-import-disz');
+      if (!s.value && imp && rest.indexOf(imp) < 0) rest.push(imp);
+    });
+    bkRenderUnknownDisz(rest, (document.getElementById('bk-kat') || {}).value || '');
+  }
+  if (n) notify(n + ' Zeile' + (n === 1 ? '' : 'n') + ' auf „' + (dObj ? dObj.disziplin : importName) + '“ gesetzt.', 'ok');
 }
 
 function _parseSeltecLines(lines) {
@@ -4534,24 +4616,20 @@ function _volksDiszCands(raceTitle) {
 }
 
 function _volksFindDisz(cands, kat, exactOnly) {
-  // Ein Volkslauf-PDF mischt Kategorien (z.B. Straße 5km + Bahn 400m beim Bambinilauf).
-  // Deshalb erst in der aktiven Importkategorie suchen, danach kategorieübergreifend –
-  // die Zeile wechselt die Kategorie dann automatisch (siehe bulkFillFromImport).
-  var kats = kat ? [kat, ''] : [''];
-  for (var k = 0; k < kats.length; k++) {
-    for (var i = 0; i < cands.length; i++) {
-      if (exactOnly) {
-        // Walking/Nordic: nur exakter Treffer – sonst würde "5km Walking" auf "5km" (Lauf) fallen
-        var cl = cands[i].toLowerCase().trim();
-        var _k = kats[k];
-        var hit = (state.disziplinen || []).find(function(d) {
-          return (!_k || d.tbl_key === _k) && (d.disziplin || '').toLowerCase() === cl;
-        });
-        if (hit) return { disz: hit.disziplin, diszMid: hit.id || hit.mapping_id };
-      } else {
-        var r = _seltecFindDisz(cands[i], kats[k]);
-        if (r.diszMid) return r;
-      }
+  // Bewusst nur innerhalb der Importkategorie suchen: ein 400-m-Bambinilauf auf der
+  // Straße darf nicht auf die Bahn-Disziplin "400m" gemappt werden. Bleibt eine
+  // Disziplin unbekannt, wird sie nach dem Import zum Anlegen angeboten.
+  for (var i = 0; i < cands.length; i++) {
+    if (exactOnly) {
+      // Walking/Nordic: nur exakter Treffer – sonst würde "5km Walking" auf "5km" (Lauf) fallen
+      var cl = cands[i].toLowerCase().trim();
+      var hit = (state.disziplinen || []).find(function(d) {
+        return (!kat || d.tbl_key === kat) && (d.disziplin || '').toLowerCase() === cl;
+      });
+      if (hit) return { disz: hit.disziplin, diszMid: hit.id || hit.mapping_id };
+    } else {
+      var r = _seltecFindDisz(cands[i], kat);
+      if (r.diszMid) return r;
     }
   }
   return { disz: cands[0] || '', diszMid: null };
@@ -4661,6 +4739,9 @@ function bulkReset() {
   if (actionDiv) actionDiv.style.display = 'none';
   var statusEl = document.getElementById('bk-import-status');
   if (statusEl) statusEl.textContent = '';
+  // Hinweis auf unbekannte Disziplinen weg
+  var unkEl = document.getElementById('bk-unknown-disz');
+  if (unkEl) { unkEl.style.display = 'none'; unkEl.innerHTML = ''; }
   // Tabellen-Zeilen leeren
   var tbody = document.getElementById('bulk-rows');
   if (tbody) tbody.innerHTML = '';

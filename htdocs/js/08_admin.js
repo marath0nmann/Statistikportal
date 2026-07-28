@@ -2959,7 +2959,10 @@ async function updateDisz(btn) {
 // ── HELPERS ────────────────────────────────────────────────
 
 
-async function showNeueDiszModal(preSelKatId) {
+async function showNeueDiszModal(preSelKatId, preName, onSaved) {
+  // onSaved: optionaler Callback (mapping_id) – wird z.B. vom Bulk-Import genutzt,
+  // um nachträglich angelegte Disziplinen direkt in die Importzeilen zu setzen
+  window._ndOnSaved = (typeof onSaved === 'function') ? onSaved : null;
   // Kategorien frisch per API laden → liefert id, name, tbl_key
   var rKat = await apiGet('kategorien');
   var kats = (rKat && rKat.ok && rKat.data) ? rKat.data : [];
@@ -2989,7 +2992,7 @@ async function showNeueDiszModal(preSelKatId) {
     modalH2('&#x2795; Neue Disziplin') +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Disziplinname *</label>' +
-        '<input type="text" id="nd-name" placeholder="z.B. Crosslauf, 3000m Hindernis \u2026" autofocus/>' +
+        '<input type="text" id="nd-name" value="' + String(preName || '').replace(/"/g, '&quot;') + '" placeholder="z.B. Crosslauf, 3000m Hindernis \u2026" autofocus/>' +
       '</div>' +
       '<div class="form-group full"><label>Kategorie *</label>' + katSel + '</div>' +
       '<div class="form-group"><label>Ergebnisformat</label>' + fmtSel + '</div>' +
@@ -3063,6 +3066,19 @@ async function saveNeueDisziplin(andNext) {
     notify('Disziplin \u201e' + name + '\u201c angelegt.', 'ok');
     state.disziplinen = null;
     await loadDisziplinen();
+    // Aufruf außerhalb des Admin-Bereichs (z.B. Bulk-Import): nur Callback, kein Re-Render
+    var _cb = window._ndOnSaved;
+    if (_cb) {
+      window._ndOnSaved = null;
+      closeModal();
+      var _mid = (r.data && r.data.id) || null;
+      if (!_mid) {
+        var _neu = (state.disziplinen || []).find(function(d) { return (d.disziplin || '') === name; });
+        _mid = _neu ? (_neu.id || _neu.mapping_id) : null;
+      }
+      _cb(_mid);
+      return;
+    }
     var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
     await renderAdminDisziplinen();
     window.scrollTo(0, scrollY);
