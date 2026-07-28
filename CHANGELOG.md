@@ -1,3 +1,9 @@
+## v1416
+- **Fix: Ergebnisse eigener Disziplin-Kategorien ließen sich nicht löschen oder bearbeiten.** Die API bediente nur die sieben eingebauten Kategorie-Keys (`strasse`, `sprint`, …); Ergebnisse aus selbst angelegten Kategorien (z.B. „Firmenlauf") liefen beim Speichern/Löschen in einen 404. Jetzt werden alle in der Datenbank hinterlegten `tbl_key` bedient, zusätzlich gibt es den kategorieunabhängigen Endpunkt `DELETE ergebnisse/{id}`, den „Meine Ergebnisse" nun verwendet.
+- **Fix: Mehrfachimport desselben Laufs mit unterschiedlicher Disziplin.** Der Dubletten-Abgleich lief bisher nur innerhalb derselben Disziplin – wurde dieselbe CSV-Zeile mit einer anderen Disziplin erneut importiert, entstand ein weiteres Ergebnis. Beim Speichern wird jetzt zusätzlich über Athlet + Datum + Ergebnis geprüft (disziplinübergreifend); nur ein ausdrückliches „Trotzdem anlegen" legt noch ein zweites Ergebnis an.
+- CSV-Vorschau zeigt jetzt an, welcher **bestehenden** Veranstaltung eine Zeile zugeordnet wird, wenn deren Name vom CSV-Namen abweicht (`↳ Firmenlauf "Rund und Fun"`). Über „trennen" lässt sich die automatische Zuordnung aufheben und eine eigene Veranstaltung anlegen.
+- Admin → Duplikate findet zusätzlich Ergebnisse derselben Veranstaltung mit identischem Ergebnis, aber unterschiedlicher Disziplin – damit lassen sich versehentlich mehrfach importierte Läufe aufräumen.
+
 ## v1415
 - CSV-Import: Fehlt der Ort, schlägt das Portal ihn aus früheren Austragungen desselben Wettkampfs vor (Namensähnlichkeit, jüngste Austragung mit hinterlegtem Ort gewinnt). Der Vorschlag ist vorausgewählt und mit Quelle gekennzeichnet („💡 Run&Fun Krefeld 2023").
 - Fehlt die Disziplin, wird die vorgeschlagen, die der Athlet bei früheren Austragungen dieses Wettkampfs am häufigsten gelaufen ist – inklusive Kategorie und Häufigkeit („💡 Straße · 3× dort gelaufen").

@@ -599,9 +599,8 @@ async function _bulkDeleteMeine() {
   var ok = 0, fail = 0, pending = 0;
   for (var i = 0; i < cbs.length; i++) {
     var eid = parseInt(cbs[i].value);
-    var row = window._meineTblRowMap && window._meineTblRowMap[eid];
-    var tbl = (row && row.tbl_key) || 'strasse';
-    var r = await api('DELETE', tbl + '/' + eid);
+    // Kategorieunabhängiger Endpunkt – funktioniert auch für selbst angelegte Kategorien
+    var r = await api('DELETE', 'ergebnisse/' + eid);
     if (r && r.ok) {
       if (r.data && r.data.pending) pending++; else ok++;
     } else fail++;

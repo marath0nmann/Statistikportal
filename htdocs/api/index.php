@@ -2380,6 +2380,14 @@ if ($res === 'dashboard' && $method === 'GET') {
 // ERGEBNISSE
 // ============================================================
 $ergebnisTabellen = ['strasse','sprint','mittelstrecke','sprungwurf','bahn','cross','halle'];
+// Selbst angelegte Kategorien (eigener tbl_key) ebenfalls bedienen – sonst laufen
+// Bearbeiten/Löschen von Ergebnissen solcher Kategorien in einen 404.
+if ($unified && !in_array($res, $ergebnisTabellen) && $res !== '' && preg_match('/^[a-z0-9_]+$/i', $res)) {
+    try {
+        $katKeys = array_column(DB::fetchAll('SELECT tbl_key FROM ' . DB::tbl('disziplin_kategorien')), 'tbl_key');
+        if (in_array($res, $katKeys, true)) $ergebnisTabellen[] = $res;
+    } catch (\Exception $e) {}
+}
 if (in_array($res, $ergebnisTabellen)) {
     Auth::requireLogin();
     $tbl = ergebnisTbl($res, $unified, $_sys);
@@ -6292,15 +6300,17 @@ function veranstaltungFuerEigenes(array $item, bool $anlegen, bool $veranstPruef
         $oRow = DB::fetchOne('SELECT id,name FROM ' . DB::tbl('orte') . ' WHERE id=?', [$ortId]);
         if ($oRow) $ort = (string)$oRow['name']; else $ortId = null;
     }
+    // Der Benutzer hat die automatische Zuordnung gelöst → direkt neu anlegen
+    $nurNeu = !empty($item['neue_veranstaltung']);
     // 1. Exakter Treffer über Kürzel (Datum + Ort)
-    if ($ort) {
+    if ($ort && !$nurNeu) {
         $kuerzel = date('d.m.Y', strtotime($datum)) . ' ' . $ort;
         $v = DB::fetchOne('SELECT id,name,ort,datum FROM ' . DB::tbl('veranstaltungen') . ' WHERE kuerzel=? AND geloescht_am IS NULL', [$kuerzel]);
         if ($v) return ['id'=>(int)$v['id'],'treffer'=>'kuerzel','ort'=>(string)$v['ort'],'name'=>(string)$v['name'],'datum'=>(string)$v['datum'],'fehler'=>null];
     }
     // 2. Treffer über Datum + ähnlichen Veranstaltungsnamen bzw. Ort
     //    (z.B. CSV „Bottroper Herbstwaldlauf" ↔ DB „Herbstwaldlauf" in Bottrop)
-    if ($evname || $ort) {
+    if (($evname || $ort) && !$nurNeu) {
         $kandidaten = DB::fetchAll('SELECT id,name,kuerzel,ort,datum FROM ' . DB::tbl('veranstaltungen') .
             ' WHERE datum=? AND geloescht_am IS NULL ORDER BY id LIMIT 100', [$datum]);
         foreach ($kandidaten as $k) {
@@ -6341,12 +6351,14 @@ function eigenesErgebnisVerarbeiten(array $item, int $athId, int $userId, string
 
     // Duplikat am selben Datum finden, BEVOR eine Veranstaltung angelegt wird –
     // sonst entstünde bei abweichender Wettkampfbezeichnung eine zweite Veranstaltung.
-    $dupDatum = null;
-    if (!intOrNull($item['veranstaltung_id'] ?? null)) {
-        $dupDatum = findeErgebnisDubletteNachDatum($athId, sanitize($item['datum'] ?? '') ?: '', $disziplin, $dmId);
-        if ($dupDatum && $dupDatum['veranstaltung_id'] && $aktion !== 'insert') {
-            $item['veranstaltung_id'] = (int)$dupDatum['veranstaltung_id'];
-        }
+    // Zusätzlich über das Ergebnis selbst prüfen: derselbe Lauf, nur einer anderen
+    // Disziplin zugeordnet, darf kein zweites Ergebnis erzeugen.
+    $datumItem = sanitize($item['datum'] ?? '') ?: '';
+    $dupDatum = findeErgebnisDubletteNachDatum($athId, $datumItem, $disziplin, $dmId);
+    if (!$dupDatum) $dupDatum = findeErgebnisDubletteNachErgebnis($athId, $datumItem, $resultat);
+    if ($dupDatum && $dupDatum['veranstaltung_id'] && $aktion !== 'insert'
+        && !intOrNull($item['veranstaltung_id'] ?? null)) {
+        $item['veranstaltung_id'] = (int)$dupDatum['veranstaltung_id'];
     }
 
     $v = veranstaltungFuerEigenes($item, true, $veranstPruefen);
@@ -6440,6 +6452,26 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'eigenes') {
         'felder'      => $r['felder'] ?? [],
         'msg'         => $r['msg'] ?? '',
     ]);
+}
+
+// Ergebnis löschen – kategorieunabhängig (ergebnisse/{id})
+if ($res === 'ergebnisse' && $method === 'DELETE' && $id && ctype_digit((string)$id)) {
+    $user = Auth::requireAthlet();
+    $eTblD = DB::tbl('ergebnisse');
+    $rowD = DB::fetchOne("SELECT erstellt_von, athlet_id FROM $eTblD WHERE id=? AND geloescht_am IS NULL", [(int)$id]);
+    if (!$rowD) jsonErr('Nicht gefunden.', 404);
+    $eigenerAth = eigenerAthletId((int)$user['id']);
+    $darf = Auth::canEditAll()
+        || $rowD['erstellt_von'] == $user['id']
+        || ($eigenerAth && (int)$rowD['athlet_id'] === (int)$eigenerAth);
+    if (!$darf) jsonErr('Keine Berechtigung.', 403);
+    if (Auth::isAthlet()) {
+        DB::query('INSERT INTO ' . DB::tbl('ergebnis_aenderungen') . ' (ergebnis_id,ergebnis_tbl,typ,neue_werte,beantragt_von) VALUES (?,?,?,?,?)',
+            [(int)$id, $eTblD, 'delete', null, $user['id']]);
+        jsonOk(['pending' => true, 'msg' => 'Löschantrag gestellt.']);
+    }
+    DB::query("UPDATE $eTblD SET geloescht_am=NOW() WHERE id=?", [(int)$id]);
+    jsonOk('In Papierkorb verschoben.');
 }
 
 // Bereits verwendete eigene Werte (Schuhe, Vereine) für Auswahllisten
@@ -6759,7 +6791,10 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
                     b2.benutzername, e2.import_quelle, '–') AS eingetragen_von2
          FROM $eTbl e1
          JOIN $eTbl e2 ON e2.athlet_id=e1.athlet_id
-             AND e2.disziplin=e1.disziplin
+             AND (e2.disziplin=e1.disziplin
+                  -- gleiche Veranstaltung + identisches Ergebnis, aber andere Disziplin
+                  -- (entsteht z.B., wenn derselbe Lauf mehrfach zugeordnet importiert wurde)
+                  OR (e2.veranstaltung_id=e1.veranstaltung_id AND e2.resultat=e1.resultat))
              AND e2.id > e1.id
              AND e2.geloescht_am IS NULL
          JOIN " . DB::tbl('athleten') . " a ON a.id=e1.athlet_id

@@ -695,11 +695,15 @@ async function eeCsvPruefen() {
     var row = _eeCsvRows[chk.idx];
     if (!row) return;
     row._check = chk;
-    if (chk.veranstaltung_id) {
+    if (chk.veranstaltung_id && !row._veranstGetrennt) {
       row.veranstaltung_id = chk.veranstaltung_id;
+      row._veranstTreffer  = chk.veranstaltung_name || '';
+      row._veranstTrefferArt = chk.treffer || '';
       if (!row.ort && chk.veranstaltung_ort) row.ort = chk.veranstaltung_ort;
     } else {
       row.veranstaltung_id = null;
+      row._veranstTreffer  = '';
+      row._veranstTrefferArt = '';
     }
     // Ortsvorschlag aus früheren Austragungen desselben Wettkampfs
     if (!row.ort_id && chk.ort_vorschlag) {
@@ -748,6 +752,8 @@ function _eeCsvItem(row) {
   };
   if (row.ort_id) it.ort_id = row.ort_id;
   if (row.veranstaltung_id) it.veranstaltung_id = row.veranstaltung_id;
+  // Zuordnung wurde bewusst gelöst → eigene Veranstaltung anlegen
+  if (row._veranstGetrennt && !row.veranstaltung_id) it.neue_veranstaltung = 1;
   return it;
 }
 
@@ -927,7 +933,14 @@ function _eeCsvRenderPreview() {
 
     return '<tr style="border-bottom:1px solid var(--border)' + (problem ? ';background:color-mix(in srgb,var(--accent) 6%,transparent)' : '') + '">' +
       '<td style="padding:4px 6px;font-size:12px;white-space:nowrap">' + _owEsc(row.datum ? formatDate(row.datum) : (row._zeile + ': ?')) + '</td>' +
-      '<td style="padding:4px 6px;font-size:12px">' + _owEsc(row.veranstaltung_name || '–') + '</td>' +
+      '<td style="padding:4px 6px;font-size:12px">' + _owEsc(row.veranstaltung_name || '–') +
+        (row._veranstTreffer && _eeWertNorm(row._veranstTreffer) !== _eeWertNorm(row.veranstaltung_name || '')
+          ? '<div style="font-size:10px;color:var(--accent)" title="Diese Zeile wird der bereits vorhandenen Veranstaltung zugeordnet">' +
+              '&#x21B3; ' + _owEsc(row._veranstTreffer) +
+              ' <a href="#" onclick="eeCsvVeranstLoesen(' + i + ');return false;" style="color:var(--text2);text-decoration:underline">trennen</a>' +
+            '</div>'
+          : '') +
+      '</td>' +
       '<td style="padding:4px 6px;min-width:140px">' +
         (row.veranstaltung_id
           ? '<span style="font-size:12px;color:var(--text2)">' + _owEsc(row.ort || '–') + '</span>'
@@ -1017,6 +1030,17 @@ function _eeCsvRenderPreview() {
     ].filter(Boolean);
     statusEl.innerHTML = _eeCsvRows.length + ' Zeilen – ' + teile.join(', ');
   }
+}
+
+// Zuordnung zu einer bestehenden Veranstaltung lösen (eigene Veranstaltung anlegen)
+function eeCsvVeranstLoesen(i) {
+  var row = _eeCsvRows[i];
+  if (!row) return;
+  row.veranstaltung_id = null;
+  row._veranstTreffer = '';
+  row._veranstTrefferArt = '';
+  row._veranstGetrennt = true;   // Prüfung soll nicht erneut automatisch zuordnen
+  _eeCsvRenderPreview();
 }
 
 // Sammelaktion für eine ganze Gruppe
