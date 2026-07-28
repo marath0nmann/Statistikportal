@@ -2097,11 +2097,23 @@ function bulkRowHtml(idx) {
 }
 
 var _bulkRowCount = 0;
+// Jahrgang + Geschlecht einer Zeile: bevorzugt aus dem Athletenstammsatz,
+// ersatzweise aus dem Import (viele Athleten haben keinen Jahrgang hinterlegt)
+function _bkRowGebjG(tr) {
+  var athSel = tr ? tr.querySelector('.bk-athlet') : null;
+  var akInp  = tr ? tr.querySelector('.bk-ak')     : null;
+  return {
+    g:    (athSel && athSel.dataset.g)    || (akInp && akInp.dataset.importG)    || '',
+    gebj: (athSel && athSel.dataset.gebj) || (akInp && akInp.dataset.importJahr) || ''
+  };
+}
+
 function bkUpdateAK(athHidden, idx) {
-  var g    = athHidden ? (athHidden.dataset.g    || '') : '';
-  var gebj = athHidden ? (athHidden.dataset.gebj || '') : '';
   var akInp = document.getElementById('bk-ak-' + idx);
   if (!akInp) return;
+  var _gg  = _bkRowGebjG(akInp.closest('tr'));
+  var g    = (athHidden && athHidden.dataset.g)    || _gg.g    || '';
+  var gebj = (athHidden && athHidden.dataset.gebj) || _gg.gebj || '';
   if (g && gebj) {
     var datEl = document.getElementById('bk-datum');
     var hasDatum = datEl && datEl.value;
@@ -3843,6 +3855,9 @@ async function bulkFillFromImport(rows, statusEl) {
     if (_bnadResult === null) { if (statusEl) statusEl.textContent = ''; return; } // Abgebrochen
     _bnadNameMap = _bnadResult || {};
   }
+  // Fehlende Jahrgänge aus dem Import in die Stammdaten nachtragen
+  await bkNachtragenJahrgang(rows, _bnadNameMap);
+
   var tbody = document.getElementById('bulk-rows');
   if (!tbody) return;
 
@@ -3905,6 +3920,12 @@ async function bulkFillFromImport(rows, statusEl) {
     // AK
     var akSel = tr.querySelector('.bk-ak');
     if (akSel && row.ak) { akSel.value = row.ak; akSel.dataset.importAk = row.ak; }
+    // Jahrgang/Geschlecht aus dem Import merken → DLV-AK auch ohne Jahrgang am Athleten
+    if (akSel) {
+      if (row.year) akSel.dataset.importJahr = String(row.year);
+      var _impG = row.geschlecht || (row.ak && /^[MWF]/i.test(row.ak) ? row.ak.charAt(0) : '');
+      if (_impG) akSel.dataset.importG = (/^[WF]/i.test(_impG) ? 'W' : 'M');
+    }
     // Platz
     var platzEl = tr.querySelector('.bk-platz');
     if (platzEl && row.platz) platzEl.value = row.platz;
@@ -3936,6 +3957,11 @@ async function bulkFillFromImport(rows, statusEl) {
     if (numCell) numCell.textContent = ni + 1;
   }
 
+  // AK nach DLV-System angleichen wenn Checkbox aktiv (nutzt Jahrgang aus
+  // Athletenstammsatz oder ersatzweise aus dem Import)
+  var akAnglEl2 = document.getElementById('bk-ak-angleichen');
+  if (!akAnglEl2 || akAnglEl2.checked) bkApplyDlvAK(true);
+
   if (statusEl) statusEl.textContent = '✅ ' + rows.length + ' Zeilen eingefügt';
   // Einlesen-Button verstecken, Aktions-Buttons zeigen
   var einlesenBtn = document.getElementById('bk-einlesen-btn');
@@ -3947,6 +3973,47 @@ async function bulkFillFromImport(rows, statusEl) {
   if (pasteEl) pasteEl.value = '';
   var katWrap = document.getElementById('bk-import-kat-wrap');
   if (katWrap) katWrap.style.display = 'none';
+}
+
+
+// Athleten ohne Jahrgang: Jahrgang aus dem Import (Jg.-Spalte) in die Stammdaten
+// übernehmen. Widersprüchliche Angaben innerhalb eines Imports werden ausgelassen.
+async function bkNachtragenJahrgang(rows, nameMap) {
+  if (!currentUser || (currentUser.rolle !== 'admin' && currentUser.rolle !== 'editor')) return;
+  var athleten = state.athleten || [];
+  var maxJahr  = new Date().getFullYear();
+  var kandidaten = {};   // athlet_id → Jahrgang (null = widersprüchlich)
+
+  rows.forEach(function(row) {
+    if (!row.name || !row.year) return;
+    var jahr = parseInt(row.year, 10);
+    if (!jahr || jahr < 1900 || jahr > maxJahr) return;
+    var id = uitsAutoMatch(row.name, athleten);
+    if (!id && nameMap && nameMap[row.name]) id = nameMap[row.name];
+    if (!id) return;
+    var a = athleten.find(function(x) { return String(x.id) === String(id); });
+    if (!a || a.geburtsjahr) return;   // schon gepflegt → nichts anfassen
+    if (kandidaten[id] === undefined) kandidaten[id] = jahr;
+    else if (kandidaten[id] !== jahr) kandidaten[id] = null;
+  });
+
+  var ids = Object.keys(kandidaten).filter(function(id) { return !!kandidaten[id]; });
+  if (!ids.length) return;
+
+  var namen = [];
+  for (var i = 0; i < ids.length; i++) {
+    var r = await apiPut('athleten/' + ids[i], { geburtsjahr: kandidaten[ids[i]] });
+    if (r && r.ok) {
+      var a2 = athleten.find(function(x) { return String(x.id) === String(ids[i]); });
+      if (a2) a2.geburtsjahr = kandidaten[ids[i]];
+      if (a2) namen.push((a2.name_nv || '?') + ' (' + kandidaten[ids[i]] + ')');
+      _bkDbgLine('Jahrgang ergänzt', (a2 ? a2.name_nv : ids[i]) + ' → ' + kandidaten[ids[i]]);
+    }
+  }
+  if (namen.length) {
+    notify('Jahrgang aus dem Import ergänzt: ' + namen.slice(0, 5).join(', ') +
+           (namen.length > 5 ? ' und ' + (namen.length - 5) + ' weitere' : ''), 'ok');
+  }
 }
 
 // ── Seltec / Track&Field PDF Importer ────────────────────────────────────────
@@ -4453,7 +4520,7 @@ function _parseSeltecLines(lines) {
 
       var isCont = /[-–]\s*Fortsetzung/i.test(sTitle);
       sTitle = sTitle.replace(/\s*[-–]\s*Fortsetzung\s*/i, '').trim();
-      var disziplin = (sTitle.match(/^([^,]+)/) || [, sTitle])[1].trim();
+      var disziplin = _seltecDiszAusTitel(sTitle);
 
       if (/^\d+\s*x\s*\d+/i.test(disziplin)) { currentSection = null; inResults = false; continue; }
 
@@ -4488,7 +4555,7 @@ function _parseSeltecLines(lines) {
       var ztTitle = ztM[1].trim();
       if (/,/.test(ztTitle)) {
         // Haupt-Sektions-Titel enthält Komma (z.B. "75m, weibliche Jugend U14" oder "Weitsprung, WMU18/20,...")
-        var diszHaupt = (ztTitle.match(/^([^,]+)/) || [, ztTitle])[1].trim();
+        var diszHaupt = _seltecDiszAusTitel(ztTitle);
         if (/^\d+\s*x\s*\d+/i.test(diszHaupt)) {
           // Staffel – überspringen
           currentDisziplin = ''; currentSection = null; inResults = false;
@@ -4729,6 +4796,13 @@ function _volksFindDisz(cands, kat, exactOnly) {
     }
   }
   return { disz: cands[0] || '', diszMid: null };
+}
+
+// Disziplin aus einem Sektions-Titel: alles bis zum ersten Trennkomma.
+// Ein Dezimalkomma zwischen Ziffern trennt nicht ("2,2-km-Jugendlauf, WM Jugend").
+function _seltecDiszAusTitel(titel) {
+  var m = String(titel || '').match(/^((?:[^,]|,(?=\d))+)/);
+  return (m ? m[1] : String(titel || '')).trim();
 }
 
 function _seltecAkFromTitle(title) {
@@ -5320,19 +5394,16 @@ function bkApplyDlvAK(useCalculated) {
   if (!tbody) return;
   var eventJahr = _bkEventJahr();
   Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
-    var athSel = tr.querySelector('.bk-athlet');
-    var akInp  = tr.querySelector('.bk-ak');
+    var akInp = tr.querySelector('.bk-ak');
     if (!akInp) return;
     if (!useCalculated) {
       // Zurück auf Import-Wert
       akInp.value = akInp.dataset.importAk || '';
       return;
     }
-    if (!athSel || !athSel.value) return;
-    var g    = athSel.dataset.g    || '';
-    var gebj = athSel.dataset.gebj || '';
-    if (g && gebj) {
-      var ak = calcDlvAK(parseInt(gebj), g, eventJahr);
+    var _gg  = _bkRowGebjG(tr);
+    if (_gg.g && _gg.gebj) {
+      var ak = calcDlvAK(parseInt(_gg.gebj), _gg.g, eventJahr);
       if (ak) akInp.value = ak;
     }
   });
@@ -5351,13 +5422,11 @@ function bkSyncDatum(val) {
   if (!tbody) return;
   var eventJahr = _bkEventJahr();
   Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
-    var athSel = tr.querySelector('.bk-athlet');
-    var akInp  = tr.querySelector('.bk-ak');
-    if (!athSel || !athSel.value || !akInp) return;
-    var g    = athSel.dataset.g    || '';
-    var gebj = athSel.dataset.gebj || '';
-    if (g && gebj) {
-      var ak = calcDlvAK(parseInt(gebj), g, eventJahr);
+    var akInp = tr.querySelector('.bk-ak');
+    if (!akInp) return;
+    var _gg = _bkRowGebjG(tr);
+    if (_gg.g && _gg.gebj) {
+      var ak = calcDlvAK(parseInt(_gg.gebj), _gg.g, eventJahr);
       if (ak) akInp.value = ak;
     }
   });

@@ -1,3 +1,8 @@
+## v1413
+- Fehlende Altersklassen im Import: Die DLV-AK wurde bisher nur berechnet, wenn am Athleten ein Jahrgang hinterlegt war. Jetzt dient der Jahrgang aus dem Import (Jg.-Spalte des PDF) als Ersatz, und die AK-Angleichung läuft nach jedem Import automatisch über alle Zeilen.
+- Neu: Fehlt der Jahrgang in den Stammdaten und liefert der Wettkampf einen, wird er automatisch am Athleten nachgetragen (nur Editor/Admin, widersprüchliche Angaben innerhalb eines Imports werden ausgelassen). Die Ergänzungen stehen im Import-Debug-Log und werden als Hinweis gemeldet.
+- Seltec-Import: Disziplinnamen mit Dezimalkomma wurden am Komma abgeschnitten – aus „2,2-km-Jugendlauf, WM Jugend" wurde die Disziplin „2". Ein Komma zwischen Ziffern trennt jetzt nicht mehr.
+
 ## v1412
 - Unbekannte Import-Disziplinen lassen sich jetzt auch **korrigieren**, nicht nur neu anlegen: Ein Klick auf den Chip öffnet „Disziplin zuordnen" mit Suchfeld und Liste aller Disziplinen (inkl. Kategorie). Nach dem Zuordnen werden alle betroffenen Vorschauzeilen gesetzt.
 - Automatischer Vorschlag im Dialog: Zusätze wie „ca.", „circa", „etwa", „~" oder ein angehängter Klammerzusatz werden ignoriert, sodass z.B. „ca. 400m" direkt „400m" vorschlägt. Treffer in der aktiven Importkategorie (inkl. Kategoriegruppen) haben Vorrang.
