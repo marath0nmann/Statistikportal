@@ -1,3 +1,7 @@
+## v1411
+- Import-Disziplinsuche berücksichtigt jetzt die Kategoriegruppen: Disziplinen aus Partner-Kategorien (z.B. „Weitsprung" aus Sprung & Wurf beim Sportfest in der Kategorie Bahn) werden korrekt zugeordnet statt nur über den Namensvergleich in die Zeile zu rutschen. Gesucht wird zuerst in der gewählten Kategorie, dann in den Gruppenpartnern – Kategorien außerhalb der Gruppe bleiben ausgeschlossen.
+- Der Hinweis auf unbekannte Disziplinen wird jetzt aus den tatsächlich leer gebliebenen Vorschauzeilen gebildet. Dadurch erscheint er nicht mehr für Disziplinen, die über eine Kategoriegruppe sauber gesetzt wurden.
+
 ## v1410
 - Import: Disziplinen werden wieder ausschließlich innerhalb der gewählten Importkategorie zugeordnet (Rücknahme aus v1409) – ein 400-m-Bambinilauf auf der Straße darf nicht auf die Bahn-Disziplin „400m" gebucht werden.
 - Neu: Nach dem Import erscheint unter dem Einlesen-Feld ein Hinweis mit allen nicht zugeordneten Disziplinen (z.B. „400m", „5km Walking"). Admins können sie per Klick direkt anlegen – das bekannte „Neue Disziplin"-Formular öffnet sich mit vorausgefülltem Namen und der aktiven Kategorie. Nach dem Speichern werden alle betroffenen Importzeilen automatisch auf die neue Disziplin gesetzt, ohne den Import zu wiederholen.

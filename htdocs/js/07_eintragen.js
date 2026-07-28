@@ -4195,16 +4195,21 @@ async function _seltecProcessArrayBuffer(arrayBuffer, sourceLabel, pdfjs, status
 
     await bulkFillFromImport(bulkRows, statusEl);
 
-    // Nicht zugeordnete Disziplinen sammeln und zum Anlegen anbieten
-    var unbekannt = [];
-    bulkRows.forEach(function(r) {
-      if (r.diszMid || !r.disziplin) return;
-      if (unbekannt.indexOf(r.disziplin) < 0) unbekannt.push(r.disziplin);
-    });
-    bkRenderUnknownDisz(unbekannt, kat);
+    // Hinweis auf Disziplinen, die in der Vorschau wirklich leer geblieben sind
+    bkRenderUnknownDisz(bkCollectUnknownDisz(), kat);
 }
 
 // ── Unbekannte Disziplinen aus einem Import ─────────────────────────────────
+
+// Rohnamen der Importzeilen, deren Disziplin-Auswahl leer geblieben ist
+function bkCollectUnknownDisz() {
+  var namen = [];
+  Array.prototype.forEach.call(document.querySelectorAll('#bulk-rows .bk-disz'), function(sel) {
+    var imp = sel.getAttribute('data-import-disz');
+    if (!sel.value && imp && namen.indexOf(imp) < 0) namen.push(imp);
+  });
+  return namen;
+}
 
 function bkRenderUnknownDisz(namen, kat) {
   var box = document.getElementById('bk-unknown-disz');
@@ -4265,12 +4270,7 @@ function bkDiszNachtragen(importName, mid) {
   // Chip aus dem Hinweis entfernen
   var box = document.getElementById('bk-unknown-disz');
   if (box && box.style.display !== 'none') {
-    var rest = [];
-    Array.prototype.forEach.call(document.querySelectorAll('#bulk-rows .bk-disz'), function(s) {
-      var imp = s.getAttribute('data-import-disz');
-      if (!s.value && imp && rest.indexOf(imp) < 0) rest.push(imp);
-    });
-    bkRenderUnknownDisz(rest, (document.getElementById('bk-kat') || {}).value || '');
+    bkRenderUnknownDisz(bkCollectUnknownDisz(), (document.getElementById('bk-kat') || {}).value || '');
   }
   if (n) notify(n + ' Zeile' + (n === 1 ? '' : 'n') + ' auf „' + (dObj ? dObj.disziplin : importName) + '“ gesetzt.', 'ok');
 }
@@ -4623,8 +4623,9 @@ function _volksFindDisz(cands, kat, exactOnly) {
     if (exactOnly) {
       // Walking/Nordic: nur exakter Treffer – sonst würde "5km Walking" auf "5km" (Lauf) fallen
       var cl = cands[i].toLowerCase().trim();
+      var erlaubt = bkKatMitGruppen(kat); // null = alle Kategorien
       var hit = (state.disziplinen || []).find(function(d) {
-        return (!kat || d.tbl_key === kat) && (d.disziplin || '').toLowerCase() === cl;
+        return (!erlaubt || erlaubt.indexOf(d.tbl_key) >= 0) && (d.disziplin || '').toLowerCase() === cl;
       });
       if (hit) return { disz: hit.disziplin, diszMid: hit.id || hit.mapping_id };
     } else {
@@ -4714,16 +4715,31 @@ function _seltecIsField(disziplin) {
 function _seltecFindDisz(rawDisz, kat) {
   if (!rawDisz) return { disz: '', diszMid: null };
   var rl = rawDisz.toLowerCase().trim();
-  var dl = (state.disziplinen || []).filter(function(d) { return !kat || d.tbl_key === kat; });
-  var found = dl.find(function(d) { return (d.disziplin || '').toLowerCase() === rl; });
-  if (!found) found = dl.find(function(d) {
-    var dl2 = (d.disziplin || '').toLowerCase();
-    return dl2.startsWith(rl) || rl.startsWith(dl2);
-  });
-  // Normalisierter Vergleich: "1500m" ↔ "1.500m" (Tausenderpunkt im DB-Eintrag)
-  if (!found) {
-    var rlN = rl.replace(/\./g, '');
-    found = dl.find(function(d) { return (d.disziplin || '').toLowerCase().replace(/\./g, '') === rlN; });
+
+  function suche(list) {
+    var found = list.find(function(d) { return (d.disziplin || '').toLowerCase() === rl; });
+    if (!found) found = list.find(function(d) {
+      var dl2 = (d.disziplin || '').toLowerCase();
+      return dl2.startsWith(rl) || rl.startsWith(dl2);
+    });
+    // Normalisierter Vergleich: "1500m" ↔ "1.500m" (Tausenderpunkt im DB-Eintrag)
+    if (!found) {
+      var rlN = rl.replace(/\./g, '');
+      found = list.find(function(d) { return (d.disziplin || '').toLowerCase().replace(/\./g, '') === rlN; });
+    }
+    return found;
+  }
+
+  var alle = state.disziplinen || [];
+  // 1. Prio: exakt die gewählte Importkategorie
+  var found = suche(kat ? alle.filter(function(d) { return d.tbl_key === kat; }) : alle);
+  // 2. Prio: Partner-Kategorien aus den Kategoriegruppen (z.B. Weitsprung erscheint
+  //    beim Sportfest im Bahn-Dropdown) – genau die Auswahl, die die Zeile auch anbietet
+  if (!found && kat) {
+    var erlaubt = bkKatMitGruppen(kat) || [];
+    if (erlaubt.length > 1) {
+      found = suche(alle.filter(function(d) { return d.tbl_key !== kat && erlaubt.indexOf(d.tbl_key) >= 0; }));
+    }
   }
   if (!found) return { disz: rawDisz, diszMid: null };
   return { disz: found.disziplin, diszMid: found.id || found.mapping_id };
