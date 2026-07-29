@@ -1,3 +1,6 @@
+## v1427
+- Fix: Klick auf die neue Athleten-Auswahl-Checkbox (Admin → Athleten) öffnete versehentlich das Athletenprofil – das Zeilen-Attribut kollidierte mit dem globalen `data-athlet-id`-Click-Handler; Zeilen nutzen jetzt `data-aid`.
+
 ## v1426
 - Bulk-Eintragen: Die Checkbox „Auch inaktive Athleten" wird jetzt aus dem gespeicherten Zustand gerendert. Bisher stand sie nach einem Seitenwechsel wieder auf „an", obwohl weiterhin ohne inaktive Athleten gematcht wurde.
 

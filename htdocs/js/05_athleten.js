@@ -186,7 +186,7 @@ function _athToggle(id) {
   if (_athSel[id]) delete _athSel[id];
   else _athSel[id] = true;
   _athUpdateBulkBar();
-  var tr = document.querySelector('#athlet-tabelle tbody tr[data-athlet-id="' + id + '"]');
+  var tr = document.querySelector('#athlet-tabelle tbody tr[data-aid="' + id + '"]');
   if (tr) {
     var chk = tr.querySelector('input[type=checkbox]');
     if (chk) chk.checked = !!_athSel[id];
@@ -378,7 +378,7 @@ function _renderAthletenTable() {
       ? '<td style="width:32px;text-align:center"><input type="checkbox"' + (_athSel[a.id] ? ' checked' : '') + ' onchange="_athToggle(' + a.id + ')" style="cursor:pointer"></td>'
       : '';
     rows +=
-      '<tr data-athlet-id="' + a.id + '"' + (canMerge && _athSel[a.id] ? ' style="background:var(--surf2)"' : '') + '>' +
+      '<tr data-aid="' + a.id + '"' + (canMerge && _athSel[a.id] ? ' style="background:var(--surf2)"' : '') + '>' +
         selTd +
         '<td><span class="athlet-link" onclick="openAthletById(' + a.id + ')">' + a.nachname + '</span></td>' +
         '<td>' + (a.vorname || '') + '</td>' +
@@ -471,12 +471,12 @@ async function _loadLetzteAktivitaet() {
     var val = map[String(arr[i].id)];
     if (val !== undefined) arr[i].letzte_aktivitaet = val;
   }
-  // DOM aktualisieren: jede tr per data-athlet-id zuordnen statt per Index
+  // DOM aktualisieren: jede tr per data-aid zuordnen statt per Index
   var tbody = document.querySelector('#athlet-tabelle tbody');
   if (!tbody) return;
   var trs = tbody.querySelectorAll('tr');
   for (var i = 0; i < trs.length; i++) {
-    var aid = trs[i].getAttribute('data-athlet-id');
+    var aid = trs[i].getAttribute('data-aid');
     if (!aid) continue;
     var td = trs[i].querySelector('td[data-letzte]');
     if (td) td.textContent = map[aid] || '–';
