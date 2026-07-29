@@ -1,3 +1,6 @@
+## v1424
+- **Admin → Athleten: Mehrfachauswahl + Zusammenführen** – Checkbox-Spalte (nur Admin) zum Markieren mehrerer Athleten; Bulk-Leiste mit „🔗 Zusammenführen". Im Dialog wird der Ziel-Athlet gewählt; alle Ergebnisse (intern + extern), Gruppen und alternativen Namen der übrigen Athleten werden übernommen, deren Hauptnamen als alternative Namen hinterlegt (damit Bulk-Importe die alte Schreibweise weiter zuordnen), leere Stammdaten (Jahrgang/Geschlecht) aufgefüllt und die Quell-Athleten in den Papierkorb verschoben. Neuer Endpunkt `POST athleten/merge`.
+
 ## v1423
 - **Seltec-HTML-Ergebnislisten (ältere Darstellung als `.htm`/`.html`) können jetzt importiert werden** – URL ins Eingabefeld einfügen oder die Datei auf das Feld ziehen (z.B. `.../2013_05_22.htm`). Der Textinhalt entspricht dem Seltec-PDF-Format 2018, daher wird derselbe Parser genutzt: Navigation und Klassenmenü werden entfernt, `<pre>`-Blöcke zeilenweise gelesen, Entities dekodiert und windows-1252-kodierte Dateien korrekt umgewandelt.
 - Der Datei-Proxy (`api/pdf-fetch`) akzeptiert zusätzlich `.htm`/`.html` und liefert HTML unverändert als Bytes aus, damit das Frontend die Zeichenkodierung selbst bestimmen kann.

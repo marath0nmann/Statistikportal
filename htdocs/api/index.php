@@ -2783,6 +2783,99 @@ if ($res === 'athleten') {
     // GET ist öffentlich; schreibende Methoden erfordern Login
     if ($method !== 'GET') Auth::requireLogin();
 
+    // ── Athleten zusammenführen  POST /athleten/merge ──
+    if ($id === 'merge' && $method === 'POST') {
+        Auth::requireAdmin();
+        $zielId   = (int)($body['ziel_id'] ?? 0);
+        $quellIds = array_values(array_unique(array_map('intval', (array)($body['quell_ids'] ?? []))));
+        $quellIds = array_values(array_filter($quellIds, function($q) use ($zielId) { return $q > 0 && $q !== $zielId; }));
+        if (!$zielId || !$quellIds) jsonErr('Ziel-Athlet und mindestens ein Quell-Athlet erforderlich.');
+
+        $aT   = DB::tbl('athleten');
+        $ziel = DB::fetchOne("SELECT * FROM $aT WHERE id=? AND geloescht_am IS NULL", [$zielId]);
+        if (!$ziel) jsonErr('Ziel-Athlet nicht gefunden.', 404);
+        $ph      = implode(',', array_fill(0, count($quellIds), '?'));
+        $quellen = DB::fetchAll("SELECT * FROM $aT WHERE id IN ($ph) AND geloescht_am IS NULL", $quellIds);
+        if (count($quellen) !== count($quellIds)) jsonErr('Mindestens ein Quell-Athlet wurde nicht gefunden.', 404);
+
+        // Ergebnis-Tabellen: unified oder Legacy-Tabellen
+        $ergTbls = $unified
+            ? [DB::tbl('ergebnisse')]
+            : [DB::tbl('ergebnisse_strasse'), DB::tbl('ergebnisse_sprint'),
+               DB::tbl('ergebnisse_mittelstrecke'), DB::tbl('ergebnisse_sprungwurf')];
+        $verschoben = 0;
+        foreach ($ergTbls as $t) {
+            try {
+                $st = DB::query("UPDATE `$t` SET athlet_id=? WHERE athlet_id IN ($ph)", array_merge([$zielId], $quellIds));
+                $verschoben += $st->rowCount();
+            } catch (\Exception $e) {}
+        }
+        // Legacy-PB-Tabelle (falls Migration noch nicht gelaufen)
+        try { DB::query('UPDATE ' . DB::tbl('athlet_pb') . " SET athlet_id=? WHERE athlet_id IN ($ph)", array_merge([$zielId], $quellIds)); } catch (\Exception $e) {}
+
+        // Gruppen übernehmen (Duplikate ignorieren), danach Quell-Zuordnungen entfernen
+        try {
+            DB::query('INSERT IGNORE INTO ' . DB::tbl('athlet_gruppen') . " (athlet_id,gruppe_id)
+                       SELECT ?, gruppe_id FROM " . DB::tbl('athlet_gruppen') . " WHERE athlet_id IN ($ph)",
+                array_merge([$zielId], $quellIds));
+            DB::query('DELETE FROM ' . DB::tbl('athlet_gruppen') . " WHERE athlet_id IN ($ph)", $quellIds);
+        } catch (\Exception $e) {}
+
+        // Alternative Namen der Quellen übernehmen + deren Hauptnamen als Alt-Name sichern,
+        // damit Bulk-Importe die alte Schreibweise weiterhin dem Ziel-Athleten zuordnen.
+        $altAnz = 0;
+        try {
+            DB::query('INSERT INTO ' . DB::tbl('athlet_altnamen') . " (athlet_id,vorname,nachname)
+                       SELECT ?, vorname, nachname FROM " . DB::tbl('athlet_altnamen') . " WHERE athlet_id IN ($ph)",
+                array_merge([$zielId], $quellIds));
+            DB::query('DELETE FROM ' . DB::tbl('athlet_altnamen') . " WHERE athlet_id IN ($ph)", $quellIds);
+            $vorhanden = DB::fetchAll('SELECT vorname, nachname FROM ' . DB::tbl('athlet_altnamen') . ' WHERE athlet_id=?', [$zielId]);
+            $bekannt = [];
+            foreach ($vorhanden as $v) { $bekannt[mb_strtolower(trim($v['vorname'] . '|' . $v['nachname']))] = true; }
+            $bekannt[mb_strtolower(trim(($ziel['vorname'] ?? '') . '|' . ($ziel['nachname'] ?? '')))] = true;
+            foreach ($quellen as $q) {
+                $key = mb_strtolower(trim(($q['vorname'] ?? '') . '|' . ($q['nachname'] ?? '')));
+                if (!($q['nachname'] ?? '') || isset($bekannt[$key])) continue;
+                DB::query('INSERT INTO ' . DB::tbl('athlet_altnamen') . ' (athlet_id,vorname,nachname) VALUES (?,?,?)',
+                    [$zielId, $q['vorname'] ?? '', $q['nachname']]);
+                $bekannt[$key] = true;
+                $altAnz++;
+            }
+        } catch (\Exception $e) {}
+
+        // Benutzerkonten umhängen – nur wenn das Ziel noch kein Konto hat
+        try {
+            $zielHatKonto = DB::fetchOne('SELECT id FROM ' . DB::tbl('benutzer') . ' WHERE athlet_id=? LIMIT 1', [$zielId]);
+            if ($zielHatKonto) DB::query('UPDATE ' . DB::tbl('benutzer') . " SET athlet_id=NULL WHERE athlet_id IN ($ph)", $quellIds);
+            else               DB::query('UPDATE ' . DB::tbl('benutzer') . " SET athlet_id=? WHERE athlet_id IN ($ph)", array_merge([$zielId], $quellIds));
+        } catch (\Exception $e) {}
+
+        // Leere Stammdaten des Ziels aus den Quellen auffüllen
+        $felder = []; $params = [];
+        if (empty($ziel['geburtsjahr'])) {
+            foreach ($quellen as $q) { if (!empty($q['geburtsjahr'])) { $felder[] = 'geburtsjahr=?'; $params[] = (int)$q['geburtsjahr']; break; } }
+        }
+        if (empty($ziel['geschlecht'])) {
+            foreach ($quellen as $q) { if (!empty($q['geschlecht'])) { $felder[] = 'geschlecht=?'; $params[] = $q['geschlecht']; break; } }
+        }
+        // Ziel bleibt/wird aktiv, wenn eine der Quellen aktiv war
+        if (empty($ziel['aktiv'])) {
+            foreach ($quellen as $q) { if (!empty($q['aktiv'])) { $felder[] = 'aktiv=?'; $params[] = 1; break; } }
+        }
+        if ($felder) { $params[] = $zielId; DB::query("UPDATE $aT SET " . implode(',', $felder) . ' WHERE id=?', $params); }
+
+        // Quell-Athleten in den Papierkorb verschieben
+        DB::query("UPDATE $aT SET geloescht_am=NOW() WHERE id IN ($ph)", $quellIds);
+
+        jsonOk([
+            'ziel_id'           => $zielId,
+            'zusammengefuehrt'  => count($quellIds),
+            'ergebnisse'        => $verschoben,
+            'alt_namen'         => $altAnz,
+            'msg'               => count($quellIds) . ' Athlet(en) zusammengeführt, ' . $verschoben . ' Ergebnisse übernommen.',
+        ]);
+    }
+
     // ── Sub-Ressource: externe PBs  /athleten/{id}/pb[/{pbid}] ──
     if ($id && ($parts[2] ?? '') === 'pb') {
         $user = Auth::requireLogin();

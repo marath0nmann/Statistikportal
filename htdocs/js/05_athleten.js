@@ -159,12 +159,156 @@ function _athSortHeader() {
   cols.push({ key: 'jahrgang', label: 'Jahrgang' }, { key: 'ak', label: 'AK' }, { key: 'gruppen', label: 'Gruppen' });
   if (showD) { cols.push({ key: 'ergebnisse', label: 'Erg.' }, { key: 'letzte', label: 'Letzte Akt.' }, { key: 'aktiv', label: 'Status' }); }
   if (showE) cols.push({ key: '', label: '' });
-  return cols.map(function(c) {
+  var selTh = _athCanMerge()
+    ? '<th style="width:32px;text-align:center"><input type="checkbox" id="athCheckAll" onchange="_athToggleAll(this.checked)" style="cursor:pointer" title="Alle auswählen"></th>'
+    : '';
+  return selTh + cols.map(function(c) {
     if (!c.key) return '<th></th>';
     var arrow = _athSort.col === c.key ? (_athSort.dir === 1 ? ' ▲' : ' ▼') : '';
     var style = 'cursor:pointer;user-select:none;white-space:nowrap' + (_athSort.col === c.key ? ';color:var(--primary)' : '');
     return '<th style="' + style + '" onclick="_athSetSort(\'' + c.key + '\')">' + c.label + arrow + '</th>';
   }).join('');
+}
+
+// ── Mehrfachauswahl + Zusammenführen (nur Admin) ─────────────
+var _athSel = {};
+
+function _athCanMerge() { return !!(currentUser && currentUser.rolle === 'admin'); }
+
+function _athToggleAll(checked) {
+  var sorted = _athLetenCache._lastSorted || [];
+  if (!checked) _athSel = {};
+  else for (var i = 0; i < sorted.length; i++) _athSel[sorted[i].id] = true;
+  _renderAthletenTable();
+}
+
+function _athToggle(id) {
+  if (_athSel[id]) delete _athSel[id];
+  else _athSel[id] = true;
+  _athUpdateBulkBar();
+  var tr = document.querySelector('#athlet-tabelle tbody tr[data-athlet-id="' + id + '"]');
+  if (tr) {
+    var chk = tr.querySelector('input[type=checkbox]');
+    if (chk) chk.checked = !!_athSel[id];
+    tr.style.background = _athSel[id] ? 'var(--surf2)' : '';
+  }
+  var allChk = document.getElementById('athCheckAll');
+  if (allChk) {
+    var sel = _athSelIds().length;
+    var total = (_athLetenCache._lastSorted || []).length;
+    allChk.checked = sel > 0 && sel >= total;
+    allChk.indeterminate = sel > 0 && sel < total;
+  }
+}
+
+// Nur IDs zurückgeben, die aktuell auch sichtbar sind (Filter/Suche könnten sie entfernt haben)
+function _athSelIds() {
+  var sichtbar = {};
+  var sorted = _athLetenCache._lastSorted || [];
+  for (var i = 0; i < sorted.length; i++) sichtbar[sorted[i].id] = true;
+  return Object.keys(_athSel).map(Number).filter(function(id) { return sichtbar[id]; });
+}
+
+function _athUpdateBulkBar() {
+  var bar = document.getElementById('ath-bulk-bar');
+  if (!bar) return;
+  var n = _athSelIds().length;
+  bar.style.display = n > 0 ? 'flex' : 'none';
+  var cnt = document.getElementById('ath-bulk-count');
+  if (cnt) cnt.textContent = n + ' ausgewählt';
+  var btn = document.getElementById('ath-merge-btn');
+  if (btn) btn.disabled = n < 2;
+}
+
+function _athClearSel() { _athSel = {}; _renderAthletenTable(); }
+
+function showAthletMergeModal() {
+  var ids = _athSelIds();
+  if (ids.length < 2) { notify('Bitte mindestens 2 Athleten auswählen.', 'err'); return; }
+  var alle = _athLetenCache.alleAthleten || [];
+  var sel = [];
+  for (var i = 0; i < alle.length; i++) { if (ids.indexOf(alle[i].id) >= 0) sel.push(alle[i]); }
+  // Vorauswahl: Athlet mit den meisten Ergebnissen ist das sinnvollste Ziel
+  var zielId = sel[0].id, maxErg = -1;
+  for (var i = 0; i < sel.length; i++) {
+    var n = parseInt(sel[i].anz_ergebnisse) || 0;
+    if (n > maxErg) { maxErg = n; zielId = sel[i].id; }
+  }
+  var rows = sel.map(function(a) {
+    var g = a.geschlecht === 'M' ? '♂' : a.geschlecht === 'W' ? '♀' : a.geschlecht === 'D' ? '⚧' : '–';
+    var status = a.aktiv ? 'Aktiv' : (a.orga ? 'Orga' : 'Inaktiv');
+    return '<tr>' +
+      '<td style="text-align:center;padding:6px 8px"><input type="radio" name="ath-merge-ziel" value="' + a.id + '"' + (a.id === zielId ? ' checked' : '') + ' onchange="_athMergePreview()" style="cursor:pointer"></td>' +
+      '<td style="padding:6px 8px"><strong>' + _esc(a.nachname || '') + '</strong>' + (a.vorname ? ', ' + _esc(a.vorname) : '') + '</td>' +
+      '<td style="padding:6px 8px;text-align:center;color:var(--text2)">' + (a.geburtsjahr || '–') + '</td>' +
+      '<td style="padding:6px 8px;text-align:center">' + g + '</td>' +
+      '<td style="padding:6px 8px;text-align:center"><span class="badge badge-platz">' + (parseInt(a.anz_ergebnisse) || 0) + '</span></td>' +
+      '<td style="padding:6px 8px;text-align:center;font-size:12px;color:var(--text2)">' + status + '</td>' +
+    '</tr>';
+  }).join('');
+
+  showModal(
+    modalH2('&#x1F517; Athleten zusammenf&uuml;hren') +
+    '<p style="font-size:13px;color:var(--text2);margin:0 0 12px">W&auml;hlen Sie den <strong>Ziel-Athleten</strong>. Alle Ergebnisse, Gruppen und alternativen Namen der &uuml;brigen Athleten werden auf ihn &uuml;bertragen; die anderen wandern in den Papierkorb.</p>' +
+    '<div class="table-scroll"><table style="width:100%;border-collapse:collapse;font-size:13px">' +
+      '<thead><tr style="border-bottom:1px solid var(--border)">' +
+        '<th style="padding:6px 8px;font-size:11px;color:var(--text2)">Ziel</th>' +
+        '<th style="padding:6px 8px;font-size:11px;color:var(--text2);text-align:left">Name</th>' +
+        '<th style="padding:6px 8px;font-size:11px;color:var(--text2)">Jahrgang</th>' +
+        '<th style="padding:6px 8px;font-size:11px;color:var(--text2)">♂♀</th>' +
+        '<th style="padding:6px 8px;font-size:11px;color:var(--text2)">Erg.</th>' +
+        '<th style="padding:6px 8px;font-size:11px;color:var(--text2)">Status</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody>' +
+    '</table></div>' +
+    '<div id="ath-merge-preview" style="margin-top:12px;padding:10px 12px;background:var(--surf2);border-radius:6px;font-size:13px"></div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="doAthletMerge()">&#x1F517; Zusammenf&uuml;hren</button>' +
+    '</div>'
+  , true, true);
+  _athMergePreview();
+}
+
+function _athMergePreview() {
+  var el = document.getElementById('ath-merge-preview');
+  if (!el) return;
+  var sel = document.querySelector('input[name="ath-merge-ziel"]:checked');
+  if (!sel) { el.innerHTML = ''; return; }
+  var zielId = parseInt(sel.value);
+  var alle = _athLetenCache.alleAthleten || [];
+  var ids = _athSelIds();
+  var ziel = null, quellen = [], erg = 0;
+  for (var i = 0; i < alle.length; i++) {
+    var a = alle[i];
+    if (ids.indexOf(a.id) < 0) continue;
+    if (a.id === zielId) ziel = a;
+    else { quellen.push(a); erg += parseInt(a.anz_ergebnisse) || 0; }
+  }
+  if (!ziel) { el.innerHTML = ''; return; }
+  var namen = quellen.map(function(q) { return _esc((q.nachname||'') + (q.vorname ? ', ' + q.vorname : '')); }).join(' &middot; ');
+  el.innerHTML =
+    '<div style="margin-bottom:4px">&#x2192; Ziel: <strong>' + _esc((ziel.nachname||'') + (ziel.vorname ? ', ' + ziel.vorname : '')) + '</strong> ' +
+    'erh&auml;lt <strong>' + erg + '</strong> zus&auml;tzliche Ergebnisse (neu gesamt: <strong>' + ((parseInt(ziel.anz_ergebnisse)||0) + erg) + '</strong>)</div>' +
+    '<div style="color:var(--text2);font-size:12px">In den Papierkorb: ' + namen + '</div>' +
+    '<div style="color:var(--text2);font-size:12px;margin-top:4px">Deren Namen werden als alternative Namen beim Ziel hinterlegt, damit Bulk-Importe sie weiterhin zuordnen.</div>';
+}
+
+async function doAthletMerge() {
+  var sel = document.querySelector('input[name="ath-merge-ziel"]:checked');
+  if (!sel) { notify('Bitte Ziel-Athlet wählen.', 'err'); return; }
+  var zielId = parseInt(sel.value);
+  var quellIds = _athSelIds().filter(function(id) { return id !== zielId; });
+  if (!quellIds.length) { notify('Keine Quell-Athleten übrig.', 'err'); return; }
+  var r = await apiPost('athleten/merge', { ziel_id: zielId, quell_ids: quellIds });
+  if (r && r.ok) {
+    closeModal();
+    notify((r.data && r.data.msg) || 'Zusammengeführt.', 'ok');
+    _athSel = {};
+    await loadAthleten();
+    await renderAthleten();
+  } else {
+    notify((r && r.fehler) || 'Fehler beim Zusammenführen', 'err');
+  }
 }
 
 function _athSetSort(col) {
@@ -202,6 +346,7 @@ function _renderAthletenTable() {
   var showDetails = _canSeeAthletenDetails();
   var canEdit    = _canEditAthleten();
   var isAdmin    = currentUser && currentUser.rolle === 'admin';
+  var canMerge   = _athCanMerge();
   var jetzt = new Date().getFullYear();
 
   // Inaktive Athleten nur mit spezifischem Recht sichtbar
@@ -229,8 +374,12 @@ function _renderAthletenTable() {
     var gSymbol = a.geschlecht === 'M' ? '<span title="Männlich" style="font-size:15px">♂</span>'
                 : a.geschlecht === 'W' ? '<span title="Weiblich" style="font-size:15px">♀</span>'
                 : a.geschlecht === 'D' ? '<span title="Divers" style="font-size:15px">⚧</span>' : '';
+    var selTd = canMerge
+      ? '<td style="width:32px;text-align:center"><input type="checkbox"' + (_athSel[a.id] ? ' checked' : '') + ' onchange="_athToggle(' + a.id + ')" style="cursor:pointer"></td>'
+      : '';
     rows +=
-      '<tr>' +
+      '<tr data-athlet-id="' + a.id + '"' + (canMerge && _athSel[a.id] ? ' style="background:var(--surf2)"' : '') + '>' +
+        selTd +
         '<td><span class="athlet-link" onclick="openAthletById(' + a.id + ')">' + a.nachname + '</span></td>' +
         '<td>' + (a.vorname || '') + '</td>' +
         (showDetails ? '<td style="text-align:center">' + gSymbol + '</td>' : '') +
@@ -238,7 +387,7 @@ function _renderAthletenTable() {
         '<td>' + (aktuellAK ? akBadge(aktuellAK) : '') + '</td>' +
         '<td>' + renderGruppenInline(a.gruppen) + '</td>' +
         (showDetails ? '<td><span class="badge badge-platz">' + a.anz_ergebnisse + '</span></td>' : '') +
-        (showDetails ? '<td style="color:var(--text2);font-size:13px;text-align:center">' + (a.letzte_aktivitaet || '–') + '</td>' : '') +
+        (showDetails ? '<td data-letzte style="color:var(--text2);font-size:13px;text-align:center">' + (a.letzte_aktivitaet || '–') + '</td>' : '') +
         (showDetails ? '<td>' + (a.aktiv ? '<span class="badge badge-aktiv">Aktiv</span>' : (a.orga ? '<span class="badge" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80" title="Inaktiv, aber in der Organisation aktiv">&#x1F9E9; Orga</span>' : '<span class="badge badge-inaktiv">Inaktiv</span>')) + '</td>' : '') +
         (canEdit || isAdmin ? '<td style="white-space:nowrap">' +
           (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showAthletEditModal(' + a.id + ')">&#x270F;&#xFE0E;</button>' : '') +
@@ -253,6 +402,15 @@ function _renderAthletenTable() {
   var count = document.getElementById('athlet-count');
   if (tbody) tbody.innerHTML = rows;
   if (count) count.textContent = athleten.length + ' Athleten';
+  if (canMerge) {
+    _athUpdateBulkBar();
+    var allChk = document.getElementById('athCheckAll');
+    if (allChk) {
+      var selN = _athSelIds().length;
+      allChk.checked = selN > 0 && selN >= sorted.length;
+      allChk.indeterminate = selN > 0 && selN < sorted.length;
+    }
+  }
 }
 
 async function renderAthleten() {
@@ -283,6 +441,14 @@ async function renderAthleten() {
       (canEdit ? '<button class="btn btn-primary btn-sm" onclick="showNeuerAthletModal()">+ Neuer Athlet</button>' : '') +
       (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showGeburtjahrImportModal()" title="Geburtsjahr-Bulk-Import">&#x1F4C5; Geburtsjahr importieren</button>' : '') +
     '</div>' +
+    (_athCanMerge()
+      ? '<div id="ath-bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surf2);border:1px solid var(--primary);border-radius:8px;padding:10px 14px;margin-bottom:12px">' +
+          '<span id="ath-bulk-count" style="font-weight:600;font-size:13px"></span>' +
+          '<button class="btn btn-sm btn-primary" id="ath-merge-btn" onclick="showAthletMergeModal()">&#x1F517; Zusammenf&uuml;hren</button>' +
+          '<button class="btn btn-sm btn-ghost" onclick="_athClearSel()">Auswahl aufheben</button>' +
+          '<span style="font-size:12px;color:var(--text2)">Mindestens 2 Athleten ausw&auml;hlen</span>' +
+        '</div>'
+      : '') +
     '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">&#x1F464; ' + (aktGruppe || 'Alle Athleten') + '</div><div class="panel-count" id="athlet-count"></div></div>' +
       '<div class="table-scroll"><table id="athlet-tabelle">' +
@@ -310,15 +476,10 @@ async function _loadLetzteAktivitaet() {
   if (!tbody) return;
   var trs = tbody.querySelectorAll('tr');
   for (var i = 0; i < trs.length; i++) {
-    // athlet-id aus dem Link im ersten td lesen
-    var link = trs[i].querySelector('.athlet-link[onclick]');
-    if (!link) continue;
-    var m = (link.getAttribute('onclick') || '').match(/openAthletById\((\d+)\)/);
-    if (!m) continue;
-    var aid = m[1]; // String
-    var val = map[aid];
-    var td = trs[i].querySelectorAll('td')[7];
-    if (td) td.textContent = val || '–';
+    var aid = trs[i].getAttribute('data-athlet-id');
+    if (!aid) continue;
+    var td = trs[i].querySelector('td[data-letzte]');
+    if (td) td.textContent = map[aid] || '–';
   }
 }
 
