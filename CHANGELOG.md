@@ -1,3 +1,7 @@
+## v1425
+- **Seltec-HTML-Import: zweite Export-Variante mit Ergebnis-Tabellen unterstützt.** Manche Dateien (z.B. `2013_06_26.htm`) legen die Ergebnisse nicht in `<pre>`-Blöcke, sondern in Tabellenzellen (`<td class="hdPos/hdName/hdPerf">`) – jede Zelle steht dort im Quelltext auf einer eigenen Zeile, wodurch keine einzige Ergebniszeile erkannt wurde (96 Sektionen, 0 Athleten). Umbrüche innerhalb einer `<tr>` werden jetzt entfernt, `<pre>`-Inhalte bleiben davon unberührt.
+- Seltec-Import: Vereinsname aus „Lizenziert für …" wird von angehängter Seltec-URL und Mehrfach-Leerzeichen befreit.
+
 ## v1424
 - **Admin → Athleten: Mehrfachauswahl + Zusammenführen** – Checkbox-Spalte (nur Admin) zum Markieren mehrerer Athleten; Bulk-Leiste mit „🔗 Zusammenführen". Im Dialog wird der Ziel-Athlet gewählt; alle Ergebnisse (intern + extern), Gruppen und alternativen Namen der übrigen Athleten werden übernommen, deren Hauptnamen als alternative Namen hinterlegt (damit Bulk-Importe die alte Schreibweise weiter zuordnen), leere Stammdaten (Jahrgang/Geschlecht) aufgefüllt und die Quell-Athleten in den Papierkorb verschoben. Neuer Endpunkt `POST athleten/merge`.
 

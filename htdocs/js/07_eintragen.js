@@ -4296,10 +4296,26 @@ function _seltecHtmlToLines(html) {
   // Ergebnisse und würden sonst als Sektions-Header gelesen
   h = h.replace(/<div[^>]*class="menu"[^>]*>[\s\S]*?<\/div>/gi, '');
   h = h.replace(/<td[^>]*class="tdMBar"[^>]*>[\s\S]*?<\/td>/gi, '');
-  // Blockenden → Zeilenumbruch (innerhalb von <pre> stehen echte Umbrüche)
+  // <pre>-Inhalte sichern – dort sind Zeilenumbrüche echte Trennzeichen
+  var pres = [];
+  h = h.replace(/<pre\b[^>]*>([\s\S]*?)<\/pre>/gi, function(all, inner) {
+    pres.push(inner);
+    return '\n@@SELTECPRE' + (pres.length - 1) + '@@\n';
+  });
+  // Manche Exporte legen die Ergebnisse nicht in <pre>, sondern in Tabellen
+  // (<td class="hdPos/hdName/hdPerf">) – dort steht jede Zelle im Quelltext auf
+  // einer eigenen Zeile. Innerhalb einer <tr> sind Umbrüche daher reine
+  // Formatierung und werden entfernt, damit die Zeile zusammenbleibt.
+  h = h.replace(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi, function(all, inner) {
+    return '\n' + inner.replace(/[\r\n\t]+/g, ' ') + '\n';
+  });
   h = h.replace(/<br\s*\/?>/gi, '\n');
-  h = h.replace(/<\/(p|pre|div|td|tr|table|h1|h2|h3|span|li)>/gi, '\n');
+  h = h.replace(/<\/(td|th)>/gi, ' ');
+  h = h.replace(/<\/(p|div|tr|table|h1|h2|h3|span|li)>/gi, '\n');
   h = h.replace(/<[^>]*>/g, '');
+  h = h.replace(/@@SELTECPRE(\d+)@@/g, function(all, idx) {
+    return pres[+idx].replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '');
+  });
   h = _seltecDecodeEntities(h);
   return h.split(/\r?\n/).map(function(l) {
     return l.replace(/ /g, ' ').trim();
@@ -4729,7 +4745,13 @@ function _parseSeltecLines(lines, opts) {
 
     // Footer – beide Formate
     var licM = line.match(/lizenziert f[üu]r\s+(.+)/i);
-    if (licM) { ownClub = licM[1].replace(/\s+Seite\s+\d+\s*$/, '').trim(); continue; }
+    if (licM) {
+      // "Lizenziert für TuS Oedt   www.seltec.at" → nur der Vereinsname
+      ownClub = licM[1].replace(/\s+Seite\s+\d+\s*$/, '')
+                       .replace(/\s*(https?:\/\/)?www\..*$/i, '')
+                       .replace(/\s+/g, ' ').trim();
+      continue;
+    }
     if (/^Dataservice by/i.test(line) || /^Gedruckt am /i.test(line)) continue;
     if (/^Erstellt durch SELTEC/i.test(line) || /^www\.seltec\./i.test(line)) continue;
     if (/^Rang\s+(StNr|Name)\b/i.test(line)) { inResults = true; continue; }
