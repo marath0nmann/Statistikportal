@@ -1422,7 +1422,7 @@ function renderEintragen() {
         '<div id="bk-offene-wk"></div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
-          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;Ergebnis-PDF URL: https://example.com/ergebnisse.pdf&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Ergebnis-PDF (Seltec, Volkslauf) hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;Ergebnis-PDF/HTML URL: https://example.com/ergebnisse.pdf&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Ergebnis-PDF oder Seltec-HTML (.htm) hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
             '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
             '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
@@ -2480,6 +2480,8 @@ function bulkDetectUrl(text) {
   // RaceResult White-Label (eigene Domain, aber RRPublish): /{id}/results oder RR-Hash #N_HEX
   // z.B. https://portal.run-timing.de/977/results#8_D13BA9 → echte RR-Event-ID wird serverseitig aufgelöst
   if (/^https?:\/\//i.test(t) && (/\/\d+\/results\b/i.test(t) || /#\d+_[0-9A-Fa-f]{4,}/.test(t))) return 'raceresult';
+  // Seltec/Track&Field HTML-Export (ältere Darstellung als .htm/.html-Datei)
+  if (/^https?:\/\/.+\.html?(\?[^#]*)?$/i.test(t))    return 'html';
   return null;
 }
 
@@ -2497,7 +2499,8 @@ function bulkPasteInput() {
                   urlType === 'leichtathletik'  ? '🏃︎ leichtathletik.de' :
                   urlType === 'acn'             ? '🇳🇱 ACN Timing' :
                   urlType === 'evenementen'     ? '🇳🇱 evenementen.uitslagen.nl' :
-                  urlType === 'pdf'             ? '📄 Ergebnis-PDF (URL)' : '🇳🇱 uitslagen.nl';
+                  urlType === 'pdf'             ? '📄 Ergebnis-PDF (URL)' :
+                  urlType === 'html'            ? '📄 Seltec HTML-Ergebnisse (URL)' : '🇳🇱 uitslagen.nl';
     if (srcLabel) srcLabel.textContent = srcText;
     if (statusEl) statusEl.textContent = '';
   } else {
@@ -2520,17 +2523,19 @@ async function bulkImportUrl() {
   var urlType = bulkDetectUrl(raw);
   if (!urlType) return;
 
-  // PDF-URL: kein Kat-Selector erforderlich – direkt über Proxy laden
-  if (urlType === 'pdf') {
+  // PDF-/HTML-URL: kein Kat-Selector erforderlich – direkt über Proxy laden
+  if (urlType === 'pdf' || urlType === 'html') {
+    var _istHtml = urlType === 'html';
     window._bkLastImportUrl = raw;
     var einlesenBtn = document.getElementById('bk-einlesen-btn');
     if (einlesenBtn) einlesenBtn.style.display = 'none';
-    if (statusEl) { statusEl.style.display = 'inline-flex'; statusEl.textContent = '⏳ Lade PDF…'; }
+    if (statusEl) { statusEl.style.display = 'inline-flex'; statusEl.textContent = _istHtml ? '⏳ Lade Ergebnisseite…' : '⏳ Lade PDF…'; }
     var _quelleElPdf = document.getElementById('bk-quelle');
     if (_quelleElPdf && !_quelleElPdf.value) _quelleElPdf.value = raw;
-    _bkDebugInit(raw, 'Ergebnis-PDF (URL)', '');
+    _bkDebugInit(raw, _istHtml ? 'Seltec HTML (URL)' : 'Ergebnis-PDF (URL)', '');
     try {
-      await bulkImportFromSeltecPdfUrl(raw, statusEl);
+      if (_istHtml) await bulkImportFromSeltecHtmlUrl(raw, statusEl);
+      else          await bulkImportFromSeltecPdfUrl(raw, statusEl);
     } catch(e) {
       if (statusEl) statusEl.textContent = '❌ ' + e.message;
     } finally {
@@ -4188,11 +4193,23 @@ function bulkPdfDrop(e) {
   e.preventDefault(); // immer zuerst – verhindert Safari-Default (Pfad als Text einfügen)
   var ta = document.getElementById('bk-paste-area');
   if (ta) ta.style.borderColor = '';
-  var file = e.dataTransfer && Array.from(e.dataTransfer.files || []).find(function(f) {
+  var files = e.dataTransfer ? Array.from(e.dataTransfer.files || []) : [];
+  var statusEl = document.getElementById('bk-import-status');
+  var htmlFile = files.find(function(f) { return /\.html?$/i.test(f.name) || f.type === 'text/html'; });
+  if (htmlFile) {
+    _bkDebugInit(htmlFile.name, 'Seltec HTML', '');
+    htmlFile.arrayBuffer().then(function(buf) {
+      return _seltecProcessHtml(_seltecDecodeHtmlBytes(buf), htmlFile.name, statusEl);
+    }).catch(function(err) {
+      if (statusEl) statusEl.textContent = '❌ ' + err.message;
+      _bkDbgLine('Fehler', err.message);
+    });
+    return;
+  }
+  var file = files.find(function(f) {
     return f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
   });
   if (!file) return;
-  var statusEl = document.getElementById('bk-import-status');
   _bkDebugInit(file.name, 'Ergebnis-PDF', '');
   bulkImportFromSeltecPdf(file, statusEl);
 }
@@ -4242,6 +4259,89 @@ async function bulkImportFromSeltecPdfUrl(url, statusEl) {
   }
   var arrayBuffer = await resp.arrayBuffer();
   await _seltecProcessArrayBuffer(arrayBuffer, url, pdfjs, statusEl);
+}
+
+// ── Seltec / Track&Field HTML-Export (ältere Darstellung, .htm) ──────────────
+// Aufbau: Kopf-Tabelle (Veranstaltung + "Ort, am DD.MM.YYYY"), danach je Bewerb
+// ein <p class="ev1"> mit "50m, weibliche Kinder U10 - Zeitläufe" und <pre>-Blöcke
+// mit den AK-Untersektionen ("Kinder W9 - Zeitläufe") und Ergebniszeilen.
+// Der Textinhalt entspricht dem PDF-Format 2018 → gleicher Parser, nur ohne
+// "Rk. StNr."-Kopfzeilen und mit auf 30 Zeichen gekürzten AK-Titeln.
+
+var _SELTEC_ENTITIES = {
+  nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'",
+  auml: 'ä', ouml: 'ö', uuml: 'ü', Auml: 'Ä', Ouml: 'Ö', Uuml: 'Ü',
+  szlig: 'ß', eacute: 'é', egrave: 'è', agrave: 'à', ccedil: 'ç',
+  ndash: '–', mdash: '—', shy: '', laquo: '«', raquo: '»'
+};
+
+function _seltecDecodeEntities(s) {
+  return s.replace(/&(#x?[0-9A-Fa-f]+|[A-Za-z]+);/g, function(all, ent) {
+    if (ent.charAt(0) === '#') {
+      var code = ent.charAt(1) === 'x' || ent.charAt(1) === 'X'
+        ? parseInt(ent.slice(2), 16) : parseInt(ent.slice(1), 10);
+      return isNaN(code) ? all : String.fromCharCode(code);
+    }
+    return _SELTEC_ENTITIES[ent] !== undefined ? _SELTEC_ENTITIES[ent] : all;
+  });
+}
+
+function _seltecHtmlToLines(html) {
+  var h = html;
+  h = h.replace(/<head[\s\S]*?<\/head>/gi, '');
+  h = h.replace(/<script[\s\S]*?<\/script>/gi, '');
+  h = h.replace(/<style[\s\S]*?<\/style>/gi, '');
+  h = h.replace(/<!--[\s\S]*?-->/g, '');
+  // Navigation: Klassen-Menü und Menüleiste enthalten Disziplin-Namen ohne
+  // Ergebnisse und würden sonst als Sektions-Header gelesen
+  h = h.replace(/<div[^>]*class="menu"[^>]*>[\s\S]*?<\/div>/gi, '');
+  h = h.replace(/<td[^>]*class="tdMBar"[^>]*>[\s\S]*?<\/td>/gi, '');
+  // Blockenden → Zeilenumbruch (innerhalb von <pre> stehen echte Umbrüche)
+  h = h.replace(/<br\s*\/?>/gi, '\n');
+  h = h.replace(/<\/(p|pre|div|td|tr|table|h1|h2|h3|span|li)>/gi, '\n');
+  h = h.replace(/<[^>]*>/g, '');
+  h = _seltecDecodeEntities(h);
+  return h.split(/\r?\n/).map(function(l) {
+    return l.replace(/ /g, ' ').trim();
+  }).filter(function(l) { return !!l; });
+}
+
+function _seltecIsHtml(text) {
+  return /<\s*(html|body|pre|table)\b/i.test(text || '');
+}
+
+// HTML-Bytes dekodieren – ältere Seltec-Exporte sind windows-1252 kodiert
+function _seltecDecodeHtmlBytes(buf) {
+  var bytes = new Uint8Array(buf);
+  var utf8 = new TextDecoder('utf-8').decode(bytes);
+  var metaM = utf8.match(/charset\s*=\s*["']?\s*([\w-]+)/i);
+  var cs = (metaM ? metaM[1] : '').toLowerCase();
+  var isLatin = cs === 'windows-1252' || cs === 'iso-8859-1' || cs === 'iso-8859-15';
+  if (!isLatin && utf8.indexOf('�') < 0) return utf8;
+  try { return new TextDecoder(isLatin ? cs : 'windows-1252').decode(bytes); }
+  catch(e) { return utf8; }
+}
+
+async function bulkImportFromSeltecHtmlUrl(url, statusEl) {
+  if (statusEl) statusEl.textContent = '⏳ Lade Ergebnisseite…';
+  var resp = await fetch('api/?_route=pdf-fetch&url=' + encodeURIComponent(url));
+  if (!resp.ok) {
+    var errData = await resp.json().catch(function() { return {}; });
+    throw new Error(errData.fehler || 'HTTP ' + resp.status);
+  }
+  var buf = await resp.arrayBuffer();
+  await _seltecProcessHtml(_seltecDecodeHtmlBytes(buf), url, statusEl);
+}
+
+async function _seltecProcessHtml(html, sourceLabel, statusEl) {
+  if (statusEl) statusEl.textContent = '⏳ Lese Ergebnisse…';
+  var allLines = _seltecHtmlToLines(html);
+  _bkDbgLine('HTML-Zeilen', allLines.length);
+  _bkDbgLine('Format', 'Seltec / Track&Field (HTML-Export)');
+  // Der HTML-Export hat keine "Rk. StNr."-Kopfzeilen → Ergebniszeilen folgen
+  // direkt auf den Sektions-Titel
+  var parsed = _parseSeltecLines(allLines, { autoResults: true });
+  await _seltecFinishImport(parsed, sourceLabel, statusEl);
 }
 
 async function _seltecProcessArrayBuffer(arrayBuffer, sourceLabel, pdfjs, statusEl) {
@@ -4322,17 +4422,23 @@ async function _seltecProcessArrayBuffer(arrayBuffer, sourceLabel, pdfjs, status
     var parsed = isVolks ? _parseVolkslaufLines(allLines, sourceLabel)
                          : _parseSeltecLines(allLines);
 
+    await _seltecFinishImport(parsed, sourceLabel, statusEl);
+}
+
+// Gemeinsamer Abschluss für PDF- und HTML-Import: Debug-Ausgabe, Event-Felder
+// vorbelegen, Athleten sammeln, auf eigenen Verein filtern und Vorschau füllen.
+async function _seltecFinishImport(parsed, sourceLabel, statusEl) {
     _bkDbgLine('Event', parsed.eventName || '(keiner)');
     _bkDbgLine('Datum', parsed.date || '(keins)');
     _bkDbgLine('Ort', parsed.location || '(keiner)');
-    _bkDbgLine('Eigener Verein (PDF)', parsed.ownClub || '(unbekannt)');
+    _bkDbgLine('Eigener Verein', parsed.ownClub || '(unbekannt)');
     _bkDbgLine('Sektionen', parsed.sections.length);
     parsed.sections.forEach(function(s) {
       _bkDbgLine('  ' + s.disziplin, s.athletes.length + ' Zeilen, ' + s.date);
     });
 
     if (!parsed.sections.length) {
-      if (statusEl) statusEl.textContent = '❌ Kein bekanntes PDF-Format erkannt';
+      if (statusEl) statusEl.textContent = '❌ Kein bekanntes Ergebnis-Format erkannt';
       return;
     }
 
@@ -4372,7 +4478,18 @@ async function _seltecProcessArrayBuffer(arrayBuffer, sourceLabel, pdfjs, status
       });
     });
 
-    _bkDbgLine('Athleten gesamt', allAthletes.length);
+    // Meisterschafts-Wertungen wiederholen dieselben Ergebnisse ein zweites Mal
+    // (z.B. "Kreismeisterschaft Niederrhein-West" nach dem regulären Bewerb) →
+    // identische Zeilen (Name/Disziplin/Datum/Leistung) nur einmal übernehmen
+    var _gesehen = {}, _dubl = 0;
+    allAthletes = allAthletes.filter(function(a) {
+      var key = [a.name, a.disziplin, a.datum, a.resultat].join('|').toLowerCase();
+      if (_gesehen[key]) { _dubl++; return false; }
+      _gesehen[key] = true;
+      return true;
+    });
+
+    _bkDbgLine('Athleten gesamt', allAthletes.length + (_dubl ? ' (' + _dubl + ' Doppelnennungen entfernt)' : ''));
 
     // Filter to own club, fall back to name-match
     var ownRows = allAthletes.filter(function(a) { return a.ownClub; });
@@ -4587,7 +4704,10 @@ function bkDiszNachtragen(importName, mid) {
   if (n) notify(n + ' Zeile' + (n === 1 ? '' : 'n') + ' auf „' + (dObj ? dObj.disziplin : importName) + '“ gesetzt.', 'ok');
 }
 
-function _parseSeltecLines(lines) {
+// opts.autoResults: Ergebniszeilen folgen direkt auf den Sektions-Titel, ohne
+// dass eine "Rk. StNr."-Kopfzeile den Ergebnisteil einleitet (HTML-Export)
+function _parseSeltecLines(lines, opts) {
+  var autoRes = !!(opts && opts.autoResults);
   var eventName = '', location = '', date = '', ownClub = '';
   var sections = [];
   var akMap = {};          // name → AK-Code (aus "aus gemeinsamem Bewerb"-Sektionen)
@@ -4678,11 +4798,11 @@ function _parseSeltecLines(lines) {
 
       if (isCont && currentSection) {
         currentSection.date = currentSection.date || sDate;
-        inResults = false;
+        inResults = autoRes;
       } else {
         currentSection = { disziplin: disziplin, date: sDate, athletes: [] };
         sections.push(currentSection);
-        inResults = false;
+        inResults = autoRes;
       }
       continue;
     }
@@ -4693,14 +4813,16 @@ function _parseSeltecLines(lines) {
       currentSectionDate = datumLineM[3] + '-' + datumLineM[2] + '-' + datumLineM[1];
       if (!date) date = currentSectionDate;
       if (currentSection && !currentSection.date) currentSection.date = currentSectionDate;
-      inResults = false;
+      inResults = autoRes;
       continue;
     }
 
     // Format 2018: Sektions-Header endet mit "- Zeitläufe" / "- Finale" / "- Vorlauf" etc.
     // Wind-Info auf derselben Zeile abschneiden bevor der Titel verglichen wird
     var lineNoWind = line.replace(/\s*Wind:.*$/i, '').trim();
-    var ztM = lineNoWind.match(/^(.+?)\s*-\s*(Zeitl[äa]ufe|Finale|Vorlauf|Zeitlauf|Endkampf|Endlauf)\s*$/i);
+    // Der HTML-Export kürzt die Titelspalte auf 30 Zeichen ("... - Zeitläu") →
+    // Schlüsselwörter auch abgeschnitten akzeptieren
+    var ztM = lineNoWind.match(/^(.+?)\s*-\s*(Zeitl[äa]u\w*|Zeitlauf|Final\w*|Vorlauf|Endkampf|Endlauf)\s*$/i);
     if (ztM) {
       var ztTitle = ztM[1].trim();
       if (/,/.test(ztTitle)) {
@@ -4720,7 +4842,7 @@ function _parseSeltecLines(lines) {
         var ak2018 = _seltecAkFromTitle(ztTitle);
         currentSection = { disziplin: currentDisziplin, date: currentSectionDate || date, athletes: [], ak: ak2018 };
         sections.push(currentSection);
-        inResults = false;
+        inResults = autoRes;
       }
       continue;
     }
@@ -5004,7 +5126,8 @@ function _parseSeltecAthRow(rest, isFieldEvent) {
   var last = afterNat[afterNat.length - 1];
   var prev = afterNat.length >= 2 ? afterNat[afterNat.length - 2] : '';
 
-  if (/^abg\.?$|^DSQ$|^DNS$|^DNF$|^n\.a\.?$/i.test(last) || /^abg\.?$|^DSQ$|^DNS$|^DNF$/i.test(prev)) return null;
+  var _noRes = /^(abg|aufg|zur[üu]ckgez)\.?$|^DSQ$|^DNS$|^DNF$|^n\.a\.?$|^o\.g\.V\.?$/i;
+  if (_noRes.test(last) || _noRes.test(prev)) return null;
 
   var result, clubEnd;
   if (/^[\d\-]+\.\/[IVX]+$/.test(last)) {
@@ -5013,8 +5136,11 @@ function _parseSeltecAthRow(rest, isFieldEvent) {
   } else if (isFieldEvent && /^\([+\-]?\d+[,.]?\d*\)$/.test(last)) {
     // Feldwettkampf: Wind in Klammern am Ende (z.B. "(0,0)" oder "(-1,2)")
     result = prev; clubEnd = afterNat.length - 2;
-  } else if (isFieldEvent && /^[+\-]?\d+[,.]?\d*$/.test(last)) {
-    // Feldwettkampf: Windwert ohne Klammern
+  } else if (isFieldEvent && /^[+\-]?\d+[,.]?\d*$/.test(last) &&
+             (/^[+\-]/.test(last) || /^\d+[,.]\d+$/.test(prev))) {
+    // Feldwettkampf: Windwert ohne Klammern – nur wenn er ein Vorzeichen trägt
+    // oder das Feld davor die eigentliche Leistung ist. Sonst ist die letzte
+    // Spalte selbst die Leistung (HTML-Export ohne Wind-Spalte).
     result = prev; clubEnd = afterNat.length - 2;
   } else {
     result = last; clubEnd = afterNat.length - 1;
@@ -5206,7 +5332,7 @@ function bulkEinlesen() {
   if (!raw) return;
   var urlType = bulkDetectUrl(raw);
   if (urlType) {
-    if (urlType !== 'pdf') {
+    if (urlType !== 'pdf' && urlType !== 'html') {
       var kat = ((document.getElementById('bk-import-kat') || {}).value || '');
       if (!kat) {
         notify('Bitte Importkategorie wählen.', 'err');
@@ -5228,7 +5354,7 @@ function bulkParsePaste() {
   // URL-Erkennung: wenn URL → Import starten
   var urlType = bulkDetectUrl(raw.trim());
   if (urlType) {
-    if (urlType !== 'pdf') {
+    if (urlType !== 'pdf' && urlType !== 'html') {
       var kat = ((document.getElementById('bk-import-kat') || {}).value || '');
       if (!kat) {
         notify('Bitte Importkategorie wählen.', 'err');

@@ -7843,12 +7843,14 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
     jsonOk($veranst);
 }
 
-// ── PDF-Proxy: externe PDF-URL serverseitig laden (CORS-Bypass) ──────────────
+// ── Datei-Proxy: externe PDF-/HTML-Ergebnisliste serverseitig laden (CORS-Bypass) ──
 if ($res === 'pdf-fetch' && $method === 'GET') {
     Auth::requireLogin();
     $url = trim($_GET['url'] ?? '');
-    if (!$url || !preg_match('/^https?:\/\/.+\.pdf(\?[^#]*)?$/i', $url))
-        jsonErr('Ungültige PDF-URL. Nur direkte .pdf-Links werden unterstützt.', 400);
+    $istPdf  = $url && preg_match('/^https?:\/\/.+\.pdf(\?[^#]*)?$/i', $url);
+    $istHtml = $url && preg_match('/^https?:\/\/.+\.html?(\?[^#]*)?$/i', $url);
+    if (!$istPdf && !$istHtml)
+        jsonErr('Ungültige URL. Nur direkte .pdf-, .htm- oder .html-Links werden unterstützt.', 400);
 
     $ch = curl_init($url);
     curl_setopt_array($ch, [
@@ -7865,13 +7867,15 @@ if ($res === 'pdf-fetch' && $method === 'GET') {
     curl_close($ch);
 
     if ($data === false || ($info['http_code'] ?? 0) !== 200)
-        jsonErr('PDF konnte nicht geladen werden (HTTP ' . ($info['http_code'] ?? 0) . ').', 502);
+        jsonErr('Datei konnte nicht geladen werden (HTTP ' . ($info['http_code'] ?? 0) . ').', 502);
     if (strlen($data) > 20 * 1024 * 1024)
-        jsonErr('PDF zu groß (max. 20 MB).', 413);
-    if (substr($data, 0, 4) !== '%PDF')
+        jsonErr('Datei zu groß (max. 20 MB).', 413);
+    if ($istPdf && substr($data, 0, 4) !== '%PDF')
         jsonErr('Keine gültige PDF-Datei.', 422);
 
-    header('Content-Type: application/pdf');
+    // HTML als octet-stream ausliefern – das Frontend dekodiert die Bytes selbst
+    // (ältere Seltec-Exporte sind windows-1252 kodiert)
+    header('Content-Type: ' . ($istPdf ? 'application/pdf' : 'application/octet-stream'));
     header('Content-Length: ' . strlen($data));
     header('Cache-Control: no-store');
     echo $data;

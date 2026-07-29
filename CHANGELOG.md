@@ -1,3 +1,11 @@
+## v1423
+- **Seltec-HTML-Ergebnislisten (ältere Darstellung als `.htm`/`.html`) können jetzt importiert werden** – URL ins Eingabefeld einfügen oder die Datei auf das Feld ziehen (z.B. `.../2013_05_22.htm`). Der Textinhalt entspricht dem Seltec-PDF-Format 2018, daher wird derselbe Parser genutzt: Navigation und Klassenmenü werden entfernt, `<pre>`-Blöcke zeilenweise gelesen, Entities dekodiert und windows-1252-kodierte Dateien korrekt umgewandelt.
+- Der Datei-Proxy (`api/pdf-fetch`) akzeptiert zusätzlich `.htm`/`.html` und liefert HTML unverändert als Bytes aus, damit das Frontend die Zeichenkodierung selbst bestimmen kann.
+- Seltec-Parser: AK-Untersektionen ohne „Rk. StNr."-Kopfzeile werden erkannt (HTML-Export), auf 30 Zeichen gekürzte Titel wie „… - Zeitläu" ebenfalls.
+- Seltec-Parser: Feldwettkämpfe ohne Wind-Spalte (z.B. Weitsprung im HTML-Export) wurden komplett übersprungen, weil die Leistung als Windwert gelesen wurde. Jetzt gilt die letzte Spalte nur dann als Wind, wenn sie ein Vorzeichen hat oder davor bereits eine Leistung steht.
+- Seltec-Parser: „aufg.", „zurückgez." und „o.g.V." werden wie DNS/DSQ als „kein Ergebnis" behandelt.
+- Seltec-Import: Meisterschafts-Wertungen wiederholen dieselben Ergebnisse (z.B. „Kreismeisterschaft Niederrhein-West" nach dem regulären Bewerb) – identische Zeilen werden nur noch einmal in die Vorschau übernommen und im Debug-Log gezählt.
+
 ## v1422
 - **Dashboard → „Mein Athletenprofil": Der Ergebnis-Zähler zählt jetzt alle Ergebnisse.** Bisher waren nur Vereinsergebnisse enthalten – die externen Ergebnisse (`extern=1`) wurden ausgelassen, weil sie zum Zeitpunkt der Zählung noch nicht in die Kategorien eingebettet waren.
 - Das Ergebnis-Badge im Widget ist jetzt anklickbar und führt direkt zu **Veranstaltungen → Meine Ergebnisse** (`openMeineErgebnisse()`).
