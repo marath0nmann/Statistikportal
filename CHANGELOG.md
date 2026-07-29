@@ -1,3 +1,6 @@
+## v1426
+- Bulk-Eintragen: Die Checkbox „Auch inaktive Athleten" wird jetzt aus dem gespeicherten Zustand gerendert. Bisher stand sie nach einem Seitenwechsel wieder auf „an", obwohl weiterhin ohne inaktive Athleten gematcht wurde.
+
 ## v1425
 - **Seltec-HTML-Import: zweite Export-Variante mit Ergebnis-Tabellen unterstützt.** Manche Dateien (z.B. `2013_06_26.htm`) legen die Ergebnisse nicht in `<pre>`-Blöcke, sondern in Tabellenzellen (`<td class="hdPos/hdName/hdPerf">`) – jede Zelle steht dort im Quelltext auf einer eigenen Zeile, wodurch keine einzige Ergebniszeile erkannt wurde (96 Sektionen, 0 Athleten). Umbrüche innerhalb einer `<tr>` werden jetzt entfernt, `<pre>`-Inhalte bleiben davon unberührt.
 - Seltec-Import: Vereinsname aus „Lizenziert für …" wird von angehängter Seltec-URL und Mehrfach-Leerzeichen befreit.

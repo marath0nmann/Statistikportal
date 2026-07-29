@@ -1436,7 +1436,9 @@ function renderEintragen() {
               })() +
             '</select>' +
             '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin-left:8px">' +
-              '<input type="checkbox" id="bk-match-inaktive" checked onchange="window._bkMatchInaktive=this.checked" style="width:13px;height:13px;cursor:pointer">' +
+              // Zustand aus der Variablen rendern – sonst zeigt die Box nach einem
+              // Seitenwechsel wieder "an", obwohl weiterhin ohne Inaktive gematcht wird
+              '<input type="checkbox" id="bk-match-inaktive"' + (window._bkMatchInaktive === false ? '' : ' checked') + ' onchange="window._bkMatchInaktive=this.checked" style="width:13px;height:13px;cursor:pointer">' +
               'Auch inaktive Athleten' +
             '</label>' +
           '</div>' +
