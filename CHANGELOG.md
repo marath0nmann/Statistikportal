@@ -1,3 +1,8 @@
+## v1429
+- **Straßenlauf-Import: Geschlecht wird aus dem Lauftitel abgeleitet** („ca. 600m Bambini-Lauf Mädchen" → W). Bei Bambini- und Jedermannläufen steht in der Klasse-Spalte keine Altersklasse (`BAM-J`, `BAM-M`), sodass die betroffenen Athleten ohne Geschlecht im Dialog „Neue Athleten gefunden" landeten – und das Anlegen fehlschlug.
+- Dialog „Neue Athleten gefunden": Die Fehlermeldung nennt jetzt den Grund vom Server statt nur „Fehler beim Anlegen von …". Meldet der Server „bereits vorhanden", wird die Athletenliste neu geladen und der vorhandene Athlet zugeordnet, statt den ganzen Import abzubrechen.
+- `POST athleten` meldete jeden Datenbankfehler als „Athlet bereits vorhanden." – jetzt wird nur ein echter Dublettenfehler (SQLSTATE 23000) so gemeldet, andere Fehler mit ihrer Ursache.
+
 ## v1428
 - **Seltec-Straßenlauf-Ergebnislisten werden jetzt importiert** (z.B. `2013_10_05_strassenlauf.pdf`). Das Format (`Rg. StNr. Name, Vorname … Zeit Diff Klasse`) unterscheidet sich komplett von den Bahn-Listen und wurde bisher gar nicht erkannt. Der Parser liest Lauf-Überschriften mit Distanz in Klammern („10 km Straßenlauf (10 km)"), dreht „Nachname, Vorname" um, übernimmt Altersklasse und AK-Platz aus der Klasse-Spalte und ordnet die Disziplin über die Distanz zu. Er greift für PDF- und HTML-Quellen.
 - Straßenlauf: „Mannschaftswertung"-Abschnitte (Teamzeiten statt Einzelergebnissen) werden übersprungen; Meisterschafts-Wertungen desselben Laufs („10 km Straßenlauf Kreismeisterschaft 10 km") laufen unter demselben Lauftitel, sodass die wiederholten Ergebnisse als Doppelnennungen erkannt und nur einmal übernommen werden.

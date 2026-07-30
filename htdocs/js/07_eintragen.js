@@ -4940,7 +4940,7 @@ function _parseSeltecStrassenLines(lines) {
   var eventName = '', location = '', date = '', ownClub = '';
   var sections = [];
   var currentSection = null;
-  var currentRace = '', currentDist = '', currentDate = '', currentAk = '';
+  var currentRace = '', currentDist = '', currentDate = '', currentAk = '', currentGesch = '';
   var skipRace = false;   // Mannschaftswertung o.ä. → Zeilen ignorieren
   var headerParsed = false;
 
@@ -5012,6 +5012,10 @@ function _parseSeltecStrassenLines(lines) {
       currentRace = raceTitel.replace(/\s+\S*[Mm]eisterschaft\b.*$/, '').trim() || raceTitel;
       currentDist = raceM[2].trim();
       currentAk = '';
+      // Geschlecht aus dem Lauftitel ("Bambini-Lauf Mädchen") – die Klasse-Spalte
+      // führt bei Bambini-/Jedermannläufen keine Altersklasse
+      currentGesch = /\b(M[äa]dchen|weiblich\w*|Frauen)\b/i.test(currentRace) ? 'W'
+                   : /\b(Jungen|Knaben|m[äa]nnlich\w*|M[äa]nner)\b/i.test(currentRace) ? 'M' : '';
       currentSection = null;
       continue;
     }
@@ -5023,6 +5027,7 @@ function _parseSeltecStrassenLines(lines) {
         if (!currentSection) newSection();
         ath.platz = ath.akPlatz || parseInt(rowM[1], 10) || 0;
         if (!ath.ak) ath.ak = currentAk;
+        if (!ath.geschlecht) ath.geschlecht = currentGesch || (ath.ak ? ath.ak.charAt(0) : '');
         var verL = ath.verein.toLowerCase();
         ath.ownClub = !!((ownVerL && verL.indexOf(ownVerL) >= 0) ||
                          (ownClub && verL.indexOf(ownClub.toLowerCase()) >= 0));
@@ -7677,7 +7682,22 @@ async function bnadConfirm(count) {
         notify('Athlet "' + newAth.name_nv + '" angelegt.', 'ok');
         nameMap[c.name] = newAth.id;
       } else {
-        notify('Fehler beim Anlegen von "' + c.name + '".', 'err');
+        // "Bereits vorhanden" ist kein Abbruchgrund: Liste neu laden und den
+        // vorhandenen Athleten zuordnen (z.B. veraltete Athletenliste im Browser)
+        var _fehler = (r2 && r2.fehler) ? r2.fehler : 'unbekannter Fehler';
+        if (/vorhanden/i.test(_fehler) && typeof loadAthleten === 'function') {
+          await loadAthleten();
+          var _nv = (nn + ', ' + vn).toLowerCase();
+          var _da = (state.athleten || []).find(function(a) {
+            return (a.name_nv || '').toLowerCase() === _nv;
+          });
+          if (_da) {
+            notify('Athlet "' + _da.name_nv + '" war bereits vorhanden – Ergebnisse werden ihm zugeordnet.', 'ok');
+            nameMap[c.name] = _da.id;
+            continue;
+          }
+        }
+        notify('Fehler beim Anlegen von "' + c.name + '": ' + _fehler, 'err');
         return;
       }
     }

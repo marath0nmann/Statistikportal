@@ -3236,7 +3236,11 @@ if ($res === 'athleten') {
             }
             jsonOk(['id' => $newId]);
         } catch (\Exception $e) {
-            jsonErr('Athlet bereits vorhanden.');
+            // Doppelter Name vs. echter DB-Fehler unterscheiden – bisher meldete
+            // jeder Fehler "bereits vorhanden", was die Ursache verschleierte
+            $sqlState = ($e instanceof \PDOException && isset($e->errorInfo[0])) ? $e->errorInfo[0] : '';
+            if ($sqlState === '23000') jsonErr('Athlet bereits vorhanden.');
+            jsonErr('Athlet konnte nicht angelegt werden: ' . $e->getMessage());
         }
     }
 
