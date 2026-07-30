@@ -1,3 +1,9 @@
+## v1428
+- **Seltec-Straßenlauf-Ergebnislisten werden jetzt importiert** (z.B. `2013_10_05_strassenlauf.pdf`). Das Format (`Rg. StNr. Name, Vorname … Zeit Diff Klasse`) unterscheidet sich komplett von den Bahn-Listen und wurde bisher gar nicht erkannt. Der Parser liest Lauf-Überschriften mit Distanz in Klammern („10 km Straßenlauf (10 km)"), dreht „Nachname, Vorname" um, übernimmt Altersklasse und AK-Platz aus der Klasse-Spalte und ordnet die Disziplin über die Distanz zu. Er greift für PDF- und HTML-Quellen.
+- Straßenlauf: „Mannschaftswertung"-Abschnitte (Teamzeiten statt Einzelergebnissen) werden übersprungen; Meisterschafts-Wertungen desselben Laufs („10 km Straßenlauf Kreismeisterschaft 10 km") laufen unter demselben Lauftitel, sodass die wiederholten Ergebnisse als Doppelnennungen erkannt und nur einmal übernommen werden.
+- **Seltec-Import: Vereinsnamen wurden am Anfang abgeschnitten** – jedes 2–3-stellige Großbuchstaben-Präfix galt als Nationalitätskürzel, also wurde aus „OSC Waldniel" das Vereins-Feld „Waldniel", aus „DJK Kempener LC" wurde „Kempener LC". Jetzt entscheidet eine feste Liste echter Nat-/Kreiskürzel (KNW, GER, NED, …). Betrifft Bahn- und Straßenlauf-Listen gleichermaßen.
+- Volkslauf/Straßenlauf: Distanzen mit vier oder fünf Ziffern wurden falsch gelesen („5000m" → „000m").
+
 ## v1427
 - Fix: Klick auf die neue Athleten-Auswahl-Checkbox (Admin → Athleten) öffnete versehentlich das Athletenprofil – das Zeilen-Attribut kollidierte mit dem globalen `data-athlet-id`-Click-Handler; Zeilen nutzen jetzt `data-aid`.
 

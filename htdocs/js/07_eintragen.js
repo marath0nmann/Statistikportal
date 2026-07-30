@@ -4354,11 +4354,14 @@ async function bulkImportFromSeltecHtmlUrl(url, statusEl) {
 async function _seltecProcessHtml(html, sourceLabel, statusEl) {
   if (statusEl) statusEl.textContent = '⏳ Lese Ergebnisse…';
   var allLines = _seltecHtmlToLines(html);
+  var _istStr = _seltecStrIsListe(allLines);
   _bkDbgLine('HTML-Zeilen', allLines.length);
-  _bkDbgLine('Format', 'Seltec / Track&Field (HTML-Export)');
+  _bkDbgLine('Format', _istStr ? 'Seltec Straßenlauf-Ergebnisliste (HTML-Export)'
+                               : 'Seltec / Track&Field (HTML-Export)');
   // Der HTML-Export hat keine "Rk. StNr."-Kopfzeilen → Ergebniszeilen folgen
   // direkt auf den Sektions-Titel
-  var parsed = _parseSeltecLines(allLines, { autoResults: true });
+  var parsed = _istStr ? _parseSeltecStrassenLines(allLines)
+                       : _parseSeltecLines(allLines, { autoResults: true });
   await _seltecFinishImport(parsed, sourceLabel, statusEl);
 }
 
@@ -4400,10 +4403,13 @@ async function _seltecProcessArrayBuffer(arrayBuffer, sourceLabel, pdfjs, status
     // Volkslauf-Ergebnisliste (Spalten AKPl/Startnr./Name/Jahrg./m/w/Verein/Zeit) –
     // eigenes Format, nicht Seltec → eigener Parser ohne Header-Merge
     var isVolks = _volksIsListe(allLines);
+    // Seltec-Straßenlauf ("Rg. StNr. Name, Vorname … Zeit Diff Klasse") – ebenfalls
+    // ohne Header-Merge, da die Sektionstitel einzeilig sind
+    var isStr = !isVolks && _seltecStrIsListe(allLines);
 
     // Mehrzeilige Abschnitts-Header zusammenfügen (PDF bricht Zeilen oft um, z.B.
     // "weibliche Jugend U18 -" + "Zeitläufe" oder "männliche" + "Jugend" + "U18 -" + "Zeitläufe")
-    var _changed = !isVolks;
+    var _changed = !isVolks && !isStr;
     while (_changed) {
       _changed = false;
       var _merged = [];
@@ -4435,9 +4441,12 @@ async function _seltecProcessArrayBuffer(arrayBuffer, sourceLabel, pdfjs, status
     }
 
     _bkDbgLine('PDF-Zeilen', allLines.length);
-    _bkDbgLine('Format', isVolks ? 'Volkslauf-Ergebnisliste' : 'Seltec / Track&Field');
+    _bkDbgLine('Format', isVolks ? 'Volkslauf-Ergebnisliste'
+                       : isStr   ? 'Seltec Straßenlauf-Ergebnisliste'
+                                 : 'Seltec / Track&Field');
 
     var parsed = isVolks ? _parseVolkslaufLines(allLines, sourceLabel)
+               : isStr   ? _parseSeltecStrassenLines(allLines)
                          : _parseSeltecLines(allLines);
 
     await _seltecFinishImport(parsed, sourceLabel, statusEl);
@@ -4907,6 +4916,166 @@ function _parseSeltecLines(lines, opts) {
   return { eventName: eventName, location: location, date: date, ownClub: ownClub, sections: sections };
 }
 
+// ── Seltec Straßenlauf-Ergebnisliste ────────────────────────────────────────
+// Beispiel: "31. Oedter Straßenlauf" → "Grefrath, am 05.10.2013"
+//   5-km-Jedermannlauf (5 km)              ← Lauf mit Distanz in Klammern
+//   Datum: 05.10.2013 Beginn: 14:15
+//   Rg. StNr. Name, Vorname  Jg. Nat.  Verein   Zeit Diff  Klasse
+//   1. 311 Fröhling, Luca    1999      KSV Kevelaer  16:59        1. M14
+// Die Klasse-Spalte liefert AK-Platz + Altersklasse; "Mannschaftswertung"-
+// Abschnitte enthalten Teamzeiten und werden übersprungen.
+
+var _SELTECSTR_HDR = /^Rg\.\s+StNr\.?\s+Name/i;
+var _SELTECSTR_ROW = /^(\d{1,3})\.\s+(\d{1,6})\s+(.+)$/;
+
+function _seltecStrIsListe(lines) {
+  return lines.some(function(l) { return _SELTECSTR_HDR.test(l.trim()); }) &&
+         lines.some(function(l) {
+           var t = l.trim();
+           return _SELTECSTR_ROW.test(t) && /\b(19|20)\d{2}\b/.test(t);
+         });
+}
+
+function _parseSeltecStrassenLines(lines) {
+  var eventName = '', location = '', date = '', ownClub = '';
+  var sections = [];
+  var currentSection = null;
+  var currentRace = '', currentDist = '', currentDate = '', currentAk = '';
+  var skipRace = false;   // Mannschaftswertung o.ä. → Zeilen ignorieren
+  var headerParsed = false;
+
+  var ownVerL = ((appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '').toLowerCase();
+
+  function newSection() {
+    currentSection = {
+      disziplin: currentRace,
+      diszCands: _volksDiszCands(currentDist || currentRace),
+      diszExact: /walking|nordic/i.test(currentRace),
+      date: currentDate || date,
+      ak: currentAk,
+      athletes: []
+    };
+    sections.push(currentSection);
+  }
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+
+    var licM = line.match(/lizenziert f[üu]r\s+(.+)/i);
+    if (licM) {
+      ownClub = licM[1].replace(/\s+Seite\s+\d+\s*$/, '')
+                       .replace(/\s*(https?:\/\/)?www\..*$/i, '')
+                       .replace(/\s+/g, ' ').trim();
+      continue;
+    }
+    if (/^Erstellt durch SELTEC/i.test(line) || /^www\.seltec\./i.test(line)) continue;
+    if (/^Dataservice by/i.test(line) || /^Gedruckt am /i.test(line)) continue;
+    if (/^\d+$/.test(line)) continue;                    // Seitenzahl
+    if (/^ERGEBNISLISTE\b/i.test(line)) continue;
+    if (/^Anzahl\s+Teilnehmer/i.test(line)) continue;
+
+    // Kopf: "<Ort>, am DD.MM.YYYY"
+    if (!headerParsed) {
+      var stripped = line.replace(/\s*\bERGEBNISLISTE\b\s*/gi, ' ').trim().replace(/\s+/g, ' ');
+      var hdrM = stripped.match(/^(.+),\s*am\s*(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s|$)/);
+      if (hdrM) {
+        date = hdrM[4] + '-' + _p2(hdrM[3]) + '-' + _p2(hdrM[2]);
+        location = hdrM[1].trim();
+        headerParsed = true;
+        continue;
+      }
+      if (!eventName && stripped) { eventName = stripped; continue; }
+    }
+
+    // Spaltenüberschrift der Einzelwertung bzw. der Mannschaftswertung
+    if (_SELTECSTR_HDR.test(line)) continue;
+    if (/^Rg\.\s+Verein\b/i.test(line)) { skipRace = true; currentSection = null; continue; }
+
+    var datumM = line.match(/^Datum:\s*(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (datumM) {
+      currentDate = datumM[3] + '-' + _p2(datumM[2]) + '-' + _p2(datumM[1]);
+      if (!date) date = currentDate;
+      currentSection = null;
+      continue;
+    }
+
+    // Lauf-Überschrift: "<Name> (<Distanz>)"
+    var raceM = line.match(/^(.+?)\s*\(([^()]*\d[^()]*)\)\s*$/);
+    if (raceM && !_SELTECSTR_ROW.test(line)) {
+      var raceTitel = raceM[1].trim();
+      // Mannschaftswertungen enthalten Teamzeiten statt Einzelergebnissen
+      skipRace = /Mannschafts?wertung|Teamwertung/i.test(raceTitel);
+      // Meisterschafts-Wertungen wiederholen denselben Lauf ("10 km Straßenlauf
+      // Kreismeisterschaft 10 km") → gleicher Lauftitel, damit die doppelten
+      // Ergebnisse später als solche erkannt werden
+      currentRace = raceTitel.replace(/\s+\S*[Mm]eisterschaft\b.*$/, '').trim() || raceTitel;
+      currentDist = raceM[2].trim();
+      currentAk = '';
+      currentSection = null;
+      continue;
+    }
+
+    var rowM = line.match(_SELTECSTR_ROW);
+    if (rowM && currentRace && !skipRace) {
+      var ath = _parseSeltecStrRow(rowM[3]);
+      if (ath) {
+        if (!currentSection) newSection();
+        ath.platz = ath.akPlatz || parseInt(rowM[1], 10) || 0;
+        if (!ath.ak) ath.ak = currentAk;
+        var verL = ath.verein.toLowerCase();
+        ath.ownClub = !!((ownVerL && verL.indexOf(ownVerL) >= 0) ||
+                         (ownClub && verL.indexOf(ownClub.toLowerCase()) >= 0));
+        currentSection.athletes.push(ath);
+      }
+      continue;
+    }
+    if (rowM) continue;
+
+    // Geschlechts-/Klassen-Zwischenüberschrift ("Frauen", "Männer", "Männer M50/55")
+    var ak = _seltecAkFromTitle(line);
+    if (ak && line.length < 40) { currentAk = ak; currentSection = null; }
+  }
+
+  sections = sections.filter(function(s) { return s.athletes.length; });
+  return { eventName: eventName, location: location, date: date, ownClub: ownClub, sections: sections };
+}
+
+function _parseSeltecStrRow(rest) {
+  var yM = rest.match(/^(.+?)\s+((?:19|20)\d{2})\s+(.*)$/);
+  if (!yM) return null;
+  var namePart = yM[1].trim(), year = yM[2], tail = yM[3].trim();
+
+  // "Nachname, Vorname" → "Vorname Nachname"
+  var name = namePart;
+  var kM = namePart.match(/^([^,]+),\s*(.+)$/);
+  if (kM) name = kM[2].trim() + ' ' + kM[1].trim();
+  name = name.replace(/\s+/g, ' ').trim();
+  if (!name) return null;
+
+  // Nationalitäts-Kürzel ist optional
+  var natM = tail.match(/^([A-Z]{2,3})\s+(.+)$/);
+  if (natM && _seltecIstNat(natM[1])) tail = natM[2];
+
+  // "<Verein> <Zeit> [+ <Diff>] [<AK-Platz>. <Klasse>]"
+  var tM = tail.match(/^(.*?)\s+(\d{1,2}(?::\d{2}){1,2}(?:[.,]\d{1,2})?)(?:\s*\+\s*[\d:.,]+)?(?:\s+(\d{1,3})\.\s*([A-Za-zÄÖÜäöüß][A-Za-z0-9ÄÖÜäöüß\-\/]*))?\s*$/);
+  if (!tM) return null;
+
+  var verein = tM[1].trim();
+  var klasse = (tM[4] || '').trim();
+  var ak = '', gesch = '';
+  if (/^[MW]\d{1,2}$/.test(klasse) || /^[MW]U\d{1,2}$/i.test(klasse)) ak = klasse.toUpperCase();
+  else if (/^(M[äa]|M|Herren)$/i.test(klasse)) ak = 'M';
+  else if (/^(F|W|Fr|Frauen)$/i.test(klasse))  ak = 'W';
+  if (ak) gesch = ak.charAt(0);
+
+  return {
+    name: name, year: year, geschlecht: gesch, verein: verein,
+    resultat: _volksNormZeit(tM[2]), platz: 0, akPlatz: parseInt(tM[3], 10) || 0,
+    ownClub: false, ak: ak
+  };
+}
+
 // ── Volkslauf-Ergebnisliste (AKPl / Startnr. / Name / Jahrg. / m/w / Verein / Zeit) ──
 // Beispiel: "Burg Uda Nettolauf – Ergebnisliste AK"
 //   Jugendlauf 2 km            ← Lauf (Disziplin)
@@ -5042,7 +5211,8 @@ function _volksAkFromTitle(title, gender) {
 
 function _volksDistFromTitle(title) {
   // "Jugendlauf 2 km" → { val: 2, unit: 'km' }; "Bambinilauf 400 m" → { val: 400, unit: 'm' }
-  var m = title.match(/(\d{1,3}(?:[.,]\d{1,3})?)\s*(km|m)\b/i);
+  // Ziffernfolge vollständig lesen – sonst wird aus "5000m" die Distanz "000m"
+  var m = title.match(/(?:^|[^\d.,])(\d{1,5}(?:[.,]\d{1,3})?)\s*(km|m)\b/i);
   if (!m) return null;
   return { val: m[1].replace(',', '.'), unit: m[2].toLowerCase() };
 }
@@ -5122,6 +5292,13 @@ function _seltecAkFromTitle(title) {
   return '';
 }
 
+// Nationalitäts-/Kreiskürzel der Nat.-Spalte. Ohne feste Liste würden Vereins-
+// präfixe wie "OSC", "DJK", "LAV" oder "VT" als Nat gelesen und aus dem
+// Vereinsnamen entfernt ("OSC Waldniel" → "Waldniel").
+var _SELTEC_NAT = /^(KNW|NRW|GER|AUT|SUI|NED|BEL|LUX|FRA|ITA|ESP|POR|GBR|IRL|DEN|SWE|NOR|FIN|ISL|POL|CZE|SVK|HUN|SLO|CRO|SRB|BIH|ROU|BUL|GRE|TUR|RUS|UKR|BLR|LTU|LAT|EST|USA|CAN|BRA|JPN|CHN|KEN|ETH|MAR|RSA|AUS|NZL)$/;
+
+function _seltecIstNat(tok) { return !!tok && _SELTEC_NAT.test(tok); }
+
 function _parseSeltecAthRow(rest, isFieldEvent) {
   var tokens = rest.split(/\s+/);
   if (tokens.length < 4) return null;
@@ -5134,7 +5311,7 @@ function _parseSeltecAthRow(rest, isFieldEvent) {
 
   // Nationalitäts-Code optional (Format 2018: Deutsche Athleten ohne Nat-Kürzel)
   var nat = tokens[yearIdx + 1];
-  var hasNat = nat && /^[A-Z]{2,3}$/.test(nat);
+  var hasNat = _seltecIstNat(nat);
   var afterNatIdx = hasNat ? yearIdx + 2 : yearIdx + 1;
 
   var year = tokens[yearIdx];
