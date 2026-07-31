@@ -3980,6 +3980,27 @@ async function bulkImportFromAcn(url, kat, statusEl) {
   bulkFillFromImport(bulkRows, statusEl);
 }
 
+// Bezeichnung aus der Ergebnisliste ("Kreismeisterschaft Kreis Kleve") einem
+// Eintrag der konfigurierten Meisterschaftsliste zuordnen
+function _bkMstrIdFromLabel(label) {
+  var list = (typeof MSTR_LIST !== 'undefined' && MSTR_LIST) || [];
+  if (!label || !list.length) return null;
+  function norm(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+  var l = norm(label);
+  var hit = list.find(function(m) { return norm(m.label) === l; });
+  if (!hit) hit = list.find(function(m) { var n = norm(m.label); return n && (l.indexOf(n) === 0 || n.indexOf(l) === 0); });
+  if (!hit) hit = list.find(function(m) { var n = norm(m.label); return n && (l.indexOf(n) >= 0 || n.indexOf(l) >= 0); });
+  // Erstes Wort vergleichen – fängt Ein-/Mehrzahl ab ("Kreismeisterschaft" ↔ "Kreismeisterschaften")
+  if (!hit) {
+    var l0 = l.split(' ')[0];
+    if (l0.length >= 8) hit = list.find(function(m) {
+      var n0 = norm(m.label).split(' ')[0];
+      return n0.length >= 8 && (n0.indexOf(l0) === 0 || l0.indexOf(n0) === 0);
+    });
+  }
+  return hit ? hit.id : null;
+}
+
 async function bulkFillFromImport(rows, statusEl) {
   if (!rows.length) {
     if (statusEl) statusEl.textContent = '⚠ Keine TuS-Einträge gefunden';
@@ -4102,10 +4123,42 @@ async function bulkFillFromImport(rows, statusEl) {
         zdEl.value = _dm ? _dm[3] + '.' + _dm[2] + '.' + _dm[1] : _rowDatum;
       }
     }
+    // Meisterschaft aus dem Import (Bezeichnung → Eintrag der Meisterschaftsliste)
+    if (row.meisterschaft) {
+      var _mid = _bkMstrIdFromLabel(row.meisterschaft);
+      var mSel = tr.querySelector('.bk-mstr-sel');
+      if (mSel && _mid) mSel.value = String(_mid);
+      var mPl = tr.querySelector('.bk-mstr-platz');
+      if (mPl && row.mstrPlatz) mPl.value = row.mstrPlatz;
+      tr.querySelectorAll('.bk-mstr').forEach(function(td) { td.style.display = ''; });
+    }
+
     // Extern-Checkbox
     var vereinInp = tr.querySelector('.bk-verein');
     if (vereinInp && row.extern) vereinInp.value = row.verein || '';
   });
+
+  // Meisterschafts-Spalten einblenden, sobald mindestens eine Zeile eine trägt
+  var _mstrRows = rows.filter(function(r) { return !!r.meisterschaft; });
+  if (_mstrRows.length) {
+    document.querySelectorAll('.bk-mstr-th').forEach(function(th) { th.style.display = ''; });
+    var _unbekannt = {}, _erkannt = {};
+    _mstrRows.forEach(function(r) {
+      var id = _bkMstrIdFromLabel(r.meisterschaft);
+      if (id) _erkannt[r.meisterschaft] = id; else _unbekannt[r.meisterschaft] = true;
+    });
+    // Steht nur eine Meisterschaft im Import, auch das globale Feld setzen
+    var _ids = Object.keys(_erkannt).map(function(k) { return _erkannt[k]; });
+    var _gSel = document.getElementById('bk-mstr-global');
+    if (_gSel && _ids.length === 1 && Object.keys(_unbekannt).length === 0) _gSel.value = String(_ids[0]);
+    Object.keys(_erkannt).forEach(function(n) {
+      notify('Meisterschaft erkannt: ' + n + ' → „' + mstrLabel(_erkannt[n]) + '"', 'ok');
+    });
+    Object.keys(_unbekannt).forEach(function(n) {
+      notify('Meisterschaft „' + n + '" ist nicht in der Meisterschaftsliste – bitte in der Vorschau auswählen.', 'err');
+      _bkDbgLine('Meisterschaft unbekannt', n);
+    });
+  }
 
   // Zeilennummern neu durchzählen
   var allRows = tbody.querySelectorAll('tr');
@@ -4500,7 +4553,9 @@ async function _seltecFinishImport(parsed, sourceLabel, statusEl) {
           platz:     ath.platz,
           verein:    ath.verein,
           ownClub:   ath.ownClub,
-          ak:        ath.ak || sec.ak || ''
+          ak:        ath.ak || sec.ak || '',
+          meisterschaft: sec.meisterschaft || '',
+          mstrPlatz: sec.meisterschaft ? ath.platz : 0
         });
       });
     });
@@ -4508,15 +4563,45 @@ async function _seltecFinishImport(parsed, sourceLabel, statusEl) {
     // Meisterschafts-Wertungen wiederholen dieselben Ergebnisse ein zweites Mal
     // (z.B. "Kreismeisterschaft Niederrhein-West" nach dem regulären Bewerb) →
     // identische Zeilen (Name/Disziplin/Datum/Leistung) nur einmal übernehmen
+    // Wird ein Bewerb zusätzlich als Meisterschaft gewertet, stehen dieselben
+    // Ergebnisse zweimal in der Liste – einmal mit AK-Platz, einmal mit
+    // Meisterschafts-Platz. Beides wird in einer Zeile zusammengeführt.
     var _gesehen = {}, _dubl = 0;
     allAthletes = allAthletes.filter(function(a) {
       var key = [a.name, a.disziplin, a.datum, a.resultat].join('|').toLowerCase();
-      if (_gesehen[key]) { _dubl++; return false; }
-      _gesehen[key] = true;
+      var keep = _gesehen[key];
+      if (keep) {
+        _dubl++;
+        // Meisterschaften listen die Ergebnisse oft zweimal: einmal je Geschlecht
+        // und einmal je Altersklasse. Für den MS-Platz zählt die Wertung, deren
+        // Altersklasse zur Zeile passt.
+        var _akGenau = !!(a.ak && keep.ak && a.ak.toUpperCase() === keep.ak.toUpperCase());
+        if (a.meisterschaft && !keep.meisterschaft) {
+          keep.meisterschaft = a.meisterschaft;
+          keep.mstrPlatz = a.platz;
+          keep._mstrAkGenau = _akGenau;
+        } else if (a.meisterschaft && keep.meisterschaft && _akGenau && !keep._mstrAkGenau) {
+          keep.mstrPlatz = a.platz;
+          keep._mstrAkGenau = true;
+        } else if (keep.meisterschaft && !a.meisterschaft) {
+          // Meisterschafts-Block kam zuerst → AK-Platz und -Klasse nachtragen
+          keep.mstrPlatz = keep.mstrPlatz || keep.platz;
+          keep.platz = a.platz;
+          if (a.ak) keep.ak = a.ak;
+        }
+        return false;
+      }
+      _gesehen[key] = a;
       return true;
     });
 
     _bkDbgLine('Athleten gesamt', allAthletes.length + (_dubl ? ' (' + _dubl + ' Doppelnennungen entfernt)' : ''));
+
+    var _mstrNamen = {};
+    allAthletes.forEach(function(a) { if (a.meisterschaft) _mstrNamen[a.meisterschaft] = (_mstrNamen[a.meisterschaft] || 0) + 1; });
+    Object.keys(_mstrNamen).forEach(function(n) {
+      _bkDbgLine('Meisterschaft', n + ' (' + _mstrNamen[n] + ' Ergebnisse)');
+    });
 
     // Filter to own club, fall back to name-match
     var ownRows = allAthletes.filter(function(a) { return a.ownClub; });
@@ -4550,7 +4635,9 @@ async function _seltecFinishImport(parsed, sourceLabel, statusEl) {
         diszMid:   row.diszMid,
         datum:     row.datum,
         extern:    !row.ownClub,
-        verein:    row.ownClub ? '' : row.verein
+        verein:    row.ownClub ? '' : row.verein,
+        meisterschaft: row.meisterschaft || '',
+        mstrPlatz: row.mstrPlatz || (row.meisterschaft ? row.platz : 0)
       };
     });
 
@@ -4747,6 +4834,7 @@ function _parseSeltecLines(lines, opts) {
   var inSubSection = false; // gerade in einer "aus gemeinsamem Bewerb"-Sektion (Format 2019)
   var subSectionAk = '';
   var prevTitleLine = '';   // letzte Zeile vor einer Datumszeile (für geteilte Header)
+  var currentMstr = '';     // Meisterschafts-Bezeichnung des aktuellen Blocks
 
   var ownVerL = ((appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '').toLowerCase();
 
@@ -4833,7 +4921,7 @@ function _parseSeltecLines(lines, opts) {
         currentSection.date = currentSection.date || sDate;
         inResults = autoRes;
       } else {
-        currentSection = { disziplin: disziplin, date: sDate, athletes: [] };
+        currentSection = { disziplin: disziplin, date: sDate, athletes: [], meisterschaft: currentMstr };
         sections.push(currentSection);
         inResults = autoRes;
       }
@@ -4846,6 +4934,7 @@ function _parseSeltecLines(lines, opts) {
       currentSectionDate = datumLineM[3] + '-' + datumLineM[2] + '-' + datumLineM[1];
       if (!date) date = currentSectionDate;
       if (currentSection && !currentSection.date) currentSection.date = currentSectionDate;
+      currentMstr = '';   // regulärer Bewerb – Datumszeile statt Meisterschafts-Zeile
       inResults = autoRes;
       continue;
     }
@@ -4869,14 +4958,27 @@ function _parseSeltecLines(lines, opts) {
           isFieldEvent = _seltecIsField(diszHaupt);
           currentSection = null; // Athleten kommen in AK-Unter-Sektionen
           inResults = false;
+          // Neuer Bewerb: die Meisterschafts-Zeile steht erst danach
+          currentMstr = '';
         }
       } else if (currentDisziplin) {
         // AK-Unter-Sektion (z.B. "Jugend W12", "männliche Jugend U18", "Männer M45")
         var ak2018 = _seltecAkFromTitle(ztTitle);
-        currentSection = { disziplin: currentDisziplin, date: currentSectionDate || date, athletes: [], ak: ak2018 };
+        currentSection = { disziplin: currentDisziplin, date: currentSectionDate || date,
+                           athletes: [], ak: ak2018, meisterschaft: currentMstr };
         sections.push(currentSection);
         inResults = autoRes;
       }
+      continue;
+    }
+
+    // Meisterschafts-Zeile statt Datumszeile ("Kreismeisterschaft Kreis Kleve").
+    // Seltec wiederholt die Ergebnisse eines Bewerbs in einem eigenen Block, wenn
+    // daraus zusätzlich eine Meisterschaft gewertet wird.
+    if (/meisterschaft/i.test(line) && line.length < 90 && !/^\d/.test(line)) {
+      currentMstr = line.replace(/\s+/g, ' ').trim();
+      currentSection = null;
+      inResults = false;
       continue;
     }
 
@@ -4941,6 +5043,7 @@ function _parseSeltecStrassenLines(lines) {
   var sections = [];
   var currentSection = null;
   var currentRace = '', currentDist = '', currentDate = '', currentAk = '', currentGesch = '';
+  var currentMstr = '';   // Meisterschafts-Bezeichnung aus dem Lauftitel
   var skipRace = false;   // Mannschaftswertung o.ä. → Zeilen ignorieren
   var headerParsed = false;
 
@@ -4953,6 +5056,7 @@ function _parseSeltecStrassenLines(lines) {
       diszExact: /walking|nordic/i.test(currentRace),
       date: currentDate || date,
       ak: currentAk,
+      meisterschaft: currentMstr,
       athletes: []
     };
     sections.push(currentSection);
@@ -5010,6 +5114,9 @@ function _parseSeltecStrassenLines(lines) {
       // Kreismeisterschaft 10 km") → gleicher Lauftitel, damit die doppelten
       // Ergebnisse später als solche erkannt werden
       currentRace = raceTitel.replace(/\s+\S*[Mm]eisterschaft\b.*$/, '').trim() || raceTitel;
+      // Meisterschafts-Bezeichnung merken ("… Kreismeisterschaft 10 km" → "Kreismeisterschaft")
+      var mstrM = raceTitel.match(/(\S*[Mm]eisterschaft\w*\b.*)$/);
+      currentMstr = mstrM ? mstrM[1].replace(/\s*\d+(?:[.,]\d+)?\s*(?:km|m)\s*$/i, '').trim() : '';
       currentDist = raceM[2].trim();
       currentAk = '';
       // Geschlecht aus dem Lauftitel ("Bambini-Lauf Mädchen") – die Klasse-Spalte
