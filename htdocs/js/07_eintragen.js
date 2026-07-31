@@ -2295,6 +2295,12 @@ function bulkAddRow() {
   div.innerHTML = bulkRowHtml(_bulkRowCount);
   var newRow = div.firstChild;
   tbody.appendChild(newRow);
+  // Meisterschafts-Spalten: Sichtbarkeit der Kopfzeile übernehmen, sonst hätte
+  // die neue Zeile zwei Zellen weniger als die Tabelle Spalten hat
+  var _mstrTh = document.querySelector('.bk-mstr-th');
+  if (_mstrTh && _mstrTh.style.display !== 'none') {
+    newRow.querySelectorAll('.bk-mstr').forEach(function(td) { td.style.display = ''; });
+  }
   // Zeilen-Datum aus globalem Datum vorausfüllen (TT.MM.JJJJ)
   var gd = (document.getElementById('bk-datum') || {}).value || '';
   if (gd) {
@@ -4130,7 +4136,6 @@ async function bulkFillFromImport(rows, statusEl) {
       if (mSel && _mid) mSel.value = String(_mid);
       var mPl = tr.querySelector('.bk-mstr-platz');
       if (mPl && row.mstrPlatz) mPl.value = row.mstrPlatz;
-      tr.querySelectorAll('.bk-mstr').forEach(function(td) { td.style.display = ''; });
     }
 
     // Extern-Checkbox
@@ -4141,7 +4146,10 @@ async function bulkFillFromImport(rows, statusEl) {
   // Meisterschafts-Spalten einblenden, sobald mindestens eine Zeile eine trägt
   var _mstrRows = rows.filter(function(r) { return !!r.meisterschaft; });
   if (_mstrRows.length) {
+    // Spalten immer in *allen* Zeilen einblenden – sonst fehlen den Zeilen ohne
+    // Meisterschaft zwei Zellen und die restlichen Spalten verrutschen
     document.querySelectorAll('.bk-mstr-th').forEach(function(th) { th.style.display = ''; });
+    document.querySelectorAll('#bulk-rows .bk-mstr').forEach(function(td) { td.style.display = ''; });
     var _unbekannt = {}, _erkannt = {};
     _mstrRows.forEach(function(r) {
       var id = _bkMstrIdFromLabel(r.meisterschaft);

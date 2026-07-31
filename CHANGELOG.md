@@ -1,3 +1,6 @@
+## v1431
+- **Fix: Verrutschte Vorschau-Tabelle, wenn nur ein Teil der Ergebnisse zu einer Meisterschaft gehört.** Die Spalten „Meisterschaft" und „Platz MS" wurden nur in den Zeilen mit Meisterschaft eingeblendet – allen anderen Zeilen fehlten damit zwei Zellen, sodass Datum und Verein unter die falschen Überschriften rutschten. Die Spalten werden jetzt in allen Zeilen eingeblendet, ebenso in nachträglich über „+ Zeile hinzufügen" erzeugten Zeilen.
+
 ## v1430
 - **Meisterschaften im Seltec-Import werden automatisch erkannt.** Wird ein Bewerb zusätzlich als Meisterschaft gewertet, wiederholt Seltec dieselben Ergebnisse in einem eigenen Block, der statt der Datumszeile die Bezeichnung trägt („Kreismeisterschaft Kreis Kleve", „Kreismeisterschaft Kreis Niederrhein-West"). Diese Zeile wird jetzt gelesen und der Meisterschaft der jeweiligen Sektion zugeordnet – in Bahn-Listen (PDF + HTML) und in Straßenlauf-Listen („10 km Straßenlauf Kreismeisterschaft 10 km").
 - Die doppelten Ergebnisse werden weiterhin zu **einer** Vorschauzeile zusammengeführt, aber nicht mehr einfach verworfen: Aus dem regulären Bewerb kommen Altersklasse und AK-Platz, aus dem Meisterschaftsblock Meisterschaft und MS-Platz. Listet die Meisterschaft sowohl eine Geschlechts- als auch eine Altersklassenwertung, zählt der Platz aus der Wertung, deren Altersklasse zur Zeile passt.
