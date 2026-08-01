@@ -1628,6 +1628,46 @@ function bkVeranstHideDropdown() {
   if (drop) drop.style.display = 'none';
 }
 
+// Nach einem Import prüfen, ob die Veranstaltung schon in der Datenbank steht.
+// Bei eindeutigem Treffer auf „Bestehende wählen" umschalten und vorauswählen,
+// damit keine Dublette angelegt wird.
+async function bkAutoSelectVeranstaltung() {
+  if (_bkSelectedVeranst) return;          // Nutzer hat bereits selbst gewählt
+  var datum = ((document.getElementById('bk-datum')  || {}).value || '').trim();
+  var name  = ((document.getElementById('bk-evname') || {}).value || '').trim();
+  var ort   = ((document.getElementById('bk-ort')    || {}).value || '').trim();
+  if (!datum && !name) return;
+
+  var r;
+  try {
+    r = await apiGet('veranstaltungen/match?datum=' + encodeURIComponent(datum) +
+                     '&name=' + encodeURIComponent(name) +
+                     '&ort='  + encodeURIComponent(ort));
+  } catch (e) { return; }
+  if (!r || !r.ok || !r.data) return;
+
+  var best    = r.data.best || null;
+  var treffer = r.data.treffer || [];
+
+  if (!best) {
+    if (treffer.length) {
+      _bkDbgLine('Veranstaltung', 'kein eindeutiger Treffer – ' + treffer.length +
+        ' ähnliche: ' + treffer.slice(0, 3).map(_bkVeranstLabel).join(' | '));
+    } else {
+      _bkDbgLine('Veranstaltung', 'noch nicht in der Datenbank → neue Veranstaltung');
+    }
+    return;
+  }
+
+  bkToggleVeranst('best');
+  _bkSelectedVeranst = best;
+  var inp = document.getElementById('bk-veranst-search');
+  if (inp) inp.value = _bkVeranstLabel(best);
+  notify('Veranstaltung existiert bereits: „' + _bkVeranstLabel(best) +
+         '" – „Bestehende wählen" wurde vorausgewählt.', 'ok');
+  _bkDbgLine('Veranstaltung erkannt', _bkVeranstLabel(best) + ' (ID ' + best.id + ')');
+}
+
 // ── Row-Dropdown (Athlet / Disziplin) ────────────────────────
 var _bkRowDropType = null;
 var _bkRowDropTr   = null;
@@ -4191,6 +4231,9 @@ async function bulkFillFromImport(rows, statusEl) {
   if (pasteEl) pasteEl.value = '';
   var katWrap = document.getElementById('bk-import-kat-wrap');
   if (katWrap) katWrap.style.display = 'none';
+
+  // Zum Schluss gegen die Datenbank abgleichen: existiert die Veranstaltung schon?
+  await bkAutoSelectVeranstaltung();
 }
 
 
