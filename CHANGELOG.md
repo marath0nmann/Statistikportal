@@ -1,4 +1,4 @@
-## v1432
+## v1433
 - **Fix: Verrutschte Vorschau-Tabelle, wenn nur ein Teil der Ergebnisse zu einer Meisterschaft gehört.** Die Spalten „Meisterschaft" und „Platz MS" wurden nur in den Zeilen mit Meisterschaft eingeblendet – allen anderen Zeilen fehlten damit zwei Zellen, sodass Datum und Verein unter die falschen Überschriften rutschten. Die Spalten werden jetzt in allen Zeilen eingeblendet, ebenso in nachträglich über „+ Zeile hinzufügen" erzeugten Zeilen.
 
 ## v1430
