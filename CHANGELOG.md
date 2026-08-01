@@ -1,3 +1,8 @@
+## v1432
+- **Seltec-Straßenlauf-Import: Staffelwertungen werden übersprungen.** Läufe wie „4 x 1,2 km" listen Mannschaften statt Athleten – deren Zeilen landeten als Ergebnisse ohne Athlet in der Vorschau. Titel mit „4 x …", „Staffel" oder „Mannschaftswertung" werden jetzt ausgelassen und im Debug-Log als übersprungen ausgewiesen.
+- **Fehlende Altersklassen werden aus dem Jahrgang berechnet.** Bambini-, Schüler- und Jedermannläufe führen keine Klasse-Spalte, sodass Zeilen ohne Altersklasse blieben. Das Geschlecht wird jetzt aus dem Athletenstammsatz ergänzt und die AK daraus per DLV-System bestimmt; zusätzlich wird die Klassenangabe `MHK`/`WHK` erkannt.
+- **Bekannte Athleten, die für einen anderen Verein oder eine Schule gestartet sind, werden als externe Ergebnisse übernommen.** Bisher lief der Namensabgleich nur, wenn *kein* Vereinstreffer in der Liste stand – Starts für z.B. Oedter Schulen fielen dadurch aus dem Import. Zum Schutz vor Fehltreffern bei häufigen Namen muss der Jahrgang zum Stammsatz passen. Das Debug-Log listet die externen Treffer mit Verein.
+
 ## v1431
 - **Fix: Verrutschte Vorschau-Tabelle, wenn nur ein Teil der Ergebnisse zu einer Meisterschaft gehört.** Die Spalten „Meisterschaft" und „Platz MS" wurden nur in den Zeilen mit Meisterschaft eingeblendet – allen anderen Zeilen fehlten damit zwei Zellen, sodass Datum und Verein unter die falschen Überschriften rutschten. Die Spalten werden jetzt in allen Zeilen eingeblendet, ebenso in nachträglich über „+ Zeile hinzufügen" erzeugten Zeilen.
 

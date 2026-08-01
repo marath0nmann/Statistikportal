@@ -4605,23 +4605,54 @@ async function _seltecFinishImport(parsed, sourceLabel, statusEl) {
 
     _bkDbgLine('Athleten gesamt', allAthletes.length + (_dubl ? ' (' + _dubl + ' Doppelnennungen entfernt)' : ''));
 
+    // Jedermann-, Bambini- und Schülerläufe führen keine Klasse-Spalte → weder
+    // Geschlecht noch AK. Geschlecht aus dem Athletenstammsatz holen und die AK
+    // aus Jahrgang + Veranstaltungsjahr berechnen.
+    var _athListe = state.athleten || [];
+    function _athZuName(name) {
+      if (!_athListe.length || !name) return null;
+      var id = uitsAutoMatch(name, _athListe);
+      if (!id) return null;
+      return _athListe.find(function(x) { return String(x.id) === String(id); }) || null;
+    }
+    var _akErg = 0;
+    allAthletes.forEach(function(a) {
+      if (!a.geschlecht) {
+        var _a = _athZuName(a.name);
+        if (_a && _a.geschlecht) a.geschlecht = _a.geschlecht;
+      }
+      if (!a.ak && a.year && a.geschlecht) {
+        var _evJahr = parseInt(String(a.datum || parsed.date || '').slice(0, 4), 10);
+        var _ak = _evJahr ? calcDlvAK(parseInt(a.year, 10), a.geschlecht, _evJahr) : '';
+        if (_ak) { a.ak = _ak; _akErg++; }
+      }
+    });
+    if (_akErg) _bkDbgLine('AK berechnet', _akErg + ' Zeilen aus Jahrgang');
+
     var _mstrNamen = {};
     allAthletes.forEach(function(a) { if (a.meisterschaft) _mstrNamen[a.meisterschaft] = (_mstrNamen[a.meisterschaft] || 0) + 1; });
     Object.keys(_mstrNamen).forEach(function(n) {
       _bkDbgLine('Meisterschaft', n + ' (' + _mstrNamen[n] + ' Ergebnisse)');
     });
 
-    // Filter to own club, fall back to name-match
-    var ownRows = allAthletes.filter(function(a) { return a.ownClub; });
-    var rowsToImport = ownRows;
-    if (!ownRows.length) {
-      var _ath = state.athleten || [];
-      rowsToImport = allAthletes.filter(function(a) {
-        return uitsAutoMatch(a.name, _ath) !== null;
-      });
-      _bkDbgLine('Hinweis', 'Kein Vereinstreffer – ' + rowsToImport.length + ' Namens-Treffer');
-    } else {
-      _bkDbgLine('Vereinstreffer', ownRows.length);
+    // Vereinsathleten übernehmen – dazu bekannte Athleten, die für einen anderen
+    // Verein oder eine Schule gestartet sind (→ externes Ergebnis). Damit ein
+    // häufiger Name nicht auf einen fremden Läufer anschlägt, muss der Jahrgang
+    // passen, sofern er in Stammsatz und Ergebnisliste steht.
+    allAthletes.forEach(function(a) {
+      if (a.ownClub) return;
+      var _a = _athZuName(a.name);
+      if (!_a) return;
+      if (_a.geburtsjahr && a.year && String(_a.geburtsjahr) !== String(a.year)) return;
+      a._externTreffer = true;
+    });
+    var ownRows    = allAthletes.filter(function(a) { return a.ownClub; });
+    var externRows = allAthletes.filter(function(a) { return !a.ownClub && a._externTreffer; });
+    var rowsToImport = allAthletes.filter(function(a) { return a.ownClub || a._externTreffer; });
+    _bkDbgLine('Vereinstreffer', ownRows.length);
+    if (externRows.length) {
+      _bkDbgLine('Extern-Treffer', externRows.length + ' (bekannte Athleten für anderen Verein)');
+      externRows.forEach(function(a) { _bkDbgLine('  ' + a.name, a.verein || '(ohne Verein)'); });
     }
 
     if (!rowsToImport.length) {
@@ -5116,8 +5147,13 @@ function _parseSeltecStrassenLines(lines) {
     var raceM = line.match(/^(.+?)\s*\(([^()]*\d[^()]*)\)\s*$/);
     if (raceM && !_SELTECSTR_ROW.test(line)) {
       var raceTitel = raceM[1].trim();
-      // Mannschaftswertungen enthalten Teamzeiten statt Einzelergebnissen
-      skipRace = /Mannschafts?wertung|Teamwertung/i.test(raceTitel);
+      // Mannschaftswertungen und Staffeln ("4 x 1,2 km") enthalten Teamzeiten
+      // statt Einzelergebnissen – die Zeilen sind Mannschaften, keine Athleten
+      var istTeam = /Mannschafts?wertung|Teamwertung/i.test(raceTitel) ||
+                    /(?:^|\s)\d+\s*[x×]\s*\d/i.test(raceTitel) ||
+                    /\bStaffel/i.test(raceTitel);
+      if (istTeam) _bkDbgLine('  übersprungen', raceTitel + ' (Mannschafts-/Staffelwertung)');
+      skipRace = istTeam;
       // Meisterschafts-Wertungen wiederholen denselben Lauf ("10 km Straßenlauf
       // Kreismeisterschaft 10 km") → gleicher Lauftitel, damit die doppelten
       // Ergebnisse später als solche erkannt werden
@@ -5184,7 +5220,7 @@ function _parseSeltecStrRow(rest) {
   var verein = tM[1].trim();
   var klasse = (tM[4] || '').trim();
   var ak = '', gesch = '';
-  if (/^[MW]\d{1,2}$/.test(klasse) || /^[MW]U\d{1,2}$/i.test(klasse)) ak = klasse.toUpperCase();
+  if (/^[MW](?:\d{1,2}|U\d{1,2}|HK)$/i.test(klasse)) ak = klasse.toUpperCase();
   else if (/^(M[äa]|M|Herren)$/i.test(klasse)) ak = 'M';
   else if (/^(F|W|Fr|Frauen)$/i.test(klasse))  ak = 'W';
   if (ak) gesch = ak.charAt(0);
