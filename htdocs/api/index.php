@@ -5986,16 +5986,24 @@ if ($res === 'offene-wettkaempfe' && $method === 'GET') {
             }
         }
 
-        // b) Disziplin-Anmeldungen (kein Jahr in der Tabelle → Jahr aus naechstes_datum,
-        //    sonst laufendes Jahr). Endstatus im selben Jahr hebt sie auf.
+        // b) Disziplin-Anmeldungen. Maßgeblich ist die Spalte `twa.jahr` – dort steht
+        //    die Ausgabe, für die sich jemand im Trainingsportal angemeldet hat
+        //    (z.B. Anmeldung im August 2026 für den Venloop im März 2027 → jahr=2027).
+        //    Nur wenn die Spalte fehlt (ältere Trainingsportal-Version) oder leer ist,
+        //    wird auf naechstes_datum bzw. das laufende Jahr zurückgefallen.
+        //    Endstatus im selben Jahr hebt die Anmeldung auf.
         $final   = ['absolviert', 'nicht_angetreten', 'findet_nicht_statt', 'passt_nicht'];
         $diszMap = []; // "serie|jahr|user" => [disziplin, …]
+        $twaHatJahr = (bool)DB::fetchOne("SHOW COLUMNS FROM `$twa` LIKE 'jahr'");
         $anmRows = DB::fetchAll(
-            "SELECT wp.serie_id, wp.naechstes_datum, twa.benutzer_id, twa.disziplin, twa.bemerkung
+            "SELECT wp.serie_id, wp.naechstes_datum, twa.benutzer_id, twa.disziplin, twa.bemerkung, "
+            . ($twaHatJahr ? 'twa.jahr' : 'NULL AS jahr') . "
                FROM `$twa` twa JOIN `$twp` wp ON wp.id = twa.planung_id"
         );
         foreach ($anmRows as $r) {
-            $jahr = $r['naechstes_datum'] ? (int)substr((string)$r['naechstes_datum'], 0, 4) : (int)date('Y');
+            $jahr = !empty($r['jahr'])
+                ? (int)$r['jahr']
+                : ($r['naechstes_datum'] ? (int)substr((string)$r['naechstes_datum'], 0, 4) : (int)date('Y'));
             $k    = $r['serie_id'] . '|' . $jahr . '|' . $r['benutzer_id'];
             $diszMap[$k][] = ['disziplin' => $r['disziplin'], 'bemerkung' => $r['bemerkung']];
             if (!isset($kand[$k]) && !in_array($statusMap[$k] ?? '', $final, true)) {
