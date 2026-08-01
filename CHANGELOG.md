@@ -1,3 +1,6 @@
+## v1435
+- **Fix: „Ergebnisse ausstehend" zeigte Anmeldungen für noch nicht stattgefundene Ausgaben.** Das Jahr einer Trainingsportal-Anmeldung wurde aus `naechstes_datum` der Serie bzw. dem laufenden Jahr abgeleitet, obwohl die Anmeldung selbst eine Spalte `jahr` mitbringt. Eine Anmeldung für die Ausgabe 2027 landete dadurch im Jahr 2026, dessen Termin bereits vorbei war – und wurde als fehlendes Ergebnis gemeldet. Maßgeblich ist jetzt die Spalte `jahr` der Anmeldung; der alte Weg greift nur noch, wenn die Spalte fehlt oder leer ist.
+
 ## v1434
 - **Fix: Verrutschte Vorschau-Tabelle, wenn nur ein Teil der Ergebnisse zu einer Meisterschaft gehört.** Die Spalten „Meisterschaft" und „Platz MS" wurden nur in den Zeilen mit Meisterschaft eingeblendet – allen anderen Zeilen fehlten damit zwei Zellen, sodass Datum und Verein unter die falschen Überschriften rutschten. Die Spalten werden jetzt in allen Zeilen eingeblendet, ebenso in nachträglich über „+ Zeile hinzufügen" erzeugten Zeilen.
 
