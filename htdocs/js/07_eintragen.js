@@ -1623,6 +1623,52 @@ function bkVeranstSelect(idx) {
   bkVeranstHideDropdown();
 }
 
+// ── Veranstaltungs-Abgleich vor dem Import ──────────────────────────────────
+// Prüft anhand von Datum/Name/Ort, ob die importierte Veranstaltung bereits in
+// der Datenbank liegt. Bei sicherem Treffer wird auf "Bestehende wählen"
+// umgeschaltet und die Veranstaltung vorausgewählt – so entstehen keine
+// Dubletten, wenn ein Event schon angelegt war.
+async function bkAutoSelectVeranstaltung() {
+  // Bereits bewusst eine bestehende Veranstaltung gewählt → nicht überschreiben
+  if (_bkVeranstModus === 'best' && _bkSelectedVeranst) return null;
+
+  var datum = ((document.getElementById('bk-datum')   || {}).value || '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) return null;
+  var name  = ((document.getElementById('bk-evname')  || {}).value || '').trim();
+  var ort   = ((document.getElementById('bk-ort')     || {}).value || '').trim();
+
+  var r;
+  try {
+    r = await apiGet('veranstaltungen/match?datum=' + encodeURIComponent(datum) +
+                     '&name=' + encodeURIComponent(name) +
+                     '&ort='  + encodeURIComponent(ort));
+  } catch (e) { return null; }
+  var treffer = (r && r.ok && r.data && r.data.treffer) || [];
+
+  _bkDbgSep();
+  _bkDbgHeader('Veranstaltungs-Abgleich');
+  _bkDbgLine('Suche', (name || '(ohne Name)') + ' / ' + (ort || '(ohne Ort)') + ' / ' + datum);
+  if (!treffer.length) _bkDbgLine('Ergebnis', 'keine bestehende Veranstaltung an diesem Datum');
+  treffer.slice(0, 5).forEach(function(t) {
+    _bkDbgLines.push('  #' + t.id + ' ' + (t.name || t.kuerzel || '') +
+      ' (' + t.datum + (t.ort ? ', ' + t.ort : '') + ')' +
+      ' → Score ' + t.score + (t.sicher ? ' ✓ Übernahme' : '') +
+      ((t.gruende || []).length ? ' [' + t.gruende.join(', ') + ']' : ''));
+  });
+  _bkDbgFlush();
+
+  var best = (treffer.length && treffer[0].sicher) ? treffer[0] : null;
+  if (!best) return null;
+
+  bkToggleVeranst('best');
+  _bkSelectedVeranst = best;
+  var inp = document.getElementById('bk-veranst-search');
+  if (inp) inp.value = _bkVeranstLabel(best);
+  notify('📅 Veranstaltung existiert bereits: ' + (best.name || best.kuerzel) +
+         ' – "Bestehende wählen" wurde vorausgewählt.', 'ok');
+  return best;
+}
+
 function bkVeranstHideDropdown() {
   var drop = document.getElementById('bk-veranst-dropdown');
   if (drop) drop.style.display = 'none';
@@ -4012,6 +4058,9 @@ async function bulkFillFromImport(rows, statusEl) {
     if (statusEl) statusEl.textContent = '⚠ Keine TuS-Einträge gefunden';
     return;
   }
+  // ── Bestehende Veranstaltung erkennen (alle Importquellen) ─
+  await bkAutoSelectVeranstaltung();
+
   // ── Neue Athleten erkennen und Dialog zeigen ──────────────
   var athleten = state.athleten || [];
   var newCandidates = [];

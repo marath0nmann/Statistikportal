@@ -594,6 +594,9 @@ async function bulkImportFromLA(url, kat, statusEl) {
   var _diszForKat = _erlaubt ? disziplinen.filter(function(d){ return _erlaubt.indexOf(d.tbl_key) >= 0; }) : disziplinen;
   var diszList    = _diszForKat.map(function(d){return d.disziplin;}).filter(function(v,i,a){return a.indexOf(v)===i;});
   var allResults  = [], listsChecked = 0;
+  // Diagnose + Extern-Suche: alle gescannten Zeilen und Vereinsnamen mitzählen,
+  // damit im Debug-Log nachvollziehbar ist, warum jemand nicht gefunden wurde.
+  var _laScanned = 0, _laClubs = {}, _laExtern = [];
 
   for (var li = 0; li < listLinks.length; li++) {
     var ll = listLinks[li];
@@ -612,7 +615,13 @@ async function bulkImportFromLA(url, kat, statusEl) {
       var col2 = line.querySelector('.col-2');
       var verein = col2 ? ((col2.querySelector('.secondline')||{}).textContent||'').trim() : '';
       var vereinLow = verein.toLowerCase();
-      if (!vereinParts.every(function(p){return vereinLow.indexOf(p)>=0;})) return;
+      _laScanned++;
+      if (verein) _laClubs[verein] = (_laClubs[verein] || 0) + 1;
+      // Fremder Verein → Zeile nicht verwerfen, sondern unten gegen die
+      // Athletenliste prüfen (Startgemeinschaft, Schulstart, Vereinswechsel).
+      var _ownClub = vereinParts.length
+        ? vereinParts.every(function(p){ return vereinLow.indexOf(p) >= 0; })
+        : true;
 
       // Name aus col-2 › firstline
       var rName = col2 ? ((col2.querySelector('.firstline')||{}).textContent||'').trim() : '';
@@ -663,6 +672,18 @@ async function bulkImportFromLA(url, kat, statusEl) {
 
       if (!rName || !rZeit || !/\d/.test(rZeit)) return;
 
+      // Extern-Treffer: Zeile läuft unter fremdem Verein, gehört aber zu einem
+      // bekannten Athleten. Ob inaktive Profile dabei mitzählen, steuert die
+      // Checkbox "Auch inaktive Athleten" (wird in uitsAutoMatch ausgewertet).
+      // Jahrgangsprüfung verhindert Fehltreffer bei häufigen Namen.
+      if (!_ownClub) {
+        var _extId = uitsAutoMatch(rName, state.athleten || []);
+        if (!_extId) return;
+        var _extAth = (state.athleten || []).find(function(a){ return a.id == _extId; });
+        if (_extAth && _extAth.geburtsjahr && rYear && String(_extAth.geburtsjahr) !== String(rYear)) return;
+        _laExtern.push(rName + ' – ' + (verein || '(ohne Verein)'));
+      }
+
       // Block-Name aus übergeordnetem runblock → AK-Block erkennen
       var _block = line.closest('.runblock');
       var _blockName = _block ? ((_block.querySelector('.blockname')||{}).textContent||'').trim() : '';
@@ -684,20 +705,36 @@ async function bulkImportFromLA(url, kat, statusEl) {
           disziplin:diszObj?diszObj.disziplin:disz,
           diszMid:diszObj?(diszObj.id||diszObj.mapping_id):null,
           year:rYear||'', geschlecht:rGschl||'',
+          extern: !_ownClub, verein: _ownClub ? '' : verein,
           _isAkBlock: _isAkBlock});
       }
     });
   }
 
   _bkDbgLine('Listen geladen', listsChecked);
-  _bkDbgLine('Gefunden', allResults.length + ' TuS-Eintr\u00e4ge');
+  _bkDbgLine('Zeilen gescannt', _laScanned);
+  var _laEigen = allResults.filter(function(r){ return !r.extern; }).length;
+  _bkDbgLine('Gefunden', _laEigen + ' Vereins-Eintr\u00e4ge');
+  if (_laExtern.length) {
+    _bkDbgLine('Extern-Treffer', _laExtern.length + ' (bekannte Athleten f\u00fcr anderen Verein)');
+    _laExtern.forEach(function(s){ _bkDbgLines.push('  ' + s); });
+    _bkDbgFlush();
+  }
+  // Vereinsnamen der Veranstaltung protokollieren \u2013 zeigt sofort, ob ein
+  // fehlender Athlet unter abweichender Vereinsschreibweise gestartet ist.
+  var _laClubNames = Object.keys(_laClubs).sort(function(a,b){ return _laClubs[b]-_laClubs[a]; });
+  if (_laClubNames.length) {
+    _bkDbgLine('Vereine in Liste', _laClubNames.length + ' verschiedene (Top 15)');
+    _laClubNames.slice(0, 15).forEach(function(c){ _bkDbgLines.push('  ' + c + ' (' + _laClubs[c] + ')'); });
+    _bkDbgFlush();
+  }
 
   if (allResults.length) {
     _bkDbgSep();
     _bkDbgHeader('Ergebnisse');
     for (var _di = 0; _di < allResults.length; _di++) {
       var _dr = allResults[_di];
-      _bkDbgLines.push(String(_di+1).padStart(2,' ')+'.  '+(_dr.name||'?').padEnd(22,' ')+(_dr.ak||'  ').padEnd(6,' ')+(_dr.resultat||'').padEnd(10,' ')+(_dr.platz?'Platz\u00a0'+_dr.platz:'').padEnd(9,' ')+'\u2192 '+(_dr.disziplin||'(keine)'));
+      _bkDbgLines.push(String(_di+1).padStart(2,' ')+'.  '+(_dr.name||'?').padEnd(22,' ')+(_dr.ak||'  ').padEnd(6,' ')+(_dr.resultat||'').padEnd(10,' ')+(_dr.platz?'Platz\u00a0'+_dr.platz:'').padEnd(9,' ')+'\u2192 '+(_dr.disziplin||'(keine)')+(_dr.extern?'  [extern: '+_dr.verein+']':''));
     }
     _bkDbgFlush();
   }
