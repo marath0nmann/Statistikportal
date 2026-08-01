@@ -6208,101 +6208,100 @@ if ($res === 'veranstaltungen' && $method === 'GET' && isset($_GET['pending'])) 
     jsonOk(['pending' => array_merge($pending, $geloescht)]);
 }
 
-// ── Abgleich für Importe: existiert zu Datum/Name/Ort schon eine Veranstaltung? ──
-// Liefert bewertete Kandidaten, damit das Bulk-Eintragen automatisch auf
-// "Bestehende wählen" umschalten und die passende Veranstaltung vorauswählen kann.
+// ── Veranstaltungs-Abgleich für Importe  GET /veranstaltungen/match ──
+// Prüft vorab, ob zu Datum/Name/Ort eines Imports schon eine Veranstaltung
+// existiert. Liefert bewertete Kandidaten + ggf. einen eindeutigen Treffer,
+// damit das Bulk-Formular auf „Bestehende wählen" umschalten kann.
+// Bewusst schlank: keine Ergebnislisten wie beim allgemeinen GET.
 if ($res === 'veranstaltungen' && $method === 'GET' && $id === 'match') {
     Auth::requireLogin();
     $mDatum = trim($_GET['datum'] ?? '');
     $mName  = trim($_GET['name']  ?? '');
     $mOrt   = trim($_GET['ort']   ?? '');
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $mDatum)) jsonErr('Datum im Format YYYY-MM-DD erforderlich.');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $mDatum)) $mDatum = '';
+    if ($mDatum === '' && $mName === '') jsonOk(['treffer' => [], 'best' => null]);
 
-    // Normalisierung: Kleinschreibung, Umlaute, Jahreszahlen und Sonderzeichen raus
-    $vNorm = function ($s) {
+    $mNorm = function ($s) {
         $s = mb_strtolower(trim((string)$s), 'UTF-8');
-        $s = strtr($s, ['ä'=>'ae','ö'=>'oe','ü'=>'ue','ß'=>'ss','é'=>'e','è'=>'e','ê'=>'e','á'=>'a','à'=>'a','í'=>'i','ó'=>'o','ú'=>'u']);
-        $s = preg_replace('/\b(19|20)\d{2}\b/', ' ', $s);   // Jahreszahl im Namen ignorieren
+        $s = strtr($s, ['ä'=>'ae','ö'=>'oe','ü'=>'ue','ß'=>'ss','é'=>'e','è'=>'e','ê'=>'e',
+                        'á'=>'a','à'=>'a','â'=>'a','í'=>'i','ó'=>'o','ô'=>'o','ú'=>'u','ç'=>'c']);
         $s = preg_replace('/[^a-z0-9]+/', ' ', $s);
         return trim(preg_replace('/\s+/', ' ', $s));
     };
-    // Tokens ohne Füllwörter – "TuS" u.ä. bleiben drin, sie sind unterscheidungskräftig
-    $vToks = function ($s) use ($vNorm) {
-        $stop = ['der'=>1,'die'=>1,'das'=>1,'des'=>1,'dem'=>1,'den'=>1,'und'=>1,'von'=>1,'vom'=>1,'am'=>1,'im'=>1,'in'=>1,'zu'=>1,'zur'=>1,'zum'=>1,'de'=>1,'van'=>1];
+    $mToks = function ($s) use ($mNorm) {
         $out = [];
-        foreach (explode(' ', $vNorm($s)) as $t) {
-            if ($t !== '' && mb_strlen($t) >= 2 && !isset($stop[$t])) $out[$t] = true;
+        foreach (explode(' ', $mNorm($s)) as $t) {
+            if ($t !== '' && (mb_strlen($t) >= 3 || ctype_digit($t))) $out[] = $t;
         }
-        return array_keys($out);
+        return array_values(array_unique($out));
+    };
+    // Überschneidung relativ zur kürzeren Tokenmenge → Zusatztokens wie das
+    // Jahr im Importnamen ("… 2025") drücken den Wert nicht.
+    $mOverlap = function ($a, $b) {
+        if (!$a || !$b) return 0.0;
+        return count(array_intersect($a, $b)) / min(count($a), count($b));
     };
 
-    // ±1 Tag Toleranz: mehrtägige Veranstaltungen und abweichende Datumsangaben der Quellen
+    $mWhere  = 'v.geloescht_am IS NULL';
+    $mParams = [];
+    if ($mDatum !== '') {
+        $mWhere .= ' AND v.datum BETWEEN DATE_SUB(?, INTERVAL 3 DAY) AND DATE_ADD(?, INTERVAL 3 DAY)';
+        $mParams[] = $mDatum;
+        $mParams[] = $mDatum;
+    } else {
+        [$sqlM, $parM] = sucheWhere(['v.name', 'v.kuerzel'], $mName);
+        if ($sqlM === '') jsonOk(['treffer' => [], 'best' => null]);
+        $mWhere .= ' AND ' . $sqlM;
+        $mParams = $parM;
+    }
     $mRows = DB::fetchAll(
-        "SELECT v.id, v.kuerzel, v.name, v.ort, v.ort_id, v.datum, v.serie_id,
-                COALESCE(o.name, v.ort) AS ort_name
+        "SELECT v.id, v.kuerzel, v.name, v.datum, v.serie_id, v.genehmigt,
+                COALESCE(NULLIF(v.ort, ''), o.name, '') AS ort
          FROM " . DB::tbl('veranstaltungen') . " v
          LEFT JOIN " . DB::tbl('orte') . " o ON o.id = v.ort_id
-         WHERE v.geloescht_am IS NULL AND v.genehmigt = 1
-           AND v.datum BETWEEN DATE_SUB(?, INTERVAL 1 DAY) AND DATE_ADD(?, INTERVAL 1 DAY)
-         ORDER BY v.datum",
-        [$mDatum, $mDatum]
+         WHERE $mWhere
+         ORDER BY v.datum DESC
+         LIMIT 60",
+        $mParams
     );
 
-    $nameToks = $vToks($mName);
-    $nameN    = $vNorm($mName);
-    $ortN     = $vNorm($mOrt);
-    $treffer  = [];
+    $impName = $mToks($mName);
+    $impOrt  = $mToks($mOrt);
+    $treffer = [];
     foreach ($mRows as $mv) {
-        $score  = 0.0;
-        $gruende = [];
-        // Datum
-        if ($mv['datum'] === $mDatum) { $score += 3; $gruende[] = 'Datum'; }
-        else                          { $score += 1; $gruende[] = 'Datum ±1 Tag'; }
-
-        // Name
-        $vNameN = $vNorm($mv['name'] ?: $mv['kuerzel']);
-        if ($nameN !== '' && $vNameN !== '') {
-            if ($nameN === $vNameN) { $score += 4; $gruende[] = 'Name identisch'; }
-            elseif (strpos($vNameN, $nameN) !== false || strpos($nameN, $vNameN) !== false) {
-                $score += 2.5; $gruende[] = 'Name enthalten';
-            } else {
-                $vToksV = $vToks($mv['name'] ?: $mv['kuerzel']);
-                $gem    = count(array_intersect($nameToks, $vToksV));
-                $maxT   = max(count($nameToks), count($vToksV));
-                if ($maxT > 0 && $gem > 0) {
-                    $anteil = $gem / $maxT;
-                    $score += 3 * $anteil;
-                    if ($anteil >= 0.6) $gruende[] = 'Name ähnlich (' . round($anteil * 100) . '%)';
-                }
-            }
+        $score = 0;
+        $tagDiff = null;
+        if ($mDatum !== '') {
+            $tagDiff = (int)abs((strtotime($mv['datum']) - strtotime($mDatum)) / 86400);
+            if     ($tagDiff === 0) $score += 50;
+            elseif ($tagDiff === 1) $score += 32;
+            else                    $score += 18;
         }
-
-        // Ort
-        $vOrtN = $vNorm($mv['ort_name'] ?: $mv['ort']);
-        if ($ortN !== '' && $vOrtN !== '') {
-            if ($ortN === $vOrtN) { $score += 2; $gruende[] = 'Ort identisch'; }
-            elseif (strpos($vOrtN, $ortN) !== false || strpos($ortN, $vOrtN) !== false) {
-                $score += 1; $gruende[] = 'Ort enthalten';
-            }
-        }
-
-        // "sicher" = gleiches Datum + belastbarer Namens- oder Ortstreffer
-        $sicher = ($mv['datum'] === $mDatum && $score >= 6);
-        $treffer[] = [
-            'id'       => (int)$mv['id'],
-            'name'     => $mv['name'],
-            'kuerzel'  => $mv['kuerzel'],
-            'ort'      => $mv['ort_name'] ?: $mv['ort'],
-            'ort_id'   => $mv['ort_id'] !== null ? (int)$mv['ort_id'] : null,
-            'datum'    => $mv['datum'],
-            'serie_id' => $mv['serie_id'] !== null ? (int)$mv['serie_id'] : null,
-            'score'    => round($score, 2),
-            'sicher'   => $sicher ? 1 : 0,
-            'gruende'  => $gruende,
-        ];
+        $vNameTok = $mToks(($mv['name'] ?? '') . ' ' . ($mv['kuerzel'] ?? ''));
+        $nameOv   = $mOverlap($impName, $vNameTok);
+        $score   += (int)round($nameOv * 40);
+        $ortOv    = $mOverlap($impOrt, $mToks($mv['ort'] ?? ''));
+        if ($ortOv > 0) $score += 15;
+        $mv['score']     = $score;
+        $mv['tag_diff']  = $tagDiff;
+        $mv['name_ov']   = round($nameOv, 2);
+        $mv['ort_ov']    = round($ortOv, 2);
+        $treffer[] = $mv;
     }
     usort($treffer, function ($a, $b) { return $b['score'] <=> $a['score']; });
-    jsonOk(['treffer' => array_slice($treffer, 0, 10)]);
+
+    // Eindeutiger Treffer: gleiches Datum und klare Namens-/Ortsübereinstimmung,
+    // und kein zweiter Kandidat mit fast identischer Bewertung.
+    $best = null;
+    if ($treffer) {
+        $t0 = $treffer[0];
+        $sicher = (int)$t0['genehmigt'] === 1 && $t0['tag_diff'] === 0
+                  && ($t0['name_ov'] >= 0.5 || ($t0['ort_ov'] > 0 && $t0['name_ov'] >= 0.34));
+        $eindeutig = count($treffer) < 2 || ($t0['score'] - $treffer[1]['score']) >= 10;
+        if ($sicher && $eindeutig) $best = $t0;
+    }
+    $treffer = array_slice($treffer, 0, 10);
+    jsonOk(['treffer' => $treffer, 'best' => $best]);
 }
 
 if ($res === 'veranstaltungen' && $method === 'GET') {
