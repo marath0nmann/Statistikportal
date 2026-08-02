@@ -708,13 +708,19 @@ function timelineBadges(rek) {
           }
 
           // Exakt die Leistungen zaehlen, die oben in parts[] gelandet sind
+          var _akShown = akM.length + akW.length + (showMHK ? 1 : 0) + (showWHK ? 1 : 0);
           if (gesamtAll) {
             hofVrCnt++;
           } else {
-            if (gesamtM) hofVrCnt++; else if (_mhnLabel) hofBlCnt++;
-            if (gesamtW) hofVrCnt++; else if (_whnLabel) hofBlCnt++;
+            if (gesamtM) hofVrCnt++; else if (_mhnLabel) _akShown++;
+            if (gesamtW) hofVrCnt++; else if (_whnLabel) _akShown++;
           }
-          hofBlCnt += akM.length + akW.length + (showMHK ? 1 : 0) + (showWHK ? 1 : 0);
+          // Ein Vereinsrekord ist zugleich die AK-Bestleistung der Klasse, in der er
+          // aufgestellt wurde – im Gold-Badge steht beides als eine Leistung
+          // ("Vereinsrekord und Bestleistung M45 ueber 800m"). Genau eine AK-Bestleistung
+          // dieser Disziplin geht also im Vereinsrekord auf und zaehlt nicht extra.
+          if (gesamt) _akShown = Math.max(0, _akShown - 1);
+          hofBlCnt += _akShown;
 
           var sentence  = parts.join(' und ');
           var lineClass = gesamt ? 'badge badge-gold' : 'badge badge-silver';

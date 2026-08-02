@@ -7710,16 +7710,21 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
             // MHK/WHK entfällt, wenn dieselbe Leistung schon als Vereinsrekord dieser
             // Disziplin gewertet wurde; Labels ohne Altersklasse tauchen in keinem
             // Badge auf und bleiben deshalb ebenfalls außen vor.
+            $akShown = 0;
             foreach ($titels as $t) {
                 $lbl = $t['label'] ?? '';
                 if ($lbl === 'Bestleistung MHK' || $lbl === 'Bestleistung Männer') {
-                    if (!$gesAll && !$gesM) $score += $PUNKTE_BESTLEISTUNG_AK;
+                    if (!$gesAll && !$gesM) $akShown++;
                 } elseif ($lbl === 'Bestleistung WHK' || $lbl === 'Bestleistung Frauen') {
-                    if (!$gesAll && !$gesW) $score += $PUNKTE_BESTLEISTUNG_AK;
+                    if (!$gesAll && !$gesW) $akShown++;
                 } elseif (preg_match('/^Bestleistung [MW](?:U?\d)/', $lbl)) {
-                    $score += $PUNKTE_BESTLEISTUNG_AK;
+                    $akShown++;
                 }
             }
+            // Der Vereinsrekord ist zugleich die AK-Bestleistung der Klasse, in der er
+            // aufgestellt wurde – genau eine AK-Bestleistung geht darin auf.
+            if ($gesAll || $gesM || $gesW) $akShown = max(0, $akShown - 1);
+            $score += $akShown * $PUNKTE_BESTLEISTUNG_AK;
         }
         foreach ($ath['meisterschaftsTitel'] as $t) {
             $score += (int)($t['punkte'] ?? 1);
