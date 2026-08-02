@@ -4249,6 +4249,113 @@ function mikaZeitAusLi(DOMXPath $xp, DOMNode $li): string {
     return '';
 }
 
+/** Label eines MikaTiming-Feldes als Startnummer erkennen ("Startnr.", "St.-Nr.", "Bib" …). */
+function mikaIstStartnummerLabel(string $label): bool {
+    return (bool)preg_match('/^(startnummer|startnr\.?|start-?nr\.?|st\.?-?nr\.?|stnr|bib(-?nummer|-?no\.?)?)$/i', trim($label));
+}
+
+/**
+ * Detailseite einer MikaTiming-Ergebniszeile auswerten.
+ *
+ * Die Suchliste führt nur Gesamt- und AK-Platz; die Platzierung innerhalb des
+ * Geschlechts sowie – je nach Veranstaltung – die Startnummer stehen erst auf
+ * der Detailseite. MikaTiming zeichnet die Werte über f-*-Klassen aus
+ * (f-start_no, f-place_all, f-place_sex, f-place_age). Fällt das aus, greift
+ * ein Label-Fallback über die Beschriftung der Tabellenzeile.
+ *
+ * @return array{startnr:string,platz_ges:string,platz_mw:string,platz_ak:string,netto:string}
+ */
+function mikaDetailFelder(string $html): array {
+    $out = ['startnr' => '', 'platz_ges' => '', 'platz_mw' => '', 'platz_ak' => '', 'netto' => ''];
+    if ($html === '') return $out;
+
+    $dom = new DOMDocument('1.0', 'UTF-8');
+    @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+    $xp = new DOMXPath($dom);
+
+    // 1. Über die f-*-Klassen (Regelfall)
+    $byClass = [
+        'startnr'   => ['f-start_no', 'f-startnumber', 'f-bib'],
+        'platz_ges' => ['f-place_all'],
+        'platz_mw'  => ['f-place_sex', 'f-place_gender'],
+        'platz_ak'  => ['f-place_age'],
+    ];
+    foreach ($byClass as $feld => $klassen) {
+        foreach ($klassen as $kl) {
+            foreach ($xp->query('//*[contains(@class,"' . $kl . '")]') as $n) {
+                $t = trim($n->textContent);
+                // Plätze können als "1102." oder "1102 / 4711" ausgezeichnet sein
+                if (preg_match('/^(\d{1,6})/', $t, $m)) { $out[$feld] = $m[1]; break 2; }
+            }
+        }
+    }
+
+    // 2. Label-Fallback: <th>Platz M</th><td>1102</td> bzw. list-label-Struktur
+    if ($out['platz_mw'] === '' || $out['startnr'] === '' || $out['platz_ges'] === '' || $out['platz_ak'] === '') {
+        foreach ($xp->query('//tr | //*[contains(@class,"list-field")] | //*[contains(@class,"detail-line")]') as $zeile) {
+            $txt = trim(preg_replace('/\s+/', ' ', $zeile->textContent));
+            if ($txt === '' || mb_strlen($txt) > 60) continue;
+            if (!preg_match('/(\d{1,6})\s*\.?\s*$/', $txt, $wm)) continue;
+            $wert  = $wm[1];
+            $label = trim(mb_substr($txt, 0, mb_strlen($txt) - mb_strlen($wm[0])));
+            // "Platz M" / "Platz W" / "Platz M/W" / "Platz Geschlecht"
+            if ($out['platz_mw'] === '' && preg_match('/platz\s*(m\/w|m$|w$|geschlecht|sex|gender)/i', $label))  $out['platz_mw']  = $wert;
+            elseif ($out['platz_ges'] === '' && preg_match('/platz\s*(gesamt|ges\.?|overall|all)$/i', $label))   $out['platz_ges'] = $wert;
+            elseif ($out['platz_ak'] === '' && preg_match('/platz\s*(ak|altersklasse|age)/i', $label))           $out['platz_ak']  = $wert;
+            elseif ($out['startnr'] === '' && mikaIstStartnummerLabel($label))                                   $out['startnr']   = $wert;
+        }
+    }
+
+    // 3. Zielzeit (Netto vor Brutto) – gleiche Logik wie in der Ergebnisliste
+    foreach (['f-time_finish_netto', 'f-time_finish_brutto'] as $tcls) {
+        foreach ($xp->query('//*[contains(@class,"' . $tcls . '")]') as $tn) {
+            if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', trim($tn->textContent), $tm)) { $out['netto'] = $tm[1]; break 2; }
+        }
+    }
+    if ($out['netto'] === '') {
+        $body = $xp->query('//body')->item(0);
+        if ($body) $out['netto'] = mikaZeitAusLi($xp, $body);
+    }
+    return $out;
+}
+
+/**
+ * Detaildaten für eine begrenzte Menge bereits gefundener Ergebnisse nachladen.
+ * Wird vom Bulk-Import erst aufgerufen, wenn feststeht, welche Zeilen wirklich
+ * übernommen werden – deshalb bleibt die Zahl der Requests klein.
+ */
+if ($res === 'mika-detail' && $method === 'GET') {
+    Auth::requireLogin();
+    $baseUrl = rtrim($_GET['base_url'] ?? '', '/') . '/';
+    if (!filter_var($baseUrl, FILTER_VALIDATE_URL)) jsonErr('Ungültige base_url.', 400);
+    $items = json_decode($_GET['items'] ?? '[]', true);
+    if (!is_array($items) || !$items) jsonErr('items (JSON-Array mit idp/event) erforderlich.', 400);
+    if (count($items) > 120) $items = array_slice($items, 0, 120);
+
+    $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
+    $cookieFile = tempnam(sys_get_temp_dir(), 'mikad');
+    mikaCurl($baseUrl . '?pid=search&pidp=start', $cookieFile, $ua); // Session aufbauen
+
+    $urls = [];
+    foreach ($items as $i => $it) {
+        $idp = preg_replace('/[^A-Za-z0-9]/', '', (string)($it['idp'] ?? ''));
+        $ev  = preg_replace('/[^A-Za-z0-9_]/', '', (string)($it['event'] ?? ''));
+        if ($idp === '') continue;
+        $urls[$idp] = $baseUrl . '?content=detail&fpid=search&pid=search&lang=DE'
+            . '&idp=' . urlencode($idp) . '&event=' . urlencode($ev) . '&pidp=start'
+            . '&search%5Bname%5D=&search%5Bage_class%5D=%25&search%5Bsex%5D=%25'
+            . '&search_sort=name&search_event=' . urlencode($ev);
+    }
+    $htmls   = $urls ? mikaGetCurlMulti($urls, $cookieFile, $ua) : [];
+    $details = [];
+    foreach ($htmls as $idp => $html) {
+        if (!$html) continue;
+        $details[$idp] = mikaDetailFelder($html);
+    }
+    @unlink($cookieFile);
+    jsonOk(['details' => $details, 'angefragt' => count($urls), 'geliefert' => count($details)]);
+}
+
 if ($res === 'mika-fetch' && $method === 'GET') {
     Auth::requireLogin();
     $baseUrl = rtrim($_GET['base_url'] ?? '', '/') . '/';
@@ -4715,15 +4822,16 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 // Neue Interface: Felder via type-* Klassen + list-label extrahieren
                 // Hilfsfunktion: Wert = Gesamttext minus Label-Text
                 // Zielzeit: Netto vor Brutto, Label-Schreibweisen siehe mikaZeitAusLi()
-                $liNetto = mikaZeitAusLi($xp2, $li); $liAK = '';
+                $liNetto = mikaZeitAusLi($xp2, $li); $liAK = ''; $liSnr = '';
 
-                // AK + Verein: type-field, unterschieden via list-label
+                // AK + Verein + Startnummer: type-field, unterschieden via list-label
                 foreach ($xp2->query('.//*[contains(@class,"type-field")]', $li) as $fn) {
                     $labelEl = $xp2->query('.//*[contains(@class,"list-label")]', $fn)->item(0);
                     $label = $labelEl ? trim($labelEl->textContent) : '';
                     $raw = trim(str_replace($label, '', $fn->textContent));
                     if ($label === 'AK' && $raw && !$liAK) $liAK = $raw;
                     if ($label === 'Verein' && $raw && !$liClub) $liClub = $raw;
+                    if (mikaIstStartnummerLabel($label) && $raw && !$liSnr) $liSnr = $raw;
                 }
                 if (!isset($allResults[$idp])) {
                     // Debug für ersten Fund
@@ -4741,6 +4849,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         'netto' => $liNetto, 'ak' => $liAK,
                         'platz_ak' => $placeAK, 'platz_ges' => $placeGes,
                         'event_id' => $evId, 'idp' => $idp, 'club' => $liClub,
+                        'startnr' => $liSnr,
                     ];
                 }
         } // end parse block per LI
@@ -4791,7 +4900,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                             if (preg_match('/[?&]event=([A-Z0-9]{1,5})/i', $_a2->getAttribute('href'), $_em2)) { $_evId2 = $_em2[1]; break; }
                         }
                         $_liNetto2 = mikaZeitAusLi($_x2, $_li2);
-                        $_liAK2 = ''; $_liClub2 = ''; $_pg2 = ''; $_pa2 = '';
+                        $_liAK2 = ''; $_liClub2 = ''; $_pg2 = ''; $_pa2 = ''; $_snr2 = '';
                         foreach ($_x2->query('.//*[contains(@class,"place-primary") or contains(@class,"place_all")]', $_li2) as $_pn2) {
                             $_t2 = trim($_pn2->textContent); if (ctype_digit($_t2)) { $_pg2 = $_t2; break; }
                         }
@@ -4803,11 +4912,13 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                             $_raw2 = trim(str_replace($_lbl2, '', $_fn2->textContent));
                             if ($_lbl2 === 'AK' && $_raw2 && !$_liAK2) $_liAK2 = $_raw2;
                             if ($_lbl2 === 'Verein' && $_raw2 && !$_liClub2) $_liClub2 = $_raw2;
+                            if (mikaIstStartnummerLabel($_lbl2) && $_raw2 && !$_snr2) $_snr2 = $_raw2;
                         }
                         $allResults[$_idp2] = [
                             'name' => trim($_name2), 'contest' => $_evId2,
                             'netto' => $_liNetto2, 'ak' => $_liAK2, 'platz_ak' => $_pa2, 'platz_ges' => $_pg2,
                             'event_id' => $_evId2, 'idp' => $_idp2, 'club' => $_liClub2,
+                            'startnr' => $_snr2,
                         ];
                     }
                 }
@@ -5184,6 +5295,12 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             $pakNodes = $detailXpath->query('//*[contains(@class,"f-place_age")]');
             foreach ($pakNodes as $pn) { $t = trim($pn->textContent); if (ctype_digit($t)) { $res['platz_ak'] = $t; break; } }
         }
+
+        // Geschlechtsplatzierung und Startnummer stehen nur auf der Detailseite
+        $detailFelder = mikaDetailFelder($dHtml);
+        if (empty($res['platz_mw'])  && $detailFelder['platz_mw']  !== '') $res['platz_mw']  = $detailFelder['platz_mw'];
+        if (empty($res['startnr'])   && $detailFelder['startnr']   !== '') $res['startnr']   = $detailFelder['startnr'];
+        if (empty($res['platz_ges']) && $detailFelder['platz_ges'] !== '') $res['platz_ges'] = $detailFelder['platz_ges'];
 
         // Dynamische contestMap (aus Optionen + Heuristik) hat Vorrang vor Defaults
         // v1365: Union-Operator (+) statt array_merge — array_merge nummeriert numerische Keys neu.

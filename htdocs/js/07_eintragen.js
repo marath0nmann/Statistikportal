@@ -3204,6 +3204,11 @@ async function bulkImportFromMika(url, kat, statusEl) {
     var _combined = (r.data.results || []).concat(
       _nameRows.filter(function(res) { return !_clubIdps[res.idp]; })
     );
+    // Startnummer + Platzierung M/W stehen nur auf den Detailseiten. Erst jetzt
+    // nachladen, wenn feststeht welche Zeilen übernommen werden – so bleibt es
+    // bei wenigen Requests statt einem pro Roh-Treffer der Namenssuche.
+    await mikaDetailsNachladen(_combined, baseUrl, statusEl);
+
     rows = mikaExtractRowsForBulk({ results: _combined }, kat);
     // Debug: Diagnose warum rows leer sein könnte trotz Matches
     _bkDbgLine('Pipeline', 'club=' + (r.data.results||[]).length + ' nameMatches=' + _nameRows.length + ' combined=' + _combined.length + ' → rows=' + rows.length);
@@ -3220,7 +3225,10 @@ async function bulkImportFromMika(url, kat, statusEl) {
         (_mr.ak||'  ').padEnd(6,' ') +
         (_mr.resultat||'').padEnd(10,' ') +
         (_mr.platz ? 'Platz\u00a0' + _mr.platz : '').padEnd(9,' ') +
-        '\u2192 ' + (_mr.disziplin||'(keine)')
+        '\u2192 ' + (_mr.disziplin||'(keine)') +
+        (_mr.startnummer ? '  Nr.\u00a0' + _mr.startnummer : '') +
+        (_mr.posGeschlecht ? '  M/W\u00a0' + _mr.posGeschlecht : '') +
+        (_mr.posGesamt ? '  Ges.\u00a0' + _mr.posGesamt : '')
       );
     }
     _bkDbgFlush();
@@ -3410,6 +3418,40 @@ function rrExtractRowsForBulk(data, vereinCfg, kat) {
 }
 
 // ── MikaTiming → Bulk-Zeilen extrahieren ─────────────────────────
+// Startnummer und Geschlechtsplatzierung von den MikaTiming-Detailseiten
+// nachladen und in die bereits gefundenen Ergebnisse mischen. Die Suchliste
+// führt nur Gesamt- und AK-Platz, deshalb der zusätzliche Schritt.
+async function mikaDetailsNachladen(results, baseUrl, statusEl) {
+  var offen = (results || []).filter(function(res) {
+    if (!res.idp) return false;
+    return !res.platz_mw || !res.startnr;   // schon vollständig → nicht erneut laden
+  });
+  if (!offen.length) return;
+
+  if (statusEl) statusEl.textContent = '⏳ Details (Startnr./Platz M-W) für ' + offen.length + ' Ergebnisse…';
+  var items = offen.map(function(res) { return { idp: res.idp, event: res.event_id || '' }; });
+
+  var dr;
+  try {
+    dr = await apiGet('mika-detail?base_url=' + encodeURIComponent(baseUrl) +
+                      '&items=' + encodeURIComponent(JSON.stringify(items)));
+  } catch (e) { dr = null; }
+
+  var details = (dr && dr.ok && dr.data && dr.data.details) || {};
+  var uebernommen = 0;
+  offen.forEach(function(res) {
+    var d = details[res.idp];
+    if (!d) return;
+    if (!res.startnr   && d.startnr)   res.startnr   = d.startnr;
+    if (!res.platz_mw  && d.platz_mw)  res.platz_mw  = d.platz_mw;
+    if (!res.platz_ges && d.platz_ges) res.platz_ges = d.platz_ges;
+    if (!res.platz_ak  && d.platz_ak)  res.platz_ak  = d.platz_ak;
+    if (!res.netto     && d.netto)     res.netto     = d.netto;
+    uebernommen++;
+  });
+  _bkDbgLine('Detail-Nachladung', offen.length + ' angefragt, ' + uebernommen + ' ergänzt (Startnr./Platz M-W)');
+}
+
 function mikaExtractRowsForBulk(data, kat) {
   var results = data && data.results ? data.results : [];
   var disziplinen = state.disziplinen || [];
@@ -3435,6 +3477,7 @@ function mikaExtractRowsForBulk(data, kat) {
       ak:        res.ak || '',
       platz:     parseInt(res.platz_ak) || 0,
       posGesamt:  parseInt(res.platz_ges) || null,
+      posGeschlecht: parseInt(res.platz_mw) || null,
       startnummer: (res.startnr || '').toString().trim() || null,
       disziplin: diszObj ? diszObj.disziplin : disz,
       diszMid:   diszObj ? (diszObj.id || diszObj.mapping_id) : null,
