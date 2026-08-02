@@ -4210,6 +4210,45 @@ function mikaPostCurlMulti(string $url, array $postBodies, string $cookieFile, s
     return $out;
 }
 
+/**
+ * Zielzeit aus einer MikaTiming-Ergebniszeile lesen – Netto vor Brutto.
+ *
+ * Die Label-Texte unterscheiden sich je Veranstaltung erheblich:
+ *   "Netto" / "Brutto"                (klassisch)
+ *   "Zielzeit (Netto)" / "… (Brutto)" (u.a. adidas Runners City Night Berlin)
+ *   "Ziel" / "Zeit" / "Finish" / ""   (ältere bzw. reduzierte Layouts)
+ * Frühere Versionen verglichen die Labels exakt ($lbl === 'Netto'), sodass bei
+ * abweichender Schreibweise entweder gar keine Zeit oder – über den
+ * "letzte Zeit"-Fallback – versehentlich die Bruttozeit übernommen wurde.
+ * Deshalb wird das Label jetzt inhaltlich ausgewertet.
+ *
+ * @return string Zeit als H:MM:SS bzw. '' wenn keine plausible Zeit gefunden
+ */
+function mikaZeitAusLi(DOMXPath $xp, DOMNode $li): string {
+    $netto = ''; $neutral = ''; $brutto = '';
+    foreach ($xp->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
+        $lblEl = $xp->query('.//*[contains(@class,"list-label")]', $tn)->item(0);
+        $lbl   = $lblEl ? trim($lblEl->textContent) : '';
+        $raw   = $lbl !== '' ? trim(str_replace($lbl, '', $tn->textContent)) : trim($tn->textContent);
+        if (!preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) continue;
+        if (preg_match('/netto|net\b|chip/i', $lbl))              { if (!$netto)   $netto   = $tm[1]; }
+        elseif (preg_match('/brutto|gun|offiziell|official/i', $lbl)) { if (!$brutto)  $brutto  = $tm[1]; }
+        else                                                       { if (!$neutral) $neutral = $tm[1]; }
+    }
+    $zeit = $netto ?: ($neutral ?: $brutto);
+    if ($zeit) return $zeit;
+
+    // Fallback: irgendeine plausible Laufzeit im Zeilentext (Uhrzeiten ausschließen)
+    $txt = $li->ownerDocument ? strip_tags($li->ownerDocument->saveHTML($li)) : $li->textContent;
+    if (preg_match_all('/(\d{1,2}:\d{2}:\d{2})/', (string)$txt, $tms)) {
+        foreach ($tms[1] as $kand) {
+            [$h, $m, $s] = explode(':', $kand);
+            if ((int)$h <= 9 && (int)$m < 60 && (int)$s < 60) return $kand;
+        }
+    }
+    return '';
+}
+
 if ($res === 'mika-fetch' && $method === 'GET') {
     Auth::requireLogin();
     $baseUrl = rtrim($_GET['base_url'] ?? '', '/') . '/';
@@ -4258,17 +4297,9 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 foreach ($xL->query('.//a[@href]', $liL) as $aL) {
                     if (preg_match('/[?&]event=([A-Z0-9]{1,8})/i', $aL->getAttribute('href'), $emL)) { $evIdL = $emL[1]; break; }
                 }
-                // Netto bevorzugen (letztes type-time), Plätze, AK, Verein
-                $nettoL=''; $akL=''; $clubL=''; $pgL=''; $paL=''; $timeLastL=''; $snrL='';
-                foreach ($xL->query('.//*[contains(@class,"type-time")]', $liL) as $tnL) {
-                    $lblL = trim(($xL->query('.//*[contains(@class,"list-label")]', $tnL)->item(0) ?: new DOMText(''))->textContent);
-                    $rawL = trim(str_replace($lblL, '', $tnL->textContent));
-                    if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $rawL, $tmL)) {
-                        if ($lblL === 'Netto') { $nettoL = $tmL[1]; break; }
-                        if ($lblL !== 'Brutto') $timeLastL = $tmL[1];
-                    }
-                }
-                if (!$nettoL) $nettoL = $timeLastL;
+                // Zielzeit (Netto vor Brutto), Plätze, AK, Verein
+                $nettoL = mikaZeitAusLi($xL, $liL);
+                $akL=''; $clubL=''; $pgL=''; $paL=''; $snrL='';
                 foreach ($xL->query('.//*[contains(@class,"place-primary") or contains(@class,"place_all")]', $liL) as $pnL) {
                     $tL = trim($pnL->textContent); if (ctype_digit($tL)) { $pgL = $tL; break; }
                 }
@@ -4683,17 +4714,9 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 }
                 // Neue Interface: Felder via type-* Klassen + list-label extrahieren
                 // Hilfsfunktion: Wert = Gesamttext minus Label-Text
-                $liNetto = ''; $liAK = '';
+                // Zielzeit: Netto vor Brutto, Label-Schreibweisen siehe mikaZeitAusLi()
+                $liNetto = mikaZeitAusLi($xp2, $li); $liAK = '';
 
-                // Zeit: type-time, Label "Ziel" = Nettozeit
-                foreach ($xp2->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
-                    $labelEl = $xp2->query('.//*[contains(@class,"list-label")]', $tn)->item(0);
-                    $label = $labelEl ? trim($labelEl->textContent) : '';
-                    if ($label === 'Ziel' || $label === 'Zeit' || $label === '') {
-                        $raw = trim(str_replace($label, '', $tn->textContent));
-                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) { $liNetto = $tm[1]; break; }
-                    }
-                }
                 // AK + Verein: type-field, unterschieden via list-label
                 foreach ($xp2->query('.//*[contains(@class,"type-field")]', $li) as $fn) {
                     $labelEl = $xp2->query('.//*[contains(@class,"list-label")]', $fn)->item(0);
@@ -4701,19 +4724,6 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     $raw = trim(str_replace($label, '', $fn->textContent));
                     if ($label === 'AK' && $raw && !$liAK) $liAK = $raw;
                     if ($label === 'Verein' && $raw && !$liClub) $liClub = $raw;
-                }
-                // Fallback: irgendein H:MM:SS im Li-HTML
-                if (!$liNetto) {
-                    $liRawHtml = strip_tags($dom2->saveHTML($li));
-                    if (preg_match_all('/(\d{1,2}:\d{2}:\d{2})/', $liRawHtml, $tms)) {
-                        foreach ($tms[1] as $tmCandidate) {
-                            // Uhrzeiten (z.B. 11:41:54) ausschließen – Laufzeiten meist < 10h
-                            list($h,$m,$s) = explode(':', $tmCandidate);
-                            if ((int)$h <= 9 && (int)$m < 60 && (int)$s < 60) {
-                                $liNetto = $tmCandidate; break;
-                            }
-                        }
-                    }
                 }
                 if (!isset($allResults[$idp])) {
                     // Debug für ersten Fund
@@ -4780,18 +4790,8 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         foreach ($_x2->query('.//a[@href]', $_li2) as $_a2) {
                             if (preg_match('/[?&]event=([A-Z0-9]{1,5})/i', $_a2->getAttribute('href'), $_em2)) { $_evId2 = $_em2[1]; break; }
                         }
-                        $_liNetto2 = ''; $_liAK2 = ''; $_liClub2 = ''; $_pg2 = ''; $_pa2 = '';
-                        // v1288: Netto bevorzugen (letztes type-time Element)
-                        $_timeLast2 = '';
-                        foreach ($_x2->query('.//*[contains(@class,"type-time")]', $_li2) as $_tn2) {
-                            $_lbl2 = trim(($_x2->query('.//*[contains(@class,"list-label")]', $_tn2)->item(0) ?: new DOMText(''))->textContent);
-                            $_raw2 = trim(str_replace($_lbl2, '', $_tn2->textContent));
-                            if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $_raw2, $_tm2)) {
-                                if ($_lbl2 === 'Netto') { $_liNetto2 = $_tm2[1]; break; }
-                                $_timeLast2 = $_tm2[1];
-                            }
-                        }
-                        if (!$_liNetto2) $_liNetto2 = $_timeLast2;
+                        $_liNetto2 = mikaZeitAusLi($_x2, $_li2);
+                        $_liAK2 = ''; $_liClub2 = ''; $_pg2 = ''; $_pa2 = '';
                         foreach ($_x2->query('.//*[contains(@class,"place-primary") or contains(@class,"place_all")]', $_li2) as $_pn2) {
                             $_t2 = trim($_pn2->textContent); if (ctype_digit($_t2)) { $_pg2 = $_t2; break; }
                         }
@@ -4910,22 +4910,10 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 foreach ($xpNE->query('.//*[contains(@class,"place-secondary")]', $li) as $n) {
                     $t = trim($n->textContent); if (ctype_digit($t)) { $placeAK2 = $t; break; }
                 }
-                // Hamburg-style: Zeit aus type-time Label "Finish" / "Ziel" / "Zeit"
-                $liNetto2 = '';
-                foreach ($xpNE->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
-                    $labelEl = $xpNE->query('.//*[contains(@class,"list-label")]', $tn)->item(0);
-                    $label = $labelEl ? trim($labelEl->textContent) : '';
-                    if (preg_match('/^(Finish|Ziel|Zeit|Netto)/i', $label) || $label === '') {
-                        $raw = trim(str_replace($label, '', $tn->textContent));
-                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) { $liNetto2 = $tm[1]; break; }
-                    }
-                }
-                if (!$liNetto2) {
-                    foreach ($xpNE->query('.//*[contains(@class,"type-time")]', $li) as $tn) {
-                        $raw = $tn->textContent;
-                        if (preg_match('/\b(\d{1,2}:\d{2}:\d{2})\b/', $raw, $tm)) { $liNetto2 = $tm[1]; break; }
-                    }
-                }
+                // Zielzeit: Netto vor Brutto, Label-Schreibweisen siehe mikaZeitAusLi()
+                // (früher "^(Finish|Ziel|Zeit|Netto)" – das griff auch bei
+                //  "Zielzeit (Brutto)" und nahm je nach DOM-Reihenfolge die Bruttozeit)
+                $liNetto2 = mikaZeitAusLi($xpNE, $li);
                 // AK aus type-age_class (z.B. "M / W 40 1975-1979" → "M40")
                 $liAK2 = '';
                 foreach ($xpNE->query('.//*[contains(@class,"type-age_class") or contains(@class,"age_class")]', $li) as $an) {
