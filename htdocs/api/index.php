@@ -7592,9 +7592,20 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         // ── Meisterschafts-Titel: 1. Platz in einer Meisterschaft ──
         $mstrListRaw = '';
         try { $mstrListRaw = DB::fetchOne('SELECT wert FROM ' . DB::tbl('einstellungen') . ' WHERE schluessel = ?', ['meisterschaften_liste'])['wert'] ?? ''; } catch(\Exception $e) {}
-        $mstrMap = [];
-        foreach (json_decode($mstrListRaw ?: '[]', true) ?: [] as $m) {
-            if (!empty($m['id']) && !empty($m['label'])) $mstrMap[(int)$m['id']] = $m['label'];
+        $mstrMap    = [];
+        $mstrPunkte = [];
+        $mstrArten  = json_decode($mstrListRaw ?: '[]', true) ?: [];
+        $mstrAnzahl = count($mstrArten);
+        $mIdx = 0;
+        foreach ($mstrArten as $m) {
+            if (!empty($m['id']) && !empty($m['label'])) {
+                $mstrMap[(int)$m['id']] = $m['label'];
+                // Reihenfolge in Admin → Meisterschaftsarten = Ranking:
+                // erster Eintrag (höchste Meisterschaft) bekommt die volle Punktzahl,
+                // letzter Eintrag genau 1 Punkt.
+                $mstrPunkte[(int)$m['id']] = max(1, $mstrAnzahl - $mIdx);
+            }
+            $mIdx++;
         }
 
         if (!empty($mstrMap)) {
@@ -7631,6 +7642,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                             'label'        => $titelLabel,
                             'ak'           => $ak,
                             'datum'        => $fp['datum'],
+                            'punkte'       => $mstrPunkte[$mId] ?? 1,
                             'is_meisterschaft' => true
                         ];
                     }
@@ -7655,7 +7667,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                 $dedupKey = ($t['label'] ?? '') . '|||' . ($t['ak'] ?? '') . '|||' . $jahr;
                 if (isset($mTitelSeen[$dedupKey])) continue;
                 $mTitelSeen[$dedupKey] = true;
-                $mTitel[] = ['label' => $t['label'], 'datum' => $t['datum'], 'disziplin' => $t['disziplin'] ?? '', 'kat_name' => $t['kat_name'] ?? '', 'ak' => $t['ak'] ?? '', 'jahr' => $jahr];
+                $mTitel[] = ['label' => $t['label'], 'datum' => $t['datum'], 'disziplin' => $t['disziplin'] ?? '', 'kat_name' => $t['kat_name'] ?? '', 'ak' => $t['ak'] ?? '', 'jahr' => $jahr, 'punkte' => (int)($t['punkte'] ?? 1)];
             } else {
                 $diszKey = ($t['disziplin'] ?? '') . '|||' . ($t['mapping_id'] ?? '');
                 $byDisz[$diszKey][] = ['label' => $t['label'], 'datum' => $t['datum'], 'mid' => $t['mapping_id'] ?? null];
@@ -7668,22 +7680,42 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
     }
     unset($ath);
 
-    // Score: Meisterschafts-Titel zählen 3x, Bestleistungen 1x
+    // ── Score ──────────────────────────────────────────────────────────
+    // Meisterschaftstitel: Punkte umgekehrt proportional zum Ranking unter
+    //                      Admin → Meisterschaftsarten (oberster Eintrag = volle
+    //                      Punktzahl, unterster = 1 Punkt)
+    // Vereinsrekord (goldenes Badge, vgl. Seite „Vereinsrekorde"): 5 Punkte
+    // Bestleistung Altersklasse (silbernes Badge):                 3 Punkte
+    $PUNKTE_VEREINSREKORD = 5;
+    $PUNKTE_BESTLEISTUNG_AK = 3;
     foreach ($hof as &$ath) {
         $score = 0;
-        foreach ($ath['disziplinen'] as $disz => $titels) {
+        foreach ($ath['disziplinen'] as $titels) {
+            // Zählweise identisch zur Badge-Anzeige im Dashboard-Widget:
+            // „Gesamtbestleistung" (über alle Geschlechter) ist genau EIN Vereinsrekord.
+            $gesAll = false; $gesM = false; $gesW = false;
             foreach ($titels as $t) {
-                $score += !empty($t['is_meisterschaft']) ? 3 : 1;
+                $lbl = $t['label'] ?? '';
+                if      ($lbl === 'Gesamtbestleistung')        $gesAll = true;
+                elseif  ($lbl === 'Gesamtbestleistung Männer') $gesM   = true;
+                elseif  ($lbl === 'Gesamtbestleistung Frauen') $gesW   = true;
+                else    $score += $PUNKTE_BESTLEISTUNG_AK;
+            }
+            if ($gesAll) {
+                $score += $PUNKTE_VEREINSREKORD;
+            } else {
+                if ($gesM) $score += $PUNKTE_VEREINSREKORD;
+                if ($gesW) $score += $PUNKTE_VEREINSREKORD;
             }
         }
-        if (!empty($ath['meisterschaftsTitel'])) {
-            foreach ($ath['meisterschaftsTitel'] as $t) { $score += 3; }
+        foreach ($ath['meisterschaftsTitel'] as $t) {
+            $score += (int)($t['punkte'] ?? 1);
         }
         $ath['score'] = $score;
     }
     unset($ath);
 
-    // Absteigende Sortierung nach Score (Meisterschaften gewichtet 3x)
+    // Absteigende Sortierung nach Score
     usort($hof, function ($a, $b) {
         return $b['score'] - $a['score'] ?: $b['titelCount'] - $a['titelCount'];
     });
