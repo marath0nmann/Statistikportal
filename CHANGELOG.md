@@ -1,4 +1,4 @@
-## v1448
+## v1449
 - **Hall of Fame: Aufstellung zählt exakt das, was in Medaillen und Badges steht.** Die Zeile unter dem Athletennamen wurde bisher unabhängig von den Badges aus den Roh-Titeln berechnet – Titel, die in keinem Badge dargestellt werden, konnten dadurch in der Zählung auftauchen. Sie wird jetzt in derselben Schleife gefüllt, die die Badges baut, und kann deshalb gar nichts mehr ausweisen, das nicht sichtbar ist. Die Score-Berechnung im Ranking folgt derselben Auswahl.
 - **Hall of Fame: Aufstellung bricht nur noch an den Trennpunkten um.** „5 Titel · 1 Vereinsrekord · 5 AK-Bestleistungen" wurde bei schmalen Widgets mitten in einem Abschnitt getrennt. Jeder Abschnitt bleibt jetzt als Ganzes zusammen, das „·" hängt am vorangehenden Abschnitt.
 
