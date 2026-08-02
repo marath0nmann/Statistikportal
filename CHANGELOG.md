@@ -1,4 +1,4 @@
-## v1450
+## v1451
 - **Hall of Fame: Vereinsrekord und die zugehörige AK-Bestleistung zählen als eine Leistung.** Ein Vereinsrekord ist zwangsläufig auch die Bestleistung der Altersklasse, in der er aufgestellt wurde – das Gold-Badge weist beides gemeinsam aus („Vereinsrekord und Bestleistung M45 über 800m"). In der Aufstellung unter dem Namen wurde die Altersklasse trotzdem zusätzlich gezählt, sodass dort z.B. „5 AK-Bestleistungen" stand, obwohl nur 4 silberne Badges zu sehen waren. Pro Disziplin mit Vereinsrekord geht jetzt genau eine AK-Bestleistung im Vereinsrekord auf. Die bisherige Sonderbehandlung der Hauptklasse (MHK/WHK) ist damit ein Spezialfall derselben Regel; die Score-Berechnung folgt wieder derselben Zählweise.
 
 ## v1449
