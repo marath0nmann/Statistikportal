@@ -1,4 +1,4 @@
-## v1441
+## v1442
 - **MikaTiming-Import: Zielzeit fehlte bzw. war die Bruttozeit.** Die Zeitfelder wurden über exakte Label-Vergleiche (`Netto`, `Brutto`, `Ziel`, `Zeit`) gelesen. Veranstaltungen mit ausführlicheren Labels – z.B. „Zielzeit (Netto)" / „Zielzeit (Brutto)" bei der adidas Runners City Night Berlin – passten in kein Muster: In der Vereinssuche blieb die Zeit ganz leer, in der Namenssuche wurde über den „letzte Zeit"-Fallback still die Bruttozeit übernommen. Die Labels werden jetzt inhaltlich ausgewertet (Netto/Chip vor neutral vor Brutto/Gun) – zentral in `mikaZeitAusLi()` statt in vier Kopien über die API verteilt.
 
 ## v1440
