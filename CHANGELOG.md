@@ -1,4 +1,4 @@
-## v1444
+## v1445
 - **Hall of Fame: neue Gewichtung des Rankings.** Bisher zählte jeder Meisterschaftstitel pauschal 3 Punkte und jede Bestleistung 1 Punkt – Vereinsrekordhalter landeten dadurch weit hinten. Neu: Ein Meisterschaftstitel ist so viel wert, wie seine Meisterschaftsart unter Admin → Meisterschaftsarten oben steht (oberster Eintrag = Anzahl der Arten, unterster = 1 Punkt; bei 8 Arten also Olympia 8, Kreis 1). Ein Vereinsrekord (goldenes Badge, identisch zur Seite „Vereinsrekorde") zählt 5 Punkte, eine Altersklassen-Bestleistung (silbernes Badge) 3 Punkte. Die Reihenfolge der Meisterschaftsarten wirkt damit direkt aufs Ranking, ohne dass Punktwerte separat gepflegt werden müssen.
 
 ## v1443
