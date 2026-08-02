@@ -1,4 +1,4 @@
-## v1452
+## v1453
 - **Hall of Fame: Gold-Badge trennt Vereinsrekord und Altersklassen sprachlich.** „Vereinsrekord und Bestleistung M40–M60 über 800m und 1.500m" ließ sich so lesen, als sei der Vereinsrekord in jeder der genannten Altersklassen aufgestellt worden – tatsächlich gilt er je Disziplin, die Altersklassen gehören nur zu den Bestleistungen. Das Badge lautet jetzt „Vereinsrekord über 800m und 1.500m – dazu Bestleistung M40–M60". Silber-Badges bleiben unverändert; an der Zählung ändert sich nichts.
 
 ## v1451
