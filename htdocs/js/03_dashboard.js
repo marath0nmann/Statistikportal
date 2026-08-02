@@ -684,8 +684,30 @@ function timelineBadges(rek) {
           var _whnLabel = htitels.find(function(t){ return t.label === 'Bestleistung Frauen'; });
           var hasMHK = htitels.some(function(t){ return t.label === 'Bestleistung MHK'; });
           var hasWHK = htitels.some(function(t){ return t.label === 'Bestleistung WHK'; });
-          var akM = htitels.filter(function(t){ return /^Bestleistung M(?:\d|U\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
-          var akW = htitels.filter(function(t){ return /^Bestleistung W(?:\d|U\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
+          var akMt = htitels.filter(function(t){ return /^Bestleistung M(?:\d|U\d)/.test(t.label); });
+          var akWt = htitels.filter(function(t){ return /^Bestleistung W(?:\d|U\d)/.test(t.label); });
+          // Der Vereinsrekord wurde in genau einer Altersklasse gelaufen und ist damit
+          // zugleich deren Bestleistung – dieselbe Leistung. Sie wird ueber das Datum
+          // identifiziert und aus der AK-Liste entfernt, damit sie weder im Badge noch
+          // in der Zaehlung ein zweites Mal auftaucht.
+          var _vrDatum = null;
+          for (var _vi = 0; _vi < htitels.length; _vi++) {
+            var _vl = htitels[_vi].label;
+            if (_vl === 'Gesamtbestleistung' || _vl === 'Gesamtbestleistung Männer' || _vl === 'Gesamtbestleistung Frauen') { _vrDatum = htitels[_vi].datum; break; }
+          }
+          if (_vrDatum) {
+            var _vrDrop = false;
+            for (var _dm = 0; _dm < akMt.length; _dm++) {
+              if (akMt[_dm].datum === _vrDatum) { akMt.splice(_dm, 1); _vrDrop = true; break; }
+            }
+            if (!_vrDrop) {
+              for (var _dw = 0; _dw < akWt.length; _dw++) {
+                if (akWt[_dw].datum === _vrDatum) { akWt.splice(_dw, 1); break; }
+              }
+            }
+          }
+          var akM = akMt.map(function(t){ return t.label.replace('Bestleistung ',''); });
+          var akW = akWt.map(function(t){ return t.label.replace('Bestleistung ',''); });
 
           // Vereinsrekord- und Bestleistungs-Anteil getrennt halten: die Altersklassen
           // gehoeren nur zum Bestleistungs-Teil. Im Gold-Badge werden sie deshalb hinter
@@ -712,7 +734,9 @@ function timelineBadges(rek) {
           }
           var parts = vrParts.concat(akParts);
 
-          // Exakt die Leistungen zaehlen, die oben in parts[] gelandet sind
+          // Exakt die Leistungen zaehlen, die oben in parts[] gelandet sind. Die im
+          // Vereinsrekord aufgegangene AK-Bestleistung steckt dank der Datums-Bereinigung
+          // oben schon nicht mehr in akM/akW – hier wird nichts mehr pauschal abgezogen.
           var _akShown = akM.length + akW.length + (showMHK ? 1 : 0) + (showWHK ? 1 : 0);
           if (gesamtAll) {
             hofVrCnt++;
@@ -720,11 +744,6 @@ function timelineBadges(rek) {
             if (gesamtM) hofVrCnt++; else if (_mhnLabel) _akShown++;
             if (gesamtW) hofVrCnt++; else if (_whnLabel) _akShown++;
           }
-          // Ein Vereinsrekord ist zugleich die AK-Bestleistung der Klasse, in der er
-          // aufgestellt wurde – im Gold-Badge steht beides als eine Leistung
-          // ("Vereinsrekord und Bestleistung M45 ueber 800m"). Genau eine AK-Bestleistung
-          // dieser Disziplin geht also im Vereinsrekord auf und zaehlt nicht extra.
-          if (gesamt) _akShown = Math.max(0, _akShown - 1);
           hofBlCnt += _akShown;
 
           var sentence  = parts.join(' und ');

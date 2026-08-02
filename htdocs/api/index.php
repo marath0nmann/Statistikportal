@@ -7693,12 +7693,12 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
         foreach ($ath['disziplinen'] as $titels) {
             // Zählweise identisch zur Badge-Anzeige im Dashboard-Widget:
             // „Gesamtbestleistung" (über alle Geschlechter) ist genau EIN Vereinsrekord.
-            $gesAll = false; $gesM = false; $gesW = false;
+            $gesAll = false; $gesM = false; $gesW = false; $vrDatum = null;
             foreach ($titels as $t) {
                 $lbl = $t['label'] ?? '';
-                if      ($lbl === 'Gesamtbestleistung')        $gesAll = true;
-                elseif  ($lbl === 'Gesamtbestleistung Männer') $gesM   = true;
-                elseif  ($lbl === 'Gesamtbestleistung Frauen') $gesW   = true;
+                if      ($lbl === 'Gesamtbestleistung')        { $gesAll = true; $vrDatum = $vrDatum ?? ($t['datum'] ?? null); }
+                elseif  ($lbl === 'Gesamtbestleistung Männer') { $gesM   = true; $vrDatum = $vrDatum ?? ($t['datum'] ?? null); }
+                elseif  ($lbl === 'Gesamtbestleistung Frauen') { $gesW   = true; $vrDatum = $vrDatum ?? ($t['datum'] ?? null); }
             }
             if ($gesAll) {
                 $score += $PUNKTE_VEREINSREKORD;
@@ -7710,20 +7710,22 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
             // MHK/WHK entfällt, wenn dieselbe Leistung schon als Vereinsrekord dieser
             // Disziplin gewertet wurde; Labels ohne Altersklasse tauchen in keinem
             // Badge auf und bleiben deshalb ebenfalls außen vor.
-            $akShown = 0;
+            $akShown = 0; $vrAkAbgezogen = false;
             foreach ($titels as $t) {
                 $lbl = $t['label'] ?? '';
                 if ($lbl === 'Bestleistung MHK' || $lbl === 'Bestleistung Männer') {
-                    if (!$gesAll && !$gesM) $akShown++;
+                    if ($gesAll || $gesM) continue;
                 } elseif ($lbl === 'Bestleistung WHK' || $lbl === 'Bestleistung Frauen') {
-                    if (!$gesAll && !$gesW) $akShown++;
-                } elseif (preg_match('/^Bestleistung [MW](?:U?\d)/', $lbl)) {
-                    $akShown++;
+                    if ($gesAll || $gesW) continue;
+                } elseif (!preg_match('/^Bestleistung [MW](?:U?\d)/', $lbl)) {
+                    continue;
+                } elseif (!$vrAkAbgezogen && $vrDatum !== null && ($t['datum'] ?? null) === $vrDatum) {
+                    // Diese AK-Bestleistung ist derselbe Lauf wie der Vereinsrekord
+                    $vrAkAbgezogen = true;
+                    continue;
                 }
+                $akShown++;
             }
-            // Der Vereinsrekord ist zugleich die AK-Bestleistung der Klasse, in der er
-            // aufgestellt wurde – genau eine AK-Bestleistung geht darin auf.
-            if ($gesAll || $gesM || $gesW) $akShown = max(0, $akShown - 1);
             $score += $akShown * $PUNKTE_BESTLEISTUNG_AK;
         }
         foreach ($ath['meisterschaftsTitel'] as $t) {
