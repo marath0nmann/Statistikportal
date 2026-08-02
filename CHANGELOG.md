@@ -1,4 +1,4 @@
-## v1454
+## v1455
 - **Hall of Fame: die im Vereinsrekord aufgegangene AK-Bestleistung verschwindet jetzt auch aus dem Badge.** Bisher wurde pro Gold-Disziplin pauschal eine AK-Bestleistung von der Zählung abgezogen, ohne sie aus dem Badge-Text zu entfernen. Dadurch war die Zeile mal zu niedrig (Badge nannte „Bestleistung M45", gezählt wurde sie nicht), mal schien sie zu hoch (Badge nannte M40–M60, gezählt wurden nur vier davon). Der Vereinsrekord wird jetzt über sein Datum der Altersklasse zugeordnet, in der er gelaufen wurde, und genau diese eine AK-Bestleistung entfällt in Badge und Zählung. Aus „Vereinsrekord über 800m – dazu Bestleistung M40–M60" wird damit „… – dazu Bestleistung M45–M60", und die Badges lassen sich wieder von Hand nachzählen. Die Score-Berechnung nutzt dieselbe Zuordnung.
 
 ## v1453

@@ -1,5 +1,5 @@
 # Statistikportal – Leichtathletik
-## Version v1453 | Stand: August 2026 
+## Version v1455 | Stand: August 2026 
 
 **Die komplette Statistik-Plattform für deinen Leichtathletik-Verein.**  
 Vereinsrekorde, Bestleistungen, Veranstaltungen und Athletenprofile – alles an einem Ort, schnell, sicher und ohne externe Abhängigkeiten.
