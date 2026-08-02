@@ -1,4 +1,4 @@
-## v1446
+## v1447
 - **Hall of Fame: Aufstellung unter dem Namen führt Vereinsrekorde nicht mehr doppelt.** Wer einen Vereinsrekord hält, ist zwangsläufig auch Bestleistungshalter seiner Hauptklasse (MHK/WHK) – dieser Titel wurde in der Zeile unter dem Athletennamen zusätzlich als Bestleistung gezählt, obwohl er bei den Badges bewusst ausgeblendet wird. Aus „6 Vereinsrekorde · 6 Bestleistungen" wird damit korrekt „6 Vereinsrekorde". „Bestleistungen" heißt jetzt „AK-Bestleistungen", passend zu den silbernen Badges. Die Score-Berechnung im Ranking nutzt dieselbe Zählweise, sodass Aufstellung, Badges und Platzierung übereinstimmen.
 
 ## v1445
