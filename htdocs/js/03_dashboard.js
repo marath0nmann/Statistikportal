@@ -687,25 +687,30 @@ function timelineBadges(rek) {
           var akM = htitels.filter(function(t){ return /^Bestleistung M(?:\d|U\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
           var akW = htitels.filter(function(t){ return /^Bestleistung W(?:\d|U\d)/.test(t.label); }).map(function(t){ return t.label.replace('Bestleistung ',''); });
 
-          var parts = [];
+          // Vereinsrekord- und Bestleistungs-Anteil getrennt halten: die Altersklassen
+          // gehoeren nur zum Bestleistungs-Teil. Im Gold-Badge werden sie deshalb hinter
+          // die Disziplinen gezogen, damit die Range nicht auch auf den Rekord bezogen
+          // gelesen wird (der Vereinsrekord gilt je Disziplin, nicht je Altersklasse).
+          var vrParts = [], akParts = [];
           if (gesamtAll) {
-            parts.push('Vereinsrekord');
+            vrParts.push('Vereinsrekord');
           } else {
-            if (gesamtM) { parts.push('Vereinsrekord'); }
-            else if (_mhnLabel) parts.push('Bestleistung M\u00e4nner');
-            if (gesamtW) { parts.push('Vereinsrekord'); }
-            else if (_whnLabel) parts.push('Bestleistung Frauen');
+            if (gesamtM) { vrParts.push('Vereinsrekord'); }
+            else if (_mhnLabel) akParts.push('Bestleistung M\u00e4nner');
+            if (gesamtW) { vrParts.push('Vereinsrekord'); }
+            else if (_whnLabel) akParts.push('Bestleistung Frauen');
           }
           var showMHK = hasMHK && !gesamtM && !gesamtAll;
           var showWHK = hasWHK && !gesamtW && !gesamtAll;
           if (akM.length || showMHK) {
             var mStr = akM.length ? compressAKList(akM) : '';
-            parts.push('Bestleistung ' + (showMHK && mStr ? 'MHK, ' + mStr : showMHK ? 'MHK' : mStr));
+            akParts.push('Bestleistung ' + (showMHK && mStr ? 'MHK, ' + mStr : showMHK ? 'MHK' : mStr));
           }
           if (akW.length || showWHK) {
             var wStr = akW.length ? compressAKList(akW) : '';
-            parts.push('Bestleistung ' + (showWHK && wStr ? 'WHK, ' + wStr : showWHK ? 'WHK' : wStr));
+            akParts.push('Bestleistung ' + (showWHK && wStr ? 'WHK, ' + wStr : showWHK ? 'WHK' : wStr));
           }
+          var parts = vrParts.concat(akParts);
 
           // Exakt die Leistungen zaehlen, die oben in parts[] gelandet sind
           var _akShown = akM.length + akW.length + (showMHK ? 1 : 0) + (showWHK ? 1 : 0);
@@ -724,7 +729,7 @@ function timelineBadges(rek) {
 
           var sentence  = parts.join(' und ');
           var lineClass = gesamt ? 'badge badge-gold' : 'badge badge-silver';
-          if (!groupMap[sentence]) { groupMap[sentence] = { lineClass: lineClass, disz: [], isGold: gesamt }; groupOrder.push(sentence); }
+          if (!groupMap[sentence]) { groupMap[sentence] = { lineClass: lineClass, disz: [], isGold: gesamt, vr: vrParts.slice(), ak: akParts.slice() }; groupOrder.push(sentence); }
           groupMap[sentence].disz.push({name: hDiszName, mid: hMappingId});
         }
 
@@ -766,7 +771,17 @@ function timelineBadges(rek) {
                 for (var gi = 0; gi < groupOrder.length; gi++) {
           var gKey = groupOrder[gi], gData = groupMap[gKey], dl = gData.disz;
           var diszStr = dl.length===1 ? diszMitKat(dl[0].name, dl[0].mid) : dl.slice(0,-1).map(function(d){ return diszMitKat(d.name, d.mid); }).join(', ')+' und '+diszMitKat(dl[dl.length-1].name, dl[dl.length-1].mid);
-          hBadgesHtml += '<span class="'+gData.lineClass+'" style="display:inline-block;margin:3px 4px 3px 0;line-height:1.4">'+gKey+' \u00fcber '+diszStr+'</span>';
+          // Gold: "Vereinsrekord ueber 800m und 1.500m - dazu Bestleistung M40-M60".
+          // Die Altersklassen stehen hinter den Disziplinen, weil sie sich nur auf die
+          // Bestleistungen beziehen - der Vereinsrekord gilt je Disziplin.
+          var gText;
+          if (gData.isGold && gData.vr.length) {
+            gText = gData.vr.join(' und ') + ' \u00fcber ' + diszStr
+                  + (gData.ak.length ? ' \u2013 dazu ' + gData.ak.join(' und ') : '');
+          } else {
+            gText = gKey + ' \u00fcber ' + diszStr;
+          }
+          hBadgesHtml += '<span class="'+gData.lineClass+'" style="display:inline-block;margin:3px 4px 3px 0;line-height:1.4">'+gText+'</span>';
         }
 
         var hRank = hi + 1;
