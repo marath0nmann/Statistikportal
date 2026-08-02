@@ -666,6 +666,10 @@ function timelineBadges(rek) {
 
         var diszKeys = Object.keys(ha.disziplinen);
         var groupMap = {}, groupOrder = [];
+        // Zaehler fuer die Aufstellung unter dem Namen. Wird in derselben Schleife
+        // gefuellt, die die Badges baut – so kann die Zeile nie etwas ausweisen,
+        // das in keinem Badge steht (und umgekehrt).
+        var hofVrCnt = 0, hofBlCnt = 0;
 
         for (var hdi = 0; hdi < diszKeys.length; hdi++) {
           var hd = diszKeys[hdi];
@@ -702,6 +706,15 @@ function timelineBadges(rek) {
             var wStr = akW.length ? compressAKList(akW) : '';
             parts.push('Bestleistung ' + (showWHK && wStr ? 'WHK, ' + wStr : showWHK ? 'WHK' : wStr));
           }
+
+          // Exakt die Leistungen zaehlen, die oben in parts[] gelandet sind
+          if (gesamtAll) {
+            hofVrCnt++;
+          } else {
+            if (gesamtM) hofVrCnt++; else if (_mhnLabel) hofBlCnt++;
+            if (gesamtW) hofVrCnt++; else if (_whnLabel) hofBlCnt++;
+          }
+          hofBlCnt += akM.length + akW.length + (showMHK ? 1 : 0) + (showWHK ? 1 : 0);
 
           var sentence  = parts.join(' und ');
           var lineClass = gesamt ? 'badge badge-gold' : 'badge badge-silver';
@@ -765,38 +778,22 @@ function timelineBadges(rek) {
               '<span class="athlet-link" onclick="openAthletById(' + ha.id + ')">' + ha.name + '</span>' +
             '</div>' +
             (function(){
+            // _mCnt = Anzahl der Medaillen oben, hofVrCnt/hofBlCnt stammen aus der
+            // Badge-Schleife – die Zeile weist damit genau das aus, was auch sichtbar ist.
             var _mCnt = (ha.meisterschaftsTitel || []).length;
-            var _vrCnt = 0, _blCnt = 0;
-            var _dkeys = Object.keys(ha.disziplinen || {});
-            for (var _di = 0; _di < _dkeys.length; _di++) {
-              var _tls = ha.disziplinen[_dkeys[_di]];
-              // 1. Durchgang: Vereinsrekorde dieser Disziplin bestimmen
-              var _gesAll = false, _gesM = false, _gesW = false;
-              for (var _ti = 0; _ti < _tls.length; _ti++) {
-                var _lbl = _tls[_ti].label || '';
-                if (_lbl === 'Gesamtbestleistung') _gesAll = true;
-                else if (_lbl === 'Gesamtbestleistung Männer') _gesM = true;
-                else if (_lbl === 'Gesamtbestleistung Frauen') _gesW = true;
-              }
-              if (_gesAll) { _vrCnt++; }
-              else { if (_gesM) _vrCnt++; if (_gesW) _vrCnt++; }
-              // 2. Durchgang: AK-Bestleistungen. Der MHK/WHK-Titel wird uebersprungen,
-              // wenn er bereits im Vereinsrekord dieser Disziplin steckt - sonst stuende
-              // dieselbe Leistung doppelt in der Aufstellung (identisch zu showMHK/showWHK
-              // bei den Badges weiter oben).
-              for (var _ti2 = 0; _ti2 < _tls.length; _ti2++) {
-                var _lbl2 = _tls[_ti2].label || '';
-                if (_lbl2 === 'Gesamtbestleistung' || _lbl2 === 'Gesamtbestleistung Männer' || _lbl2 === 'Gesamtbestleistung Frauen') continue;
-                if (_lbl2 === 'Bestleistung MHK' && (_gesAll || _gesM)) continue;
-                if (_lbl2 === 'Bestleistung WHK' && (_gesAll || _gesW)) continue;
-                _blCnt++;
-              }
-            }
+            var _vrCnt = hofVrCnt, _blCnt = hofBlCnt;
             var _parts = [];
             if (_mCnt)  _parts.push(_mCnt  + '\u00a0' + (_mCnt  === 1 ? 'Titel'         : 'Titel'));
             if (_vrCnt) _parts.push(_vrCnt + '\u00a0' + (_vrCnt === 1 ? 'Vereinsrekord'  : 'Vereinsrekorde'));
             if (_blCnt) _parts.push(_blCnt + '\u00a0' + (_blCnt === 1 ? 'AK-Bestleistung' : 'AK-Bestleistungen'));
-            return '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">' + _parts.join(' · ') + '</div>';
+            // Umbruch nur an den Trennpunkten: jeder Abschnitt bleibt als Ganzes
+            // zusammen, das "·" haengt per nbsp am vorangehenden Abschnitt.
+            var _line = '';
+            for (var _pi = 0; _pi < _parts.length; _pi++) {
+              var _last = _pi === _parts.length - 1;
+              _line += '<span style="white-space:nowrap">' + _parts[_pi] + (_last ? '' : ' ·') + '</span>' + (_last ? '' : ' ');
+            }
+            return '<div style="font-size:12px;color:var(--text2);margin-bottom:10px">' + _line + '</div>';
           }()) +
             '<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:1px">' + hBadgesHtml + '</div>' +
           '</div>';

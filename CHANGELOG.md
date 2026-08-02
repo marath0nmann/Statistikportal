@@ -1,3 +1,7 @@
+## v1448
+- **Hall of Fame: Aufstellung zählt exakt das, was in Medaillen und Badges steht.** Die Zeile unter dem Athletennamen wurde bisher unabhängig von den Badges aus den Roh-Titeln berechnet – Titel, die in keinem Badge dargestellt werden, konnten dadurch in der Zählung auftauchen. Sie wird jetzt in derselben Schleife gefüllt, die die Badges baut, und kann deshalb gar nichts mehr ausweisen, das nicht sichtbar ist. Die Score-Berechnung im Ranking folgt derselben Auswahl.
+- **Hall of Fame: Aufstellung bricht nur noch an den Trennpunkten um.** „5 Titel · 1 Vereinsrekord · 5 AK-Bestleistungen" wurde bei schmalen Widgets mitten in einem Abschnitt getrennt. Jeder Abschnitt bleibt jetzt als Ganzes zusammen, das „·" hängt am vorangehenden Abschnitt.
+
 ## v1447
 - **Hall of Fame: Aufstellung unter dem Namen führt Vereinsrekorde nicht mehr doppelt.** Wer einen Vereinsrekord hält, ist zwangsläufig auch Bestleistungshalter seiner Hauptklasse (MHK/WHK) – dieser Titel wurde in der Zeile unter dem Athletennamen zusätzlich als Bestleistung gezählt, obwohl er bei den Badges bewusst ausgeblendet wird. Aus „6 Vereinsrekorde · 6 Bestleistungen" wird damit korrekt „6 Vereinsrekorde". „Bestleistungen" heißt jetzt „AK-Bestleistungen", passend zu den silbernen Badges. Die Score-Berechnung im Ranking nutzt dieselbe Zählweise, sodass Aufstellung, Badges und Platzierung übereinstimmen.
 
