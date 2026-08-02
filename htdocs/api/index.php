@@ -7699,13 +7699,21 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
                 if      ($lbl === 'Gesamtbestleistung')        $gesAll = true;
                 elseif  ($lbl === 'Gesamtbestleistung Männer') $gesM   = true;
                 elseif  ($lbl === 'Gesamtbestleistung Frauen') $gesW   = true;
-                else    $score += $PUNKTE_BESTLEISTUNG_AK;
             }
             if ($gesAll) {
                 $score += $PUNKTE_VEREINSREKORD;
             } else {
                 if ($gesM) $score += $PUNKTE_VEREINSREKORD;
                 if ($gesW) $score += $PUNKTE_VEREINSREKORD;
+            }
+            // AK-Bestleistungen: MHK/WHK zählt nicht extra, wenn dieselbe Leistung
+            // bereits als Vereinsrekord dieser Disziplin gewertet wurde.
+            foreach ($titels as $t) {
+                $lbl = $t['label'] ?? '';
+                if ($lbl === 'Gesamtbestleistung' || $lbl === 'Gesamtbestleistung Männer' || $lbl === 'Gesamtbestleistung Frauen') continue;
+                if ($lbl === 'Bestleistung MHK' && ($gesAll || $gesM)) continue;
+                if ($lbl === 'Bestleistung WHK' && ($gesAll || $gesW)) continue;
+                $score += $PUNKTE_BESTLEISTUNG_AK;
             }
         }
         foreach ($ath['meisterschaftsTitel'] as $t) {

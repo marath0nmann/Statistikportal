@@ -1,3 +1,6 @@
+## v1446
+- **Hall of Fame: Aufstellung unter dem Namen führt Vereinsrekorde nicht mehr doppelt.** Wer einen Vereinsrekord hält, ist zwangsläufig auch Bestleistungshalter seiner Hauptklasse (MHK/WHK) – dieser Titel wurde in der Zeile unter dem Athletennamen zusätzlich als Bestleistung gezählt, obwohl er bei den Badges bewusst ausgeblendet wird. Aus „6 Vereinsrekorde · 6 Bestleistungen" wird damit korrekt „6 Vereinsrekorde". „Bestleistungen" heißt jetzt „AK-Bestleistungen", passend zu den silbernen Badges. Die Score-Berechnung im Ranking nutzt dieselbe Zählweise, sodass Aufstellung, Badges und Platzierung übereinstimmen.
+
 ## v1445
 - **Hall of Fame: neue Gewichtung des Rankings.** Bisher zählte jeder Meisterschaftstitel pauschal 3 Punkte und jede Bestleistung 1 Punkt – Vereinsrekordhalter landeten dadurch weit hinten. Neu: Ein Meisterschaftstitel ist so viel wert, wie seine Meisterschaftsart unter Admin → Meisterschaftsarten oben steht (oberster Eintrag = Anzahl der Arten, unterster = 1 Punkt; bei 8 Arten also Olympia 8, Kreis 1). Ein Vereinsrekord (goldenes Badge, identisch zur Seite „Vereinsrekorde") zählt 5 Punkte, eine Altersklassen-Bestleistung (silbernes Badge) 3 Punkte. Die Reihenfolge der Meisterschaftsarten wirkt damit direkt aufs Ranking, ohne dass Punktwerte separat gepflegt werden müssen.
 
