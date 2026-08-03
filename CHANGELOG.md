@@ -1,3 +1,8 @@
+## v1459
+- **Lauf-Disziplinen wurden nicht gefunden, wenn Liste und Datenbank verschiedene Einheiten benutzen.** Stand im Lauftitel eine Meter-Distanz („1000-m-Schüler/innen (1000m)"), wurde nur nach „1000m"/„1000 m" gesucht – ist die Disziplin als „1km" oder „1.000m" hinterlegt, blieb die Disziplin-Spalte leer. Gesucht wird jetzt in beiden Einheiten und mit Tausenderpunkt; dasselbe gilt für Walking-Disziplinen („5km Walking" wurde bei „(5000m)" nicht gefunden).
+- Findet sich über den Namen nichts, wird zusätzlich über die an der Disziplin hinterlegte Distanz gesucht (innerhalb der Kategorien, die die Zeile auch zur Auswahl anbietet). Bei Walking/Nordic bewusst nicht, sonst landet ein 5-km-Walking auf dem 5-km-Lauf.
+- Debug-Log: Disziplinen, die keiner Disziplin der gewählten Kategorie zugeordnet werden konnten, werden jetzt mit Zeilenzahl aufgeführt.
+
 ## v1458
 - **Seltec-Listen aus Word-Exporten werden jetzt gelesen** (z.B. `04_01102011.htm`). Word verpackt jede Tabellenzelle zusätzlich in `<p>`/`<span>`; deren Endtags haben die Zeile umgebrochen, sodass jede Zelle als eigene Zeile ankam und keine einzige Ergebniszeile erkannt wurde (0 Sektionen). Innerhalb einer Tabellenzeile brechen jetzt nur noch `<br>` um.
 - HTML-Import: Mehrfach-Leerzeichen werden zusammengezogen – Word trennt die Zellen durch lange Leerzeichenketten, was u.a. die Spaltenüberschrift „Rg. StNr. Name, Vorname" unlesbar machte. Die Überschrift wird zusätzlich mit Leerzeichen vor dem Punkt erkannt („Rg . StNr .").

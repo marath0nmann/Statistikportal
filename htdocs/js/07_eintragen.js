@@ -4640,9 +4640,14 @@ async function _seltecFinishImport(parsed, sourceLabel, statusEl) {
 
     // Collect all athletes across sections
     var allAthletes = [];
+    var _diszOffen = {};
     parsed.sections.forEach(function(sec) {
       var dResult = sec.diszCands ? _volksFindDisz(sec.diszCands, kat, sec.diszExact)
                                   : _seltecFindDisz(sec.disziplin, kat);
+      if (!dResult.diszMid) {
+        var _k = (dResult.disz || sec.disziplin || '?');
+        _diszOffen[_k] = (_diszOffen[_k] || 0) + sec.athletes.length;
+      }
       sec.athletes.forEach(function(ath) {
         allAthletes.push({
           name:      ath.name,
@@ -4660,6 +4665,10 @@ async function _seltecFinishImport(parsed, sourceLabel, statusEl) {
           mstrPlatz: sec.meisterschaft ? ath.platz : 0
         });
       });
+    });
+
+    Object.keys(_diszOffen).forEach(function(d) {
+      _bkDbgLine('Disziplin nicht zugeordnet', d + ' (' + _diszOffen[d] + ' Zeilen) – in den Disziplinen der gewählten Kategorie nicht gefunden');
     });
 
     // Meisterschafts-Wertungen wiederholen dieselben Ergebnisse ein zweites Mal
@@ -5485,9 +5494,26 @@ function _volksDiszCands(raceTitle) {
   var cands = [];
   // Walking/Nordic ist keine Laufdisziplin → nur passende Walking-Disziplinen suchen,
   // sonst Rohtitel (Nutzer wählt die Disziplin selbst)
+  // Meter- und Kilometer-Schreibweise derselben Distanz (die Disziplin kann in
+  // der Datenbank als "1km", "1.000m" oder "1000m" hinterlegt sein)
+  function beideEinheiten(meter) {
+    var out = [meter + 'm', meter + ' m'];
+    if (meter >= 1000) {
+      out.push(String(meter).replace(/(\d)(\d{3})$/, '$1.$2') + 'm');
+      var kmS = String(meter / 1000).replace('.', ',');
+      out.push(kmS + 'km', kmS + ' km');
+    }
+    return out;
+  }
+
   if (/walking|nordic/i.test(raceTitle)) {
-    var dist = d.unit === 'km' ? String(d.val).replace('.', ',') + 'km' : d.val + 'm';
-    return [dist + ' Walking', 'Walking ' + dist, dist + ' Nordic Walking', raceTitle];
+    var mW = d.unit === 'km' ? Math.round(parseFloat(d.val) * 1000) : Math.round(parseFloat(d.val));
+    var wCands = [];
+    beideEinheiten(mW).forEach(function(dist) {
+      wCands.push(dist + ' Walking', 'Walking ' + dist, dist + ' Nordic Walking');
+    });
+    wCands.push(raceTitle);
+    return wCands;
   }
   if (d.unit === 'km') {
     var kmInt = parseFloat(d.val);
@@ -5495,11 +5521,10 @@ function _volksDiszCands(raceTitle) {
     cands.push(kmStr + 'km', kmStr + ' km');
     if (Number.isInteger(kmInt)) {
       cands.push(kmInt + 'km', kmInt + ' km');
-      var meter = kmInt * 1000;
-      cands.push(meter + 'm', String(meter).replace(/(\d)(\d{3})$/, '$1.$2') + 'm');
+      cands = cands.concat(beideEinheiten(kmInt * 1000));
     }
   } else {
-    cands.push(d.val + 'm', d.val + ' m');
+    cands = cands.concat(beideEinheiten(Math.round(parseFloat(d.val))));
   }
   if (raceTitle) cands.push(raceTitle);
   return cands;
@@ -5523,7 +5548,29 @@ function _volksFindDisz(cands, kat, exactOnly) {
       if (r.diszMid) return r;
     }
   }
+  // Kein Namenstreffer: über die an der Disziplin hinterlegte Distanz suchen –
+  // damit werden auch abweichende Schreibweisen gefunden. Bei Walking/Nordic
+  // bewusst nicht, sonst landet "5km Walking" auf dem 5-km-Lauf.
+  if (!exactOnly) {
+    var meter = _volksMeterAus(cands);
+    var erlaubtD = bkKatMitGruppen(kat); // null = alle Kategorien
+    if (meter) {
+      var hitD = (state.disziplinen || []).find(function(d) {
+        return (!erlaubtD || erlaubtD.indexOf(d.tbl_key) >= 0) && Number(d.distanz) === meter;
+      });
+      if (hitD) return { disz: hitD.disziplin, diszMid: hitD.id || hitD.mapping_id };
+    }
+  }
   return { disz: cands[0] || '', diszMid: null };
+}
+
+// Distanz in Metern aus der ersten auswertbaren Kandidatenschreibweise
+function _volksMeterAus(cands) {
+  for (var i = 0; i < (cands || []).length; i++) {
+    var d = _volksDistFromTitle(cands[i]);
+    if (d) return d.unit === 'km' ? Math.round(parseFloat(d.val) * 1000) : Math.round(parseFloat(d.val));
+  }
+  return 0;
 }
 
 // Disziplin aus einem Sektions-Titel: alles bis zum ersten Trennkomma.
