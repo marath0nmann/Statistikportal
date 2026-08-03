@@ -1,3 +1,8 @@
+## v1458
+- **Seltec-Listen aus Word-Exporten werden jetzt gelesen** (z.B. `04_01102011.htm`). Word verpackt jede Tabellenzelle zusätzlich in `<p>`/`<span>`; deren Endtags haben die Zeile umgebrochen, sodass jede Zelle als eigene Zeile ankam und keine einzige Ergebniszeile erkannt wurde (0 Sektionen). Innerhalb einer Tabellenzeile brechen jetzt nur noch `<br>` um.
+- HTML-Import: Mehrfach-Leerzeichen werden zusammengezogen – Word trennt die Zellen durch lange Leerzeichenketten, was u.a. die Spaltenüberschrift „Rg. StNr. Name, Vorname" unlesbar machte. Die Überschrift wird zusätzlich mit Leerzeichen vor dem Punkt erkannt („Rg . StNr .").
+- Straßenlauf-Import: Trägt ein Bewerb ein Datum, das mehr als eine Woche vom Datum im Listenkopf abweicht (Listen, die aus der Vorjahresdatei erzeugt wurden – im Beispiel „Datum: 03.10.2009" im Lauf gegen „Grefrath, am 01.10.2011" im Kopf), gilt das Kopfdatum. Das Debug-Log weist darauf hin.
+
 ## v1457
 - **Serie-Detail „Meine Teilnahmen": Starts ohne Verein wurden dem eigenen Verein zugeschrieben.** Die Verein-Spalte fiel bei leerem Vereinsnamen unbesehen auf den eigenen Verein zurück (`r.verein || ownClub`) und ignorierte dabei das `extern`-Flag. Ergebnisse, die bewusst ohne Vereinsbindung eingetragen wurden, erschienen dadurch als Start für den Hausverein. Die Spalte nutzt jetzt dieselbe Hilfsfunktion wie „Meine Veranstaltungen"; der Fallback auf den eigenen Verein greift nur noch bei Vereinsergebnissen (`extern=0`). Die maßgebliche Regel ist an der Hilfsfunktion dokumentiert: Über die Vereinszugehörigkeit entscheidet ausschließlich `extern`, nie der Textwert `verein`.
 

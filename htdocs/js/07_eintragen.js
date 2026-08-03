@@ -4455,8 +4455,11 @@ function _seltecHtmlToLines(html) {
   // (<td class="hdPos/hdName/hdPerf">) – dort steht jede Zelle im Quelltext auf
   // einer eigenen Zeile. Innerhalb einer <tr> sind Umbrüche daher reine
   // Formatierung und werden entfernt, damit die Zeile zusammenbleibt.
+  // Word-Exporte packen jede Zelle zusätzlich in <p>/<span> – deren Ende darf
+  // die Zeile ebenfalls nicht umbrechen (nur <br> bleibt ein echter Umbruch)
   h = h.replace(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi, function(all, inner) {
-    return '\n' + inner.replace(/[\r\n\t]+/g, ' ') + '\n';
+    return '\n' + inner.replace(/<\/(p|span|div|li|h[1-6])\s*>/gi, ' ')
+                       .replace(/[\r\n\t]+/g, ' ') + '\n';
   });
   h = h.replace(/<br\s*\/?>/gi, '\n');
   h = h.replace(/<\/(td|th)>/gi, ' ');
@@ -4467,7 +4470,9 @@ function _seltecHtmlToLines(html) {
   });
   h = _seltecDecodeEntities(h);
   return h.split(/\r?\n/).map(function(l) {
-    return l.replace(/ /g, ' ').trim();
+    // Mehrfach-Leerzeichen zusammenziehen – Word-Exporte trennen die Zellen
+    // durch etliche Leerzeichen und Tabulatoren
+    return l.replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
   }).filter(function(l) { return !!l; });
 }
 
@@ -4606,6 +4611,9 @@ async function _seltecFinishImport(parsed, sourceLabel, statusEl) {
     _bkDbgLine('Datum', parsed.date || '(keins)');
     _bkDbgLine('Ort', parsed.location || '(keiner)');
     _bkDbgLine('Eigener Verein', parsed.ownClub || '(unbekannt)');
+    if (parsed.dateWarn) {
+      _bkDbgLine('Abweichendes Bewerbsdatum ignoriert', parsed.dateWarn + ' → ' + parsed.date + ' (aus dem Listenkopf)');
+    }
     _bkDbgLine('Sektionen', parsed.sections.length);
     parsed.sections.forEach(function(s) {
       _bkDbgLine('  ' + s.disziplin, s.athletes.length + ' Zeilen, ' + s.date);
@@ -5152,7 +5160,8 @@ function _parseSeltecLines(lines, opts) {
 // Die Klasse-Spalte liefert AK-Platz + Altersklasse; "Mannschaftswertung"-
 // Abschnitte enthalten Teamzeiten und werden übersprungen.
 
-var _SELTECSTR_HDR = /^Rg\.\s+StNr\.?\s+Name/i;
+// Word-Exporte setzen die Punkte in eigene Elemente ("Rg . StNr . Name")
+var _SELTECSTR_HDR = /^Rg\s*\.\s*StNr\s*\.?\s*Name/i;
 var _SELTECSTR_ROW = /^(\d{1,3})\.\s+(\d{1,6})\s+(.+)$/;
 
 function _seltecStrIsListe(lines) {
@@ -5169,6 +5178,7 @@ function _parseSeltecStrassenLines(lines) {
   var currentSection = null;
   var currentRace = '', currentDist = '', currentDate = '', currentAk = '', currentGesch = '';
   var currentMstr = '';   // Meisterschafts-Bezeichnung aus dem Lauftitel
+  var dateWarn = [];      // Bewerbsdaten, die nicht zum Kopfdatum passen
   var skipRace = false;   // Mannschaftswertung o.ä. → Zeilen ignorieren
   var headerParsed = false;
 
@@ -5223,8 +5233,17 @@ function _parseSeltecStrassenLines(lines) {
 
     var datumM = line.match(/^Datum:\s*(\d{1,2})\.(\d{1,2})\.(\d{4})/);
     if (datumM) {
-      currentDate = datumM[3] + '-' + _p2(datumM[2]) + '-' + _p2(datumM[1]);
-      if (!date) date = currentDate;
+      var dSek = datumM[3] + '-' + _p2(datumM[2]) + '-' + _p2(datumM[1]);
+      // Manche Listen sind aus der Vorjahresdatei erzeugt und tragen in den
+      // Bewerben noch das alte Datum. Liegt es weit weg vom Datum im Kopf,
+      // gilt das Kopfdatum (es passt zum Veranstaltungsnamen und Dateinamen).
+      if (date && Math.abs(new Date(dSek) - new Date(date)) > 7 * 86400000) {
+        if (dateWarn.indexOf(dSek) < 0) dateWarn.push(dSek);
+        currentDate = date;
+      } else {
+        currentDate = dSek;
+        if (!date) date = currentDate;
+      }
       currentSection = null;
       continue;
     }
@@ -5280,7 +5299,8 @@ function _parseSeltecStrassenLines(lines) {
   }
 
   sections = sections.filter(function(s) { return s.athletes.length; });
-  return { eventName: eventName, location: location, date: date, ownClub: ownClub, sections: sections };
+  return { eventName: eventName, location: location, date: date, ownClub: ownClub,
+           sections: sections, dateWarn: dateWarn.join(', ') };
 }
 
 function _parseSeltecStrRow(rest) {
