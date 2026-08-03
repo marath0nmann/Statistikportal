@@ -295,8 +295,14 @@ async function renderMeineVeranstaltungen() {
   _renderMeineTabelle();
 }
 
-// Vereinsanzeige: leere Angabe bei externen Ergebnissen bleibt leer
-// (nur Vereinsergebnisse ohne eigene Angabe zeigen den eigenen Verein)
+// Vereinszuordnung eines Ergebnisses – einzige gueltige Regel in der Anwendung:
+// Massgeblich ist ausschliesslich das Flag `extern`, nie der Textwert `verein`.
+//   extern=0            -> fuer den eigenen Verein gestartet (verein ist dann immer leer)
+//   extern=1 + Vereins-  -> fuer diesen fremden Verein gestartet
+//   extern=1 ohne Verein -> ohne Vereinsbindung gestartet, NICHT fuer den eigenen Verein
+// Ein leerer Vereinsname darf deshalb nur bei extern=0 auf den eigenen Verein
+// zurueckfallen. Gegenstueck beim Speichern: index.php:6752 setzt extern=1,
+// sobald der Vereinsname leer ist oder vom eigenen Verein abweicht.
 function _meinVereinText(r, ownClub) {
   if (r.verein) return r.verein;
   return r.extern ? '' : ownClub;
@@ -1286,7 +1292,7 @@ function _buildSerieMeineTeilnahmen(veranst) {
       '<td style="' + td + ';font-weight:600;cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' +
         r.veranst_name +
       '</td>' +
-      (hasExtern ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + (r.verein || ownClubSerie) + '</td>' : '') +
+      (hasExtern ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + _meinVereinText(r, ownClubSerie) + '</td>' : '') +
       '<td style="' + td + '">' + r.disziplin + '</td>' +
       '<td style="' + td + '">' + akBadge(r.altersklasse) + '</td>' +
       '<td style="' + tdR + '" class="result">' + res + '</td>' +
