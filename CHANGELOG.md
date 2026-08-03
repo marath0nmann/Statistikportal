@@ -1,4 +1,4 @@
-## v1456
+## v1457
 - **Serie-Detail „Meine Teilnahmen": Starts ohne Verein wurden dem eigenen Verein zugeschrieben.** Die Verein-Spalte fiel bei leerem Vereinsnamen unbesehen auf den eigenen Verein zurück (`r.verein || ownClub`) und ignorierte dabei das `extern`-Flag. Ergebnisse, die bewusst ohne Vereinsbindung eingetragen wurden, erschienen dadurch als Start für den Hausverein. Die Spalte nutzt jetzt dieselbe Hilfsfunktion wie „Meine Veranstaltungen"; der Fallback auf den eigenen Verein greift nur noch bei Vereinsergebnissen (`extern=0`). Die maßgebliche Regel ist an der Hilfsfunktion dokumentiert: Über die Vereinszugehörigkeit entscheidet ausschließlich `extern`, nie der Textwert `verein`.
 
 ## v1455
