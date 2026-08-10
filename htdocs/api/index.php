@@ -6137,14 +6137,21 @@ if ($res === 'offene-wettkaempfe' && $method === 'GET') {
 
         // Ergebnis-URL pro Ausgabe (serie_id + jahr) aus dem Trainingsportal.
         // Tabelle/Spalten fehlen bei älteren Trainingsportal-Versionen → try/catch, dann leer.
-        $ergUrlMap = [];  // "serie|jahr" => ['url' => …, 'kat' => …]
+        $ergUrlMap = [];  // "serie|jahr" => ['url' => …]
         try {
             $ter = DB::tbl('training_wettkampf_ergebnis');
             foreach (DB::fetchAll("SELECT * FROM `$ter` WHERE serie_id IN ($sIn)") as $eu) {
                 $ergUrlMap[$eu['serie_id'] . '|' . $eu['jahr']] = [
-                    'url' => $eu['ergebnis_url']    ?? null,
-                    'kat' => $eu['import_kategorie'] ?? null,
+                    'url' => $eu['ergebnis_url'] ?? null,
                 ];
+            }
+        } catch (\Exception $ignored) {}
+
+        // Importkategorie pro Serie (nicht pro Ausgabe) aus training_wettkampf_planung.
+        $katMap = [];  // serie_id => import_kategorie
+        try {
+            foreach (DB::fetchAll("SELECT serie_id, import_kategorie FROM `$twp` WHERE serie_id IN ($sIn)") as $p) {
+                $katMap[(int)$p['serie_id']] = $p['import_kategorie'] ?? null;
             }
         } catch (\Exception $ignored) {}
 
@@ -6257,7 +6264,7 @@ if ($res === 'offene-wettkaempfe' && $method === 'GET') {
                 'ort_id'           => (int)($v['ort_id'] ?? $letzterOrt[$sid]['ort_id'] ?? 0) ?: null,
                 'url'              => $s['url'] ?? null,
                 'ergebnis_url'     => $ergUrlMap[$sid . '|' . $jahr]['url'] ?? null,
-                'import_kategorie' => $ergUrlMap[$sid . '|' . $jahr]['kat'] ?? null,
+                'import_kategorie' => $katMap[$sid] ?? null,
                 'athleten'         => array_values($g['athleten']),
             ];
         }

@@ -1,3 +1,6 @@
+## v1465
+- Fix „Ergebnisse ausstehend": Die `import_kategorie` wird jetzt aus `training_wettkampf_planung` gelesen (pro Serie), nicht mehr aus `training_wettkampf_ergebnis` (pro Ausgabe) – das Trainingsportal hat die Quelle für dieses Feld geändert. `ergebnis_url` bleibt unverändert aus `training_wettkampf_ergebnis` per `serie_id + jahr`.
+
 ## v1464
 - Direkt-Import „Ergebnisse ausstehend": Die Übernahme der Importkategorie aus dem Trainingsportal toleriert jetzt sowohl den `tbl_key` (Dropdown-value) als auch den Kategorie-Namen (Label), jeweils case-insensitiv. So greift die Auto-Auswahl unabhängig davon, ob das Trainingsportal `strasse` oder `Straße` liefert. Maßgeblich bleiben ausschließlich die real existierenden Importkategorien aus `disziplin_kategorien` (Endpunkt `disziplinen`).
 
