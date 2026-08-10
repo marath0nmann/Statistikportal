@@ -1,3 +1,6 @@
+## v1463
+- „Ergebnisse ausstehend": Ist im Trainingsportal für eine Ausgabe eine **Ergebnis-URL** hinterlegt (neue Tabelle `training_wettkampf_ergebnis`, Schlüssel `serie_id + jahr`), erscheint der Button **„📥 Ergebnisse direkt importieren"**. Er bereitet Veranstaltung/Serie/Datum vor, füllt die URL ins Bulk-Feld und startet den Import (RaceResult etc.). Die mitgelieferte `import_kategorie` (Slugs `strasse`, `bahn`, `cross`, `trail`, `sprint`, `mehrkampf`) wird automatisch gesetzt, sofern eine passende Kategorie existiert – sonst öffnet sich wie gewohnt der Kategorie-Selektor. Die API (`offene-wettkaempfe`) liest die neue Tabelle mit (graceful, falls nicht vorhanden).
+
 ## v1462
 - Fix RaceResult: Listen-Abruf nutzt jetzt `/results/list` statt `/RRPublish/data/list` – wie beim Config-Endpoint (v1461) sind manche Events über den RRPublish-Datenpfad nicht erreichbar (404), über `/results/list` (dem von der Website selbst genutzten Pfad) aber schon. Betrifft beide Import-Pfade (Haupt-Loop + `rrFetch`). Behebt 0 Treffer beim Allgäu Panorama Marathon 413893
 

@@ -8140,7 +8140,8 @@ async function _bkLoadOffeneWK() {
         '<div style="display:flex;gap:6px;align-items:center">' +
           (it.url ? '<a href="' + _owEsc(it.url) + '" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" title="Website der Veranstaltung">&#x1F310;</a>' : '') +
           '<a href="#veranstaltungen/serie/' + it.serie_id + '" class="btn btn-ghost btn-sm" title="Zur Serie">&#x1F4CA;</a>' +
-          '<button class="btn btn-primary btn-sm" onclick="owPrefill(' + i + ')">&#x270D;&#xFE0F; Ergebnisse eintragen</button>' +
+          '<button class="btn btn-' + (it.ergebnis_url ? 'ghost' : 'primary') + ' btn-sm" onclick="owPrefill(' + i + ')">&#x270D;&#xFE0F; Ergebnisse eintragen</button>' +
+          (it.ergebnis_url ? '<button class="btn btn-primary btn-sm" onclick="owImportUrl(' + i + ')" title="' + _owEsc(it.ergebnis_url) + '">&#x1F4E5; Ergebnisse direkt importieren</button>' : '') +
         '</div>' +
       '</div>';
   }
@@ -8244,4 +8245,43 @@ function owPrefill(i) {
   );
   var paste = document.getElementById('bk-paste-area');
   if (paste) paste.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Direkt-Import aus der im Trainingsportal hinterlegten Ergebnis-URL (pro Ausgabe).
+// Bereitet die Veranstaltung wie owPrefill vor (die Athletenzeilen ersetzt der Import),
+// füllt die URL ins Bulk-Feld, übernimmt – falls möglich – die Importkategorie aus dem
+// Trainingsportal-Slug und startet den Import. Passt kein Kategorie-Slug auf die hier
+// vorhandenen Kategorien, fordert bulkEinlesen wie gewohnt zur manuellen Auswahl auf.
+function owImportUrl(i) {
+  var it = _owItems[i];
+  if (!it || !it.ergebnis_url) return;
+
+  // Veranstaltung/Serie/Datum/Ort vorbereiten
+  owPrefill(i);
+
+  // Ergebnis-URL als Datenquelle bevorzugen (statt der Website-URL)
+  var qEl = document.getElementById('bk-quelle');
+  if (qEl) qEl.value = it.ergebnis_url;
+
+  // URL ins Paste-Feld → Quellen-Erkennung + Importkategorie-Selektor
+  var ta = document.getElementById('bk-paste-area');
+  if (ta) ta.value = it.ergebnis_url;
+  bulkPasteInput();
+
+  // Importkategorie-Slug übernehmen, sofern eine passende Kategorie existiert
+  if (it.import_kategorie) {
+    var katSel = document.getElementById('bk-import-kat');
+    if (katSel) {
+      for (var o = 0; o < katSel.options.length; o++) {
+        if (katSel.options[o].value === it.import_kategorie) {
+          katSel.value = it.import_kategorie;
+          bulkImportKatChanged();
+          break;
+        }
+      }
+    }
+  }
+
+  // Import starten
+  bulkEinlesen();
 }

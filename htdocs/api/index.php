@@ -6135,6 +6135,19 @@ if ($res === 'offene-wettkaempfe' && $method === 'GET') {
             $planung[(int)$p['serie_id']] = $p;
         }
 
+        // Ergebnis-URL pro Ausgabe (serie_id + jahr) aus dem Trainingsportal.
+        // Tabelle/Spalten fehlen bei älteren Trainingsportal-Versionen → try/catch, dann leer.
+        $ergUrlMap = [];  // "serie|jahr" => ['url' => …, 'kat' => …]
+        try {
+            $ter = DB::tbl('training_wettkampf_ergebnis');
+            foreach (DB::fetchAll("SELECT * FROM `$ter` WHERE serie_id IN ($sIn)") as $eu) {
+                $ergUrlMap[$eu['serie_id'] . '|' . $eu['jahr']] = [
+                    'url' => $eu['ergebnis_url']    ?? null,
+                    'kat' => $eu['import_kategorie'] ?? null,
+                ];
+            }
+        } catch (\Exception $ignored) {}
+
         // Veranstaltungen der Serien nach Jahr (für Datum, Ort und Verknüpfung)
         $vByJahr    = [];  // serie_id => jahr => row
         $letztes    = [];  // serie_id => letztes bekanntes Datum
@@ -6243,6 +6256,8 @@ if ($res === 'offene-wettkaempfe' && $method === 'GET') {
                 'ort'              => $v['ort'] ?? ($letzterOrt[$sid]['ort'] ?? null),
                 'ort_id'           => (int)($v['ort_id'] ?? $letzterOrt[$sid]['ort_id'] ?? 0) ?: null,
                 'url'              => $s['url'] ?? null,
+                'ergebnis_url'     => $ergUrlMap[$sid . '|' . $jahr]['url'] ?? null,
+                'import_kategorie' => $ergUrlMap[$sid . '|' . $jahr]['kat'] ?? null,
                 'athleten'         => array_values($g['athleten']),
             ];
         }
