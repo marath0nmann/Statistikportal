@@ -1,3 +1,6 @@
+## v1462
+- Fix RaceResult: Listen-Abruf nutzt jetzt `/results/list` statt `/RRPublish/data/list` – wie beim Config-Endpoint (v1461) sind manche Events über den RRPublish-Datenpfad nicht erreichbar (404), über `/results/list` (dem von der Website selbst genutzten Pfad) aber schon. Betrifft beide Import-Pfade (Haupt-Loop + `rrFetch`). Behebt 0 Treffer beim Allgäu Panorama Marathon 413893
+
 ## v1461
 - Fix RaceResult: Config-Abruf mit Fallback auf `/results/config`, wenn `/RRPublish/data/config` 404 liefert (manche Events sind nur über diesen Endpoint erreichbar, z.B. Allgäu Panorama Marathon 413893). Beide Endpunkte liefern dasselbe Feldformat (`key`, `eventname`, `contests`); der Fallback wird zusätzlich für `TabConfig.Lists` genutzt.
 

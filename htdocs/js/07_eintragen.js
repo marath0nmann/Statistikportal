@@ -2790,7 +2790,10 @@ async function bulkImportFromRR(url, kat, statusEl) {
   var disziplinen = state.disziplinen||[];
   var diszList    = disziplinen.map(function(d){return d.disziplin;}).filter(function(v,i,a){return a.indexOf(v)===i;});
   var allResults  = [], listsChecked = 0, _externPayloads = [];
-  var base        = 'https://my.raceresult.com/' + eid + '/RRPublish/data/list';
+  // /results/list statt /RRPublish/data/list: einige Events sind über den RRPublish-Datenpfad
+  // nicht erreichbar (404), obwohl die Website selbst (die intern /results/list nutzt) läuft
+  // (z.B. Allgäu Panorama Marathon 413893). /results/list funktioniert für beide Fälle.
+  var base        = 'https://my.raceresult.com/' + eid + '/results/list';
   var hdrs        = {'Origin':'https://my.raceresult.com','Referer':'https://my.raceresult.com/'};
   var iName=3,iClub=6,iAK=-1,iZeit=8,iNetto=7,iPlatz=2,iYear=-1,iGeschlecht=-1,iAKPlatz=-1,iFirstname=-1;
 
@@ -6490,7 +6493,9 @@ async function rrFetch() {
     var iName=3; var iClub=6; var iAK=-1; var iZeit=8; var iNetto=7; var iPlatz=2;
     var iYear=-1; var iGeschlecht=-1; var iFirstname=-1;
 
-    var base4 = 'https://my.raceresult.com/' + eventId + '/RRPublish/data/list';
+    // /results/list statt /RRPublish/data/list: manche Events sind über den RRPublish-Datenpfad
+    // nicht erreichbar (404), obwohl die Website (die intern /results/list nutzt) funktioniert.
+    var base4 = 'https://my.raceresult.com/' + eventId + '/results/list';
     var hdrs  = { 'Origin': 'https://my.raceresult.com', 'Referer': 'https://my.raceresult.com/' };
     var allResults = [];
     var allRowsForAK = [];
