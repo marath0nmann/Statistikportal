@@ -1,3 +1,6 @@
+## v1460
+- Bulk-Eintragen „Ergebnisse ausstehend": Wettkämpfe mit Trainingsportal-Anmeldungen erscheinen jetzt bereits **am Wettkampftag** statt erst am Folgetag. Die Datumsprüfung schließt das heutige Datum ein (`> heute` statt `>= heute`). Betrifft auch den Nav-Badge, da beide dieselbe API (`offene-wettkaempfe`) nutzen.
+
 ## v1459
 - **Lauf-Disziplinen wurden nicht gefunden, wenn Liste und Datenbank verschiedene Einheiten benutzen.** Stand im Lauftitel eine Meter-Distanz („1000-m-Schüler/innen (1000m)"), wurde nur nach „1000m"/„1000 m" gesucht – ist die Disziplin als „1km" oder „1.000m" hinterlegt, blieb die Disziplin-Spalte leer. Gesucht wird jetzt in beiden Einheiten und mit Tausenderpunkt; dasselbe gilt für Walking-Disziplinen („5km Walking" wurde bei „(5000m)" nicht gefunden).
 - Findet sich über den Namen nichts, wird zusätzlich über die an der Disziplin hinterlegte Distanz gesucht (innerhalb der Kategorien, die die Zeile auch zur Auswahl anbietet). Bei Walking/Nordic bewusst nicht, sonst landet ein 5-km-Walking auf dem 5-km-Lauf.

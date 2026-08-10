@@ -6229,7 +6229,7 @@ if ($res === 'offene-wettkaempfe' && $method === 'GET') {
             }
             if (!$datum) continue;
             if (!empty($p['abgesagt_datum']) && $p['abgesagt_datum'] === $datum) continue;  // abgesagt
-            if ($datum >= $heute || $datum < $ab) continue;                                  // nur vergangene im Zeitfenster
+            if ($datum > $heute || $datum < $ab) continue;                                   // ab dem Wettkampftag (heute) bis Zeitfenster-Ende
 
             usort($g['athleten'], fn($x, $y) => strcmp($x['name'], $y['name']));
             $out[] = [
