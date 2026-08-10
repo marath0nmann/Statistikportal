@@ -2657,21 +2657,29 @@ async function bulkImportFromRR(url, kat, statusEl) {
   if (statusEl) statusEl.textContent = '\u23f3 Lade RaceResult-Konfiguration\u2026';
 
   async function _freshCfg() {
-    var r = await fetch(
-      'https://my.raceresult.com/' + eid + '/RRPublish/data/config?lang=de&page=results&noVisitor=1'
-    );
-    if (!r.ok) throw new Error('Config HTTP ' + r.status);
-    var c = await r.json();
-    // Zusätzlich Tab-Config holen: TabConfig.Lists enthält die ECHTEN, abrufbaren
-    // Listennamen (das Top-Level "lists" kann veraltete interne Namen liefern,
-    // z.B. "Online|Final" statt "Online|Online Ergebnisse" beim Fründe-Lauf)
+    var c = null, primaryErr = null;
+    try {
+      var r = await fetch(
+        'https://my.raceresult.com/' + eid + '/RRPublish/data/config?lang=de&page=results&noVisitor=1'
+      );
+      if (r.ok) c = await r.json();
+      else primaryErr = 'Config HTTP ' + r.status;
+    } catch(e) { primaryErr = 'Config ex: ' + e.message; }
+
+    // /results/config liefert dasselbe Feldformat (key, contests, eventname, ...) +
+    // TabConfig.Lists mit den echten, abrufbaren Listennamen. Manche Events liefern
+    // an /RRPublish/data/config 404, sind über /results/config aber erreichbar.
+    var rt2 = null;
     try {
       var rt = await fetch('https://my.raceresult.com/' + eid + '/results/config?lang=de&noVisitor=1&oldFavs=');
-      if (rt.ok) {
-        var ct = await rt.json();
-        if (ct && ct.TabConfig && Array.isArray(ct.TabConfig.Lists)) c._tabLists = ct.TabConfig.Lists;
-      }
+      if (rt.ok) rt2 = await rt.json();
     } catch(e) {}
+
+    if (!c) {
+      if (!rt2) throw new Error(primaryErr || 'Config nicht erreichbar');
+      c = rt2; // Fallback: /results/config als Haupt-Config verwenden
+    }
+    if (rt2 && rt2.TabConfig && Array.isArray(rt2.TabConfig.Lists)) c._tabLists = rt2.TabConfig.Lists;
     return c;
   }
 

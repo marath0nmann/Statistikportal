@@ -1,3 +1,6 @@
+## v1461
+- Fix RaceResult: Config-Abruf mit Fallback auf `/results/config`, wenn `/RRPublish/data/config` 404 liefert (manche Events sind nur über diesen Endpoint erreichbar, z.B. Allgäu Panorama Marathon 413893). Beide Endpunkte liefern dasselbe Feldformat (`key`, `eventname`, `contests`); der Fallback wird zusätzlich für `TabConfig.Lists` genutzt.
+
 ## v1460
 - Bulk-Eintragen „Ergebnisse ausstehend": Wettkämpfe mit Trainingsportal-Anmeldungen erscheinen jetzt bereits **am Wettkampftag** statt erst am Folgetag. Die Datumsprüfung schließt das heutige Datum ein (`> heute` statt `>= heute`). Betrifft auch den Nav-Badge, da beide dieselbe API (`offene-wettkaempfe`) nutzen.
 
