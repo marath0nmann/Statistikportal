@@ -1,3 +1,6 @@
+## v1464
+- Direkt-Import „Ergebnisse ausstehend": Die Übernahme der Importkategorie aus dem Trainingsportal toleriert jetzt sowohl den `tbl_key` (Dropdown-value) als auch den Kategorie-Namen (Label), jeweils case-insensitiv. So greift die Auto-Auswahl unabhängig davon, ob das Trainingsportal `strasse` oder `Straße` liefert. Maßgeblich bleiben ausschließlich die real existierenden Importkategorien aus `disziplin_kategorien` (Endpunkt `disziplinen`).
+
 ## v1463
 - „Ergebnisse ausstehend": Ist im Trainingsportal für eine Ausgabe eine **Ergebnis-URL** hinterlegt (neue Tabelle `training_wettkampf_ergebnis`, Schlüssel `serie_id + jahr`), erscheint der Button **„📥 Ergebnisse direkt importieren"**. Er bereitet Veranstaltung/Serie/Datum vor, füllt die URL ins Bulk-Feld und startet den Import (RaceResult etc.). Die mitgelieferte `import_kategorie` (Slugs `strasse`, `bahn`, `cross`, `trail`, `sprint`, `mehrkampf`) wird automatisch gesetzt, sofern eine passende Kategorie existiert – sonst öffnet sich wie gewohnt der Kategorie-Selektor. Die API (`offene-wettkaempfe`) liest die neue Tabelle mit (graceful, falls nicht vorhanden).
 

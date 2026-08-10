@@ -8268,13 +8268,19 @@ function owImportUrl(i) {
   if (ta) ta.value = it.ergebnis_url;
   bulkPasteInput();
 
-  // Importkategorie-Slug übernehmen, sofern eine passende Kategorie existiert
+  // Importkategorie aus dem Trainingsportal übernehmen, sofern eine passende
+  // Kategorie existiert. Toleriert sowohl den tbl_key (Option-value) als auch
+  // den Kategorie-Namen (Option-Label), jeweils case-insensitiv – so ist es egal,
+  // ob das Trainingsportal z.B. "strasse" oder "Straße" liefert.
   if (it.import_kategorie) {
     var katSel = document.getElementById('bk-import-kat');
     if (katSel) {
+      var want = String(it.import_kategorie).trim().toLowerCase();
       for (var o = 0; o < katSel.options.length; o++) {
-        if (katSel.options[o].value === it.import_kategorie) {
-          katSel.value = it.import_kategorie;
+        var opt = katSel.options[o];
+        if (!opt.value) continue;
+        if (opt.value.toLowerCase() === want || (opt.textContent || '').trim().toLowerCase() === want) {
+          katSel.value = opt.value;
           bulkImportKatChanged();
           break;
         }
