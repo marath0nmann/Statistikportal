@@ -148,9 +148,14 @@ class RaceResult {
         return $out;
     }
 
-    // ── 2a. Event-Config (Key + Listennamen) ─────────────────────────────
-    // Gibt ['key' => …, 'listen' => [Name, …]] zurück oder null, wenn das
-    // Event keine öffentliche Ergebnisseite hat.
+    // ── 2a. Event-Config (Key + Listen) ──────────────────────────────────
+    // Gibt ['key' => …, 'listen' => [['name'=>…,'contest'=>…], …]] zurück
+    // oder null, wenn das Event keine öffentliche Ergebnisseite hat.
+    //
+    // Wichtig: Listen sind oft an einen Contest gebunden ("Contest":"1").
+    // Ein Abruf mit contest=0 antwortet dann mit 404 "list not found" –
+    // der Contest muss aus dem Listeneintrag übernommen werden. Nur wenn
+    // eine Liste selbst Contest 0 meldet, deckt ein Abruf alle Wettbewerbe ab.
     public static function config(int $eventId): ?array {
         $pfade = [
             '/results/config?lang=de&noVisitor=1&oldFavs=',
@@ -162,24 +167,62 @@ class RaceResult {
             $c = self::jsonDecode($body);
             if (!is_array($c) || empty($c['key'])) continue;
 
-            $listen = [];
+            // Kandidaten aus TabConfig.Lists und lists/list einsammeln.
+            // lists ist mal ein Objekt (Name => Contest), mal eine Liste
+            // von Objekten mit Name/Contest.
+            $kandidaten = [];
+            $add = function (string $name, string $contest) use (&$kandidaten) {
+                $name = trim($name);
+                if ($name === '') return;
+                $k = $name . '|' . $contest;
+                if (!isset($kandidaten[$k])) $kandidaten[$k] = ['name' => $name, 'contest' => $contest];
+            };
             foreach (($c['TabConfig']['Lists'] ?? []) as $l) {
-                $n = $l['Name'] ?? '';
-                if ($n !== '' && !in_array($n, $listen, true)) $listen[] = $n;
+                if (is_array($l)) $add((string)($l['Name'] ?? ''), (string)($l['Contest'] ?? '0'));
             }
             $roh = $c['lists'] ?? $c['list'] ?? [];
             if (is_array($roh)) {
-                foreach (array_keys($roh) as $n) {
-                    $n = (string)$n;
-                    if ($n !== '' && !in_array($n, $listen, true)) $listen[] = $n;
+                foreach ($roh as $k => $v) {
+                    if (is_array($v))        $add((string)($v['Name'] ?? $k), (string)($v['Contest'] ?? '0'));
+                    elseif (is_scalar($v))   $add((string)$k, (string)$v);
                 }
             }
-            $listen = array_values(array_filter($listen, fn($n) => !self::listeGesperrt($n)));
+            if (!$kandidaten) continue;
+
+            $listen = self::listenWaehlen(array_values($kandidaten));
             if (!$listen) continue;
 
-            return ['key' => (string)$c['key'], 'listen' => array_slice($listen, 0, 3)];
+            return ['key' => (string)$c['key'], 'listen' => $listen];
         }
         return null;
+    }
+
+    // Pro Contest genau eine Liste – sonst würde jeder Wettkampf vielfach
+    // abgefragt. Bevorzugt werden echte Ergebnislisten; Start-/Team-/
+    // Live-Listen fallen weg, sofern danach noch etwas übrig bleibt.
+    private static function listenWaehlen(array $kandidaten): array {
+        $brauchbar = array_values(array_filter($kandidaten, fn($l) => !self::listeGesperrt($l['name'])));
+        if (!$brauchbar) $brauchbar = $kandidaten;
+
+        // Ergebnis-/Zieleinlauflisten zuerst
+        usort($brauchbar, function ($a, $b) {
+            return self::listenRang($a['name']) <=> self::listenRang($b['name']);
+        });
+
+        $proContest = [];
+        foreach ($brauchbar as $l) {
+            if (!isset($proContest[$l['contest']])) $proContest[$l['contest']] = $l;
+        }
+        // Deckt eine Liste alle Wettbewerbe ab (Contest 0), genügt sie allein
+        if (isset($proContest['0'])) return [$proContest['0']];
+        return array_slice(array_values($proContest), 0, 4);
+    }
+
+    private static function listenRang(string $name): int {
+        $n = mb_strtoupper($name);
+        if (str_contains($n, 'ERGEBNIS') || str_contains($n, 'RESULT')) return 0;
+        if (str_contains($n, 'ZIELEINLAUF') || str_contains($n, 'FINISH')) return 1;
+        return 2;
     }
 
     // Start-/Team-/Live-Listen taugen nicht für Ergebnisfunde.
@@ -195,11 +238,11 @@ class RaceResult {
 
     // ── 2b. Vereinssuche in einem Event ──────────────────────────────────
     // Gibt die Trefferzeilen als Assoc-Arrays zurück, null bei HTTP-Fehler.
-    public static function suche(int $eventId, string $key, string $listname, string $begriff): ?array {
+    public static function suche(int $eventId, string $key, string $listname, string $contest, string $begriff): ?array {
         $url = self::BASE . '/' . $eventId . '/results/list'
              . '?key=' . rawurlencode($key)
              . '&listname=' . rawurlencode($listname)
-             . '&page=results&contest=0&r=search&l=9999'
+             . '&page=results&contest=' . rawurlencode($contest) . '&r=search&l=9999'
              . '&term=' . rawurlencode($begriff);
         [$code, $body] = self::http($url);
         if ($code !== 200) return null;
@@ -374,20 +417,30 @@ class RaceResult {
                 continue;
             }
 
-            $zeilen = null;
+            // Je Contest eine Liste abfragen; einzelne nicht abrufbare Listen
+            // überspringen, solange mindestens eine geantwortet hat.
+            $zeilen = [];
+            $erfolg = false;
             foreach ($cfg['listen'] as $liste) {
-                $zeilen = null;
+                $rowsListe = [];
                 foreach ($begriffe as $begriff) {
-                    $r = self::suche($eid, $cfg['key'], $liste, $begriff);
-                    if ($r === null) continue 2;   // Liste nicht abrufbar → nächste Liste
-                    if ($zeilen === null) $zeilen = [];
-                    foreach ($r as $z) $zeilen[] = $z;
+                    $r = self::suche($eid, $cfg['key'], $liste['name'], $liste['contest'], $begriff);
+                    if ($r === null) { $rowsListe = null; break; }
+                    foreach ($r as $z) $rowsListe[] = $z;
                 }
-                break; // erste abrufbare Liste genügt – contest=0 deckt alle Wettbewerbe ab
+                if ($rowsListe === null) continue;
+                $erfolg = true;
+                foreach ($rowsListe as $z) $zeilen[] = $z;
             }
 
-            if ($zeilen === null) {
-                DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET versuche = versuche + 1, letzter_scan = NOW() WHERE event_id = ?', [$eid]);
+            if (!$erfolg) {
+                // Config da, aber keine Liste abrufbar – wie eine fehlende
+                // Ergebnisseite begrenzt nachfassen, sonst bleibt das Event
+                // dauerhaft in der Warteschlange.
+                $neuerStatus = ((int)$ev['versuche'] + 1 >= 6 || $ev['datum'] < date('Y-m-d', strtotime('-21 days')))
+                    ? 'ohne_ergebnis' : 'offen';
+                DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET versuche = versuche + 1, letzter_scan = NOW(), status = ? WHERE event_id = ?',
+                    [$neuerStatus, $eid]);
                 continue;
             }
 
