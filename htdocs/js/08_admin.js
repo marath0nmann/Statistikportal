@@ -2104,6 +2104,28 @@ async function renderAdminDarstellung() {
       '</div>' +
     '</div>' +
 
+    '<div class="panel" style="padding:20px;margin-bottom:16px">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">&#x1F50E; RaceResult-Scanner</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Durchsucht täglich alle von RaceResult gezeiteten Wettkämpfe der ausgewählten Länder nach Starts unseres Vereins und meldet Funde auf der Eintragen-Seite. Der Lauf selbst wird per Cronjob angestoßen.</div>' +
+      row('Scanner aktiv', 'Ohne Häkchen ignoriert die Scan-URL alle Aufrufe',
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
+        '<input type="checkbox" id="cfg-rr_scan_aktiv" ' + (cfgVal('rr_scan_aktiv','0') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer"/>' +
+        '<span style="font-size:13px;color:var(--text2)">Aktiv</span>' +
+        '</label>') +
+      row('Länder', 'Numerische ISO-IDs, kommagetrennt: 276 = DE, 528 = NL, 56 = BE, 756 = CH, 40 = AT, 250 = FR, 442 = LU',
+        textIn('cfg-rr_scan_laender', cfgVal('rr_scan_laender','276,528,56'), '276,528,56')) +
+      row('Suchbegriffe', 'Kommagetrennt. Leer = Vereinsname + Kurzbezeichnung aus den Vereinsdaten',
+        textIn('cfg-rr_scan_begriffe', cfgVal('rr_scan_begriffe',''), 'z.B. TuS Oedt, TuS 1911 Oedt')) +
+      row('Rückblick (Tage)', 'Wie weit die tägliche Wettkampfsuche zurückreicht',
+        numIn('cfg-rr_scan_tage', cfgVal('rr_scan_tage','14'), 1, 60)) +
+      row('Wettkämpfe pro Lauf', 'Obergrenze je Cron-Aufruf (ca. 2,5 Sekunden pro Wettkampf)',
+        numIn('cfg-rr_scan_budget', cfgVal('rr_scan_budget','60'), 1, 500)) +
+      '<div id="rr-scan-status" style="margin-top:14px;font-size:12px;color:var(--text2)">Status wird geladen&hellip;</div>' +
+      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button class="btn btn-sm" onclick="rrScanJetzt()">&#x25B6;&#xFE0E; Jetzt scannen</button>' +
+      '</div>' +
+    '</div>' +
+
     '<div style="padding-bottom:8px">' +
       '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-bottom:8px">' +
         '<div class="panel" style="padding:20px;margin-bottom:16px">' +
@@ -2117,6 +2139,42 @@ async function renderAdminDarstellung() {
       '</div>' +
     '</div>' +
   '</div>';
+
+  _rrScanStatus();
+}
+
+// Scanner-Status + Cron-URL nachladen (Token kommt nur über diese Route).
+async function _rrScanStatus() {
+  var box = document.getElementById('rr-scan-status');
+  if (!box) return;
+  var r = await apiGet('rr-scan-status');
+  if (!r || !r.ok) { box.textContent = 'Status konnte nicht geladen werden.'; return; }
+  var d = r.data;
+  var st = d.letzter_status || {};
+  var esc = function(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  box.innerHTML =
+    '<div style="margin-bottom:6px"><strong>Cron-URL</strong> (z.B. stündlich bei all-inkl aufrufen):</div>' +
+    '<code style="display:block;padding:8px 10px;background:var(--surf2);border:1px solid var(--border);' +
+      'border-radius:6px;word-break:break-all;font-size:11px;margin-bottom:10px">' + esc(d.scan_url) + '</code>' +
+    '<div>Suchbegriffe: <strong>' + esc((d.begriffe || []).join(', ') || '–') + '</strong></div>' +
+    '<div>Wettkämpfe: ' + (d.events.gesamt || 0) + ' bekannt · ' + (d.events.offen || 0) + ' offen · ' +
+      (d.events.fertig || 0) + ' geprüft · ' + (d.events.ohne || 0) + ' ohne Ergebnisliste</div>' +
+    '<div>Funde: ' + (d.funde.gesamt || 0) + ' gesamt · ' + (d.funde.neu || 0) + ' offen</div>' +
+    '<div>Letzter Lauf: ' + esc(d.letzter_lauf || '–') +
+      (st.gescannt !== undefined
+        ? ' (' + st.gescannt + ' Wettkämpfe, ' + st.neue_funde + ' neue Funde, ' +
+          st.requests + ' Abrufe, ' + st.dauer + ' s' + (st.abgebrochen ? ', Zeitlimit erreicht' : '') + ')'
+        : '') +
+    '</div>';
+}
+
+async function rrScanJetzt() {
+  var box = document.getElementById('rr-scan-status');
+  if (box) box.textContent = '⏳ Scan läuft – das kann einige Minuten dauern…';
+  var r = await apiGet('rr-scan?force=1&sekunden=120');
+  if (r && r.ok) notify('Scan beendet: ' + (r.data.neue_funde || 0) + ' neue Funde.', 'ok');
+  else notify((r && r.fehler) || 'Scan fehlgeschlagen.', 'err');
+  _rrScanStatus();
 }
 
 async function saveWartungAktiv(checked) {
@@ -2233,6 +2291,7 @@ async function saveAllSettings() {
     'wartung_nachricht',
     'login_portal_url',
     'passkey_rp_id',
+    'rr_scan_laender','rr_scan_begriffe','rr_scan_tage','rr_scan_budget',
   ];
   var payload = {};
   for (var i = 0; i < keys.length; i++) {
@@ -2240,7 +2299,7 @@ async function saveAllSettings() {
     if (el) payload[keys[i]] = el.value;
   }
   // Checkboxen separat (checked → '1', unchecked → '0')
-  var cbKeys = ['version_nur_admins', 'wartung_aktiv', 'login_portal_aktiv', 'eigenes_veranst_prufen', 'eigenes_ergebnis_prufen'];
+  var cbKeys = ['version_nur_admins', 'wartung_aktiv', 'login_portal_aktiv', 'eigenes_veranst_prufen', 'eigenes_ergebnis_prufen', 'rr_scan_aktiv'];
 
   for (var j = 0; j < cbKeys.length; j++) {
     var cb = document.getElementById('cfg-' + cbKeys[j]);

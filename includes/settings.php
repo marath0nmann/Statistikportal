@@ -27,7 +27,15 @@ class Settings {
         'login_portal_aktiv'         => ['0',                                                   'Zentrales Login-Portal aktivieren',               'login_portal'],
         'login_portal_url'           => ['',                                                    'URL des Login-Portals (z.B. https://login.tus-oedt.de)', 'login_portal'],
         'login_portal_apps'          => ['[]',                                                  'Registrierte Apps (JSON)',                         'login_portal'],
+        'rr_scan_aktiv'              => ['0',                                                   'RaceResult-Scanner aktiv',                        'raceresult'],
+        'rr_scan_laender'            => ['276,528,56',                                          'Zu durchsuchende Länder (numerische ISO-IDs)',     'raceresult'],
+        'rr_scan_begriffe'           => ['',                                                    'Suchbegriffe (leer = Vereinsname + Kurzbezeichnung)', 'raceresult'],
+        'rr_scan_tage'               => ['14',                                                  'Rückblick-Fenster in Tagen',                       'raceresult'],
+        'rr_scan_budget'             => ['60',                                                  'Max. Wettkämpfe pro Scanlauf',                     'raceresult'],
     ];
+
+    // Nie über die öffentliche GET-Route ausliefern (Zugangsdaten).
+    public const GEHEIM = ['github_token', 'rr_scan_token'];
 
     // ── Alle Einstellungen als key→value laden, fehlende Defaults einmalig schreiben
     public static function all(): array {

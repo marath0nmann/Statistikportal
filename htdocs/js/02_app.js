@@ -2814,7 +2814,7 @@ function buildNav() {
   }
   // Eingeloggte User: gleiche Tabs + Eintragen/Admin
   if (currentUser.rolle === 'editor' || currentUser.rolle === 'admin' || currentUser.rolle === 'athlet') {
-    var _eintN = window._eintragenOffeneWK || 0;
+    var _eintN = (window._eintragenOffeneWK || 0) + (window._eintragenRrFunde || 0);
     // Nav-Buttons sind flex-column → Text + Badge in Inline-Wrapper (nowrap), Zahl daneben statt darunter
     var _eintLabel = '<span style="white-space:nowrap">Eintragen' + (_eintN > 0 ? ' <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700;vertical-align:middle;line-height:1.4">' + _eintN + '</span>' : '') + '</span>';
     tabs.push({ id: 'eintragen', icon: '➕️', label: _eintLabel, rawLabel: true });
@@ -2838,12 +2838,16 @@ function buildNav() {
 // force=true erzwingt ein Neuladen (z.B. nach dem Speichern von Ergebnissen).
 async function _ladeEintragenBadge(force) {
   if (!_canBulkEintragen()) { window._eintragenOffeneWK = 0; return; }
-  if (!force && window._eintragenOffeneWK !== undefined) { _patchEintragenNavBadge(window._eintragenOffeneWK); return; }
+  if (!force && window._eintragenOffeneWK !== undefined) {
+    _patchEintragenNavBadge((window._eintragenOffeneWK || 0) + (window._eintragenRrFunde || 0));
+    return;
+  }
   try {
-    var r = await apiGet('offene-wettkaempfe');
-    var n = (r && r.ok && Array.isArray(r.data)) ? r.data.length : 0;
-    window._eintragenOffeneWK = n;
-    _patchEintragenNavBadge(n);
+    // Offene Wettkämpfe (Trainingsportal) + RaceResult-Funde in einem Badge
+    var rs = await Promise.all([apiGet('offene-wettkaempfe'), apiGet('rr-funde')]);
+    window._eintragenOffeneWK = (rs[0] && rs[0].ok && Array.isArray(rs[0].data)) ? rs[0].data.length : 0;
+    window._eintragenRrFunde  = (rs[1] && rs[1].ok && Array.isArray(rs[1].data)) ? rs[1].data.length : 0;
+    _patchEintragenNavBadge(window._eintragenOffeneWK + window._eintragenRrFunde);
   } catch (e) {}
 }
 
