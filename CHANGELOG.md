@@ -1,3 +1,8 @@
+## v1468
+- **Benutzer löschen im Admin-Panel geht jetzt in den Papierkorb.** Bisher war `DELETE benutzer/{id}` ein echtes `DELETE FROM benutzer` – ohne Rückweg, und per `ON DELETE CASCADE` wurden die Passkeys des Kontos gleich mit entfernt. Das stand im Widerspruch zum Selbstlöschen („Konto löschen"), das schon immer `aktiv=0, geloescht_am=NOW()` gesetzt hat. Der Admin-Pfad setzt jetzt dasselbe; der Papierkorb listete Benutzer bereits auf und konnte sie wiederherstellen, und die Benutzerliste filtert ohnehin auf `geloescht_am IS NULL`.
+- Login und bestehende Sessions bleiben durch `aktiv=0` blockiert (`auth.php` prüft `aktiv=1` sowohl beim Login als auch bei jeder Session-Prüfung). `athlet_id` und die `erstellt_von`-Referenzen der Ergebnisse bleiben bis zur endgültigen Löschung aus dem Papierkorb erhalten – die Autorenzuordnung überlebt das Löschen damit.
+- Bestätigungsdialog und Erfolgsmeldung im Admin-Panel benennen den Papierkorb.
+
 ## v1467
 - Fix RaceResult-Scanner: Listen sind bei vielen Events an einen **Contest** gebunden (`"Contest":"1"`). Der Abruf mit `contest=0` antwortet dort mit HTTP 404 `list not found` – betroffen war rund ein Drittel aller Wettkämpfe (z.B. 379346, 380828, 396418), die dadurch nie durchsucht wurden. `config()` liefert jetzt Name **und** Contest je Liste, und pro Contest wird genau eine Liste abgefragt (bevorzugt Ergebnis-/Zieleinlauflisten, max. 4). Meldet eine Liste selbst Contest 0, deckt sie weiterhin alle Wettbewerbe mit einem einzigen Abruf ab.
 - `config()` liest `lists` jetzt in beiden von RaceResult gelieferten Formen: als Objekt (Name → Contest) und als Liste von Objekten mit `Name`/`Contest`. Vorher lieferte die Listen-Form nur die numerischen Indizes 0–5 als „Listennamen".

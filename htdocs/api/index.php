@@ -2103,8 +2103,10 @@ if ($res === 'benutzer') {
     }
     if ($method === 'DELETE' && $id && empty($parts[2])) {
         if ((int)$id === (int)$user['id']) jsonErr('Eigenen Account nicht löschbar.');
-        DB::query('DELETE FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [$id]);
-        jsonOk('Gelöscht.');
+        // In den Papierkorb (wie „Konto löschen") – athlet_id und erstellt_von-Referenzen
+        // bleiben erhalten bis zur endgültigen Löschung aus dem Papierkorb
+        DB::query('UPDATE ' . DB::tbl('benutzer') . ' SET aktiv = 0, geloescht_am = NOW() WHERE id = ?', [$id]);
+        jsonOk('In Papierkorb verschoben.');
     }
     // ── Admin: Passkeys eines Users ──
     if ($method === 'GET' && $id && ($parts[2] ?? '') === 'passkeys') {

@@ -879,9 +879,9 @@ async function updateBenutzer(id) {
 }
 
 async function deleteBenutzer(id, name) {
-  if (!await confirmModal('Benutzer "' + name + '" wirklich l\u00f6schen?')) return;
+  if (!await confirmModal('Benutzer "' + name + '" wirklich l\u00f6schen?\nDas Konto wandert in den Papierkorb und kann dort wiederhergestellt werden.')) return;
   var r = await apiDel('benutzer/' + id);
-  if (r && r.ok) { notify('Gel\u00f6scht.', 'ok'); await renderAdmin(); }
+  if (r && r.ok) { notify('In Papierkorb verschoben.', 'ok'); await renderAdmin(); }
   else notify((r && r.fehler) || '', 'err');
 }
 
