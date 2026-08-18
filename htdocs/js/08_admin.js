@@ -1182,8 +1182,8 @@ async function pkRestore(typ, id) {
 
 async function pkDelete(typ, id) {
   var msg = typ === 'benutzer'
-    ? 'Benutzerkonto endgültig löschen?\nDas Konto wird dauerhaft gelöscht und vom Athletenprofil getrennt.'
-    : 'Eintrag endgültig löschen? Dies kann nicht rückgängig gemacht werden.';
+    ? 'Benutzerkonto endgültig löschen?\nDas Konto verschwindet aus dem Portal. Ein Abzug der Daten bleibt im Archiv und kann per Datenbank wiederhergestellt werden.'
+    : 'Eintrag endgültig löschen?\nDer Eintrag verschwindet aus dem Portal. Ein Abzug der Daten bleibt im Archiv und kann per Datenbank wiederhergestellt werden.';
   if (!await confirmModal(msg)) return;
   var r = await api('DELETE', 'papierkorb/' + typ + '/' + id);
   if (r && r.ok) { notify('Endgültig gelöscht.', 'ok'); await renderPapierkorb(); }
@@ -1194,9 +1194,9 @@ function pkLeeren(total) {
   showModal(
     modalH2('Papierkorb leeren') +
     '<div style="background:#fde8e8;border:1px solid #f5b0b0;border-radius:8px;padding:14px 16px;margin-bottom:20px;font-size:13px">' +
-      '<strong>&#x26A0;&#xFE0F; Achtung:</strong> Alle <strong>' + total + ' Eintr\u00e4ge</strong> im Papierkorb werden unwiderruflich gel\u00f6scht.' +
+      '<strong>&#x26A0;&#xFE0F; Achtung:</strong> Alle <strong>' + total + ' Eintr\u00e4ge</strong> im Papierkorb werden aus dem Portal entfernt.' +
     '</div>' +
-    '<p style="font-size:13px;color:var(--text2);margin:0 0 20px">Dieser Vorgang kann nicht r\u00fcckg\u00e4ngig gemacht werden.</p>' +
+    '<p style="font-size:13px;color:var(--text2);margin:0 0 20px">Im Portal ist der Vorgang nicht r\u00fcckg\u00e4ngig zu machen. Ein vollst\u00e4ndiger Abzug der Daten wird vorher im Archiv gesichert und kann per Datenbank wiederhergestellt werden.</p>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
       '<button class="btn btn-danger" onclick="pkLeerenBestaetigt()">Ja, alles endg\u00fcltig l\u00f6schen</button>' +
