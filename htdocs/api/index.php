@@ -72,6 +72,72 @@ function jsonErr(string $msg, int $code = 400): void {
     echo json_encode(['ok' => false, 'fehler' => $msg]);
     exit;
 }
+
+// ── Archiv: das Leeren des Papierkorbs ist kein Datenverlust mehr ─────────
+// archiviereUndLoesche() schreibt die betroffenen Zeilen vorher vollstaendig
+// als JSON nach archiv_geloescht – samt der Kind-Zeilen, die per ON DELETE
+// CASCADE mitgingen (Passkeys eines Kontos). Schlaegt das Archivieren fehl,
+// wird NICHT geloescht.
+// $tabelle ist hier der physische Tabellenname (also bereits durch DB::tbl()).
+//
+// Wiederherstellen: SELECT tabelle, datensatz_id, daten FROM archiv_geloescht
+// ORDER BY id DESC;  das JSON liefert alle Spaltenwerte fuer ein INSERT.
+
+/** Kind-Tabellen, die per FK-CASCADE mitgeloescht werden [tabelle, spalte]. */
+function _archivKinder(string $tabelle): array
+{
+    if ($tabelle === DB::tbl('benutzer')) {
+        return [[DB::tbl('passkeys'), 'user_id']];
+    }
+    return [];
+}
+
+/** Schreibt Zeilen ins Archiv. Wirft, wenn das Archiv nicht erreichbar ist. */
+function _archivSchreibe(string $tabelle, array $rows, ?string $grund): void
+{
+    $ta   = DB::tbl('archiv_geloescht');
+    $user = null;
+    try { $user = Auth::check(); } catch (Throwable $e) {}
+    $uid  = $user ? (int)$user['id'] : null;
+    $name = $user ? (string)($user['email'] ?? $user['benutzername'] ?? '') : null;
+
+    foreach (array_chunk($rows, 50) as $chunk) {
+        $ph = []; $vals = [];
+        foreach ($chunk as $r) {
+            $ph[]   = '(?,?,?,?,?,?)';
+            $vals[] = $tabelle;
+            $vals[] = isset($r['id']) && ctype_digit((string)$r['id']) ? (int)$r['id'] : null;
+            $vals[] = json_encode($r, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+            $vals[] = $grund;
+            $vals[] = $uid;
+            $vals[] = $name;
+        }
+        DB::query("INSERT INTO $ta (tabelle, datensatz_id, daten, grund, benutzer_id, benutzername)
+                   VALUES " . implode(',', $ph), $vals);
+    }
+}
+
+/**
+ * Archiviert die betroffenen Zeilen und loescht sie erst danach.
+ * @return int Anzahl archivierter (und geloeschter) Zeilen
+ */
+function archiviereUndLoesche(string $tabelle, string $where, array $params = [], ?string $grund = null): int
+{
+    $rows = DB::fetchAll("SELECT * FROM $tabelle WHERE $where", $params);
+    if (!$rows) return 0;
+
+    $ids = array_values(array_filter(array_map(fn($r) => (int)($r['id'] ?? 0), $rows)));
+    if ($ids) {
+        $kph = implode(',', array_fill(0, count($ids), '?'));
+        foreach (_archivKinder($tabelle) as [$kindTabelle, $kindSpalte]) {
+            archiviereUndLoesche($kindTabelle, "$kindSpalte IN ($kph)", $ids, $grund ?? ('mit ' . $tabelle));
+        }
+    }
+
+    _archivSchreibe($tabelle, $rows, $grund);
+    DB::query("DELETE FROM $tabelle WHERE $where", $params);
+    return count($rows);
+}
 // Registrierung abschließen: Auto-Freigabe (Benutzer anlegen + Mails) oder Admin-Mail.
 // $useTOTP=true: totp_secret/totp_aktiv aus Registrierung; sonst E-Mail-Login bevorzugt.
 function finalizeRegistration(array $reg, bool $useTOTP): array {
@@ -454,6 +520,21 @@ try {
 } catch (\Exception $e) {}
 // Migration: methode-Spalte für login_versuche
 try { DB::query("ALTER TABLE " . DB::tbl('login_versuche') . " ADD COLUMN IF NOT EXISTS methode VARCHAR(20) NULL"); } catch (\Exception $e) {}
+
+// v1469: Archiv – auch das endgültige Löschen aus dem Papierkorb ist umkehrbar.
+try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('archiv_geloescht') . " (
+    id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    tabelle      VARCHAR(64)  NOT NULL,
+    datensatz_id INT UNSIGNED NULL,
+    daten        LONGTEXT     NOT NULL COMMENT 'komplette Zeile als JSON',
+    grund        VARCHAR(200) NULL,
+    benutzer_id  INT UNSIGNED NULL,
+    benutzername VARCHAR(190) NULL,
+    geloescht_am TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_tabelle (tabelle, datensatz_id),
+    KEY idx_zeit (geloescht_am)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (\Exception $e) {}
 
 // Standard-Rollen anlegen falls leer
 try {
@@ -7363,9 +7444,10 @@ if ($res === 'papierkorb') {
 
         // Papierkorb komplett leeren
         if ($rtyp === 'alle') {
-            // 1) Ergebnisse im Papierkorb endgültig löschen
+            // 1) Ergebnisse im Papierkorb entfernen – vorher ins Archiv
             foreach ($ergTbls as $t) {
-                try { DB::query("DELETE FROM $t WHERE geloescht_am IS NOT NULL"); } catch (\Exception $e) {}
+                try { archiviereUndLoesche($t, "geloescht_am IS NOT NULL", [], 'Papierkorb geleert'); }
+                catch (\Exception $e) { error_log('papierkorb/alle ergebnisse: ' . $e->getMessage()); }
             }
 
             // 2) Veranstaltungen/Athleten nur löschen, wenn keine aktiven Ergebnisse
@@ -7376,17 +7458,18 @@ if ($res === 'papierkorb') {
                 $rows = DB::fetchAll("SELECT id FROM " . DB::tbl($tbl) . " WHERE geloescht_am IS NOT NULL");
                 foreach ($rows as $row) {
                     if ($ergRefs($col, (int)$row['id']) > 0) { $skipped++; continue; }
-                    DB::query("DELETE FROM " . DB::tbl($tbl) . " WHERE id=?", [(int)$row['id']]);
+                    archiviereUndLoesche(DB::tbl($tbl), "id=?", [(int)$row['id']], 'Papierkorb geleert');
                 }
             }
 
-            // 3) Benutzer: athlet_id und erstellt_von-Referenzen trennen, dann löschen
+            // 3) Benutzer: erstellt_von-Referenzen der Ergebnisse trennen, dann ins
+            //    Archiv. athlet_id bleibt stehen – sie steckt in der archivierten
+            //    Zeile und ist beim Wiederherstellen die Verknüpfung zum Athleten.
             $bSub = "SELECT id FROM (SELECT id FROM " . DB::tbl('benutzer') . " WHERE geloescht_am IS NOT NULL) x";
-            DB::query("UPDATE " . DB::tbl('benutzer') . " SET athlet_id=NULL WHERE geloescht_am IS NOT NULL");
             foreach ($ergTbls as $t) {
                 try { DB::query("UPDATE $t SET erstellt_von=NULL WHERE erstellt_von IN ($bSub)"); } catch (\Exception $e) {}
             }
-            DB::query("DELETE FROM " . DB::tbl('benutzer') . " WHERE geloescht_am IS NOT NULL");
+            archiviereUndLoesche(DB::tbl('benutzer'), "geloescht_am IS NOT NULL", [], 'Papierkorb geleert');
 
             jsonOk($skipped
                 ? "Papierkorb geleert. $skipped Eintrag/Einträge wurden übersprungen, weil noch aktive Ergebnisse darauf verweisen."
@@ -7396,27 +7479,30 @@ if ($res === 'papierkorb') {
         if (!$rid) jsonErr('Ungültige ID.');
 
         if ($rtyp === 'ergebnis') {
-            DB::query("DELETE FROM $eTbl WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
+            archiviereUndLoesche($eTbl, "id=? AND geloescht_am IS NOT NULL", [$rid], 'endgültig gelöscht');
         } elseif ($rtyp === 'athlet') {
             foreach ($ergTbls as $t) {
-                try { DB::query("DELETE FROM $t WHERE athlet_id=? AND geloescht_am IS NOT NULL", [$rid]); } catch (\Exception $e) {}
+                try { archiviereUndLoesche($t, "athlet_id=? AND geloescht_am IS NOT NULL", [$rid], 'mit Athlet gelöscht'); }
+                catch (\Exception $e) { error_log('papierkorb/athlet: ' . $e->getMessage()); }
             }
             if ($ergRefs('athlet_id', $rid) > 0) jsonErr('Athlet hat noch aktive Ergebnisse – bitte zuerst diese Ergebnisse löschen.');
-            DB::query("DELETE FROM " . DB::tbl('athleten') . " WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
+            archiviereUndLoesche(DB::tbl('athleten'), "id=? AND geloescht_am IS NOT NULL", [$rid], 'endgültig gelöscht');
         } elseif ($rtyp === 'benutzer') {
-            // Erst athlet_id und erstellt_von-Referenzen trennen, dann endgültig löschen
-            DB::query("UPDATE " . DB::tbl('benutzer') . " SET athlet_id=NULL WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
+            // erstellt_von-Referenzen der Ergebnisse trennen, dann ins Archiv.
+            // athlet_id bleibt stehen: sie steckt in der archivierten Zeile und
+            // ist beim Wiederherstellen die Verknüpfung zum Athletenprofil.
             foreach ($ergTbls as $t) {
                 try { DB::query("UPDATE $t SET erstellt_von=NULL WHERE erstellt_von=?", [$rid]); } catch (\Exception $e) {}
             }
-            DB::query("DELETE FROM " . DB::tbl('benutzer') . " WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
+            archiviereUndLoesche(DB::tbl('benutzer'), "id=? AND geloescht_am IS NOT NULL", [$rid], 'endgültig gelöscht');
         } elseif ($rtyp === 'veranstaltung') {
-            // Ergebnisse aus allen Tabellen löschen (FK constraint!)
+            // Ergebnisse aus allen Tabellen entfernen (FK constraint!) – vorher ins Archiv
             foreach ($ergTbls as $t) {
-                try { DB::query("DELETE FROM $t WHERE veranstaltung_id=? AND geloescht_am IS NOT NULL", [$rid]); } catch (\Exception $e) {}
+                try { archiviereUndLoesche($t, "veranstaltung_id=? AND geloescht_am IS NOT NULL", [$rid], 'mit Veranstaltung gelöscht'); }
+                catch (\Exception $e) { error_log('papierkorb/veranstaltung: ' . $e->getMessage()); }
             }
             if ($ergRefs('veranstaltung_id', $rid) > 0) jsonErr('Veranstaltung hat noch aktive Ergebnisse – bitte zuerst diese Ergebnisse löschen.');
-            DB::query("DELETE FROM " . DB::tbl('veranstaltungen') . " WHERE id=? AND geloescht_am IS NOT NULL", [$rid]);
+            archiviereUndLoesche(DB::tbl('veranstaltungen'), "id=? AND geloescht_am IS NOT NULL", [$rid], 'endgültig gelöscht');
         } else jsonErr('Unbekannter Typ.');
         jsonOk('Endgültig gelöscht.');
     }

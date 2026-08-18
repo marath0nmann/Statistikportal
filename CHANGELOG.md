@@ -1,3 +1,10 @@
+## v1469
+- **Auch das Leeren des Papierkorbs ist kein Datenverlust mehr.** Ergebnisse, Athleten, Veranstaltungen und Benutzerkonten werden beim endgültigen Löschen vorher vollständig als JSON in die neue Tabelle `archiv_geloescht` geschrieben – mit Zeitpunkt und auslösendem Admin. Im Portal ist der Eintrag weg, per Datenbank bleibt er wiederherstellbar.
+- Passkeys eines Kontos gingen bisher per `ON DELETE CASCADE` still mit; sie werden jetzt mitarchiviert.
+- `athlet_id` wird beim endgültigen Löschen eines Kontos **nicht mehr auf NULL gesetzt**: Die Verknüpfung zum Athletenprofil steckt damit in der archivierten Zeile und überlebt eine Wiederherstellung. Vorher war sie auch aus einem Backup nicht mehr zu rekonstruieren.
+- Schlägt das Archivieren fehl, wird nicht gelöscht.
+- Die Bestätigungsdialoge im Papierkorb sagen jetzt, was tatsächlich passiert – „unwiderruflich" stimmte nicht mehr.
+
 ## v1468
 - **Benutzer löschen im Admin-Panel geht jetzt in den Papierkorb.** Bisher war `DELETE benutzer/{id}` ein echtes `DELETE FROM benutzer` – ohne Rückweg, und per `ON DELETE CASCADE` wurden die Passkeys des Kontos gleich mit entfernt. Das stand im Widerspruch zum Selbstlöschen („Konto löschen"), das schon immer `aktiv=0, geloescht_am=NOW()` gesetzt hat. Der Admin-Pfad setzt jetzt dasselbe; der Papierkorb listete Benutzer bereits auf und konnte sie wiederherstellen, und die Benutzerliste filtert ohnehin auf `geloescht_am IS NULL`.
 - Login und bestehende Sessions bleiben durch `aktiv=0` blockiert (`auth.php` prüft `aktiv=1` sowohl beim Login als auch bei jeder Session-Prüfung). `athlet_id` und die `erstellt_von`-Referenzen der Ergebnisse bleiben bis zur endgültigen Löschung aus dem Papierkorb erhalten – die Autorenzuordnung überlebt das Löschen damit.
