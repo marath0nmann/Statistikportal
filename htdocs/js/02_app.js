@@ -2805,6 +2805,7 @@ function buildNav() {
     { id: 'dashboard',       icon: '📊️', label: 'Dashboard' },
     { id: 'vereinsrekorde',  icon: '🥇️', label: 'Vereinsrekorde' },
     { id: 'rekorde',         icon: '🏆️', label: 'Bestleistungen' },
+    { id: 'jahr',            icon: '📅️', label: 'Jahres-Bestleistungen' },
     { id: 'veranstaltungen', icon: '📍️', label: 'Veranstaltungen' },
     { id: 'athleten',        icon: '👤️', label: 'Athleten' },
   ];
@@ -3099,11 +3100,12 @@ async function renderPage() {
     return;
   }
   // Anonyme User dürfen öffentliche Tabs sehen
-  if (!currentUser && state.tab !== 'rekorde' && state.tab !== 'vereinsrekorde' && state.tab !== 'dashboard' && state.tab !== 'veranstaltung' && state.tab !== 'veranstaltungen' && state.tab !== 'athleten' && state.tab !== 'athlet') {
+  if (!currentUser && state.tab !== 'rekorde' && state.tab !== 'vereinsrekorde' && state.tab !== 'dashboard' && state.tab !== 'veranstaltung' && state.tab !== 'veranstaltungen' && state.tab !== 'athleten' && state.tab !== 'athlet' && state.tab !== 'jahr') {
     state.tab = 'rekorde';
     buildNav();
   }
   var el = document.getElementById('main-content');
+  document.body.classList.remove('page-wide'); // Breite Seite ist opt-in pro Renderer
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
   try {
     if (state.tab === 'dashboard')           { await renderDashboard(); }
@@ -3111,6 +3113,7 @@ async function renderPage() {
     else if (state.tab === 'veranstaltungen') { await renderVeranstaltungen(); }
     else if (state.tab === 'athleten')   { await renderAthletenKarten(); }
     else if (state.tab === 'rekorde')    { await renderRekorde(); }
+    else if (state.tab === 'jahr')       { await renderJahresBestleistungen(); }
     else if (state.tab === 'veranstaltung') { await renderVeranstaltungDetail(state.veranstaltungId); }
     else if (state.tab === 'athlet') { await renderAthletDetail(state.athletSlug); }
     else if (state.tab === 'eintragen')  { renderEintragen(); }
@@ -3139,6 +3142,7 @@ function syncHash() {
   else if (state.tab === 'veranstaltung' && state.veranstaltungId) hash += '/' + state.veranstaltungId;
   else if (state.tab === 'athlet' && state.athletSlug) hash = 'athlet/' + state.athletSlug;
   else if (state.tab === 'admin' && state.adminTab) hash += '/' + state.adminTab;
+  else if (state.tab === 'jahr' && state.jahrState && state.jahrState.jahr) hash += '/' + state.jahrState.jahr;
   else if (state.tab === 'rekorde'    && state.subTab) hash += '/' + state.subTab;
   else if (state.tab === 'eintragen'  && state.subTab) hash += '/' + state.subTab;
   history.replaceState(null, '', '#' + hash);
@@ -3150,7 +3154,7 @@ function restoreFromHash() {
   var parts  = hash.split('/');
   var tab    = parts[0].toLowerCase();
   var sub    = parts[1] ? parts[1].toLowerCase() : '';
-  var validTabs = ['dashboard','vereinsrekorde','veranstaltungen','athleten','rekorde','eintragen','admin','konto','veranstaltung','athlet'];
+  var validTabs = ['dashboard','vereinsrekorde','veranstaltungen','athleten','rekorde','jahr','eintragen','admin','konto','veranstaltung','athlet'];
   if (validTabs.indexOf(tab) < 0) return;
 
   state.tab = tab;
@@ -3171,6 +3175,9 @@ function restoreFromHash() {
   } else if (tab === 'veranstaltungen' && sub) {
     var validVSub = ['serien','letzte','meine'];
     if (validVSub.indexOf(sub) >= 0) { state.veranstView = 'list'; state.veranstSubTab = sub; }
+  } else if (tab === 'jahr' && /^\d{4}$/.test(sub)) {
+    if (!state.jahrState) _jahrState();
+    state.jahrState.jahr = parseInt(sub, 10);
   } else if (tab === 'rekorde' && sub) {
     state.subTab = sub;
   } else if (tab === 'eintragen') {

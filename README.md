@@ -1,5 +1,5 @@
 # Statistikportal – Leichtathletik
-## Version v1457 | Stand: August 2026 
+## Version v1470 | Stand: August 2026 
 
 **Die komplette Statistik-Plattform für deinen Leichtathletik-Verein.**  
 Vereinsrekorde, Bestleistungen, Veranstaltungen und Athletenprofile – alles an einem Ort, schnell, sicher und ohne externe Abhängigkeiten.
@@ -15,6 +15,9 @@ Dein persönliches Cockpit nach dem Login: eine **Timeline** zeigt frische Verei
 
 ### 🏆 Vereinsrekorde & Bestleistungen
 Jeder Rekord wird mit **Pace-Berechnung** (für alle Distanzen ab 1 km), Vorgängerwerten („war 2:37:42 h") und farbiger Hervorhebung des aktuellen Jahres präsentiert. Filtere nach Kategorie, Disziplin, Altersklasse und Geschlecht – inklusive intelligenter **AK-Mergung** (alle Jugend-AKs werden automatisch zu MHK/WHK gruppiert) und einer **Unique-Ansicht**, die nur das beste Ergebnis je Disziplin zeigt. Lieblings-Disziplinen erscheinen ganz oben, leere Disziplinen verschwinden automatisch – die Ansicht bleibt aufgeräumt. Alle Filter merkt sich das Portal **pro Nutzer dauerhaft**.
+
+### 📅 Jahres-Bestleistungen
+Der Jahresrückblick des Vereins: Über eine Jahresauswahl (mit Ereigniszähler je Jahrgang) sind alle relevanten Ereignisse eines Jahres abrufbar – **Meisterschafts-Titel sowie zweite und dritte Plätze**, gruppiert nach Meisterschaftsart in der Wertigkeit aus dem Admin-Bereich, dazu die **neuen Vereinsrekorde und Bestleistungen** aus derselben Quelle wie das Dashboard-Widget „Neueste Bestleistungen" – mit demselben Filter (Vereinsrekord, Bestleistung M/W, Bestleistung AK, PB & Debüt) und optional nur für favorisierte Disziplinen. Eine Kennzahlenleiste fasst das Jahr zusammen, die Ereignisliste ist nach Monaten gegliedert.
 
 ### 🏃 Athleten im Karten-Layout
 Die öffentliche Athleten-Übersicht präsentiert jedes Mitglied auf einer eigenen Karte – mit **Avatar, Vereinsrekord- und Bestleistungs-Badges** und einer übersichtlichen Trennung zwischen aktiven und inaktiven Athleten. Klick aufs Profil öffnet alle Ergebnisse, sortiert nach favorisierten Disziplinen und mit Ergebniszählern. Auf dem Desktop fünf Spalten breit, auf dem Smartphone perfekt gestapelt.
@@ -165,6 +168,7 @@ Keine manuelle ZIP-Erstellung nötig – einfach committen und pushen.
 |---------|----------|--------------|
 | GET | `disziplinen` | Disziplinen mit mapping_id + Ergebnisanzahl |
 | GET | `rekorde` | Bestleistungen (Filter: kat, disz, mapping_id, merge_ak) |
+| GET | `jahres-bestleistungen` | Jahresrückblick (Filter: jahr, typen, fav, merge_ak) |
 | GET | `ergebnisse` | Ergebnisliste mit Filtern |
 | POST | `ergebnisse/bulk` | Bulk-Import |
 | PUT | `ergebnisse/{id}` | Ergebnis bearbeiten |

@@ -209,6 +209,8 @@ nav button.active {
 
 /* ── MAIN ── */
 main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
+/* Seiten mit sehr breiten Tabellen (z.B. Veranstaltungen → Meine Ergebnisse) */
+body.page-wide main { max-width: 1920px; }
 
 /* ── STATS BAR ── */
 .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 0; }
@@ -1407,3 +1409,31 @@ tr:hover td { background: var(--surf2); }
   /* HoF-Karte: volle Breite */
 
 }
+
+/* ── Jahres-Bestleistungen ────────────────────────────────────────────── */
+.jahr-chips { display: flex; gap: 8px; padding: 16px 0 4px; overflow-x: auto; scrollbar-width: thin; }
+.jahr-chip {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 14px; border-radius: 10px; cursor: pointer;
+  background: var(--surf); border: 1px solid var(--border); color: var(--text);
+  font-family: inherit; transition: all .15s;
+}
+.jahr-chip:hover { border-color: var(--primary); color: var(--primary); }
+.jahr-chip.active { background: var(--primary); color: var(--on-primary); border-color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.jahr-chip-jahr { font-size: 17px; font-weight: 800; letter-spacing: .5px; line-height: 1.1; }
+.jahr-chip-cnt { font-size: 10px; opacity: .7; white-space: nowrap; }
+.jahr-filter-btn { font-size: 12px; padding: 6px 12px; }
+.jahr-ms-group { border-top: 1px solid var(--border); }
+.jahr-ms-group:first-of-type { border-top: none; }
+.jahr-ms-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  padding: 10px 20px 6px; font-weight: 700; font-size: 15px; color: var(--primary);
+}
+.jahr-ms-cnt { font-size: 12px; font-weight: 400; color: var(--text2); white-space: nowrap; }
+.jahr-ms-table { margin-bottom: 8px; }
+.jahr-titel-row { background: color-mix(in srgb, #f5c518 12%, transparent); }
+.jahr-monat {
+  padding: 14px 0 4px; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text2);
+}
+.jahr-monat:first-child { padding-top: 4px; }

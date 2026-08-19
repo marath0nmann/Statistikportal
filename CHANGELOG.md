@@ -1,3 +1,10 @@
+## v1470
+- **Neue Seite „Jahres-Bestleistungen".** Pro Jahr sind alle relevanten Ereignisse des Vereins abrufbar – über eine Jahresauswahl mit Ereigniszähler.
+- Meisterschaften: Titel sowie zweite und dritte Plätze, gruppiert nach Meisterschaftsart (Reihenfolge = Wertigkeit aus Admin → Meisterschaftsarten). Maßgeblich ist die Platzierung in der Meisterschaftswertung (`ak_platz_meisterschaft`), ersatzweise die AK-Platzierung.
+- Neue Vereinsrekorde und Bestleistungen des Jahres – aus derselben Quelle wie das Dashboard-Widget „Neueste Bestleistungen", mit demselben Filter (Vereinsrekord / Bestleistung M/W / Bestleistung AK / PB & Debüt) und optional nur für favorisierte Disziplinen. Die Filterauswahl wird am Benutzerkonto gemerkt.
+- Kennzahlen-Leiste (Titel, zweite/dritte Plätze, Vereinsrekorde, Bestleistungen) und Monatsgliederung der Ereignisliste.
+- Die Timeline-Berechnung des Dashboards liegt jetzt in `berechneTimelineEvents()` und wird von beiden Seiten genutzt – bisher war sie fest im Dashboard-Endpunkt verdrahtet.
+
 ## v1469
 - **Auch das Leeren des Papierkorbs ist kein Datenverlust mehr.** Ergebnisse, Athleten, Veranstaltungen und Benutzerkonten werden beim endgültigen Löschen vorher vollständig als JSON in die neue Tabelle `archiv_geloescht` geschrieben – mit Zeitpunkt und auslösendem Admin. Im Portal ist der Eintrag weg, per Datenbank bleibt er wiederherstellbar.
 - Passkeys eines Kontos gingen bisher per `ON DELETE CASCADE` still mit; sie werden jetzt mitarchiviert.

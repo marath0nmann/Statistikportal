@@ -909,10 +909,15 @@ if ($res === 'auth') {
         $user = Auth::requireLogin();
         $prefs = $body ?? [];
         // Nur erlaubte Keys
-        $allowed = ['rek_merge_ak','rek_unique','rek_hl_cur','rek_hl_prev'];
+        $allowed = ['rek_merge_ak','rek_unique','rek_hl_cur','rek_hl_prev','jahr_fav'];
         $save = [];
         foreach ($allowed as $k) {
             if (array_key_exists($k, $prefs)) $save[$k] = (bool)$prefs[$k];
+        }
+        // jahr_typen: Liste der auf der Jahresseite aktiven Label-Typen
+        if (array_key_exists('jahr_typen', $prefs) && is_array($prefs['jahr_typen'])) {
+            $save['jahr_typen'] = array_values(array_intersect(
+                array_map('strval', $prefs['jahr_typen']), ['gesamt','gender','ak','pb']));
         }
         // Migration: prefs-Spalte anlegen falls nicht vorhanden
         try { DB::query('ALTER TABLE ' . DB::tbl('benutzer') . ' ADD COLUMN IF NOT EXISTS prefs JSON NULL'); } catch (\Exception $e) {}
@@ -2217,26 +2222,12 @@ if ($res === 'benutzer') {
 // ============================================================
 // DASHBOARD
 // ============================================================
-if ($res === 'dashboard' && $method === 'GET') {
-    // Öffentlich zugänglich
-    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
-    if ($unified) {
-        $stats = [
-            'gesamt'   => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse') . ' WHERE geloescht_am IS NULL')['c'],
-            'athleten' => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('athleten') . ' WHERE geloescht_am IS NULL')['c'],
-            'rekorde'  => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('vereinsrekorde') . '')['c'],
-        ];
-    } else {
-        $stats = [
-            'strasse'       => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_strasse') . '')['c'],
-            'sprint'        => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_sprint') . '')['c'],
-            'mittelstrecke' => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_mittelstrecke') . '')['c'],
-            'sprungwurf'    => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_sprungwurf') . '')['c'],
-            'athleten'      => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('athleten') . '')['c'],
-            'rekorde'       => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('vereinsrekorde') . '')['c'],
-        ];
-    }
-
+// ── Rekord-Timeline berechnen ────────────────────────────────────────────
+// Liefert alle Bestleistungs-Ereignisse (Vereinsrekord, Geschlechts-/AK-Bestleistung,
+// PB, Debüt) absteigend nach Datum. Wird vom Dashboard-Widget „Neueste
+// Bestleistungen" und von der Seite „Jahres-Bestleistungen" genutzt.
+function berechneTimelineEvents(bool $unified, bool $mergeAKTl = true): array
+{
     // Rekord-Timeline: alle Tabellen berücksichtigen (unified oder alle Legacy-Tabellen)
     $nameExpr = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
 
@@ -2309,7 +2300,7 @@ if ($res === 'dashboard' && $method === 'GET') {
         $ergParam = $mappingId ? (int)$mappingId : $disz;
 
         // merge_ak: Jugend-AKs zu MHK/WHK zusammenfassen (aus Settings)
-        $mergeAKTl = ($_GET['merge_ak_tl'] ?? '1') !== '0';
+        // $mergeAKTl kommt als Funktionsparameter
         $akExprTl  = buildAkCaseExpr($mergeAKTl);
         $extOnly = $dInfo['ext_only'] ?? false;
         $extWhere = $extOnly ? " AND e.extern=1" : " AND e.extern=0";
@@ -2481,6 +2472,7 @@ if ($res === 'dashboard' && $method === 'GET') {
                     'disziplin'           => $disz,
                     'disziplin_mapping_id'=> $mappingId,
                     'kategorie_name'      => $dInfo['kategorie_name'] ?? null,
+                    'altersklasse'        => $ak,
                     'athlet'              => $e['athlet'],
                     'athlet_id'           => $e['athlet_id'],
                     'resultat'            => $e['resultat'],
@@ -2502,6 +2494,31 @@ if ($res === 'dashboard' && $method === 'GET') {
         $cmp = strcmp($b['datum'], $a['datum']);
         return $cmp !== 0 ? $cmp : ($a['priority'] - $b['priority']);
     });
+    return $timelineEvents;
+}
+
+if ($res === 'dashboard' && $method === 'GET') {
+    // Öffentlich zugänglich
+    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    if ($unified) {
+        $stats = [
+            'gesamt'   => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse') . ' WHERE geloescht_am IS NULL')['c'],
+            'athleten' => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('athleten') . ' WHERE geloescht_am IS NULL')['c'],
+            'rekorde'  => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('vereinsrekorde') . '')['c'],
+        ];
+    } else {
+        $stats = [
+            'strasse'       => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_strasse') . '')['c'],
+            'sprint'        => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_sprint') . '')['c'],
+            'mittelstrecke' => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_mittelstrecke') . '')['c'],
+            'sprungwurf'    => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_sprungwurf') . '')['c'],
+            'athleten'      => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('athleten') . '')['c'],
+            'rekorde'       => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('vereinsrekorde') . '')['c'],
+        ];
+    }
+
+    // Rekord-Timeline (Berechnung siehe berechneTimelineEvents())
+    $timelineEvents = berechneTimelineEvents($unified, ($_GET['merge_ak_tl'] ?? '1') !== '0');
 
     // Optional: nur Timeline-Events einer bestimmten Veranstaltung (für Teilen-Funktion)
     if (!empty($_GET['tl_veranstaltung_id'])) {
@@ -2532,6 +2549,189 @@ if ($res === 'dashboard' && $method === 'GET') {
 
     jsonOk(compact('stats','rekordeTimeline','recent'));
 }
+
+// ============================================================
+// JAHRES-BESTLEISTUNGEN
+// ============================================================
+// Alle relevanten Ereignisse eines Jahres:
+//   • Meisterschafts-Titel und Podestplätze (Platz 1–3)
+//   • neue Vereinsrekorde / Geschlechts- bzw. AK-Bestleistungen / PBs
+//     (identische Logik wie das Dashboard-Widget „Neueste Bestleistungen")
+//
+// Label-Typ eines Timeline-Labels – Spiegelbild von timelineLabelType() im
+// Frontend (08_admin.js), damit Server- und Client-Filter identisch greifen.
+function jahrLabelTyp(?string $lbl): ?string
+{
+    if (!$lbl) return null;
+    if ($lbl === 'Vereinsrekord' || $lbl === 'Gesamtbestleistung' || $lbl === 'Erste Gesamtleistung') return 'gesamt';
+    if ($lbl === 'Bestleistung Männer' || $lbl === 'Bestleistung Frauen'
+        || $lbl === 'Erstes Ergebnis M' || $lbl === 'Erstes Ergebnis W') return 'gender';
+    if ($lbl === 'PB' || $lbl === 'Debüt') return 'pb';
+    // MHK/WHK zählen – wie im Dashboard-Filter – zu den Altersklassen
+    if (str_contains($lbl, 'Bestleistung') || str_contains($lbl, 'Erste Leistung')
+        || str_starts_with($lbl, 'Erstes Ergebnis')) return 'ak';
+    return 'pb';
+}
+
+if ($res === 'jahres-bestleistungen' && $method === 'GET') {
+    // Öffentlich zugänglich (wie Dashboard und Bestleistungen)
+    $eTbl    = ergebnisTbl('strasse', $unified, $_sys);
+    $vTbl    = DB::tbl('veranstaltungen');
+    $aTbl    = DB::tbl('athleten');
+    $mergeAK = ($_GET['merge_ak'] ?? '1') !== '0';
+
+    // ── Meisterschaftsarten aus den Einstellungen (Reihenfolge = Wertigkeit) ──
+    $mstrRaw = Settings::get('meisterschaften_liste', '');
+    $mstrMap = []; $mstrRang = []; $mstrArten = [];
+    $_mi = 0;
+    foreach (json_decode($mstrRaw ?: '[]', true) ?: [] as $m) {
+        if (empty($m['id']) || empty($m['label'])) { $_mi++; continue; }
+        $mid = (int)$m['id'];
+        $mstrMap[$mid]  = $m['label'];
+        $mstrRang[$mid] = $_mi;
+        $mstrArten[]    = ['id' => $mid, 'label' => $m['label'], 'rang' => $_mi];
+        $_mi++;
+    }
+
+    // ── Podestplätze (Platz 1–3) bei Meisterschaften ──
+    // Maßgeblich ist die Platzierung in der Meisterschaftswertung
+    // (ak_platz_meisterschaft); fehlt sie, gilt die AK-Platzierung.
+    $platzExpr = 'COALESCE(e.ak_platz_meisterschaft, e.ak_platzierung)';
+    $akExprJ   = buildAkCaseExpr($mergeAK);
+    $podeste = [];
+    if (!empty($mstrMap)) {
+        try {
+            $podeste = DB::fetchAll(
+                "SELECT e.id, e.athlet_id, a.vorname, a.nachname, a.name_nv, a.geschlecht,
+                        (SELECT b.avatar_pfad FROM " . DB::tbl('benutzer') . " b
+                          WHERE b.athlet_id = a.id AND b.avatar_pfad IS NOT NULL LIMIT 1) AS avatar,
+                        e.disziplin, e.disziplin_mapping_id,
+                        COALESCE(k.name, 'Sonstige') AS kategorie_name,
+                        COALESCE(m.fmt_override, k.fmt, 'min') AS fmt,
+                        $akExprJ AS altersklasse, e.resultat, e.meisterschaft,
+                        $platzExpr AS platz, e.ak_platzierung, e.ak_platz_meisterschaft,
+                        v.id AS veranstaltung_id, v.name AS veranstaltung, v.kuerzel,
+                        v.datum, v.ort, YEAR(v.datum) AS jahr
+                 FROM $eTbl e
+                 JOIN $aTbl a ON a.id = e.athlet_id
+                 JOIN $vTbl v ON v.id = e.veranstaltung_id
+                 LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id = e.disziplin_mapping_id
+                 LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
+                 WHERE e.meisterschaft IS NOT NULL
+                   AND $platzExpr BETWEEN 1 AND 3
+                   AND e.geloescht_am IS NULL AND e.extern = 0
+                   AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
+                   AND v.datum IS NOT NULL
+                 ORDER BY v.datum ASC, e.id ASC"
+            );
+        } catch (\Exception $e) { $podeste = []; }
+    }
+    // Meisterschaftsarten ohne Eintrag in den Einstellungen fallen raus
+    $podeste = array_values(array_filter($podeste, function ($p) use ($mstrMap) {
+        return isset($mstrMap[(int)$p['meisterschaft']]);
+    }));
+    foreach ($podeste as &$p) {
+        $mid = (int)$p['meisterschaft'];
+        $p['platz']      = (int)$p['platz'];
+        $p['jahr']       = (int)$p['jahr'];
+        $p['mstr_label'] = $mstrMap[$mid];
+        $p['mstr_rang']  = $mstrRang[$mid];
+        $vn = trim((string)($p['vorname'] ?? ''));
+        $nn = trim((string)($p['nachname'] ?? ''));
+        $p['athlet'] = $vn ? ($vn . ' ' . $nn) : (string)($p['name_nv'] ?? '');
+        unset($p['vorname'], $p['nachname'], $p['name_nv']);
+    }
+    unset($p);
+
+    // ── Timeline-Ereignisse (alle Jahre, danach gefiltert) ──
+    $tlAll = berechneTimelineEvents($unified, $mergeAK);
+    // Externe Ergebnisse bleiben – wie im Dashboard-Widget – außen vor
+    $tlAll = array_values(array_filter($tlAll, function ($ev) {
+        return empty($ev['extern']) && !empty($ev['datum']) && !empty($ev['athlet']);
+    }));
+
+    // ── Verfügbare Jahre inkl. Kennzahlen für die Jahresauswahl ──
+    $jahrStat = [];
+    $bump = function (int $j, string $key) use (&$jahrStat) {
+        if (!isset($jahrStat[$j])) $jahrStat[$j] = ['jahr' => $j, 'titel' => 0, 'podest' => 0, 'rekorde' => 0, 'bestleistungen' => 0];
+        $jahrStat[$j][$key]++;
+    };
+    foreach ($podeste as $p) {
+        $bump($p['jahr'], $p['platz'] === 1 ? 'titel' : 'podest');
+    }
+    foreach ($tlAll as $ev) {
+        $j   = (int)substr((string)$ev['datum'], 0, 4);
+        $typ = jahrLabelTyp($ev['label_club'] ?? null);
+        if ($typ === 'gesamt' || $typ === 'gender') $bump($j, 'rekorde');
+        elseif ($typ === 'ak')                      $bump($j, 'bestleistungen');
+    }
+    // Jahre ohne jedes Ereignis, aber mit Ergebnissen, ebenfalls anbieten
+    try {
+        $jr = DB::fetchAll(
+            "SELECT DISTINCT YEAR(v.datum) AS jahr
+             FROM $eTbl e JOIN $vTbl v ON v.id = e.veranstaltung_id
+             WHERE e.geloescht_am IS NULL AND e.extern = 0
+               AND v.geloescht_am IS NULL AND v.datum IS NOT NULL"
+        );
+        foreach ($jr as $row) {
+            $j = (int)$row['jahr'];
+            if ($j > 1900 && !isset($jahrStat[$j])) $jahrStat[$j] = ['jahr' => $j, 'titel' => 0, 'podest' => 0, 'rekorde' => 0, 'bestleistungen' => 0];
+        }
+    } catch (\Exception $e) {}
+    krsort($jahrStat);
+    $jahre = array_values($jahrStat);
+
+    // ── Gewähltes Jahr ──
+    $jahr = isset($_GET['jahr']) && ctype_digit((string)$_GET['jahr']) ? (int)$_GET['jahr'] : 0;
+    if (!$jahr) $jahr = $jahre ? (int)$jahre[0]['jahr'] : (int)date('Y');
+
+    // ── Label-Typen-Filter (gesamt|gender|ak|pb) ──
+    $typenRaw = trim((string)($_GET['typen'] ?? 'gesamt,gender,ak'));
+    $typen    = array_values(array_filter(array_map('trim', explode(',', $typenRaw))));
+    if (!$typen) $typen = ['gesamt', 'gender', 'ak'];
+
+    // ── Favoriten-Disziplinen (top_disziplinen) ──
+    $nurFav  = ($_GET['fav'] ?? '0') === '1';
+    $favList = [];
+    if ($nurFav) {
+        $favJson = Settings::get('top_disziplinen', '');
+        $favList = $favJson ? array_values(array_filter(array_map('intval', json_decode($favJson, true) ?: []))) : [];
+    }
+
+    $timeline = [];
+    foreach ($tlAll as $ev) {
+        if ((int)substr((string)$ev['datum'], 0, 4) !== $jahr) continue;
+        if ($favList && !in_array((int)($ev['disziplin_mapping_id'] ?? 0), $favList, true)) continue;
+        $tc = jahrLabelTyp($ev['label_club'] ?? null);
+        $tp = jahrLabelTyp($ev['label_pers'] ?? null);
+        $okC = $tc !== null && in_array($tc, $typen, true);
+        $okP = $tp !== null && in_array($tp, $typen, true);
+        if (!$okC && !$okP) continue;
+        // Herausgefiltertes Label entfernen, damit das Badge nicht doch erscheint
+        if (!$okC) { $ev['label_club'] = null; $ev['vorher_club'] = null; }
+        if (!$okP) { $ev['label_pers'] = null; $ev['vorher_pers'] = null; }
+        $ev['label'] = $ev['label_club'] ?? $ev['label_pers'];
+        $ev['typ']   = $okC ? $tc : $tp;
+        $timeline[]  = $ev;
+    }
+
+    $meisterschaften = array_values(array_filter($podeste, function ($p) use ($jahr) {
+        return $p['jahr'] === $jahr;
+    }));
+    // Wertigkeit der Meisterschaft, dann Platz, dann Datum
+    usort($meisterschaften, function ($a, $b) {
+        return [$a['mstr_rang'], $a['platz'], $a['datum']] <=> [$b['mstr_rang'], $b['platz'], $b['datum']];
+    });
+
+    jsonOk([
+        'jahr'            => $jahr,
+        'jahre'           => $jahre,
+        'meisterschaften' => $meisterschaften,
+        'timeline'        => $timeline,
+        'mstr_arten'      => $mstrArten,
+    ]);
+}
+
 
 // ============================================================
 // ERGEBNISSE
