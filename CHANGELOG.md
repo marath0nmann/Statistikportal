@@ -1,3 +1,6 @@
+## v1471
+- Fix „Jahres-Bestleistungen": Die Seite brach mit `Can't find variable: timelineBadges` ab. `timelineBadges()` und `_rekLabel()` lagen im Rumpf von `renderDashboard()` und waren dadurch nur dort sichtbar – beide sind jetzt auf Dateiebene definiert.
+
 ## v1470
 - **Neue Seite „Jahres-Bestleistungen".** Pro Jahr sind alle relevanten Ereignisse des Vereins abrufbar – über eine Jahresauswahl mit Ereigniszähler.
 - Meisterschaften: Titel sowie zweite und dritte Plätze, gruppiert nach Meisterschaftsart (Reihenfolge = Wertigkeit aus Admin → Meisterschaftsarten). Maßgeblich ist die Platzierung in der Meisterschaftswertung (`ak_platz_meisterschaft`), ersatzweise die AK-Platzierung.

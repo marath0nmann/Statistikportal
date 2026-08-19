@@ -163,6 +163,55 @@ async function _loadEigenesProfilWidget(elId, showErg) {
 
 
 var _tlAutoFillLimits = {};
+// Beide Helfer lagen bis v1470 im Rumpf von renderDashboard() und waren damit
+// nur dort sichtbar – die Seite „Jahres-Bestleistungen" braucht sie ebenfalls.
+// Label-Transformation: Bestleistung Männer/Frauen → Vereinsrekord
+function _rekLabel(lbl) {
+  if (!lbl) return lbl;
+  if (lbl === 'Bestleistung Männer' || lbl === 'Gesamtbestleistung Männer') return 'Vereinsrekord';
+  if (lbl === 'Bestleistung Frauen' || lbl === 'Gesamtbestleistung Frauen') return 'Vereinsrekord';
+  if (lbl === 'Gesamtbestleistung') return 'Vereinsrekord';
+  return lbl;
+}
+
+// Hilfsfunktion: bis zu zwei Timeline-Badges rendern (club + persönlich)
+function timelineBadges(rek) {
+  var lc = rek.label_club || null;
+  var lp = rek.label_pers || null;
+  var fmt = rek.fmt || '';
+  var _fmtV = function(v) {
+    if (v === null || v === undefined) return '';
+    return fmtValNum(v, fmt === 's' ? 's' : (fmt === 'm' ? 'm' : (fmt === 'min_h' ? 'min_h' : 'min')));
+  };
+  var vcFmt = _fmtV(rek.vorher_club);
+  var vpFmt = _fmtV(rek.vorher_pers);
+  // Wenn beide gleich: nur einmal zeigen; wenn unterschiedlich: je Badge zuordnen
+  var bothSame = vcFmt && vpFmt && vcFmt === vpFmt;
+  var singleVorher = bothSame ? vcFmt : '';
+
+  var html = '';
+  if (lc) {
+    var isGold = lc === 'Vereinsrekord' || lc.indexOf('Gesamt') >= 0 || lc.indexOf('Männer') >= 0 || lc.indexOf('Frauen') >= 0 || lc.indexOf('Ergebnis M') >= 0 || lc.indexOf('Ergebnis W') >= 0;
+    var vcSuffix = (!rek.extern && vcFmt) ? ' <span style="opacity:.75;font-weight:400">(war ' + vcFmt + ')</span>' : '';
+    html += '<span class="badge ' + (isGold ? 'badge-gold' : 'badge-silver') + '">' + _rekLabel(lc) + vcSuffix + '</span> ';
+  }
+  if (lp) {
+    // PB-Badge: Vorgaenger zeigen, ausser er wird schon im Club-Badge angezeigt (bothSame + lc vorhanden)
+    var vpSuffix = (!rek.extern && vpFmt) ? ' <span style="opacity:.75;font-weight:400">(war ' + vpFmt + ')</span>' : '';
+    html += '<span class="badge badge-pb">' + _rekLabel(lp) + vpSuffix + '</span>';
+  }
+  // Fallback für ältere Daten ohne label_club/label_pers
+  if (!lc && !lp && rek.label) {
+    var lbl = rek.label;
+    var cls = (lbl === 'Vereinsrekord' || lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0 || lbl === 'Bestleistung Männer' || lbl === 'Bestleistung Frauen') ? 'badge-gold'
+            : (lbl === 'PB' || lbl === 'Débüt') ? 'badge-pb' : 'badge-silver';
+    var fallbackV = _fmtV(rek.vorher_val);
+    var fbSuffix = (!rek.extern && fallbackV) ? ' <span style="opacity:.75;font-weight:400">(war ' + fallbackV + ')</span>' : '';
+    html += '<span class="badge ' + cls + '">' + _rekLabel(lbl) + fbSuffix + '</span>';
+  }
+  return html.trim();
+}
+
 async function renderDashboard() {
   var ds = getDarstellungSettings();
   // timeline_limit: erst aus Widget-Config, dann appConfig, dann Default
@@ -223,52 +272,6 @@ async function renderDashboard() {
     return '<div class="stat-card" style="width:100%"><div class="stat-num">' + num + '</div><div class="stat-label">' + icon + ' ' + label + '</div></div>';
   }
 
-// Label-Transformation: Bestleistung Männer/Frauen → Vereinsrekord
-function _rekLabel(lbl) {
-  if (!lbl) return lbl;
-  if (lbl === 'Bestleistung Männer' || lbl === 'Gesamtbestleistung Männer') return 'Vereinsrekord';
-  if (lbl === 'Bestleistung Frauen' || lbl === 'Gesamtbestleistung Frauen') return 'Vereinsrekord';
-  if (lbl === 'Gesamtbestleistung') return 'Vereinsrekord';
-  return lbl;
-}
-
-// Hilfsfunktion: bis zu zwei Timeline-Badges rendern (club + persönlich)
-function timelineBadges(rek) {
-  var lc = rek.label_club || null;
-  var lp = rek.label_pers || null;
-  var fmt = rek.fmt || '';
-  var _fmtV = function(v) {
-    if (v === null || v === undefined) return '';
-    return fmtValNum(v, fmt === 's' ? 's' : (fmt === 'm' ? 'm' : (fmt === 'min_h' ? 'min_h' : 'min')));
-  };
-  var vcFmt = _fmtV(rek.vorher_club);
-  var vpFmt = _fmtV(rek.vorher_pers);
-  // Wenn beide gleich: nur einmal zeigen; wenn unterschiedlich: je Badge zuordnen
-  var bothSame = vcFmt && vpFmt && vcFmt === vpFmt;
-  var singleVorher = bothSame ? vcFmt : '';
-
-  var html = '';
-  if (lc) {
-    var isGold = lc === 'Vereinsrekord' || lc.indexOf('Gesamt') >= 0 || lc.indexOf('Männer') >= 0 || lc.indexOf('Frauen') >= 0 || lc.indexOf('Ergebnis M') >= 0 || lc.indexOf('Ergebnis W') >= 0;
-    var vcSuffix = (!rek.extern && vcFmt) ? ' <span style="opacity:.75;font-weight:400">(war ' + vcFmt + ')</span>' : '';
-    html += '<span class="badge ' + (isGold ? 'badge-gold' : 'badge-silver') + '">' + _rekLabel(lc) + vcSuffix + '</span> ';
-  }
-  if (lp) {
-    // PB-Badge: Vorgaenger zeigen, ausser er wird schon im Club-Badge angezeigt (bothSame + lc vorhanden)
-    var vpSuffix = (!rek.extern && vpFmt) ? ' <span style="opacity:.75;font-weight:400">(war ' + vpFmt + ')</span>' : '';
-    html += '<span class="badge badge-pb">' + _rekLabel(lp) + vpSuffix + '</span>';
-  }
-  // Fallback für ältere Daten ohne label_club/label_pers
-  if (!lc && !lp && rek.label) {
-    var lbl = rek.label;
-    var cls = (lbl === 'Vereinsrekord' || lbl.indexOf('Gesamtbestleistung') >= 0 || lbl.indexOf('Erste Gesamtleistung') >= 0 || lbl === 'Bestleistung Männer' || lbl === 'Bestleistung Frauen') ? 'badge-gold'
-            : (lbl === 'PB' || lbl === 'Débüt') ? 'badge-pb' : 'badge-silver';
-    var fallbackV = _fmtV(rek.vorher_val);
-    var fbSuffix = (!rek.extern && fallbackV) ? ' <span style="opacity:.75;font-weight:400">(war ' + fallbackV + ')</span>' : '';
-    html += '<span class="badge ' + cls + '">' + _rekLabel(lbl) + fbSuffix + '</span>';
-  }
-  return html.trim();
-}
 
   // Rekord-Timeline
   var timelineHtml = '';
