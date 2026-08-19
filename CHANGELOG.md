@@ -1,3 +1,7 @@
+## v1472
+- **Jahres-Bestleistungen: neue Ansicht „Nach Athlet\*in".** Alle Ereignisse eines Jahres – Titel, zweite und dritte Plätze, Vereinsrekorde, Bestleistungen und PBs – stehen jetzt gebündelt pro Athlet\*in, mit Avatar und Kurzbilanz („2 Titel · 1x 2. Platz · 3 Vereinsrekorde"). Sortiert nach Wertigkeit: erst Titel, dann Podeste, dann Rekorde.
+- Umschalter „Nach Athlet\*in / Chronologisch" – die bisherige Ansicht (Podeste nach Meisterschaftsart, Ereignisliste nach Monaten) bleibt erhalten. Die Auswahl wird am Benutzerkonto gemerkt.
+
 ## v1471
 - Fix „Jahres-Bestleistungen": Die Seite brach mit `Can't find variable: timelineBadges` ab. `timelineBadges()` und `_rekLabel()` lagen im Rumpf von `renderDashboard()` und waren dadurch nur dort sichtbar – beide sind jetzt auf Dateiebene definiert.
 

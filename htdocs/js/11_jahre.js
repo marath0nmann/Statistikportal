@@ -21,6 +21,8 @@ function _jahrState() {
       jahr:  null,
       typen: (_up.jahr_typen && _up.jahr_typen.length) ? _up.jahr_typen.slice() : ['gesamt','gender','ak'],
       fav:   !!_up.jahr_fav,
+      // Standard: nach Athlet*in zusammengefasst; 'chrono' = chronologische Liste
+      view:  _up.jahr_view === 'chrono' ? 'chrono' : 'athlet',
     };
   }
   return state.jahrState;
@@ -67,7 +69,10 @@ async function renderJahresBestleistungen() {
   js.jahr = d.jahr;
   syncHash();
 
-  el.innerHTML = _jahrHeader(d, js) + _jahrStatsBar(d) + _jahrMeisterschaften(d) + _jahrTimeline(d, js);
+  var body = js.view === 'chrono'
+    ? (_jahrMeisterschaften(d) + _jahrTimeline(d, js))
+    : _jahrNachAthlet(d, js);
+  el.innerHTML = _jahrHeader(d, js) + _jahrStatsBar(d) + body;
 }
 
 // ── Jahresauswahl + Filter ──────────────────────────────────
@@ -94,8 +99,13 @@ function _jahrHeader(d, js) {
   filter += '<button class="rek-cat-btn jahr-filter-btn' + (js.fav ? ' active' : '') + '" onclick="toggleJahrFav()" ' +
     'title="Nur die unter Admin &rarr; Disziplinen favorisierten Disziplinen">&#x2764;&#xFE0F; Nur Favoriten</button>';
 
+  var view = '<div class="jahr-view-switch">' +
+    '<button class="rek-cat-btn jahr-filter-btn' + (js.view === 'athlet' ? ' active' : '') + '" onclick="setJahrView(\'athlet\')">&#x1F464; Nach Athlet*in</button>' +
+    '<button class="rek-cat-btn jahr-filter-btn' + (js.view === 'chrono' ? ' active' : '') + '" onclick="setJahrView(\'chrono\')">&#x1F4C6; Chronologisch</button>' +
+  '</div>';
+
   return '<div class="jahr-chips">' + chips + '</div>' +
-         '<div class="rek-cat-tabs" style="padding-top:4px">' + filter + '</div>';
+         '<div class="rek-cat-tabs" style="padding-top:4px">' + filter + view + '</div>';
 }
 
 function setJahr(j) {
@@ -118,11 +128,19 @@ function toggleJahrFav() {
   renderJahresBestleistungen();
 }
 
+function setJahrView(v) {
+  var js = _jahrState();
+  if (js.view === v) return;
+  js.view = v;
+  _saveJahrPrefs();
+  renderJahresBestleistungen();
+}
+
 // Filtereinstellungen am Benutzerkonto merken (wie _saveRekPrefs)
 function _saveJahrPrefs() {
   if (!currentUser) return;
   var js = _jahrState();
-  var prefs = { jahr_typen: js.typen.slice(), jahr_fav: !!js.fav };
+  var prefs = { jahr_typen: js.typen.slice(), jahr_fav: !!js.fav, jahr_view: js.view };
   if (!state.userPrefs) state.userPrefs = {};
   Object.assign(state.userPrefs, prefs);
   apiPut('auth/prefs', prefs).catch(function(){});
@@ -251,4 +269,112 @@ function _jahrTimeline(d, js) {
       '</div>';
   }
   return head + html + '</div></div>';
+}
+
+// ── Nach Athlet*in zusammengefasst ──────────────────────────
+// Alle Ereignisse eines Jahres – Podestplätze wie Rekorde – gebündelt pro
+// Athlet*in, sortiert nach Wertigkeit (Titel > Podeste > Rekorde > …).
+function _jahrAthletenMap(d) {
+  var map = {}, order = [];
+  function slot(id, name, avatar) {
+    var key = id || ('n_' + name);
+    if (!map[key]) {
+      map[key] = { id: id || null, name: name, avatar: avatar || null,
+                   titel: 0, silber: 0, bronze: 0, rekorde: 0, best: 0, pb: 0, events: [] };
+      order.push(key);
+    }
+    // Namen/Avatar nachtragen, falls erst eine spätere Quelle sie liefert
+    if (!map[key].avatar && avatar) map[key].avatar = avatar;
+    if (name && name.indexOf(',') < 0) map[key].name = name;
+    return map[key];
+  }
+
+  var ms = d.meisterschaften || [];
+  for (var i = 0; i < ms.length; i++) {
+    var e = ms[i];
+    var a = slot(e.athlet_id, e.athlet, e.avatar);
+    if (e.platz === 1) a.titel++; else if (e.platz === 2) a.silber++; else if (e.platz === 3) a.bronze++;
+    a.events.push({ art: 'ms', datum: e.datum, e: e });
+  }
+
+  var tl = d.timeline || [];
+  for (var t = 0; t < tl.length; t++) {
+    var ev = tl[t];
+    var b = slot(ev.athlet_id, _jahrNameVN(ev.athlet), null);
+    if (ev.typ === 'gesamt' || ev.typ === 'gender') b.rekorde++;
+    else if (ev.typ === 'ak') b.best++;
+    else b.pb++;
+    b.events.push({ art: 'rek', datum: ev.datum, e: ev });
+  }
+
+  var list = order.map(function(k) { return map[k]; });
+  list.sort(function(x, y) {
+    return (y.titel - x.titel) || (y.silber - x.silber) || (y.bronze - x.bronze) ||
+           (y.rekorde - x.rekorde) || (y.best - x.best) || (y.pb - x.pb) ||
+           String(x.name).localeCompare(String(y.name));
+  });
+  for (var li = 0; li < list.length; li++) {
+    list[li].events.sort(function(p, q) { return String(p.datum).localeCompare(String(q.datum)); });
+  }
+  return list;
+}
+
+function _jahrNachAthlet(d, js) {
+  var list = _jahrAthletenMap(d);
+  var head = '<div class="panel">' +
+    '<div class="panel-header"><div class="panel-title">&#x1F464; Jahr ' + d.jahr + ' nach Athlet*in</div>' +
+    '<div class="panel-count">' + list.length + (list.length === 1 ? ' Athlet*in' : ' Athlet*innen') + '</div></div>';
+  if (!list.length) {
+    return head + '<div class="empty"><div class="empty-icon">&#x1F464;</div>' +
+      '<div class="empty-text">Keine Ereignisse in ' + d.jahr + ' f&uuml;r diese Auswahl</div></div></div>';
+  }
+
+  var body = '';
+  for (var i = 0; i < list.length; i++) {
+    var a = list[i];
+    var sum = [];
+    if (a.titel)   sum.push('<span class="jahr-sum gold">&#x1F947; ' + a.titel + ' Titel</span>');
+    if (a.silber)  sum.push('<span class="jahr-sum">&#x1F948; ' + a.silber + 'x 2. Platz</span>');
+    if (a.bronze)  sum.push('<span class="jahr-sum">&#x1F949; ' + a.bronze + 'x 3. Platz</span>');
+    if (a.rekorde) sum.push('<span class="jahr-sum gold">&#x1F3C6; ' + a.rekorde + (a.rekorde === 1 ? ' Vereinsrekord' : ' Vereinsrekorde') + '</span>');
+    if (a.best)    sum.push('<span class="jahr-sum">&#x1F3C5; ' + a.best + (a.best === 1 ? ' Bestleistung AK' : ' Bestleistungen AK') + '</span>');
+    if (a.pb)      sum.push('<span class="jahr-sum">&#x2B50; ' + a.pb + ' PB / Deb&uuml;t</span>');
+
+    var rows = '';
+    for (var ei = 0; ei < a.events.length; ei++) {
+      var it = a.events[ei], e = it.e;
+      var disz = '<span class="athlet-link" style="cursor:pointer" ' +
+        'data-rek-disz="' + _jahrEsc(e.disziplin) + '" data-rek-mid="' + (e.disziplin_mapping_id || '') + '" ' +
+        'onclick="navigateToDisz(this.dataset.rekDisz,this.dataset.rekMid)">' + ergDiszLabel(e) + '</span>';
+      var info, cls;
+      if (it.art === 'ms') {
+        var vname = e.veranstaltung || e.kuerzel || '';
+        cls = e.platz === 1 ? ' jahr-titel-row' : '';
+        info = medalBadge(e.platz) + ' <span class="badge badge-ms">' + _jahrEsc(e.mstr_label) + '</span>' +
+               (e.altersklasse ? ' ' + akBadge(e.altersklasse) : '') +
+               (vname ? '<span class="jahr-ev-ort">' + _jahrEsc(vname) + '</span>' : '');
+      } else {
+        cls = '';
+        info = timelineBadges(e) + (e.altersklasse ? ' ' + akBadge(e.altersklasse) : '');
+      }
+      rows += '<div class="jahr-ev' + cls + '">' +
+          '<div class="jahr-ev-datum">' + formatDate(e.datum) + '</div>' +
+          '<div class="jahr-ev-disz">' + disz + '</div>' +
+          '<div class="jahr-ev-res">' + _jahrRes(e.resultat, e.fmt) + '</div>' +
+          '<div class="jahr-ev-info">' + info + '</div>' +
+        '</div>';
+    }
+
+    body += '<div class="jahr-ath-block">' +
+        '<div class="jahr-ath-head">' +
+          avatarHtml(a.avatar, a.name, 38, 15) +
+          '<div style="min-width:0">' +
+            '<div class="jahr-ath-name">' + _jahrAthLink(a.id, a.name) + '</div>' +
+            (sum.length ? '<div class="jahr-ath-sum">' + sum.join('') + '</div>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="jahr-ath-events">' + rows + '</div>' +
+      '</div>';
+  }
+  return head + body + '</div>';
 }

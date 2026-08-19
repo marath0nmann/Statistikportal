@@ -919,6 +919,10 @@ if ($res === 'auth') {
             $save['jahr_typen'] = array_values(array_intersect(
                 array_map('strval', $prefs['jahr_typen']), ['gesamt','gender','ak','pb']));
         }
+        // jahr_view: Ansicht der Jahresseite (nach Athlet*in oder chronologisch)
+        if (isset($prefs['jahr_view']) && in_array($prefs['jahr_view'], ['athlet','chrono'], true)) {
+            $save['jahr_view'] = $prefs['jahr_view'];
+        }
         // Migration: prefs-Spalte anlegen falls nicht vorhanden
         try { DB::query('ALTER TABLE ' . DB::tbl('benutzer') . ' ADD COLUMN IF NOT EXISTS prefs JSON NULL'); } catch (\Exception $e) {}
         // Bestehende Prefs laden und mergen

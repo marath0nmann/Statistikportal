@@ -1437,3 +1437,30 @@ tr:hover td { background: var(--surf2); }
   text-transform: uppercase; color: var(--text2);
 }
 .jahr-monat:first-child { padding-top: 4px; }
+
+/* Jahres-Bestleistungen – Ansicht „Nach Athlet*in" */
+.jahr-view-switch { display: flex; gap: 8px; margin-left: auto; }
+.jahr-ath-block { border-top: 1px solid var(--border); padding: 12px 20px 14px; }
+.jahr-ath-block:first-of-type { border-top: none; }
+.jahr-ath-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.jahr-ath-name { font-size: 16px; font-weight: 700; }
+.jahr-ath-sum { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 3px; }
+.jahr-sum { font-size: 12px; color: var(--text2); white-space: nowrap; }
+.jahr-sum.gold { color: #8a6d0b; font-weight: 600; }
+.jahr-ath-events { display: flex; flex-direction: column; }
+.jahr-ev {
+  display: grid; grid-template-columns: 92px minmax(0,1fr) 100px minmax(0,1.4fr);
+  gap: 8px; align-items: baseline; padding: 5px 0 5px 8px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  border-radius: 4px;
+}
+.jahr-ev-datum { font-size: 12px; color: var(--text2); white-space: nowrap; }
+.jahr-ev-disz  { font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jahr-ev-res   { font-family: 'Barlow Condensed', sans-serif; font-size: 17px; font-weight: 600; color: var(--primary); white-space: nowrap; }
+.jahr-ev-info  { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 0; }
+.jahr-ev-ort   { font-size: 11px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 700px) {
+  .jahr-ev { grid-template-columns: 78px minmax(0,1fr) 84px; }
+  .jahr-ev-info { grid-column: 1 / -1; padding-left: 78px; }
+  .jahr-view-switch { margin-left: 0; }
+}
