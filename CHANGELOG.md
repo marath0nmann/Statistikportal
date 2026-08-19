@@ -1,3 +1,6 @@
+## v1474
+- Fix Veranstaltungen → Meine Ergebnisse: Das Suchfeld verlor nach jedem Tastendruck den Fokus. Beim Filtern und Sortieren wird jetzt nur noch der Ergebnisteil der Seite neu gezeichnet, die Filterleiste bleibt stehen – ihre Auswahllisten (Jahr, Disziplin, Verein) hängen ohnehin nur an den Rohdaten, nicht am aktiven Filter.
+
 ## v1473
 - Veranstaltungen → Meine Ergebnisse: Mehrfachauswahl entfernt (Checkbox-Spalte, „Alle auswählen“, Bulk-Leiste mit Bulk-Bearbeiten/-Löschen). Gelöscht wird jetzt einzeln über einen Papierkorb-Button neben dem Bearbeiten-Button jeder Zeile – inkl. Löschantrag, wenn das Recht fehlt.
 - Neue Spalte „#“: Die Wettkämpfe sind chronologisch durchnummeriert, der älteste bekommt die 1. Alle Ergebnisse desselben Wettkampfs teilen sich die Nummer; die Spalte ist sortierbar.

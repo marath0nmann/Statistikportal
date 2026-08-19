@@ -499,7 +499,13 @@ function _renderMeineTabelle() {
         : '') +
     '</div>';
 
-  viewEl.innerHTML = filterBar + countHtml + '<div class="panel">' + table + '</div>';
+  // Filterleiste haengt nur von allRows ab, nie vom aktiven Filter. Beim Filtern/Sortieren
+  // deshalb ausschliesslich den Ergebnisteil ersetzen – sonst wird das Suchfeld neu erzeugt
+  // und verliert nach jedem Tastendruck den Fokus.
+  var bodyHtml = countHtml + '<div class="panel">' + table + '</div>';
+  var bodyEl = document.getElementById('mv-body');
+  if (bodyEl) bodyEl.innerHTML = bodyHtml;
+  else viewEl.innerHTML = filterBar + '<div id="mv-body">' + bodyHtml + '</div>';
 }
 
 function _sortMeine(col) {
