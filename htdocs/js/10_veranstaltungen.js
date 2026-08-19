@@ -56,9 +56,12 @@ function switchVeranstView(to) {
 }
 
 async function renderVeranstaltungen() {
+  document.body.classList.remove('page-wide');
   if ((state.veranstView || 'liste') === 'serie-detail') { await renderSerieDetail(state.serieId); return; }
   var el = document.getElementById('main-content');
   var tab = state.veranstSubTab || 'letzte';
+  // Nur "Meine Ergebnisse": breitere Seite, sonst passen die Spalten nicht
+  document.body.classList.toggle('page-wide', tab === 'meine');
 
   // Äußere Shell einmalig aufbauen
   if (!document.getElementById('veranst-subtabs')) {
@@ -290,6 +293,18 @@ async function renderMeineVeranstaltungen() {
       });
     }
   }
+  // Wettkämpfe durchnummerieren – ältester Wettkampf bekommt die 1
+  var wkSeen = {}, wkList = [];
+  allRows.forEach(function(r) {
+    if (!wkSeen[r.veranst_id]) { wkSeen[r.veranst_id] = 1; wkList.push({ id: r.veranst_id, datum: r.datum }); }
+  });
+  wkList.sort(function(a, b) {
+    return a.datum === b.datum ? (a.id - b.id) : a.datum.localeCompare(b.datum);
+  });
+  var wkNr = {};
+  wkList.forEach(function(w, i) { wkNr[w.id] = i + 1; });
+  allRows.forEach(function(r) { r.wk_nr = wkNr[r.veranst_id] || 0; });
+
   window._meinVeranstRows = allRows;
   if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: { suche: '', jahr: '', disziplin: '' } };
   _renderMeineTabelle();
@@ -342,6 +357,7 @@ function _renderMeineTabelle() {
   rows.sort(function(a, b) {
     var av, bv, d = ss.dir === 'asc' ? 1 : -1;
     switch (ss.col) {
+      case 'wk_nr':        return d * ((a.wk_nr || 0) - (b.wk_nr || 0));
       case 'datum':        return d * a.datum.localeCompare(b.datum);
       case 'veranst_name': return d * a.veranst_name.localeCompare(b.veranst_name);
       case 'disziplin':
@@ -398,7 +414,7 @@ function _renderMeineTabelle() {
 
   var td   = 'padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
   var tdR  = td + ';text-align:right;font-variant-numeric:tabular-nums';
-  var tdCb = 'padding:7px 8px 7px 10px;border-bottom:1px solid var(--border);vertical-align:middle;width:32px';
+  var tdNr = td + ';text-align:right;font-variant-numeric:tabular-nums;font-size:12px;color:var(--text2);width:40px';
 
   var tableRows = rows.map(function(r) {
     var fmt = r.fmt;
@@ -408,9 +424,7 @@ function _renderMeineTabelle() {
     var vereinText = _meinVereinText(r, ownClub);
     return '<tr' + (r.bemerkungen ? ' title="' + String(r.bemerkungen).replace(/"/g, '&quot;') + '"' : '') +
       ' onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
-      '<td style="' + tdCb + '">' +
-        '<input type="checkbox" class="mv-row-cb" value="' + r.erg_id + '" onchange="_meineRowCbChange()" style="width:14px;height:14px;cursor:pointer">' +
-      '</td>' +
+      '<td style="' + tdNr + '">' + (r.wk_nr || '') + '</td>' +
       '<td style="' + td + ';white-space:nowrap">' + formatDate(r.datum) + '</td>' +
       '<td style="' + td + ';font-weight:600;cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' + r.veranst_name +
         (r.serie_id ? ' <span style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:pointer" onclick="event.stopPropagation();openSerieDetail(' + r.serie_id + ')">🔄</span>' : '') +
@@ -430,6 +444,7 @@ function _renderMeineTabelle() {
       (hasMstr ? '<td style="' + td + ';text-align:center">' + (r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : '') + '</td>' : '') +
       '<td style="' + td + ';white-space:nowrap">' +
         '<button class="btn btn-ghost btn-sm" title="Bearbeiten" onclick="_openMeineErgEdit(' + r.erg_id + ')">&#x270F;&#xFE0F;</button>' +
+        '<button class="btn btn-ghost btn-sm" title="L&ouml;schen" onclick="_deleteMeineErg(' + r.erg_id + ')">&#x1F5D1;&#xFE0F;</button>' +
       '</td>' +
     '</tr>';
   }).join('');
@@ -444,21 +459,12 @@ function _renderMeineTabelle() {
     ' in ' + totalWettkampfe + ' Wettkampf' + (totalWettkampfe !== 1 ? 'auftr.' : 'auftritt') +
     '</div>';
 
-  var bulkBar =
-    '<div id="mv-bulk-bar" style="display:none;margin-bottom:10px;padding:10px 14px;background:var(--surf2);border-radius:8px;display:none;align-items:center;gap:12px;flex-wrap:wrap">' +
-      '<span id="mv-bulk-count" style="font-size:13px;font-weight:600"></span>' +
-      '<button class="btn btn-primary btn-sm" onclick="_openBulkEditMeine()">&#x270F;&#xFE0F; Bearbeiten&hellip;</button>' +
-      '<button class="btn btn-danger btn-sm" onclick="_bulkDeleteMeine()">&#x1F5D1;&#xFE0F; L&ouml;schen</button>' +
-      '<button class="btn btn-ghost btn-sm" onclick="_meineDeselectAll()">Auswahl aufheben</button>' +
-    '</div>';
-
-  var thCb = 'padding:8px 8px 8px 10px;width:32px';
-  var thAct = 'padding:8px 10px;width:60px';
+  var thAct = 'padding:8px 10px;width:88px';
 
   var table = rows.length
     ? '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
         '<thead><tr style="border-bottom:2px solid var(--border)">' +
-          '<th style="' + thCb + '"><input type="checkbox" id="mv-select-all" onchange="_meineSelectAll(this)" style="width:14px;height:14px;cursor:pointer"></th>' +
+          th('wk_nr',        '#',             true)  +
           th('datum',        'Datum',         false) +
           th('veranst_name', 'Veranstaltung', false) +
           '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Ort</th>' +
@@ -493,7 +499,7 @@ function _renderMeineTabelle() {
         : '') +
     '</div>';
 
-  viewEl.innerHTML = filterBar + countHtml + bulkBar + '<div class="panel">' + table + '</div>';
+  viewEl.innerHTML = filterBar + countHtml + '<div class="panel">' + table + '</div>';
 }
 
 function _sortMeine(col) {
@@ -512,26 +518,6 @@ function _filterMeine() {
     verein:    (document.getElementById('mv-verein')  || {}).value || '',
   };
   _renderMeineTabelle();
-}
-
-// ── Checkbox-Handling ────────────────────────────────────
-function _meineRowCbChange() {
-  var cbs  = document.querySelectorAll('.mv-row-cb:checked');
-  var all  = document.querySelectorAll('.mv-row-cb');
-  var bar  = document.getElementById('mv-bulk-bar');
-  var cnt  = document.getElementById('mv-bulk-count');
-  var sa   = document.getElementById('mv-select-all');
-  if (bar)  { bar.style.display  = cbs.length ? 'flex' : 'none'; }
-  if (cnt)  { cnt.textContent    = cbs.length + ' Ergebnis' + (cbs.length !== 1 ? 'se' : '') + ' ausgewählt'; }
-  if (sa)   { sa.indeterminate   = cbs.length > 0 && cbs.length < all.length; sa.checked = cbs.length === all.length && all.length > 0; }
-}
-function _meineSelectAll(cb) {
-  document.querySelectorAll('.mv-row-cb').forEach(function(c) { c.checked = cb.checked; });
-  _meineRowCbChange();
-}
-function _meineDeselectAll() {
-  document.querySelectorAll('.mv-row-cb').forEach(function(c) { c.checked = false; });
-  _meineRowCbChange();
 }
 
 // ── Einzelnes Ergebnis bearbeiten ────────────────────────
@@ -612,137 +598,20 @@ async function _saveMeineErgEdit(ergId, tblKey) {
   }
 }
 
-// ── Bulk-Löschen ─────────────────────────────────────────
-async function _bulkDeleteMeine() {
-  var cbs = Array.from(document.querySelectorAll('.mv-row-cb:checked'));
-  if (!cbs.length) return;
-  var n = cbs.length;
-  if (!await confirmModal(n + ' Ergebnis' + (n !== 1 ? 'se' : '') + ' in den Papierkorb verschieben?')) return;
-  var ok = 0, fail = 0, pending = 0;
-  for (var i = 0; i < cbs.length; i++) {
-    var eid = parseInt(cbs[i].value);
-    // Kategorieunabhängiger Endpunkt – funktioniert auch für selbst angelegte Kategorien
-    var r = await api('DELETE', 'ergebnisse/' + eid);
-    if (r && r.ok) {
-      if (r.data && r.data.pending) pending++; else ok++;
-    } else fail++;
+// ── Einzelnes Ergebnis löschen ───────────────────────────
+async function _deleteMeineErg(ergId) {
+  var r0 = window._meineTblRowMap && window._meineTblRowMap[ergId];
+  if (!r0) return;
+  if (!await confirmModal('Ergebnis „' + r0.disziplin + '" bei „' + r0.veranst_name + '" in den Papierkorb verschieben?')) return;
+  // Kategorieunabhängiger Endpunkt – funktioniert auch für selbst angelegte Kategorien
+  var r = await api('DELETE', 'ergebnisse/' + ergId);
+  if (r && r.ok) {
+    notify(r.data && r.data.pending ? 'Löschantrag gestellt. Ein Editor wird ihn prüfen.' : 'Ergebnis gelöscht.', 'ok');
+    window._meinVeranstRows = null;
+    await renderMeineVeranstaltungen();
+  } else {
+    notify((r && r.fehler) || 'Fehler beim Löschen', 'err');
   }
-  var msg = [];
-  if (ok)      msg.push(ok + ' gelöscht');
-  if (pending) msg.push(pending + ' Löschantrag' + (pending > 1 ? 'anträge' : '') + ' gestellt');
-  if (fail)    msg.push(fail + ' Fehler');
-  notify(msg.join(', ') + '.', fail ? 'err' : 'ok');
-  window._meinVeranstRows = null;
-  await renderMeineVeranstaltungen();
-}
-
-// ── Bulk-Bearbeiten ───────────────────────────────────────
-function _openBulkEditMeine() {
-  var cbs = Array.from(document.querySelectorAll('.mv-row-cb:checked'));
-  if (!cbs.length) return;
-  var n = cbs.length;
-  var mstrOpts = buildSelectOptions(
-    (window._mstrList || []), '— keine —',
-    function(m) { return m.id; }, function(m) { return m.label; },
-    function() { return false; }
-  );
-
-  // Hilfsfunktion: Zeile mit Aktivier-Checkbox + Feld
-  function fieldRow(fieldId, label, inputHtml) {
-    return '<tr>' +
-      '<td style="padding:8px 12px 8px 0;vertical-align:middle;width:28px">' +
-        '<input type="checkbox" id="be-chk-' + fieldId + '" onchange="_beToggle(\'' + fieldId + '\')" style="width:15px;height:15px;cursor:pointer">' +
-      '</td>' +
-      '<td style="padding:8px 12px 8px 0;font-size:13px;font-weight:600;white-space:nowrap;vertical-align:middle">' +
-        '<label for="be-chk-' + fieldId + '" style="cursor:pointer">' + label + '</label>' +
-      '</td>' +
-      '<td style="padding:8px 0;width:100%">' + inputHtml + '</td>' +
-    '</tr>';
-  }
-  function inp(id, type, placeholder, extra) {
-    return '<input type="' + (type||'text') + '" id="be-' + id + '" placeholder="' + (placeholder||'') + '" disabled ' +
-           'style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surf2);color:var(--text2);opacity:.5"' +
-           (extra||'') + '>';
-  }
-  function sel(id, optsHtml) {
-    return '<select id="be-' + id + '" disabled style="width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surf2);color:var(--text2);opacity:.5">' + optsHtml + '</select>';
-  }
-
-  showModal(
-    modalH2('&#x270F;&#xFE0F; Bulk-Bearbeitung (' + n + ' Ergebnis' + (n !== 1 ? 'se' : '') + ')') +
-    '<p style="font-size:12px;color:var(--text2);margin:-4px 0 14px">' +
-      'Nur Felder mit aktivierter Checkbox werden ge&auml;ndert.' +
-    '</p>' +
-    '<table style="width:100%;border-collapse:collapse">' +
-      fieldRow('disz',      'Disziplin',     inp('disz',  'text', 'z.B. 10km', ' list="disz-list"')) +
-      fieldRow('ak',        'Altersklasse',  inp('ak',    'text', 'z.B. M40')) +
-      fieldRow('verein',    'Verein',        inp('verein','text', (appConfig && appConfig.verein_name) || '')) +
-      fieldRow('akp',       'Pl. AK',        inp('akp',   'number', '—', ' min="1"')) +
-      fieldRow('mstr',      'Meisterschaft', sel('mstr',  mstrOpts)) +
-      fieldRow('mstr-platz','Pl. MS',        inp('mstr-platz', 'number', '—', ' min="1"')) +
-    '</table>' +
-    '<div class="modal-actions" style="margin-top:18px">' +
-      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-      '<button class="btn btn-primary" onclick="_saveBulkEditMeine()">Auf ' + n + ' Ergebnis' + (n !== 1 ? 'se' : '') + ' anwenden</button>' +
-    '</div>',
-    true // wide modal
-  );
-}
-
-// Aktiviert/deaktiviert ein Feld im Bulk-Edit-Modal
-function _beToggle(fieldId) {
-  var chk = document.getElementById('be-chk-' + fieldId);
-  var el  = document.getElementById('be-' + fieldId);
-  if (!el || !chk) return;
-  var on = chk.checked;
-  el.disabled = !on;
-  el.style.background = on ? 'var(--surface)' : 'var(--surf2)';
-  el.style.color      = on ? 'var(--text)'    : 'var(--text2)';
-  el.style.opacity    = on ? '1'              : '.5';
-  if (on) el.focus();
-}
-
-async function _saveBulkEditMeine() {
-  // Nur aktivierte Felder sammeln
-  var body = {};
-  function chkField(id, key, transform) {
-    var chk = document.getElementById('be-chk-' + id);
-    var el  = document.getElementById('be-' + id);
-    if (chk && chk.checked && el) {
-      var val = el.value.trim();
-      body[key] = transform ? transform(val) : val;
-    }
-  }
-  chkField('disz',       'disziplin',    null);
-  chkField('ak',         'altersklasse', null);
-  chkField('verein',     'verein',       null);
-  chkField('akp',        'ak_platzierung', function(v) { return v ? parseInt(v) : null; });
-  chkField('mstr',       'meisterschaft',  function(v) { return v ? parseInt(v) : null; });
-  chkField('mstr-platz', 'ak_platz_meisterschaft', function(v) { return v ? parseInt(v) : null; });
-
-  if (!Object.keys(body).length) { notify('Kein Feld ausgewählt.', 'err'); return; }
-
-  var cbs = Array.from(document.querySelectorAll('.mv-row-cb:checked'));
-  if (!cbs.length) { closeModal(); return; }
-
-  var okDirect = 0, okPending = 0, fail = 0;
-  for (var i = 0; i < cbs.length; i++) {
-    var eid = parseInt(cbs[i].value);
-    var row = window._meineTblRowMap && window._meineTblRowMap[eid];
-    var tbl = (row && row.tbl_key) || 'strasse';
-    var r = await apiPut(tbl + '/' + eid, body);
-    if (r && r.ok) {
-      if (r.data && r.data.pending) okPending++; else okDirect++;
-    } else fail++;
-  }
-  closeModal();
-  var msg = [];
-  if (okDirect)  msg.push(okDirect + ' gespeichert');
-  if (okPending) msg.push(okPending + ' Antrag' + (okPending > 1 ? 'anträge' : '') + ' gestellt');
-  if (fail)      msg.push(fail + ' Fehler');
-  notify(msg.join(', ') + '.', fail ? 'err' : 'ok');
-  window._meinVeranstRows = null;
-  await renderMeineVeranstaltungen();
 }
 
 // ── SERIEN-TABELLE ─────────────────────────────────────────

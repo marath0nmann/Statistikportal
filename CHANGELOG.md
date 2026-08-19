@@ -1,3 +1,8 @@
+## v1473
+- Veranstaltungen → Meine Ergebnisse: Mehrfachauswahl entfernt (Checkbox-Spalte, „Alle auswählen“, Bulk-Leiste mit Bulk-Bearbeiten/-Löschen). Gelöscht wird jetzt einzeln über einen Papierkorb-Button neben dem Bearbeiten-Button jeder Zeile – inkl. Löschantrag, wenn das Recht fehlt.
+- Neue Spalte „#“: Die Wettkämpfe sind chronologisch durchnummeriert, der älteste bekommt die 1. Alle Ergebnisse desselben Wettkampfs teilen sich die Nummer; die Spalte ist sortierbar.
+- Nur diese Seite nutzt jetzt bis zu 1920px Breite (CSS-Klasse `body.page-wide`, wird in `renderPage()` grundsätzlich zurückgesetzt), damit alle Spalten ohne Quetschen passen.
+
 ## v1472
 - **Jahres-Bestleistungen: neue Ansicht „Nach Athlet\*in".** Alle Ereignisse eines Jahres – Titel, zweite und dritte Plätze, Vereinsrekorde, Bestleistungen und PBs – stehen jetzt gebündelt pro Athlet\*in, mit Avatar und Kurzbilanz („2 Titel · 1x 2. Platz · 3 Vereinsrekorde"). Sortiert nach Wertigkeit: erst Titel, dann Podeste, dann Rekorde.
 - Umschalter „Nach Athlet\*in / Chronologisch" – die bisherige Ansicht (Podeste nach Meisterschaftsart, Ereignisliste nach Monaten) bleibt erhalten. Die Auswahl wird am Benutzerkonto gemerkt.
