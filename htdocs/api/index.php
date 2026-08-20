@@ -2669,19 +2669,25 @@ if ($res === 'jahres-bestleistungen' && $method === 'GET') {
     }));
 
     // ── Verfügbare Jahre inkl. Kennzahlen für die Jahresauswahl ──
+    // Diese Zahlen sind bewusst ungefiltert: sie beschreiben das Jahr als Ganzes
+    // und bleiben deshalb auch stehen, wenn Ereignistypen oder Favoriten die
+    // angezeigte Liste einschränken.
+    $jahrLeer = ['jahr' => 0, 'titel' => 0, 'silber' => 0, 'bronze' => 0,
+                 'rekorde' => 0, 'bestleistungen' => 0, 'pb' => 0];
     $jahrStat = [];
-    $bump = function (int $j, string $key) use (&$jahrStat) {
-        if (!isset($jahrStat[$j])) $jahrStat[$j] = ['jahr' => $j, 'titel' => 0, 'podest' => 0, 'rekorde' => 0, 'bestleistungen' => 0];
+    $bump = function (int $j, string $key) use (&$jahrStat, $jahrLeer) {
+        if (!isset($jahrStat[$j])) { $jahrStat[$j] = $jahrLeer; $jahrStat[$j]['jahr'] = $j; }
         $jahrStat[$j][$key]++;
     };
     foreach ($podeste as $p) {
-        $bump($p['jahr'], $p['platz'] === 1 ? 'titel' : 'podest');
+        $bump($p['jahr'], $p['platz'] === 1 ? 'titel' : ($p['platz'] === 2 ? 'silber' : 'bronze'));
     }
     foreach ($tlAll as $ev) {
         $j   = (int)substr((string)$ev['datum'], 0, 4);
-        $typ = jahrLabelTyp($ev['label_club'] ?? null);
+        $typ = jahrLabelTyp($ev['label_club'] ?? null) ?? jahrLabelTyp($ev['label_pers'] ?? null);
         if ($typ === 'gesamt' || $typ === 'gender') $bump($j, 'rekorde');
         elseif ($typ === 'ak')                      $bump($j, 'bestleistungen');
+        elseif ($typ === 'pb')                      $bump($j, 'pb');
     }
     // Jahre ohne jedes Ereignis, aber mit Ergebnissen, ebenfalls anbieten
     try {
@@ -2693,7 +2699,7 @@ if ($res === 'jahres-bestleistungen' && $method === 'GET') {
         );
         foreach ($jr as $row) {
             $j = (int)$row['jahr'];
-            if ($j > 1900 && !isset($jahrStat[$j])) $jahrStat[$j] = ['jahr' => $j, 'titel' => 0, 'podest' => 0, 'rekorde' => 0, 'bestleistungen' => 0];
+            if ($j > 1900 && !isset($jahrStat[$j])) { $jahrStat[$j] = $jahrLeer; $jahrStat[$j]['jahr'] = $j; }
         }
     } catch (\Exception $e) {}
     krsort($jahrStat);

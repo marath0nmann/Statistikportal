@@ -1,3 +1,7 @@
+## v1479
+- Jahresübersicht: „Nur Favoriten" ist jetzt standardmäßig aktiv (weiterhin pro Person änderbar und gespeichert).
+- Die Kennzahlenleiste zeigt wieder alle sechs Karten – und zwar die **vollen Zahlen des Jahres**: Titel, zweite und dritte Plätze, Vereinsrekorde, Bestleistungen AK und persönliche Bestleistungen bleiben stehen, egal welche Ereignistypen gerade eingeblendet sind und ob auf Favoriten eingeschränkt wird. Ebenso zählen die Jahres-Chips jetzt sämtliche Ereignisse eines Jahrgangs.
+
 ## v1478
 - **Jahresübersicht: neuer Standard.** Die Seite startet jetzt ohne aktivierte Ereignistypen – zu sehen sind zunächst nur Titel und Podestplätze. Die Bestleistungs-Ereignisse (Vereinsrekorde, Bestleistung M/W, Bestleistung AK, PB & Debüt) lassen sich wie bisher einzeln dazuschalten.
 - **Fix: Eine leere Filterauswahl wurde nicht gemerkt.** Wer alle vier Ereignistypen abwählte, sah nach dem nächsten Aufruf wieder die alte Vorauswahl – eine leere Liste galt fälschlich als „nichts gespeichert". Jede Auswahl bleibt jetzt pro Person erhalten, auch die leere.

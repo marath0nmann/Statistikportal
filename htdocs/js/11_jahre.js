@@ -25,7 +25,8 @@ function _jahrState() {
       // Array.isArray statt .length: eine leere Auswahl ist eine gültige
       // gespeicherte Einstellung und darf nicht auf den Standard zurückfallen.
       typen: Array.isArray(_up.jahr_typen) ? _up.jahr_typen.slice() : JAHR_TYPEN_DEFAULT.slice(),
-      fav:   !!_up.jahr_fav,
+      // Standard: nur favorisierte Disziplinen
+      fav:   _up.jahr_fav === undefined ? true : !!_up.jahr_fav,
       // Standard: nach Athlet*in zusammengefasst; 'chrono' = chronologische Liste
       view:  _up.jahr_view === 'chrono' ? 'chrono' : 'athlet',
     };
@@ -134,7 +135,7 @@ async function renderJahresBestleistungen() {
   var body = js.view === 'chrono'
     ? (_jahrMeisterschaften(dv) + _jahrTimeline(dv, js))
     : _jahrNachAthlet(dv, js);
-  el.innerHTML = _jahrHeader(dv, js) + _jahrStatsBar(dv, js) + body;
+  el.innerHTML = _jahrHeader(dv, js) + _jahrStatsBar(dv) + body;
 }
 
 // ── Jahresauswahl + Filter ──────────────────────────────────
@@ -143,7 +144,8 @@ function _jahrHeader(d, js) {
   var chips = '';
   for (var i = 0; i < jahre.length; i++) {
     var j = jahre[i];
-    var n = (j.titel || 0) + (j.podest || 0) + (j.rekorde || 0) + (j.bestleistungen || 0);
+    var n = (j.titel || 0) + (j.silber || 0) + (j.bronze || 0) +
+            (j.rekorde || 0) + (j.bestleistungen || 0) + (j.pb || 0);
     chips += '<button class="jahr-chip' + (j.jahr === d.jahr ? ' active' : '') + '" onclick="setJahr(' + j.jahr + ')">' +
       '<span class="jahr-chip-jahr">' + j.jahr + '</span>' +
       '<span class="jahr-chip-cnt">' + n + (n === 1 ? ' Ereignis' : ' Ereignisse') + '</span>' +
@@ -209,34 +211,25 @@ function _saveJahrPrefs() {
 }
 
 // ── Kennzahlen ──────────────────────────────────────────────
-function _jahrStatsBar(d, js) {
-  var titel = 0, silber = 0, bronze = 0;
-  var ms = d.meisterschaften || [];
-  for (var i = 0; i < ms.length; i++) {
-    if (ms[i].platz === 1) titel++;
-    else if (ms[i].platz === 2) silber++;
-    else if (ms[i].platz === 3) bronze++;
-  }
-  var rek = 0, best = 0, pb = 0;
-  var tl = d.timeline || [];
-  for (var t = 0; t < tl.length; t++) {
-    if (tl[t].typ === 'gesamt' || tl[t].typ === 'gender') rek++;
-    else if (tl[t].typ === 'ak') best++;
-    else pb++;
-  }
+// Bewusst die ungefilterten Jahreszahlen aus d.jahre: die Leiste beschreibt
+// das Jahr als Ganzes und ändert sich nicht mit Ereignistyp- oder
+// Favoriten-Filter.
+function _jahrStatsBar(d) {
+  var st = null, jahre = d.jahre || [];
+  for (var i = 0; i < jahre.length; i++) { if (jahre[i].jahr === d.jahr) { st = jahre[i]; break; } }
+  if (!st) st = { titel: 0, silber: 0, bronze: 0, rekorde: 0, bestleistungen: 0, pb: 0 };
   function card(num, icon, label) {
-    return '<div class="stat-card"><div class="stat-num">' + num + '</div>' +
+    return '<div class="stat-card"><div class="stat-num">' + (num || 0) + '</div>' +
            '<div class="stat-label">' + icon + ' ' + label + '</div></div>';
   }
-  var aktiv = (js && js.typen) ? js.typen : [];
-  var html = card(titel, '&#x1F947;', 'Titel') +
-             card(silber, '&#x1F948;', 'Zweite Pl&auml;tze') +
-             card(bronze, '&#x1F949;', 'Dritte Pl&auml;tze');
-  // Nur Karten zu Ereignistypen zeigen, die der Filter auch durchlässt
-  if (aktiv.indexOf('gesamt') >= 0 || aktiv.indexOf('gender') >= 0) html += card(rek, '&#x1F3C6;', 'Vereinsrekorde');
-  if (aktiv.indexOf('ak') >= 0) html += card(best, '&#x1F3C5;', 'Bestleistungen AK');
-  if (aktiv.indexOf('pb') >= 0) html += card(pb, '&#x2B50;', 'Pers&ouml;nliche Bestleistungen');
-  return '<div class="stats-bar" style="margin-bottom:16px">' + html + '</div>';
+  return '<div class="stats-bar" style="margin-bottom:16px">' +
+      card(st.titel,          '&#x1F947;', 'Titel') +
+      card(st.silber,         '&#x1F948;', 'Zweite Pl&auml;tze') +
+      card(st.bronze,         '&#x1F949;', 'Dritte Pl&auml;tze') +
+      card(st.rekorde,        '&#x1F3C6;', 'Vereinsrekorde') +
+      card(st.bestleistungen, '&#x1F3C5;', 'Bestleistungen AK') +
+      card(st.pb,             '&#x2B50;',  'Pers&ouml;nliche Bestleistungen') +
+    '</div>';
 }
 
 // ── Meisterschaften: Titel und Podestplätze ─────────────────
