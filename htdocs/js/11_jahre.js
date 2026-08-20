@@ -14,12 +14,17 @@ var JAHR_TYP_DEFS = [
 var JAHR_MONATE = ['Januar','Februar','März','April','Mai','Juni',
                    'Juli','August','September','Oktober','November','Dezember'];
 
+// Standard: nur Titel und Podestplätze, keine Bestleistungs-Ereignisse.
+var JAHR_TYPEN_DEFAULT = [];
+
 function _jahrState() {
   if (!state.jahrState) {
     var _up = state.userPrefs || {};
     state.jahrState = {
       jahr:  null,
-      typen: (_up.jahr_typen && _up.jahr_typen.length) ? _up.jahr_typen.slice() : ['gesamt','gender','ak'],
+      // Array.isArray statt .length: eine leere Auswahl ist eine gültige
+      // gespeicherte Einstellung und darf nicht auf den Standard zurückfallen.
+      typen: Array.isArray(_up.jahr_typen) ? _up.jahr_typen.slice() : JAHR_TYPEN_DEFAULT.slice(),
       fav:   !!_up.jahr_fav,
       // Standard: nach Athlet*in zusammengefasst; 'chrono' = chronologische Liste
       view:  _up.jahr_view === 'chrono' ? 'chrono' : 'athlet',
@@ -129,7 +134,7 @@ async function renderJahresBestleistungen() {
   var body = js.view === 'chrono'
     ? (_jahrMeisterschaften(dv) + _jahrTimeline(dv, js))
     : _jahrNachAthlet(dv, js);
-  el.innerHTML = _jahrHeader(dv, js) + _jahrStatsBar(dv) + body;
+  el.innerHTML = _jahrHeader(dv, js) + _jahrStatsBar(dv, js) + body;
 }
 
 // ── Jahresauswahl + Filter ──────────────────────────────────
@@ -204,7 +209,7 @@ function _saveJahrPrefs() {
 }
 
 // ── Kennzahlen ──────────────────────────────────────────────
-function _jahrStatsBar(d) {
+function _jahrStatsBar(d, js) {
   var titel = 0, silber = 0, bronze = 0;
   var ms = d.meisterschaften || [];
   for (var i = 0; i < ms.length; i++) {
@@ -223,12 +228,14 @@ function _jahrStatsBar(d) {
     return '<div class="stat-card"><div class="stat-num">' + num + '</div>' +
            '<div class="stat-label">' + icon + ' ' + label + '</div></div>';
   }
+  var aktiv = (js && js.typen) ? js.typen : [];
   var html = card(titel, '&#x1F947;', 'Titel') +
              card(silber, '&#x1F948;', 'Zweite Pl&auml;tze') +
-             card(bronze, '&#x1F949;', 'Dritte Pl&auml;tze') +
-             card(rek, '&#x1F3C6;', 'Vereinsrekorde');
-  if (best) html += card(best, '&#x1F3C5;', 'Bestleistungen AK');
-  if (pb)   html += card(pb, '&#x2B50;', 'Pers&ouml;nliche Bestleistungen');
+             card(bronze, '&#x1F949;', 'Dritte Pl&auml;tze');
+  // Nur Karten zu Ereignistypen zeigen, die der Filter auch durchlässt
+  if (aktiv.indexOf('gesamt') >= 0 || aktiv.indexOf('gender') >= 0) html += card(rek, '&#x1F3C6;', 'Vereinsrekorde');
+  if (aktiv.indexOf('ak') >= 0) html += card(best, '&#x1F3C5;', 'Bestleistungen AK');
+  if (aktiv.indexOf('pb') >= 0) html += card(pb, '&#x2B50;', 'Pers&ouml;nliche Bestleistungen');
   return '<div class="stats-bar" style="margin-bottom:16px">' + html + '</div>';
 }
 
@@ -331,13 +338,21 @@ function _jahrTimeline(d, js) {
 // ── Nach Athlet*in zusammengefasst ──────────────────────────
 // Alle Ereignisse eines Jahres – Podestplätze wie Rekorde – gebündelt pro
 // Athlet*in, sortiert nach Wertigkeit (Titel > Podeste > Rekorde > …).
+// Podestplatz und Bestleistungs-Ereignis können dasselbe Ergebnis betreffen
+// (z.B. Hochsprung 0,80 m: 2. Platz bei der Meisterschaft UND erste Leistung M75).
+// Dieser Schlüssel erkennt das, damit beides in einer Zeile landet.
+function _jahrEvKey(e) {
+  return String(e.datum) + '|' + (e.disziplin_mapping_id || e.disziplin || '') + '|' + String(e.resultat);
+}
+
 function _jahrAthletenMap(d) {
   var map = {}, order = [];
   function slot(id, name, avatar) {
     var key = id || ('n_' + name);
     if (!map[key]) {
       map[key] = { id: id || null, name: name, avatar: avatar || null,
-                   titel: 0, silber: 0, bronze: 0, rekorde: 0, best: 0, pb: 0, events: [] };
+                   titel: 0, silber: 0, bronze: 0, rekorde: 0, best: 0, pb: 0,
+                   events: [], msKeys: {} };
       order.push(key);
     }
     // Namen/Avatar nachtragen, falls erst eine spätere Quelle sie liefert
@@ -351,7 +366,9 @@ function _jahrAthletenMap(d) {
     var e = ms[i];
     var a = slot(e.athlet_id, e.athlet, e.avatar);
     if (e.platz === 1) a.titel++; else if (e.platz === 2) a.silber++; else if (e.platz === 3) a.bronze++;
-    a.events.push({ art: 'ms', datum: e.datum, e: e });
+    var msItem = { art: 'ms', datum: e.datum, e: e, rek: null };
+    a.events.push(msItem);
+    a.msKeys[_jahrEvKey(e)] = msItem;
   }
 
   var tl = d.timeline || [];
@@ -361,7 +378,10 @@ function _jahrAthletenMap(d) {
     if (ev.typ === 'gesamt' || ev.typ === 'gender') b.rekorde++;
     else if (ev.typ === 'ak') b.best++;
     else b.pb++;
-    b.events.push({ art: 'rek', datum: ev.datum, e: ev });
+    // Gehört das Ereignis zu einem bereits gelisteten Podestplatz? → zusammenfassen
+    var hit = b.msKeys[_jahrEvKey(ev)];
+    if (hit) hit.rek = ev;
+    else b.events.push({ art: 'rek', datum: ev.datum, e: ev });
   }
 
   var list = order.map(function(k) { return map[k]; });
@@ -412,6 +432,8 @@ function _jahrNachAthlet(d, js) {
         var vname = e.veranstaltung || e.kuerzel || '';
         cls = e.platz === 1 ? ' jahr-titel-row' : '';
         info = medalBadge(e.platz) + ' <span class="badge badge-ms">' + _jahrEsc(e.mstr_label) + '</span>' +
+               // Dasselbe Ergebnis war zugleich ein Rekord/eine Bestleistung
+               (it.rek ? ' ' + timelineBadges(it.rek) : '') +
                (e.altersklasse ? ' ' + akBadge(e.altersklasse) : '') +
                (vname ? '<span class="jahr-ev-ort">' + _jahrEsc(vname) + '</span>' : '');
       } else {

@@ -1,3 +1,9 @@
+## v1478
+- **Jahresübersicht: neuer Standard.** Die Seite startet jetzt ohne aktivierte Ereignistypen – zu sehen sind zunächst nur Titel und Podestplätze. Die Bestleistungs-Ereignisse (Vereinsrekorde, Bestleistung M/W, Bestleistung AK, PB & Debüt) lassen sich wie bisher einzeln dazuschalten.
+- **Fix: Eine leere Filterauswahl wurde nicht gemerkt.** Wer alle vier Ereignistypen abwählte, sah nach dem nächsten Aufruf wieder die alte Vorauswahl – eine leere Liste galt fälschlich als „nichts gespeichert". Jede Auswahl bleibt jetzt pro Person erhalten, auch die leere.
+- Die Kennzahlenleiste zeigt nur noch Karten zu Ereignistypen, die der Filter auch durchlässt – statt „0 Vereinsrekorde" bei abgeschaltetem Filter.
+- **Doppelte Zeilen zusammengefasst:** War ein Ergebnis zugleich Podestplatz und Rekord bzw. Bestleistung (z. B. Hochsprung 0,80 m als 2. Platz *und* als erste Leistung M75), stand es in der Ansicht „Nach Athlet\*in" zweimal untereinander. Jetzt ist es eine Zeile, die Medaille, Meisterschaft und Rekord-Badge nebeneinander zeigt. Gezählt wird beides weiterhin getrennt.
+
 ## v1477
 - **Fix Jahresübersicht: Der Ereignis-Filter griff manchmal nicht.** Nach dem Abwählen von z. B. „Bestleistung AK" blieben „Bestleistung W45" oder „Erste Leistung M75" stehen. Ursache war ein Wettlauf der Anfragen: Jeder Filterklick löste eine neue Abfrage aus, und weil der Endpunkt die komplette Timeline über alle Jahre berechnet, konnte die verspätete Antwort der vorigen (ungefilterten) Anfrage die bereits gefilterte Ansicht wieder überschreiben – die Buttons zeigten korrekt „aus", die Liste aber noch die alten Ereignisse.
 - Die Ereignisse werden jetzt einmal je Jahr vollständig geladen und clientseitig gefiltert. Ein Filterklick und der Wechsel zwischen „Nach Athlet\*in" und „Chronologisch" wirken damit sofort und ohne Anfrage; ein Jahreswechsel wird zwischengespeichert. Zusätzlich verwerfen überholte Anfragen ihre Antwort.
