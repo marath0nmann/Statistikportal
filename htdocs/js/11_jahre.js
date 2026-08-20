@@ -1,4 +1,4 @@
-// ── JAHRES-BESTLEISTUNGEN ──────────────────────────────────
+// ── JAHRESÜBERSICHT ────────────────────────────────────────
 // Jahresrückblick: Meisterschafts-Titel und Podestplätze sowie neue
 // Vereinsrekorde und Bestleistungen. Die Bestleistungs-Ereignisse stammen aus
 // derselben Quelle wie das Dashboard-Widget „Neueste Bestleistungen" und lassen

@@ -164,7 +164,7 @@ async function _loadEigenesProfilWidget(elId, showErg) {
 
 var _tlAutoFillLimits = {};
 // Beide Helfer lagen bis v1470 im Rumpf von renderDashboard() und waren damit
-// nur dort sichtbar – die Seite „Jahres-Bestleistungen" braucht sie ebenfalls.
+// nur dort sichtbar – die Seite „Jahresübersicht" braucht sie ebenfalls.
 // Label-Transformation: Bestleistung Männer/Frauen → Vereinsrekord
 function _rekLabel(lbl) {
   if (!lbl) return lbl;

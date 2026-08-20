@@ -2243,7 +2243,7 @@ if ($res === 'benutzer') {
 // ── Rekord-Timeline berechnen ────────────────────────────────────────────
 // Liefert alle Bestleistungs-Ereignisse (Vereinsrekord, Geschlechts-/AK-Bestleistung,
 // PB, Debüt) absteigend nach Datum. Wird vom Dashboard-Widget „Neueste
-// Bestleistungen" und von der Seite „Jahres-Bestleistungen" genutzt.
+// Bestleistungen" und von der Seite „Jahresübersicht" genutzt.
 function berechneTimelineEvents(bool $unified, bool $mergeAKTl = true): array
 {
     // Rekord-Timeline: alle Tabellen berücksichtigen (unified oder alle Legacy-Tabellen)
@@ -2569,7 +2569,7 @@ if ($res === 'dashboard' && $method === 'GET') {
 }
 
 // ============================================================
-// JAHRES-BESTLEISTUNGEN
+// JAHRESÜBERSICHT
 // ============================================================
 // Alle relevanten Ereignisse eines Jahres:
 //   • Meisterschafts-Titel und Podestplätze (Platz 1–3)

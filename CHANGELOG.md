@@ -1,3 +1,6 @@
+## v1476
+- Die Seite heißt jetzt **„Jahresübersicht"** (vorher „Jahres-Bestleistungen") – der Name passt besser, da dort nicht nur Bestleistungen, sondern auch Titel und Podestplätze stehen.
+
 ## v1475
 - **Meine Ergebnisse: Spalten neu geordnet und frei konfigurierbar.** Die Tabelle folgt jetzt der Reihenfolge # · #km · Datum · Veranstaltung · Ort · Disziplinkategorie · Disziplin · StNr · AK · Pos (AK) · Pos (m/w) · Pos (ges.) · Meisterschaft · Pos (MS) · Ergebnis · Pace · Schuh · Verein · Bemerkungen. Standardmäßig sichtbar sind davon #, Datum, Veranstaltung, Ort, Disziplin, AK, Pos (AK) und Ergebnis – der Rest ist ausgeblendet.
 - Neues Modal „⚙️ Spalten": Reihenfolge per Pfeiltasten ändern, Sichtbarkeit per Häkchen, „Standard" setzt zurück. Die Auswahl wird pro Person am Benutzerkonto gespeichert (`auth/prefs` → `mv_spalten`) und überlebt spätere Updates: unbekannte Spalten werden verworfen, neu hinzugekommene hängen mit ihrer Standard-Sichtbarkeit hinten an.

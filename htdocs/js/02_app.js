@@ -2805,7 +2805,7 @@ function buildNav() {
     { id: 'dashboard',       icon: '📊️', label: 'Dashboard' },
     { id: 'vereinsrekorde',  icon: '🥇️', label: 'Vereinsrekorde' },
     { id: 'rekorde',         icon: '🏆️', label: 'Bestleistungen' },
-    { id: 'jahr',            icon: '📅️', label: 'Jahres-Bestleistungen' },
+    { id: 'jahr',            icon: '📅️', label: 'Jahresübersicht' },
     { id: 'veranstaltungen', icon: '📍️', label: 'Veranstaltungen' },
     { id: 'athleten',        icon: '👤️', label: 'Athleten' },
   ];
