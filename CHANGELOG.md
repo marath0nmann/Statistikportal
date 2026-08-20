@@ -1,3 +1,10 @@
+## v1475
+- **Meine Ergebnisse: Spalten neu geordnet und frei konfigurierbar.** Die Tabelle folgt jetzt der Reihenfolge # · #km · Datum · Veranstaltung · Ort · Disziplinkategorie · Disziplin · StNr · AK · Pos (AK) · Pos (m/w) · Pos (ges.) · Meisterschaft · Pos (MS) · Ergebnis · Pace · Schuh · Verein · Bemerkungen. Standardmäßig sichtbar sind davon #, Datum, Veranstaltung, Ort, Disziplin, AK, Pos (AK) und Ergebnis – der Rest ist ausgeblendet.
+- Neues Modal „⚙️ Spalten": Reihenfolge per Pfeiltasten ändern, Sichtbarkeit per Häkchen, „Standard" setzt zurück. Die Auswahl wird pro Person am Benutzerkonto gespeichert (`auth/prefs` → `mv_spalten`) und überlebt spätere Updates: unbekannte Spalten werden verworfen, neu hinzugekommene hängen mit ihrer Standard-Sichtbarkeit hinten an.
+- Neue Spalte „#km": zählt, der wievielte Wettkampf in genau dieser Disziplin es war (ältester = 1). Neue Spalten für Disziplinkategorie, getrennte Positionen (m/w bzw. gesamt), Pos (MS) und Bemerkungen; alle Spalten außer Meisterschaft und Bemerkungen sind sortierbar.
+- Die Buttons „Bearbeiten" und „Löschen" am Zeilenende sind weg. Stattdessen erscheint ein ✏️ hinter dem Veranstaltungsnamen, sobald die Maus über der Zeile steht – das 🔄 der regelmäßigen Veranstaltungen wird genauso ein- und ausgeblendet. Gelöscht wird jetzt im Bearbeiten-Modal; auf Touch-Geräten (`hover: none`) sind die Symbole dauerhaft sichtbar.
+- Ist die Spalte „Veranstaltung" ausgeblendet, wandert das ✏️ in die erste sichtbare Spalte, damit der Zugang zum Bearbeiten nie verloren geht.
+
 ## v1474
 - Fix Veranstaltungen → Meine Ergebnisse: Das Suchfeld verlor nach jedem Tastendruck den Fokus. Beim Filtern und Sortieren wird jetzt nur noch der Ergebnisteil der Seite neu gezeichnet, die Filterleiste bleibt stehen – ihre Auswahllisten (Jahr, Disziplin, Verein) hängen ohnehin nur an den Rohdaten, nicht am aktiven Filter.
 

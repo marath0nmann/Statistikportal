@@ -305,6 +305,26 @@ async function renderMeineVeranstaltungen() {
   wkList.forEach(function(w, i) { wkNr[w.id] = i + 1; });
   allRows.forEach(function(r) { r.wk_nr = wkNr[r.veranst_id] || 0; });
 
+  // Je Disziplin ebenfalls chronologisch durchzählen (ältester Start = 1)
+  var proDisz = allRows.slice().sort(function(a, b) {
+    return a.datum === b.datum ? (a.erg_id - b.erg_id) : a.datum.localeCompare(b.datum);
+  });
+  var diszZaehler = {};
+  proDisz.forEach(function(r) {
+    var k = r.disziplin || '?';
+    diszZaehler[k] = (diszZaehler[k] || 0) + 1;
+    r.wk_nr_disz = diszZaehler[k];
+  });
+
+  // Disziplinkategorie aus der Disziplinliste auflösen (Fallback: tbl_key der Zeile)
+  var diszAlle = (state && state.disziplinen) || [];
+  allRows.forEach(function(r) {
+    var d = null;
+    if (r.disziplin_mapping_id) d = diszAlle.find(function(x) { return x.id == r.disziplin_mapping_id; });
+    if (!d && r.disziplin)      d = diszAlle.find(function(x) { return x.disziplin === r.disziplin; });
+    r.kategorie = (d && d.kategorie) || r.tbl_key || '';
+  });
+
   window._meinVeranstRows = allRows;
   if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: { suche: '', jahr: '', disziplin: '' } };
   _renderMeineTabelle();
@@ -321,6 +341,136 @@ async function renderMeineVeranstaltungen() {
 function _meinVereinText(r, ownClub) {
   if (r.verein) return r.verein;
   return r.extern ? '' : ownClub;
+}
+
+// ── Spaltenkatalog "Meine Ergebnisse" ──────────────────────
+// key    – interner Schluessel (auch in den Benutzer-Prefs gespeichert)
+// std    – standardmaessig sichtbar
+// sort   – Feld, nach dem die Spalte sortiert (fehlt = nicht sortierbar)
+var MV_SPALTEN = [
+  { key: 'wk_nr',        label: '#',                  titel: 'Wievielter Wettkampf insgesamt (ältester = 1)', std: 1, sort: 'wk_nr',       align: 'right' },
+  { key: 'wk_nr_disz',   label: '#km',                titel: 'Wievielter Wettkampf in dieser Disziplin (ältester = 1)', std: 0, sort: 'wk_nr_disz', align: 'right' },
+  { key: 'datum',        label: 'Datum',              std: 1, sort: 'datum' },
+  { key: 'veranstaltung',label: 'Veranstaltung',      std: 1, sort: 'veranst_name' },
+  { key: 'ort',          label: 'Ort',                std: 1, sort: 'ort' },
+  { key: 'kategorie',    label: 'Disziplinkategorie', std: 0, sort: 'kategorie' },
+  { key: 'disziplin',    label: 'Disziplin',          std: 1, sort: 'disziplin' },
+  { key: 'startnummer',  label: 'StNr',               titel: 'Startnummer', std: 0, sort: 'startnummer' },
+  { key: 'ak',           label: 'AK',                 titel: 'Altersklasse', std: 1, sort: 'altersklasse' },
+  { key: 'pos_ak',       label: 'Pos (AK)',           titel: 'Platzierung in der Altersklasse', std: 1, sort: 'ak_platzierung', align: 'center' },
+  { key: 'pos_mw',       label: 'Pos (m/w)',          titel: 'Platzierung in der Geschlechterwertung', std: 0, sort: 'pos_geschlecht', align: 'right' },
+  { key: 'pos_ges',      label: 'Pos (ges.)',         titel: 'Platzierung gesamt', std: 0, sort: 'pos_gesamt', align: 'right' },
+  { key: 'meisterschaft',label: 'Meisterschaft',      std: 0 },
+  { key: 'pos_mstr',     label: 'Pos (MS)',           titel: 'Platzierung in der Meisterschaftswertung', std: 0, sort: 'ak_platz_meisterschaft', align: 'center' },
+  { key: 'resultat',     label: 'Ergebnis',           std: 1, sort: 'resultat', align: 'right' },
+  { key: 'pace',         label: 'Pace',               std: 0, sort: 'pace', align: 'right' },
+  { key: 'schuh',        label: 'Schuh',              std: 0, sort: 'schuh' },
+  { key: 'verein',       label: 'Verein',             std: 0, sort: 'verein' },
+  { key: 'bemerkungen',  label: 'Bemerkungen',        std: 0 },
+];
+
+// Spaltenkonfiguration des Benutzers: [{ key, sichtbar }] in Anzeigereihenfolge.
+// Unbekannte Keys aus den Prefs werden verworfen, neu hinzugekommene Spalten
+// haengen mit ihrer Standard-Sichtbarkeit hinten an – so bleibt eine gespeicherte
+// Konfiguration auch nach einem Update gueltig.
+function _mvSpaltenKonfig() {
+  var prefs = (state.userPrefs && state.userPrefs.mv_spalten) || null;
+  var katalog = {}; MV_SPALTEN.forEach(function(c) { katalog[c.key] = c; });
+  var konfig = [], gesehen = {};
+  if (Array.isArray(prefs)) {
+    prefs.forEach(function(p) {
+      var key = p && p.key;
+      if (!key || !katalog[key] || gesehen[key]) return;
+      gesehen[key] = 1;
+      konfig.push({ key: key, sichtbar: !!p.sichtbar });
+    });
+  }
+  MV_SPALTEN.forEach(function(c) {
+    if (!gesehen[c.key]) konfig.push({ key: c.key, sichtbar: !!c.std });
+  });
+  return konfig;
+}
+
+// Sichtbare Spalten in Anzeigereihenfolge, angereichert um die Katalogdaten
+function _mvSichtbareSpalten() {
+  var katalog = {}; MV_SPALTEN.forEach(function(c) { katalog[c.key] = c; });
+  return _mvSpaltenKonfig().filter(function(k) { return k.sichtbar; })
+                           .map(function(k) { return katalog[k.key]; });
+}
+
+function _mvSpaltenSpeichern(konfig) {
+  if (!state.userPrefs) state.userPrefs = {};
+  state.userPrefs.mv_spalten = konfig;
+  if (!currentUser) return; // Nicht eingeloggt → nur im State
+  apiPut('auth/prefs', { mv_spalten: konfig }).catch(function(){});
+}
+
+// ── Einstellungs-Modal: Spalten ein-/ausblenden und sortieren ──
+function _openMeineSpaltenModal() {
+  window._mvSpaltenEntwurf = _mvSpaltenKonfig();
+  showModal(
+    modalH2('&#x2699;&#xFE0F; Spalten') +
+    '<p style="font-size:12px;color:var(--text2);margin:-4px 0 14px">' +
+      'Reihenfolge mit den Pfeilen &auml;ndern, Sichtbarkeit per H&auml;kchen. Gilt nur f&uuml;r dich.' +
+    '</p>' +
+    '<div id="mv-spalten-liste">' + _mvSpaltenListe() + '</div>' +
+    '<div class="modal-actions" style="margin-top:18px">' +
+      '<button class="btn btn-ghost" onclick="_mvSpaltenReset()">Standard</button>' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="_mvSpaltenUebernehmen()">&Uuml;bernehmen</button>' +
+    '</div>'
+  );
+}
+
+function _mvSpaltenListe() {
+  var katalog = {}; MV_SPALTEN.forEach(function(c) { katalog[c.key] = c; });
+  var entwurf = window._mvSpaltenEntwurf || [];
+  return entwurf.map(function(k, i) {
+    var c = katalog[k.key] || { label: k.key };
+    return '<div style="display:flex;align-items:center;gap:10px;padding:6px 4px;border-bottom:1px solid var(--border)">' +
+      '<input type="checkbox" id="mvsp-' + k.key + '"' + (k.sichtbar ? ' checked' : '') +
+        ' onchange="_mvSpaltenToggle(\'' + k.key + '\', this.checked)" style="width:15px;height:15px;cursor:pointer">' +
+      '<label for="mvsp-' + k.key + '" style="flex:1;cursor:pointer;font-size:13px' + (k.sichtbar ? '' : ';color:var(--text2)') + '">' +
+        _esc(c.label) + (c.titel ? ' <span style="font-size:11px;color:var(--text2)">– ' + _esc(c.titel) + '</span>' : '') +
+      '</label>' +
+      '<button class="btn btn-ghost btn-sm" title="Nach oben" onclick="_mvSpalteVerschieben(' + i + ',-1)"' + (i === 0 ? ' disabled' : '') + '>&#x2191;</button>' +
+      '<button class="btn btn-ghost btn-sm" title="Nach unten" onclick="_mvSpalteVerschieben(' + i + ',1)"' + (i === entwurf.length - 1 ? ' disabled' : '') + '>&#x2193;</button>' +
+    '</div>';
+  }).join('');
+}
+
+function _mvSpaltenNeuZeichnen() {
+  var el = document.getElementById('mv-spalten-liste');
+  if (el) el.innerHTML = _mvSpaltenListe();
+}
+
+function _mvSpaltenToggle(key, an) {
+  (window._mvSpaltenEntwurf || []).forEach(function(k) { if (k.key === key) k.sichtbar = !!an; });
+  _mvSpaltenNeuZeichnen();
+}
+
+function _mvSpalteVerschieben(index, richtung) {
+  var e = window._mvSpaltenEntwurf || [];
+  var ziel = index + richtung;
+  if (ziel < 0 || ziel >= e.length) return;
+  var tmp = e[index]; e[index] = e[ziel]; e[ziel] = tmp;
+  _mvSpaltenNeuZeichnen();
+}
+
+function _mvSpaltenReset() {
+  window._mvSpaltenEntwurf = MV_SPALTEN.map(function(c) { return { key: c.key, sichtbar: !!c.std }; });
+  _mvSpaltenNeuZeichnen();
+}
+
+function _mvSpaltenUebernehmen() {
+  var entwurf = window._mvSpaltenEntwurf || [];
+  if (!entwurf.some(function(k) { return k.sichtbar; })) {
+    notify('Mindestens eine Spalte muss sichtbar bleiben.', 'err');
+    return;
+  }
+  _mvSpaltenSpeichern(entwurf.map(function(k) { return { key: k.key, sichtbar: !!k.sichtbar }; }));
+  closeModal();
+  _renderMeineTabelle();
 }
 
 function _renderMeineTabelle() {
@@ -354,27 +504,30 @@ function _renderMeineTabelle() {
   // Null-safe Zahl: fehlende Werte immer ans Ende
   function _num(v) { return v != null ? v : Infinity; }
 
+  // Zahlenspalten: 0/leer zaehlt als "kein Wert" und landet immer am Ende
+  var numSort = { wk_nr:1, wk_nr_disz:1, ak_platzierung:1, pos_geschlecht:1, pos_gesamt:1, ak_platz_meisterschaft:1 };
+
   rows.sort(function(a, b) {
     var av, bv, d = ss.dir === 'asc' ? 1 : -1;
     switch (ss.col) {
-      case 'wk_nr':        return d * ((a.wk_nr || 0) - (b.wk_nr || 0));
-      case 'datum':        return d * a.datum.localeCompare(b.datum);
-      case 'veranst_name': return d * a.veranst_name.localeCompare(b.veranst_name);
       case 'disziplin':
         av = _num(a.disz_km || null); bv = _num(b.disz_km || null);
         if (av !== bv) return d * (av < bv ? -1 : 1);
         return a.disziplin.localeCompare(b.disziplin); // Gleiche Distanz → alphabetisch
-      case 'altersklasse': return d * a.altersklasse.localeCompare(b.altersklasse);
       case 'resultat':
         av = _num(a.resultat_num); bv = _num(b.resultat_num);
         return d * (av === bv ? 0 : av < bv ? -1 : 1);
       case 'pace':
         av = _num(a.pace_num); bv = _num(b.pace_num);
         return d * (av === bv ? 0 : av < bv ? -1 : 1);
-      case 'ak_platzierung':
-        av = _num(a.ak_platzierung || null); bv = _num(b.ak_platzierung || null);
-        return d * (av === bv ? 0 : av < bv ? -1 : 1);
-      default: return 0;
+      case 'verein':
+        return d * _meinVereinText(a, ownClub).localeCompare(_meinVereinText(b, ownClub));
+      default:
+        if (numSort[ss.col]) {
+          av = _num(a[ss.col] || null); bv = _num(b[ss.col] || null);
+          return d * (av === bv ? 0 : av < bv ? -1 : 1);
+        }
+        return d * String(a[ss.col] == null ? '' : a[ss.col]).localeCompare(String(b[ss.col] == null ? '' : b[ss.col]));
     }
   });
 
@@ -391,96 +544,101 @@ function _renderMeineTabelle() {
   jahre.sort(function(a, b) { return b - a; });
   var diszList = Object.keys(diszMap).sort();
   vereinList.sort();
+  var hasVerein = allRows.some(function(r) { return !!r.verein; });
   function selOpts(arr, cur) {
     return '<option value="">Alle</option>' +
       arr.map(function(v) { return '<option value="' + v.replace(/"/g,'&quot;') + '"' + (cur === v ? ' selected' : '') + '>' + v + '</option>'; }).join('');
   }
 
-  // ── Sortierpfeil ─────────────────────────────────────────
-  function th(col, label, alignRight) {
-    var active = ss.col === col;
-    var arrow  = active ? ' <span style="color:var(--primary)">' + (ss.dir === 'asc' ? '↑' : '↓') + '</span>'
-                        : ' <span style="opacity:.3;font-size:10px">↕</span>';
-    var base = 'cursor:pointer;user-select:none;white-space:nowrap;padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:' + (alignRight ? 'right' : 'left');
-    return '<th style="' + base + '" onclick="_sortMeine(\'' + col + '\')">' + label + arrow + '</th>';
-  }
-
-  // Bedingte Spalten (aus Gesamtdaten)
-  var hasVerein = allRows.some(function(r) { return !!r.verein; });
-  var hasMstr   = allRows.some(function(r) { return !!r.meisterschaft; });
-  var hasSnr    = allRows.some(function(r) { return !!r.startnummer; });
-  var hasPos    = allRows.some(function(r) { return r.pos_geschlecht || r.pos_gesamt; });
-  var hasSchuh  = allRows.some(function(r) { return !!r.schuh; });
+  // ── Spalten (Reihenfolge/Sichtbarkeit aus den Benutzer-Prefs) ──
+  var cols = _mvSichtbareSpalten();
 
   var td   = 'padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle';
-  var tdR  = td + ';text-align:right;font-variant-numeric:tabular-nums';
-  var tdNr = td + ';text-align:right;font-variant-numeric:tabular-nums;font-size:12px;color:var(--text2);width:40px';
+  var tdDim = td + ';font-size:12px;color:var(--text2)';
+
+  // Zelleninhalt je Spalte
+  var cell = {
+    wk_nr:        function(r) { return r.wk_nr || ''; },
+    wk_nr_disz:   function(r) { return r.wk_nr_disz || ''; },
+    datum:        function(r) { return formatDate(r.datum); },
+    veranstaltung: function(r) {
+      return '<span style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' + r.veranst_name + '</span>' +
+        (r.serie_id ? ' <span class="mv-hover" title="Regelm&auml;&szlig;ige Veranstaltung" style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:pointer" onclick="openSerieDetail(' + r.serie_id + ')">🔄</span>' : '');
+    },
+    ort:          function(r) { return r.ort ? (r.ort_land_code && flagEmoji ? flagEmoji(r.ort_land_code) + ' ' + r.ort : r.ort) : ''; },
+    kategorie:    function(r) { return _esc(r.kategorie); },
+    disziplin:    function(r) { return r.disziplin; },
+    startnummer:  function(r) { return _esc(r.startnummer); },
+    ak:           function(r) { return akBadge(r.altersklasse); },
+    pos_ak:       function(r) { return medalBadge(r.ak_platzierung); },
+    pos_mw:       function(r) { return r.pos_geschlecht || ''; },
+    pos_ges:      function(r) { return r.pos_gesamt || ''; },
+    meisterschaft: function(r) { return r.meisterschaft ? mstrBadge(r.meisterschaft) : ''; },
+    pos_mstr:     function(r) { return r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : ''; },
+    resultat:     function(r) { return r.fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, r.fmt === 's' ? 's' : (r.fmt === 'min_h' ? 'min_h' : undefined)); },
+    pace:         function(r) { return (r.pace && r.pace !== '00:00') ? fmtTime(r.pace, 'min/km') : ''; },
+    schuh:        function(r) { return _esc(r.schuh); },
+    verein:       function(r) { return _esc(_meinVereinText(r, ownClub)); },
+    bemerkungen:  function(r) { return _esc(r.bemerkungen); },
+  };
+  // Spalten mit gedaempfter Darstellung bzw. Sonderformat
+  var dimCols = { wk_nr:1, wk_nr_disz:1, ort:1, kategorie:1, startnummer:1, pos_mw:1, pos_ges:1, pace:1, schuh:1, verein:1, bemerkungen:1 };
+
+  function tdStyle(c) {
+    var s = dimCols[c.key] ? tdDim : td;
+    if (c.align === 'right')  s += ';text-align:right;font-variant-numeric:tabular-nums';
+    if (c.align === 'center') s += ';text-align:center';
+    if (c.key === 'datum' || c.key === 'disziplin') s += ';white-space:nowrap';
+    if (c.key === 'veranstaltung') s += ';font-weight:600';
+    return s;
+  }
+
+  // Bearbeiten-Symbol haengt hinter dem Veranstaltungsnamen – ist diese Spalte
+  // ausgeblendet, wandert es in die erste sichtbare Spalte, damit der Zugang bleibt.
+  var editSpalte = cols.some(function(c) { return c.key === 'veranstaltung'; })
+    ? 'veranstaltung' : (cols[0] && cols[0].key);
 
   var tableRows = rows.map(function(r) {
-    var fmt = r.fmt;
-    var res = fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
-    var showPace = r.pace && r.pace !== '00:00';
-    var ortText  = r.ort ? (r.ort_land_code && flagEmoji ? flagEmoji(r.ort_land_code) + ' ' + r.ort : r.ort) : '';
-    var vereinText = _meinVereinText(r, ownClub);
-    return '<tr' + (r.bemerkungen ? ' title="' + String(r.bemerkungen).replace(/"/g, '&quot;') + '"' : '') +
-      ' onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
-      '<td style="' + tdNr + '">' + (r.wk_nr || '') + '</td>' +
-      '<td style="' + td + ';white-space:nowrap">' + formatDate(r.datum) + '</td>' +
-      '<td style="' + td + ';font-weight:600;cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' + r.veranst_name +
-        (r.serie_id ? ' <span style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:pointer" onclick="event.stopPropagation();openSerieDetail(' + r.serie_id + ')">🔄</span>' : '') +
-      '</td>' +
-      '<td style="' + td + ';font-size:12px;color:var(--text2)">' + ortText + '</td>' +
-      (hasVerein ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + vereinText + '</td>' : '') +
-      '<td style="' + td + '">' + r.disziplin + '</td>' +
-      '<td style="' + td + '">' + akBadge(r.altersklasse) + '</td>' +
-      '<td style="' + tdR + '" class="result">' + res + '</td>' +
-      '<td style="' + tdR + ';font-size:12px;color:var(--text2)">' + (showPace ? fmtTime(r.pace, 'min/km') : '') + '</td>' +
-      '<td style="' + td + ';text-align:center">' + medalBadge(r.ak_platzierung) + '</td>' +
-      (hasPos ? '<td style="' + tdR + ';font-size:12px;color:var(--text2)">' +
-        ((r.pos_geschlecht || '–') + ' / ' + (r.pos_gesamt || '–')) + '</td>' : '') +
-      (hasSnr ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + (r.startnummer || '') + '</td>' : '') +
-      (hasSchuh ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + (r.schuh || '') + '</td>' : '') +
-      (hasMstr ? '<td style="' + td + '">' + (r.meisterschaft ? mstrBadge(r.meisterschaft) : '') + '</td>' : '') +
-      (hasMstr ? '<td style="' + td + ';text-align:center">' + (r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : '') + '</td>' : '') +
-      '<td style="' + td + ';white-space:nowrap">' +
-        '<button class="btn btn-ghost btn-sm" title="Bearbeiten" onclick="_openMeineErgEdit(' + r.erg_id + ')">&#x270F;&#xFE0F;</button>' +
-        '<button class="btn btn-ghost btn-sm" title="L&ouml;schen" onclick="_deleteMeineErg(' + r.erg_id + ')">&#x1F5D1;&#xFE0F;</button>' +
-      '</td>' +
+    return '<tr' + (r.bemerkungen ? ' title="' + _esc(r.bemerkungen) + '"' : '') + '>' +
+      cols.map(function(c) {
+        var inhalt = cell[c.key] ? cell[c.key](r) : '';
+        if (c.key === editSpalte) {
+          inhalt += ' <span class="mv-hover" title="Ergebnis bearbeiten" style="cursor:pointer;font-size:12px" onclick="_openMeineErgEdit(' + r.erg_id + ')">✏️</span>';
+        }
+        return '<td style="' + tdStyle(c) + '"' + (c.key === 'resultat' ? ' class="result"' : '') + '>' + inhalt + '</td>';
+      }).join('') +
     '</tr>';
   }).join('');
+
+  // ── Sortierpfeil ─────────────────────────────────────────
+  function th(c) {
+    var basis = 'white-space:nowrap;padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:' +
+                (c.align === 'right' ? 'right' : c.align === 'center' ? 'center' : 'left');
+    var titel = c.titel ? ' title="' + _esc(c.titel) + '"' : '';
+    if (!c.sort) return '<th style="' + basis + '"' + titel + '>' + c.label + '</th>';
+    var arrow = ss.col === c.sort
+      ? ' <span style="color:var(--primary)">' + (ss.dir === 'asc' ? '↑' : '↓') + '</span>'
+      : ' <span style="opacity:.3;font-size:10px">↕</span>';
+    return '<th style="cursor:pointer;user-select:none;' + basis + '"' + titel +
+           ' onclick="_sortMeine(\'' + c.sort + '\')">' + c.label + arrow + '</th>';
+  }
 
   var total = allRows.length;
   var totalWettkampfe = Object.keys(allRows.reduce(function(m,r){ m[r.veranst_id]=1; return m; }, {})).length;
   var countHtml =
-    '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">' +
-    (rows.length < total
-      ? rows.length + ' von ' + total + ' Ergebnis' + (total !== 1 ? 'sen' : '')
-      : total + ' Ergebnis' + (total !== 1 ? 'se' : '')) +
-    ' in ' + totalWettkampfe + ' Wettkampf' + (totalWettkampfe !== 1 ? 'auftr.' : 'auftritt') +
+    '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">' +
+      '<div style="font-size:13px;color:var(--text2)">' +
+      (rows.length < total
+        ? rows.length + ' von ' + total + ' Ergebnis' + (total !== 1 ? 'sen' : '')
+        : total + ' Ergebnis' + (total !== 1 ? 'se' : '')) +
+      ' in ' + totalWettkampfe + ' Wettkampf' + (totalWettkampfe !== 1 ? 'auftr.' : 'auftritt') +
+      '</div>' +
+      '<button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="_openMeineSpaltenModal()">&#x2699;&#xFE0F; Spalten</button>' +
     '</div>';
-
-  var thAct = 'padding:8px 10px;width:88px';
 
   var table = rows.length
     ? '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
-        '<thead><tr style="border-bottom:2px solid var(--border)">' +
-          th('wk_nr',        '#',             true)  +
-          th('datum',        'Datum',         false) +
-          th('veranst_name', 'Veranstaltung', false) +
-          '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Ort</th>' +
-          (hasVerein ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Verein</th>' : '') +
-          th('disziplin',     'Disziplin',    false) +
-          th('altersklasse',  'AK',           false) +
-          th('resultat',      'Ergebnis',     true)  +
-          th('pace',          'Pace',          true)  +
-          th('ak_platzierung','Pl. AK',       false) +
-          (hasPos   ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:right" title="Platzierung m/w bzw. gesamt">Pl. m/w &middot; ges.</th>' : '') +
-          (hasSnr   ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">StNr</th>' : '') +
-          (hasSchuh ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Schuh</th>' : '') +
-          (hasMstr ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2)">Meisterschaft</th>' : '') +
-          (hasMstr ? '<th style="padding:8px 10px;font-size:12px;font-weight:600;color:var(--text2);text-align:center">Pl. MS</th>' : '') +
-          '<th style="' + thAct + '"></th>' +
-        '</tr></thead>' +
+        '<thead><tr style="border-bottom:2px solid var(--border)">' + cols.map(th).join('') + '</tr></thead>' +
         '<tbody>' + tableRows + '</tbody>' +
       '</table></div>'
     : '<div class="empty" style="padding:20px"><div class="empty-text">Keine Ergebnisse f&uuml;r diesen Filter.</div></div>';
@@ -565,6 +723,7 @@ function _openMeineErgEdit(ergId) {
         '<input type="text" id="mee-bem" maxlength="500" value="' + String(r.bemerkungen || '').replace(/"/g,'&quot;') + '" placeholder="—"/></div>' +
     '</div>' +
     '<div class="modal-actions">' +
+      '<button class="btn btn-danger" style="margin-right:auto" onclick="_deleteMeineErg(' + ergId + ', true)">&#x1F5D1;&#xFE0F; L&ouml;schen</button>' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
       '<button class="btn btn-primary" onclick="_saveMeineErgEdit(' + ergId + ',\'' + (r.tbl_key || 'strasse') + '\')">Speichern</button>' +
     '</div>'
@@ -605,10 +764,14 @@ async function _saveMeineErgEdit(ergId, tblKey) {
 }
 
 // ── Einzelnes Ergebnis löschen ───────────────────────────
-async function _deleteMeineErg(ergId) {
+async function _deleteMeineErg(ergId, ausEditModal) {
   var r0 = window._meineTblRowMap && window._meineTblRowMap[ergId];
   if (!r0) return;
-  if (!await confirmModal('Ergebnis „' + r0.disziplin + '" bei „' + r0.veranst_name + '" in den Papierkorb verschieben?')) return;
+  // confirmModal ersetzt ein offenes Modal – nach Abbruch den Editor wieder oeffnen
+  if (!await confirmModal('Ergebnis „' + r0.disziplin + '" bei „' + r0.veranst_name + '" in den Papierkorb verschieben?')) {
+    if (ausEditModal) _openMeineErgEdit(ergId);
+    return;
+  }
   // Kategorieunabhängiger Endpunkt – funktioniert auch für selbst angelegte Kategorien
   var r = await api('DELETE', 'ergebnisse/' + ergId);
   if (r && r.ok) {

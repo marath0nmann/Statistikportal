@@ -923,6 +923,20 @@ if ($res === 'auth') {
         if (isset($prefs['jahr_view']) && in_array($prefs['jahr_view'], ['athlet','chrono'], true)) {
             $save['jahr_view'] = $prefs['jahr_view'];
         }
+        // mv_spalten: Spaltenreihenfolge/-sichtbarkeit in "Meine Ergebnisse"
+        if (array_key_exists('mv_spalten', $prefs) && is_array($prefs['mv_spalten'])) {
+            $mvKeys = ['wk_nr','wk_nr_disz','datum','veranstaltung','ort','kategorie','disziplin','startnummer',
+                       'ak','pos_ak','pos_mw','pos_ges','meisterschaft','pos_mstr','resultat','pace','schuh',
+                       'verein','bemerkungen'];
+            $mvSave = []; $mvGesehen = [];
+            foreach ($prefs['mv_spalten'] as $sp) {
+                $k = is_array($sp) ? (string)($sp['key'] ?? '') : '';
+                if ($k === '' || !in_array($k, $mvKeys, true) || isset($mvGesehen[$k])) continue;
+                $mvGesehen[$k] = true;
+                $mvSave[] = ['key' => $k, 'sichtbar' => (bool)($sp['sichtbar'] ?? false)];
+            }
+            if ($mvSave) $save['mv_spalten'] = $mvSave;
+        }
         // Migration: prefs-Spalte anlegen falls nicht vorhanden
         try { DB::query('ALTER TABLE ' . DB::tbl('benutzer') . ' ADD COLUMN IF NOT EXISTS prefs JSON NULL'); } catch (\Exception $e) {}
         // Bestehende Prefs laden und mergen

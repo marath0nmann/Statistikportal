@@ -211,6 +211,11 @@ nav button.active {
 main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
 /* Seiten mit sehr breiten Tabellen (z.B. Veranstaltungen → Meine Ergebnisse) */
 body.page-wide main { max-width: 1920px; }
+/* Aktionssymbole in "Meine Ergebnisse": nur beim Überfahren der Zeile sichtbar.
+   Platz halten sie trotzdem, damit die Zeile beim Hover nicht springt. */
+.mv-hover { visibility: hidden; }
+tr:hover .mv-hover, tr:focus-within .mv-hover { visibility: visible; }
+@media (hover: none) { .mv-hover { visibility: visible; } }
 
 /* ── STATS BAR ── */
 .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 0; }
