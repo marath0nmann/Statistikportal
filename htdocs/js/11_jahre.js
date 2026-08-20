@@ -28,6 +28,42 @@ function _jahrState() {
   return state.jahrState;
 }
 
+// Label-Typ eines Timeline-Labels – identisch zu jahrLabelTyp() in der API
+// und zu timelineLabelType() im Admin-Bereich.
+function _jahrTypOf(lbl) {
+  if (!lbl) return null;
+  if (lbl === 'Vereinsrekord' || lbl === 'Gesamtbestleistung' || lbl === 'Erste Gesamtleistung') return 'gesamt';
+  if (lbl === 'Bestleistung M\u00e4nner' || lbl === 'Bestleistung Frauen' ||
+      lbl === 'Erstes Ergebnis M' || lbl === 'Erstes Ergebnis W') return 'gender';
+  if (lbl === 'PB' || lbl === 'Deb\u00fct') return 'pb';
+  if (lbl.indexOf('Bestleistung') >= 0 || lbl.indexOf('Erste Leistung') >= 0 ||
+      lbl.indexOf('Erstes Ergebnis') === 0) return 'ak';
+  return 'pb';
+}
+
+// Die Ereignisse werden immer vollständig geladen und hier nach den aktiven
+// Label-Typen gefiltert. Ein Filterklick löst dadurch keine neue (langsame)
+// Anfrage aus – und eine verspätet eintreffende Antwort kann die Ansicht nicht
+// mehr mit Ereignissen überschreiben, die der Filter gerade ausgeschlossen hat.
+function _jahrFilterTimeline(d, js) {
+  var out = [], all = d.timeline || [];
+  for (var i = 0; i < all.length; i++) {
+    var ev = all[i];
+    var tc = _jahrTypOf(ev.label_club), tp = _jahrTypOf(ev.label_pers);
+    var okC = !!tc && js.typen.indexOf(tc) >= 0;
+    var okP = !!tp && js.typen.indexOf(tp) >= 0;
+    if (!okC && !okP) continue;
+    var c = Object.assign({}, ev);
+    // Ausgefiltertes Label entfernen, sonst rendert timelineBadges() es trotzdem
+    if (!okC) { c.label_club = null; c.vorher_club = null; }
+    if (!okP) { c.label_pers = null; c.vorher_pers = null; }
+    c.label = c.label_club || c.label_pers || null;
+    c.typ   = okC ? tc : tp;
+    out.push(c);
+  }
+  return out;
+}
+
 // Ergebnis gemäß fmt formatieren (identisch zu Dashboard/Timeline)
 function _jahrRes(resultat, fmt) {
   if (fmt === 'm') return fmtMeter(resultat);
@@ -51,28 +87,49 @@ function _jahrAthLink(id, name) {
   return '<span class="athlet-link" style="color:var(--primary);font-weight:700" onclick="openAthletById(' + id + ')">' + n + '</span>';
 }
 
+// Rohdaten je Jahr/Favoriten-Auswahl; wird beim Betreten der Seite geleert.
+var _jahrCache = {};
+var _jahrReqSeq = 0;
+
+function _jahrResetCache() { _jahrCache = {}; }
+
 async function renderJahresBestleistungen() {
   var js = _jahrState();
   var el = document.getElementById('main-content');
-  el.innerHTML = '<div class="loading"><div class="spinner"></div>Lade Jahres&uuml;bersicht&hellip;</div>';
+  var cacheKey = (js.jahr || 'neuestes') + '|' + (js.fav ? '1' : '0');
+  var d = _jahrCache[cacheKey];
 
-  var q = 'jahres-bestleistungen?typen=' + encodeURIComponent(js.typen.join(','))
-        + '&fav=' + (js.fav ? '1' : '0');
-  if (js.jahr) q += '&jahr=' + js.jahr;
-  var r = await apiGet(q);
-  if (!r || !r.ok) {
-    el.innerHTML = '<div class="panel" style="padding:24px;text-align:center;color:var(--accent)">' +
-      _jahrEsc((r && r.fehler) || 'Fehler beim Laden.') + '</div>';
-    return;
+  if (!d) {
+    var seq = ++_jahrReqSeq;
+    el.innerHTML = '<div class="loading"><div class="spinner"></div>Lade Jahres&uuml;bersicht&hellip;</div>';
+    // Immer alle Label-Typen laden – gefiltert wird clientseitig
+    var q = 'jahres-bestleistungen?typen=gesamt,gender,ak,pb&fav=' + (js.fav ? '1' : '0');
+    if (js.jahr) q += '&jahr=' + js.jahr;
+    var r = await apiGet(q);
+    // Verspätete Antwort einer überholten Anfrage verwerfen
+    if (seq !== _jahrReqSeq || state.tab !== 'jahr') return;
+    if (!r || !r.ok) {
+      el.innerHTML = '<div class="panel" style="padding:24px;text-align:center;color:var(--accent)">' +
+        _jahrEsc((r && r.fehler) || 'Fehler beim Laden.') + '</div>';
+      return;
+    }
+    d = r.data;
+    _jahrCache[cacheKey] = d;
+    // Beim ersten Laden bestimmt der Server das Jahr – unter dem Schlüssel merken
+    if (!js.jahr) _jahrCache[d.jahr + '|' + (js.fav ? '1' : '0')] = d;
   }
-  var d = r.data;
+
   js.jahr = d.jahr;
   syncHash();
 
+  // Gefilterte Sicht auf die Rohdaten
+  var dv = { jahr: d.jahr, jahre: d.jahre, meisterschaften: d.meisterschaften,
+             timeline: _jahrFilterTimeline(d, js) };
+
   var body = js.view === 'chrono'
-    ? (_jahrMeisterschaften(d) + _jahrTimeline(d, js))
-    : _jahrNachAthlet(d, js);
-  el.innerHTML = _jahrHeader(d, js) + _jahrStatsBar(d) + body;
+    ? (_jahrMeisterschaften(dv) + _jahrTimeline(dv, js))
+    : _jahrNachAthlet(dv, js);
+  el.innerHTML = _jahrHeader(dv, js) + _jahrStatsBar(dv) + body;
 }
 
 // ── Jahresauswahl + Filter ──────────────────────────────────
@@ -324,6 +381,10 @@ function _jahrNachAthlet(d, js) {
   var head = '<div class="panel">' +
     '<div class="panel-header"><div class="panel-title">&#x1F464; Jahr ' + d.jahr + ' nach Athlet*in</div>' +
     '<div class="panel-count">' + list.length + (list.length === 1 ? ' Athlet*in' : ' Athlet*innen') + '</div></div>';
+  if (!js.typen.length && !(d.meisterschaften || []).length) {
+    return head + '<div class="empty"><div class="empty-icon">&#x1F50D;</div>' +
+      '<div class="empty-text">Kein Ereignistyp ausgew&auml;hlt</div></div></div>';
+  }
   if (!list.length) {
     return head + '<div class="empty"><div class="empty-icon">&#x1F464;</div>' +
       '<div class="empty-text">Keine Ereignisse in ' + d.jahr + ' f&uuml;r diese Auswahl</div></div></div>';

@@ -3017,6 +3017,8 @@ function navigate(tab) {
   if (tab === '#/nutzung'     || tab === 'nutzung')     { renderLegalPage('nutzung'); return; }
   if (tab === '#/impressum'   || tab === 'impressum')   { renderLegalPage('impressum'); return; }
   if (tab === 'rekorde') { REK_CATS = []; state.allDisziplinen = {}; state.topDisziplinen = {}; }
+  // Jahresübersicht: Rohdaten-Cache beim Betreten der Seite verwerfen
+  if (tab === 'jahr' && typeof _jahrResetCache === 'function') _jahrResetCache();
   if (tab === 'vereinsrekorde') { /* kein Cache zu leeren */ }
   // veranstaltungen/serie/123 -> Serie-Detail
   if (tab.startsWith('veranstaltungen/serie/')) {

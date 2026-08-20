@@ -1,3 +1,8 @@
+## v1477
+- **Fix Jahresübersicht: Der Ereignis-Filter griff manchmal nicht.** Nach dem Abwählen von z. B. „Bestleistung AK" blieben „Bestleistung W45" oder „Erste Leistung M75" stehen. Ursache war ein Wettlauf der Anfragen: Jeder Filterklick löste eine neue Abfrage aus, und weil der Endpunkt die komplette Timeline über alle Jahre berechnet, konnte die verspätete Antwort der vorigen (ungefilterten) Anfrage die bereits gefilterte Ansicht wieder überschreiben – die Buttons zeigten korrekt „aus", die Liste aber noch die alten Ereignisse.
+- Die Ereignisse werden jetzt einmal je Jahr vollständig geladen und clientseitig gefiltert. Ein Filterklick und der Wechsel zwischen „Nach Athlet\*in" und „Chronologisch" wirken damit sofort und ohne Anfrage; ein Jahreswechsel wird zwischengespeichert. Zusätzlich verwerfen überholte Anfragen ihre Antwort.
+- Sind alle Ereignistypen abgewählt, sagt das auch die Ansicht „Nach Athlet\*in" – bisher tat das nur die chronologische.
+
 ## v1476
 - Die Seite heißt jetzt **„Jahresübersicht"** (vorher „Jahres-Bestleistungen") – der Name passt besser, da dort nicht nur Bestleistungen, sondern auch Titel und Podestplätze stehen.
 
