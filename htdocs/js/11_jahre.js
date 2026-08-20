@@ -383,10 +383,31 @@ function _jahrAthletenMap(d) {
            (y.rekorde - x.rekorde) || (y.best - x.best) || (y.pb - x.pb) ||
            String(x.name).localeCompare(String(y.name));
   });
-  for (var li = 0; li < list.length; li++) {
-    list[li].events.sort(function(p, q) { return String(p.datum).localeCompare(String(q.datum)); });
-  }
+  for (var li = 0; li < list.length; li++) list[li].events.sort(_jahrEvSort);
   return list;
+}
+
+// Wertigkeit eines Bestleistungs-Ereignisses (0 = höchste)
+function _jahrTypRang(t) {
+  return t === 'gesamt' ? 0 : t === 'gender' ? 1 : t === 'ak' ? 2 : 3;
+}
+
+// Reihenfolge innerhalb eines Athletenblocks:
+//   1. Podestplätze – nach Platzierung, bei gleicher Platzierung nach Wertigkeit
+//      der Meisterschaft (mstr_rang aus Admin → Meisterschaftsarten, also
+//      Deutsche oben, Regio unten)
+//   2. darunter die allein stehenden Rekorde/Bestleistungen/PBs, nach Wertigkeit
+// Innerhalb einer Stufe jeweils chronologisch.
+function _jahrEvSort(p, q) {
+  var pm = (p.art === 'ms'), qm = (q.art === 'ms');
+  if (pm !== qm) return pm ? -1 : 1;
+  if (pm) {
+    return (p.e.platz - q.e.platz) ||
+           ((p.e.mstr_rang || 0) - (q.e.mstr_rang || 0)) ||
+           String(p.datum).localeCompare(String(q.datum));
+  }
+  return (_jahrTypRang(p.e.typ) - _jahrTypRang(q.e.typ)) ||
+         String(p.datum).localeCompare(String(q.datum));
 }
 
 function _jahrNachAthlet(d, js) {

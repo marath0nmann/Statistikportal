@@ -1,3 +1,6 @@
+## v1480
+- Jahresübersicht, Ansicht „Nach Athlet\*in": Die Ereignisse stehen nicht mehr chronologisch, sondern nach Bedeutung. Zuerst die Podestplätze – sortiert nach Platzierung, bei gleicher Platzierung nach Wertigkeit der Meisterschaft (Deutsche oben, Regio unten, gemäß Reihenfolge in Admin → Meisterschaftsarten). Darunter die allein stehenden Vereinsrekorde, Bestleistungen und PBs, ebenfalls nach Wertigkeit. Innerhalb einer Stufe bleibt es chronologisch.
+
 ## v1479
 - Jahresübersicht: „Nur Favoriten" ist jetzt standardmäßig aktiv (weiterhin pro Person änderbar und gespeichert).
 - Die Kennzahlenleiste zeigt wieder alle sechs Karten – und zwar die **vollen Zahlen des Jahres**: Titel, zweite und dritte Plätze, Vereinsrekorde, Bestleistungen AK und persönliche Bestleistungen bleiben stehen, egal welche Ereignistypen gerade eingeblendet sind und ob auf Favoriten eingeschränkt wird. Ebenso zählen die Jahres-Chips jetzt sämtliche Ereignisse eines Jahrgangs.
