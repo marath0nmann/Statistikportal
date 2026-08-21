@@ -214,16 +214,18 @@ main { padding: 24px 28px; max-width: var(--seiten-breite); margin: 0 auto; }
    keine feste Obergrenze – die Tabelle darf bis zur Fensterbreite wachsen. */
 body.page-wide main { max-width: none; }
 #mv-wrap { width: 100%; }
-/* Kopf, Filterleiste und Zählerzeile behalten die Standardbreite der übrigen
-   Seiten und damit eine feste Position – sonst wandern die Buttons bei jedem
-   Klick mit der Tabellenbreite. */
-#mv-kopf, #mv-wrap > .filter-bar, #mv-zeile {
+/* Untermenü, Kopf und Filterleiste behalten die Standardbreite der übrigen
+   Seiten und damit eine feste Position – sonst wandern Chips, Kacheln und
+   Buttons bei jedem Klick mit der Tabellenbreite. */
+#veranst-subtabs, #mv-kopf, #mv-wrap > .filter-bar {
   width: 100%; max-width: var(--seiten-breite); margin-left: auto; margin-right: auto;
 }
-/* Nur die Ergebnisbox wächst über die Standardbreite hinaus, wenn sie es braucht */
-#mv-body > .panel {
+/* Ergebnisbox: wächst über die Standardbreite hinaus, wenn die Spalten es
+   verlangen. Die Zählerzeile sitzt mit im Block und läuft deshalb mit. */
+#mv-box {
   width: max-content; min-width: min(100%, var(--seiten-breite)); max-width: 100%; margin: 0 auto;
 }
+#mv-box > .panel { width: 100%; }
 /* Veranstaltungsname: schrumpft mit "…" bevor die Tabelle horizontal scrollt.
    Die Obergrenze setzt _mvBreiteAnpassen() zur Laufzeit. */
 .mv-vname {

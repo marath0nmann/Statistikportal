@@ -1,3 +1,7 @@
+## v1484
+- Meine Ergebnisse: Der Button „⚙️ Spalten" sitzt jetzt wieder an der Kante der Ergebnisbox – Zählerzeile und Tabelle liegen dafür gemeinsam im Block `#mv-box`, der als Ganzes mitwächst.
+- Die Untermenüleiste (Regelmäßige Veranstaltungen / Letzte Veranstaltungen / Meine Ergebnisse) wird wie Kopf und Filterleiste in der Standardbreite angezeigt und bleibt damit an derselben Stelle wie auf den anderen Unterseiten.
+
 ## v1483
 - **Fix Meine Ergebnisse: Kopf, Filterleiste und Zählerzeile stehen jetzt fest.** Sie behalten die Standardbreite der übrigen Seiten (1440px, jetzt als CSS-Variable `--seiten-breite`) und damit unabhängig vom Tabelleninhalt dieselbe Position – vorher wanderten Chips, Kacheln und Buttons bei jedem Filterklick mit der Tabellenbreite. Nur die Ergebnisbox selbst wächst noch über die Standardbreite hinaus, wenn die Spalten es verlangen.
 - Getestet bei 700 / 1100 / 2000px Fensterbreite mit 5, 12 und 19 Spalten: Filterleiste und Zählerzeile sind in jeder Kombination exakt gleich breit und gleich positioniert, die Ergebnisbox verbreitert sich nur im 19-Spalten-Fall.

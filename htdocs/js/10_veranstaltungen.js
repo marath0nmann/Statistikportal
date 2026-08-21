@@ -806,7 +806,9 @@ function _renderMeineTabelle() {
   // Filterleiste haengt nur von allRows ab, nie vom aktiven Filter. Beim Filtern/Sortieren
   // deshalb ausschliesslich den Ergebnisteil ersetzen – sonst wird das Suchfeld neu erzeugt
   // und verliert nach jedem Tastendruck den Fokus.
-  var bodyHtml = countHtml + '<div class="panel">' + table + '</div>';
+  // Zählerzeile und Tabelle teilen sich einen Block, damit der Spalten-Button
+  // immer an der Kante der Ergebnisbox sitzt – auch wenn die breiter wird.
+  var bodyHtml = '<div id="mv-box">' + countHtml + '<div class="panel">' + table + '</div></div>';
   var kopfHtml = _mvKopfHtml(allRows);
   var bodyEl = document.getElementById('mv-body');
   if (bodyEl) {
