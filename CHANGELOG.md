@@ -1,3 +1,6 @@
+## v1489
+- Die Einstellung zur Wettkampfzählung „#km" sitzt jetzt unter Admin → Disziplinen (eigenes Panel unter den Kategorie-Gruppen) statt unter Einstellungen → Darstellung. Dort stehen die Kategorien ohnehin im Kontext; die Häkchen speichern sofort, ohne den „Speichern"-Button der Einstellungsseite.
+
 ## v1488
 - Meine Ergebnisse: Die Spalte „Disziplinkategorie" heißt jetzt schlicht „Kategorie".
 - **Die Zählung „#km" vermischt keine Disziplinen mehr.** Gezählt wird je Kategorie *und* Disziplin – „5km Straße" und „5km Cross" haben damit getrennte Zählungen. Vorher zählte allein der Disziplinname.

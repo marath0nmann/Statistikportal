@@ -1880,34 +1880,6 @@ async function renderAdminDarstellung() {
     if (appConfig[k] !== undefined) return appConfig[k];
     return def;
   }
-  // Kategorien, in denen "#km" nur je Kategorie zaehlt (Einstellung zaehlung_pro_kategorie)
-  function _zpkCheckboxen() {
-    var gewaehlt = {};
-    try {
-      JSON.parse((appConfig && appConfig.zaehlung_pro_kategorie) || '[]')
-        .forEach(function(k) { gewaehlt[String(k).toLowerCase()] = 1; });
-    } catch (e) {}
-    var gesehen = {}, kats = [];
-    ((state && state.disziplinen) || []).forEach(function(d) {
-      if (d.tbl_key && !gesehen[d.tbl_key]) {
-        gesehen[d.tbl_key] = 1;
-        kats.push({ key: d.tbl_key, name: d.kategorie || d.tbl_key });
-      }
-    });
-    // Bereits gespeicherte Werte anzeigen, auch wenn die Kategorie nicht mehr existiert
-    Object.keys(gewaehlt).forEach(function(k) {
-      if (!gesehen[k]) { gesehen[k] = 1; kats.push({ key: k, name: k }); }
-    });
-    if (!kats.length) return '<div style="font-size:12px;color:var(--text2)">Keine Kategorien vorhanden.</div>';
-    kats.sort(function(a, b) { return a.name.localeCompare(b.name); });
-    return '<div style="display:flex;flex-wrap:wrap;gap:10px">' + kats.map(function(k) {
-      return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">' +
-        '<input type="checkbox" data-zpk="' + String(k.key).replace(/"/g,'&quot;') + '"' +
-        (gewaehlt[String(k.key).toLowerCase()] ? ' checked' : '') +
-        ' style="width:16px;height:16px;cursor:pointer">' + k.name + '</label>';
-    }).join('') + '</div>';
-  }
-
   function row(label, desc, inputHtml) {
     return '<div class="settings-row">' +
       '<div class="settings-row-label">' +
@@ -2077,8 +2049,6 @@ async function renderAdminDarstellung() {
             '<option value="primary"' + (cfgVal('adressleiste_farbe','aus') === 'primary' ? ' selected' : '') + '>Hauptfarbe</option>' +
             '<option value="accent"'  + (cfgVal('adressleiste_farbe','aus') === 'accent'  ? ' selected' : '') + '>Akzentfarbe</option>' +
           '</select>') +
-        row('Wettkampfzählung „#km"', 'In „Meine Ergebnisse" wird je Kategorie und Disziplin gezählt. Für hier ausgewählte Kategorien zählt nur die Kategorie – sinnvoll, wenn die Strecken nicht vergleichbar sind (Cross, Firmenlauf, Trail).',
-          _zpkCheckboxen()) +
         row('Veranstaltungsname anzeigen als', 'Wie der Wettkampfname in Ergebnissen und Athletenprofil dargestellt wird',
           '<select id="cfg-veranstaltung_anzeige" class="settings-input" style="width:auto">' +
             '<option value="ort"'  + (cfgVal('veranstaltung_anzeige','ort')  === 'ort'  ? ' selected' : '') + '>Ort (z.B. &bdquo;Bergisch-Gladbach&rdquo;)</option>' +
@@ -2328,14 +2298,6 @@ async function saveAllSettings() {
     var el = document.getElementById('cfg-' + keys[i]);
     if (el) payload[keys[i]] = el.value;
   }
-  // Kategorien mit reiner Kategoriezählung ("#km") als JSON-Liste sammeln
-  var zpkBoxen = document.querySelectorAll('[data-zpk]');
-  if (zpkBoxen.length) {
-    var zpk = [];
-    zpkBoxen.forEach(function(cb) { if (cb.checked) zpk.push(cb.getAttribute('data-zpk')); });
-    payload.zaehlung_pro_kategorie = JSON.stringify(zpk);
-  }
-
   // Checkboxen separat (checked → '1', unchecked → '0')
   var cbKeys = ['version_nur_admins', 'wartung_aktiv', 'login_portal_aktiv', 'eigenes_veranst_prufen', 'eigenes_ergebnis_prufen', 'rr_scan_aktiv'];
 
@@ -2790,6 +2752,33 @@ async function renderAdminDisziplinen() {
       '</div>' +
     '</div>';
 
+  // ── Panel: Wettkampfzählung "#km" (Einstellung zaehlung_pro_kategorie) ──
+  // Frisch geladenen Wert in appConfig spiegeln, damit der Toggle darauf aufsetzt
+  if (appConfig && _rEin && _rEin.data && _rEin.data.zaehlung_pro_kategorie !== undefined) {
+    appConfig.zaehlung_pro_kategorie = _rEin.data.zaehlung_pro_kategorie;
+  }
+  var _zpkGewaehlt = {};
+  try {
+    JSON.parse((_rEin && _rEin.data && _rEin.data.zaehlung_pro_kategorie) || '[]')
+      .forEach(function(k) { _zpkGewaehlt[String(k).toLowerCase()] = 1; });
+  } catch (e) {}
+  var zpkPanel =
+    '<div class="panel">' +
+      '<div class="panel-header"><div class="panel-title">&#x1F522; Wettkampfz&auml;hlung &bdquo;#km&ldquo;</div></div>' +
+      '<div class="panel-body" style="display:flex;flex-wrap:wrap;gap:12px">' +
+        kategorien.map(function(k) {
+          return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">' +
+            '<input type="checkbox"' + (_zpkGewaehlt[String(k.tbl_key).toLowerCase()] ? ' checked' : '') +
+            ' onchange="toggleZaehlungProKategorie(\'' + String(k.tbl_key).replace(/'/g, "\\'") + '\', this.checked)"' +
+            ' style="width:16px;height:16px;cursor:pointer">' + (k.name || k.tbl_key) + '</label>';
+        }).join('') +
+      '</div>' +
+      '<div class="panel-body" style="border-top:1px solid var(--border);padding-top:10px;font-size:12px;color:var(--text2)">' +
+        'In &bdquo;Meine Ergebnisse&ldquo; z&auml;hlt die Spalte <code>#km</code> normalerweise je Kategorie <em>und</em> Disziplin. ' +
+        'F&uuml;r hier ausgew&auml;hlte Kategorien z&auml;hlt nur die Kategorie &ndash; sinnvoll, wenn die Strecken nicht vergleichbar sind (z.B. Cross, Firmenlauf, Trail).' +
+      '</div>' +
+    '</div>';
+
   el.innerHTML =
     subTabs +
     '<div class="admin-grid" style="grid-template-columns:340px 1fr">' +
@@ -2801,7 +2790,8 @@ async function renderAdminDisziplinen() {
       '</div>' +
       '<div id="diszkat-detail-wrap">' + _buildDiszDetailHtml(kategorien, disziplinen) + '</div>' +
     '</div>' +
-    katGruppenPanel;
+    katGruppenPanel +
+    zpkPanel;
 
   // Favoriten-Liste global verfügbar machen (für _buildDiszDetailHtml)
   var _favRaw = (appConfig && appConfig.top_disziplinen) || '';
@@ -2809,6 +2799,22 @@ async function renderAdminDisziplinen() {
   window._favList = _favListRaw.filter(function(x){ return typeof x === 'number' || (typeof x === 'string' && /^\d+$/.test(x)); }).map(Number);
   // Detail re-rendern damit Stern-Buttons erscheinen
   _renderDiszDetail();
+}
+
+// Kategorie in die Liste "#km zaehlt nur je Kategorie" aufnehmen/entfernen
+async function toggleZaehlungProKategorie(tblKey, an) {
+  var liste = [];
+  try { liste = JSON.parse((appConfig && appConfig.zaehlung_pro_kategorie) || '[]') || []; } catch (e) {}
+  liste = liste.filter(function(k) { return String(k).toLowerCase() !== String(tblKey).toLowerCase(); });
+  if (an) liste.push(tblKey);
+  var r = await apiPost('einstellungen', { zaehlung_pro_kategorie: JSON.stringify(liste) });
+  if (r && r.ok) {
+    if (appConfig) appConfig.zaehlung_pro_kategorie = JSON.stringify(liste);
+    notify('Gespeichert.', 'ok');
+  } else {
+    notify((r && r.fehler) || 'Fehler beim Speichern.', 'err');
+    renderAdminDisziplinen(); // Anzeige auf den gespeicherten Stand zuruecksetzen
+  }
 }
 
 async function toggleFavDisz(mid) {
