@@ -772,7 +772,7 @@ function _renderMeineTabelle() {
   var total = allRows.length;
   var totalWettkampfe = Object.keys(allRows.reduce(function(m,r){ m[r.veranst_id]=1; return m; }, {})).length;
   var countHtml =
-    '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">' +
+    '<div id="mv-zeile" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">' +
       '<div style="font-size:13px;color:var(--text2)">' +
       (rows.length < total
         ? rows.length + ' von ' + total + ' Ergebnis' + (total !== 1 ? 'sen' : '')

@@ -1,3 +1,7 @@
+## v1483
+- **Fix Meine Ergebnisse: Kopf, Filterleiste und Zählerzeile stehen jetzt fest.** Sie behalten die Standardbreite der übrigen Seiten (1440px, jetzt als CSS-Variable `--seiten-breite`) und damit unabhängig vom Tabelleninhalt dieselbe Position – vorher wanderten Chips, Kacheln und Buttons bei jedem Filterklick mit der Tabellenbreite. Nur die Ergebnisbox selbst wächst noch über die Standardbreite hinaus, wenn die Spalten es verlangen.
+- Getestet bei 700 / 1100 / 2000px Fensterbreite mit 5, 12 und 19 Spalten: Filterleiste und Zählerzeile sind in jeder Kombination exakt gleich breit und gleich positioniert, die Ergebnisbox verbreitert sich nur im 19-Spalten-Fall.
+
 ## v1482
 - **Meine Ergebnisse: Profilkopf wie im Athletenprofil.** Avatar, Name, Gruppen-Tags und Badges (Anzahl Ergebnisse und Wettkämpfe, Geschlecht, Jahrgang, aktuelle Altersklasse) stehen jetzt über der Liste, dazu die Zeile mit Titeln und Bestleistungen samt Aufschlüsselung im Tooltip. Die Stammdaten kommen aus `athleten/{id}` und `athleten/{id}/auszeichnungen`; schlägt einer der beiden Aufrufe fehl, wird die Liste trotzdem angezeigt.
 - Die Kategorie-Chips („Straße (123)") und Disziplin-Kacheln („5km (21) 17:55") filtern die Gesamtliste: Klick setzt den Filter, erneuter Klick hebt ihn auf. Die Kacheln zeigen nur die Disziplinen der gewählten Kategorie und darunter jeweils die Bestleistung; eine Disziplinauswahl, die nicht zur neu gewählten Kategorie passt, wird verworfen. Das Disziplin-Dropdown der Filterleiste bleibt mit den Kacheln synchron.
