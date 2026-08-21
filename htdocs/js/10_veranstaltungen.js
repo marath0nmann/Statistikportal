@@ -535,7 +535,7 @@ var MV_SPALTEN = [
   { key: 'ort',          label: 'Ort',                std: 1, sort: 'ort' },
   { key: 'kategorie',    label: 'Kategorie',          std: 0, sort: 'kategorie' },
   { key: 'disziplin',    label: 'Disziplin',          std: 1, sort: 'disziplin' },
-  { key: 'startnummer',  label: 'StNr',               titel: 'Startnummer', std: 0, sort: 'startnummer' },
+  { key: 'startnummer',  label: 'StNr',               titel: 'Startnummer', std: 0, sort: 'startnummer', align: 'right' },
   { key: 'ak',           label: 'AK',                 titel: 'Altersklasse', std: 1, sort: 'altersklasse' },
   { key: 'pos_ak',       label: 'Pos (AK)',           titel: 'Platzierung in der Altersklasse', std: 1, sort: 'ak_platzierung', align: 'center' },
   { key: 'pos_mw',       label: 'Pos (m/w)',          titel: 'Platzierung in der Geschlechterwertung', std: 0, sort: 'pos_geschlecht', align: 'right' },
@@ -701,6 +701,13 @@ function _renderMeineTabelle() {
       case 'pace':
         av = _num(a.pace_num); bv = _num(b.pace_num);
         return d * (av === bv ? 0 : av < bv ? -1 : 1);
+      case 'startnummer':
+        // Startnummern sind Zahlen, dürfen laut Datenmodell aber Buchstaben
+        // enthalten ("A12"). Numerische Collation sortiert beides richtig
+        // (9 vor 10, A2 vor A10); leere Felder stehen immer am Ende.
+        var as = String(a.startnummer || ''), bs = String(b.startnummer || '');
+        if (!as !== !bs) return as ? -1 : 1;
+        return d * as.localeCompare(bs, 'de', { numeric: true });
       case 'verein':
         return d * _meinVereinText(a, ownClub).localeCompare(_meinVereinText(b, ownClub));
       default:

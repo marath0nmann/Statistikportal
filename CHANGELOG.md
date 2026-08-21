@@ -1,3 +1,6 @@
+## v1492
+- Meine Ergebnisse: Die Spalte „StNr" sortiert jetzt numerisch statt alphabetisch – vorher stand „10" vor „2". Startnummern dürfen laut Datenmodell Buchstaben enthalten, deshalb wird numerische Collation verwendet: „9" vor „10", „A2" vor „A12", leere Felder immer am Ende. Die Spalte ist außerdem rechtsbündig wie die übrigen Zahlenspalten.
+
 ## v1491
 - **„Meine Ergebnisse" ist jetzt ein eigener Hauptmenüpunkt** – im Menü zwischen „Veranstaltungen" und „Athleten", sichtbar nur mit verknüpftem Athletenprofil. Unter Veranstaltungen bleiben die beiden Sub-Tabs „Regelmäßige Veranstaltungen" und „Letzte Veranstaltungen".
 - Alte Links auf `#veranstaltungen/meine` landen weiterhin richtig: Sie werden beim Aufruf auf `#meine-ergebnisse` umgeleitet, auch der Hash wird entsprechend normalisiert. Das Dashboard-Widget („62 Ergebnisse") springt ebenfalls auf den neuen Menüpunkt.
