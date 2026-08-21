@@ -1,3 +1,8 @@
+## v1491
+- **„Meine Ergebnisse" ist jetzt ein eigener Hauptmenüpunkt** – im Menü zwischen „Veranstaltungen" und „Athleten", sichtbar nur mit verknüpftem Athletenprofil. Unter Veranstaltungen bleiben die beiden Sub-Tabs „Regelmäßige Veranstaltungen" und „Letzte Veranstaltungen".
+- Alte Links auf `#veranstaltungen/meine` landen weiterhin richtig: Sie werden beim Aufruf auf `#meine-ergebnisse` umgeleitet, auch der Hash wird entsprechend normalisiert. Das Dashboard-Widget („62 Ergebnisse") springt ebenfalls auf den neuen Menüpunkt.
+- Die Seite rendert jetzt direkt in den Hauptinhalt statt in den Veranstaltungs-Container und behält ihre volle Fensterbreite.
+
 ## v1490
 - Die Option „Wettkampfzählung #km" sitzt jetzt dort, wo sie hingehört: im Einstellungen-Bereich der jeweiligen Kategorie (Admin → Disziplinen → Kategorie → ⚙️ Einstellungen), als Häkchen „Nur je Kategorie zählen (Disziplin ignorieren)". Das eigene Panel unter den Kategorie-Gruppen entfällt.
 - Gespeichert wird zusammen mit dem vorhandenen „Speichern"-Button der Kategorie – die Einstellung `zaehlung_pro_kategorie` wird dabei nur geschrieben, wenn das Häkchen tatsächlich geändert wurde.

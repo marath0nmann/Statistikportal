@@ -2813,6 +2813,12 @@ function buildNav() {
     _renderNavTabs(tabs);
     return;
   }
+  // "Meine Ergebnisse" nur mit verknüpftem Athletenprofil – zwischen
+  // Veranstaltungen und Athleten einsortieren
+  if (currentUser.athlet_id) {
+    tabs.splice(tabs.findIndex(function(t) { return t.id === 'athleten'; }), 0,
+      { id: 'meine-ergebnisse', icon: '🏃️', label: 'Meine Ergebnisse' });
+  }
   // Eingeloggte User: gleiche Tabs + Eintragen/Admin
   if (currentUser.rolle === 'editor' || currentUser.rolle === 'admin' || currentUser.rolle === 'athlet') {
     var _eintN = (window._eintragenOffeneWK || 0) + (window._eintragenRrFunde || 0);
@@ -3113,6 +3119,7 @@ async function renderPage() {
     if (state.tab === 'dashboard')           { await renderDashboard(); }
     else if (state.tab === 'vereinsrekorde') { await renderVereinsrekorde(); }
     else if (state.tab === 'veranstaltungen') { await renderVeranstaltungen(); }
+    else if (state.tab === 'meine-ergebnisse') { await renderMeineVeranstaltungen(); }
     else if (state.tab === 'athleten')   { await renderAthletenKarten(); }
     else if (state.tab === 'rekorde')    { await renderRekorde(); }
     else if (state.tab === 'jahr')       { await renderJahresBestleistungen(); }
@@ -3156,8 +3163,11 @@ function restoreFromHash() {
   var parts  = hash.split('/');
   var tab    = parts[0].toLowerCase();
   var sub    = parts[1] ? parts[1].toLowerCase() : '';
-  var validTabs = ['dashboard','vereinsrekorde','veranstaltungen','athleten','rekorde','jahr','eintragen','admin','konto','veranstaltung','athlet'];
+  var validTabs = ['dashboard','vereinsrekorde','veranstaltungen','meine-ergebnisse','athleten','rekorde','jahr','eintragen','admin','konto','veranstaltung','athlet'];
   if (validTabs.indexOf(tab) < 0) return;
+
+  // Alter Deep-Link #veranstaltungen/meine → eigener Hauptmenüpunkt
+  if (tab === 'veranstaltungen' && sub === 'meine') { state.tab = 'meine-ergebnisse'; return; }
 
   state.tab = tab;
 
@@ -3175,7 +3185,7 @@ function restoreFromHash() {
     var _sid = parseInt(parts[2]) || null;
     if (_sid) { state.veranstView = 'serie-detail'; state.serieId = _sid; }
   } else if (tab === 'veranstaltungen' && sub) {
-    var validVSub = ['serien','letzte','meine'];
+    var validVSub = ['serien','letzte'];
     if (validVSub.indexOf(sub) >= 0) { state.veranstView = 'list'; state.veranstSubTab = sub; }
   } else if (tab === 'jahr' && /^\d{4}$/.test(sub)) {
     if (!state.jahrState) _jahrState();

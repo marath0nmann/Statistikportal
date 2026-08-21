@@ -214,10 +214,10 @@ main { padding: 24px 28px; max-width: var(--seiten-breite); margin: 0 auto; }
    keine feste Obergrenze – die Tabelle darf bis zur Fensterbreite wachsen. */
 body.page-wide main { max-width: none; }
 #mv-wrap { width: 100%; }
-/* Untermenü, Kopf und Filterleiste behalten die Standardbreite der übrigen
-   Seiten und damit eine feste Position – sonst wandern Chips, Kacheln und
-   Buttons bei jedem Klick mit der Tabellenbreite. */
-#veranst-subtabs, #mv-kopf, #mv-wrap > .filter-bar {
+/* Kopf und Filterleiste behalten die Standardbreite der übrigen Seiten und
+   damit eine feste Position – sonst wandern Chips, Kacheln und Buttons bei
+   jedem Klick mit der Tabellenbreite. */
+#mv-kopf, #mv-wrap > .filter-bar {
   width: 100%; max-width: var(--seiten-breite); margin-left: auto; margin-right: auto;
 }
 /* Ergebnisbox: wächst über die Standardbreite hinaus, wenn die Spalten es

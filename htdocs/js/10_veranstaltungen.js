@@ -7,21 +7,19 @@ var setVeranstSuche = debounce(function(val) {
 }, 300);
 
 // state.veranstView    = 'liste' | 'serie-detail'
-// state.veranstSubTab  = 'serien' | 'letzte' | 'meine'
+// state.veranstSubTab  = 'serien' | 'letzte'
 // state.serieId        = ID der aktuell angezeigten Serie
 // state.serieView      = 'jahre' | 'bestleistungen'
 // state.serieDisz      = aktuell gewählte Disziplin im Bestleistungen-View
 // state.serieMappingId = mapping_id der Disziplin
 
 function _veranstSubtabs(active) {
-  var hasMeine = !!(currentUser && currentUser.athlet_id);
   function btn(id, label) {
     return '<button class="subtab' + (active === id ? ' active' : '') + '" onclick="navVeranstTab(\'' + id + '\')">' + label + '</button>';
   }
   return '<div class="subtabs" style="margin-bottom:20px">' +
     btn('serien',  '🔄 Regelmäßige Veranstaltungen') +
     btn('letzte',  '📅 Letzte Veranstaltungen') +
-    (hasMeine ? btn('meine', '🏃 Meine Ergebnisse') : '') +
   '</div>';
 }
 
@@ -33,16 +31,13 @@ function navVeranstTab(tab) {
   renderVeranstaltungen();
 }
 
-// Direkt zu Veranstaltungen → Meine Ergebnisse (z.B. aus dem Dashboard-Widget)
+// Direkt zum Hauptmenüpunkt "Meine Ergebnisse" (z.B. aus dem Dashboard-Widget)
 function openMeineErgebnisse() {
-  state.tab             = 'veranstaltungen';
+  state.tab             = 'meine-ergebnisse';
   state.veranstView     = 'list';
   state.serieId         = null;
   state.serieView       = null;
   state.veranstaltungId = null;
-  state.veranstSubTab   = 'meine';
-  state.veranstPage     = 1;
-  state.veranstSuche    = '';
   syncHash();
   buildNav();
   renderPage();
@@ -59,9 +54,7 @@ async function renderVeranstaltungen() {
   document.body.classList.remove('page-wide');
   if ((state.veranstView || 'liste') === 'serie-detail') { await renderSerieDetail(state.serieId); return; }
   var el = document.getElementById('main-content');
-  var tab = state.veranstSubTab || 'letzte';
-  // Nur "Meine Ergebnisse": breitere Seite, sonst passen die Spalten nicht
-  document.body.classList.toggle('page-wide', tab === 'meine');
+  var tab = state.veranstSubTab === 'serien' ? 'serien' : 'letzte';
 
   // Äußere Shell einmalig aufbauen
   if (!document.getElementById('veranst-subtabs')) {
@@ -70,7 +63,6 @@ async function renderVeranstaltungen() {
   document.getElementById('veranst-subtabs').innerHTML = _veranstSubtabs(tab);
 
   if      (tab === 'serien') await _renderVeranstSerien();
-  else if (tab === 'meine')  await renderMeineVeranstaltungen();
   else                       await renderVeranstaltungenListe();
 }
 
@@ -225,9 +217,15 @@ async function _renderVeranstSerien() {
     : '<div class="empty"><div class="empty-icon">🔄</div><div class="empty-text">Noch keine regelmäßigen Veranstaltungen angelegt.</div></div>';
 }
 
-// ── MEINE VERANSTALTUNGEN (Sub-Tab) ────────────────────────
+// ── MEINE ERGEBNISSE (eigener Hauptmenüpunkt) ──────────────
+// Container ist die Hauptseite; die Seite braucht die volle Fensterbreite.
+function _mvViewEl() { return document.getElementById('mv-view'); }
+
 async function renderMeineVeranstaltungen() {
-  var viewEl = document.getElementById('veranst-view');
+  var el = document.getElementById('main-content');
+  if (!document.getElementById('mv-view')) el.innerHTML = '<div id="mv-view"></div>';
+  document.body.classList.add('page-wide');
+  var viewEl = _mvViewEl();
   if (!currentUser || !currentUser.athlet_id) {
     viewEl.innerHTML =
       '<div class="empty"><div class="empty-icon">🔒</div>' +
@@ -656,7 +654,7 @@ function _mvSpaltenUebernehmen() {
 }
 
 function _renderMeineTabelle() {
-  var viewEl = document.getElementById('veranst-view');
+  var viewEl = _mvViewEl();
   if (!viewEl || !window._meinVeranstRows) return;
 
   var allRows = window._meinVeranstRows;
