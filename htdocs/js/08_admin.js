@@ -2512,6 +2512,14 @@ function _buildDiszKatListHtml(kategorien) {
   return html;
 }
 
+// Zaehlt "#km" fuer diese Kategorie nur je Kategorie? (Einstellung zaehlung_pro_kategorie)
+function _zaehltNurKat(tblKey) {
+  try {
+    return JSON.parse((appConfig && appConfig.zaehlung_pro_kategorie) || '[]')
+      .some(function(k) { return String(k).toLowerCase() === String(tblKey).toLowerCase(); });
+  } catch (e) { return false; }
+}
+
 function _buildDiszDetailHtml(kategorien, disziplinen) {
   var selKat = null;
   for (var _ki = 0; _ki < kategorien.length; _ki++) {
@@ -2546,6 +2554,17 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
             '<option value="ASC"' + (_dir === 'ASC' ? ' selected' : '') + '>Aufsteigend (Zeit)</option>' +
             '<option value="DESC"' + (_dir === 'DESC' ? ' selected' : '') + '>Absteigend (Weite)</option>' +
           '</select></div>' +
+          '<div class="form-group full"><label>Wettkampfz&auml;hlung &bdquo;#km&ldquo;</label>' +
+            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+              '<input type="checkbox" id="ik-zaehlung-kat"' + (_zaehltNurKat(selKat.tbl_key) ? ' checked' : '') +
+              ' style="width:16px;height:16px;cursor:pointer">' +
+              '<span style="font-size:13px;color:var(--text2)">Nur je Kategorie z&auml;hlen (Disziplin ignorieren)</span>' +
+            '</label>' +
+            '<div style="font-size:12px;color:var(--text2);margin-top:4px">' +
+              'In &bdquo;Meine Ergebnisse&ldquo; z&auml;hlt <code>#km</code> sonst je Kategorie <em>und</em> Disziplin. ' +
+              'Sinnvoll, wenn die Strecken nicht vergleichbar sind (z.B. Cross, Firmenlauf, Trail).' +
+            '</div>' +
+          '</div>' +
         '</div>' +
         '<div style="display:flex;gap:8px;margin-top:8px">' +
           '<button class="btn btn-primary btn-sm" onclick="updateKatInline(' + selKat.id + ')">&#x1F4BE; Speichern</button>' +
@@ -2670,8 +2689,15 @@ async function updateKatInline(id) {
     fmt:      document.getElementById('ik-fmt').value,
     sort_dir: document.getElementById('ik-dir').value,
   });
-  if (r && r.ok) { REK_CATS = []; notify('Gespeichert.', 'ok'); await renderAdminDisziplinen(); }
-  else notify((r && r.fehler) || 'Fehler', 'err');
+  if (!r || !r.ok) { notify((r && r.fehler) || 'Fehler', 'err'); return; }
+  // "#km"-Zaehlung liegt in einer globalen Einstellung, nicht an der Kategorie
+  var cb = document.getElementById('ik-zaehlung-kat');
+  var kat = (window._adminDiszKategorien || []).find(function(k) { return k.id == id; });
+  if (cb && kat && cb.checked !== _zaehltNurKat(kat.tbl_key)) {
+    var rz = await _speichereZaehlungProKategorie(kat.tbl_key, cb.checked);
+    if (!rz) { notify('Kategorie gespeichert, Zählung konnte nicht gespeichert werden.', 'err'); }
+  }
+  REK_CATS = []; notify('Gespeichert.', 'ok'); await renderAdminDisziplinen();
 }
 
 async function deleteDisziplin(disz) {
@@ -2752,32 +2778,10 @@ async function renderAdminDisziplinen() {
       '</div>' +
     '</div>';
 
-  // ── Panel: Wettkampfzählung "#km" (Einstellung zaehlung_pro_kategorie) ──
-  // Frisch geladenen Wert in appConfig spiegeln, damit der Toggle darauf aufsetzt
+  // Frisch geladenen Wert der "#km"-Zählung in appConfig spiegeln
   if (appConfig && _rEin && _rEin.data && _rEin.data.zaehlung_pro_kategorie !== undefined) {
     appConfig.zaehlung_pro_kategorie = _rEin.data.zaehlung_pro_kategorie;
   }
-  var _zpkGewaehlt = {};
-  try {
-    JSON.parse((_rEin && _rEin.data && _rEin.data.zaehlung_pro_kategorie) || '[]')
-      .forEach(function(k) { _zpkGewaehlt[String(k).toLowerCase()] = 1; });
-  } catch (e) {}
-  var zpkPanel =
-    '<div class="panel">' +
-      '<div class="panel-header"><div class="panel-title">&#x1F522; Wettkampfz&auml;hlung &bdquo;#km&ldquo;</div></div>' +
-      '<div class="panel-body" style="display:flex;flex-wrap:wrap;gap:12px">' +
-        kategorien.map(function(k) {
-          return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">' +
-            '<input type="checkbox"' + (_zpkGewaehlt[String(k.tbl_key).toLowerCase()] ? ' checked' : '') +
-            ' onchange="toggleZaehlungProKategorie(\'' + String(k.tbl_key).replace(/'/g, "\\'") + '\', this.checked)"' +
-            ' style="width:16px;height:16px;cursor:pointer">' + (k.name || k.tbl_key) + '</label>';
-        }).join('') +
-      '</div>' +
-      '<div class="panel-body" style="border-top:1px solid var(--border);padding-top:10px;font-size:12px;color:var(--text2)">' +
-        'In &bdquo;Meine Ergebnisse&ldquo; z&auml;hlt die Spalte <code>#km</code> normalerweise je Kategorie <em>und</em> Disziplin. ' +
-        'F&uuml;r hier ausgew&auml;hlte Kategorien z&auml;hlt nur die Kategorie &ndash; sinnvoll, wenn die Strecken nicht vergleichbar sind (z.B. Cross, Firmenlauf, Trail).' +
-      '</div>' +
-    '</div>';
 
   el.innerHTML =
     subTabs +
@@ -2790,8 +2794,7 @@ async function renderAdminDisziplinen() {
       '</div>' +
       '<div id="diszkat-detail-wrap">' + _buildDiszDetailHtml(kategorien, disziplinen) + '</div>' +
     '</div>' +
-    katGruppenPanel +
-    zpkPanel;
+    katGruppenPanel;
 
   // Favoriten-Liste global verfügbar machen (für _buildDiszDetailHtml)
   var _favRaw = (appConfig && appConfig.top_disziplinen) || '';
@@ -2801,20 +2804,15 @@ async function renderAdminDisziplinen() {
   _renderDiszDetail();
 }
 
-// Kategorie in die Liste "#km zaehlt nur je Kategorie" aufnehmen/entfernen
-async function toggleZaehlungProKategorie(tblKey, an) {
+// Kategorie in der Einstellung "#km zaehlt nur je Kategorie" ein-/austragen
+async function _speichereZaehlungProKategorie(tblKey, an) {
   var liste = [];
   try { liste = JSON.parse((appConfig && appConfig.zaehlung_pro_kategorie) || '[]') || []; } catch (e) {}
   liste = liste.filter(function(k) { return String(k).toLowerCase() !== String(tblKey).toLowerCase(); });
   if (an) liste.push(tblKey);
   var r = await apiPost('einstellungen', { zaehlung_pro_kategorie: JSON.stringify(liste) });
-  if (r && r.ok) {
-    if (appConfig) appConfig.zaehlung_pro_kategorie = JSON.stringify(liste);
-    notify('Gespeichert.', 'ok');
-  } else {
-    notify((r && r.fehler) || 'Fehler beim Speichern.', 'err');
-    renderAdminDisziplinen(); // Anzeige auf den gespeicherten Stand zuruecksetzen
-  }
+  if (r && r.ok && appConfig) appConfig.zaehlung_pro_kategorie = JSON.stringify(liste);
+  return !!(r && r.ok);
 }
 
 async function toggleFavDisz(mid) {

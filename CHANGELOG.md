@@ -1,3 +1,7 @@
+## v1490
+- Die Option „Wettkampfzählung #km" sitzt jetzt dort, wo sie hingehört: im Einstellungen-Bereich der jeweiligen Kategorie (Admin → Disziplinen → Kategorie → ⚙️ Einstellungen), als Häkchen „Nur je Kategorie zählen (Disziplin ignorieren)". Das eigene Panel unter den Kategorie-Gruppen entfällt.
+- Gespeichert wird zusammen mit dem vorhandenen „Speichern"-Button der Kategorie – die Einstellung `zaehlung_pro_kategorie` wird dabei nur geschrieben, wenn das Häkchen tatsächlich geändert wurde.
+
 ## v1489
 - Die Einstellung zur Wettkampfzählung „#km" sitzt jetzt unter Admin → Disziplinen (eigenes Panel unter den Kategorie-Gruppen) statt unter Einstellungen → Darstellung. Dort stehen die Kategorien ohnehin im Kontext; die Häkchen speichern sofort, ohne den „Speichern"-Button der Einstellungsseite.
 
