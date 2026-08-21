@@ -302,6 +302,7 @@ async function renderMeineVeranstaltungen() {
         pos_geschlecht:        parseInt(e.pos_geschlecht) || 0,
         schuh:                 e.schuh || '',
         bemerkungen:           e.bemerkungen || '',
+        loeschantrag:          parseInt(e.loeschantrag) > 0 ? 1 : 0,
       });
     }
   }
@@ -764,10 +765,18 @@ function _renderMeineTabelle() {
     ? 'veranstaltung' : (cols[0] && cols[0].key);
 
   var tableRows = rows.map(function(r) {
-    return '<tr' + (r.bemerkungen ? ' title="' + _esc(r.bemerkungen) + '"' : '') + '>' +
+    // Zeilen mit offenem Loeschantrag sind gedaempft und tragen einen Hinweis
+    var tip = r.loeschantrag
+      ? 'Löschung beantragt – ein Editor prüft den Antrag.' + (r.bemerkungen ? '\n' + r.bemerkungen : '')
+      : r.bemerkungen;
+    return '<tr' + (tip ? ' title="' + _esc(tip) + '"' : '') +
+      (r.loeschantrag ? ' style="opacity:.55"' : '') + '>' +
       cols.map(function(c) {
         var inhalt = cell[c.key] ? cell[c.key](r) : '';
         if (c.key === editSpalte) {
+          if (r.loeschantrag) {
+            inhalt += ' <span title="Löschung beantragt – ein Editor prüft den Antrag." style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:help">🗑️ beantragt</span>';
+          }
           inhalt += ' <span class="mv-hover" title="Ergebnis bearbeiten" style="cursor:pointer;font-size:12px" onclick="_openMeineErgEdit(' + r.erg_id + ')">✏️</span>';
         }
         return '<td style="' + tdStyle(c) + '"' + (c.key === 'resultat' ? ' class="result"' : '') + '>' + inhalt + '</td>';
@@ -940,7 +949,10 @@ function _openMeineErgEdit(ergId) {
         '<input type="text" id="mee-bem" maxlength="500" value="' + String(r.bemerkungen || '').replace(/"/g,'&quot;') + '" placeholder="—"/></div>' +
     '</div>' +
     '<div class="modal-actions">' +
-      '<button class="btn btn-danger" style="margin-right:auto" onclick="_deleteMeineErg(' + ergId + ', true)">&#x1F5D1;&#xFE0F; L&ouml;schen</button>' +
+      (r.loeschantrag
+        ? '<span style="margin-right:auto;font-size:12px;color:var(--text2)">&#x1F5D1;&#xFE0F; L&ouml;schung bereits beantragt</span>'
+        : '<button class="btn btn-danger" style="margin-right:auto" onclick="_deleteMeineErg(' + ergId + ', true)">&#x1F5D1;&#xFE0F; ' +
+          (_mvDarfDirektLoeschen() ? 'L&ouml;schen' : 'L&ouml;schen beantragen') + '</button>') +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
       '<button class="btn btn-primary" onclick="_saveMeineErgEdit(' + ergId + ',\'' + (r.tbl_key || 'strasse') + '\')">Speichern</button>' +
     '</div>'
@@ -981,18 +993,32 @@ async function _saveMeineErgEdit(ergId, tblKey) {
 }
 
 // ── Einzelnes Ergebnis löschen ───────────────────────────
+// Admin und Editor loeschen sofort, alle anderen stellen einen Antrag
+function _mvDarfDirektLoeschen() {
+  return !!(currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor'));
+}
+
 async function _deleteMeineErg(ergId, ausEditModal) {
   var r0 = window._meineTblRowMap && window._meineTblRowMap[ergId];
   if (!r0) return;
+  if (r0.loeschantrag) { notify('Für dieses Ergebnis liegt bereits ein Löschantrag vor.', 'err'); return; }
+  var direkt = _mvDarfDirektLoeschen();
+  var frage = direkt
+    ? 'Ergebnis „' + r0.disziplin + '" bei „' + r0.veranst_name + '" in den Papierkorb verschieben?'
+    : 'Löschung des Ergebnisses „' + r0.disziplin + '" bei „' + r0.veranst_name + '" beantragen?\n' +
+      'Ein Editor prüft den Antrag – bis dahin bleibt das Ergebnis in der Liste.';
   // confirmModal ersetzt ein offenes Modal – nach Abbruch den Editor wieder oeffnen
-  if (!await confirmModal('Ergebnis „' + r0.disziplin + '" bei „' + r0.veranst_name + '" in den Papierkorb verschieben?')) {
+  if (!await confirmModal(frage)) {
     if (ausEditModal) _openMeineErgEdit(ergId);
     return;
   }
   // Kategorieunabhängiger Endpunkt – funktioniert auch für selbst angelegte Kategorien
   var r = await api('DELETE', 'ergebnisse/' + ergId);
   if (r && r.ok) {
-    notify(r.data && r.data.pending ? 'Löschantrag gestellt. Ein Editor wird ihn prüfen.' : 'Ergebnis gelöscht.', 'ok');
+    var d = r.data || {};
+    notify(d.bereits ? 'Für dieses Ergebnis liegt bereits ein Löschantrag vor.'
+         : d.pending ? 'Löschantrag gestellt. Ein Editor wird ihn prüfen.'
+         : 'Ergebnis gelöscht.', d.bereits ? 'err' : 'ok');
     window._meinVeranstRows = null;
     await renderMeineVeranstaltungen();
   } else {

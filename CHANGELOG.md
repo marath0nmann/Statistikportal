@@ -1,3 +1,9 @@
+## v1487
+- **Meine Ergebnisse: Löschanträge sind jetzt sichtbar und nicht mehr doppelt möglich.** Athlet*innen und Trainer*innen löschen nicht direkt – ihr Klick erzeugt einen Antrag, den ein Editor prüft. Bisher blieb die Zeile danach unverändert stehen, sodass mehrfaches Klicken mehrere identische Anträge erzeugte.
+- `meine-veranstaltungen` liefert je Ergebnis, ob ein offener Löschantrag existiert. Solche Zeilen werden gedämpft dargestellt und tragen das Kennzeichen „🗑️ beantragt"; im Bearbeiten-Modal steht statt des Buttons der Hinweis „Löschung bereits beantragt".
+- Serverseitig wird ein zweiter Antrag zum selben Ergebnis abgewiesen (Antwort `bereits: true`), auch wenn der Aufruf an der Oberfläche vorbei erfolgt. Der Abgleich berücksichtigt die Ergebnistabelle, damit in Setups mit getrennten Tabellen keine gleichen IDs kollidieren.
+- Der Button heißt für Rollen ohne Direktlöschrecht jetzt „🗑️ Löschen beantragen", und die Rückfrage sagt, dass das Ergebnis bis zur Prüfung in der Liste bleibt. Für Admin und Editor bleibt es beim sofortigen Verschieben in den Papierkorb.
+
 ## v1486
 - Meine Ergebnisse: Die Disziplin-Kacheln zeigen zunächst nur die favorisierten Disziplinen (Admin → Darstellung, `top_disziplinen`). Erst ein Klick auf eine Kategorie blendet alle Disziplinen dieser Kategorie ein. Eine per Dropdown gewählte, nicht favorisierte Disziplin bleibt als Kachel sichtbar, damit sie abwählbar ist; sind gar keine Favoriten hinterlegt, werden weiterhin alle Disziplinen angezeigt.
 

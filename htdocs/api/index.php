@@ -7176,6 +7176,13 @@ if ($res === 'ergebnisse' && $method === 'DELETE' && $id && ctype_digit((string)
         || ($eigenerAth && (int)$rowD['athlet_id'] === (int)$eigenerAth);
     if (!$darf) jsonErr('Keine Berechtigung.', 403);
     if (Auth::isAthlet()) {
+        // Nicht doppelt beantragen: offener Loeschantrag zu diesem Ergebnis genuegt
+        $offen = DB::fetchOne(
+            'SELECT id FROM ' . DB::tbl('ergebnis_aenderungen') .
+            " WHERE ergebnis_id=? AND typ='delete' AND status='pending' AND ergebnis_tbl IN (?, ?) LIMIT 1",
+            [(int)$id, $eTblD, 'ergebnisse']
+        );
+        if ($offen) jsonOk(['pending' => true, 'bereits' => true, 'msg' => 'Für dieses Ergebnis liegt bereits ein Löschantrag vor.']);
         DB::query('INSERT INTO ' . DB::tbl('ergebnis_aenderungen') . ' (ergebnis_id,ergebnis_tbl,typ,neue_werte,beantragt_von) VALUES (?,?,?,?,?)',
             [(int)$id, $eTblD, 'delete', null, $user['id']]);
         jsonOk(['pending' => true, 'msg' => 'Löschantrag gestellt.']);
@@ -8518,6 +8525,7 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
 
     $dmTbl = DB::tbl('disziplin_mapping');
     $dkTbl = DB::tbl('disziplin_kategorien');
+    $aeTbl = DB::tbl('ergebnis_aenderungen');
 
     foreach ($veranst as &$v) {
         $ergs = DB::fetchAll(
@@ -8525,13 +8533,16 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
                     e.altersklasse, e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft,
                     e.verein, e.extern, e.startnummer, e.pos_gesamt, e.pos_geschlecht, e.schuh, e.bemerkungen,
                     COALESCE(dm.fmt_override, dk.fmt, 'min') AS fmt,
-                    dk.name AS kategorie_name, dk.tbl_key
+                    dk.name AS kategorie_name, dk.tbl_key,
+                    (SELECT COUNT(*) FROM $aeTbl ea
+                      WHERE ea.ergebnis_id=e.id AND ea.typ='delete' AND ea.status='pending'
+                        AND ea.ergebnis_tbl IN (?, ?)) AS loeschantrag
              FROM $eTbl e
              LEFT JOIN $dmTbl dm ON dm.id=e.disziplin_mapping_id
              LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id
              WHERE e.veranstaltung_id=? AND e.athlet_id=? AND e.geloescht_am IS NULL
              ORDER BY dk.reihenfolge, e.disziplin",
-            [$v['id'], $athletId]
+            [$eTbl, DB::tbl($eTbl), $v['id'], $athletId]
         );
         $v['ergebnisse'] = $ergs;
     }
