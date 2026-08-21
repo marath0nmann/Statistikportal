@@ -1,3 +1,8 @@
+## v1488
+- Meine Ergebnisse: Die Spalte „Disziplinkategorie" heißt jetzt schlicht „Kategorie".
+- **Die Zählung „#km" vermischt keine Disziplinen mehr.** Gezählt wird je Kategorie *und* Disziplin – „5km Straße" und „5km Cross" haben damit getrennte Zählungen. Vorher zählte allein der Disziplinname.
+- Für Kategorien, in denen die Strecken nicht vergleichbar sind, zählt stattdessen die Kategorie allein (Disziplin egal). Welche das sind, steht in der neuen Einstellung `zaehlung_pro_kategorie` – vorbelegt mit Cross, Firmenlauf und Trail – und ist unter Admin → Einstellungen → Darstellung als Kategorie-Auswahl pflegbar, also nicht fest im Code. Die Konfiguration akzeptiert `tbl_key` wie Anzeigenamen; bereits gespeicherte Kategorien bleiben in der Auswahl sichtbar, auch wenn es sie nicht mehr gibt.
+
 ## v1487
 - **Meine Ergebnisse: Löschanträge sind jetzt sichtbar und nicht mehr doppelt möglich.** Athlet*innen und Trainer*innen löschen nicht direkt – ihr Klick erzeugt einen Antrag, den ein Editor prüft. Bisher blieb die Zeile danach unverändert stehen, sodass mehrfaches Klicken mehrere identische Anträge erzeugte.
 - `meine-veranstaltungen` liefert je Ergebnis, ob ein offener Löschantrag existiert. Solche Zeilen werden gedämpft dargestellt und tragen das Kennzeichen „🗑️ beantragt"; im Bearbeiten-Modal steht statt des Buttons der Hinweis „Löschung bereits beantragt".

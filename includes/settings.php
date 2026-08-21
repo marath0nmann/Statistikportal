@@ -22,6 +22,7 @@ class Settings {
         'wartung_aktiv'              => ['0',                                                   'Wartungsmodus aktiv',                             'system'],
         'wartung_nachricht'          => ['Das Portal befindet sich derzeit in Wartung. Bitte später erneut versuchen.', 'Wartungsmodus – Nachricht für Besucher', 'system'],
         'adressleiste_farbe'         => ['aus',                                                 'Safari-Adressleiste einfärben',                   'darstellung'],
+        'zaehlung_pro_kategorie'     => ['["cross","firmenlauf","trail"]',                      'Kategorien, in denen Wettkämpfe nur je Kategorie gezählt werden (JSON, tbl_key)', 'darstellung'],
         'dashboard_layout'           => ['[{"cols":[{"widget":"stat-ergebnisse"},{"widget":"stat-athleten"},{"widget":"stat-rekorde"}]},{"cols":[{"widget":"timeline","w":340},{"widget":"veranstaltungen"}]}]', 'Dashboard-Layout', 'darstellung'],
         'meisterschaften_liste'      => ['[{"id":1,"label":"Olympia"},{"id":2,"label":"WM"},{"id":3,"label":"EM"},{"id":4,"label":"DM"},{"id":5,"label":"NRW"},{"id":6,"label":"NR"},{"id":7,"label":"Regio"}]', 'Meisterschaftsarten (JSON)', 'meisterschaften'],
         'login_portal_aktiv'         => ['0',                                                   'Zentrales Login-Portal aktivieren',               'login_portal'],

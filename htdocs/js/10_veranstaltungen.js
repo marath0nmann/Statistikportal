@@ -318,17 +318,6 @@ async function renderMeineVeranstaltungen() {
   wkList.forEach(function(w, i) { wkNr[w.id] = i + 1; });
   allRows.forEach(function(r) { r.wk_nr = wkNr[r.veranst_id] || 0; });
 
-  // Je Disziplin ebenfalls chronologisch durchzählen (ältester Start = 1)
-  var proDisz = allRows.slice().sort(function(a, b) {
-    return a.datum === b.datum ? (a.erg_id - b.erg_id) : a.datum.localeCompare(b.datum);
-  });
-  var diszZaehler = {};
-  proDisz.forEach(function(r) {
-    var k = r.disziplin || '?';
-    diszZaehler[k] = (diszZaehler[k] || 0) + 1;
-    r.wk_nr_disz = diszZaehler[k];
-  });
-
   // Disziplinkategorie aus der Disziplinliste auflösen (Fallback: tbl_key der Zeile)
   // und dabei gleich merken, ob die Disziplin als Favorit hinterlegt ist.
   var diszAlle = (state && state.disziplinen) || [];
@@ -343,6 +332,34 @@ async function renderMeineVeranstaltungen() {
     if (!d && r.disziplin)      d = diszAlle.find(function(x) { return x.disziplin === r.disziplin; });
     r.kategorie    = (d && d.kategorie) || r.tbl_key || '';
     r.ist_favorit  = !!(d && favIds[d.id]);
+  });
+
+  // "#km" chronologisch durchzählen (ältester Start = 1). Gezählt wird je
+  // Kategorie UND Disziplin, damit gleiche Disziplinnamen aus verschiedenen
+  // Kategorien nicht vermischt werden. Für die in der Einstellung
+  // `zaehlung_pro_kategorie` hinterlegten Kategorien (z.B. Cross, Firmenlauf,
+  // Trail) zählt dagegen die Kategorie allein – dort sind die Strecken nicht
+  // vergleichbar, die Disziplin also kein sinnvoller Zählschlüssel.
+  var nurKategorie = {};
+  try {
+    ((appConfig && appConfig.zaehlung_pro_kategorie) ? JSON.parse(appConfig.zaehlung_pro_kategorie) : [])
+      .forEach(function(k) { nurKategorie[String(k).toLowerCase()] = 1; });
+  } catch (e) {}
+  function _zaehlSchluessel(r) {
+    var tk  = String(r.tbl_key   || '').toLowerCase();
+    var kat = String(r.kategorie || '').toLowerCase();
+    // Konfiguration darf den tbl_key oder den Anzeigenamen nennen
+    if (nurKategorie[tk] || nurKategorie[kat]) return 'K:' + (kat || tk);
+    return 'D:' + (kat || tk) + '|' + (r.disziplin || '');
+  }
+  var chrono = allRows.slice().sort(function(a, b) {
+    return a.datum === b.datum ? (a.erg_id - b.erg_id) : a.datum.localeCompare(b.datum);
+  });
+  var diszZaehler = {};
+  chrono.forEach(function(r) {
+    var k = _zaehlSchluessel(r);
+    diszZaehler[k] = (diszZaehler[k] || 0) + 1;
+    r.wk_nr_disz = diszZaehler[k];
   });
 
   window._meinVeranstRows = allRows;
@@ -518,7 +535,7 @@ var MV_SPALTEN = [
   { key: 'datum',        label: 'Datum',              std: 1, sort: 'datum' },
   { key: 'veranstaltung',label: 'Veranstaltung',      std: 1, sort: 'veranst_name' },
   { key: 'ort',          label: 'Ort',                std: 1, sort: 'ort' },
-  { key: 'kategorie',    label: 'Disziplinkategorie', std: 0, sort: 'kategorie' },
+  { key: 'kategorie',    label: 'Kategorie',          std: 0, sort: 'kategorie' },
   { key: 'disziplin',    label: 'Disziplin',          std: 1, sort: 'disziplin' },
   { key: 'startnummer',  label: 'StNr',               titel: 'Startnummer', std: 0, sort: 'startnummer' },
   { key: 'ak',           label: 'AK',                 titel: 'Altersklasse', std: 1, sort: 'altersklasse' },
