@@ -237,7 +237,19 @@ async function renderMeineVeranstaltungen() {
   }
   viewEl.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
 
-  var r = await apiGet('meine-veranstaltungen');
+  // Ergebnisse und die Stammdaten fuers Profil-Kopfteil parallel holen.
+  // Der Kopf ist Beiwerk – schlaegt er fehl, wird die Liste trotzdem angezeigt.
+  var athletId = currentUser.athlet_id;
+  var erg = await Promise.all([
+    apiGet('meine-veranstaltungen'),
+    apiGet('athleten/' + athletId).catch(function() { return null; }),
+    apiGet('athleten/' + athletId + '/auszeichnungen').catch(function() { return null; }),
+  ]);
+  var r = erg[0];
+  window._meinAthlet = {
+    athlet: (erg[1] && erg[1].ok && erg[1].data) ? erg[1].data.athlet : null,
+    ausz:   (erg[2] && erg[2].ok) ? erg[2].data : null,
+  };
   if (!r || !r.ok) {
     viewEl.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)">Fehler: ' + (r && r.fehler || 'Unbekannt') + '</div>';
     return;
@@ -341,6 +353,139 @@ async function renderMeineVeranstaltungen() {
 function _meinVereinText(r, ownClub) {
   if (r.verein) return r.verein;
   return r.extern ? '' : ownClub;
+}
+
+// ── Profilkopf (wie im Athletenprofil) ─────────────────────
+// Die Kategorie-Chips und Disziplin-Kacheln sind zugleich Filter fuer die
+// Gesamtliste: ein Klick setzt den Filter, ein erneuter Klick hebt ihn auf.
+function _mvKopfHtml(allRows) {
+  var info   = window._meinAthlet || {};
+  var athlet = info.athlet;
+  var sf     = (state.meine && state.meine.filter) || {};
+
+  // ── Kopfzeile mit Avatar, Name und Badges ──
+  var kopf = '';
+  if (athlet) {
+    var initialen = (((athlet.vorname || '')[0] || '') + ((athlet.nachname || '')[0] || '')).toUpperCase();
+    var ak = (athlet.geschlecht && athlet.geburtsjahr)
+      ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : '';
+    var gruppen = (athlet.gruppen || []).map(function(g) {
+      return '<span class="rek-cat-btn" style="font-size:12px;padding:3px 10px;cursor:default">' + _esc(g.name) + '</span>';
+    }).join('');
+    var wettkaempfe = Object.keys(allRows.reduce(function(m, r) { m[r.veranst_id] = 1; return m; }, {})).length;
+
+    kopf =
+      '<div class="profile-header" style="margin-bottom:14px">' +
+        '<div class="profile-avatar" style="' + (athlet.avatar_pfad ? 'background:none;padding:0;' : '') + '">' +
+          (athlet.avatar_pfad
+            ? '<img src="' + _esc(athlet.avatar_pfad) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">'
+            : initialen) +
+        '</div>' +
+        '<div>' +
+          '<div style="font-size:20px;font-weight:700">' + _esc((athlet.vorname || '') + ' ' + (athlet.nachname || '')) + '</div>' +
+          (gruppen ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">' + gruppen + '</div>' : '') +
+          '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">' +
+            '<span class="badge badge-ak">' + allRows.length + ' ' + (allRows.length === 1 ? 'Ergebnis' : 'Ergebnisse') + '</span>' +
+            '<span class="badge" style="background:var(--surf2);color:var(--text2)">' + wettkaempfe + ' ' + (wettkaempfe === 1 ? 'Wettkampf' : 'Wettk&auml;mpfe') + '</span>' +
+            (athlet.geschlecht ? '<span class="badge" style="background:var(--surf2);color:var(--text)">' +
+              (athlet.geschlecht === 'M' ? '♂ Männlich' : athlet.geschlecht === 'W' ? '♀ Weiblich' : '⚧ Divers') + '</span>' : '') +
+            (athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jahrgang ' + _esc(athlet.geburtsjahr) + '</span>' : '') +
+            (ak ? akBadge(ak) : '') +
+          '</div>' +
+          _mvAuszeichnungenHtml() +
+        '</div>' +
+      '</div>';
+  }
+
+  // ── Kategorie-Chips ──
+  var katMap = {}, katOrder = [];
+  allRows.forEach(function(r) {
+    var k = r.kategorie || 'Sonstige';
+    if (!katMap[k]) { katMap[k] = 0; katOrder.push(k); }
+    katMap[k]++;
+  });
+  katOrder.sort();
+  var katChips = katOrder.map(function(k) {
+    var aktiv = sf.kategorie === k;
+    return '<button class="rek-cat-btn' + (aktiv ? ' active' : '') + '"' +
+      ' style="font-size:13px;padding:7px 16px;margin:0 6px 6px 0"' +
+      ' onclick="_mvFilterKategorie(\'' + _esc(k).replace(/'/g, "\\'") + '\')">' +
+      _esc(k) + ' <span style="opacity:.7">(' + katMap[k] + ')</span></button>';
+  }).join('');
+
+  // ── Disziplin-Kacheln (mit Bestleistung), passend zur gewaehlten Kategorie ──
+  var basis = sf.kategorie ? allRows.filter(function(r) { return (r.kategorie || 'Sonstige') === sf.kategorie; }) : allRows;
+  var diszMap = {}, diszOrder = [];
+  basis.forEach(function(r) {
+    var d = r.disziplin || '?';
+    if (!diszMap[d]) { diszMap[d] = []; diszOrder.push(d); }
+    diszMap[d].push(r);
+  });
+  diszOrder.sort(function(a, b) {
+    var ka = _apDiszSortKey(a), kb = _apDiszSortKey(b);
+    return ka !== kb ? ka - kb : a.localeCompare(b);
+  });
+  var diszKacheln = diszOrder.map(function(d) {
+    var liste = diszMap[d];
+    var fmt   = liste[0].fmt || 'min';
+    var best  = _apBestOf(liste, fmt);
+    var bestStr = best ? _apFmtRes(best, fmt) : '';
+    var aktiv = sf.disziplin === d;
+    return '<button class="rek-top-btn' + (aktiv ? ' active' : '') + '"' +
+      ' style="min-width:80px;padding:8px 14px;margin:0 6px 6px 0"' +
+      ' onclick="_mvFilterDisziplin(\'' + _esc(d).replace(/'/g, "\\'") + '\')">' +
+      '<span class="rek-top-name">' + _esc(d) + ' <span style="opacity:.7">(' + liste.length + ')</span></span>' +
+      (bestStr ? '<span class="rek-top-cnt" style="font-family:Barlow Condensed,sans-serif;font-size:13px;font-weight:700;margin-top:2px">' + bestStr + '</span>' : '') +
+    '</button>';
+  }).join('');
+
+  return kopf +
+    (katChips ? '<div style="margin-bottom:10px">' + katChips + '</div>' : '') +
+    (diszKacheln ? '<div style="margin-bottom:14px;display:flex;flex-wrap:wrap">' + diszKacheln + '</div>' : '');
+}
+
+// Titel und Bestleistungen wie im Athletenprofil (Tooltip mit der Aufschluesselung)
+function _mvAuszeichnungenHtml() {
+  var ausz = (window._meinAthlet || {}).ausz;
+  if (!ausz || (!(ausz.meisterschaften || []).length && !(ausz.bestleistungen || []).length)) return '';
+  var html = '<div style="margin-top:6px;display:flex;gap:12px">';
+  if ((ausz.meisterschaften || []).length) {
+    var mTip = ausz.meisterschaften.map(function(m) {
+      return _esc(m.label + (m.jahr ? ' ' + m.jahr : ''));
+    }).join('&#10;');
+    html += '<span title="' + mTip + '" style="font-size:13px;color:var(--text2);cursor:help">&#x1F947; ' +
+            ausz.meisterschaften.length + ' Titel</span>';
+  }
+  if ((ausz.bestleistungen || []).length) {
+    var bTip = ausz.bestleistungen.map(function(b) {
+      return _esc(b.label + ' – ' + b.disziplin);
+    }).join('&#10;');
+    html += '<span title="' + bTip + '" style="font-size:13px;color:var(--text2);cursor:help">&#x1F3C6; ' +
+            ausz.bestleistungen.length + ' Bestleistungen</span>';
+  }
+  return html + '</div>';
+}
+
+// Chip/Kachel als Filter – erneuter Klick auf die aktive Auswahl hebt sie auf
+function _mvFilterKategorie(kat) {
+  if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: {} };
+  var f = state.meine.filter;
+  f.kategorie = (f.kategorie === kat) ? '' : kat;
+  // Disziplinauswahl verwerfen, wenn sie nicht zur neuen Kategorie gehoert
+  if (f.kategorie && f.disziplin) {
+    var passt = (window._meinVeranstRows || []).some(function(r) {
+      return r.disziplin === f.disziplin && (r.kategorie || 'Sonstige') === f.kategorie;
+    });
+    if (!passt) f.disziplin = '';
+  }
+  _renderMeineTabelle();
+}
+
+function _mvFilterDisziplin(disz) {
+  if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: {} };
+  var f = state.meine.filter;
+  f.disziplin = (f.disziplin === disz) ? '' : disz;
+  _renderMeineTabelle();
 }
 
 // ── Spaltenkatalog "Meine Ergebnisse" ──────────────────────
@@ -489,6 +634,7 @@ function _renderMeineTabelle() {
   // ── Filter ──────────────────────────────────────────────
   var rows = allRows.filter(function(r) {
     if (sf.jahr && r.datum.slice(0, 4) !== sf.jahr) return false;
+    if (sf.kategorie && (r.kategorie || 'Sonstige') !== sf.kategorie) return false;
     if (sf.disziplin && r.disziplin !== sf.disziplin) return false;
     if (sf.verein && _meinVereinText(r, ownClub) !== sf.verein) return false;
     if (sf.suche) {
@@ -661,9 +807,22 @@ function _renderMeineTabelle() {
   // deshalb ausschliesslich den Ergebnisteil ersetzen – sonst wird das Suchfeld neu erzeugt
   // und verliert nach jedem Tastendruck den Fokus.
   var bodyHtml = countHtml + '<div class="panel">' + table + '</div>';
+  var kopfHtml = _mvKopfHtml(allRows);
   var bodyEl = document.getElementById('mv-body');
-  if (bodyEl) bodyEl.innerHTML = bodyHtml;
-  else viewEl.innerHTML = '<div id="mv-wrap">' + filterBar + '<div id="mv-body">' + bodyHtml + '</div></div>';
+  if (bodyEl) {
+    bodyEl.innerHTML = bodyHtml;
+    // Kopf enthaelt die aktiven Filterzustaende, aber keine Eingabefelder → neu zeichnen
+    var kopfEl = document.getElementById('mv-kopf');
+    if (kopfEl) kopfEl.innerHTML = kopfHtml;
+    // Filter kann auch ueber eine Kachel gesetzt worden sein → Dropdown nachziehen
+    var diszSel = document.getElementById('mv-disz');
+    if (diszSel && diszSel.value !== (sf.disziplin || '')) diszSel.value = sf.disziplin || '';
+  } else {
+    viewEl.innerHTML = '<div id="mv-wrap">' +
+        '<div id="mv-kopf">' + kopfHtml + '</div>' + filterBar +
+        '<div id="mv-body">' + bodyHtml + '</div>' +
+      '</div>';
+  }
 
   // Nach dem Layout messen: passt die Tabelle nicht, wird zuerst der
   // Veranstaltungsname gekuerzt – horizontal gescrollt wird erst danach.
@@ -716,6 +875,7 @@ function _filterMeine() {
     jahr:      (document.getElementById('mv-jahr')    || {}).value || '',
     disziplin: (document.getElementById('mv-disz')    || {}).value || '',
     verein:    (document.getElementById('mv-verein')  || {}).value || '',
+    kategorie: state.meine.filter.kategorie || '', // nur ueber die Chips im Kopf setzbar
   };
   _renderMeineTabelle();
 }

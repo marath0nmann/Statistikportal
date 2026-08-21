@@ -213,7 +213,8 @@ main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
    keine feste Obergrenze – der Inhalt darf bis zur Fensterbreite wachsen. */
 body.page-wide main { max-width: none; }
 /* Der Block ist nur so breit wie sein Inhalt, höchstens so breit wie das Fenster */
-#mv-wrap { width: max-content; max-width: 100%; min-width: min(100%, 640px); }
+/* margin auto: bleibt die Box unter der Fensterbreite, steht sie mittig */
+#mv-wrap { width: max-content; max-width: 100%; min-width: min(100%, 640px); margin: 0 auto; }
 /* Veranstaltungsname: schrumpft mit "…" bevor die Tabelle horizontal scrollt.
    Die Obergrenze setzt _mvBreiteAnpassen() zur Laufzeit. */
 .mv-vname {

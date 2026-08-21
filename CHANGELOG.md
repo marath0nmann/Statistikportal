@@ -1,3 +1,8 @@
+## v1482
+- **Meine Ergebnisse: Profilkopf wie im Athletenprofil.** Avatar, Name, Gruppen-Tags und Badges (Anzahl Ergebnisse und Wettkämpfe, Geschlecht, Jahrgang, aktuelle Altersklasse) stehen jetzt über der Liste, dazu die Zeile mit Titeln und Bestleistungen samt Aufschlüsselung im Tooltip. Die Stammdaten kommen aus `athleten/{id}` und `athleten/{id}/auszeichnungen`; schlägt einer der beiden Aufrufe fehl, wird die Liste trotzdem angezeigt.
+- Die Kategorie-Chips („Straße (123)") und Disziplin-Kacheln („5km (21) 17:55") filtern die Gesamtliste: Klick setzt den Filter, erneuter Klick hebt ihn auf. Die Kacheln zeigen nur die Disziplinen der gewählten Kategorie und darunter jeweils die Bestleistung; eine Disziplinauswahl, die nicht zur neu gewählten Kategorie passt, wird verworfen. Das Disziplin-Dropdown der Filterleiste bleibt mit den Kacheln synchron.
+- Die Seite ist wieder horizontal zentriert, wenn die Tabelle schmaler als das Fenster ist (`#mv-wrap { margin: 0 auto }`).
+
 ## v1481
 - **Meine Ergebnisse: Die Ergebnisbox hat keine feste Breitengrenze mehr.** Sie ist genau so breit wie ihr Inhalt und darf bis zur Fensterbreite wachsen – auf einem 2560px-Monitor passen damit alle 19 Spalten ohne Kürzen und ohne Scrollen nebeneinander, bei wenigen Spalten schrumpft sie auf die tatsächlich benötigte Breite.
 - Reicht der Platz nicht, greift zuerst die schonendste Einschränkung: Der Veranstaltungsname wird mit „…" gekürzt (bis minimal 120px, voller Name als Tooltip). Erst wenn auch das nicht genügt, scrollt die Tabelle horizontal. Die Breite wird nach jedem Rendern und beim Ändern der Fenstergröße neu bestimmt (`_mvBreiteAnpassen`).
