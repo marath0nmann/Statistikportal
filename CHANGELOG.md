@@ -1,3 +1,6 @@
+## v1485
+- Meine Ergebnisse: Die Zählerzeile kürzt nicht mehr ab – statt „151 Wettkampfauftr." steht dort jetzt „151 Wettkampfauftritten" (bzw. „1 Wettkampfauftritt").
+
 ## v1484
 - Meine Ergebnisse: Der Button „⚙️ Spalten" sitzt jetzt wieder an der Kante der Ergebnisbox – Zählerzeile und Tabelle liegen dafür gemeinsam im Block `#mv-box`, der als Ganzes mitwächst.
 - Die Untermenüleiste (Regelmäßige Veranstaltungen / Letzte Veranstaltungen / Meine Ergebnisse) wird wie Kopf und Filterleiste in der Standardbreite angezeigt und bleibt damit an derselben Stelle wie auf den anderen Unterseiten.

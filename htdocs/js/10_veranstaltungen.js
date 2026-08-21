@@ -777,7 +777,7 @@ function _renderMeineTabelle() {
       (rows.length < total
         ? rows.length + ' von ' + total + ' Ergebnis' + (total !== 1 ? 'sen' : '')
         : total + ' Ergebnis' + (total !== 1 ? 'se' : '')) +
-      ' in ' + totalWettkampfe + ' Wettkampf' + (totalWettkampfe !== 1 ? 'auftr.' : 'auftritt') +
+      ' in ' + totalWettkampfe + ' Wettkampfauftritt' + (totalWettkampfe !== 1 ? 'en' : '') +
       '</div>' +
       '<button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="_openMeineSpaltenModal()">&#x2699;&#xFE0F; Spalten</button>' +
     '</div>';
