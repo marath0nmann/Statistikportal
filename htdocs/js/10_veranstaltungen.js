@@ -562,7 +562,7 @@ function _renderMeineTabelle() {
     wk_nr_disz:   function(r) { return r.wk_nr_disz || ''; },
     datum:        function(r) { return formatDate(r.datum); },
     veranstaltung: function(r) {
-      return '<span style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' + r.veranst_name + '</span>' +
+      return '<span class="mv-vname" title="' + _esc(r.veranst_name) + '" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' + r.veranst_name + '</span>' +
         (r.serie_id ? ' <span class="mv-hover" title="Regelm&auml;&szlig;ige Veranstaltung" style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:pointer" onclick="openSerieDetail(' + r.serie_id + ')">🔄</span>' : '');
     },
     ort:          function(r) { return r.ort ? (r.ort_land_code && flagEmoji ? flagEmoji(r.ort_land_code) + ' ' + r.ort : r.ort) : ''; },
@@ -663,7 +663,43 @@ function _renderMeineTabelle() {
   var bodyHtml = countHtml + '<div class="panel">' + table + '</div>';
   var bodyEl = document.getElementById('mv-body');
   if (bodyEl) bodyEl.innerHTML = bodyHtml;
-  else viewEl.innerHTML = filterBar + '<div id="mv-body">' + bodyHtml + '</div>';
+  else viewEl.innerHTML = '<div id="mv-wrap">' + filterBar + '<div id="mv-body">' + bodyHtml + '</div></div>';
+
+  // Nach dem Layout messen: passt die Tabelle nicht, wird zuerst der
+  // Veranstaltungsname gekuerzt – horizontal gescrollt wird erst danach.
+  requestAnimationFrame(_mvBreiteAnpassen);
+  if (!window._mvResizeAktiv) {
+    window._mvResizeAktiv = 1;
+    window.addEventListener('resize', function() {
+      clearTimeout(window._mvResizeTimer);
+      window._mvResizeTimer = setTimeout(_mvBreiteAnpassen, 120);
+    });
+  }
+}
+
+// Reihenfolge der Einschraenkungen, wenn die Tabelle breiter ist als das Fenster:
+// 1. Veranstaltungsnamen mit "…" kuerzen, 2. erst dann horizontal scrollen.
+// Untergrenze, damit vom Namen etwas Erkennbares stehen bleibt:
+var MV_VNAME_MIN = 120;
+
+function _mvBreiteAnpassen() {
+  var wrap = document.querySelector('#mv-body .table-scroll');
+  if (!wrap) return;
+  var tabelle = wrap.querySelector('table');
+  var namen   = wrap.querySelectorAll('.mv-vname');
+  if (!tabelle || !namen.length) return;
+
+  // Erst ungekuerzt messen – sonst wuerde eine fruehere Kuerzung fortgeschrieben
+  namen.forEach(function(n) { n.style.maxWidth = ''; });
+  var ueberschuss = tabelle.scrollWidth - wrap.clientWidth;
+  if (ueberschuss <= 0) return; // passt vollstaendig → nichts kuerzen
+
+  var natuerlich = 0;
+  namen.forEach(function(n) { natuerlich = Math.max(natuerlich, n.scrollWidth); });
+  var ziel = Math.max(MV_VNAME_MIN, natuerlich - ueberschuss);
+  if (ziel >= natuerlich) return; // Kuerzen wuerde nichts bringen
+  namen.forEach(function(n) { n.style.maxWidth = ziel + 'px'; });
+  // Bleibt danach noch Ueberhang, uebernimmt .table-scroll (overflow-x: auto).
 }
 
 function _sortMeine(col) {

@@ -1,3 +1,8 @@
+## v1481
+- **Meine Ergebnisse: Die Ergebnisbox hat keine feste Breitengrenze mehr.** Sie ist genau so breit wie ihr Inhalt und darf bis zur Fensterbreite wachsen – auf einem 2560px-Monitor passen damit alle 19 Spalten ohne Kürzen und ohne Scrollen nebeneinander, bei wenigen Spalten schrumpft sie auf die tatsächlich benötigte Breite.
+- Reicht der Platz nicht, greift zuerst die schonendste Einschränkung: Der Veranstaltungsname wird mit „…" gekürzt (bis minimal 120px, voller Name als Tooltip). Erst wenn auch das nicht genügt, scrollt die Tabelle horizontal. Die Breite wird nach jedem Rendern und beim Ändern der Fenstergröße neu bestimmt (`_mvBreiteAnpassen`).
+- Getestet bei 600 / 1024 / 1280 / 2560px Fensterbreite mit 6, 12 und 19 Spalten: Die Seite selbst scrollt in keinem Fall horizontal.
+
 ## v1480
 - Jahresübersicht, Ansicht „Nach Athlet\*in": Die Ereignisse stehen nicht mehr chronologisch, sondern nach Bedeutung. Zuerst die Podestplätze – sortiert nach Platzierung, bei gleicher Platzierung nach Wertigkeit der Meisterschaft (Deutsche oben, Regio unten, gemäß Reihenfolge in Admin → Meisterschaftsarten). Darunter die allein stehenden Vereinsrekorde, Bestleistungen und PBs, ebenfalls nach Wertigkeit. Innerhalb einer Stufe bleibt es chronologisch.
 

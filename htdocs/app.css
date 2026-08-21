@@ -209,8 +209,17 @@ nav button.active {
 
 /* ── MAIN ── */
 main { padding: 24px 28px; max-width: 1440px; margin: 0 auto; }
-/* Seiten mit sehr breiten Tabellen (z.B. Veranstaltungen → Meine Ergebnisse) */
-body.page-wide main { max-width: 1920px; }
+/* Seiten mit sehr breiten Tabellen (z.B. Veranstaltungen → Meine Ergebnisse):
+   keine feste Obergrenze – der Inhalt darf bis zur Fensterbreite wachsen. */
+body.page-wide main { max-width: none; }
+/* Der Block ist nur so breit wie sein Inhalt, höchstens so breit wie das Fenster */
+#mv-wrap { width: max-content; max-width: 100%; min-width: min(100%, 640px); }
+/* Veranstaltungsname: schrumpft mit "…" bevor die Tabelle horizontal scrollt.
+   Die Obergrenze setzt _mvBreiteAnpassen() zur Laufzeit. */
+.mv-vname {
+  display: inline-block; vertical-align: bottom; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 /* Aktionssymbole in "Meine Ergebnisse": nur beim Überfahren der Zeile sichtbar.
    Platz halten sie trotzdem, damit die Zeile beim Hover nicht springt. */
 .mv-hover { visibility: hidden; }
