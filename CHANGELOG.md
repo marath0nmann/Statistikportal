@@ -1,3 +1,6 @@
+## v1486
+- Meine Ergebnisse: Die Disziplin-Kacheln zeigen zunächst nur die favorisierten Disziplinen (Admin → Darstellung, `top_disziplinen`). Erst ein Klick auf eine Kategorie blendet alle Disziplinen dieser Kategorie ein. Eine per Dropdown gewählte, nicht favorisierte Disziplin bleibt als Kachel sichtbar, damit sie abwählbar ist; sind gar keine Favoriten hinterlegt, werden weiterhin alle Disziplinen angezeigt.
+
 ## v1485
 - Meine Ergebnisse: Die Zählerzeile kürzt nicht mehr ab – statt „151 Wettkampfauftr." steht dort jetzt „151 Wettkampfauftritten" (bzw. „1 Wettkampfauftritt").
 

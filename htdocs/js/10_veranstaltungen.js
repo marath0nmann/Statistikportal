@@ -329,12 +329,19 @@ async function renderMeineVeranstaltungen() {
   });
 
   // Disziplinkategorie aus der Disziplinliste auflösen (Fallback: tbl_key der Zeile)
+  // und dabei gleich merken, ob die Disziplin als Favorit hinterlegt ist.
   var diszAlle = (state && state.disziplinen) || [];
+  var favIds = {};
+  try {
+    ((appConfig && appConfig.top_disziplinen) ? JSON.parse(appConfig.top_disziplinen) : [])
+      .forEach(function(id) { favIds[id] = 1; });
+  } catch (e) {}
   allRows.forEach(function(r) {
     var d = null;
     if (r.disziplin_mapping_id) d = diszAlle.find(function(x) { return x.id == r.disziplin_mapping_id; });
     if (!d && r.disziplin)      d = diszAlle.find(function(x) { return x.disziplin === r.disziplin; });
-    r.kategorie = (d && d.kategorie) || r.tbl_key || '';
+    r.kategorie    = (d && d.kategorie) || r.tbl_key || '';
+    r.ist_favorit  = !!(d && favIds[d.id]);
   });
 
   window._meinVeranstRows = allRows;
@@ -425,6 +432,18 @@ function _mvKopfHtml(allRows) {
     var ka = _apDiszSortKey(a), kb = _apDiszSortKey(b);
     return ka !== kb ? ka - kb : a.localeCompare(b);
   });
+
+  // Ohne Kategorieauswahl nur die favorisierten Disziplinen zeigen; ist eine
+  // Kategorie gewaehlt, alle Disziplinen dieser Kategorie. Die aktuell
+  // gefilterte Disziplin bleibt immer sichtbar, damit sie abwaehlbar ist.
+  var nurFavoriten = !sf.kategorie && diszOrder.some(function(d) {
+    return diszMap[d].some(function(r) { return r.ist_favorit; });
+  });
+  if (nurFavoriten) {
+    diszOrder = diszOrder.filter(function(d) {
+      return d === sf.disziplin || diszMap[d].some(function(r) { return r.ist_favorit; });
+    });
+  }
   var diszKacheln = diszOrder.map(function(d) {
     var liste = diszMap[d];
     var fmt   = liste[0].fmt || 'min';
