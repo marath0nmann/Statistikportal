@@ -88,16 +88,26 @@ function tfTrifftRegeln(id, row, ausser) {
   return true;
 }
 
+// Wildcards: * = beliebig viele Zeichen, ? = genau eines. Nur aktiv, wenn die
+// Konfiguration es erlaubt und die Eingabe wirklich einen Platzhalter enthaelt.
+function _tfWildcardRx(q) {
+  var esc = q.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
+  try { return new RegExp(esc, 'i'); } catch (e) { return null; }
+}
+
 function tfTrifftSuche(id, row) {
   var q = tfSuchtext(id).toLowerCase().trim();
   if (!q) return true;
   var cfg = _tfCfg[id] || {};
+  var rx  = (cfg.wildcard && (q.indexOf('*') >= 0 || q.indexOf('?') >= 0)) ? _tfWildcardRx(q) : null;
   var felder = cfg.suche
     ? cfg.suche(row)
     : (cfg.spalten || []).map(function(c) { return tfWert(id, row, c.key); });
   if (!Array.isArray(felder)) felder = [felder];
   for (var i = 0; i < felder.length; i++) {
-    if (felder[i] != null && String(felder[i]).toLowerCase().indexOf(q) >= 0) return true;
+    if (felder[i] == null) continue;
+    var t = String(felder[i]).toLowerCase();
+    if (rx ? rx.test(t) : t.indexOf(q) >= 0) return true;
   }
   return false;
 }

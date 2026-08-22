@@ -1,3 +1,6 @@
+## v1506
+- **Admin → Veranstaltungen nutzt die dynamische Filterleiste.** Statt der festen Dropdowns „Jahr" und „Status" lässt sich jetzt nach Jahr, Monat, Ort, Serie, Status sowie Vorhandensein interner/externer Ergebnisse filtern – jeder Wert mit Trefferzahl. Die Suche (Name, Kürzel, Ort) beherrscht weiterhin die Platzhalter `*` und `?`.
+
 ## v1505
 - **Die dynamische Filterleiste aus „Meine Ergebnisse" ist jetzt ein wiederverwendbares Modul** (`js/09b_tabellenfilter.js`): Suchfeld plus beliebig viele Filterregeln „Spalte + Wert", deren Auswahllisten nur noch erreichbare Werte samt Trefferzahl zeigen.
 - Admin → Orte nutzt die neue Leiste: zusätzlich zur Suche (Name, Region, Land, Alias) lässt sich nach Land, Region, Koordinaten, Aliasen und Verwendung filtern.

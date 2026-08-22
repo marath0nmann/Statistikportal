@@ -3528,7 +3528,6 @@ function _vaWildcard(pattern) {
 var _veranstAdminCache  = { items: [] };
 var _veranstAdminSort   = { col: 'datum', dir: -1 };
 var _veranstAdminSel    = {};
-var _veranstAdminFilter = { suche: '', jahr: '', genehmigt: '' };
 var _veranstAdminPage   = 0;
 var _veranstAdminPageSz = 50;
 
@@ -3605,22 +3604,43 @@ function _vaUpdateBulkBar() {
   if (countEl) countEl.textContent = n + ' ausgewählt';
 }
 
-function _vaGetFiltered() {
-  var items = _veranstAdminCache.items || [];
-  var suche = (_veranstAdminFilter.suche || '').toLowerCase();
-  var jahr  = _veranstAdminFilter.jahr ? parseInt(_veranstAdminFilter.jahr) : 0;
-  var genF  = _veranstAdminFilter.genehmigt;
-  var sucheRx = (suche && (suche.indexOf('*') >= 0 || suche.indexOf('?') >= 0)) ? _vaWildcard(suche) : null;
-  return items.filter(function(v) {
-    if (suche) {
-      var s = ((v.name||'') + ' ' + (v.kuerzel||'') + ' ' + (v.ort||'')).toLowerCase();
-      if (sucheRx ? !sucheRx.test(s) : s.indexOf(suche) < 0) return false;
+// Dynamische Filterleiste: Suche (mit Wildcards) + beliebige Spalte/Wert-Regeln
+function _vaFilterInit() {
+  tfInit('va', {
+    platzhalter: 'Name, K\u00fcrzel, Ort\u2026 (* und ? m\u00f6glich)',
+    wildcard: true,
+    rows: function() { return _veranstAdminCache.items || []; },
+    suche: function(v) { return [_vaDec(v.name), v.kuerzel, _vaDec(v.ort)]; },
+    spalten: [
+      { key: 'jahr',  label: 'Jahr',  absteigend: true,
+        wert: function(v) { return (v.datum || '').slice(0, 4); } },
+      { key: 'monat', label: 'Monat',
+        wert: function(v) { return v.datum ? VA_MONATE[parseInt(v.datum.slice(5, 7), 10) - 1] || '' : ''; } },
+      { key: 'ort',   label: 'Ort',   wert: function(v) { return _vaDec(v.ort || ''); } },
+      { key: 'serie', label: 'Serie', wert: function(v) {
+          var s = v.serie_id ? _veranstAdminCache.serieMap[v.serie_id] : null;
+          return s ? _vaDec(s.name) : 'ohne Serie'; } },
+      { key: 'status', label: 'Status', wert: function(v) {
+          return parseInt(v.genehmigt) ? 'Genehmigt' : 'Gesperrt'; } },
+      { key: 'ergebnisse', label: 'Ergebnisse', wert: function(v) {
+          return parseInt(v.anz_ergebnisse) > 0 ? 'vorhanden' : 'keine'; } },
+      { key: 'extern', label: 'Externe Ergebnisse', wert: function(v) {
+          return parseInt(v.anz_extern) > 0 ? 'vorhanden' : 'keine'; } }
+    ],
+    onChange: function() {
+      _veranstAdminPage = 0;
+      _veranstAdminSel = {};
+      _renderVeranstAdminTable();
     }
-    if (jahr && (!v.datum || parseInt(v.datum.slice(0,4)) !== jahr)) return false;
-    if (genF === '1' && !parseInt(v.genehmigt)) return false;
-    if (genF === '0' &&  parseInt(v.genehmigt)) return false;
-    return true;
   });
+}
+
+var VA_MONATE = ['01 Januar','02 Februar','03 M\u00e4rz','04 April','05 Mai','06 Juni',
+                 '07 Juli','08 August','09 September','10 Oktober','11 November','12 Dezember'];
+
+function _vaGetFiltered() {
+  _vaFilterInit();
+  return tfFilter('va', _veranstAdminCache.items || []);
 }
 
 function _renderVeranstAdminTable() {
@@ -3737,34 +3757,9 @@ async function renderAdminVeranstaltungen() {
   }
   _veranstAdminSel = {};
 
-  // Jahre für Filter
-  var jahre = {};
-  for (var i = 0; i < _veranstAdminCache.items.length; i++) {
-    var d = _veranstAdminCache.items[i].datum;
-    if (d) jahre[d.slice(0,4)] = true;
-  }
-  var jahrArr = Object.keys(jahre).sort().reverse();
-  var jahrOpts = '<option value="">Alle Jahre</option>';
-  for (var j = 0; j < jahrArr.length; j++) {
-    jahrOpts += '<option value="' + jahrArr[j] + '"' + (_veranstAdminFilter.jahr === jahrArr[j] ? ' selected' : '') + '>' + jahrArr[j] + '</option>';
-  }
-
+  _vaFilterInit();
   var html = adminSubtabs() +
-    '<div class="filter-bar" style="margin-bottom:12px">' +
-      '<div class="fg"><label>Suche</label>' +
-        '<input type="text" id="va-suche" placeholder="Name, Ort…" value="' + _vaEsc(_veranstAdminFilter.suche||'') + '" oninput="_vaFilter(\'suche\',this.value)" style="min-width:0;width:100%"/>' +
-      '</div>' +
-      '<div class="fg" style="max-width:130px"><label>Jahr</label>' +
-        '<select onchange="_vaFilter(\'jahr\',this.value)">' + jahrOpts + '</select>' +
-      '</div>' +
-      '<div class="fg" style="max-width:160px"><label>Status</label>' +
-        '<select onchange="_vaFilter(\'genehmigt\',this.value)">' +
-          '<option value=""'  + (!_veranstAdminFilter.genehmigt     ? ' selected' : '') + '>Alle</option>' +
-          '<option value="1"' + (_veranstAdminFilter.genehmigt==='1' ? ' selected' : '') + '>Genehmigt</option>' +
-          '<option value="0"' + (_veranstAdminFilter.genehmigt==='0' ? ' selected' : '') + '>Gesperrt</option>' +
-        '</select>' +
-      '</div>' +
-    '</div>' +
+    tfBarHtml('va', { suchbreite: '1 1 240px' }) +
     '<div id="va-bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surf2);border:1px solid var(--primary);border-radius:8px;padding:10px 14px;margin-bottom:12px">' +
       '<span id="va-bulk-count" style="font-weight:600;font-size:13px"></span>' +
       '<button class="btn btn-sm btn-primary" onclick="bulkVeranst(\'genehmigen\')">&#x2713; Genehmigen</button>' +
@@ -3791,12 +3786,6 @@ async function renderAdminVeranstaltungen() {
   _renderVeranstAdminTable();
 }
 
-function _vaFilter(key, val) {
-  _veranstAdminFilter[key] = val;
-  _veranstAdminPage = 0;
-  _veranstAdminSel = {};
-  _renderVeranstAdminTable();
-}
 function _vaPage(dir) { _veranstAdminPage += dir; _renderVeranstAdminTable(); }
 function _vaGoPage(p) { _veranstAdminPage = parseInt(p)||0; _renderVeranstAdminTable(); }
 
