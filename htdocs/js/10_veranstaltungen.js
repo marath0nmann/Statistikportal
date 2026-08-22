@@ -695,10 +695,10 @@ function _mvKopfHtml(allRows) {
       return '<button class="rek-top-btn' + (aktiv ? ' active' : '') + '"' +
         ' style="min-width:70px;padding:7px 12px"' +
         ' onclick="_mvFilterDisziplin(\'' + _esc(d).replace(/'/g, "\\'") + '\')">' +
-        '<span class="rek-top-name" style="font-size:12px">' + _esc(d) +
+        '<span class="rek-top-name">' + _esc(d) +
           ' <span style="opacity:.7">(' + liste.length + ')</span></span>' +
         (bestStr ? '<span class="rek-top-cnt" style="font-family:Barlow Condensed,sans-serif;' +
-          'font-size:14px;font-weight:700;margin-top:1px;' + farbe + '">' + bestStr + '</span>' : '') +
+          'font-size:13px;font-weight:700;margin-top:2px;' + farbe + '">' + bestStr + '</span>' : '') +
       '</button>';
     }).join('');
     return '<div style="flex:0 1 auto;min-width:180px">' +

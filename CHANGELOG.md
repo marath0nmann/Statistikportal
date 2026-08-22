@@ -1,4 +1,7 @@
 ## v1514
+- Meine Ergebnisse: Die Bestzeiten-Kacheln haben wieder die Schriftgrößen der Vorversion – Disziplinname aus der Klasse `.rek-top-name` statt fest 12px, Bestzeit 13px statt 14px. Gruppierung nach Kategorie und die farbige Bestzeit aus v1513 bleiben.
+
+## v1514
 - **Regelmäßige Veranstaltungen: Der Veranstaltungsort lässt sich jetzt fest hinterlegen.** Im Bearbeiten-Dialog wird ein Ort aus der Ortsverwaltung (Admin → Orte) ausgewählt; bleibt das Feld leer, gilt wie bisher der Ort der letzten Austragung.
 - Optional lässt sich zusätzlich der genaue Punkt auf der Karte setzen (Klick oder Marker ziehen, alternativ Koordinaten eintippen). Ohne eigene Koordinaten werden die des gewählten Ortes verwendet.
 - Der festgelegte Ort erscheint in der Serien-Tabelle, in der Filterleiste (Ort/Land) und auf der Detailseite samt Karte.
