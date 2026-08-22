@@ -1,4 +1,4 @@
-## v1498
+## v1499
 - **Die getrennten Kategorietabellen sind aus der API entfernt.** `ergebnisse_strasse`, `ergebnisse_sprint`, `ergebnisse_mittelstrecke` und `ergebnisse_sprungwurf` wurden seit der Zusammenführung in `ergebnisse` nur noch in toten `else`-Zweigen angesprochen: 46 `$unified`-Verzweigungen, 33 Zeilen mit Legacy-Tabellennamen. Sie waren zudem nicht mehr gepflegt – die alten INSERT-Zweige kannten `startnummer`, `pos_gesamt`, `pos_geschlecht`, `schuh` und `bemerkungen` gar nicht und hätten diese Daten verworfen.
 - An ihre Stelle tritt die Hilfsfunktion `ergTbl()`. Sie berücksichtigt anders als die frühere Erkennung den `TABLE_PREFIX`; bisher wurde `table_name='ergebnisse'` ohne Präfix geprüft, wodurch eine Installation mit Präfix stillschweigend in den Legacy-Pfad gefallen wäre.
 - Fehlt die Tabelle `ergebnisse`, meldet die API das jetzt beim Start klar und verständlich, statt in Folgefehlern einzelner Endpunkte zu enden.
