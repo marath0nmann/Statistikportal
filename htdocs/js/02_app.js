@@ -3044,6 +3044,7 @@ function navigate(tab) {
   state.page   = 1;
   state.veranstPage = 1;
   state.veranstSuche = '';
+  tfLeeren('veranst');
   // Veranstaltungen-Sub-State zurücksetzen wenn der Tab direkt angesteuert wird
   if (tab === 'veranstaltungen') {
     state.veranstView = 'list';

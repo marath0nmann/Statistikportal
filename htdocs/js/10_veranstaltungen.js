@@ -1,10 +1,45 @@
 // ── VERANSTALTUNGEN ────────────────────────────────────────
 
-var setVeranstSuche = debounce(function(val) {
-  state.veranstSuche = (val||'').trim();
-  state.veranstPage = 1;
-  renderVeranstaltungen();
-}, 300);
+// Dynamische Filterleiste der Veranstaltungsliste. Die Liste wird serverseitig
+// gefiltert und seitenweise geladen – die Auswahllisten der Regeln liefert
+// deshalb die API (Feld `facetten`).
+var VERANST_MONATE = ['Januar','Februar','M\u00e4rz','April','Mai','Juni',
+                      'Juli','August','September','Oktober','November','Dezember'];
+
+function _veranstFilterInit() {
+  tfInit('veranst', {
+    platzhalter: 'Veranstaltung, K\u00fcrzel, Ort\u2026',
+    entprellung: 300,
+    spalten: [
+      { key: 'jahr',  label: 'Jahr', absteigend: true },
+      { key: 'monat', label: 'Monat',
+        anzeige: function(w) { return VERANST_MONATE[parseInt(w, 10) - 1] || w; } },
+      { key: 'ort',   label: 'Ort' },
+      { key: 'land',  label: 'Land' },
+      { key: 'serie', label: 'Regelm\u00e4\u00dfige Veranstaltung' }
+    ],
+    facetten: function(key) { return (window._veranstFacetten || {})[key] || {}; },
+    onChange: function() { state.veranstPage = 1; renderVeranstaltungen(); }
+  });
+}
+
+// Filterregeln + Suche als Query-Parameter (f[spalte]=wert)
+function _veranstFilterParams() {
+  var p = '';
+  var regeln = tfRegeln('veranst');
+  var keys = [];
+  for (var i = 0; i < regeln.length; i++) {
+    if (!regeln[i].key) continue;
+    keys.push(regeln[i].key);
+    if (regeln[i].wert !== '' && regeln[i].wert != null) {
+      p += '&f[' + encodeURIComponent(regeln[i].key) + ']=' + encodeURIComponent(regeln[i].wert);
+    }
+  }
+  if (keys.length) p += '&facetten=' + encodeURIComponent(keys.join(','));
+  state.veranstSuche = tfSuchtext('veranst').trim();
+  if (state.veranstSuche) p += '&suche=' + encodeURIComponent(state.veranstSuche);
+  return p;
+}
 
 // state.veranstView    = 'liste' | 'serie-detail'
 // state.veranstSubTab  = 'serien' | 'letzte'
@@ -27,6 +62,7 @@ function navVeranstTab(tab) {
   state.veranstSubTab = tab;
   state.veranstPage   = 1;
   state.veranstSuche  = '';
+  tfLeeren('veranst');
   syncHash();
   renderVeranstaltungen();
 }
@@ -127,8 +163,8 @@ async function renderVeranstaltungenListe() {
   var resultsEl = document.getElementById('veranst-results');
   resultsEl.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
 
-  var sucheParam = state.veranstSuche ? '&suche=' + encodeURIComponent(state.veranstSuche) : '';
-  var r = await apiGet('veranstaltungen?limit=10&offset=' + ((state.veranstPage-1)*10) + sucheParam);
+  _veranstFilterInit();
+  var r = await apiGet('veranstaltungen?limit=10&offset=' + ((state.veranstPage-1)*10) + _veranstFilterParams());
   if (!r || !r.ok) {
     resultsEl.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler:</strong> ' + (r && r.fehler ? r.fehler : 'Unbekannt') + '</div>';
     return;
@@ -141,12 +177,15 @@ async function renderVeranstaltungenListe() {
   state._veranstMap = {};
   for (var ci = 0; ci < veranst.length; ci++) state._veranstMap[veranst[ci].id] = veranst[ci];
 
-  // Suchleiste (einmalig)
+  // Filterleiste: Auswahllisten aus der Antwort uebernehmen. Die Leiste selbst
+  // wird nur einmal gebaut – sonst verliert das Suchfeld beim Tippen den Fokus;
+  // die Regelzeilen werden danach separat aufgefrischt.
+  window._veranstFacetten = r.data.facetten || {};
   if (!shellEl.dataset.built) {
-    shellEl.innerHTML = '<div class="filter-bar" style="margin-bottom:16px">' +
-      '<div class="fg"><label>Suche</label><input type="search" id="veranst-suche" placeholder="Veranstaltung suchen&hellip;" value="' + (state.veranstSuche || '').replace(/"/g,'&quot;') + '" oninput="setVeranstSuche(this.value)" style="min-width:0;width:100%"/></div>' +
-    '</div>';
+    shellEl.innerHTML = tfBarHtml('veranst', { suchbreite: '1 1 240px' });
     shellEl.dataset.built = '1';
+  } else {
+    tfRefresh('veranst');
   }
 
   var html = '';

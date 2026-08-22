@@ -2769,11 +2769,22 @@ function ergFilterSpalten(): array {
     ];
 }
 
+/** Filterbare Spalten der Veranstaltungsliste (gleiche Mechanik wie oben). */
+function veranstFilterSpalten(): array {
+    return [
+        'jahr'  => 'YEAR(v.datum)',
+        'monat' => "DATE_FORMAT(v.datum, '%m')",
+        'ort'   => 'COALESCE(o.name, v.ort)',
+        'land'  => 'o.land',
+        'serie' => 's.name',
+    ];
+}
+
 /** WHERE-Teile aus f[<spalte>]=<wert>. $ausser laesst einzelne Spalten aus. */
-function ergRegelWhere(array $ausser = []): array {
+function ergRegelWhere(array $ausser = [], ?array $spalten = null): array {
     $regeln = $_GET['f'] ?? [];
     if (!is_array($regeln)) return [[], []];
-    $spalten = ergFilterSpalten();
+    $spalten = $spalten ?? ergFilterSpalten();
     $w = []; $p = [];
     foreach ($regeln as $key => $wert) {
         if (in_array($key, $ausser, true)) continue;
@@ -2792,10 +2803,10 @@ function ergRegelWhere(array $ausser = []): array {
  * $whereFn(array $ausser): [whereTeile, params] – die eigene Spalte muss dabei
  * ausgelassen werden, sonst bliebe je Liste nur der bereits gewaehlte Wert.
  */
-function ergFacetten(string $vonSql, callable $whereFn): array {
+function ergFacetten(string $vonSql, callable $whereFn, ?array $spalten = null): array {
     $keys = array_values(array_filter(array_map('trim', explode(',', (string)($_GET['facetten'] ?? '')))));
     if (!$keys) return [];
-    $spalten = ergFilterSpalten();
+    $spalten = $spalten ?? ergFilterSpalten();
     $out = [];
     foreach (array_unique($keys) as $k) {
         if (!isset($spalten[$k])) continue;
@@ -6801,6 +6812,12 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
         $searchParams = $parS2;
     }
     $oTbl = DB::tbl('orte');
+    $sTblF = DB::tbl('veranstaltung_serien');
+    // Regeln der dynamischen Filterleiste (Suche bleibt in $whereExtra)
+    $vSpalten = veranstFilterSpalten();
+    [$vRegelW, $vRegelP] = ergRegelWhere([], $vSpalten);
+    $regelWhere = $vRegelW ? ' AND ' . implode(' AND ', $vRegelW) : '';
+    $listParams = array_merge($searchParams, $vRegelP);
     $veranst = DB::fetchAll(
         "SELECT v.id, v.kuerzel, v.name, v.ort, v.ort_id, v.datum, v.datenquelle, v.serie_id,
                 o.name AS ort_name, o.land_code AS ort_land_code, o.lat AS ort_lat, o.lon AS ort_lon,
@@ -6809,13 +6826,26 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
          FROM " . DB::tbl('veranstaltungen') . " v
          LEFT JOIN $eTbl e ON e.veranstaltung_id = v.id AND e.geloescht_am IS NULL
          LEFT JOIN $oTbl o ON o.id = v.ort_id
-         WHERE v.geloescht_am IS NULL AND v.genehmigt = 1$whereExtra
+         LEFT JOIN $sTblF s ON s.id = v.serie_id
+         WHERE v.geloescht_am IS NULL AND v.genehmigt = 1$whereExtra$regelWhere
          GROUP BY v.id, v.datenquelle, v.serie_id, o.name, o.land_code, o.lat, o.lon
          ORDER BY v.datum DESC
          LIMIT $limit OFFSET $offset",
-        $searchParams
+        $listParams
     );
-    $total = DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " v WHERE v.geloescht_am IS NULL AND v.genehmigt = 1$whereExtra", $searchParams)['c'];
+    $total = DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('veranstaltungen') . " v
+         LEFT JOIN $oTbl o ON o.id = v.ort_id
+         LEFT JOIN $sTblF s ON s.id = v.serie_id
+         WHERE v.geloescht_am IS NULL AND v.genehmigt = 1$whereExtra$regelWhere", $listParams)['c'];
+
+    // Auswahllisten der Filterleiste – nur fuer die angeforderten Spalten
+    $vonFacetV = "FROM " . DB::tbl('veranstaltungen') . " v LEFT JOIN $oTbl o ON o.id = v.ort_id LEFT JOIN $sTblF s ON s.id = v.serie_id";
+    $facetten = ergFacetten($vonFacetV, function(array $ausser) use ($whereExtra, $searchParams, $vSpalten) {
+        [$fw, $fp] = ergRegelWhere($ausser, $vSpalten);
+        $basis = ['v.geloescht_am IS NULL', 'v.genehmigt = 1'];
+        if ($whereExtra !== '') $basis[] = substr($whereExtra, 5); // fuehrendes " AND " abschneiden
+        return [array_merge($basis, $fw), array_merge($searchParams, $fp)];
+    }, $vSpalten);
     foreach ($veranst as &$v) {
         $vereinErg = DB::fetchAll(
             "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
@@ -6896,7 +6926,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
          ORDER BY anz_ergebnisse DESC",
         $serienParams
     );
-    jsonOk(compact('veranst','total','serien'));
+    jsonOk(compact('veranst','total','serien','facetten'));
 }
 
 if ($res === 'veranstaltungen' && $method === 'POST' && !$id) {

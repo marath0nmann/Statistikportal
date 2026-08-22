@@ -1,3 +1,6 @@
+## v1509
+- **Veranstaltungsliste mit dynamischer Filterleiste.** Neben der Suche (Name, Kürzel, Ort) lässt sich jetzt nach Jahr, Monat, Ort, Land und regelmäßiger Veranstaltung filtern – jeder Wert mit Trefferzahl. Die Auswahllisten liefert die API mit, da die Liste serverseitig gefiltert und seitenweise geladen wird.
+
 ## v1508
 - **Ergebnisse-Seite mit dynamischer Filterleiste.** Die festen Dropdowns Kategorie/Disziplin/Altersklasse/Jahr sind durch frei kombinierbare Filterregeln ersetzt: filterbar sind Jahr, Monat, Kategorie, Disziplin, Altersklasse, Athlet*in, Ort, Veranstaltung, Platz AK, Meisterschaft und Verein.
 - Da die Ergebnisse serverseitig gefiltert und seitenweise geladen werden, liefert die API die Auswahllisten mit (`facetten=…`) – jeder Wert mit Trefferzahl, berechnet nur für die gerade geöffneten Filterzeilen. Die Meisterschafts-Checkboxen und die Umschaltung „Externe Ergebnisse" bleiben unverändert.
