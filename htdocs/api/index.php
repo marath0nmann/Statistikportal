@@ -2956,7 +2956,16 @@ if (in_array($res, $ergebnisTabellen)) {
             elseif (!$aid && $curRolle === 'athlet') { $felder[] = 'rolle=?'; $params[] = 'leser'; }
         }
         if (isset($body['altersklasse']))  { $felder[] = 'altersklasse=?';  $params[] = sanitize($body['altersklasse']); }
-        if (array_key_exists('verein', $body)) { $felder[] = 'verein=?'; $params[] = sanitize($body['verein']) ?: null; }
+        if (array_key_exists('verein', $body)) {
+            $vNeu = sanitize($body['verein']);
+            $felder[] = 'verein=?'; $params[] = $vNeu ?: null;
+            // `extern` muss zum Vereinsnamen passen – dieselbe Regel wie beim
+            // Anlegen: eigener Verein => intern, anderer oder keiner => extern.
+            // Sonst entstehen widersprüchliche Zeilen (Verein gesetzt, extern=0).
+            $clubU   = (string)Settings::get('verein_name', '');
+            $externU = ($vNeu === null || $vNeu === '' || mb_strtolower($vNeu) !== mb_strtolower($clubU));
+            $felder[] = 'extern=?'; $params[] = $externU ? 1 : 0;
+        }
         if (isset($body['disziplin'])) {
             $felder[] = 'disziplin=?'; $params[] = sanitize($body['disziplin']);
             // disziplin_mapping_id: direkt aus Body wenn vorhanden, sonst per Lookup

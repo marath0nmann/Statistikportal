@@ -1,3 +1,8 @@
+## v1501
+- **Ergebnis bearbeiten: Formular neu gegliedert.** Statt einer durchlaufenden Feldliste gibt es jetzt die Abschnitte „Disziplin" (Kategorie, Disziplin), „Ergebnis" (Ergebnis, Altersklasse, Startnummer), „Platzierungen" (Pos AK / m,w / gesamt), „Meisterschaft" (Meisterschaft, Pos) und „Sonstiges" (Verein, Schuh, Bemerkungen). Die Reihenfolge entspricht der Tabelle, das Modal ist dafür breiter.
+- **Der Verein ist jetzt änderbar** – als Textfeld mit den bereits verwendeten Vereinen zur Auswahl (eigener Verein zuerst). Ein Hinweis unter dem Feld erklärt die Bedeutung: eigener Vereinsname = für den eigenen Verein gestartet, leer = ohne Vereinsbindung.
+- Serverseitig wird das Flag `extern` beim Speichern aus dem Vereinsnamen abgeleitet – dieselbe Regel wie beim Anlegen. Ohne das entstünden widersprüchliche Datensätze (Vereinsname gesetzt, aber `extern=0`), die in der Vereinsspalte falsch dargestellt würden.
+
 ## v1500
 - **Meine Ergebnisse: dynamische Filter statt fester Dropdowns.** Die drei Auswahlfelder Jahr/Disziplin/Verein sind ersetzt durch beliebig viele Filterregeln „Spalte + Wert". Über das Feld „Weiterer Filter" kommt eine Regel dazu, das ✕ entfernt sie wieder; mehrere Regeln wirken zusammen (UND). Das Suchfeld bleibt daneben bestehen.
 - Filterbar sind alle Spalten – Datum, Veranstaltung, Ort, Kategorie, Disziplin, StNr, AK, alle Platzierungen, Meisterschaft, Ergebnis, Pace, Schuh, Verein und Bemerkungen – dazu „Jahr", das keine eigene Spalte ist. Die Meisterschaft wird mit ihrem Namen statt der internen ID angeboten, der Verein nach derselben Regel wie in der Tabelle (`extern`-Flag).

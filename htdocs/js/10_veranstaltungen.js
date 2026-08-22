@@ -1131,6 +1131,29 @@ function _meeKatWechsel() {
   diszEl.innerHTML = _meeDiszOpts(katEl.value, null, null);
 }
 
+// Abschnitt im Bearbeiten-Formular: Überschrift + eigenes Raster
+function _meeAbschnitt(titel, inhalt) {
+  return '<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;' +
+             'color:var(--text2);margin:16px 0 6px">' + titel + '</div>' +
+         '<div class="form-grid">' + inhalt + '</div>';
+}
+
+function _meeEigenerVerein() {
+  return (appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '';
+}
+
+// Bereits verwendete Vereine als Vorschlaege – der eigene Verein immer zuerst
+function _meeVereinOpts() {
+  var eigen = _meeEigenerVerein();
+  var gesehen = {}, liste = [];
+  if (eigen) { gesehen[eigen] = 1; liste.push(eigen); }
+  (window._meinVeranstRows || []).forEach(function(r) {
+    var v = _eeDecode(r.verein);
+    if (v && !gesehen[v]) { gesehen[v] = 1; liste.push(v); }
+  });
+  return liste.map(function(v) { return '<option value="' + _esc(v) + '"></option>'; }).join('');
+}
+
 // Bereits verwendete Schuhmodelle als Vorschlaege (aus den geladenen Zeilen)
 function _meeSchuhOpts() {
   var gesehen = {}, schuhe = [];
@@ -1162,33 +1185,47 @@ function _openMeineErgEdit(ergId) {
           'Erneutes Speichern aktualisiert diesen Antrag.' +
         '</div>'
       : '') +
-    '<div class="form-grid">' +
+    _meeAbschnitt('Disziplin',
       '<div class="form-group"><label>Kategorie</label>' +
         '<select id="mee-kat" onchange="_meeKatWechsel()">' + _meeKatOpts(r) + '</select></div>' +
       '<div class="form-group"><label>Disziplin</label>' +
-        '<select id="mee-disz">' + _meeDiszOpts(_meeKatKey(r), r.disziplin_mapping_id, r.disziplin) + '</select></div>' +
+        '<select id="mee-disz">' + _meeDiszOpts(_meeKatKey(r), r.disziplin_mapping_id, r.disziplin) + '</select></div>'
+    ) +
+    _meeAbschnitt('Ergebnis',
       '<div class="form-group"><label>Ergebnis</label>' +
         '<input type="text" id="mee-res" value="' + _mvText(r.resultat) + '" placeholder="z.B. 00:40:08 oder 8,45"/></div>' +
       '<div class="form-group"><label>Altersklasse</label>' +
         '<input type="text" id="mee-ak" value="' + _mvText(r.altersklasse) + '" placeholder="z.B. M40"/></div>' +
-      '<div class="form-group"><label>Platz AK</label>' +
-        '<input type="number" id="mee-akp" value="' + (r.ak_platzierung || '') + '" min="1" placeholder="—"/></div>' +
+      '<div class="form-group"><label>Startnummer</label>' +
+        '<input type="text" id="mee-snr" maxlength="20" value="' + _mvText(r.startnummer) + '" placeholder="&mdash;"/></div>'
+    ) +
+    _meeAbschnitt('Platzierungen',
+      '<div class="form-group"><label>Pos (AK)</label>' +
+        '<input type="number" id="mee-akp" value="' + (r.ak_platzierung || '') + '" min="1" placeholder="&mdash;"/></div>' +
+      '<div class="form-group"><label>Pos (m/w)</label>' +
+        '<input type="number" id="mee-pos-mw" value="' + (r.pos_geschlecht || '') + '" min="1" placeholder="&mdash;"/></div>' +
+      '<div class="form-group"><label>Pos (gesamt)</label>' +
+        '<input type="number" id="mee-pos-ges" value="' + (r.pos_gesamt || '') + '" min="1" placeholder="&mdash;"/></div>'
+    ) +
+    _meeAbschnitt('Meisterschaft',
       '<div class="form-group"><label>Meisterschaft</label>' +
         '<select id="mee-mstr">' + mstrOpts + '</select></div>' +
-      '<div class="form-group"><label>Platz MS</label>' +
-        '<input type="number" id="mee-mstr-platz" value="' + (r.ak_platz_meisterschaft || '') + '" min="1" placeholder="—"/></div>' +
-      '<div class="form-group"><label>Startnummer</label>' +
-        '<input type="text" id="mee-snr" maxlength="20" value="' + _mvText(r.startnummer) + '" placeholder="—"/></div>' +
-      '<div class="form-group"><label>Pos (m/w)</label>' +
-        '<input type="number" id="mee-pos-mw" value="' + (r.pos_geschlecht || '') + '" min="1" placeholder="—"/></div>' +
-      '<div class="form-group"><label>Pos (gesamt)</label>' +
-        '<input type="number" id="mee-pos-ges" value="' + (r.pos_gesamt || '') + '" min="1" placeholder="—"/></div>' +
+      '<div class="form-group"><label>Pos (Meisterschaft)</label>' +
+        '<input type="number" id="mee-mstr-platz" value="' + (r.ak_platz_meisterschaft || '') + '" min="1" placeholder="&mdash;"/></div>'
+    ) +
+    _meeAbschnitt('Sonstiges',
+      '<div class="form-group"><label>Verein</label>' +
+        '<input type="text" id="mee-verein" maxlength="120" list="mee-verein-liste" value="' + _mvText(_meinVereinText(r, _meeEigenerVerein())) + '" placeholder="' + _esc(_meeEigenerVerein()) + '"/>' +
+        '<datalist id="mee-verein-liste">' + _meeVereinOpts() + '</datalist>' +
+        '<div style="font-size:11px;color:var(--text2);margin-top:4px">' +
+          _esc(_meeEigenerVerein()) + ' = f&uuml;r den eigenen Verein gestartet, leer = ohne Vereinsbindung.' +
+        '</div></div>' +
       '<div class="form-group"><label>Schuh</label>' +
-        '<input type="text" id="mee-schuh" maxlength="120" list="mee-schuh-liste" value="' + _mvText(r.schuh) + '" placeholder="—"/>' +
+        '<input type="text" id="mee-schuh" maxlength="120" list="mee-schuh-liste" value="' + _mvText(r.schuh) + '" placeholder="&mdash;"/>' +
         '<datalist id="mee-schuh-liste">' + _meeSchuhOpts() + '</datalist></div>' +
       '<div class="form-group full"><label>Bemerkungen</label>' +
-        '<input type="text" id="mee-bem" maxlength="500" value="' + _mvText(r.bemerkungen) + '" placeholder="—"/></div>' +
-    '</div>' +
+        '<input type="text" id="mee-bem" maxlength="500" value="' + _mvText(r.bemerkungen) + '" placeholder="&mdash;"/></div>'
+    ) +
     '<div class="modal-actions">' +
       (r.loeschantrag
         ? '<span style="margin-right:auto;font-size:12px;color:var(--text2)">&#x1F5D1;&#xFE0F; L&ouml;schung bereits beantragt</span>'
@@ -1196,7 +1233,8 @@ function _openMeineErgEdit(ergId) {
           (_mvDarfDirektLoeschen() ? 'L&ouml;schen' : 'L&ouml;schen beantragen') + '</button>') +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
       '<button class="btn btn-primary" onclick="_saveMeineErgEdit(' + ergId + ',\'' + (r.tbl_key || 'strasse') + '\')">Speichern</button>' +
-    '</div>'
+    '</div>',
+    true // breites Modal – das Formular ist in Abschnitte gegliedert
   );
 }
 
@@ -1225,6 +1263,9 @@ async function _saveMeineErgEdit(ergId, tblKey) {
   body.pos_geschlecht = _val('mee-pos-mw')  ? parseInt(_val('mee-pos-mw'))  : null;
   body.pos_gesamt     = _val('mee-pos-ges') ? parseInt(_val('mee-pos-ges')) : null;
   body.schuh          = _val('mee-schuh') || null;
+  // Verein: leer = ohne Vereinsbindung, eigener Verein = intern. Das Flag
+  // `extern` leitet die API daraus ab (gleiche Regel wie beim Anlegen).
+  body.verein         = _val('mee-verein') || null;
   body.bemerkungen    = _val('mee-bem') || null;
   var r = await apiPut((tblKey || 'strasse') + '/' + ergId, body);
   if (r && r.ok) {
