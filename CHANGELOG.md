@@ -1,3 +1,7 @@
+## v1502
+- **Fix: In Modal-Formularen saß die rechte Spalte 12px tiefer als die linke.** Ursache war die Regel `.modal .form-group + .form-group { margin-top: 12px }`, gedacht für untereinander gestapelte Felder (Passwort-Wiederholung). Im zweispaltigen `.form-grid` trifft sie jedoch jede Gruppe außer der ersten – also auch die rechte Spalte, die dadurch nach unten rutschte und die Zeile aufblähte. Im Raster ist der Abstand jetzt zurückgenommen, dort regelt ihn `gap`.
+- Das betraf nicht nur „Ergebnis bearbeiten", sondern jedes Modal mit `form-grid` – etwa das Modal für externe Ergebnisse und die Admin-Dialoge.
+
 ## v1501
 - **Ergebnis bearbeiten: Formular neu gegliedert.** Statt einer durchlaufenden Feldliste gibt es jetzt die Abschnitte „Disziplin" (Kategorie, Disziplin), „Ergebnis" (Ergebnis, Altersklasse, Startnummer), „Platzierungen" (Pos AK / m,w / gesamt), „Meisterschaft" (Meisterschaft, Pos) und „Sonstiges" (Verein, Schuh, Bemerkungen). Die Reihenfolge entspricht der Tabelle, das Modal ist dafür breiter.
 - **Der Verein ist jetzt änderbar** – als Textfeld mit den bereits verwendeten Vereinen zur Auswahl (eigener Verein zuerst). Ein Hinweis unter dem Feld erklärt die Bedeutung: eigener Vereinsname = für den eigenen Verein gestartet, leer = ohne Vereinsbindung.

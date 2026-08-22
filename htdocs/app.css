@@ -1204,6 +1204,12 @@ tr:hover td { background: var(--surf2); }
 .modal .form-group + .form-group {
   margin-top: 12px;
 }
+/* Im Raster regelt `gap` die Abstände. Ohne diese Rücknahme bekäme dort jede
+   Gruppe außer der ersten 12px Abstand nach oben – die rechte Spalte säße
+   dadurch tiefer als die linke. */
+.modal .form-grid .form-group + .form-group {
+  margin-top: 0;
+}
 
 /* Input über Hint: untere Ecken eckig damit nahtloser Übergang */
 #reg-email:has(+ .reg-email-hint),
