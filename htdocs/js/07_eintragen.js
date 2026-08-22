@@ -3120,6 +3120,9 @@ async function bulkImportFromRR(url, kat, statusEl) {
     });
   }
   await bulkFillFromImport(allResults, statusEl);
+  // Hinweis-Banner für Disziplinen, die keiner System-Disziplin zugeordnet werden
+  // konnten (z.B. "6,6km" existiert noch nicht) – sonst bleibt das Feld stumm leer
+  bkRenderUnknownDisz(bkCollectUnknownDisz(), kat);
 }
 
 // ── MikaTiming → Bulk ───────────────────────────────────────────────────────
@@ -3282,6 +3285,7 @@ async function bulkImportFromMika(url, kat, statusEl) {
   }
 
   await bulkFillFromImport(rows, statusEl);
+  bkRenderUnknownDisz(bkCollectUnknownDisz(), kat);
 }
 
 // ── Uitslagen → Bulk ────────────────────────────────────────────────────────
@@ -3764,6 +3768,7 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   });
 
   await bulkFillFromImport(bulkRows, statusEl);
+  bkRenderUnknownDisz(bkCollectUnknownDisz(), kat);
 }
 // ── Disziplin aus Streckenname (evenementen.uitslagen.nl) ────────────────────
 // Streckenname enthält Distanz: "halve marathon", "10 kilometer", "5 kilometer", "1 km", "500 m"
@@ -4188,11 +4193,18 @@ async function bulkFillFromImport(rows, statusEl) {
         for (var i = 0; i < diszSel.options.length; i++) {
           if (diszSel.options[i].text.indexOf(row.disziplin) >= 0 ||
               diszSel.options[i].value === row.disziplin) {
-            diszSel.value = diszSel.options[i].value; break;
+            diszSel.value = diszSel.options[i].value; _matched = true; break;
           }
         }
       }
       bkSyncDiszDisplay(tr);
+      // Keine System-Disziplin gefunden (z.B. "6,6km" existiert noch nicht) → Rohtext
+      // trotzdem im Suchfeld anzeigen statt leer zu lassen, damit sichtbar bleibt was
+      // erkannt wurde und die Disziplin bei Bedarf neu angelegt werden kann.
+      if (!_matched && row.disziplin) {
+        var _diszInp = tr.querySelector('.bk-disz-search');
+        if (_diszInp) _diszInp.value = row.disziplin;
+      }
     }
     // Ergebnis
     var resEl = tr.querySelector('.bk-res');

@@ -1,3 +1,7 @@
+## v1495
+- Fix Bulk-Import: unbekannte Disziplinen (existieren noch nicht im System, z.B. „6,6km" bei Cross) erschienen bisher stillschweigend als leeres Feld – ohne Hinweis, dass etwas fehlt. Das „Neu anlegen…"-Banner (bereits für Seltec/PDF-Import vorhanden) wird jetzt auch nach RaceResult-, MikaTiming- und evenementen.uitslagen.nl-Import angezeigt; ein Klick legt die fehlende Disziplin an und füllt alle passenden Zeilen automatisch nach.
+- Zusätzlich: das Disziplin-Suchfeld zeigt den erkannten Rohtext an (statt leer zu bleiben), auch wenn noch keine System-Disziplin zugeordnet ist – macht sichtbar, was der Import erkannt hat.
+
 ## v1494
 - **Bearbeiten-Modal: Die Disziplinkategorie ist jetzt änderbar.** Neues Auswahlfeld „Kategorie"; die Disziplin-Auswahl zeigt nur noch die Disziplinen der gewählten Kategorie und wird beim Wechsel neu aufgebaut. Gespeichert wird die `disziplin_mapping_id`, wodurch die neue Kategorie eindeutig ankommt. Eine Disziplin ohne Mapping bleibt als Eintrag „(ohne Zuordnung)" erhalten und geht nicht verloren.
 - Serverseitig wandert beim Disziplinwechsel die gespeicherte `distanz` mit (aus dem Disziplin-Mapping) – sonst hätte die Pace weiter mit der alten Strecke gerechnet.
