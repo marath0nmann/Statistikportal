@@ -1,4 +1,4 @@
-## v1514
+## v1515
 - Meine Ergebnisse: Die Bestzeiten-Kacheln haben wieder die Schriftgrößen der Vorversion – Disziplinname aus der Klasse `.rek-top-name` statt fest 12px, Bestzeit 13px statt 14px. Gruppierung nach Kategorie und die farbige Bestzeit aus v1513 bleiben.
 
 ## v1514
