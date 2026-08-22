@@ -1,3 +1,6 @@
+## v1498
+- **Fix: „Call to undefined function eigenerAthletId()" beim Speichern im Bearbeiten-Modal.** Die Hilfsfunktion war innerhalb des globalen Routing-`try`-Blocks definiert (Zeile ~7085) und damit erst ab dieser Stelle im Skriptablauf bekannt. Der Ergebnis-PUT-Handler (Zeile ~2920) läuft aber deutlich früher und beendet die Anfrage vorher – die Funktion existierte dort nie. Sie steht jetzt bei den globalen Helferfunktionen ganz oben (echte Top-Level-Deklaration, wird beim Kompilieren registriert). Bearbeiten von Ergebnissen funktioniert wieder.
+
 ## v1497
 - **Ergebnisse-Filter: Das Feld „Athlet" ist jetzt ein multifunktionales Suchfeld.** Gesucht wird gleichzeitig über Athletenname, Veranstaltungsname und -kürzel, Ort (inkl. normalisiertem Ortsnamen aus der Orte-Verwaltung) und Disziplin – z.B. findet „Venlo" alle Ergebnisse dieser Veranstaltung. Gilt für die Ergebnisse-Seite und Admin → Ergebnisse, inklusive der externen Ergebnisse (Filter „Mit externen" / „Nur externe").
 - Die Filter-Dropdowns (Disziplin, AK, Jahr) und die Trefferzahl berücksichtigen die Suche weiterhin korrekt (Orte-Join in Zähl- und Dropdown-Abfragen ergänzt).

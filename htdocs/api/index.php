@@ -236,6 +236,12 @@ function floatOrNull(mixed $v): ?float {
     return ($v !== null && $v !== '') ? (float)$v : null;
 }
 
+/** Athlet-ID des eingeloggten Benutzers (oder null). */
+function eigenerAthletId(int $userId): ?int {
+    $buRow = DB::fetchOne('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$userId]);
+    return $buRow ? intOrNull($buRow['athlet_id']) : null;
+}
+
 // Ort-Aliase: Rohwert (Zeilen/Komma-getrennt oder Array) → bereinigte Liste
 function ortAliaseSplit(mixed $raw): array {
     if ($raw === null || $raw === '') return [];
@@ -7079,12 +7085,6 @@ function eigenesErgebnisVerarbeiten(array $item, int $athId, int $userId, string
          $akp, $mstr, $akpm, $zusatz['startnummer'], $zusatz['pos_gesamt'], $zusatz['pos_geschlecht'],
          $zusatz['schuh'], $zusatz['bemerkungen'], $isExtern ? 1 : 0, $verein !== '' ? $verein : null, $userId]);
     return ['status'=>'gespeichert','ergebnis_id'=>(int)DB::lastInsertId(),'msg'=>'Ergebnis gespeichert.'];
-}
-
-/** Athlet-ID des eingeloggten Benutzers (oder null). */
-function eigenerAthletId(int $userId): ?int {
-    $buRow = DB::fetchOne('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id = ?', [$userId]);
-    return $buRow ? intOrNull($buRow['athlet_id']) : null;
 }
 
     // Eigenes Ergebnis (Athlet trägt für sich selbst ein → Genehmigung)
