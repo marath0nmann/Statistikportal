@@ -301,6 +301,7 @@ async function renderMeineVeranstaltungen() {
         schuh:                 e.schuh || '',
         bemerkungen:           e.bemerkungen || '',
         loeschantrag:          parseInt(e.loeschantrag) > 0 ? 1 : 0,
+        aenderungsantrag:      parseInt(e.aenderungsantrag) > 0 ? 1 : 0,
       });
     }
   }
@@ -787,17 +788,22 @@ function _renderMeineTabelle() {
     ? 'veranstaltung' : (cols[0] && cols[0].key);
 
   var tableRows = rows.map(function(r) {
-    // Zeilen mit offenem Loeschantrag sind gedaempft und tragen einen Hinweis
-    var tip = r.loeschantrag
-      ? 'Löschung beantragt – ein Editor prüft den Antrag.' + (r.bemerkungen ? '\n' + r.bemerkungen : '')
+    // Zeilen mit offenem Antrag sind gedaempft und tragen einen Hinweis
+    var hinweis = r.loeschantrag ? 'Löschung beantragt – ein Editor prüft den Antrag.'
+                : r.aenderungsantrag ? 'Änderung beantragt – ein Editor prüft den Antrag.' : '';
+    var tip = hinweis
+      ? hinweis + (r.bemerkungen ? '\n' + r.bemerkungen : '')
       : r.bemerkungen;
+    var badge = 'font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:help';
     return '<tr' + (tip ? ' title="' + _esc(tip) + '"' : '') +
       (r.loeschantrag ? ' style="opacity:.55"' : '') + '>' +
       cols.map(function(c) {
         var inhalt = cell[c.key] ? cell[c.key](r) : '';
         if (c.key === editSpalte) {
           if (r.loeschantrag) {
-            inhalt += ' <span title="Löschung beantragt – ein Editor prüft den Antrag." style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:help">🗑️ beantragt</span>';
+            inhalt += ' <span title="' + _esc(hinweis) + '" style="' + badge + '">🗑️ beantragt</span>';
+          } else if (r.aenderungsantrag) {
+            inhalt += ' <span title="' + _esc(hinweis) + '" style="' + badge + '">✏️ beantragt</span>';
           }
           inhalt += ' <span class="mv-hover" title="Ergebnis bearbeiten" style="cursor:pointer;font-size:12px" onclick="_openMeineErgEdit(' + r.erg_id + ')">✏️</span>';
         }
@@ -946,6 +952,12 @@ function _openMeineErgEdit(ergId) {
     '<div style="font-size:12px;color:var(--text2);margin:-6px 0 14px">' +
       r.veranst_name + ' &middot; ' + formatDate(r.datum) +
     '</div>' +
+    (r.aenderungsantrag && !r.loeschantrag
+      ? '<div style="font-size:12px;background:var(--surf2);border-radius:8px;padding:8px 12px;margin:-6px 0 14px">' +
+          '&#x270F;&#xFE0F; F&uuml;r dieses Ergebnis liegt bereits ein &Auml;nderungsantrag vor. ' +
+          'Erneutes Speichern aktualisiert diesen Antrag.' +
+        '</div>'
+      : '') +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Disziplin</label>' +
         '<input type="text" id="mee-disz" value="' + r.disziplin.replace(/"/g,'&quot;') + '" list="disz-list"/></div>' +
@@ -1002,11 +1014,10 @@ async function _saveMeineErgEdit(ergId, tblKey) {
   var r = await apiPut((tblKey || 'strasse') + '/' + ergId, body);
   if (r && r.ok) {
     closeModal();
-    if (r.data && r.data.pending) {
-      notify('Änderungsantrag gestellt. Ein Editor wird ihn prüfen.', 'ok');
-    } else {
-      notify('Ergebnis gespeichert.', 'ok');
-    }
+    var d = r.data || {};
+    notify(d.aktualisiert ? 'Änderungsantrag aktualisiert. Ein Editor wird ihn prüfen.'
+         : d.pending      ? 'Änderungsantrag gestellt. Ein Editor wird ihn prüfen.'
+         : 'Ergebnis gespeichert.', 'ok');
     window._meinVeranstRows = null;
     await renderMeineVeranstaltungen();
   } else {

@@ -1,3 +1,9 @@
+## v1493
+- **Bearbeiten und Löschen folgen jetzt derselben Berechtigungsregel.** Beim Ändern eines Ergebnisses zählte bisher nur, wer den Datensatz angelegt hat (`erstellt_von`) – importierte eigene Ergebnisse liefen dadurch in „Keine Berechtigung", obwohl sie löschbar waren. Jetzt zählt wie beim Löschen zusätzlich das eigene Athletenprofil. Fremde Ergebnisse bleiben unverändert gesperrt.
+- Offene Änderungsanträge sind in „Meine Ergebnisse" sichtbar: Die Zeile trägt das Kennzeichen „✏️ beantragt", und das Bearbeiten-Modal weist darauf hin, dass bereits ein Antrag vorliegt.
+- Mehrfaches Speichern erzeugt keine Antragsflut mehr: Ein offener Änderungsantrag zum selben Ergebnis wird mit den neuen Werten fortgeschrieben statt ein zweiter angelegt. Die Meldung lautet dann „Änderungsantrag aktualisiert".
+- Nebenbei: Die Server-Antwort enthielt bei Änderungsanträgen die literalen Zeichen `Änderungsantrag` statt „Änderungsantrag" – die Escapes standen in einfachen Anführungszeichen und wurden nie aufgelöst.
+
 ## v1492
 - Meine Ergebnisse: Die Spalte „StNr" sortiert jetzt numerisch statt alphabetisch – vorher stand „10" vor „2". Startnummern dürfen laut Datenmodell Buchstaben enthalten, deshalb wird numerische Collation verwendet: „9" vor „10", „A2" vor „A12", leere Felder immer am Ende. Die Spalte ist außerdem rechtsbündig wie die übrigen Zahlenspalten.
 

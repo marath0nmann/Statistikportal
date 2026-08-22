@@ -2953,15 +2953,33 @@ if (in_array($res, $ergebnisTabellen)) {
     }
     if ($method === 'PUT' && $id) {
         $user = Auth::requireAthlet();
-        $row = DB::fetchOne("SELECT erstellt_von FROM $tbl WHERE id=?", [$id]);
+        $row = DB::fetchOne("SELECT erstellt_von, athlet_id FROM $tbl WHERE id=?", [$id]);
         if (!$row) jsonErr('Nicht gefunden.', 404);
-        if (!Auth::canEditAll() && $row['erstellt_von'] != $user['id'])
-            jsonErr('Keine Berechtigung.', 403);
+        // Gleiche Regel wie beim Löschen: das eigene Athletenprofil zählt mit,
+        // nicht nur selbst angelegte Datensätze – sonst wären importierte eigene
+        // Ergebnisse löschbar, aber nicht änderbar.
+        $eigenerAthU = eigenerAthletId((int)$user['id']);
+        $darfU = Auth::canEditAll()
+            || $row['erstellt_von'] == $user['id']
+            || ($eigenerAthU && (int)$row['athlet_id'] === (int)$eigenerAthU);
+        if (!$darfU) jsonErr('Keine Berechtigung.', 403);
         // Athlet: Änderungsantrag statt direkter Speicherung
         if (Auth::isAthlet()) {
-            DB::query('INSERT INTO ' . DB::tbl('ergebnis_aenderungen') . ' (ergebnis_id,ergebnis_tbl,typ,neue_werte,beantragt_von) VALUES (?,?,?,?,?)',
+            $aeTblU = DB::tbl('ergebnis_aenderungen');
+            // Offenen Antrag fortschreiben statt einen zweiten anzulegen
+            $offenU = DB::fetchOne(
+                "SELECT id FROM $aeTblU WHERE ergebnis_id=? AND typ='update' AND status='pending'"
+                . ' AND ergebnis_tbl IN (?, ?) LIMIT 1',
+                [$id, $tbl, DB::tbl($tbl)]
+            );
+            if ($offenU) {
+                DB::query("UPDATE $aeTblU SET neue_werte=?, beantragt_von=?, beantragt_am=NOW() WHERE id=?",
+                    [json_encode($body), $user['id'], $offenU['id']]);
+                jsonOk(['pending' => true, 'aktualisiert' => true, 'msg' => 'Änderungsantrag aktualisiert.']);
+            }
+            DB::query("INSERT INTO $aeTblU (ergebnis_id,ergebnis_tbl,typ,neue_werte,beantragt_von) VALUES (?,?,?,?,?)",
                 [$id, $tbl, 'update', json_encode($body), $user['id']]);
-            jsonOk(['pending' => true, 'msg' => '\u00c4nderungsantrag gestellt. Ein Editor wird ihn pr\u00fcfen.']);
+            jsonOk(['pending' => true, 'msg' => 'Änderungsantrag gestellt. Ein Editor wird ihn prüfen.']);
         }
         $felder = []; $params = [];
         if (isset($body['athlet_id']) && Auth::isAdmin()) {
@@ -8536,13 +8554,16 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
                     dk.name AS kategorie_name, dk.tbl_key,
                     (SELECT COUNT(*) FROM $aeTbl ea
                       WHERE ea.ergebnis_id=e.id AND ea.typ='delete' AND ea.status='pending'
-                        AND ea.ergebnis_tbl IN (?, ?)) AS loeschantrag
+                        AND ea.ergebnis_tbl IN (?, ?)) AS loeschantrag,
+                    (SELECT COUNT(*) FROM $aeTbl ea2
+                      WHERE ea2.ergebnis_id=e.id AND ea2.typ='update' AND ea2.status='pending'
+                        AND ea2.ergebnis_tbl IN (?, ?)) AS aenderungsantrag
              FROM $eTbl e
              LEFT JOIN $dmTbl dm ON dm.id=e.disziplin_mapping_id
              LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id
              WHERE e.veranstaltung_id=? AND e.athlet_id=? AND e.geloescht_am IS NULL
              ORDER BY dk.reihenfolge, e.disziplin",
-            [$eTbl, DB::tbl($eTbl), $v['id'], $athletId]
+            [$eTbl, DB::tbl($eTbl), $eTbl, DB::tbl($eTbl), $v['id'], $athletId]
         );
         $v['ergebnisse'] = $ergs;
     }
