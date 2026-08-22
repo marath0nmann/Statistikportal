@@ -7,7 +7,6 @@ async function renderErgebnisse() {
   await loadErgebnisseData();
 }
 var _ergSort = { col: 'datum', dir: 'DESC' };
-var _ergAthletTimer = null;
 
 function _buildMstrFilterHtml() {
   if (!MSTR_LIST || !MSTR_LIST.length) return '';
@@ -37,14 +36,53 @@ function _mstrFilterToggle(id, checked) {
   state.page = 1;
   loadErgebnisseData();
 }
-// Multifunktionale Suche: Athlet, Veranstaltung (Name/Kürzel), Ort, Disziplin
-function _ergSucheFilter(v) {
-  clearTimeout(_ergAthletTimer);
-  _ergAthletTimer = setTimeout(function() {
-    state.filters.suche = v;
-    state.page = 1;
-    loadErgebnisseData();
-  }, 300);
+// Dynamische Filterleiste. Ergebnisse werden serverseitig gefiltert und
+// seitenweise geladen – die Auswahllisten der Filterregeln liefert deshalb die
+// API (Feld `facetten`), berechnet nur fuer die gerade offenen Regelzeilen.
+var ERG_MONATE = ['Januar','Februar','M\u00e4rz','April','Mai','Juni',
+                  'Juli','August','September','Oktober','November','Dezember'];
+
+function _ergFilterInit() {
+  tfInit('erg', {
+    platzhalter: 'Athlet, Veranstaltung, Ort, Disziplin\u2026',
+    entprellung: 300,
+    spalten: [
+      { key: 'jahr',          label: 'Jahr', absteigend: true },
+      { key: 'monat',         label: 'Monat',
+        anzeige: function(w) { return ERG_MONATE[parseInt(w, 10) - 1] || w; } },
+      { key: 'kategorie',     label: 'Kategorie' },
+      { key: 'disziplin',     label: 'Disziplin' },
+      { key: 'ak',            label: 'Altersklasse' },
+      { key: 'athlet',        label: 'Athlet*in' },
+      { key: 'ort',           label: 'Ort' },
+      { key: 'veranstaltung', label: 'Veranstaltung' },
+      { key: 'platz_ak',      label: 'Platz AK' },
+      { key: 'meisterschaft', label: 'Meisterschaft',
+        anzeige: function(w) { return typeof mstrLabel === 'function' ? mstrLabel(w) : w; } },
+      { key: 'verein',        label: 'Verein' }
+    ],
+    // Werteliste kommt aus der letzten API-Antwort
+    facetten: function(key) { return (window._ergFacetten || {})[key] || {}; },
+    onChange: function() { state.page = 1; loadErgebnisseData(); }
+  });
+}
+
+// Filterregeln + Suche als Query-Parameter (f[spalte]=wert)
+function _ergFilterParams() {
+  var p = '';
+  var regeln = tfRegeln('erg');
+  var keys = [];
+  for (var i = 0; i < regeln.length; i++) {
+    if (!regeln[i].key) continue;
+    keys.push(regeln[i].key);
+    if (regeln[i].wert !== '' && regeln[i].wert != null) {
+      p += '&f[' + encodeURIComponent(regeln[i].key) + ']=' + encodeURIComponent(regeln[i].wert);
+    }
+  }
+  if (keys.length) p += '&facetten=' + encodeURIComponent(keys.join(','));
+  var q = tfSuchtext('erg');
+  if (q) p += '&suche=' + encodeURIComponent(q);
+  return p;
 }
 
 function _ergSetSort(col) {
@@ -60,12 +98,14 @@ function _ergSetSort(col) {
 }
 
 async function loadErgebnisseData() {
+  _ergFilterInit();
   var params = 'limit=' + state.limit + '&offset=' + ((state.page - 1) * state.limit);
   params += '&sort=' + _ergSort.col + '&dir=' + _ergSort.dir;
   for (var k in state.filters) {
     if (k === 'meisterschaften') continue; // separat behandelt
     if (state.filters[k]) params += '&' + k + '=' + encodeURIComponent(state.filters[k]);
   }
+  params += _ergFilterParams();
   // Meisterschafts-Checkboxen: kommagetrennte IDs
   var mstrIds = Object.keys(state.filters.meisterschaften || {});
   if (mstrIds.length) params += '&meisterschaft=' + encodeURIComponent(mstrIds.join(','));
@@ -100,23 +140,8 @@ async function loadErgebnisseData() {
       }
     }
   }
-  var disziplinen = r.data.disziplinen || []; var aks = r.data.aks || []; var jahre = r.data.jahre || [];
-  var kategorien = r.data.kategorien || [];
-
-  var diszOptHtml = buildSelectOptions(disziplinen, 'Alle',
-    function(d) { return d.disziplin_mapping_id ? String(d.disziplin_mapping_id) : d.disziplin; },
-    function(d) { return d.disziplin + (d.kategorie_name ? ' (' + d.kategorie_name + ')' : ''); },
-    function(d, v) { return state.filters.disziplin_mapping_id === v || state.filters.disziplin === d.disziplin; });
-  var akOptHtml = buildSelectOptions(aks, 'Alle AK',
-    null, null,
-    function(ak) { return state.filters.ak === ak; });
-  var jahrOptHtml = buildSelectOptions(jahre, 'Alle Jahre',
-    null, null,
-    function(j) { return state.filters.jahr == j; });
-  var katOptHtml = buildSelectOptions(kategorien, 'Alle Kategorien',
-    function(k) { return k.tbl_key; },
-    function(k) { return k.name; },
-    function(k) { return state.filters.kategorie === k.tbl_key; });
+  // Auswahllisten der Filterregeln kommen aus der API
+  window._ergFacetten = r.data.facetten || {};
 
   var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
   var totalPages = Math.ceil(total / state.limit);
@@ -125,12 +150,7 @@ async function loadErgebnisseData() {
   var _ergFoc = _saveFocus();
   document.getElementById('main-content').innerHTML =
     (state.tab === 'admin' && typeof adminSubtabs === 'function' ? adminSubtabs() : '') +
-    '<div class="filter-bar">' +
-      '<div class="fg" style="flex:1 1 260px;min-width:220px"><label>Suche</label><input type="text" id="erg-suche-filter" placeholder="Athlet, Veranstaltung, Ort, Disziplin…" value="' + _esc(state.filters.suche||'') + '" oninput="_ergSucheFilter(this.value)" style="min-width:0;width:100%"/></div>' +
-      '<div class="fg"><label>Kategorie</label><select onchange="setFilter(\'kategorie\',this.value)">' + katOptHtml + '</select></div>' +
-      '<div class="fg"><label>Disziplin</label><select onchange="setFilter(\'disziplin_mapping_id\',this.value)">' + diszOptHtml + '</select></div>' +
-      '<div class="fg"><label>Altersklasse</label><select onchange="setFilter(\'ak\',this.value)">' + akOptHtml + '</select></div>' +
-      '<div class="fg"><label>Jahr</label><select onchange="setFilter(\'jahr\',this.value)">' + jahrOptHtml + '</select></div>' +
+    tfBarHtml('erg', { suchbreite: '1 1 260px', extra:
       _buildMstrFilterHtml() +
       ((_canSeeExtern = currentUser && currentUser.rechte && currentUser.rechte.indexOf('externe_ergebnisse_sehen') >= 0) ?
         '<div class="fg"><label>Externe Ergebnisse</label>' +
@@ -140,8 +160,7 @@ async function loadErgebnisseData() {
             '<option value="nur"' + (state.filters.extern_modus === 'nur' ? ' selected' : '') + '>Nur externe</option>' +
           '</select>' +
         '</div>' : '') +
-      '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">&#x21BA; Reset</button>' +
-    '</div>' +
+      '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">&#x21BA; Reset</button>' }) +
     '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">' + (state.diszFilter || 'Alle Ergebnisse') + '</div><div class="panel-count">' + total + ' Ergebnisse</div></div>' +
       '<div class="table-scroll">' + tableHtml + '</div>' +

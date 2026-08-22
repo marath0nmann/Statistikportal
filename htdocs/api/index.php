@@ -2747,6 +2747,73 @@ if ($res === 'jahres-bestleistungen' && $method === 'GET') {
 
 
 // ============================================================
+// DYNAMISCHE SPALTEN-FILTER (Filterleiste im Frontend)
+// ============================================================
+// Das Frontend schickt seine Filterregeln als f[<spalte>]=<wert>. Hier steht
+// die SQL-Entsprechung jeder filterbaren Spalte; ergFacetten() liefert zu den
+// angeforderten Spalten alle noch erreichbaren Werte samt Trefferzahl, damit
+// die Auswahllisten der Leiste nie ins Leere zeigen.
+function ergFilterSpalten(): array {
+    return [
+        'jahr'          => 'YEAR(v.datum)',
+        'monat'         => "DATE_FORMAT(v.datum, '%m')",
+        'kategorie'     => 'dk.name',
+        'disziplin'     => 'e.disziplin',
+        'ak'            => 'e.altersklasse',
+        'athlet'        => 'a.name_nv',
+        'ort'           => 'COALESCE(o.name, v.ort)',
+        'veranstaltung' => "COALESCE(NULLIF(v.name, ''), v.kuerzel)",
+        'platz_ak'      => 'e.ak_platzierung',
+        'meisterschaft' => 'e.meisterschaft',
+        'verein'        => 'e.verein',
+    ];
+}
+
+/** WHERE-Teile aus f[<spalte>]=<wert>. $ausser laesst einzelne Spalten aus. */
+function ergRegelWhere(array $ausser = []): array {
+    $regeln = $_GET['f'] ?? [];
+    if (!is_array($regeln)) return [[], []];
+    $spalten = ergFilterSpalten();
+    $w = []; $p = [];
+    foreach ($regeln as $key => $wert) {
+        if (in_array($key, $ausser, true)) continue;
+        if (!isset($spalten[$key]) || is_array($wert) || $wert === null || $wert === '') continue;
+        $w[] = $spalten[$key] . ' = ?';
+        $p[] = (string)$wert;
+    }
+    return [$w, $p];
+}
+
+/**
+ * Erreichbare Werte je angeforderter Spalte: { spalte: { wert: anzahl } }.
+ * Berechnet wird nur, was das Frontend in facetten=… anfordert – das sind die
+ * gerade offenen Filterzeilen, in aller Regel eine Handvoll.
+ * $vonSql: "FROM … JOIN …" inkl. aller Joins der Spaltenausdruecke.
+ * $whereFn(array $ausser): [whereTeile, params] – die eigene Spalte muss dabei
+ * ausgelassen werden, sonst bliebe je Liste nur der bereits gewaehlte Wert.
+ */
+function ergFacetten(string $vonSql, callable $whereFn): array {
+    $keys = array_values(array_filter(array_map('trim', explode(',', (string)($_GET['facetten'] ?? '')))));
+    if (!$keys) return [];
+    $spalten = ergFilterSpalten();
+    $out = [];
+    foreach (array_unique($keys) as $k) {
+        if (!isset($spalten[$k])) continue;
+        [$w, $p] = $whereFn([$k]);
+        $expr = $spalten[$k];
+        try {
+            $rows = DB::fetchAll(
+                "SELECT $expr AS wert, COUNT(*) AS anz $vonSql WHERE " . implode(' AND ', $w) .
+                " GROUP BY wert HAVING wert IS NOT NULL AND wert <> '' ORDER BY wert LIMIT 400", $p);
+        } catch (\Exception $e) { $rows = []; }
+        $m = [];
+        foreach ($rows as $r) $m[(string)$r['wert']] = (int)$r['anz'];
+        $out[$k] = $m;
+    }
+    return $out;
+}
+
+// ============================================================
 // ERGEBNISSE
 // ============================================================
 $ergebnisTabellen = ['strasse','sprint','mittelstrecke','sprungwurf','bahn','cross','halle'];
@@ -2802,6 +2869,10 @@ if (in_array($res, $ergebnisTabellen)) {
                     }
                 }
             }
+            // Regeln der dynamischen Filterleiste
+            [$rw, $rp] = ergRegelWhere($exclude);
+            $w = array_merge($w, $rw);
+            $p = array_merge($p, $rp);
             return [$w, $p];
         };
         list($where, $params) = $buildWhere();
@@ -2852,14 +2923,18 @@ if (in_array($res, $ergebnisTabellen)) {
                 JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
                 JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
                 LEFT JOIN " . DB::tbl('orte') . " o ON o.id=v.ort_id
+                LEFT JOIN " . DB::tbl('disziplin_mapping') . " dm ON dm.id=e.disziplin_mapping_id
+                LEFT JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.id=dm.kategorie_id
                 WHERE " . implode(' AND ', $where), $params)['c'];
 
         // Distinct-Werte für Filter-Dropdowns: $buildWhere von oben wiederverwenden
-        $jn = "JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id LEFT JOIN " . DB::tbl('orte') . " o ON o.id=v.ort_id";
+        $jn = "JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id LEFT JOIN " . DB::tbl('orte') . " o ON o.id=v.ort_id"
+            . " LEFT JOIN " . DB::tbl('disziplin_mapping') . " dm ON dm.id=e.disziplin_mapping_id"
+            . " LEFT JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.id=dm.kategorie_id";
 
         // Disziplin-Dropdown: alle Filter aktiv außer disziplin; wenn Kategorie aktiv, schränkt sie ein
         list($wd,$pd) = $buildWhere(['disziplin']);
-        $diszRaw = DB::fetchAll("SELECT DISTINCT e.disziplin, e.disziplin_mapping_id, dk.name AS kategorie_name FROM $tbl e $jn LEFT JOIN " . DB::tbl('disziplin_mapping') . " dm ON dm.id=e.disziplin_mapping_id LEFT JOIN " . DB::tbl('disziplin_kategorien') . " dk ON dk.id=dm.kategorie_id WHERE ".implode(' AND ',$wd), $pd);
+        $diszRaw = DB::fetchAll("SELECT DISTINCT e.disziplin, e.disziplin_mapping_id, dk.name AS kategorie_name FROM $tbl e $jn WHERE ".implode(' AND ',$wd), $pd);
         sortDisziplinen($diszRaw);
         $disziplinen = $diszRaw;
 
@@ -2877,7 +2952,15 @@ if (in_array($res, $ergebnisTabellen)) {
             $kategorien = DB::fetchAll("SELECT k.tbl_key, k.name FROM " . DB::tbl('disziplin_kategorien') . " k WHERE EXISTS (SELECT 1 FROM " . DB::tbl('disziplin_mapping') . " m JOIN $tbl e ON e.disziplin_mapping_id=m.id WHERE m.kategorie_id=k.id) ORDER BY k.reihenfolge, k.name");
         } catch (Exception $ex) {}
 
-        jsonOk(compact('rows','total','disziplinen','aks','jahre','kategorien'));
+        // Auswahllisten der dynamischen Filterleiste (nur die angeforderten Spalten)
+        $vonFacet = "FROM $tbl e $jn";
+        $facetten = ergFacetten($vonFacet, function(array $ausser) use ($buildWhere) {
+            list($fw, $fp) = $buildWhere($ausser);
+            array_unshift($fw, 'e.geloescht_am IS NULL');
+            return [$fw, $fp];
+        });
+
+        jsonOk(compact('rows','total','disziplinen','aks','jahre','kategorien','facetten'));
     }
 
     if ($method === 'POST') {
@@ -6883,6 +6966,10 @@ if ($res === 'externe-ergebnisse' && $method === 'GET' && !$id) {
         [$sqlSuX, $parSuX] = sucheWhere(['a.name_nv', 'e.disziplin', 'v.kuerzel', 'v.name', 'v.ort', 'o.name'], (string)$_GET['suche']);
         if ($sqlSuX) { $where[] = $sqlSuX; $params = array_merge($params, $parSuX); }
     }
+    // Regeln der dynamischen Filterleiste (Basis ohne Regeln fuer die Facetten merken)
+    $whereBaseX = $where; $paramsBaseX = $params;
+    [$rwX, $rpX] = ergRegelWhere();
+    if ($rwX) { $where = array_merge($where, $rwX); $params = array_merge($params, $rpX); }
     $sortMap = ['datum'=>'v.datum','athlet'=>'a.name_nv','ak'=>'e.altersklasse','disziplin'=>'e.disziplin','resultat'=>'e.resultat'];
     $sortKey = $_GET['sort'] ?? 'datum'; $sortDir = strtoupper($_GET['dir'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
     $sortCol = $sortMap[$sortKey] ?? 'v.datum';
@@ -6912,11 +6999,19 @@ if ($res === 'externe-ergebnisse' && $method === 'GET' && !$id) {
             WHERE a.geloescht_am IS NULL AND $wStr
             ORDER BY $sortCol $sortDir, e.id DESC LIMIT $limit OFFSET $offset";
     $rows  = DB::fetchAll($sql, $params);
-    $total = (int)DB::fetchOne("SELECT COUNT(*) c FROM $eTblX e JOIN $aTbl a ON a.id=e.athlet_id LEFT JOIN $vTbl v ON v.id=e.veranstaltung_id LEFT JOIN $oTbl o ON o.id=v.ort_id WHERE a.geloescht_am IS NULL AND $wStr", $params)['c'];
+    $total = (int)DB::fetchOne("SELECT COUNT(*) c FROM $eTblX e JOIN $aTbl a ON a.id=e.athlet_id LEFT JOIN $vTbl v ON v.id=e.veranstaltung_id LEFT JOIN $oTbl o ON o.id=v.ort_id LEFT JOIN $dmTbl dm ON dm.id=e.disziplin_mapping_id LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id WHERE a.geloescht_am IS NULL AND $wStr", $params)['c'];
     $disziplinen = DB::fetchAll("SELECT DISTINCT e.disziplin, e.disziplin_mapping_id, dk.name AS kategorie_name FROM $eTblX e LEFT JOIN $dmTbl dm ON dm.id=e.disziplin_mapping_id LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id WHERE e.extern=1 AND e.geloescht_am IS NULL ORDER BY e.disziplin");
     $aks   = array_column(DB::fetchAll("SELECT DISTINCT e.altersklasse FROM $eTblX e WHERE e.extern=1 AND e.geloescht_am IS NULL AND e.altersklasse IS NOT NULL ORDER BY e.altersklasse"), 'altersklasse');
     $jahre = array_column(DB::fetchAll("SELECT DISTINCT YEAR(v.datum) j FROM $eTblX e LEFT JOIN $vTbl v ON v.id=e.veranstaltung_id WHERE e.extern=1 AND e.geloescht_am IS NULL AND v.datum IS NOT NULL ORDER BY j DESC"), 'j');
-    jsonOk(compact('rows','total','disziplinen','aks','jahre') + ['kategorien'=>[]]);
+    // Auswahllisten der dynamischen Filterleiste
+    $vonFacetX = "FROM $eTblX e JOIN $aTbl a ON a.id=e.athlet_id LEFT JOIN $vTbl v ON v.id=e.veranstaltung_id"
+        . " LEFT JOIN $oTbl o ON o.id=v.ort_id LEFT JOIN $dmTbl dm ON dm.id=e.disziplin_mapping_id"
+        . " LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id";
+    $facetten = ergFacetten($vonFacetX, function(array $ausser) use ($whereBaseX, $paramsBaseX) {
+        [$fw, $fp] = ergRegelWhere($ausser);
+        return [array_merge(['a.geloescht_am IS NULL'], $whereBaseX, $fw), array_merge($paramsBaseX, $fp)];
+    });
+    jsonOk(compact('rows','total','disziplinen','aks','jahre','facetten') + ['kategorien'=>[]]);
 }
 
 // externe-ergebnisse DELETE (Soft-Delete)

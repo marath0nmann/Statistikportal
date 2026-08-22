@@ -61,9 +61,9 @@ function normalizeUmlauts(s) {
     .replace(/þ/g,'th').replace(/Þ/g,'Th');
 }
 
-function setSubTab(t) { state.subTab = t; state.page = 1; state.filters = {}; state.diszFilter = null; syncHash(); renderPage(); }
+function setSubTab(t) { state.subTab = t; state.page = 1; state.filters = {}; state.diszFilter = null; tfLeeren('erg'); syncHash(); renderPage(); }
 function setDiszFilter(d) { state.diszFilter = d; state.page = 1; loadErgebnisseData(); }
-function setDiszTabFilter(cat, disz) { state.subTab = cat; state.diszFilter = disz; state.page = 1; state.filters = {}; syncHash(); loadErgebnisseData(); }
+function setDiszTabFilter(cat, disz) { state.subTab = cat; state.diszFilter = disz; state.page = 1; state.filters = {}; tfLeeren('erg'); syncHash(); loadErgebnisseData(); }
 
 function setFilter(k, v) {
   state.filters[k] = v; state.page = 1;
@@ -72,7 +72,7 @@ function setFilter(k, v) {
   else if (state.tab === 'rekorde') renderRekorde();
 }
 
-function clearFilters() { state.filters = {}; state.page = 1; loadErgebnisseData(); }
+function clearFilters() { state.filters = {}; state.page = 1; tfLeeren('erg'); loadErgebnisseData(); }
 
 function buildPagination(page, totalPages, total, callbackFn) {
   if (totalPages <= 1) return '';

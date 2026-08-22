@@ -56,6 +56,13 @@ function tfAktiv(id) {
   return tfRegeln(id).some(function(g) { return g && g.key && g.wert !== '' && g.wert != null; });
 }
 
+// Zuruecksetzen ohne onChange – fuer Aufrufer, die ohnehin gleich neu laden
+function tfLeeren(id) {
+  var st = tfState(id);
+  st.suche = '';
+  st.regeln = [];
+}
+
 function tfReset(id) {
   var st = tfState(id);
   st.suche = '';
@@ -164,14 +171,17 @@ function tfRegelnHtml(id) {
       });
       var sp = spalten.find(function(c) { return c.key === g.key; });
       if (sp && sp.absteigend) werte.reverse(); // z.B. Jahr/Datum: neueste zuerst
+      // Spalten mit codiertem Wert (z.B. Meisterschafts-ID, Monatsnummer) zeigen
+      // ueber `anzeige` einen lesbaren Text, gefiltert wird weiter mit dem Wert.
+      var txt = function(w) { return sp && sp.anzeige ? sp.anzeige(w) : w; };
       wertSel = '<select onchange="tfRegelWert(\'' + id + '\', ' + i + ', this.value)" style="min-width:120px">' +
         '<option value="">Alle</option>' +
         werte.map(function(w) {
           return '<option value="' + _tfEsc(w) + '"' + (g.wert === w ? ' selected' : '') + '>' +
-                 _tfEsc(w) + ' (' + zaehler[w] + ')</option>';
+                 _tfEsc(txt(w)) + ' (' + zaehler[w] + ')</option>';
         }).join('') +
         (g.wert && !zaehler[g.wert]
-          ? '<option value="' + _tfEsc(g.wert) + '" selected>' + _tfEsc(g.wert) + ' (0)</option>' : '') +
+          ? '<option value="' + _tfEsc(g.wert) + '" selected>' + _tfEsc(txt(g.wert)) + ' (0)</option>' : '') +
       '</select>';
     }
 
