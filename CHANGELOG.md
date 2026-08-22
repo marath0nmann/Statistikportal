@@ -1,3 +1,8 @@
+## v1513
+- **Meine Ergebnisse: Die Bestzeiten-Kacheln übernehmen die Optik des Dashboard-Widgets „Persönliche Bestleistungen".** Sie sind jetzt nach Kategorie gruppiert – je Gruppe eine kleine Überschrift („STRASSE", „BAHN") – und die Bestzeit ist farbig hervorgehoben: Vereinsergebnisse in der Hauptfarbe, extern erzielte Bestleistungen neutral.
+- Die Kategorien erscheinen in der Reihenfolge der Disziplinverwaltung (`disziplin_kategorien.reihenfolge`) statt alphabetisch – dieselbe Sortierung wie im Dashboard. Das gilt auch für die Kategorie-Chips darüber.
+- Die Kacheln bleiben Filter: Klick filtert die Liste auf die Disziplin, die Trefferzahl steht weiterhin hinter dem Namen.
+
 ## v1512
 - **Veranstaltungen → Regelmäßige Veranstaltungen** hat jetzt ebenfalls die dynamische Filterleiste: Suche über Name, Kürzel und Ort, dazu Filter nach Ort, Land, Monat und Jahr der letzten Austragung, erster Austragung, Anzahl Austragungen sowie Status (laufend/ruht).
 - **Strg+F (bzw. ⌘F) springt jetzt direkt ins Suchfeld der Seite** statt die Browsersuche zu öffnen – die findet bei seitenweise geladenen Tabellen ohnehin nur, was gerade sichtbar ist. Das Kürzel steht als Hinweis an der Beschriftung. Gibt es auf der Seite kein Suchfeld, bleibt die Browsersuche wie gewohnt; bei geöffnetem Dialog zählt dessen eigenes Suchfeld.

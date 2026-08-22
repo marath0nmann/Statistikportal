@@ -632,7 +632,10 @@ function _mvKopfHtml(allRows) {
     if (!katMap[k]) { katMap[k] = 0; katOrder.push(k); }
     katMap[k]++;
   });
-  katOrder.sort();
+  katOrder.sort(function(a, b) {
+    var ra = _mvKatReihenfolge(a), rb = _mvKatReihenfolge(b);
+    return ra !== rb ? ra - rb : a.localeCompare(b);
+  });
   var katChips = katOrder.map(function(k) {
     var aktiv = _mvRegelWert('kategorie') === k;
     return '<button class="rek-cat-btn' + (aktiv ? ' active' : '') + '"' +
@@ -667,23 +670,54 @@ function _mvKopfHtml(allRows) {
       return d === diszFilter || diszMap[d].some(function(r) { return r.ist_favorit; });
     });
   }
-  var diszKacheln = diszOrder.map(function(d) {
-    var liste = diszMap[d];
-    var fmt   = liste[0].fmt || 'min';
-    var best  = _apBestOf(liste, fmt);
-    var bestStr = best ? _apFmtRes(best, fmt) : '';
-    var aktiv = diszFilter === d;
-    return '<button class="rek-top-btn' + (aktiv ? ' active' : '') + '"' +
-      ' style="min-width:80px;padding:8px 14px;margin:0 6px 6px 0"' +
-      ' onclick="_mvFilterDisziplin(\'' + _esc(d).replace(/'/g, "\\'") + '\')">' +
-      '<span class="rek-top-name">' + _esc(d) + ' <span style="opacity:.7">(' + liste.length + ')</span></span>' +
-      (bestStr ? '<span class="rek-top-cnt" style="font-family:Barlow Condensed,sans-serif;font-size:13px;font-weight:700;margin-top:2px">' + bestStr + '</span>' : '') +
-    '</button>';
+  // Kacheln nach Kategorie gruppieren – gleiche Optik wie das Dashboard-Widget
+  // „Persönliche Bestleistungen": Überschrift je Kategorie, Bestzeit farbig.
+  var gruppen = {}, gruppenOrder = [];
+  diszOrder.forEach(function(d) {
+    var kat = (diszMap[d][0].kategorie || 'Sonstige');
+    if (!gruppen[kat]) { gruppen[kat] = []; gruppenOrder.push(kat); }
+    gruppen[kat].push(d);
+  });
+  gruppenOrder.sort(function(a, b) {
+    var ra = _mvKatReihenfolge(a), rb = _mvKatReihenfolge(b);
+    return ra !== rb ? ra - rb : a.localeCompare(b);
+  });
+
+  var diszKacheln = gruppenOrder.map(function(kat) {
+    var btns = gruppen[kat].map(function(d) {
+      var liste = diszMap[d];
+      var fmt   = liste[0].fmt || 'min';
+      var best  = _apBestOf(liste, fmt);
+      var bestStr = best ? _apFmtRes(best, fmt) : '';
+      // Wie im Dashboard: eigene Vereinsergebnisse farbig, externe neutral
+      var farbe = (best && best.extern) ? 'color:var(--text)' : 'color:var(--primary)';
+      var aktiv = diszFilter === d;
+      return '<button class="rek-top-btn' + (aktiv ? ' active' : '') + '"' +
+        ' style="min-width:70px;padding:7px 12px"' +
+        ' onclick="_mvFilterDisziplin(\'' + _esc(d).replace(/'/g, "\\'") + '\')">' +
+        '<span class="rek-top-name" style="font-size:12px">' + _esc(d) +
+          ' <span style="opacity:.7">(' + liste.length + ')</span></span>' +
+        (bestStr ? '<span class="rek-top-cnt" style="font-family:Barlow Condensed,sans-serif;' +
+          'font-size:14px;font-weight:700;margin-top:1px;' + farbe + '">' + bestStr + '</span>' : '') +
+      '</button>';
+    }).join('');
+    return '<div style="flex:0 1 auto;min-width:180px">' +
+      '<div style="padding:0 0 4px;font-size:10px;font-weight:700;color:var(--text2);' +
+        'text-transform:uppercase;letter-spacing:.6px">' + _esc(kat) + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px">' + btns + '</div>' +
+    '</div>';
   }).join('');
 
   return kopf +
     (katChips ? '<div style="margin-bottom:10px">' + katChips + '</div>' : '') +
-    (diszKacheln ? '<div style="margin-bottom:14px;display:flex;flex-wrap:wrap">' + diszKacheln + '</div>' : '');
+    (diszKacheln ? '<div style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start">' + diszKacheln + '</div>' : '');
+}
+
+// Sortierwert einer Kategorie – dieselbe Reihenfolge wie in der
+// Disziplinverwaltung (disziplin_kategorien.reihenfolge)
+function _mvKatReihenfolge(katName) {
+  var d = ((state && state.disziplinen) || []).find(function(x) { return x.kategorie === katName; });
+  return d && d.reihenfolge != null ? Number(d.reihenfolge) : 99;
 }
 
 // Titel und Bestleistungen wie im Athletenprofil (Tooltip mit der Aufschluesselung)
