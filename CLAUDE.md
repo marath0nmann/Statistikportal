@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1512
+## Aktuelle Version: v1514
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`

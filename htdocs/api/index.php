@@ -399,6 +399,10 @@ try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('veranstaltung_serien') 
     erstellt_am DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS serie_id INT NULL"); } catch (\Exception $e) {}
+// v1514: fester Veranstaltungsort einer Serie (leer => Ort der letzten Austragung)
+try { DB::query("ALTER TABLE " . DB::tbl('veranstaltung_serien') . " ADD COLUMN IF NOT EXISTS ort_id INT NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('veranstaltung_serien') . " ADD COLUMN IF NOT EXISTS lat DECIMAL(9,6) NULL"); } catch (\Exception $e) {}
+try { DB::query("ALTER TABLE " . DB::tbl('veranstaltung_serien') . " ADD COLUMN IF NOT EXISTS lon DECIMAL(9,6) NULL"); } catch (\Exception $e) {}
 // v1250: Orte-Tabelle (zentrale Ortsverwaltung mit Geo-Anreicherung via Nominatim/OSM)
 try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('orte') . " (
     id           INT AUTO_INCREMENT PRIMARY KEY,
@@ -6045,13 +6049,46 @@ if ($res === 'orte' && $method === 'GET' && $id === 'nominatim') {
 // VERANSTALTUNG-SERIEN (v942)
 // ============================================================
 
+// Veranstaltungsort einer Serie aufloesen (v1514):
+// fest hinterlegter Ort (s.ort_id) schlaegt den Fallback „Ort der letzten
+// Austragung"; eigene Koordinaten (s.lat/s.lon) schlagen die des Ortes.
+// Erwartet die Spalten ort_fix_* (JOIN auf orte ueber s.ort_id) sowie
+// serie_lat/serie_lon und liefert die Anzeigefelder ort_letzte/ort_land_code/
+// ort_lat/ort_lon plus ort_fest (1 = explizit festgelegt).
+function serieOrtAufloesen(array $s): array {
+    $festName = $s['ort_fix_name'] ?? null;
+    $lat = $s['serie_lat'] ?? null;
+    $lon = $s['serie_lon'] ?? null;
+    $eigeneKoord = ($lat !== null && $lat !== '' && $lon !== null && $lon !== '');
+    $s['ort_fest'] = 0;
+    if ($festName !== null && $festName !== '') {
+        $s['ort_letzte']    = $festName;
+        $s['ort_land_code'] = $s['ort_fix_land'] ?? null;
+        $s['ort_lat']       = $eigeneKoord ? $lat : ($s['ort_fix_lat'] ?? null);
+        $s['ort_lon']       = $eigeneKoord ? $lon : ($s['ort_fix_lon'] ?? null);
+        $s['ort_fest']      = 1;
+    } elseif ($eigeneKoord) {
+        $s['ort_lat']  = $lat;
+        $s['ort_lon']  = $lon;
+        $s['ort_fest'] = 1;
+    }
+    $s['lat'] = $lat;
+    $s['lon'] = $lon;
+    unset($s['ort_fix_name'], $s['ort_fix_land'], $s['ort_fix_lat'], $s['ort_fix_lon'],
+          $s['serie_lat'], $s['serie_lon']);
+    return $s;
+}
+
 // GET veranstaltung-serien – Liste aller Serien
 if ($res === 'veranstaltung-serien' && $method === 'GET' && !$id) {
     $sTbl = DB::tbl('veranstaltung_serien');
     $vTbl = DB::tbl('veranstaltungen');
     $oTbl = DB::tbl('orte');
     $serien = DB::fetchAll(
-        "SELECT s.id, s.name, s.kuerzel,
+        "SELECT s.id, s.name, s.kuerzel, s.ort_id,
+                s.lat AS serie_lat, s.lon AS serie_lon,
+                so.name AS ort_fix_name, so.land_code AS ort_fix_land,
+                so.lat AS ort_fix_lat, so.lon AS ort_fix_lon,
                 COUNT(v.id) AS anz_veranstaltungen,
                 MIN(YEAR(v.datum)) AS jahr_von,
                 MAX(YEAR(v.datum)) AS jahr_bis,
@@ -6077,9 +6114,12 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && !$id) {
                    ORDER BY v3.datum DESC LIMIT 1) AS name_letzte
          FROM $sTbl s
          LEFT JOIN $vTbl v ON v.serie_id = s.id AND v.geloescht_am IS NULL
-         GROUP BY s.id, s.name, s.kuerzel
+         LEFT JOIN $oTbl so ON so.id = s.ort_id
+         GROUP BY s.id, s.name, s.kuerzel, s.ort_id, s.lat, s.lon,
+                  so.name, so.land_code, so.lat, so.lon
          ORDER BY s.name"
     );
+    $serien = array_map('serieOrtAufloesen', $serien);
     jsonOk($serien);
 }
 
@@ -6286,7 +6326,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
         jsonOk($disz_rows);
     }
 
-    // Ort der letzten Veranstaltung
+    // Ort: fest hinterlegt (v1514) oder Fallback „Ort der letzten Veranstaltung"
     $oTbl2 = DB::tbl('orte');
     $ortInfo = DB::fetchOne(
         "SELECT COALESCE(o.name, v.ort) AS ort_letzte, o.land_code AS ort_land_code,
@@ -6303,6 +6343,16 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
         $serie['ort_lat']       = $ortInfo['ort_lat'];
         $serie['ort_lon']       = $ortInfo['ort_lon'];
     }
+    $festOrt = !empty($serie['ort_id'])
+        ? DB::fetchOne("SELECT name, land_code, lat, lon FROM $oTbl2 WHERE id=?", [(int)$serie['ort_id']])
+        : null;
+    $serie['serie_lat']    = $serie['lat'] ?? null;
+    $serie['serie_lon']    = $serie['lon'] ?? null;
+    $serie['ort_fix_name'] = $festOrt['name']      ?? null;
+    $serie['ort_fix_land'] = $festOrt['land_code'] ?? null;
+    $serie['ort_fix_lat']  = $festOrt['lat']       ?? null;
+    $serie['ort_fix_lon']  = $festOrt['lon']       ?? null;
+    $serie = serieOrtAufloesen($serie);
 
     // Standard: Serien-Info + Veranstaltungen nach Jahr
     $veranst = DB::fetchAll(
@@ -6383,6 +6433,16 @@ if ($res === 'veranstaltung-serien' && $method === 'PUT' && $id) {
         $autoKuerzel = strtoupper(preg_replace('/[^A-Z0-9]+/i', '-', sanitize($body['name'])));
         $autoKuerzel = trim(substr(trim($autoKuerzel, '-'), 0, 30));
         if ($autoKuerzel) { $felder[] = 'kuerzel=?'; $params[] = $autoKuerzel; }
+    }
+    // Fester Veranstaltungsort (v1514) – leer = Fallback auf letzte Austragung
+    if (array_key_exists('ort_id', $body)) {
+        $felder[] = 'ort_id=?'; $params[] = !empty($body['ort_id']) ? (int)$body['ort_id'] : null;
+    }
+    foreach (['lat', 'lon'] as $koord) {
+        if (!array_key_exists($koord, $body)) continue;
+        $wert = trim((string)($body[$koord] ?? ''));
+        $felder[] = "$koord=?";
+        $params[] = ($wert !== '' && is_numeric($wert)) ? (float)$wert : null;
     }
     if (!$felder) jsonErr('Keine Änderungen.');
     DB::updateById($sTbl, $felder, $params, $id);
@@ -6897,7 +6957,10 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     $sTbl2  = DB::tbl('veranstaltung_serien');
     $oTbl3  = DB::tbl('orte');
     $serien = DB::fetchAll(
-        "SELECT s.id, s.name, s.kuerzel,
+        "SELECT s.id, s.name, s.kuerzel, s.ort_id,
+                s.lat AS serie_lat, s.lon AS serie_lon,
+                so.name AS ort_fix_name, so.land_code AS ort_fix_land,
+                so.lat AS ort_fix_lat, so.lon AS ort_fix_lon,
                 (SELECT COUNT(*) FROM $eTbl ei
                  JOIN $vTbl2 vi ON vi.id=ei.veranstaltung_id
                  WHERE vi.serie_id=s.id AND vi.geloescht_am IS NULL AND vi.genehmigt=1 AND ei.geloescht_am IS NULL)
@@ -6921,11 +6984,14 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
                    ORDER BY v3.datum DESC LIMIT 1) AS ort_land_code
          FROM $sTbl2 s
          LEFT JOIN $vTbl2 v ON v.serie_id=s.id AND v.geloescht_am IS NULL AND v.genehmigt=1
+         LEFT JOIN $oTbl3 so ON so.id = s.ort_id
          $serienWhere
-         GROUP BY s.id, s.name, s.kuerzel
+         GROUP BY s.id, s.name, s.kuerzel, s.ort_id, s.lat, s.lon,
+                  so.name, so.land_code, so.lat, so.lon
          ORDER BY anz_ergebnisse DESC",
         $serienParams
     );
+    $serien = array_map('serieOrtAufloesen', $serien);
     jsonOk(compact('veranst','total','serien','facetten'));
 }
 

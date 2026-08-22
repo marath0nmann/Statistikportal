@@ -1543,7 +1543,10 @@ async function renderSerieDetail(id) {
   html += '</div>';
   if (serie.ort_letzte) {
     var ortFlag = serie.ort_land_code ? (flagEmoji(serie.ort_land_code) + ' ') : '';
-    html += '<div style="font-size:14px;margin-top:6px">&#x1F4CD; ' + ortFlag + serie.ort_letzte + '</div>';
+    var ortTitle = Number(serie.ort_fest)
+      ? 'Fest hinterlegter Veranstaltungsort'
+      : 'Ort der letzten Austragung';
+    html += '<div style="font-size:14px;margin-top:6px" title="' + ortTitle + '">&#x1F4CD; ' + ortFlag + serie.ort_letzte + '</div>';
   }
   html += '</div>';
   if (canEdit) {
@@ -1987,13 +1990,42 @@ async function saveSerieCreate() {
   switchVeranstView('serien');
 }
 
-function showSerieEditModal(id, curName) {
+async function showSerieEditModal(id, curName) {
+  await ortePickerLoad();
+  // Aktuelle Ort-Festlegung aus der (leichtgewichtigen) Serien-Liste holen
+  var rs = await apiGet('veranstaltung-serien');
+  var serie = ((rs && rs.data) || []).filter(function(x) { return String(x.id) === String(id); })[0] || {};
+  var ortId = serie.ort_id || '';
+  var ortText = '';
+  for (var i = 0; i < (_orteCache || []).length; i++) {
+    if (_orteCache[i].id == ortId) {
+      ortText = _orteCache[i].name + (_orteCache[i].land_code ? ' (' + _orteCache[i].land_code + ')' : '');
+      break;
+    }
+  }
+  window._srKoordFallback = { lat: serie.ort_lat, lon: serie.ort_lon };
+
   showModal(
-    modalH2('&#x270F;&#xFE0F; Serie bearbeiten') +
+    modalH2('&#x270F;&#xFE0F; Regelm&auml;&szlig;ige Veranstaltung bearbeiten') +
     '<div class="form-grid">' +
       '<div class="form-group full"><label>Name</label>' +
         '<input type="text" id="sr-name" value="' + (curName || '').replace(/"/g,'&quot;') + '"/></div>' +
-
+      '<div class="form-group full"><label>Veranstaltungsort</label>' +
+        ortePickerHtml({ inputId: 'sr-ort', hiddenId: 'sr-ort-id', ortId: ortId, text: ortText }) +
+        '<div style="font-size:12px;color:var(--text2);margin-top:4px">' +
+          'Leer lassen &rarr; Ort der letzten Austragung wird verwendet.' +
+        '</div></div>' +
+      '<div class="form-group full"><label>Genauer Ort auf der Karte (optional)</label>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+          '<input type="text" id="ort-lat" value="' + (serie.lat != null ? serie.lat : '') + '" placeholder="Breitengrad" oninput="_ortLatLonInput()" style="width:140px"/>' +
+          '<input type="text" id="ort-lon" value="' + (serie.lon != null ? serie.lon : '') + '" placeholder="L&auml;ngengrad" oninput="_ortLatLonInput()" style="width:140px"/>' +
+          '<button type="button" class="btn btn-ghost btn-sm" onclick="_srKarteToggle()" id="sr-karte-btn">&#x1F5FA;&#xFE0F; Karte</button>' +
+          '<button type="button" class="btn btn-ghost btn-sm" onclick="_srKoordLeeren()">Zur&uuml;cksetzen</button>' +
+        '</div>' +
+        '<div id="ort-map" style="display:none;height:260px;border-radius:8px;margin-top:10px;border:1px solid var(--border);isolation:isolate"></div>' +
+        '<div style="font-size:12px;color:var(--text2);margin-top:4px">' +
+          'Leer lassen &rarr; Koordinaten des gew&auml;hlten Ortes werden verwendet.' +
+        '</div></div>' +
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -2002,9 +2034,50 @@ function showSerieEditModal(id, curName) {
   );
 }
 
+// Karte im Serien-Modal ein-/ausblenden (nutzt den Kartenteil der Ortsverwaltung)
+function _srKarteToggle() {
+  var mapEl = document.getElementById('ort-map');
+  if (!mapEl) return;
+  if (mapEl.style.display !== 'none') { mapEl.style.display = 'none'; return; }
+  mapEl.style.display = 'block';
+  // Startpunkt: eigene Koordinaten, sonst der gewaehlte/abgeleitete Ort
+  var lat = parseFloat(document.getElementById('ort-lat').value);
+  var lon = parseFloat(document.getElementById('ort-lon').value);
+  if (isNaN(lat) || isNaN(lon)) {
+    var ortId = (document.getElementById('sr-ort-id') || {}).value;
+    var o = null;
+    for (var i = 0; i < (_orteCache || []).length; i++) if (_orteCache[i].id == ortId) { o = _orteCache[i]; break; }
+    var fb = window._srKoordFallback || {};
+    lat = parseFloat(o && o.lat != null ? o.lat : fb.lat);
+    lon = parseFloat(o && o.lon != null ? o.lon : fb.lon);
+  }
+  _ortInitMap(isNaN(lat) ? null : lat, isNaN(lon) ? null : lon);
+}
+
+function _srKoordLeeren() {
+  var latEl = document.getElementById('ort-lat');
+  var lonEl = document.getElementById('ort-lon');
+  if (latEl) latEl.value = '';
+  if (lonEl) lonEl.value = '';
+  if (window._ortMap && window._ortMapMarker) {
+    try { window._ortMap.removeLayer(window._ortMapMarker); } catch (e) {}
+    window._ortMapMarker = null;
+  }
+}
+
 async function saveSerie(id) {
   var name    = (document.getElementById('sr-name')    || {}).value || '';
-  var r = await apiPut('veranstaltung-serien/' + id, { name: name.trim() });
+  var ortInp  = document.getElementById('sr-ort');
+  var ortIdEl = document.getElementById('sr-ort-id');
+  // Leeres Textfeld hebt die Ortsfestlegung auf
+  var ortId   = (ortInp && !ortInp.value.trim()) ? null
+              : (ortIdEl && ortIdEl.value ? parseInt(ortIdEl.value, 10) : null);
+  var lat     = ((document.getElementById('ort-lat') || {}).value || '').trim();
+  var lon     = ((document.getElementById('ort-lon') || {}).value || '').trim();
+  if ((lat === '') !== (lon === '')) { notify('Bitte Breiten- und L\u00e4ngengrad zusammen angeben.', 'err'); return; }
+  var r = await apiPut('veranstaltung-serien/' + id, {
+    name: name.trim(), ort_id: ortId, lat: lat, lon: lon
+  });
   if (r && r.ok) {
     closeModal(); notify('Gespeichert.', 'ok');
     if (state.veranstView === 'serie-detail') renderSerieDetail(id);

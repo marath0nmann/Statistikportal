@@ -1,3 +1,8 @@
+## v1514
+- **Regelmäßige Veranstaltungen: Der Veranstaltungsort lässt sich jetzt fest hinterlegen.** Im Bearbeiten-Dialog wird ein Ort aus der Ortsverwaltung (Admin → Orte) ausgewählt; bleibt das Feld leer, gilt wie bisher der Ort der letzten Austragung.
+- Optional lässt sich zusätzlich der genaue Punkt auf der Karte setzen (Klick oder Marker ziehen, alternativ Koordinaten eintippen). Ohne eigene Koordinaten werden die des gewählten Ortes verwendet.
+- Der festgelegte Ort erscheint in der Serien-Tabelle, in der Filterleiste (Ort/Land) und auf der Detailseite samt Karte.
+
 ## v1513
 - **Meine Ergebnisse: Die Bestzeiten-Kacheln übernehmen die Optik des Dashboard-Widgets „Persönliche Bestleistungen".** Sie sind jetzt nach Kategorie gruppiert – je Gruppe eine kleine Überschrift („STRASSE", „BAHN") – und die Bestzeit ist farbig hervorgehoben: Vereinsergebnisse in der Hauptfarbe, extern erzielte Bestleistungen neutral.
 - Die Kategorien erscheinen in der Reihenfolge der Disziplinverwaltung (`disziplin_kategorien.reihenfolge`) statt alphabetisch – dieselbe Sortierung wie im Dashboard. Das gilt auch für die Kategorie-Chips darüber.
