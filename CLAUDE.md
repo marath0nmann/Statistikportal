@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1002
+## Aktuelle Version: v1511
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -17,6 +17,7 @@ htdocs/               → Web-Root
     07_eintragen.js   → Bulk-Eintragen, alle Importer
     08_admin.js       → Admin-Panel
     09_utils.js       → Hilfsfunktionen (fmtTime, showModal, ...)
+    09b_tabellenfilter.js → Gemeinsame Filterleiste aller Tabellen (Suche + Spalte/Wert-Regeln)
     10_veranstaltungen.js → Regelmäßige Veranstaltungen + Zeitstrahl
     13_uitslagen.js   → uitslagen.nl + evenementen Importer
   api/index.php       → REST-API (alle Endpunkte, ~5000 Zeilen)
@@ -78,6 +79,26 @@ var r = await apiDel('externe-ergebnisse/7');
 - `Auth::requireEditor()` → gibt `$user` zurück oder 403
 - `Auth::requireRecht('recht_name')` → gibt `$user` zurück oder 403
 - Kein `Auth::getUserRechte()` (existiert nicht!)
+
+**Tabellen-Filterleiste (`09b_tabellenfilter.js`):**
+Jede Tabelle mit Suchfeld nutzt dieselbe Leiste: Freitextsuche + beliebig viele
+Regeln „Spalte + Wert"; die Auswahllisten zeigen nur erreichbare Werte mit Trefferzahl.
+```js
+tfInit('orte', {
+  platzhalter: 'Name, Region…',
+  rows:    function() { return _orteCache; },      // Grunddaten (clientseitig)
+  suche:   function(o) { return [o.name, o.land]; },
+  spalten: [{ key: 'land', label: 'Land', wert: function(o) { return o.land || ''; } }],
+  onChange: function() { /* Tabellenteil neu zeichnen */ }
+});
+// HTML einmalig einsetzen: tfBarHtml('orte')   → danach nur tfRefresh('orte')
+// Filtern: tfFilter('orte', rows)
+```
+Optionen: `absteigend` (Jahr/Datum), `anzeige` (codierte Werte lesbar machen),
+`wildcard: true` (`*`/`?` in der Suche), `entprellung: 300` (serverseitige Seiten).
+Serverseitig paginierte Tabellen (Ergebnisse, Veranstaltungsliste) setzen statt `rows`
+ein `facetten: function(key)` und schicken ihre Regeln als `f[spalte]=wert` plus
+`facetten=spalte1,spalte2` an die API (`ergRegelWhere()` / `ergFacetten()` in `api/index.php`).
 
 **showModal:**
 ```js

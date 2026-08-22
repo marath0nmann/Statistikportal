@@ -1,3 +1,6 @@
+## v1511
+- Dokumentation: `CLAUDE.md` beschreibt das gemeinsame Filtermodul und die API-Seite (`f[spalte]=wert`, `facetten=…`).
+
 ## v1510
 - **„Meine Ergebnisse" nutzt jetzt selbst das gemeinsame Filtermodul.** Die Filterleiste dieser Seite war die Vorlage für alle anderen; ihre Logik lag bisher doppelt vor. Verhalten und Bedienung bleiben unverändert (inklusive Kategorie-Chips und Disziplin-Kacheln als Filter), es entfallen rund 90 Zeilen doppelter Code.
 
