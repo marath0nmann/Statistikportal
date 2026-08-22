@@ -1,3 +1,6 @@
+## v1504
+- Meine Ergebnisse: Die grüne „PB"-Pille steht jetzt links vom Ergebnis statt rechts. Da die Spalte rechtsbündig ist, bleiben die Ergebniszahlen dadurch sauber untereinander.
+
 ## v1503
 - **Meine Ergebnisse: persönliche Bestleistungen sind jetzt markiert** – für die favorisierten Disziplinen (Admin → Disziplinen, Sternchen). Jedes Ergebnis, das zum Zeitpunkt des Wettkampfs eine Verbesserung war, trägt hinter dem Ergebnis eine grüne „PB"-Pille; das erste Ergebnis einer Disziplin zählt als Debüt-PB.
 - Die aktuell gültige Bestleistung jeder Disziplin ist zusätzlich als grün hinterlegte Zeile hervorgehoben (auch im Dunkelmodus und beim Überfahren mit der Maus).

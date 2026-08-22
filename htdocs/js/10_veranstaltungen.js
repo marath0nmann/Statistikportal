@@ -870,9 +870,11 @@ function _renderMeineTabelle() {
     pos_mstr:     function(r) { return r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : ''; },
     resultat:     function(r) {
       var res = r.fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, r.fmt === 's' ? 's' : (r.fmt === 'min_h' ? 'min_h' : undefined));
-      return res + (r.ist_pb ? ' <span class="badge badge-pb" title="' +
+      // Pille links: die Ergebniszelle ist rechtsbündig, so bleiben die Ziffern
+      // untereinander ausgerichtet.
+      return (r.ist_pb ? '<span class="badge badge-pb" title="' +
         (r.ist_pb_aktuell ? 'Aktuelle pers&ouml;nliche Bestleistung' : 'War bei diesem Wettkampf eine neue pers&ouml;nliche Bestleistung') +
-        '">PB</span>' : '');
+        '">PB</span> ' : '') + res;
     },
     pace:         function(r) { return (r.pace && r.pace !== '00:00') ? fmtTime(r.pace, 'min/km') : ''; },
     schuh:        function(r) { return _mvText(r.schuh); },
