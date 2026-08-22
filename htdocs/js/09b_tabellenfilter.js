@@ -37,6 +37,12 @@ function tfState(id) {
   return _tfState[id];
 }
 
+// Anzeige des Tastenkuerzels in der Beschriftung – auf dem Mac ist es Cmd+F
+function tfTastenkuerzel() {
+  var mac = /Mac|iPhone|iPad|iPod/.test((navigator.platform || navigator.userAgent || ''));
+  return mac ? '\u2318F' : 'Strg+F';
+}
+
 function _tfEsc(s) {
   return (s == null ? '' : String(s))
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -132,7 +138,8 @@ function tfBarHtml(id, opts) {
   var cfg = _tfCfg[id] || {};
   var st  = tfState(id);
   return '<div class="filter-bar" id="tf-' + id + '-bar" style="margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">' +
-      '<div class="fg" style="flex:' + (opts.suchbreite || '2') + ';min-width:160px"><label>Suche</label>' +
+      '<div class="fg" style="flex:' + (opts.suchbreite || '2') + ';min-width:160px">' +
+        '<label>Suche <span style="opacity:.45;font-weight:400">' + tfTastenkuerzel() + '</span></label>' +
         '<input type="search" id="tf-' + id + '-suche" placeholder="' + _tfEsc(cfg.platzhalter || 'Suchen…') + '"' +
         ' value="' + _tfEsc(st.suche || '') + '" oninput="tfSuche(\'' + id + '\', this.value)" style="width:100%;min-width:0"/></div>' +
       '<div id="tf-' + id + '-regeln" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">' + tfRegelnHtml(id) + '</div>' +
@@ -270,3 +277,36 @@ function tfRegelWertVon(id, key) {
   var g = tfRegeln(id).find(function(x) { return x.key === key; });
   return g ? g.wert : '';
 }
+
+// ── Strg+F / Cmd+F springt ins Suchfeld der Seite ─────────
+// Die Browsersuche findet nur, was gerade im DOM steht – bei seitenweise
+// geladenen oder gefilterten Tabellen also regelmaessig das Falsche. Ist auf
+// der Seite ein Suchfeld sichtbar, uebernimmt es deshalb den Tastendruck;
+// gibt es keins, bleibt die Browsersuche unveraendert.
+function tfSuchfeld() {
+  // Bei offenem Modal zaehlt nur dessen eigenes Suchfeld – sonst wuerde der
+  // Fokus in ein Feld hinter der Modalflaeche springen.
+  var modal = document.querySelector('#modal-container .modal');
+  var wurzel = modal || document;
+  // Bewusst eng gefasst: die Filterleisten (type="search") und die wenigen
+  // Listenfilter mit sprechender ID – nicht die Autocomplete-Felder in
+  // Formularen ("Athlet suchen…"), die keine Seitensuche sind.
+  var felder = wurzel.querySelectorAll('input[type="search"], input[id*="such"], input[id$="-filter"]');
+  for (var i = 0; i < felder.length; i++) {
+    var f = felder[i];
+    // offsetParent === null → ausgeblendet; solche Felder ueberspringen
+    if (f.offsetParent !== null && !f.disabled && !f.readOnly) return f;
+  }
+  return null;
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'f' && e.key !== 'F') return;
+  if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+  var feld = tfSuchfeld();
+  if (!feld) return;                       // nichts zu fokussieren → Browsersuche
+  if (document.activeElement === feld) return; // schon drin → Browsersuche zulassen
+  e.preventDefault();
+  feld.focus();
+  feld.select();
+});

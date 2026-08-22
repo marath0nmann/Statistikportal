@@ -1,3 +1,9 @@
+## v1512
+- **Veranstaltungen → Regelmäßige Veranstaltungen** hat jetzt ebenfalls die dynamische Filterleiste: Suche über Name, Kürzel und Ort, dazu Filter nach Ort, Land, Monat und Jahr der letzten Austragung, erster Austragung, Anzahl Austragungen sowie Status (laufend/ruht).
+- **Strg+F (bzw. ⌘F) springt jetzt direkt ins Suchfeld der Seite** statt die Browsersuche zu öffnen – die findet bei seitenweise geladenen Tabellen ohnehin nur, was gerade sichtbar ist. Das Kürzel steht als Hinweis an der Beschriftung. Gibt es auf der Seite kein Suchfeld, bleibt die Browsersuche wie gewohnt; bei geöffnetem Dialog zählt dessen eigenes Suchfeld.
+- Fix: Das Sortieren der Serien-Tabelle per Klick auf die Spaltenköpfe hatte ins Leere gegriffen (der angesprochene Container existierte nicht mehr) und funktioniert wieder.
+- Fix: Nach dem Umbenennen einer regelmäßigen Veranstaltung wurde die veraltete Kachel-Ansicht ohne Unter-Tabs gerendert; jetzt wird die reguläre Seite neu geladen. Die tote Kachel-Ansicht ist entfallen.
+
 ## v1511
 - Dokumentation: `CLAUDE.md` beschreibt das gemeinsame Filtermodul und die API-Seite (`f[spalte]=wert`, `facetten=…`).
 

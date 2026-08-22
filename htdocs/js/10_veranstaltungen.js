@@ -250,10 +250,60 @@ async function _renderVeranstSerien() {
     viewEl.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)">Fehler: ' + (r && r.fehler || 'Unbekannt') + '</div>';
     return;
   }
-  var serien = r.data.serien || [];
-  window._lastSerienList = serien;
-  viewEl.innerHTML = serien.length ? _serienTabelle(serien)
-    : '<div class="empty"><div class="empty-icon">🔄</div><div class="empty-text">Noch keine regelmäßigen Veranstaltungen angelegt.</div></div>';
+  window._lastSerienList = r.data.serien || [];
+  if (!_serienGrundmenge().length) {
+    viewEl.innerHTML = '<div class="empty"><div class="empty-icon">🔄</div><div class="empty-text">Noch keine regelmäßigen Veranstaltungen angelegt.</div></div>';
+    return;
+  }
+  _serienFilterInit();
+  viewEl.innerHTML = tfBarHtml('serien', { suchbreite: '1 1 240px' }) +
+                     '<div id="serien-box">' + _serienBoxHtml() + '</div>';
+}
+
+// Grundmenge der Serien-Tabelle: nur Serien mit mindestens einer Austragung –
+// Basis fuer Filterung und fuer die Werteauswahl der Filterleiste.
+function _serienGrundmenge() {
+  return (window._lastSerienList || []).filter(function(s) { return Number(s.anz_austragungen) > 0; });
+}
+
+function _serienBoxHtml() {
+  var gefiltert = tfFilter('serien', _serienGrundmenge());
+  return gefiltert.length ? _serienTabelle(gefiltert)
+    : '<div class="empty" style="padding:20px"><div class="empty-text">Keine regelm&auml;&szlig;ige Veranstaltung f&uuml;r diesen Filter.</div></div>';
+}
+
+var SERIEN_MONATE = ['Januar','Februar','M\u00e4rz','April','Mai','Juni',
+                     'Juli','August','September','Oktober','November','Dezember'];
+
+function _serienFilterInit() {
+  var jetzt = new Date().getFullYear();
+  tfInit('serien', {
+    platzhalter: 'Name, K\u00fcrzel, Ort\u2026',
+    rows: _serienGrundmenge,
+    suche: function(s) { return [s.name, s.kuerzel, s.ort_letzte]; },
+    spalten: [
+      { key: 'ort',   label: 'Ort',  wert: function(s) { return s.ort_letzte || ''; } },
+      { key: 'land',  label: 'Land', wert: function(s) { return s.ort_land_code || ''; },
+        anzeige: function(w) { return (flagEmoji(w) ? flagEmoji(w) + ' ' : '') + w; } },
+      { key: 'monat', label: 'Monat', wert: function(s) {
+          return s.datum_letzte ? s.datum_letzte.slice(5, 7) : ''; },
+        anzeige: function(w) { return SERIEN_MONATE[parseInt(w, 10) - 1] || w; } },
+      { key: 'letzte', label: 'Letzte Austragung', absteigend: true, wert: function(s) {
+          return s.datum_letzte ? String(s.datum_letzte).slice(0, 4) : ''; } },
+      { key: 'seit', label: 'Erste Austragung', absteigend: true, wert: function(s) {
+          return s.jahr_von ? String(s.jahr_von) : ''; } },
+      { key: 'austragungen', label: 'Austragungen', absteigend: true, wert: function(s) {
+          return String(Number(s.anz_austragungen) || 0); } },
+      { key: 'status', label: 'Status', wert: function(s) {
+          // „Laufend" = im aktuellen oder vergangenen Jahr ausgetragen
+          var j = s.datum_letzte ? parseInt(String(s.datum_letzte).slice(0, 4), 10) : 0;
+          return j >= jetzt - 1 ? 'Laufend' : 'Ruht'; } }
+    ],
+    onChange: function() {
+      var box = document.getElementById('serien-box');
+      if (box) box.innerHTML = _serienBoxHtml();
+    }
+  });
 }
 
 // ── MEINE ERGEBNISSE (eigener Hauptmenüpunkt) ──────────────
@@ -1392,65 +1442,11 @@ function _serienTabelle(serien) {
 function _sortSerien(col) {
   var cur = state.serienSort || { col: 'mmdd', dir: 'asc' };
   state.serienSort = { col: col, dir: cur.col === col && cur.dir === 'asc' ? 'desc' : 'asc' };
-  var serienEl = document.getElementById('veranst-serien');
-  if (serienEl && window._lastSerienList) {
-    serienEl.innerHTML = _serienTabelle(window._lastSerienList);
-  }
+  var box = document.getElementById('serien-box');
+  if (box) box.innerHTML = _serienBoxHtml();
 }
 
 // ── SERIEN-LISTE ───────────────────────────────────────────
-async function renderSerienListe() {
-  var el = document.getElementById('main-content');
-  el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
-  var r = await apiGet('veranstaltung-serien');
-  if (!r || !r.ok) {
-    el.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)">Fehler: ' + (r && r.fehler ? r.fehler : 'Unbekannt') + '</div>';
-    return;
-  }
-  var serien = r.data || [];
-  var canEdit = currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor');
-
-  var html = '';
-  if (canEdit) {
-    html += '<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="showSerieCreateModal()">&#x2795; Neue regelmäßige Veranstaltung</button></div>';
-  }
-
-  if (!serien.length) {
-    html += '<div class="empty"><div class="empty-icon">\uD83D\uDD04</div>' +
-      '<div class="empty-text">Noch keine regelmäßigen Veranstaltungen angelegt.<br><small style="color:var(--text2)">Lege eine an und ordne wiederkehrende Veranstaltungen (z.B. jährliche Läufe) zu.</small></div></div>';
-    el.innerHTML = html;
-    return;
-  }
-
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">';
-  for (var i = 0; i < serien.length; i++) {
-    var s = serien[i];
-    var jahrRange = s.jahr_von
-      ? (String(s.jahr_von) === String(s.jahr_bis) ? s.jahr_von : s.jahr_von + '&ndash;' + s.jahr_bis)
-      : '&ndash;';
-    html +=
-      '<div class="panel" style="cursor:pointer;transition:box-shadow .15s" onclick="openSerieDetail(' + s.id + ')" onmouseover="this.style.boxShadow=\'0 4px 18px rgba(0,0,0,.13)\'" onmouseout="this.style.boxShadow=\'\'">' +
-        '<div class="panel-header" style="padding-bottom:8px">' +
-          '<div>' +
-            '<div class="panel-title" style="font-size:16px">' + s.name + '</div>' +
-      
-          '</div>' +
-          (canEdit ?
-            '<div style="display:flex;gap:6px" onclick="event.stopPropagation()">' +
-              '<button class="btn btn-ghost btn-sm" onclick="showSerieEditModal(' + s.id + ',\'' + s.name.replace(/'/g,"\\'") + '\')">&#x270F;&#xFE0F;</button>' +
-              '<button class="btn btn-danger btn-sm" onclick="deleteSerieConfirm(' + s.id + ',\'' + s.name.replace(/'/g,"\\'") + '\')">&times;</button>' +
-            '</div>' : '') +
-        '</div>' +
-        '<div style="display:flex;gap:20px;font-size:13px;color:var(--text2);padding:0 0 4px">' +
-          '<span>\uD83C\uDFC6 ' + s.anz_veranstaltungen + ' Austragung' + (s.anz_veranstaltungen != 1 ? 'en' : '') + '</span>' +
-          '<span>\uD83D\uDCC5 ' + jahrRange + '</span>' +
-        '</div>' +
-      '</div>';
-  }
-  html += '</div>';
-  el.innerHTML = html;
-}
-
 function openSerieDetail(id) {
   state.veranstView = 'serie-detail';
   state.serieId = id;
@@ -1978,7 +1974,7 @@ async function saveSerie(id) {
   if (r && r.ok) {
     closeModal(); notify('Gespeichert.', 'ok');
     if (state.veranstView === 'serie-detail') renderSerieDetail(id);
-    else renderSerienListe();
+    else renderVeranstaltungen();
   } else notify((r && r.fehler) || 'Fehler', 'err');
 }
 
