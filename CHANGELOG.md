@@ -1,3 +1,8 @@
+## v1503
+- **Meine Ergebnisse: persönliche Bestleistungen sind jetzt markiert** – für die favorisierten Disziplinen (Admin → Disziplinen, Sternchen). Jedes Ergebnis, das zum Zeitpunkt des Wettkampfs eine Verbesserung war, trägt hinter dem Ergebnis eine grüne „PB"-Pille; das erste Ergebnis einer Disziplin zählt als Debüt-PB.
+- Die aktuell gültige Bestleistung jeder Disziplin ist zusätzlich als grün hinterlegte Zeile hervorgehoben (auch im Dunkelmodus und beim Überfahren mit der Maus).
+- Gezählt wird je Disziplin-Zuordnung, ersatzweise Kategorie + Disziplinname – anders als bei „#km" gibt es hier keine reine Kategoriezählung, da die Strecken einer Kategorie nicht vergleichbar sind. Bei Weiten und Höhen gilt der größere Wert als besser, bei Zeiten der kleinere; ein exakt gleiches Ergebnis ist keine neue PB.
+
 ## v1502
 - **Fix: In Modal-Formularen saß die rechte Spalte 12px tiefer als die linke.** Ursache war die Regel `.modal .form-group + .form-group { margin-top: 12px }`, gedacht für untereinander gestapelte Felder (Passwort-Wiederholung). Im zweispaltigen `.form-grid` trifft sie jedoch jede Gruppe außer der ersten – also auch die rechte Spalte, die dadurch nach unten rutschte und die Zeile aufblähte. Im Raster ist der Abstand jetzt zurückgenommen, dort regelt ihn `gap`.
 - Das betraf nicht nur „Ergebnis bearbeiten", sondern jedes Modal mit `form-grid` – etwa das Modal für externe Ergebnisse und die Admin-Dialoge.

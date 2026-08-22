@@ -232,6 +232,16 @@ body.page-wide main { max-width: none; }
   display: inline-block; vertical-align: bottom; max-width: 100%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* Aktuell gültige persönliche Bestleistung: grün hinterlegte Zeile.
+   Der Hintergrund sitzt auf den Zellen, sonst überdeckt ihn die Hover-Regel. */
+tr.mv-pb-aktiv td       { background: rgba(26,138,58,.10); }
+tr.mv-pb-aktiv:hover td { background: rgba(26,138,58,.18); }
+[data-theme="dark"] tr.mv-pb-aktiv td       { background: rgba(26,138,58,.20); }
+[data-theme="dark"] tr.mv-pb-aktiv:hover td { background: rgba(26,138,58,.30); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) tr.mv-pb-aktiv td       { background: rgba(26,138,58,.20); }
+  :root:not([data-theme="light"]) tr.mv-pb-aktiv:hover td { background: rgba(26,138,58,.30); }
+}
 /* Aktionssymbole in "Meine Ergebnisse": nur beim Überfahren der Zeile sichtbar.
    Platz halten sie trotzdem, damit die Zeile beim Hover nicht springt. */
 .mv-hover { visibility: hidden; }

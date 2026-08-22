@@ -361,9 +361,45 @@ async function renderMeineVeranstaltungen() {
     r.wk_nr_disz = diszZaehler[k];
   });
 
+  // ── Persönliche Bestleistungen (nur favorisierte Disziplinen) ──
+  // Chronologisch je Disziplin: jede echte Verbesserung ist eine PB, das erste
+  // Ergebnis einer Disziplin zählt als Debüt-PB. Wer am Ende die Bestenliste
+  // anführt, ist zusätzlich die aktuell gültige Bestleistung. Anders als bei
+  // "#km" zählt hier immer Kategorie + Disziplin – Strecken einer Kategorie
+  // sind untereinander nicht vergleichbar.
+  var pbBest = {}, pbHalter = {};
+  chrono.forEach(function(r) {
+    r.ist_pb = 0; r.ist_pb_aktuell = 0;
+    if (!r.ist_favorit) return;
+    var wert = _mvErgebnisZahl(r);
+    if (wert == null) return;
+    var k = r.disziplin_mapping_id ? 'm' + r.disziplin_mapping_id
+          : 'd' + (r.kategorie || '') + '|' + (r.disziplin || '');
+    var hochBesser = r.fmt === 'm'; // Weiten/Höhen: mehr ist besser
+    var best = pbBest[k];
+    if (best === undefined || (hochBesser ? wert > best : wert < best)) {
+      pbBest[k] = wert; pbHalter[k] = r; r.ist_pb = 1;
+    }
+  });
+  Object.keys(pbHalter).forEach(function(k) { pbHalter[k].ist_pb_aktuell = 1; });
+
   window._meinVeranstRows = allRows;
   if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: { suche: '', jahr: '', disziplin: '' } };
   _renderMeineTabelle();
+}
+
+// Vergleichbare Zahl eines Ergebnisses: Sekunden bei Zeiten, Meter bei Weiten.
+// resultat_num kommt aus der Datenbank; fehlt es (Altbestand), wird der Text
+// gelesen – "1:23:45", "23:45" oder "8,45".
+function _mvErgebnisZahl(r) {
+  if (r.resultat_num != null && !isNaN(r.resultat_num)) return r.resultat_num;
+  var txt = String(r.resultat || '').trim();
+  if (!txt) return null;
+  var t = txt.split(':');
+  if (t.length === 3) return (+t[0]) * 3600 + (+t[1]) * 60 + parseFloat(String(t[2]).replace(',', '.'));
+  if (t.length === 2) return (+t[0]) * 60 + parseFloat(String(t[1]).replace(',', '.'));
+  var z = parseFloat(txt.replace(',', '.'));
+  return isNaN(z) ? null : z;
 }
 
 // Vereinszuordnung eines Ergebnisses – einzige gueltige Regel in der Anwendung:
@@ -832,7 +868,12 @@ function _renderMeineTabelle() {
     pos_ges:      function(r) { return r.pos_gesamt || ''; },
     meisterschaft: function(r) { return r.meisterschaft ? mstrBadge(r.meisterschaft) : ''; },
     pos_mstr:     function(r) { return r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : ''; },
-    resultat:     function(r) { return r.fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, r.fmt === 's' ? 's' : (r.fmt === 'min_h' ? 'min_h' : undefined)); },
+    resultat:     function(r) {
+      var res = r.fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, r.fmt === 's' ? 's' : (r.fmt === 'min_h' ? 'min_h' : undefined));
+      return res + (r.ist_pb ? ' <span class="badge badge-pb" title="' +
+        (r.ist_pb_aktuell ? 'Aktuelle pers&ouml;nliche Bestleistung' : 'War bei diesem Wettkampf eine neue pers&ouml;nliche Bestleistung') +
+        '">PB</span>' : '');
+    },
     pace:         function(r) { return (r.pace && r.pace !== '00:00') ? fmtTime(r.pace, 'min/km') : ''; },
     schuh:        function(r) { return _mvText(r.schuh); },
     verein:       function(r) { return _mvText(_meinVereinText(r, ownClub)); },
@@ -864,6 +905,7 @@ function _renderMeineTabelle() {
       : r.bemerkungen;
     var badge = 'font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:help';
     return '<tr' + (tip ? ' title="' + _mvText(tip) + '"' : '') +
+      (r.ist_pb_aktuell ? ' class="mv-pb-aktiv"' : '') +
       (r.loeschantrag ? ' style="opacity:.55"' : '') + '>' +
       cols.map(function(c) {
         var inhalt = cell[c.key] ? cell[c.key](r) : '';
