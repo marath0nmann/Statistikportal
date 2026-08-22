@@ -384,6 +384,95 @@ function _meinVereinText(r, ownClub) {
 // steht in der Tabelle wörtlich &quot; statt eines Anführungszeichens.
 function _mvText(v) { return _esc(_eeDecode(v)); }
 
+// ── Dynamische Filter ──────────────────────────────────────
+// Gefiltert wird über Regeln [{ key, wert }] statt über feste Felder. `key` ist
+// ein Spaltenschlüssel aus MV_SPALTEN (plus 'jahr', das keine eigene Spalte
+// hat, als Filter aber der naheliegendste Einstieg ist).
+function _mvFilterSpalten() {
+  var liste = [{ key: 'jahr', label: 'Jahr' }];
+  MV_SPALTEN.forEach(function(c) {
+    if (c.key === 'wk_nr' || c.key === 'wk_nr_disz') return; // laufende Nummern
+    liste.push({ key: c.key, label: c.label });
+  });
+  return liste;
+}
+
+// Klartextwert einer Zeile für eine Filterspalte – identisch für Anzeige der
+// Auswahlliste und für den Vergleich beim Filtern.
+function _mvWert(r, key, ownClub) {
+  switch (key) {
+    case 'jahr':          return (r.datum || '').slice(0, 4);
+    case 'datum':         return r.datum || '';
+    case 'veranstaltung': return _eeDecode(r.veranst_name);
+    case 'ort':           return _eeDecode(r.ort);
+    case 'kategorie':     return _eeDecode(r.kategorie) || 'Sonstige';
+    case 'disziplin':     return _eeDecode(r.disziplin);
+    case 'startnummer':   return _eeDecode(r.startnummer);
+    case 'ak':            return _eeDecode(r.altersklasse);
+    case 'pos_ak':        return r.ak_platzierung ? String(r.ak_platzierung) : '';
+    case 'pos_mw':        return r.pos_geschlecht ? String(r.pos_geschlecht) : '';
+    case 'pos_ges':       return r.pos_gesamt ? String(r.pos_gesamt) : '';
+    case 'meisterschaft': return _mvMstrLabel(r.meisterschaft);
+    case 'pos_mstr':      return r.ak_platz_meisterschaft ? String(r.ak_platz_meisterschaft) : '';
+    case 'resultat':      return _eeDecode(r.resultat);
+    case 'pace':          return (r.pace && r.pace !== '00:00') ? r.pace : '';
+    case 'schuh':         return _eeDecode(r.schuh);
+    case 'verein':        return _meinVereinText(r, ownClub);
+    case 'bemerkungen':   return _eeDecode(r.bemerkungen);
+    default:              return '';
+  }
+}
+
+// Meisterschaft ist als ID gespeichert – im Filter zählt der lesbare Name
+function _mvMstrLabel(id) {
+  if (!id) return '';
+  var m = (window._mstrList || []).find(function(x) { return String(x.id) === String(id); });
+  return m ? m.label : String(id);
+}
+
+function _mvRegeln() {
+  if (!state.meine) return [];
+  if (!state.meine.filter) state.meine.filter = {};
+  if (!Array.isArray(state.meine.filter.regeln)) state.meine.filter.regeln = [];
+  return state.meine.filter.regeln;
+}
+
+// Trifft eine Zeile alle Regeln? `ausser` blendet eine Regel aus – so enthält
+// die Auswahlliste einer Spalte immer alle Werte, die mit den *übrigen*
+// Filtern noch erreichbar sind.
+function _mvTrifftRegeln(r, ownClub, ausser) {
+  var regeln = _mvRegeln();
+  for (var i = 0; i < regeln.length; i++) {
+    if (i === ausser) continue;
+    var g = regeln[i];
+    if (!g || !g.key || g.wert === '' || g.wert == null) continue;
+    if (_mvWert(r, g.key, ownClub) !== g.wert) return false;
+  }
+  return true;
+}
+
+function _mvTrifftSuche(r, suche) {
+  if (!suche) return true;
+  var q = suche.toLowerCase();
+  return _eeDecode(r.veranst_name).toLowerCase().indexOf(q) >= 0
+      || _eeDecode(r.disziplin).toLowerCase().indexOf(q) >= 0
+      || _eeDecode(r.ort).toLowerCase().indexOf(q) >= 0;
+}
+
+// Regel setzen/entfernen – auch aus dem Kopf (Kategorie-Chips, Disziplin-Kacheln)
+function _mvSetzeRegel(key, wert) {
+  var regeln = _mvRegeln();
+  var i = regeln.findIndex(function(g) { return g.key === key; });
+  if (wert === '' || wert == null) { if (i >= 0) regeln.splice(i, 1); }
+  else if (i >= 0) regeln[i].wert = wert;
+  else regeln.push({ key: key, wert: wert });
+}
+
+function _mvRegelWert(key) {
+  var g = _mvRegeln().find(function(x) { return x.key === key; });
+  return g ? g.wert : '';
+}
+
 // ── Profilkopf (wie im Athletenprofil) ─────────────────────
 // Die Kategorie-Chips und Disziplin-Kacheln sind zugleich Filter fuer die
 // Gesamtliste: ein Klick setzt den Filter, ein erneuter Klick hebt ihn auf.
@@ -435,7 +524,7 @@ function _mvKopfHtml(allRows) {
   });
   katOrder.sort();
   var katChips = katOrder.map(function(k) {
-    var aktiv = sf.kategorie === k;
+    var aktiv = _mvRegelWert('kategorie') === k;
     return '<button class="rek-cat-btn' + (aktiv ? ' active' : '') + '"' +
       ' style="font-size:13px;padding:7px 16px;margin:0 6px 6px 0"' +
       ' onclick="_mvFilterKategorie(\'' + _esc(k).replace(/'/g, "\\'") + '\')">' +
@@ -443,7 +532,8 @@ function _mvKopfHtml(allRows) {
   }).join('');
 
   // ── Disziplin-Kacheln (mit Bestleistung), passend zur gewaehlten Kategorie ──
-  var basis = sf.kategorie ? allRows.filter(function(r) { return (r.kategorie || 'Sonstige') === sf.kategorie; }) : allRows;
+  var katFilter = _mvRegelWert('kategorie');
+  var basis = katFilter ? allRows.filter(function(r) { return (r.kategorie || 'Sonstige') === katFilter; }) : allRows;
   var diszMap = {}, diszOrder = [];
   basis.forEach(function(r) {
     var d = r.disziplin || '?';
@@ -458,12 +548,13 @@ function _mvKopfHtml(allRows) {
   // Ohne Kategorieauswahl nur die favorisierten Disziplinen zeigen; ist eine
   // Kategorie gewaehlt, alle Disziplinen dieser Kategorie. Die aktuell
   // gefilterte Disziplin bleibt immer sichtbar, damit sie abwaehlbar ist.
-  var nurFavoriten = !sf.kategorie && diszOrder.some(function(d) {
+  var diszFilter = _mvRegelWert('disziplin');
+  var nurFavoriten = !katFilter && diszOrder.some(function(d) {
     return diszMap[d].some(function(r) { return r.ist_favorit; });
   });
   if (nurFavoriten) {
     diszOrder = diszOrder.filter(function(d) {
-      return d === sf.disziplin || diszMap[d].some(function(r) { return r.ist_favorit; });
+      return d === diszFilter || diszMap[d].some(function(r) { return r.ist_favorit; });
     });
   }
   var diszKacheln = diszOrder.map(function(d) {
@@ -471,7 +562,7 @@ function _mvKopfHtml(allRows) {
     var fmt   = liste[0].fmt || 'min';
     var best  = _apBestOf(liste, fmt);
     var bestStr = best ? _apFmtRes(best, fmt) : '';
-    var aktiv = sf.disziplin === d;
+    var aktiv = diszFilter === d;
     return '<button class="rek-top-btn' + (aktiv ? ' active' : '') + '"' +
       ' style="min-width:80px;padding:8px 14px;margin:0 6px 6px 0"' +
       ' onclick="_mvFilterDisziplin(\'' + _esc(d).replace(/'/g, "\\'") + '\')">' +
@@ -510,22 +601,22 @@ function _mvAuszeichnungenHtml() {
 // Chip/Kachel als Filter – erneuter Klick auf die aktive Auswahl hebt sie auf
 function _mvFilterKategorie(kat) {
   if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: {} };
-  var f = state.meine.filter;
-  f.kategorie = (f.kategorie === kat) ? '' : kat;
+  var neu = _mvRegelWert('kategorie') === kat ? '' : kat;
+  _mvSetzeRegel('kategorie', neu);
   // Disziplinauswahl verwerfen, wenn sie nicht zur neuen Kategorie gehoert
-  if (f.kategorie && f.disziplin) {
+  var disz = _mvRegelWert('disziplin');
+  if (neu && disz) {
     var passt = (window._meinVeranstRows || []).some(function(r) {
-      return r.disziplin === f.disziplin && (r.kategorie || 'Sonstige') === f.kategorie;
+      return r.disziplin === disz && (r.kategorie || 'Sonstige') === neu;
     });
-    if (!passt) f.disziplin = '';
+    if (!passt) _mvSetzeRegel('disziplin', '');
   }
   _renderMeineTabelle();
 }
 
 function _mvFilterDisziplin(disz) {
   if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: {} };
-  var f = state.meine.filter;
-  f.disziplin = (f.disziplin === disz) ? '' : disz;
+  _mvSetzeRegel('disziplin', _mvRegelWert('disziplin') === disz ? '' : disz);
   _renderMeineTabelle();
 }
 
@@ -672,19 +763,9 @@ function _renderMeineTabelle() {
   window._meineTblRowMap = {};
   allRows.forEach(function(r) { window._meineTblRowMap[r.erg_id] = r; });
 
-  // ── Filter ──────────────────────────────────────────────
+  // ── Filter: Suchfeld + beliebig viele Spalte/Wert-Regeln ──
   var rows = allRows.filter(function(r) {
-    if (sf.jahr && r.datum.slice(0, 4) !== sf.jahr) return false;
-    if (sf.kategorie && (r.kategorie || 'Sonstige') !== sf.kategorie) return false;
-    if (sf.disziplin && r.disziplin !== sf.disziplin) return false;
-    if (sf.verein && _meinVereinText(r, ownClub) !== sf.verein) return false;
-    if (sf.suche) {
-      var q = sf.suche.toLowerCase();
-      if (r.veranst_name.toLowerCase().indexOf(q) < 0 &&
-          r.disziplin.toLowerCase().indexOf(q) < 0 &&
-          r.ort.toLowerCase().indexOf(q) < 0) return false;
-    }
-    return true;
+    return _mvTrifftSuche(r, sf.suche) && _mvTrifftRegeln(r, ownClub, -1);
   });
 
   // ── Sortierung ───────────────────────────────────────────
@@ -725,24 +806,6 @@ function _renderMeineTabelle() {
     }
   });
 
-  // ── Dropdown-Optionen ────────────────────────────────────
-  var jahre = [], jahreSet = {}, diszMap = {}, diszList = {}, vereinMap = {}, vereinList = [];
-  for (var ri = 0; ri < allRows.length; ri++) {
-    var _r = allRows[ri];
-    var yr = _r.datum.slice(0, 4);
-    if (yr && !jahreSet[yr]) { jahreSet[yr] = 1; jahre.push(yr); }
-    if (_r.disziplin && !diszMap[_r.disziplin]) { diszMap[_r.disziplin] = 1; }
-    var vDisp = _meinVereinText(_r, ownClub);
-    if (vDisp && !vereinMap[vDisp]) { vereinMap[vDisp] = 1; vereinList.push(vDisp); }
-  }
-  jahre.sort(function(a, b) { return b - a; });
-  var diszList = Object.keys(diszMap).sort();
-  vereinList.sort();
-  var hasVerein = allRows.some(function(r) { return !!r.verein; });
-  function selOpts(arr, cur) {
-    return '<option value="">Alle</option>' +
-      arr.map(function(v) { return '<option value="' + v.replace(/"/g,'&quot;') + '"' + (cur === v ? ' selected' : '') + '>' + v + '</option>'; }).join('');
-  }
 
   // ── Spalten (Reihenfolge/Sichtbarkeit aus den Benutzer-Prefs) ──
   var cols = _mvSichtbareSpalten();
@@ -851,17 +914,10 @@ function _renderMeineTabelle() {
     : '<div class="empty" style="padding:20px"><div class="empty-text">Keine Ergebnisse f&uuml;r diesen Filter.</div></div>';
 
   var filterBar =
-    '<div class="filter-bar" style="margin-bottom:16px;flex-wrap:wrap">' +
+    '<div class="filter-bar" style="margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">' +
       '<div class="fg" style="flex:2;min-width:160px"><label>Suche</label>' +
-        '<input type="search" id="mv-suche" placeholder="Veranstaltung, Disziplin, Ort&hellip;" value="' + (sf.suche || '').replace(/"/g,'&quot;') + '" oninput="_filterMeine()" style="width:100%;min-width:0"/></div>' +
-      '<div class="fg" style="flex:0 0 auto;min-width:90px"><label>Jahr</label>' +
-        '<select id="mv-jahr" onchange="_filterMeine()">' + selOpts(jahre, sf.jahr) + '</select></div>' +
-      '<div class="fg" style="flex:0 0 auto;min-width:130px"><label>Disziplin</label>' +
-        '<select id="mv-disz" onchange="_filterMeine()">' + selOpts(diszList, sf.disziplin) + '</select></div>' +
-      (hasVerein && vereinList.length > 1
-        ? '<div class="fg" style="flex:0 0 auto;min-width:130px"><label>Verein</label>' +
-            '<select id="mv-verein" onchange="_filterMeine()">' + selOpts(vereinList, sf.verein || '') + '</select></div>'
-        : '') +
+        '<input type="search" id="mv-suche" placeholder="Veranstaltung, Disziplin, Ort&hellip;" value="' + _mvText(sf.suche) + '" oninput="_filterMeine()" style="width:100%;min-width:0"/></div>' +
+      '<div id="mv-regeln" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">' + _mvRegelnHtml() + '</div>' +
     '</div>';
 
   // Filterleiste haengt nur von allRows ab, nie vom aktiven Filter. Beim Filtern/Sortieren
@@ -874,12 +930,12 @@ function _renderMeineTabelle() {
   var bodyEl = document.getElementById('mv-body');
   if (bodyEl) {
     bodyEl.innerHTML = bodyHtml;
-    // Kopf enthaelt die aktiven Filterzustaende, aber keine Eingabefelder → neu zeichnen
+    // Kopf und Filterzeilen zeigen den aktiven Filterzustand – beide neu zeichnen.
+    // Das Suchfeld bleibt unberührt, damit es den Fokus behält.
     var kopfEl = document.getElementById('mv-kopf');
     if (kopfEl) kopfEl.innerHTML = kopfHtml;
-    // Filter kann auch ueber eine Kachel gesetzt worden sein → Dropdown nachziehen
-    var diszSel = document.getElementById('mv-disz');
-    if (diszSel && diszSel.value !== (sf.disziplin || '')) diszSel.value = sf.disziplin || '';
+    var regelnEl = document.getElementById('mv-regeln');
+    if (regelnEl) regelnEl.innerHTML = _mvRegelnHtml();
   } else {
     viewEl.innerHTML = '<div id="mv-wrap">' +
         '<div id="mv-kopf">' + kopfHtml + '</div>' + filterBar +
@@ -933,13 +989,88 @@ function _sortMeine(col) {
 
 function _filterMeine() {
   if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: {} };
-  state.meine.filter = {
-    suche:     (document.getElementById('mv-suche')   || {}).value || '',
-    jahr:      (document.getElementById('mv-jahr')    || {}).value || '',
-    disziplin: (document.getElementById('mv-disz')    || {}).value || '',
-    verein:    (document.getElementById('mv-verein')  || {}).value || '',
-    kategorie: state.meine.filter.kategorie || '', // nur ueber die Chips im Kopf setzbar
-  };
+  state.meine.filter.suche = (document.getElementById('mv-suche') || {}).value || '';
+  _renderMeineTabelle();
+}
+
+// ── Filterzeilen (Spalte + Wert) ─────────────────────────
+// Immer eine leere Zeile am Ende: darüber kommt ein weiterer Filter dazu.
+function _mvRegelnHtml() {
+  var ownClub = (appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '';
+  var alle    = window._meinVeranstRows || [];
+  var suche   = (state.meine && state.meine.filter && state.meine.filter.suche) || '';
+  var regeln  = _mvRegeln();
+  var spalten = _mvFilterSpalten();
+  var zeilen  = regeln.concat([{ key: '', wert: '' }]);
+
+  return zeilen.map(function(g, i) {
+    var istNeu = i === regeln.length;
+    var spaltenOpts = '<option value="">' + (istNeu ? '+ Filter&hellip;' : '&mdash;') + '</option>' +
+      spalten.map(function(c) {
+        // Eine Spalte nur einmal filtern
+        var belegt = regeln.some(function(x, xi) { return xi !== i && x.key === c.key; });
+        if (belegt && g.key !== c.key) return '';
+        return '<option value="' + _esc(c.key) + '"' + (g.key === c.key ? ' selected' : '') + '>' + _esc(c.label) + '</option>';
+      }).join('');
+
+    var wertSel = '';
+    if (g.key) {
+      // Werte, die mit den übrigen Filtern noch erreichbar sind – mit Anzahl
+      var zaehler = {};
+      alle.forEach(function(r) {
+        if (!_mvTrifftSuche(r, suche) || !_mvTrifftRegeln(r, ownClub, i)) return;
+        var w = _mvWert(r, g.key, ownClub);
+        if (w === '') return;
+        zaehler[w] = (zaehler[w] || 0) + 1;
+      });
+      var werte = Object.keys(zaehler).sort(function(a, b) {
+        return a.localeCompare(b, 'de', { numeric: true });
+      });
+      if (g.key === 'jahr' || g.key === 'datum') werte.reverse(); // neueste zuerst
+      wertSel = '<select onchange="_mvRegelWertGewaehlt(' + i + ', this.value)" style="min-width:120px">' +
+        '<option value="">Alle</option>' +
+        werte.map(function(w) {
+          return '<option value="' + _esc(w) + '"' + (g.wert === w ? ' selected' : '') + '>' +
+                 _esc(w) + ' (' + zaehler[w] + ')</option>';
+        }).join('') +
+        (g.wert && !zaehler[g.wert]
+          ? '<option value="' + _esc(g.wert) + '" selected>' + _esc(g.wert) + ' (0)</option>' : '') +
+      '</select>';
+    }
+
+    return '<div class="fg" style="flex:0 0 auto">' +
+      '<label>' + (istNeu ? 'Weiterer Filter' : 'Filter ' + (i + 1)) + '</label>' +
+      '<div style="display:flex;gap:6px;align-items:center">' +
+        '<select onchange="_mvRegelSpalteGewaehlt(' + i + ', this.value)" style="min-width:130px">' + spaltenOpts + '</select>' +
+        wertSel +
+        (istNeu ? '' : '<button class="btn btn-ghost btn-sm" title="Filter entfernen" onclick="_mvRegelWeg(' + i + ')">&#x2715;</button>') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function _mvRegelSpalteGewaehlt(i, key) {
+  var regeln = _mvRegeln();
+  if (i >= regeln.length) { if (key) regeln.push({ key: key, wert: '' }); }
+  else if (!key) regeln.splice(i, 1);
+  else if (regeln[i].key !== key) { regeln[i].key = key; regeln[i].wert = ''; }
+  _renderMeineTabelle();
+  // Direkt zur Wertauswahl derselben Zeile springen
+  if (key) setTimeout(function() {
+    var zeile = document.querySelectorAll('#mv-regeln .fg')[i];
+    var sel   = zeile ? zeile.querySelectorAll('select')[1] : null;
+    if (sel) sel.focus();
+  }, 0);
+}
+
+function _mvRegelWertGewaehlt(i, wert) {
+  var regeln = _mvRegeln();
+  if (regeln[i]) regeln[i].wert = wert;
+  _renderMeineTabelle();
+}
+
+function _mvRegelWeg(i) {
+  _mvRegeln().splice(i, 1);
   _renderMeineTabelle();
 }
 

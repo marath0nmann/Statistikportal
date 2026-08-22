@@ -1,3 +1,9 @@
+## v1500
+- **Meine Ergebnisse: dynamische Filter statt fester Dropdowns.** Die drei Auswahlfelder Jahr/Disziplin/Verein sind ersetzt durch beliebig viele Filterregeln „Spalte + Wert". Über das Feld „Weiterer Filter" kommt eine Regel dazu, das ✕ entfernt sie wieder; mehrere Regeln wirken zusammen (UND). Das Suchfeld bleibt daneben bestehen.
+- Filterbar sind alle Spalten – Datum, Veranstaltung, Ort, Kategorie, Disziplin, StNr, AK, alle Platzierungen, Meisterschaft, Ergebnis, Pace, Schuh, Verein und Bemerkungen – dazu „Jahr", das keine eigene Spalte ist. Die Meisterschaft wird mit ihrem Namen statt der internen ID angeboten, der Verein nach derselben Regel wie in der Tabelle (`extern`-Flag).
+- Die Werteliste zeigt nur Werte, die mit den übrigen Filtern noch erreichbar sind, jeweils mit Trefferzahl – Filterkombinationen mit null Ergebnissen lassen sich so gar nicht erst zusammenklicken. Jede Spalte kann nur einmal gefiltert werden; nach der Spaltenwahl springt der Fokus direkt in die Wertauswahl.
+- Die Kategorie-Chips und Disziplin-Kacheln im Kopf schreiben in dieselben Regeln und erscheinen dadurch auch in der Filterleiste.
+
 ## v1499
 - **Die getrennten Kategorietabellen sind aus der API entfernt.** `ergebnisse_strasse`, `ergebnisse_sprint`, `ergebnisse_mittelstrecke` und `ergebnisse_sprungwurf` wurden seit der Zusammenführung in `ergebnisse` nur noch in toten `else`-Zweigen angesprochen: 46 `$unified`-Verzweigungen, 33 Zeilen mit Legacy-Tabellennamen. Sie waren zudem nicht mehr gepflegt – die alten INSERT-Zweige kannten `startnummer`, `pos_gesamt`, `pos_geschlecht`, `schuh` und `bemerkungen` gar nicht und hätten diese Daten verworfen.
 - An ihre Stelle tritt die Hilfsfunktion `ergTbl()`. Sie berücksichtigt anders als die frühere Erkennung den `TABLE_PREFIX`; bisher wurde `table_name='ergebnisse'` ohne Präfix geprüft, wodurch eine Installation mit Präfix stillschweigend in den Legacy-Pfad gefallen wäre.
