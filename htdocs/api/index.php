@@ -595,7 +595,7 @@ try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXI
 /**
  * Alle Ergebnisse liegen in einer einzigen Tabelle. Die früheren
  * Kategorietabellen (ergebnisse_strasse/_sprint/_mittelstrecke/_sprungwurf)
- * werden seit v1495 nicht mehr unterstützt.
+ * werden seit v1497 nicht mehr unterstützt.
  */
 function ergTbl(): string { return DB::tbl('ergebnisse'); }
 
