@@ -584,21 +584,23 @@ try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('ergebnis_aenderungen') 
     INDEX idx_status (status),
     INDEX idx_von (beantragt_von)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (\Exception $e) {}
-// ak_platz_meisterschaft in allen Ergebnis-Tabellen
-foreach (['ergebnisse','ergebnisse_strasse','ergebnisse_sprint','ergebnisse_mittelstrecke','ergebnisse_sprungwurf'] as $_emt) {
-    try { DB::query("ALTER TABLE " . DB::tbl($_emt) . " ADD COLUMN IF NOT EXISTS ak_platz_meisterschaft SMALLINT NULL"); } catch (\Exception $e) {}
-}
-unset($_emt);
+try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS ak_platz_meisterschaft SMALLINT NULL"); } catch (\Exception $e) {}
 
-// Einheitliche Tabelle vorhanden?
-$_tblCheck = DB::fetchOne("SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='ergebnisse'");
-$unified = $_tblCheck && (int)$_tblCheck['c'] > 0;
-// Mapping: alte tbl_key -> Tabelle (Fallback)
-$_sys = ['strasse'=>'ergebnisse_strasse','sprint'=>'ergebnisse_sprint',
-          'mittelstrecke'=>'ergebnisse_mittelstrecke','sprungwurf'=>'ergebnisse_sprungwurf'];
-// Hilfsfunktion: Ergebnistabelle für alten Key
-function ergebnisTbl(string $key, bool $unified, array $sys): string {
-    return $unified ? 'ergebnisse' : ($sys[$key] ?? 'ergebnisse_strasse');
+/**
+ * Alle Ergebnisse liegen in einer einzigen Tabelle. Die früheren
+ * Kategorietabellen (ergebnisse_strasse/_sprint/_mittelstrecke/_sprungwurf)
+ * werden seit v1495 nicht mehr unterstützt.
+ */
+function ergTbl(): string { return DB::tbl('ergebnisse'); }
+
+// Fehlt die Tabelle, ist die Installation unvollständig – das soll sofort und
+// verständlich auffallen statt als Folgefehler in einzelnen Endpunkten.
+try {
+    $_ergDa = DB::fetchOne('SELECT COUNT(*) AS c FROM information_schema.tables'
+        . ' WHERE table_schema=DATABASE() AND table_name=?', [ergTbl()]);
+} catch (\Exception $e) { $_ergDa = null; }
+if (!$_ergDa || (int)$_ergDa['c'] === 0) {
+    jsonErr('Ergebnistabelle "' . ergTbl() . '" nicht gefunden. Datenbank prüfen bzw. Migration nachholen.', 500);
 }
 
 // Migration: approved insert-Anträge ohne ergebnis_id nachträglich verarbeiten
@@ -2244,20 +2246,12 @@ if ($res === 'benutzer') {
 // Liefert alle Bestleistungs-Ereignisse (Vereinsrekord, Geschlechts-/AK-Bestleistung,
 // PB, Debüt) absteigend nach Datum. Wird vom Dashboard-Widget „Neueste
 // Bestleistungen" und von der Seite „Jahresübersicht" genutzt.
-function berechneTimelineEvents(bool $unified, bool $mergeAKTl = true): array
+function berechneTimelineEvents(bool $mergeAKTl = true): array
 {
     // Rekord-Timeline: alle Tabellen berücksichtigen (unified oder alle Legacy-Tabellen)
     $nameExpr = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
 
-    // Alle verfügbaren Ergebnistabellen bestimmen
-    $tblsForTimeline = $unified
-        ? [['tbl'=>'ergebnisse','fmt_fallback'=>null]]
-        : [
-            ['tbl'=>'ergebnisse_strasse',      'fmt_fallback'=>'min'],
-            ['tbl'=>'ergebnisse_sprint',        'fmt_fallback'=>'s'],
-            ['tbl'=>'ergebnisse_mittelstrecke', 'fmt_fallback'=>'min'],
-            ['tbl'=>'ergebnisse_sprungwurf',    'fmt_fallback'=>'m'],
-          ];
+    $tblsForTimeline = [['tbl'=>'ergebnisse','fmt_fallback'=>null]];
 
     // Alle Disziplinen mit fmt sammeln – nach mapping_id gruppieren (eindeutig!)
     $diszMap = [];
@@ -2517,26 +2511,15 @@ function berechneTimelineEvents(bool $unified, bool $mergeAKTl = true): array
 
 if ($res === 'dashboard' && $method === 'GET') {
     // Öffentlich zugänglich
-    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
-    if ($unified) {
-        $stats = [
-            'gesamt'   => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse') . ' WHERE geloescht_am IS NULL')['c'],
-            'athleten' => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('athleten') . ' WHERE geloescht_am IS NULL')['c'],
-            'rekorde'  => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('vereinsrekorde') . '')['c'],
-        ];
-    } else {
-        $stats = [
-            'strasse'       => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_strasse') . '')['c'],
-            'sprint'        => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_sprint') . '')['c'],
-            'mittelstrecke' => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_mittelstrecke') . '')['c'],
-            'sprungwurf'    => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('ergebnisse_sprungwurf') . '')['c'],
-            'athleten'      => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('athleten') . '')['c'],
-            'rekorde'       => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('vereinsrekorde') . '')['c'],
-        ];
-    }
+    $eTbl = ergTbl();
+    $stats = [
+        'gesamt'   => DB::fetchOne('SELECT COUNT(*) c FROM ' . ergTbl() . ' WHERE geloescht_am IS NULL')['c'],
+        'athleten' => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('athleten') . ' WHERE geloescht_am IS NULL')['c'],
+        'rekorde'  => DB::fetchOne('SELECT COUNT(*) c FROM ' . DB::tbl('vereinsrekorde') . '')['c'],
+    ];
 
     // Rekord-Timeline (Berechnung siehe berechneTimelineEvents())
-    $timelineEvents = berechneTimelineEvents($unified, ($_GET['merge_ak_tl'] ?? '1') !== '0');
+    $timelineEvents = berechneTimelineEvents(($_GET['merge_ak_tl'] ?? '1') !== '0');
 
     // Optional: nur Timeline-Events einer bestimmten Veranstaltung (für Teilen-Funktion)
     if (!empty($_GET['tl_veranstaltung_id'])) {
@@ -2593,7 +2576,7 @@ function jahrLabelTyp(?string $lbl): ?string
 
 if ($res === 'jahres-bestleistungen' && $method === 'GET') {
     // Öffentlich zugänglich (wie Dashboard und Bestleistungen)
-    $eTbl    = ergebnisTbl('strasse', $unified, $_sys);
+    $eTbl    = ergTbl();
     $vTbl    = DB::tbl('veranstaltungen');
     $aTbl    = DB::tbl('athleten');
     $mergeAK = ($_GET['merge_ak'] ?? '1') !== '0';
@@ -2662,7 +2645,7 @@ if ($res === 'jahres-bestleistungen' && $method === 'GET') {
     unset($p);
 
     // ── Timeline-Ereignisse (alle Jahre, danach gefiltert) ──
-    $tlAll = berechneTimelineEvents($unified, $mergeAK);
+    $tlAll = berechneTimelineEvents($mergeAK);
     // Externe Ergebnisse bleiben – wie im Dashboard-Widget – außen vor
     $tlAll = array_values(array_filter($tlAll, function ($ev) {
         return empty($ev['extern']) && !empty($ev['datum']) && !empty($ev['athlet']);
@@ -2763,7 +2746,7 @@ if ($res === 'jahres-bestleistungen' && $method === 'GET') {
 $ergebnisTabellen = ['strasse','sprint','mittelstrecke','sprungwurf','bahn','cross','halle'];
 // Selbst angelegte Kategorien (eigener tbl_key) ebenfalls bedienen – sonst laufen
 // Bearbeiten/Löschen von Ergebnissen solcher Kategorien in einen 404.
-if ($unified && !in_array($res, $ergebnisTabellen) && $res !== '' && preg_match('/^[a-z0-9_]+$/i', $res)) {
+if (!in_array($res, $ergebnisTabellen) && $res !== '' && preg_match('/^[a-z0-9_]+$/i', $res)) {
     try {
         $katKeys = array_column(DB::fetchAll('SELECT tbl_key FROM ' . DB::tbl('disziplin_kategorien')), 'tbl_key');
         if (in_array($res, $katKeys, true)) $ergebnisTabellen[] = $res;
@@ -2771,7 +2754,7 @@ if ($unified && !in_array($res, $ergebnisTabellen) && $res !== '' && preg_match(
 }
 if (in_array($res, $ergebnisTabellen)) {
     Auth::requireLogin();
-    $tbl = ergebnisTbl($res, $unified, $_sys);
+    $tbl = ergTbl();
 
     if ($method === 'GET' && !$id) {
         // Einheitlicher Filter-Builder: $exclude steuert, welche Filter ignoriert werden
@@ -2798,7 +2781,7 @@ if (in_array($res, $ergebnisTabellen)) {
             if (!$skip('ak')   && !empty($get['ak']))   { $w[]='e.altersklasse=?'; $p[]=$get['ak']; }
             if (!$skip('jahr') && !empty($get['jahr'])) { $w[]='YEAR(v.datum)=?';  $p[]=(int)$get['jahr']; }
             if (!$skip('suche') && !empty($get['suche'])) {
-                [$sqlSu, $parSu] = sucheWhere(['a.name_nv', 'e.disziplin', 'v.kuerzel', 'v.name'], (string)$get['suche']);
+                [$sqlSu, $parSu] = sucheWhere(['a.name_nv', 'e.disziplin', 'v.kuerzel', 'v.name', 'v.ort', 'o.name'], (string)$get['suche']);
                 if ($sqlSu) { $w[] = $sqlSu; $p = array_merge($p, $parSu); }
             }
             if (!$skip('meisterschaft') && !empty($get['meisterschaft'])) {
@@ -2832,19 +2815,8 @@ if (in_array($res, $ergebnisTabellen)) {
         $limit  = min((int)($_GET['limit'] ?? 100), 500);
         $offset = (int)($_GET['offset'] ?? 0);
 
-        // Disziplin-Spalte je nach Tabelle
         $diszCol = 'e.disziplin';
-        $extraCols = '';
-        if ($unified) {
-            // Einheitliche Tabelle: pace + distanz + ak_platz_meisterschaft vorhanden (seit v493)
-            $extraCols = "e.pace, e.distanz, e.ak_platz_meisterschaft,";
-        } else {
-            // ak_platz_meisterschaft in allen Tabellen die es haben (ab v493 überall vorhanden)
-            $hasPace  = in_array($res, ['strasse']);
-            $hasAkPM  = in_array($res, ['strasse', 'sprint', 'mittelstrecke', 'sprungwurf']);
-            $extraCols = ($hasPace  ? "e.pace, e.distanz, " : "") .
-                         ($hasAkPM  ? "e.ak_platz_meisterschaft," : "NULL AS ak_platz_meisterschaft,");
-        }
+        $extraCols = "e.pace, e.distanz, e.ak_platz_meisterschaft,";
 
         $sql = "SELECT e.id, a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse,
                        e.disziplin, e.disziplin_mapping_id, e.resultat,
@@ -2873,10 +2845,11 @@ if (in_array($res, $ergebnisTabellen)) {
         $total = DB::fetchOne("SELECT COUNT(*) c FROM $tbl e
                 JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
                 JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
+                LEFT JOIN " . DB::tbl('orte') . " o ON o.id=v.ort_id
                 WHERE " . implode(' AND ', $where), $params)['c'];
 
         // Distinct-Werte für Filter-Dropdowns: $buildWhere von oben wiederverwenden
-        $jn = "JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id";
+        $jn = "JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id LEFT JOIN " . DB::tbl('orte') . " o ON o.id=v.ort_id";
 
         // Disziplin-Dropdown: alle Filter aktiv außer disziplin; wenn Kategorie aktiv, schränkt sie ein
         list($wd,$pd) = $buildWhere(['disziplin']);
@@ -2930,25 +2903,11 @@ if (in_array($res, $ergebnisTabellen)) {
         // distanz und pace aus disziplin_mapping (nicht mehr aus body)
         $akpm    = intOrNull($body['ak_platz_meisterschaft'] ?? null);
         $rnum    = ($res === 'sprungwurf') ? floatOrNull($body['resultat'] ?? null) : null;
-        if ($unified) {
-            $dmRow = DB::fetchOne("SELECT id, distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
-            $dmId  = $dmRow ? (int)$dmRow['id'] : null;
-            $distanz = $dmRow ? $dmRow['distanz'] : null;
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,distanz,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$dmId,$distanz,$resultat,$rnum,$akp,$mstr,$akpm,$user['id']]);
-        } elseif ($res === 'strasse') {
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse_strasse') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,distanz,resultat,ak_platzierung,meisterschaft,ak_platz_meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$distanz,$resultat,$akp,$mstr,$akpm,$user['id']]);
-        } elseif ($res === 'sprint') {
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse_sprint') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,distanz,resultat,ak_platzierung,meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$distanz,$resultat,$akp,$mstr,$user['id']]);
-        } elseif ($res === 'mittelstrecke') {
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse_mittelstrecke') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,ak_platzierung,meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$resultat,$akp,$mstr,$user['id']]);
-        } elseif ($res === 'sprungwurf') {
-            DB::query("INSERT INTO " . DB::tbl('ergebnisse_sprungwurf') . " (veranstaltung_id,athlet_id,altersklasse,disziplin,resultat,ak_platzierung,meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?)",
-                [$vid,$aid,$ak,$disziplin,$rnum,$akp,$mstr,$user['id']]);
-        }
+        $dmRow = DB::fetchOne("SELECT id, distanz FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin=?", [$disziplin]);
+        $dmId  = $dmRow ? (int)$dmRow['id'] : null;
+        $distanz = $dmRow ? $dmRow['distanz'] : null;
+        DB::query("INSERT INTO " . ergTbl() . " (veranstaltung_id,athlet_id,altersklasse,disziplin,disziplin_mapping_id,distanz,resultat,resultat_num,ak_platzierung,meisterschaft,ak_platz_meisterschaft,erstellt_von) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            [$vid,$aid,$ak,$disziplin,$dmId,$distanz,$resultat,$rnum,$akp,$mstr,$akpm,$user['id']]);
         jsonOk(['id' => DB::lastInsertId()]);
     }
     if ($method === 'PUT' && $id) {
@@ -3006,9 +2965,8 @@ if (in_array($res, $ergebnisTabellen)) {
             $felder[] = 'disziplin_mapping_id=?'; $params[] = (int)$body['disziplin_mapping_id'];
         }
         // Wechselt die Disziplin, muss die gespeicherte Distanz mitwandern –
-        // sonst rechnet die Pace weiter mit der alten Strecke. Nur die
-        // einheitliche Tabelle führt diese Spalte.
-        if ($unified && isset($body['disziplin_mapping_id']) && is_numeric($body['disziplin_mapping_id'])) {
+        // sonst rechnet die Pace weiter mit der alten Strecke.
+        if (isset($body['disziplin_mapping_id']) && is_numeric($body['disziplin_mapping_id'])) {
             $dmDist = DB::fetchOne('SELECT distanz FROM ' . DB::tbl('disziplin_mapping') . ' WHERE id=?',
                 [(int)$body['disziplin_mapping_id']]);
             if ($dmDist) { $felder[] = 'distanz=?'; $params[] = $dmDist['distanz']; }
@@ -3027,11 +2985,9 @@ if (in_array($res, $ergebnisTabellen)) {
         if (isset($body['meisterschaft'])) { $felder[] = 'meisterschaft=?'; $params[] = intOrNull($body['meisterschaft']); }
         if (array_key_exists('ak_platz_meisterschaft', $body)) { $felder[] = 'ak_platz_meisterschaft=?'; $params[] = intOrNull($body['ak_platz_meisterschaft']); }
         // Zusatzfelder (Startnummer, Positionen, Schuh, Bemerkungen)
-        if ($unified) {
-            $zusUpd = zusatzFelder($body);
-            foreach (['startnummer','pos_gesamt','pos_geschlecht','schuh','bemerkungen'] as $zk) {
-                if (array_key_exists($zk, $body)) { $felder[] = "$zk=?"; $params[] = $zusUpd[$zk]; }
-            }
+        $zusUpd = zusatzFelder($body);
+        foreach (['startnummer','pos_gesamt','pos_geschlecht','schuh','bemerkungen'] as $zk) {
+            if (array_key_exists($zk, $body)) { $felder[] = "$zk=?"; $params[] = $zusUpd[$zk]; }
         }
         if (!$felder) jsonErr('Keine Felder zum Aktualisieren.');
         DB::updateById($tbl, $felder, $params, $id);
@@ -3136,11 +3092,7 @@ if ($res === 'athleten') {
         $quellen = DB::fetchAll("SELECT * FROM $aT WHERE id IN ($ph) AND geloescht_am IS NULL", $quellIds);
         if (count($quellen) !== count($quellIds)) jsonErr('Mindestens ein Quell-Athlet wurde nicht gefunden.', 404);
 
-        // Ergebnis-Tabellen: unified oder Legacy-Tabellen
-        $ergTbls = $unified
-            ? [DB::tbl('ergebnisse')]
-            : [DB::tbl('ergebnisse_strasse'), DB::tbl('ergebnisse_sprint'),
-               DB::tbl('ergebnisse_mittelstrecke'), DB::tbl('ergebnisse_sprungwurf')];
+        $ergTbls = [ergTbl()];
         $verschoben = 0;
         foreach ($ergTbls as $t) {
             try {
@@ -3287,12 +3239,7 @@ if ($res === 'athleten') {
         $baseWhere = $hasDelCol ? 'a.geloescht_am IS NULL' : '1=1';
         $params = [];
         if ($s) { $baseWhere .= ' AND a.name_nv LIKE ?'; $params[] = '%'.$s.'%'; }
-        $anzSql = $unified
-            ? "(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse') . " WHERE athlet_id=a.id AND geloescht_am IS NULL)"
-            : "(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse_strasse') . " WHERE athlet_id=a.id)
-               +(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse_sprint') . " WHERE athlet_id=a.id)
-               +(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse_mittelstrecke') . " WHERE athlet_id=a.id)
-               +(SELECT COUNT(*) FROM " . DB::tbl('ergebnisse_sprungwurf') . " WHERE athlet_id=a.id)";
+        $anzSql = "(SELECT COUNT(*) FROM " . ergTbl() . " WHERE athlet_id=a.id AND geloescht_am IS NULL)";
         $rows = DB::fetchAll(
             "SELECT a.*, $anzSql AS anz_ergebnisse, b.avatar_pfad
              FROM " . DB::tbl('athleten') . " a
@@ -3362,7 +3309,7 @@ if ($res === 'athleten') {
         foreach (json_decode($mstrListRaw ?: '[]', true) ?: [] as $m) {
             if (!empty($m['id']) && !empty($m['label'])) $mstrMap[(int)$m['id']] = $m['label'];
         }
-        if ($unified && !empty($mstrMap)) {
+        if (!empty($mstrMap)) {
             $akExpr = buildAkCaseExpr(true);
             try {
                 $firstPlaces = DB::fetchAll(
@@ -3397,86 +3344,84 @@ if ($res === 'athleten') {
         // Athlet-Geschlecht einmalig laden
         $athRow2 = DB::fetchOne('SELECT geschlecht FROM ' . DB::tbl('athleten') . ' WHERE id=?', [$athletId]);
         $athGeschlecht2 = $athRow2['geschlecht'] ?? '';
-        if ($unified) {
-            // AK-Merge-Ausdruck EINMALIG vor der Disziplin-Schleife bauen (wie HoF)
-            $akExprAusz = buildAkCaseExpr(true);
-            // Alle Disziplinen aller Athleten laden (wie HoF) – then check if this athlete holds a record
-            $diszListAll = DB::fetchAll(
-                "SELECT DISTINCT e.disziplin, e.disziplin_mapping_id,
-                 COALESCE(m.fmt_override, k.fmt, 'min') AS fmt,
-                 COALESCE(k.sort_dir,'ASC') AS sort_dir,
-                 COALESCE(m.hof_exclude, 0) AS hof_exclude,
-                 COALESCE(k.name, 'Sonstige') AS kat_name,
-                 COALESCE(k.reihenfolge, 99) AS kat_sort
-                 FROM " . DB::tbl('ergebnisse') . " e
-                 LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
-                 LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
-                 WHERE e.geloescht_am IS NULL AND e.extern=0
-                 ORDER BY COALESCE(k.reihenfolge, 99), e.disziplin",
-                []
+        // AK-Merge-Ausdruck EINMALIG vor der Disziplin-Schleife bauen (wie HoF)
+        $akExprAusz = buildAkCaseExpr(true);
+        // Alle Disziplinen aller Athleten laden (wie HoF) – then check if this athlete holds a record
+        $diszListAll = DB::fetchAll(
+            "SELECT DISTINCT e.disziplin, e.disziplin_mapping_id,
+             COALESCE(m.fmt_override, k.fmt, 'min') AS fmt,
+             COALESCE(k.sort_dir,'ASC') AS sort_dir,
+             COALESCE(m.hof_exclude, 0) AS hof_exclude,
+             COALESCE(k.name, 'Sonstige') AS kat_name,
+             COALESCE(k.reihenfolge, 99) AS kat_sort
+             FROM " . DB::tbl('ergebnisse') . " e
+             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
+             LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id=m.kategorie_id
+             WHERE e.geloescht_am IS NULL AND e.extern=0
+             ORDER BY COALESCE(k.reihenfolge, 99), e.disziplin",
+            []
+        );
+        foreach ($diszListAll as $dRow) {
+            if (!empty($dRow['hof_exclude'])) continue;
+            $disz    = $dRow['disziplin']; $mappingId = $dRow['disziplin_mapping_id'] ?? null;
+            $fmt     = $dRow['fmt'] ?? 'min'; $dir = strtoupper($dRow['sort_dir'] ?? 'ASC');
+            $katName = $dRow['kat_name'] ?? 'Sonstige';
+            $valExpr = $fmt === 'm'
+                ? "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))"
+                : "CASE WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}' THEN TIME_TO_SEC(e.resultat)
+                       WHEN e.resultat REGEXP '^[0-9]+:[0-9]' THEN TIME_TO_SEC(CONCAT('00:', REPLACE(e.resultat,',','.')))
+                       ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END";
+            $hofWhere = $mappingId ? 'e.disziplin_mapping_id = ?' : 'e.disziplin = ?';
+            $hofParam = $mappingId ?? $disz;
+            // Bestes dieses Athleten in dieser Disziplin
+            $bestMe = DB::fetchOne(
+                "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
+                [$hofParam, $athletId]
             );
-            foreach ($diszListAll as $dRow) {
-                if (!empty($dRow['hof_exclude'])) continue;
-                $disz    = $dRow['disziplin']; $mappingId = $dRow['disziplin_mapping_id'] ?? null;
-                $fmt     = $dRow['fmt'] ?? 'min'; $dir = strtoupper($dRow['sort_dir'] ?? 'ASC');
-                $katName = $dRow['kat_name'] ?? 'Sonstige';
-                $valExpr = $fmt === 'm'
-                    ? "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))"
-                    : "CASE WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}' THEN TIME_TO_SEC(e.resultat)
-                           WHEN e.resultat REGEXP '^[0-9]+:[0-9]' THEN TIME_TO_SEC(CONCAT('00:', REPLACE(e.resultat,',','.')))
-                           ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END";
-                $hofWhere = $mappingId ? 'e.disziplin_mapping_id = ?' : 'e.disziplin = ?';
-                $hofParam = $mappingId ?? $disz;
-                // Bestes dieses Athleten in dieser Disziplin
-                $bestMe = DB::fetchOne(
-                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
-                    [$hofParam, $athletId]
+            if (!$bestMe) continue;
+            $myVal = (float)$bestMe['val'];
+            // 1. Gesamtbestleistung?
+            $bestAll = DB::fetchOne("SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1", [$hofParam]);
+            $isGesamtBest = $bestAll && abs($myVal - (float)$bestAll['val']) < 0.001;
+            if ($isGesamtBest) {
+                $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Gesamtbestleistung', 'kat_name' => $katName];
+                // Kein continue – AK-Checks laufen weiter (andere Jahre = andere AK-Rekorde)
+            }
+            // 2. Geschlechts-Bestleistung? (nur wenn nicht bereits Tier 1)
+            if (!$isGesamtBest && ($athGeschlecht2 === 'M' || $athGeschlecht2 === 'W')) {
+                $bestG = DB::fetchOne(
+                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id WHERE $hofWhere AND a.geschlecht=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
+                    [$hofParam, $athGeschlecht2]
                 );
-                if (!$bestMe) continue;
-                $myVal = (float)$bestMe['val'];
-                // 1. Gesamtbestleistung?
-                $bestAll = DB::fetchOne("SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1", [$hofParam]);
-                $isGesamtBest = $bestAll && abs($myVal - (float)$bestAll['val']) < 0.001;
-                if ($isGesamtBest) {
-                    $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Gesamtbestleistung', 'kat_name' => $katName];
-                    // Kein continue – AK-Checks laufen weiter (andere Jahre = andere AK-Rekorde)
+                if ($bestG && abs($myVal - (float)$bestG['val']) < 0.001) {
+                    $gLabel = $athGeschlecht2 === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen';
+                    $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => $gLabel, 'kat_name' => $katName];
                 }
-                // 2. Geschlechts-Bestleistung? (nur wenn nicht bereits Tier 1)
-                if (!$isGesamtBest && ($athGeschlecht2 === 'M' || $athGeschlecht2 === 'W')) {
-                    $bestG = DB::fetchOne(
-                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id WHERE $hofWhere AND a.geschlecht=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
-                        [$hofParam, $athGeschlecht2]
-                    );
-                    if ($bestG && abs($myVal - (float)$bestG['val']) < 0.001) {
-                        $gLabel = $athGeschlecht2 === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen';
-                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => $gLabel, 'kat_name' => $katName];
-                    }
-                }
-                // 3. AK-Bestleistung? (immer prüfen, unabhängig von Gesamt/Geschlecht – wie HoF)
-                // Altersklasse(n) dieses Athleten in dieser Disziplin ermitteln
-                // AKs dieses Athleten MIT merge (identisch zu HoF)
-                $myAKs = DB::fetchAll(
-                    "SELECT DISTINCT ($akExprAusz) AS altersklasse FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz) IS NOT NULL AND ($akExprAusz) != '' AND e.geloescht_am IS NULL AND e.extern=0",
-                    [$hofParam, $athletId]
+            }
+            // 3. AK-Bestleistung? (immer prüfen, unabhängig von Gesamt/Geschlecht – wie HoF)
+            // Altersklasse(n) dieses Athleten in dieser Disziplin ermitteln
+            // AKs dieses Athleten MIT merge (identisch zu HoF)
+            $myAKs = DB::fetchAll(
+                "SELECT DISTINCT ($akExprAusz) AS altersklasse FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz) IS NOT NULL AND ($akExprAusz) != '' AND e.geloescht_am IS NULL AND e.extern=0",
+                [$hofParam, $athletId]
+            );
+            foreach ($myAKs as $akRow) {
+                $ak = $akRow['altersklasse'];
+                // Bestes in dieser (merged) AK über alle Athleten
+                $bestAK = DB::fetchOne(
+                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND ($akExprAusz)=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
+                    [$hofParam, $ak]
                 );
-                foreach ($myAKs as $akRow) {
-                    $ak = $akRow['altersklasse'];
-                    // Bestes in dieser (merged) AK über alle Athleten
-                    $bestAK = DB::fetchOne(
-                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND ($akExprAusz)=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
-                        [$hofParam, $ak]
-                    );
-                    // Bestes dieses Athleten in dieser (merged) AK
-                    $bestMeAK = DB::fetchOne(
-                        "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz)=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
-                        [$hofParam, $athletId, $ak]
-                    );
-                    if ($bestAK && $bestMeAK && abs((float)$bestMeAK['val'] - (float)$bestAK['val']) < 0.001) {
-                        // Überspringen wenn identisch mit bereits gezählter Gesamtbestleistung
-                        if ($isGesamtBest && abs((float)$bestMeAK['val'] - $myVal) < 0.001) continue;
-                        $akLbl = preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $ak);
-                        $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Bestleistung ' . $akLbl, 'kat_name' => $katName];
-                    }
+                // Bestes dieses Athleten in dieser (merged) AK
+                $bestMeAK = DB::fetchOne(
+                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz)=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
+                    [$hofParam, $athletId, $ak]
+                );
+                if ($bestAK && $bestMeAK && abs((float)$bestMeAK['val'] - (float)$bestAK['val']) < 0.001) {
+                    // Überspringen wenn identisch mit bereits gezählter Gesamtbestleistung
+                    if ($isGesamtBest && abs((float)$bestMeAK['val'] - $myVal) < 0.001) continue;
+                    $akLbl = preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $ak);
+                    $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Bestleistung ' . $akLbl, 'kat_name' => $katName];
                 }
             }
         }
@@ -3496,58 +3441,49 @@ if ($res === 'athleten') {
         // Avatar aus verknüpftem Benutzer laden
         $bUser = DB::fetchOne('SELECT avatar_pfad FROM ' . DB::tbl('benutzer') . ' WHERE athlet_id = ? AND aktiv = 1 LIMIT 1', [$id]);
         $athlet['avatar_pfad'] = $bUser ? $bUser['avatar_pfad'] : null;
-        if ($unified) {
-            $alle = DB::fetchAll(
-                'SELECT e.id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.pace, e.altersklasse, e.meisterschaft,
-                        v.kuerzel AS veranstaltung, COALESCE(o.name, v.ort) AS veranstaltung_ort, v.name AS veranstaltung_name, v.datum,
-                        o.land_code AS ort_land_code,
-                        COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
-                        COALESCE(dk.name, \'Sonstige\') AS kat_name,
-                        COALESCE(dk.reihenfolge, 99) AS kat_sort,
-                        COALESCE(dm.hof_exclude, 0) AS hof_exclude
-                 FROM ' . DB::tbl('ergebnisse') . ' e
-                 JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
-                 LEFT JOIN ' . DB::tbl('orte') . ' o ON o.id=v.ort_id
-                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
-                 LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
-                 WHERE e.athlet_id=? AND e.extern=0 AND e.geloescht_am IS NULL ORDER BY dk.reihenfolge, v.datum DESC', [$id]);
-            // Gruppieren nach Kategorie
-            $kategorien = [];
-            foreach ($alle as $row) {
-                $kn = $row['kat_name'];
-                if (!isset($kategorien[$kn])) {
-                    $kategorien[$kn] = [
-                        'name' => $kn,
-                        'fmt'  => $row['fmt'],
-                        'ergebnisse' => []
-                    ];
-                }
-                $kategorien[$kn]['ergebnisse'][] = $row;
+        $alle = DB::fetchAll(
+            'SELECT e.id, e.disziplin, e.disziplin_mapping_id, e.resultat, e.pace, e.altersklasse, e.meisterschaft,
+                    v.kuerzel AS veranstaltung, COALESCE(o.name, v.ort) AS veranstaltung_ort, v.name AS veranstaltung_name, v.datum,
+                    o.land_code AS ort_land_code,
+                    COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
+                    COALESCE(dk.name, \'Sonstige\') AS kat_name,
+                    COALESCE(dk.reihenfolge, 99) AS kat_sort,
+                    COALESCE(dm.hof_exclude, 0) AS hof_exclude
+             FROM ' . DB::tbl('ergebnisse') . ' e
+             JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
+             LEFT JOIN ' . DB::tbl('orte') . ' o ON o.id=v.ort_id
+             LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
+             LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
+             WHERE e.athlet_id=? AND e.extern=0 AND e.geloescht_am IS NULL ORDER BY dk.reihenfolge, v.datum DESC', [$id]);
+        // Gruppieren nach Kategorie
+        $kategorien = [];
+        foreach ($alle as $row) {
+            $kn = $row['kat_name'];
+            if (!isset($kategorien[$kn])) {
+                $kategorien[$kn] = [
+                    'name' => $kn,
+                    'fmt'  => $row['fmt'],
+                    'ergebnisse' => []
+                ];
             }
-            $kategorien = array_values($kategorien);
-            // Externe PBs mitsenden
-            $pbs = DB::fetchAll('SELECT e.id, e.disziplin, e.resultat, v.name AS wettkampf, v.datum, e.verein, e.altersklasse,
-                        e.disziplin_mapping_id, e.veranstaltung_id,
-                        COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
-                        COALESCE(dk.name, \'Sonstige\') AS kat_name,
-                        COALESCE(dk.reihenfolge, 99) AS kat_sort,
-                        COALESCE(dm.hof_exclude, 0) AS hof_exclude,
-                        COALESCE(dm.disziplin, e.disziplin) AS disziplin_mapped
-                 FROM ' . DB::tbl('ergebnisse') . ' e
-                 LEFT JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
-                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
-                 LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
-                 WHERE e.athlet_id=? AND e.extern=1 AND e.geloescht_am IS NULL
-                 ORDER BY dk.reihenfolge, e.disziplin', [(int)$id]);
-            jsonOk(compact('athlet','kategorien','pbs'));
-        } else {
-            $oTbl2   = DB::tbl('orte');
-            $strasse = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,COALESCE(o.name,v.ort) AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum,o.land_code AS ort_land_code FROM ' . DB::tbl('ergebnisse_strasse') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id LEFT JOIN '.$oTbl2.' o ON o.id=v.ort_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
-            $sprint  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,COALESCE(o.name,v.ort) AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum,o.land_code AS ort_land_code FROM ' . DB::tbl('ergebnisse_sprint') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id LEFT JOIN '.$oTbl2.' o ON o.id=v.ort_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
-            $mittel  = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,COALESCE(o.name,v.ort) AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum,o.land_code AS ort_land_code FROM ' . DB::tbl('ergebnisse_mittelstrecke') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id LEFT JOIN '.$oTbl2.' o ON o.id=v.ort_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
-            $sw      = DB::fetchAll('SELECT e.*,v.kuerzel AS veranstaltung,COALESCE(o.name,v.ort) AS veranstaltung_ort,v.name AS veranstaltung_name,v.datum,o.land_code AS ort_land_code FROM ' . DB::tbl('ergebnisse_sprungwurf') . ' e JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id LEFT JOIN '.$oTbl2.' o ON o.id=v.ort_id WHERE e.athlet_id=? AND e.geloescht_am IS NULL ORDER BY v.datum DESC', [$id]);
-            jsonOk(compact('athlet','strasse','sprint','mittel','sw'));
+            $kategorien[$kn]['ergebnisse'][] = $row;
         }
+        $kategorien = array_values($kategorien);
+        // Externe PBs mitsenden
+        $pbs = DB::fetchAll('SELECT e.id, e.disziplin, e.resultat, v.name AS wettkampf, v.datum, e.verein, e.altersklasse,
+                    e.disziplin_mapping_id, e.veranstaltung_id,
+                    COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
+                    COALESCE(dk.name, \'Sonstige\') AS kat_name,
+                    COALESCE(dk.reihenfolge, 99) AS kat_sort,
+                    COALESCE(dm.hof_exclude, 0) AS hof_exclude,
+                    COALESCE(dm.disziplin, e.disziplin) AS disziplin_mapped
+             FROM ' . DB::tbl('ergebnisse') . ' e
+             LEFT JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
+             LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
+             LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
+             WHERE e.athlet_id=? AND e.extern=1 AND e.geloescht_am IS NULL
+             ORDER BY dk.reihenfolge, e.disziplin', [(int)$id]);
+        jsonOk(compact('athlet','kategorien','pbs'));
     }
 
     if ($method === 'POST') {
@@ -3636,7 +3572,7 @@ if ($res === 'athleten') {
 
     if ($method === 'DELETE' && $id) {
         Auth::requireAdmin();
-        $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+        $eTbl = ergTbl();
         $anz = DB::fetchOne("SELECT COUNT(*) c FROM $eTbl WHERE athlet_id=? AND geloescht_am IS NULL", [$id])['c'];
         if ($anz > 0)
             jsonErr('Athlet hat ' . $anz . ' aktive Ergebnisse und kann nicht gelöscht werden.', 409);
@@ -3648,16 +3584,13 @@ if ($res === 'athleten') {
 if ($res === 'rekorde') {
     // Bestleistungen sind öffentlich zugänglich (kein Login erforderlich)
 
-    // Prüfe ob einheitliche Tabelle bereits existiert
-    $tblCheck = DB::fetchOne("SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='ergebnisse'");
-    $unified = $tblCheck && (int)$tblCheck['c'] > 0;
-
-    // Legacy-Mapping: alte Tabellen je nach Disziplin-Mapping
-    $sys_tbls = [
-        'strasse'       => ['ergebnisse_strasse',      'ASC',  'min'],
-        'sprint'        => ['ergebnisse_sprint',        'ASC',  's'],
-        'mittelstrecke' => ['ergebnisse_mittelstrecke', 'ASC',  'min'],
-        'sprungwurf'    => ['ergebnisse_sprungwurf',    'DESC', 'm'],
+    // Vorgaben für die Standardkategorien, falls disziplin_kategorien dazu
+    // nichts hergibt (Sortierrichtung und Ergebnisformat).
+    $kat_vorgaben = [
+        'strasse'       => ['ASC',  'min'],
+        'sprint'        => ['ASC',  's'],
+        'mittelstrecke' => ['ASC',  'min'],
+        'sprungwurf'    => ['DESC', 'm'],
     ];
 
     // Kategorieinfo aus disziplin_kategorien
@@ -3666,13 +3599,12 @@ if ($res === 'rekorde') {
         $rows = DB::fetchAll("SELECT tbl_key, sort_dir, fmt FROM " . DB::tbl('disziplin_kategorien') . "");
         foreach ($rows as $r) $katInfo[$r['tbl_key']] = $r;
     } catch (Exception $e) {}
-    // Fallback: sys_tbls
-    foreach ($sys_tbls as $k => $v) {
-        if (!isset($katInfo[$k])) $katInfo[$k] = ['tbl_key'=>$k,'sort_dir'=>$v[1],'fmt'=>$v[2]];
+    foreach ($kat_vorgaben as $k => $v) {
+        if (!isset($katInfo[$k])) $katInfo[$k] = ['tbl_key'=>$k,'sort_dir'=>$v[0],'fmt'=>$v[1]];
     }
 
     // Disziplinen einer Kategorie ermitteln – gibt [{disziplin, mapping_id}] zurück
-    $getDiszByKat = function(string $kat_key) use ($unified, $sys_tbls): array {
+    $getDiszByKat = function(string $kat_key): array {
         try {
             $kr = DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_kategorien') . " WHERE tbl_key=?", [$kat_key]);
             if ($kr) {
@@ -3683,9 +3615,8 @@ if ($res === 'rekorde') {
                 }
             }
         } catch (Exception $e) {}
-        // Fallback: direkt aus Ergebnisse (ohne Mapping)
-        $tbl = $unified ? 'ergebnisse' : ($sys_tbls[$kat_key][0] ?? null);
-        if (!$tbl) return [];
+        // Fallback: direkt aus den Ergebnissen (ohne Mapping)
+        $tbl = ergTbl();
         try {
             $rows = DB::fetchAll("SELECT DISTINCT disziplin, NULL AS mapping_id FROM $tbl WHERE disziplin IS NOT NULL AND disziplin != '' AND geloescht_am IS NULL");
             sortDisziplinen($rows);
@@ -3693,17 +3624,7 @@ if ($res === 'rekorde') {
         } catch (Exception $e) { return []; }
     };
 
-    // Quelltabelle für eine Disziplin ermitteln (Legacy)
-    $getTblForDisz = function(string $disz) use ($unified, $sys_tbls): string {
-        if ($unified) return 'ergebnisse';
-        foreach ($sys_tbls as $k => $v) {
-            try {
-                $ex = DB::fetchOne("SELECT 1 FROM {$v[0]} WHERE disziplin=? LIMIT 1", [$disz]);
-                if ($ex) return $v[0];
-            } catch (Exception $e) {}
-        }
-        return 'ergebnisse_strasse'; // Fallback
-    };
+    $getTblForDisz = function(string $disz): string { return ergTbl(); };
 
     // GET rekorde/top-disziplinen?kat=
     if ($method === 'GET' && $id === 'top-disziplinen') {
@@ -3809,16 +3730,14 @@ if ($res === 'rekorde') {
         } else {
             // MM:SS.x → TIME_TO_SEC(CONCAT('00:',resultat)) für korrekte Sekunden
             // CONCAT('00:') wandelt '16:07' → '00:16:07' = 967s statt 58020s (HH:MM)
-            $sortCol = $unified
-                ? "COALESCE(e.resultat_num,
+            $sortCol = "COALESCE(e.resultat_num,
                     CASE WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}'
                          THEN TIME_TO_SEC(e.resultat)
                          WHEN e.resultat REGEXP '^[0-9]+:[0-9]'
                          THEN TIME_TO_SEC(CONCAT('00:',REPLACE(REPLACE(e.resultat,',','.'),';','.')))
-                         ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END)"
-                : "LPAD(e.resultat, 10, '0')";
+                         ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END)";
         }
-        $paceField = ($fmt === 'min' && (str_contains($tbl,'strasse') || $unified)) ? ", e.pace" : "";
+        $paceField = ($fmt === 'min') ? ", e.pace" : "";
 
         // Hilfsfunktion: Bestleistung pro Athlet
         // Strategie: SQL liefert ALLE Ergebnisse sortiert nach Ergebnis,
@@ -3892,8 +3811,7 @@ if ($res === 'vereinsrekorde') {
     if (!$favList) jsonOk([]);
 
     $tblCheck = DB::fetchOne("SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='ergebnisse'");
-    $unified  = $tblCheck && (int)$tblCheck['c'] > 0;
-    $tbl      = $unified ? 'ergebnisse' : 'ergebnisse_strasse';
+    $tbl      = ergTbl();
 
     $placeholders = implode(',', array_fill(0, count($favList), '?'));
     $mappingRows  = [];
@@ -3909,18 +3827,16 @@ if ($res === 'vereinsrekorde') {
 
     $nameExpr = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
 
-    $getBest = function(int $mid, string $dir, string $fmt, string $geschlecht) use ($tbl, $unified, $nameExpr): ?array {
+    $getBest = function(int $mid, string $dir, string $fmt, string $geschlecht) use ($tbl, $nameExpr): ?array {
         if ($fmt === 'm') {
             $sortCol = "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))";
         } else {
-            $sortCol = $unified
-                ? "COALESCE(e.resultat_num,
+            $sortCol = "COALESCE(e.resultat_num,
                     CASE WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}'
                          THEN TIME_TO_SEC(e.resultat)
                          WHEN e.resultat REGEXP '^[0-9]+:[0-9]'
                          THEN TIME_TO_SEC(CONCAT('00:',REPLACE(REPLACE(e.resultat,',','.'),';','.')))
-                         ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END)"
-                : "LPAD(e.resultat, 10, '0')";
+                         ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END)";
         }
         $row = DB::fetchOne(
             "SELECT e.resultat, v.datum, v.id AS veranstaltung_id,
@@ -6062,7 +5978,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && !$id) {
 if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
     $sTbl = DB::tbl('veranstaltung_serien');
     $vTbl = DB::tbl('veranstaltungen');
-    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $eTbl = ergTbl();
 
     $serie = DB::fetchOne("SELECT * FROM $sTbl WHERE id=?", [$id]);
     if (!$serie) jsonErr('Serie nicht gefunden.', 404);
@@ -6098,14 +6014,12 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
         if ($fmt === 'm') {
             $sortCol = "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))";
         } else {
-            $sortCol = $unified
-                ? "COALESCE(e.resultat_num,
+            $sortCol = "COALESCE(e.resultat_num,
                     CASE WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}'
                          THEN TIME_TO_SEC(e.resultat)
                          WHEN e.resultat REGEXP '^[0-9]+:[0-9]'
                          THEN TIME_TO_SEC(CONCAT('00:',REPLACE(REPLACE(e.resultat,',','.'),';','.')))
-                         ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END)"
-                : "LPAD(e.resultat, 10, '0')";
+                         ELSE CAST(REPLACE(e.resultat,',','.') AS DECIMAL(10,3)) END)";
         }
 
         $akExpr    = buildAkCaseExpr($mergeAK);
@@ -6520,7 +6434,7 @@ if ($res === 'offene-wettkaempfe' && $method === 'GET') {
         ) as $b) $benutzer[(int)$b['id']] = $b;
 
         // ── 4) Bereits erfasste Ergebnisse (Athlet + Serie + Jahr) ───────────
-        $ergTbls = $unified ? [DB::tbl('ergebnisse')] : array_values(array_unique(array_map([DB::class, 'tbl'], $_sys)));
+        $ergTbls = [ergTbl()];
         $erfasst = []; // "athlet|serie|jahr" => true
         foreach ($ergTbls as $et) {
             try {
@@ -6621,7 +6535,7 @@ if ($res === 'offene-wettkaempfe' && $method === 'GET') {
 // Admin-Übersicht: alle Veranstaltungen (inkl. ungenehmigter), ohne Detail-Ergebnisse
 if ($res === 'veranstaltungen' && $method === 'GET' && !empty($_GET['admin'])) {
     Auth::requireRecht('veranstaltung_eintragen');
-    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $eTbl = ergTbl();
     $suche = trim($_GET['suche'] ?? '');
     $whereExtra = '';
     $searchParams = [];
@@ -6771,7 +6685,7 @@ if ($res === 'veranstaltungen' && $method === 'GET' && $id === 'match') {
 
 if ($res === 'veranstaltungen' && $method === 'GET') {
     // Öffentlich zugänglich
-    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $eTbl = ergTbl();
     $isSearch = trim($_GET['suche'] ?? '') !== '';
     $maxLimit = $isSearch ? 200 : 50; // Für Suche höheres Limit erlauben
     $limit = min((int)($_GET['limit'] ?? 10), $maxLimit);
@@ -6922,7 +6836,7 @@ if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
 
 if ($res === 'veranstaltungen' && $method === 'DELETE' && $id) {
     Auth::requireRecht('veranstaltung_loeschen');
-    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $eTbl = ergTbl();
     // Ergebnisse aus ALLEN Tabellen soft-löschen (unified + legacy)
     $anz = 0;
     try { $anz += (int)(DB::fetchOne("SELECT COUNT(*) c FROM " . DB::tbl('ergebnisse') . " WHERE veranstaltung_id=? AND geloescht_am IS NULL", [$id])['c'] ?? 0); } catch (\Exception $e) {}
@@ -6950,6 +6864,10 @@ if ($res === 'externe-ergebnisse' && $method === 'GET' && !$id) {
     elseif (!empty($_GET['disziplin'])) { $where[] = 'e.disziplin=?'; $params[] = $_GET['disziplin']; }
     if (!empty($_GET['ak'])) { $where[] = 'e.altersklasse=?'; $params[] = $_GET['ak']; }
     if (!empty($_GET['jahr'])) { $where[] = 'YEAR(v.datum)=?'; $params[] = (int)$_GET['jahr']; }
+    if (!empty($_GET['suche'])) {
+        [$sqlSuX, $parSuX] = sucheWhere(['a.name_nv', 'e.disziplin', 'v.kuerzel', 'v.name', 'v.ort', 'o.name'], (string)$_GET['suche']);
+        if ($sqlSuX) { $where[] = $sqlSuX; $params = array_merge($params, $parSuX); }
+    }
     $sortMap = ['datum'=>'v.datum','athlet'=>'a.name_nv','ak'=>'e.altersklasse','disziplin'=>'e.disziplin','resultat'=>'e.resultat'];
     $sortKey = $_GET['sort'] ?? 'datum'; $sortDir = strtoupper($_GET['dir'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
     $sortCol = $sortMap[$sortKey] ?? 'v.datum';
@@ -6979,7 +6897,7 @@ if ($res === 'externe-ergebnisse' && $method === 'GET' && !$id) {
             WHERE a.geloescht_am IS NULL AND $wStr
             ORDER BY $sortCol $sortDir, e.id DESC LIMIT $limit OFFSET $offset";
     $rows  = DB::fetchAll($sql, $params);
-    $total = (int)DB::fetchOne("SELECT COUNT(*) c FROM $eTblX e JOIN $aTbl a ON a.id=e.athlet_id LEFT JOIN $vTbl v ON v.id=e.veranstaltung_id WHERE a.geloescht_am IS NULL AND $wStr", $params)['c'];
+    $total = (int)DB::fetchOne("SELECT COUNT(*) c FROM $eTblX e JOIN $aTbl a ON a.id=e.athlet_id LEFT JOIN $vTbl v ON v.id=e.veranstaltung_id LEFT JOIN $oTbl o ON o.id=v.ort_id WHERE a.geloescht_am IS NULL AND $wStr", $params)['c'];
     $disziplinen = DB::fetchAll("SELECT DISTINCT e.disziplin, e.disziplin_mapping_id, dk.name AS kategorie_name FROM $eTblX e LEFT JOIN $dmTbl dm ON dm.id=e.disziplin_mapping_id LEFT JOIN $dkTbl dk ON dk.id=dm.kategorie_id WHERE e.extern=1 AND e.geloescht_am IS NULL ORDER BY e.disziplin");
     $aks   = array_column(DB::fetchAll("SELECT DISTINCT e.altersklasse FROM $eTblX e WHERE e.extern=1 AND e.geloescht_am IS NULL AND e.altersklasse IS NOT NULL ORDER BY e.altersklasse"), 'altersklasse');
     $jahre = array_column(DB::fetchAll("SELECT DISTINCT YEAR(v.datum) j FROM $eTblX e LEFT JOIN $vTbl v ON v.id=e.veranstaltung_id WHERE e.extern=1 AND e.geloescht_am IS NULL AND v.datum IS NOT NULL ORDER BY j DESC"), 'j');
@@ -7504,7 +7422,7 @@ if ($res === 'gruppen') {
 // ============================================================
 if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $method === 'GET') {
     Auth::requireAdmin();
-    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $eTbl = ergTbl();
     $nameExpr = "CONCAT(COALESCE(a.nachname,''), IF(a.vorname IS NOT NULL AND a.vorname != '', CONCAT(', ', a.vorname), ''))";
     // Finde Duplikate: gleicher Athlet, gleiche Disziplin, ähnliches Ergebnis (Toleranz 2s/0.01m)
     // Toleranz über resultat_num (numerisch), ohne AK und Platzierung
@@ -7582,7 +7500,7 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
 
 if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $method === 'DELETE' && !empty($parts[2])) {
     Auth::requireAdmin();
-    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $eTbl = ergTbl();
     $id = (int)$parts[2];
     DB::query("UPDATE $eTbl SET geloescht_am=NOW() WHERE id=?", [$id]);
     jsonOk('In Papierkorb verschoben.');
@@ -7593,7 +7511,7 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
 // ============================================================
 if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'verwaist' && $method === 'GET') {
     Auth::requireAdmin();
-    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $eTbl = ergTbl();
     $vTbl = DB::tbl('veranstaltungen');
     $rows = DB::fetchAll(
         "SELECT v.id, v.kuerzel, v.name, v.ort, v.datum, v.genehmigt, v.erstellt_am
@@ -7617,7 +7535,7 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'verwaist' && $method
 
 if ($res === 'papierkorb') {
     Auth::requireAdmin();
-    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $eTbl = ergTbl();
 
     if ($method === 'GET') {
         $ergebnisse = DB::fetchAll(
@@ -7772,254 +7690,251 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
     // Immer: aktuell gültige Bestleistungen (= bestes Ergebnis je Kategorie über alle Zeiten)
     $athletMap = [];
 
-    if ($unified) {
-        // Alle Disziplinen laden mit fmt + sort_dir aus disziplin_mapping/kategorien
-        $katFilter = isset($_GET['kat']) && $_GET['kat'] !== '' ? $_GET['kat'] : null;
-        $diszListSql = "SELECT DISTINCT e.disziplin, e.disziplin_mapping_id,
-                    COALESCE(m.fmt_override, k.fmt, 'min') AS fmt,
-                    COALESCE(k.sort_dir, 'ASC') AS sort_dir,
-                    k.tbl_key AS kat_key,
-                    COALESCE(m.hof_exclude, 0) AS hof_exclude
+    // Alle Disziplinen laden mit fmt + sort_dir aus disziplin_mapping/kategorien
+    $katFilter = isset($_GET['kat']) && $_GET['kat'] !== '' ? $_GET['kat'] : null;
+    $diszListSql = "SELECT DISTINCT e.disziplin, e.disziplin_mapping_id,
+                COALESCE(m.fmt_override, k.fmt, 'min') AS fmt,
+                COALESCE(k.sort_dir, 'ASC') AS sort_dir,
+                k.tbl_key AS kat_key,
+                COALESCE(m.hof_exclude, 0) AS hof_exclude
+         FROM " . DB::tbl('ergebnisse') . " e
+         LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
+         LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
+         WHERE e.geloescht_am IS NULL AND e.extern=0 AND e.resultat IS NOT NULL";
+    $diszParams = [];
+    if ($katFilter) {
+        // Kommagetrennte Kategorie-Keys (z.B. "strasse,sprint")
+        $katKeys = array_filter(array_map('trim', explode(',', $katFilter)));
+        if ($katKeys) {
+            $placeholders = implode(',', array_fill(0, count($katKeys), '?'));
+            $diszListSql .= " AND k.tbl_key IN ($placeholders)";
+            $diszParams  = array_merge($diszParams, $katKeys);
+        }
+    }
+    $diszList = DB::fetchAll($diszListSql, $diszParams);
+    sortDisziplinen($diszList);
+
+    // Auf favorisierte Disziplinen (top_disziplinen) beschränken
+    $hofFavJson = Settings::get('top_disziplinen', '');
+    $hofFavList = $hofFavJson ? array_values(array_filter(array_map('intval', json_decode($hofFavJson, true) ?: []), function($v){ return $v > 0; })) : [];
+    if ($hofFavList) {
+        $diszList = array_values(array_filter($diszList, function($row) use ($hofFavList) {
+            return in_array((int)($row['disziplin_mapping_id'] ?? 0), $hofFavList);
+        }));
+    }
+
+    // Jugend-AK zusammenfassen: aus Settings-Konfiguration
+    $mergeAK = ($_GET['merge_ak'] ?? '1') !== '0';
+    $akExpr  = buildAkCaseExpr($mergeAK);
+
+    foreach ($diszList as $dRow) {
+        if (!empty($dRow['hof_exclude'])) continue; // aus Hall of Fame ausgeschlossen
+        $disz      = $dRow['disziplin'];
+        $mappingId = $dRow['disziplin_mapping_id'] ?? null;
+
+        // val_sort: wie in Bestleistungen – COALESCE(resultat_num, TIME_TO_SEC oder CAST)
+        $fmt = $dRow['fmt'] ?? 'min';
+        if ($fmt === 'm') {
+            $valExpr = "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))";
+        } else {
+            $valExpr = "CASE
+                WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}' THEN TIME_TO_SEC(e.resultat)
+                WHEN e.resultat REGEXP '^[0-9]+:[0-9]' THEN TIME_TO_SEC(CONCAT('00:', REPLACE(REPLACE(e.resultat, ',', '.'), ';', '.')))
+                ELSE CAST(REPLACE(e.resultat, ',', '.') AS DECIMAL(10,3)) END";
+        }
+
+        // Filter per mapping_id (eindeutig) oder disziplin-Name (Fallback)
+        $hofWhere = $mappingId
+            ? "e.disziplin_mapping_id = ?"
+            : "e.disziplin = ?";
+        $hofParam = $mappingId ?? $disz;
+
+        // Alle Ergebnisse dieser Disziplin laden
+        $ergs = DB::fetchAll(
+            "SELECT e.resultat, ($valExpr) AS val_sort, " . $akExpr . " AS altersklasse,
+                    a.id AS athlet_id, a.name_nv, a.vorname, a.nachname, a.geschlecht,
+                    b.avatar_pfad, v.datum
              FROM " . DB::tbl('ergebnisse') . " e
-             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
-             LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
-             WHERE e.geloescht_am IS NULL AND e.extern=0 AND e.resultat IS NOT NULL";
-        $diszParams = [];
-        if ($katFilter) {
-            // Kommagetrennte Kategorie-Keys (z.B. "strasse,sprint")
-            $katKeys = array_filter(array_map('trim', explode(',', $katFilter)));
-            if ($katKeys) {
-                $placeholders = implode(',', array_fill(0, count($katKeys), '?'));
-                $diszListSql .= " AND k.tbl_key IN ($placeholders)";
-                $diszParams  = array_merge($diszParams, $katKeys);
-            }
-        }
-        $diszList = DB::fetchAll($diszListSql, $diszParams);
-        sortDisziplinen($diszList);
+             JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
+             JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
+             LEFT JOIN " . DB::tbl('benutzer') . " b ON b.athlet_id = a.id
+             WHERE $hofWhere AND e.geloescht_am IS NULL AND e.extern=0
+               AND e.resultat IS NOT NULL
+             ORDER BY v.datum ASC",
+            [$hofParam]
+        );
+        if (empty($ergs)) continue;
 
-        // Auf favorisierte Disziplinen (top_disziplinen) beschränken
-        $hofFavJson = Settings::get('top_disziplinen', '');
-        $hofFavList = $hofFavJson ? array_values(array_filter(array_map('intval', json_decode($hofFavJson, true) ?: []), function($v){ return $v > 0; })) : [];
-        if ($hofFavList) {
-            $diszList = array_values(array_filter($diszList, function($row) use ($hofFavList) {
-                return in_array((int)($row['disziplin_mapping_id'] ?? 0), $hofFavList);
-            }));
+        // Sortierrichtung aus disziplin_mapping (zuverlässiger als Regex)
+        $dir = strtoupper($dRow['sort_dir'] ?? 'ASC');
+        // Fallback: Regex wenn sort_dir fehlt
+        if ($dir !== 'ASC' && $dir !== 'DESC') {
+            $firstRes = $ergs[0]['resultat'] ?? '';
+            $dir = preg_match('/^\d{1,2}:\d{2}/', $firstRes) ? 'ASC' : 'DESC';
         }
 
-        // Jugend-AK zusammenfassen: aus Settings-Konfiguration
-        $mergeAK = ($_GET['merge_ak'] ?? '1') !== '0';
-        $akExpr  = buildAkCaseExpr($mergeAK);
+        // Athleten-Map befüllen (einmalig pro Athlet)
+        foreach ($ergs as $e) {
+            $aid = (int)$e['athlet_id'];
+            if (!isset($athletMap[$aid])) {
+                $vn = trim($e['vorname'] ?? '');
+                $nn = trim($e['nachname'] ?? '');
+                $athletMap[$aid] = [
+                    'id'         => $aid,
+                    'name'       => $vn ? ($vn . ' ' . $nn) : $e['name_nv'],
+                    'avatar'     => $e['avatar_pfad'],
+                    'geschlecht' => $e['geschlecht'] ?? '',
+                    'titel'      => [],
+                ];
+            }
+        }
 
-        foreach ($diszList as $dRow) {
-            if (!empty($dRow['hof_exclude'])) continue; // aus Hall of Fame ausgeschlossen
-            $disz      = $dRow['disziplin'];
-            $mappingId = $dRow['disziplin_mapping_id'] ?? null;
+        // Bestleistungen ermitteln: bestes Ergebnis je Kategorie
+        $bestGesamt = null; $bestGesamtAid = null; $bestGesamtDatum = null;
+        $bestByG    = []; $bestGAid = []; $bestGDatum = [];
+        $bestByAK   = []; $bestAKAid = []; $bestAKDatum = [];
 
-            // val_sort: wie in Bestleistungen – COALESCE(resultat_num, TIME_TO_SEC oder CAST)
-            $fmt = $dRow['fmt'] ?? 'min';
-            if ($fmt === 'm') {
-                $valExpr = "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))";
-            } else {
-                $valExpr = "CASE
-                    WHEN e.resultat REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}' THEN TIME_TO_SEC(e.resultat)
-                    WHEN e.resultat REGEXP '^[0-9]+:[0-9]' THEN TIME_TO_SEC(CONCAT('00:', REPLACE(REPLACE(e.resultat, ',', '.'), ';', '.')))
-                    ELSE CAST(REPLACE(e.resultat, ',', '.') AS DECIMAL(10,3)) END";
+        foreach ($ergs as $e) {
+            $val   = (float)($e['val_sort'] ?? 0);
+            if ($val <= 0) continue; // ungültiger Wert überspringen
+            $aid   = (int)$e['athlet_id'];
+            $g     = $e['geschlecht'] ?? '';
+            $ak    = $e['altersklasse'] ?? '';
+            $datum = $e['datum'] ?? '';
+
+            // 1. Gesamtbestleistung
+            if ($bestGesamt === null
+                || ($dir === 'ASC'  && $val < $bestGesamt)
+                || ($dir === 'DESC' && $val > $bestGesamt)) {
+                $bestGesamt = $val; $bestGesamtAid = $aid; $bestGesamtDatum = $datum;
             }
 
-            // Filter per mapping_id (eindeutig) oder disziplin-Name (Fallback)
-            $hofWhere = $mappingId
-                ? "e.disziplin_mapping_id = ?"
-                : "e.disziplin = ?";
-            $hofParam = $mappingId ?? $disz;
-
-            // Alle Ergebnisse dieser Disziplin laden
-            $ergs = DB::fetchAll(
-                "SELECT e.resultat, ($valExpr) AS val_sort, " . $akExpr . " AS altersklasse,
-                        a.id AS athlet_id, a.name_nv, a.vorname, a.nachname, a.geschlecht,
-                        b.avatar_pfad, v.datum
-                 FROM " . DB::tbl('ergebnisse') . " e
-                 JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
-                 JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
-                 LEFT JOIN " . DB::tbl('benutzer') . " b ON b.athlet_id = a.id
-                 WHERE $hofWhere AND e.geloescht_am IS NULL AND e.extern=0
-                   AND e.resultat IS NOT NULL
-                 ORDER BY v.datum ASC",
-                [$hofParam]
-            );
-            if (empty($ergs)) continue;
-
-            // Sortierrichtung aus disziplin_mapping (zuverlässiger als Regex)
-            $dir = strtoupper($dRow['sort_dir'] ?? 'ASC');
-            // Fallback: Regex wenn sort_dir fehlt
-            if ($dir !== 'ASC' && $dir !== 'DESC') {
-                $firstRes = $ergs[0]['resultat'] ?? '';
-                $dir = preg_match('/^\d{1,2}:\d{2}/', $firstRes) ? 'ASC' : 'DESC';
+            // 2. Bestleistung je Geschlecht
+            if ($g === 'M' || $g === 'W') {
+                if (!isset($bestByG[$g])
+                    || ($dir === 'ASC'  && $val < $bestByG[$g])
+                    || ($dir === 'DESC' && $val > $bestByG[$g])) {
+                    $bestByG[$g] = $val; $bestGAid[$g] = $aid; $bestGDatum[$g] = $datum;
+                }
             }
 
-            // Athleten-Map befüllen (einmalig pro Athlet)
-            foreach ($ergs as $e) {
-                $aid = (int)$e['athlet_id'];
-                if (!isset($athletMap[$aid])) {
-                    $vn = trim($e['vorname'] ?? '');
-                    $nn = trim($e['nachname'] ?? '');
-                    $athletMap[$aid] = [
-                        'id'         => $aid,
-                        'name'       => $vn ? ($vn . ' ' . $nn) : $e['name_nv'],
-                        'avatar'     => $e['avatar_pfad'],
-                        'geschlecht' => $e['geschlecht'] ?? '',
-                        'titel'      => [],
+            // 3. Bestleistung je Altersklasse (via buildAkCaseExpr bereits zu MHK/WHK gemergt)
+            if ($ak !== '') {
+                if (!isset($bestByAK[$ak])
+                    || ($dir === 'ASC'  && $val < $bestByAK[$ak])
+                    || ($dir === 'DESC' && $val > $bestByAK[$ak])) {
+                    $bestByAK[$ak] = $val; $bestAKAid[$ak] = $aid; $bestAKDatum[$ak] = $datum;
+                }
+            }
+        }
+
+        // Titel zuweisen (nur wenn Athlet in athletMap bekannt)
+        $addTitel = function(int $aid, string $label, string $datum) use ($disz, $mappingId, &$athletMap): void {
+            if (isset($athletMap[$aid])) {
+                $athletMap[$aid]['titel'][] = ['disziplin' => $disz, 'mapping_id' => $mappingId, 'label' => $label, 'datum' => $datum];
+            }
+        };
+
+        // 3-Tier-System identisch zu auszeichnungen-Endpoint:
+        // Tier 1: Gesamtbestleistung (beste über ALLE Geschlechter+AKs) → skip Tier 2+3
+        // Tier 2: Geschlechts-Bestleistung → "Gesamtbestleistung Männer/Frauen"
+        // Tier 3: AK-Bestleistung (immer prüfen, unabhängig von Tier 2)
+        $hasGesamtBest = []; // aids die Tier-1 haben
+        if ($bestGesamtAid !== null && isset($athletMap[$bestGesamtAid])) {
+            $addTitel($bestGesamtAid, 'Gesamtbestleistung', $bestGesamtDatum);
+            $hasGesamtBest[$bestGesamtAid] = true;
+        }
+        // Tier 2: Geschlechts-Bestleistung (nur wenn NICHT bereits Tier-1)
+        foreach ($bestGAid as $g => $aid) {
+            if (!empty($hasGesamtBest[$aid])) continue;
+            $addTitel($aid, $g === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen', $bestGDatum[$g]);
+        }
+        // Tier 3: AK-Bestleistung (CASE-Expr hat AKs bereits zu MHK/WHK gemergt, inkl. ak_mapping)
+        foreach ($bestAKAid as $ak => $aid) {
+            $akNorm = preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $ak);
+            $addTitel($aid, 'Bestleistung ' . $akNorm, $bestAKDatum[$ak]);
+        }
+        // Fallback WHK/MHK: Gesamtbestleistung-Frauen/Männer-Inhaber erhält AK-Bestleistung
+        // falls er sie nicht bereits via Tier-3 hat (auch wenn ein anderer Athlet das AK-Titel hat)
+        $hasTitelLabel = function(int $aid, string $label) use (&$athletMap): bool {
+            foreach ($athletMap[$aid]['titel'] ?? [] as $t) {
+                if ($t['label'] === $label) return true;
+            }
+            return false;
+        };
+        foreach ($bestGAid as $g => $aid) {
+            if (!empty($hasGesamtBest[$aid])) continue;
+            $fbAk = $g === 'W' ? 'WHK' : 'MHK';
+            if (!$hasTitelLabel($aid, 'Bestleistung ' . $fbAk)) {
+                $addTitel($aid, 'Bestleistung ' . $fbAk, $bestGDatum[$g]);
+            }
+        }
+        if ($bestGesamtAid !== null) {
+            $gesamtG = $athletMap[$bestGesamtAid]['geschlecht'] ?? '';
+            $gesamtFbAk = $gesamtG === 'W' ? 'WHK' : ($gesamtG === 'M' ? 'MHK' : '');
+            if ($gesamtFbAk && !$hasTitelLabel($bestGesamtAid, 'Bestleistung ' . $gesamtFbAk)) {
+                $addTitel($bestGesamtAid, 'Bestleistung ' . $gesamtFbAk, $bestGesamtDatum);
+            }
+        }
+    }
+
+    // ── Meisterschafts-Titel: 1. Platz in einer Meisterschaft ──
+    $mstrListRaw = '';
+    try { $mstrListRaw = DB::fetchOne('SELECT wert FROM ' . DB::tbl('einstellungen') . ' WHERE schluessel = ?', ['meisterschaften_liste'])['wert'] ?? ''; } catch(\Exception $e) {}
+    $mstrMap    = [];
+    $mstrPunkte = [];
+    $mstrArten  = json_decode($mstrListRaw ?: '[]', true) ?: [];
+    $mstrAnzahl = count($mstrArten);
+    $mIdx = 0;
+    foreach ($mstrArten as $m) {
+        if (!empty($m['id']) && !empty($m['label'])) {
+            $mstrMap[(int)$m['id']] = $m['label'];
+            // Reihenfolge in Admin → Meisterschaftsarten = Ranking:
+            // erster Eintrag (höchste Meisterschaft) bekommt die volle Punktzahl,
+            // letzter Eintrag genau 1 Punkt.
+            $mstrPunkte[(int)$m['id']] = max(1, $mstrAnzahl - $mIdx);
+        }
+        $mIdx++;
+    }
+
+    if (!empty($mstrMap)) {
+        $_hofTbls = [ergTbl()];
+        foreach ($_hofTbls as $_mTbl) {
+            try {
+                $colCheck = DB::fetchOne("SHOW COLUMNS FROM $_mTbl LIKE 'ak_platz_meisterschaft'");
+                if (!$colCheck) continue;
+                $firstPlaces = DB::fetchAll(
+                    'SELECT e.athlet_id, e.meisterschaft, e.altersklasse, e.disziplin,'
+                    . ' COALESCE(e.disziplin_mapping_id, 0) AS mapping_id,'
+                    . ' COALESCE(k.name, \'Sonstige\') AS kat_name, v.datum'
+                    . ' FROM ' . $_mTbl . ' e'
+                    . ' JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id = e.veranstaltung_id'
+                    . ' LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' m ON m.id = e.disziplin_mapping_id'
+                    . ' LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' k ON k.id = m.kategorie_id'
+                    . ' WHERE e.ak_platzierung = 1 AND e.meisterschaft IS NOT NULL AND e.geloescht_am IS NULL',
+                    []
+                );
+                foreach ($firstPlaces as $fp) {
+                    $aid   = (int)$fp['athlet_id'];
+                    $mId   = (int)$fp['meisterschaft'];
+                    $mName = $mstrMap[$mId] ?? null;
+                    if (!$mName || !isset($athletMap[$aid])) continue;
+                    $ak    = $fp['altersklasse'] ?? '';
+                    $disz  = $fp['disziplin'] ?? '';
+                    $katNm = $fp['kat_name'] ?? 'Sonstige';
+                    // Label: Meisterschaft + Disziplin (ohne AK)
+                    $titelLabel = '🥇 ' . $mName . ' ' . $disz;
+                    $athletMap[$aid]['titel'][] = [
+                        'disziplin'    => $disz,
+                        'kat_name'     => $katNm,
+                        'label'        => $titelLabel,
+                        'ak'           => $ak,
+                        'datum'        => $fp['datum'],
+                        'punkte'       => $mstrPunkte[$mId] ?? 1,
+                        'is_meisterschaft' => true
                     ];
                 }
-            }
-
-            // Bestleistungen ermitteln: bestes Ergebnis je Kategorie
-            $bestGesamt = null; $bestGesamtAid = null; $bestGesamtDatum = null;
-            $bestByG    = []; $bestGAid = []; $bestGDatum = [];
-            $bestByAK   = []; $bestAKAid = []; $bestAKDatum = [];
-
-            foreach ($ergs as $e) {
-                $val   = (float)($e['val_sort'] ?? 0);
-                if ($val <= 0) continue; // ungültiger Wert überspringen
-                $aid   = (int)$e['athlet_id'];
-                $g     = $e['geschlecht'] ?? '';
-                $ak    = $e['altersklasse'] ?? '';
-                $datum = $e['datum'] ?? '';
-
-                // 1. Gesamtbestleistung
-                if ($bestGesamt === null
-                    || ($dir === 'ASC'  && $val < $bestGesamt)
-                    || ($dir === 'DESC' && $val > $bestGesamt)) {
-                    $bestGesamt = $val; $bestGesamtAid = $aid; $bestGesamtDatum = $datum;
-                }
-
-                // 2. Bestleistung je Geschlecht
-                if ($g === 'M' || $g === 'W') {
-                    if (!isset($bestByG[$g])
-                        || ($dir === 'ASC'  && $val < $bestByG[$g])
-                        || ($dir === 'DESC' && $val > $bestByG[$g])) {
-                        $bestByG[$g] = $val; $bestGAid[$g] = $aid; $bestGDatum[$g] = $datum;
-                    }
-                }
-
-                // 3. Bestleistung je Altersklasse (via buildAkCaseExpr bereits zu MHK/WHK gemergt)
-                if ($ak !== '') {
-                    if (!isset($bestByAK[$ak])
-                        || ($dir === 'ASC'  && $val < $bestByAK[$ak])
-                        || ($dir === 'DESC' && $val > $bestByAK[$ak])) {
-                        $bestByAK[$ak] = $val; $bestAKAid[$ak] = $aid; $bestAKDatum[$ak] = $datum;
-                    }
-                }
-            }
-
-            // Titel zuweisen (nur wenn Athlet in athletMap bekannt)
-            $addTitel = function(int $aid, string $label, string $datum) use ($disz, $mappingId, &$athletMap): void {
-                if (isset($athletMap[$aid])) {
-                    $athletMap[$aid]['titel'][] = ['disziplin' => $disz, 'mapping_id' => $mappingId, 'label' => $label, 'datum' => $datum];
-                }
-            };
-
-            // 3-Tier-System identisch zu auszeichnungen-Endpoint:
-            // Tier 1: Gesamtbestleistung (beste über ALLE Geschlechter+AKs) → skip Tier 2+3
-            // Tier 2: Geschlechts-Bestleistung → "Gesamtbestleistung Männer/Frauen"
-            // Tier 3: AK-Bestleistung (immer prüfen, unabhängig von Tier 2)
-            $hasGesamtBest = []; // aids die Tier-1 haben
-            if ($bestGesamtAid !== null && isset($athletMap[$bestGesamtAid])) {
-                $addTitel($bestGesamtAid, 'Gesamtbestleistung', $bestGesamtDatum);
-                $hasGesamtBest[$bestGesamtAid] = true;
-            }
-            // Tier 2: Geschlechts-Bestleistung (nur wenn NICHT bereits Tier-1)
-            foreach ($bestGAid as $g => $aid) {
-                if (!empty($hasGesamtBest[$aid])) continue;
-                $addTitel($aid, $g === 'M' ? 'Gesamtbestleistung Männer' : 'Gesamtbestleistung Frauen', $bestGDatum[$g]);
-            }
-            // Tier 3: AK-Bestleistung (CASE-Expr hat AKs bereits zu MHK/WHK gemergt, inkl. ak_mapping)
-            foreach ($bestAKAid as $ak => $aid) {
-                $akNorm = preg_replace('/\s+[0-9]+[,.]?[0-9]*\s*kg$/i', '', $ak);
-                $addTitel($aid, 'Bestleistung ' . $akNorm, $bestAKDatum[$ak]);
-            }
-            // Fallback WHK/MHK: Gesamtbestleistung-Frauen/Männer-Inhaber erhält AK-Bestleistung
-            // falls er sie nicht bereits via Tier-3 hat (auch wenn ein anderer Athlet das AK-Titel hat)
-            $hasTitelLabel = function(int $aid, string $label) use (&$athletMap): bool {
-                foreach ($athletMap[$aid]['titel'] ?? [] as $t) {
-                    if ($t['label'] === $label) return true;
-                }
-                return false;
-            };
-            foreach ($bestGAid as $g => $aid) {
-                if (!empty($hasGesamtBest[$aid])) continue;
-                $fbAk = $g === 'W' ? 'WHK' : 'MHK';
-                if (!$hasTitelLabel($aid, 'Bestleistung ' . $fbAk)) {
-                    $addTitel($aid, 'Bestleistung ' . $fbAk, $bestGDatum[$g]);
-                }
-            }
-            if ($bestGesamtAid !== null) {
-                $gesamtG = $athletMap[$bestGesamtAid]['geschlecht'] ?? '';
-                $gesamtFbAk = $gesamtG === 'W' ? 'WHK' : ($gesamtG === 'M' ? 'MHK' : '');
-                if ($gesamtFbAk && !$hasTitelLabel($bestGesamtAid, 'Bestleistung ' . $gesamtFbAk)) {
-                    $addTitel($bestGesamtAid, 'Bestleistung ' . $gesamtFbAk, $bestGesamtDatum);
-                }
-            }
-        }
-
-        // ── Meisterschafts-Titel: 1. Platz in einer Meisterschaft ──
-        $mstrListRaw = '';
-        try { $mstrListRaw = DB::fetchOne('SELECT wert FROM ' . DB::tbl('einstellungen') . ' WHERE schluessel = ?', ['meisterschaften_liste'])['wert'] ?? ''; } catch(\Exception $e) {}
-        $mstrMap    = [];
-        $mstrPunkte = [];
-        $mstrArten  = json_decode($mstrListRaw ?: '[]', true) ?: [];
-        $mstrAnzahl = count($mstrArten);
-        $mIdx = 0;
-        foreach ($mstrArten as $m) {
-            if (!empty($m['id']) && !empty($m['label'])) {
-                $mstrMap[(int)$m['id']] = $m['label'];
-                // Reihenfolge in Admin → Meisterschaftsarten = Ranking:
-                // erster Eintrag (höchste Meisterschaft) bekommt die volle Punktzahl,
-                // letzter Eintrag genau 1 Punkt.
-                $mstrPunkte[(int)$m['id']] = max(1, $mstrAnzahl - $mIdx);
-            }
-            $mIdx++;
-        }
-
-        if (!empty($mstrMap)) {
-            // Nur die tatsächlich vorhandene Tabelle verwenden (unified → ergebnisse)
-            $_hofTbls = $unified ? [DB::tbl('ergebnisse')] : [DB::tbl('ergebnisse_strasse'), DB::tbl('ergebnisse_sprint'), DB::tbl('ergebnisse_mittelstrecke'), DB::tbl('ergebnisse_sprungwurf')];
-            foreach ($_hofTbls as $_mTbl) {
-                try {
-                    $colCheck = DB::fetchOne("SHOW COLUMNS FROM $_mTbl LIKE 'ak_platz_meisterschaft'");
-                    if (!$colCheck) continue;
-                    $firstPlaces = DB::fetchAll(
-                        'SELECT e.athlet_id, e.meisterschaft, e.altersklasse, e.disziplin,'
-                        . ' COALESCE(e.disziplin_mapping_id, 0) AS mapping_id,'
-                        . ' COALESCE(k.name, \'Sonstige\') AS kat_name, v.datum'
-                        . ' FROM ' . $_mTbl . ' e'
-                        . ' JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id = e.veranstaltung_id'
-                        . ' LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' m ON m.id = e.disziplin_mapping_id'
-                        . ' LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' k ON k.id = m.kategorie_id'
-                        . ' WHERE e.ak_platzierung = 1 AND e.meisterschaft IS NOT NULL AND e.geloescht_am IS NULL',
-                        []
-                    );
-                    foreach ($firstPlaces as $fp) {
-                        $aid   = (int)$fp['athlet_id'];
-                        $mId   = (int)$fp['meisterschaft'];
-                        $mName = $mstrMap[$mId] ?? null;
-                        if (!$mName || !isset($athletMap[$aid])) continue;
-                        $ak    = $fp['altersklasse'] ?? '';
-                        $disz  = $fp['disziplin'] ?? '';
-                        $katNm = $fp['kat_name'] ?? 'Sonstige';
-                        // Label: Meisterschaft + Disziplin (ohne AK)
-                        $titelLabel = '🥇 ' . $mName . ' ' . $disz;
-                        $athletMap[$aid]['titel'][] = [
-                            'disziplin'    => $disz,
-                            'kat_name'     => $katNm,
-                            'label'        => $titelLabel,
-                            'ak'           => $ak,
-                            'datum'        => $fp['datum'],
-                            'punkte'       => $mstrPunkte[$mId] ?? 1,
-                            'is_meisterschaft' => true
-                        ];
-                    }
-                } catch(\Exception $e) {}
-            }
+            } catch(\Exception $e) {}
         }
     }
 
@@ -8533,7 +8448,7 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
     $buRow = DB::fetchOne('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [$user['id']]);
     if (!$buRow || !$buRow['athlet_id']) jsonErr('Kein Athletenprofil verknüpft.', 404);
     $athletId = (int)$buRow['athlet_id'];
-    $eTbl = ergebnisTbl('strasse', $unified, $_sys);
+    $eTbl = ergTbl();
     $vTbl = DB::tbl('veranstaltungen');
     $sTbl = DB::tbl('veranstaltung_serien');
 

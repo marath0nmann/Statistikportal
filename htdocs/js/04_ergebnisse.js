@@ -37,10 +37,11 @@ function _mstrFilterToggle(id, checked) {
   state.page = 1;
   loadErgebnisseData();
 }
-function _ergAthletFilter(v) {
+// Multifunktionale Suche: Athlet, Veranstaltung (Name/Kürzel), Ort, Disziplin
+function _ergSucheFilter(v) {
   clearTimeout(_ergAthletTimer);
   _ergAthletTimer = setTimeout(function() {
-    state.filters.athlet = v;
+    state.filters.suche = v;
     state.page = 1;
     loadErgebnisseData();
   }, 300);
@@ -125,7 +126,7 @@ async function loadErgebnisseData() {
   document.getElementById('main-content').innerHTML =
     (state.tab === 'admin' && typeof adminSubtabs === 'function' ? adminSubtabs() : '') +
     '<div class="filter-bar">' +
-      '<div class="fg"><label>Athlet</label><input type="text" id="erg-athlet-filter" placeholder="Name…" value="' + (state.filters.athlet||'') + '" oninput="_ergAthletFilter(this.value)" style="min-width:0;width:100%"/></div>' +
+      '<div class="fg" style="flex:1 1 260px;min-width:220px"><label>Suche</label><input type="text" id="erg-suche-filter" placeholder="Athlet, Veranstaltung, Ort, Disziplin…" value="' + _esc(state.filters.suche||'') + '" oninput="_ergSucheFilter(this.value)" style="min-width:0;width:100%"/></div>' +
       '<div class="fg"><label>Kategorie</label><select onchange="setFilter(\'kategorie\',this.value)">' + katOptHtml + '</select></div>' +
       '<div class="fg"><label>Disziplin</label><select onchange="setFilter(\'disziplin_mapping_id\',this.value)">' + diszOptHtml + '</select></div>' +
       '<div class="fg"><label>Altersklasse</label><select onchange="setFilter(\'ak\',this.value)">' + akOptHtml + '</select></div>' +

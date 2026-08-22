@@ -1,3 +1,7 @@
+## v1497
+- **Ergebnisse-Filter: Das Feld „Athlet" ist jetzt ein multifunktionales Suchfeld.** Gesucht wird gleichzeitig über Athletenname, Veranstaltungsname und -kürzel, Ort (inkl. normalisiertem Ortsnamen aus der Orte-Verwaltung) und Disziplin – z.B. findet „Venlo" alle Ergebnisse dieser Veranstaltung. Gilt für die Ergebnisse-Seite und Admin → Ergebnisse, inklusive der externen Ergebnisse (Filter „Mit externen" / „Nur externe").
+- Die Filter-Dropdowns (Disziplin, AK, Jahr) und die Trefferzahl berücksichtigen die Suche weiterhin korrekt (Orte-Join in Zähl- und Dropdown-Abfragen ergänzt).
+
 ## v1496
 - Fix Bulk-Import: Disziplin-Erkennung (RaceResult, MikaTiming) filterte die Vergleichsliste bisher nicht nach Importkategorie – eine gleichlautende Disziplin aus einer anderen Kategorie (z.B. „6,6km" unter Straße) konnte fälschlich als Treffer geloggt werden, obwohl die Zielkategorie (z.B. Cross) eine andere Benennung nutzt (`X.XXXm`). `findDiszObj` filterte danach korrekt nach Kategorie und lehnte den Treffer ab → leeres Disziplin-Feld trotz „erkannt" im Log. `diszList` wird jetzt konsistent auf die Importkategorie (+ Gruppen-Partner) eingeschränkt, wie schon bei der Dropdown-Befüllung.
 
