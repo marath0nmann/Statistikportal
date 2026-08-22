@@ -1,3 +1,6 @@
+## v1496
+- Fix Bulk-Import: Disziplin-Erkennung (RaceResult, MikaTiming) filterte die Vergleichsliste bisher nicht nach Importkategorie – eine gleichlautende Disziplin aus einer anderen Kategorie (z.B. „6,6km" unter Straße) konnte fälschlich als Treffer geloggt werden, obwohl die Zielkategorie (z.B. Cross) eine andere Benennung nutzt (`X.XXXm`). `findDiszObj` filterte danach korrekt nach Kategorie und lehnte den Treffer ab → leeres Disziplin-Feld trotz „erkannt" im Log. `diszList` wird jetzt konsistent auf die Importkategorie (+ Gruppen-Partner) eingeschränkt, wie schon bei der Dropdown-Befüllung.
+
 ## v1495
 - Fix Bulk-Import: unbekannte Disziplinen (existieren noch nicht im System, z.B. „6,6km" bei Cross) erschienen bisher stillschweigend als leeres Feld – ohne Hinweis, dass etwas fehlt. Das „Neu anlegen…"-Banner (bereits für Seltec/PDF-Import vorhanden) wird jetzt auch nach RaceResult-, MikaTiming- und evenementen.uitslagen.nl-Import angezeigt; ein Klick legt die fehlende Disziplin an und füllt alle passenden Zeilen automatisch nach.
 - Zusätzlich: das Disziplin-Suchfeld zeigt den erkannten Rohtext an (statt leer zu bleiben), auch wenn noch keine System-Disziplin zugeordnet ist – macht sichtbar, was der Import erkannt hat.

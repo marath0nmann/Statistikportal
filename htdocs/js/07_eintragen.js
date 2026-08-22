@@ -2790,7 +2790,14 @@ async function bulkImportFromRR(url, kat, statusEl) {
   _bkDbgSep();
 
   var disziplinen = state.disziplinen||[];
-  var diszList    = disziplinen.map(function(d){return d.disziplin;}).filter(function(v,i,a){return a.indexOf(v)===i;});
+  // Nur Disziplinen der Importkategorie (+ Gruppen-Partner) für die Erkennung zulassen –
+  // sonst matcht z.B. ein gleichlautendes "6,6km" aus Straße auf einen Cross-Import,
+  // obwohl Cross eine eigene "X.XXXm"-Benennung nutzt (findDiszObj lehnt das später zwar
+  // korrekt ab, aber der Rohtext landet dann trotzdem falsch/leer im UI-Feld)
+  var _diszKatErlaubt = bkKatMitGruppen(kat);
+  var diszList    = disziplinen
+    .filter(function(d){return !_diszKatErlaubt||!d.tbl_key||_diszKatErlaubt.indexOf(d.tbl_key)>=0;})
+    .map(function(d){return d.disziplin;}).filter(function(v,i,a){return a.indexOf(v)===i;});
   var allResults  = [], listsChecked = 0, _externPayloads = [];
   // /results/list statt /RRPublish/data/list: einige Events sind über den RRPublish-Datenpfad
   // nicht erreichbar (404), obwohl die Website selbst (die intern /results/list nutzt) läuft
@@ -3380,7 +3387,10 @@ function rrExtractRowsForBulk(data, vereinCfg, kat) {
   // data ist die rr-fetch r=all Response — flaches Objekt mit gruppierten Rows
   // Wir iterieren alle Keys und suchen nach Vereins-Matches
   var disziplinen = state.disziplinen || [];
-  var diszList = disziplinen.map(function(d){ return d.disziplin; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
+  var _diszKatErlaubt = bkKatMitGruppen(kat);
+  var diszList = disziplinen
+    .filter(function(d){return !_diszKatErlaubt||!d.tbl_key||_diszKatErlaubt.indexOf(d.tbl_key)>=0;})
+    .map(function(d){ return d.disziplin; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
   var rows = [];
   var vereinLower = vereinCfg.toLowerCase();
 
@@ -3472,7 +3482,10 @@ async function mikaDetailsNachladen(results, baseUrl, statusEl) {
 function mikaExtractRowsForBulk(data, kat) {
   var results = data && data.results ? data.results : [];
   var disziplinen = state.disziplinen || [];
-  var diszList = disziplinen.map(function(d){ return d.disziplin; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
+  var _diszKatErlaubt = bkKatMitGruppen(kat);
+  var diszList = disziplinen
+    .filter(function(d){return !_diszKatErlaubt||!d.tbl_key||_diszKatErlaubt.indexOf(d.tbl_key)>=0;})
+    .map(function(d){ return d.disziplin; }).filter(function(v,i,a){ return a.indexOf(v)===i; });
   var vereinRaw = (appConfig.verein_kuerzel || appConfig.verein_name || '').trim().toLowerCase();
 
   return results.filter(function(res) {
