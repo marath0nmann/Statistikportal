@@ -1,3 +1,7 @@
+## v1505
+- **Die dynamische Filterleiste aus „Meine Ergebnisse" ist jetzt ein wiederverwendbares Modul** (`js/09b_tabellenfilter.js`): Suchfeld plus beliebig viele Filterregeln „Spalte + Wert", deren Auswahllisten nur noch erreichbare Werte samt Trefferzahl zeigen.
+- Admin → Orte nutzt die neue Leiste: zusätzlich zur Suche (Name, Region, Land, Alias) lässt sich nach Land, Region, Koordinaten, Aliasen und Verwendung filtern.
+
 ## v1504
 - Meine Ergebnisse: Die grüne „PB"-Pille steht jetzt links vom Ergebnis statt rechts. Da die Spalte rechtsbündig ist, bleiben die Ergebniszahlen dadurch sauber untereinander.
 

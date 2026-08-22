@@ -1,6 +1,5 @@
 // ── Admin: Orte-Verwaltung ────────────────────────────────────────────────
 var _orteCache = [];
-var _orteFilter = '';
 var _orteNominatimTimer = null;
 
 function _ortEsc(s) {
@@ -21,11 +20,12 @@ async function renderAdminOrte() {
 }
 
 function _renderOrteUI() {
+  _orteFilterInit();
   return (
+    tfBarHtml('orte', { suchbreite: '1 1 220px' }) +
     '<div class="panel" style="padding:0">' +
       '<div class="panel-header" style="padding:14px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
         '<div class="panel-title" style="margin:0">&#x1F4CD; Orte</div>' +
-        '<input type="text" placeholder="Suchen…" value="' + _ortEsc(_orteFilter) + '" oninput="_orteFilter=this.value;document.getElementById(\'orte-tbody-wrap\').innerHTML=_renderOrteTableInner()" style="flex:1;min-width:160px;max-width:280px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text)"/>' +
         '<div style="flex:1"></div>' +
         '<button class="btn btn-ghost btn-sm" onclick="_orteImportFromVeranstaltungen()" title="Bestehende Veranstaltungs-Orte als Orte-Einträge importieren">&#x1F4E5; Aus Veranstaltungen importieren</button>' +
         '<button class="btn btn-ghost btn-sm" onclick="_orteEnrichAll()" title="Alle Orte ohne Koordinaten via OpenStreetMap anreichern">&#x1F30D; Alle anreichern</button>' +
@@ -36,15 +36,35 @@ function _renderOrteUI() {
   );
 }
 
+// Dynamische Filterleiste (Suche + Spalte/Wert-Regeln)
+function _orteFilterInit() {
+  tfInit('orte', {
+    platzhalter: 'Name, Region, Land, Alias\u2026',
+    rows: function() { return _orteCache; },
+    suche: function(o) {
+      return [o.name, o.region, o.land, o.land_code].concat(o.aliase || []);
+    },
+    spalten: [
+      { key: 'land',   label: 'Land',   wert: function(o) { return o.land || ''; } },
+      { key: 'region', label: 'Region', wert: function(o) { return o.region || ''; } },
+      { key: 'koord',  label: 'Koordinaten', wert: function(o) {
+          return (o.lat != null && o.lon != null) ? 'vorhanden' : 'fehlen'; } },
+      { key: 'alias',  label: 'Aliase', wert: function(o) {
+          return (o.aliase && o.aliase.length) ? 'vorhanden' : 'keine'; } },
+      { key: 'verwendung', label: 'Verwendung', wert: function(o) {
+          return parseInt(o.anz_veranstaltungen) > 0 ? 'in Veranstaltungen' : 'ungenutzt'; } }
+    ],
+    onChange: function() {
+      var wrap = document.getElementById('orte-tbody-wrap');
+      if (wrap) wrap.innerHTML = _renderOrteTableInner();
+    }
+  });
+}
+
 function _renderOrteTableInner(prebuiltRows) {
   if (typeof prebuiltRows !== 'string') {
-    var f = (_orteFilter || '').toLowerCase();
-    var filtered = _orteCache.filter(function(o) {
-      if (!f) return true;
-      var hay = (o.name || '') + ' ' + (o.region || '') + ' ' + (o.land || '') + ' ' + (o.land_code || '') +
-                ' ' + (o.aliase || []).join(' ');
-      return hay.toLowerCase().indexOf(f) >= 0;
-    });
+    _orteFilterInit();
+    var filtered = tfFilter('orte', _orteCache);
     filtered.sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
     prebuiltRows = '';
     if (!filtered.length) {
