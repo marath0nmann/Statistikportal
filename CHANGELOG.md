@@ -1,3 +1,7 @@
+## v1507
+- **Athleten-Tabelle mit dynamischer Filterleiste.** Zusätzlich zur Suche (Nachname, Vorname, Gruppe) lässt sich nach Geschlecht, Jahrgang, Altersklasse, Gruppe und – mit entsprechendem Recht – nach Status, Ergebnissen und letzter Aktivität filtern.
+- Die Suche läuft jetzt clientseitig auf der vollständigen Athletenliste statt über die API. Dadurch reagiert sie ohne Verzögerung und die Filter-Auswahllisten zeigen korrekte Trefferzahlen.
+
 ## v1506
 - **Admin → Veranstaltungen nutzt die dynamische Filterleiste.** Statt der festen Dropdowns „Jahr" und „Status" lässt sich jetzt nach Jahr, Monat, Ort, Serie, Status sowie Vorhandensein interner/externer Ergebnisse filtern – jeder Wert mit Trefferzahl. Die Suche (Name, Kürzel, Ort) beherrscht weiterhin die Platzhalter `*` und `?`.
 

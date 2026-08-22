@@ -65,22 +65,6 @@ function setSubTab(t) { state.subTab = t; state.page = 1; state.filters = {}; st
 function setDiszFilter(d) { state.diszFilter = d; state.page = 1; loadErgebnisseData(); }
 function setDiszTabFilter(cat, disz) { state.subTab = cat; state.diszFilter = disz; state.page = 1; state.filters = {}; syncHash(); loadErgebnisseData(); }
 
-var _athSucheTimer = null;
-function setAthletSuche(v) {
-  state.filters.suche = v;
-  clearTimeout(_athSucheTimer);
-  _athSucheTimer = setTimeout(async function() {
-    // Suche ist serverseitig → neu laden, dann rendern
-    var s = state.filters.suche || '';
-    var rA = await apiGet(s ? 'athleten?suche=' + encodeURIComponent(s) : 'athleten');
-    if (rA && rA.ok) { _athLetenCache.alleAthleten = rA.data; }
-    _renderAthletenTable();
-    // Suchfeld-Fokus erhalten
-    var sf = document.getElementById('athlet-suche');
-    if (sf) sf.focus();
-  }, 250);
-}
-
 function setFilter(k, v) {
   state.filters[k] = v; state.page = 1;
   if (state.tab === 'ergebnisse') loadErgebnisseData();

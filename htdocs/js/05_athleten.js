@@ -342,7 +342,6 @@ function _athSortRows(athleten, jetzt) {
 
 function _renderAthletenTable() {
   var aktGruppe = state.filters.gruppe || '';
-  var alleAthleten = _athLetenCache.alleAthleten || [];
   var showDetails = _canSeeAthletenDetails();
   var canEdit    = _canEditAthleten();
   var isAdmin    = currentUser && currentUser.rolle === 'admin';
@@ -350,11 +349,8 @@ function _renderAthletenTable() {
   var jetzt = new Date().getFullYear();
 
   // Inaktive Athleten nur mit spezifischem Recht sichtbar
-  var canSeeInaktive = _canSeeInaktiveAthleten();
-  var athleten = alleAthleten.filter(function(a) {
-    if (!canSeeInaktive && !a.aktiv) return false;
-    return true;
-  });
+  _athFilterInit();
+  var athleten = tfFilter('athleten', _athSichtbareAthleten());
   if (aktGruppe) {
     athleten = athleten.filter(function(a) {
       var gs = a.gruppen || [];
@@ -413,10 +409,53 @@ function _renderAthletenTable() {
   }
 }
 
+// Dynamische Filterleiste der Athleten-Tabelle. Gefiltert wird clientseitig auf
+// der vollstaendigen Athletenliste – die Werteauswahl kennt so alle Treffer.
+function _athFilterInit() {
+  var jetzt = new Date().getFullYear();
+  var details = _canSeeAthletenDetails();
+  var spalten = [
+    { key: 'geschlecht', label: 'Geschlecht', wert: function(a) {
+        return a.geschlecht === 'M' ? 'M\u00e4nnlich' : a.geschlecht === 'W' ? 'Weiblich'
+             : a.geschlecht === 'D' ? 'Divers' : ''; } },
+    { key: 'jahrgang', label: 'Jahrgang', absteigend: true,
+      wert: function(a) { return a.geburtsjahr ? String(a.geburtsjahr) : ''; } },
+    { key: 'ak', label: 'Altersklasse', wert: function(a) {
+        return (a.geschlecht && a.geburtsjahr) ? calcDlvAK(a.geburtsjahr, a.geschlecht, jetzt) : ''; } },
+    { key: 'gruppe', label: 'Gruppe', wert: function(a) {
+        return (a.gruppen || []).map(function(g) { return g.name; }).join(', '); } }
+  ];
+  if (details) spalten.push(
+    { key: 'status', label: 'Status', wert: function(a) {
+        return a.aktiv ? 'Aktiv' : (a.orga ? 'Orga' : 'Inaktiv'); } },
+    { key: 'ergebnisse', label: 'Ergebnisse', wert: function(a) {
+        return parseInt(a.anz_ergebnisse) > 0 ? 'vorhanden' : 'keine'; } },
+    { key: 'letzte', label: 'Letzte Aktivit\u00e4t', absteigend: true, wert: function(a) {
+        return a.letzte_aktivitaet ? String(a.letzte_aktivitaet) : ''; } }
+  );
+  tfInit('athleten', {
+    platzhalter: 'Name, Vorname, Gruppe\u2026',
+    rows: function() { return _athSichtbareAthleten(); },
+    suche: function(a) {
+      return [a.nachname, a.vorname, a.name_nv,
+              (a.gruppen || []).map(function(g) { return g.name; }).join(' ')];
+    },
+    spalten: spalten,
+    onChange: function() { _renderAthletenTable(); }
+  });
+}
+
+// Grundmenge der Tabelle: was der angemeldete Benutzer ueberhaupt sehen darf.
+// Basis fuer Filterung und fuer die Werteauswahl der Filterleiste.
+function _athSichtbareAthleten() {
+  var alle = _athLetenCache.alleAthleten || [];
+  if (_canSeeInaktiveAthleten()) return alle;
+  return alle.filter(function(a) { return !!a.aktiv; });
+}
+
 async function renderAthleten() {
-  var s = state.filters.suche || '';
   var aktGruppe = state.filters.gruppe || '';
-  var rA = await apiGet(s ? 'athleten?suche=' + encodeURIComponent(s) : 'athleten');
+  var rA = await apiGet('athleten');
   var rG = await apiGet('gruppen');
   if (!rA || !rA.ok) return;
   var alleAthleten = rA.data;
@@ -433,14 +472,13 @@ async function renderAthleten() {
     gruppenBtns += '<button class="rek-cat-btn' + (aktGruppe === g.name ? ' active' : '') + '" onclick="state.filters.gruppe=\'' + g.name.replace(/'/g,"\\'") + '\';renderAthleten()">' + g.name + ' <span style="font-size:10px;opacity:.7">(' + g.anz_athleten + ')</span></button>';
   }
 
+  _athFilterInit();
   document.getElementById('main-content').innerHTML =
     (state.tab === 'admin' && typeof adminSubtabs === 'function' ? adminSubtabs() : '') +
     '<div class="rek-cat-tabs" style="margin-bottom:16px">' + gruppenBtns + '</div>' +
-    '<div class="filter-bar">' +
-      '<div class="fg"><label>Suche</label><input type="text" id="athlet-suche" placeholder="Name suchen&hellip;" value="' + s + '" oninput="setAthletSuche(this.value)" style="min-width:0;width:100%"/></div>' +
+    tfBarHtml('athleten', { suchbreite: '1 1 220px', extra:
       (canEdit ? '<button class="btn btn-primary btn-sm" onclick="showNeuerAthletModal()">+ Neuer Athlet</button>' : '') +
-      (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showGeburtjahrImportModal()" title="Geburtsjahr-Bulk-Import">&#x1F4C5; Geburtsjahr importieren</button>' : '') +
-    '</div>' +
+      (canEdit ? '<button class="btn btn-ghost btn-sm" onclick="showGeburtjahrImportModal()" title="Geburtsjahr-Bulk-Import">&#x1F4C5; Geburtsjahr importieren</button>' : '') }) +
     (_athCanMerge()
       ? '<div id="ath-bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surf2);border:1px solid var(--primary);border-radius:8px;padding:10px 14px;margin-bottom:12px">' +
           '<span id="ath-bulk-count" style="font-weight:600;font-size:13px"></span>' +
