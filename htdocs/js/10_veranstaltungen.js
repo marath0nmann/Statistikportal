@@ -423,7 +423,7 @@ async function renderMeineVeranstaltungen() {
   Object.keys(pbHalter).forEach(function(k) { pbHalter[k].ist_pb_aktuell = 1; });
 
   window._meinVeranstRows = allRows;
-  if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: { suche: '', jahr: '', disziplin: '' } };
+  if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: {} };
   _renderMeineTabelle();
 }
 
@@ -505,48 +505,34 @@ function _mvMstrLabel(id) {
   return m ? m.label : String(id);
 }
 
-function _mvRegeln() {
-  if (!state.meine) return [];
-  if (!state.meine.filter) state.meine.filter = {};
-  if (!Array.isArray(state.meine.filter.regeln)) state.meine.filter.regeln = [];
-  return state.meine.filter.regeln;
+// Suche und Regeln liegen im gemeinsamen Filtermodul (09b_tabellenfilter.js),
+// das aus dieser Seite hervorgegangen ist. Hier bleiben nur die Eigenheiten:
+// welche Spalten filterbar sind und welcher Klartext je Spalte gilt.
+function _meineFilterInit() {
+  var ownClub = (appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '';
+  tfInit('meine', {
+    platzhalter: 'Veranstaltung, Disziplin, Ort\u2026',
+    rows: function() { return window._meinVeranstRows || []; },
+    suche: function(r) { return [_eeDecode(r.veranst_name), _eeDecode(r.disziplin), _eeDecode(r.ort)]; },
+    spalten: _mvFilterSpalten().map(function(c) {
+      return {
+        key: c.key,
+        label: c.label,
+        absteigend: (c.key === 'jahr' || c.key === 'datum'), // neueste zuerst
+        wert: function(r) { return _mvWert(r, c.key, ownClub); }
+      };
+    }),
+    onChange: function() { _renderMeineTabelle(); }
+  });
+  return tfState('meine');
 }
 
-// Trifft eine Zeile alle Regeln? `ausser` blendet eine Regel aus – so enthält
-// die Auswahlliste einer Spalte immer alle Werte, die mit den *übrigen*
-// Filtern noch erreichbar sind.
-function _mvTrifftRegeln(r, ownClub, ausser) {
-  var regeln = _mvRegeln();
-  for (var i = 0; i < regeln.length; i++) {
-    if (i === ausser) continue;
-    var g = regeln[i];
-    if (!g || !g.key || g.wert === '' || g.wert == null) continue;
-    if (_mvWert(r, g.key, ownClub) !== g.wert) return false;
-  }
-  return true;
-}
-
-function _mvTrifftSuche(r, suche) {
-  if (!suche) return true;
-  var q = suche.toLowerCase();
-  return _eeDecode(r.veranst_name).toLowerCase().indexOf(q) >= 0
-      || _eeDecode(r.disziplin).toLowerCase().indexOf(q) >= 0
-      || _eeDecode(r.ort).toLowerCase().indexOf(q) >= 0;
-}
+function _mvRegeln() { return tfRegeln('meine'); }
 
 // Regel setzen/entfernen – auch aus dem Kopf (Kategorie-Chips, Disziplin-Kacheln)
-function _mvSetzeRegel(key, wert) {
-  var regeln = _mvRegeln();
-  var i = regeln.findIndex(function(g) { return g.key === key; });
-  if (wert === '' || wert == null) { if (i >= 0) regeln.splice(i, 1); }
-  else if (i >= 0) regeln[i].wert = wert;
-  else regeln.push({ key: key, wert: wert });
-}
+function _mvSetzeRegel(key, wert) { tfSetzeRegel('meine', key, wert); }
 
-function _mvRegelWert(key) {
-  var g = _mvRegeln().find(function(x) { return x.key === key; });
-  return g ? g.wert : '';
-}
+function _mvRegelWert(key) { return tfRegelWertVon('meine', key); }
 
 // ── Profilkopf (wie im Athletenprofil) ─────────────────────
 // Die Kategorie-Chips und Disziplin-Kacheln sind zugleich Filter fuer die
@@ -554,7 +540,6 @@ function _mvRegelWert(key) {
 function _mvKopfHtml(allRows) {
   var info   = window._meinAthlet || {};
   var athlet = info.athlet;
-  var sf     = (state.meine && state.meine.filter) || {};
 
   // ── Kopfzeile mit Avatar, Name und Badges ──
   var kopf = '';
@@ -830,7 +815,7 @@ function _renderMeineTabelle() {
   if (!viewEl || !window._meinVeranstRows) return;
 
   var allRows = window._meinVeranstRows;
-  var sf = state.meine ? state.meine.filter : {};
+  _meineFilterInit();
   var ss = state.meine ? state.meine.sort   : { col: 'datum', dir: 'desc' };
   var ownClub = (appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '';
 
@@ -839,9 +824,7 @@ function _renderMeineTabelle() {
   allRows.forEach(function(r) { window._meineTblRowMap[r.erg_id] = r; });
 
   // ── Filter: Suchfeld + beliebig viele Spalte/Wert-Regeln ──
-  var rows = allRows.filter(function(r) {
-    return _mvTrifftSuche(r, sf.suche) && _mvTrifftRegeln(r, ownClub, -1);
-  });
+  var rows = tfFilter('meine', allRows);
 
   // ── Sortierung ───────────────────────────────────────────
   // Null-safe Zahl: fehlende Werte immer ans Ende
@@ -996,12 +979,7 @@ function _renderMeineTabelle() {
       '</table></div>'
     : '<div class="empty" style="padding:20px"><div class="empty-text">Keine Ergebnisse f&uuml;r diesen Filter.</div></div>';
 
-  var filterBar =
-    '<div class="filter-bar" style="margin-bottom:16px;flex-wrap:wrap;align-items:flex-end">' +
-      '<div class="fg" style="flex:2;min-width:160px"><label>Suche</label>' +
-        '<input type="search" id="mv-suche" placeholder="Veranstaltung, Disziplin, Ort&hellip;" value="' + _mvText(sf.suche) + '" oninput="_filterMeine()" style="width:100%;min-width:0"/></div>' +
-      '<div id="mv-regeln" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">' + _mvRegelnHtml() + '</div>' +
-    '</div>';
+  var filterBar = tfBarHtml('meine', { suchbreite: '2' });
 
   // Filterleiste haengt nur von allRows ab, nie vom aktiven Filter. Beim Filtern/Sortieren
   // deshalb ausschliesslich den Ergebnisteil ersetzen – sonst wird das Suchfeld neu erzeugt
@@ -1017,8 +995,7 @@ function _renderMeineTabelle() {
     // Das Suchfeld bleibt unberührt, damit es den Fokus behält.
     var kopfEl = document.getElementById('mv-kopf');
     if (kopfEl) kopfEl.innerHTML = kopfHtml;
-    var regelnEl = document.getElementById('mv-regeln');
-    if (regelnEl) regelnEl.innerHTML = _mvRegelnHtml();
+    tfRefresh('meine');
   } else {
     viewEl.innerHTML = '<div id="mv-wrap">' +
         '<div id="mv-kopf">' + kopfHtml + '</div>' + filterBar +
@@ -1067,93 +1044,6 @@ function _sortMeine(col) {
   if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: {} };
   var cur = state.meine.sort;
   state.meine.sort = { col: col, dir: cur.col === col && cur.dir === 'asc' ? 'desc' : 'asc' };
-  _renderMeineTabelle();
-}
-
-function _filterMeine() {
-  if (!state.meine) state.meine = { sort: { col: 'datum', dir: 'desc' }, filter: {} };
-  state.meine.filter.suche = (document.getElementById('mv-suche') || {}).value || '';
-  _renderMeineTabelle();
-}
-
-// ── Filterzeilen (Spalte + Wert) ─────────────────────────
-// Immer eine leere Zeile am Ende: darüber kommt ein weiterer Filter dazu.
-function _mvRegelnHtml() {
-  var ownClub = (appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '';
-  var alle    = window._meinVeranstRows || [];
-  var suche   = (state.meine && state.meine.filter && state.meine.filter.suche) || '';
-  var regeln  = _mvRegeln();
-  var spalten = _mvFilterSpalten();
-  var zeilen  = regeln.concat([{ key: '', wert: '' }]);
-
-  return zeilen.map(function(g, i) {
-    var istNeu = i === regeln.length;
-    var spaltenOpts = '<option value="">' + (istNeu ? '+ Filter&hellip;' : '&mdash;') + '</option>' +
-      spalten.map(function(c) {
-        // Eine Spalte nur einmal filtern
-        var belegt = regeln.some(function(x, xi) { return xi !== i && x.key === c.key; });
-        if (belegt && g.key !== c.key) return '';
-        return '<option value="' + _esc(c.key) + '"' + (g.key === c.key ? ' selected' : '') + '>' + _esc(c.label) + '</option>';
-      }).join('');
-
-    var wertSel = '';
-    if (g.key) {
-      // Werte, die mit den übrigen Filtern noch erreichbar sind – mit Anzahl
-      var zaehler = {};
-      alle.forEach(function(r) {
-        if (!_mvTrifftSuche(r, suche) || !_mvTrifftRegeln(r, ownClub, i)) return;
-        var w = _mvWert(r, g.key, ownClub);
-        if (w === '') return;
-        zaehler[w] = (zaehler[w] || 0) + 1;
-      });
-      var werte = Object.keys(zaehler).sort(function(a, b) {
-        return a.localeCompare(b, 'de', { numeric: true });
-      });
-      if (g.key === 'jahr' || g.key === 'datum') werte.reverse(); // neueste zuerst
-      wertSel = '<select onchange="_mvRegelWertGewaehlt(' + i + ', this.value)" style="min-width:120px">' +
-        '<option value="">Alle</option>' +
-        werte.map(function(w) {
-          return '<option value="' + _esc(w) + '"' + (g.wert === w ? ' selected' : '') + '>' +
-                 _esc(w) + ' (' + zaehler[w] + ')</option>';
-        }).join('') +
-        (g.wert && !zaehler[g.wert]
-          ? '<option value="' + _esc(g.wert) + '" selected>' + _esc(g.wert) + ' (0)</option>' : '') +
-      '</select>';
-    }
-
-    return '<div class="fg" style="flex:0 0 auto">' +
-      '<label>' + (istNeu ? 'Weiterer Filter' : 'Filter ' + (i + 1)) + '</label>' +
-      '<div style="display:flex;gap:6px;align-items:center">' +
-        '<select onchange="_mvRegelSpalteGewaehlt(' + i + ', this.value)" style="min-width:130px">' + spaltenOpts + '</select>' +
-        wertSel +
-        (istNeu ? '' : '<button class="btn btn-ghost btn-sm" title="Filter entfernen" onclick="_mvRegelWeg(' + i + ')">&#x2715;</button>') +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
-
-function _mvRegelSpalteGewaehlt(i, key) {
-  var regeln = _mvRegeln();
-  if (i >= regeln.length) { if (key) regeln.push({ key: key, wert: '' }); }
-  else if (!key) regeln.splice(i, 1);
-  else if (regeln[i].key !== key) { regeln[i].key = key; regeln[i].wert = ''; }
-  _renderMeineTabelle();
-  // Direkt zur Wertauswahl derselben Zeile springen
-  if (key) setTimeout(function() {
-    var zeile = document.querySelectorAll('#mv-regeln .fg')[i];
-    var sel   = zeile ? zeile.querySelectorAll('select')[1] : null;
-    if (sel) sel.focus();
-  }, 0);
-}
-
-function _mvRegelWertGewaehlt(i, wert) {
-  var regeln = _mvRegeln();
-  if (regeln[i]) regeln[i].wert = wert;
-  _renderMeineTabelle();
-}
-
-function _mvRegelWeg(i) {
-  _mvRegeln().splice(i, 1);
   _renderMeineTabelle();
 }
 

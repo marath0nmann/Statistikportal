@@ -1,3 +1,6 @@
+## v1510
+- **„Meine Ergebnisse" nutzt jetzt selbst das gemeinsame Filtermodul.** Die Filterleiste dieser Seite war die Vorlage für alle anderen; ihre Logik lag bisher doppelt vor. Verhalten und Bedienung bleiben unverändert (inklusive Kategorie-Chips und Disziplin-Kacheln als Filter), es entfallen rund 90 Zeilen doppelter Code.
+
 ## v1509
 - **Veranstaltungsliste mit dynamischer Filterleiste.** Neben der Suche (Name, Kürzel, Ort) lässt sich jetzt nach Jahr, Monat, Ort, Land und regelmäßiger Veranstaltung filtern – jeder Wert mit Trefferzahl. Die Auswahllisten liefert die API mit, da die Liste serverseitig gefiltert und seitenweise geladen wird.
 
