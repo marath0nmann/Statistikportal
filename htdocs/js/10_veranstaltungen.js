@@ -693,7 +693,7 @@ function _mvKopfHtml(allRows) {
       var farbe = (best && best.extern) ? 'color:var(--text)' : 'color:var(--primary)';
       var aktiv = diszFilter === d;
       return '<button class="rek-top-btn' + (aktiv ? ' active' : '') + '"' +
-        ' style="min-width:70px;padding:7px 12px"' +
+        ' style="min-width:80px;padding:8px 14px"' +
         ' onclick="_mvFilterDisziplin(\'' + _esc(d).replace(/'/g, "\\'") + '\')">' +
         '<span class="rek-top-name">' + _esc(d) +
           ' <span style="opacity:.7">(' + liste.length + ')</span></span>' +

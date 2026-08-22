@@ -1,3 +1,6 @@
+## v1516
+- Meine Ergebnisse: Auch die Kachelmaße der Bestzeiten-Buttons sind wieder wie vor v1513 (`min-width: 80px`, `padding: 8px 14px`). Damit entspricht die Kachel selbst wieder der Vorversion; übernommen aus dem Dashboard bleiben die Gruppierung nach Kategorie und die farbige Bestzeit.
+
 ## v1515
 - Meine Ergebnisse: Die Bestzeiten-Kacheln haben wieder die Schriftgrößen der Vorversion – Disziplinname aus der Klasse `.rek-top-name` statt fest 12px, Bestzeit 13px statt 14px. Gruppierung nach Kategorie und die farbige Bestzeit aus v1513 bleiben.
 
