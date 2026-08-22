@@ -1,3 +1,9 @@
+## v1494
+- **Bearbeiten-Modal: Die Disziplinkategorie ist jetzt änderbar.** Neues Auswahlfeld „Kategorie"; die Disziplin-Auswahl zeigt nur noch die Disziplinen der gewählten Kategorie und wird beim Wechsel neu aufgebaut. Gespeichert wird die `disziplin_mapping_id`, wodurch die neue Kategorie eindeutig ankommt. Eine Disziplin ohne Mapping bleibt als Eintrag „(ohne Zuordnung)" erhalten und geht nicht verloren.
+- Serverseitig wandert beim Disziplinwechsel die gespeicherte `distanz` mit (aus dem Disziplin-Mapping) – sonst hätte die Pace weiter mit der alten Strecke gerechnet.
+- Schuh bleibt ein Textfeld, schlägt aber die bereits verwendeten Schuhmodelle als Auswahl vor (`datalist`, dedupliziert und alphabetisch).
+- **Fix: Anführungszeichen in Freitexten wurden als `&quot;` angezeigt.** `sanitize()` speichert `"` serverseitig als `&quot;`; die Tabelle escapte das erneut zu `&amp;quot;`. Bemerkungen, Schuh, Verein, Kategorie, Startnummer und die Tooltips werden jetzt vor der Ausgabe dekodiert und dann sauber escapt – ebenso die Felder im Bearbeiten-Modal.
+
 ## v1493
 - **Bearbeiten und Löschen folgen jetzt derselben Berechtigungsregel.** Beim Ändern eines Ergebnisses zählte bisher nur, wer den Datensatz angelegt hat (`erstellt_von`) – importierte eigene Ergebnisse liefen dadurch in „Keine Berechtigung", obwohl sie löschbar waren. Jetzt zählt wie beim Löschen zusätzlich das eigene Athletenprofil. Fremde Ergebnisse bleiben unverändert gesperrt.
 - Offene Änderungsanträge sind in „Meine Ergebnisse" sichtbar: Die Zeile trägt das Kennzeichen „✏️ beantragt", und das Bearbeiten-Modal weist darauf hin, dass bereits ein Antrag vorliegt.

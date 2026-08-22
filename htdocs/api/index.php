@@ -3005,6 +3005,14 @@ if (in_array($res, $ergebnisTabellen)) {
             // Nur mapping_id geändert (Bahn→Straße), Disziplinname bleibt gleich
             $felder[] = 'disziplin_mapping_id=?'; $params[] = (int)$body['disziplin_mapping_id'];
         }
+        // Wechselt die Disziplin, muss die gespeicherte Distanz mitwandern –
+        // sonst rechnet die Pace weiter mit der alten Strecke. Nur die
+        // einheitliche Tabelle führt diese Spalte.
+        if ($unified && isset($body['disziplin_mapping_id']) && is_numeric($body['disziplin_mapping_id'])) {
+            $dmDist = DB::fetchOne('SELECT distanz FROM ' . DB::tbl('disziplin_mapping') . ' WHERE id=?',
+                [(int)$body['disziplin_mapping_id']]);
+            if ($dmDist) { $felder[] = 'distanz=?'; $params[] = $dmDist['distanz']; }
+        }
         if (isset($body['resultat'])) {
             $felder[] = 'resultat=?'; $params[] = sanitize($body['resultat']);
             $rv = $body['resultat'];

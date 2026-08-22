@@ -379,6 +379,11 @@ function _meinVereinText(r, ownClub) {
   return r.extern ? '' : ownClub;
 }
 
+// Freitexte aus der DB sind serverseitig HTML-kodiert (sanitize speichert " als
+// &quot;). Vor der Ausgabe deshalb erst dekodieren und dann neu escapen – sonst
+// steht in der Tabelle wörtlich &quot; statt eines Anführungszeichens.
+function _mvText(v) { return _esc(_eeDecode(v)); }
+
 // ── Profilkopf (wie im Athletenprofil) ─────────────────────
 // Die Kategorie-Chips und Disziplin-Kacheln sind zugleich Filter fuer die
 // Gesamtliste: ein Klick setzt den Filter, ein erneuter Klick hebt ihn auf.
@@ -751,13 +756,13 @@ function _renderMeineTabelle() {
     wk_nr_disz:   function(r) { return r.wk_nr_disz || ''; },
     datum:        function(r) { return formatDate(r.datum); },
     veranstaltung: function(r) {
-      return '<span class="mv-vname" title="' + _esc(r.veranst_name) + '" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' + r.veranst_name + '</span>' +
+      return '<span class="mv-vname" title="' + _mvText(r.veranst_name) + '" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' + r.veranst_name + '</span>' +
         (r.serie_id ? ' <span class="mv-hover" title="Regelm&auml;&szlig;ige Veranstaltung" style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:pointer" onclick="openSerieDetail(' + r.serie_id + ')">🔄</span>' : '');
     },
     ort:          function(r) { return r.ort ? (r.ort_land_code && flagEmoji ? flagEmoji(r.ort_land_code) + ' ' + r.ort : r.ort) : ''; },
-    kategorie:    function(r) { return _esc(r.kategorie); },
+    kategorie:    function(r) { return _mvText(r.kategorie); },
     disziplin:    function(r) { return r.disziplin; },
-    startnummer:  function(r) { return _esc(r.startnummer); },
+    startnummer:  function(r) { return _mvText(r.startnummer); },
     ak:           function(r) { return akBadge(r.altersklasse); },
     pos_ak:       function(r) { return medalBadge(r.ak_platzierung); },
     pos_mw:       function(r) { return r.pos_geschlecht || ''; },
@@ -766,9 +771,9 @@ function _renderMeineTabelle() {
     pos_mstr:     function(r) { return r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : ''; },
     resultat:     function(r) { return r.fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, r.fmt === 's' ? 's' : (r.fmt === 'min_h' ? 'min_h' : undefined)); },
     pace:         function(r) { return (r.pace && r.pace !== '00:00') ? fmtTime(r.pace, 'min/km') : ''; },
-    schuh:        function(r) { return _esc(r.schuh); },
-    verein:       function(r) { return _esc(_meinVereinText(r, ownClub)); },
-    bemerkungen:  function(r) { return _esc(r.bemerkungen); },
+    schuh:        function(r) { return _mvText(r.schuh); },
+    verein:       function(r) { return _mvText(_meinVereinText(r, ownClub)); },
+    bemerkungen:  function(r) { return _mvText(r.bemerkungen); },
   };
   // Spalten mit gedaempfter Darstellung bzw. Sonderformat
   var dimCols = { wk_nr:1, wk_nr_disz:1, ort:1, kategorie:1, startnummer:1, pos_mw:1, pos_ges:1, pace:1, schuh:1, verein:1, bemerkungen:1 };
@@ -795,7 +800,7 @@ function _renderMeineTabelle() {
       ? hinweis + (r.bemerkungen ? '\n' + r.bemerkungen : '')
       : r.bemerkungen;
     var badge = 'font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:help';
-    return '<tr' + (tip ? ' title="' + _esc(tip) + '"' : '') +
+    return '<tr' + (tip ? ' title="' + _mvText(tip) + '"' : '') +
       (r.loeschantrag ? ' style="opacity:.55"' : '') + '>' +
       cols.map(function(c) {
         var inhalt = cell[c.key] ? cell[c.key](r) : '';
@@ -938,6 +943,74 @@ function _filterMeine() {
   _renderMeineTabelle();
 }
 
+// ── Auswahllisten fuers Bearbeiten-Modal ─────────────────
+// tbl_key der Zeile – bevorzugt aus der Disziplinliste, damit auch Zeilen ohne
+// eigenen tbl_key der richtigen Kategorie zugeordnet werden.
+function _meeKatKey(r) {
+  var d = ((state && state.disziplinen) || []).find(function(x) {
+    return r.disziplin_mapping_id ? x.id == r.disziplin_mapping_id : x.disziplin === r.disziplin;
+  });
+  return (d && d.tbl_key) || r.tbl_key || '';
+}
+
+function _meeKategorien() {
+  var gesehen = {}, kats = [];
+  ((state && state.disziplinen) || []).forEach(function(d) {
+    if (d.tbl_key && !gesehen[d.tbl_key]) {
+      gesehen[d.tbl_key] = 1;
+      kats.push({ key: d.tbl_key, name: d.kategorie || d.tbl_key });
+    }
+  });
+  kats.sort(function(a, b) { return a.name.localeCompare(b.name); });
+  return kats;
+}
+
+function _meeKatOpts(r) {
+  var aktiv = _meeKatKey(r);
+  return _meeKategorien().map(function(k) {
+    return '<option value="' + _esc(k.key) + '"' + (k.key === aktiv ? ' selected' : '') + '>' + _esc(k.name) + '</option>';
+  }).join('');
+}
+
+// Disziplinen der gewaehlten Kategorie; Wert ist die mapping_id, damit der
+// Kategoriewechsel serverseitig eindeutig ankommt.
+function _meeDiszOpts(katKey, mappingId, diszName) {
+  var liste = ((state && state.disziplinen) || []).filter(function(d) { return d.tbl_key === katKey; });
+  liste.sort(function(a, b) {
+    var ka = _apDiszSortKey(a.disziplin), kb = _apDiszSortKey(b.disziplin);
+    return ka !== kb ? ka - kb : a.disziplin.localeCompare(b.disziplin);
+  });
+  var opts = liste.map(function(d) {
+    var sel = (mappingId && d.id == mappingId) || (!mappingId && d.disziplin === diszName);
+    return '<option value="' + d.id + '"' + (sel ? ' selected' : '') + '>' + _esc(d.disziplin) + '</option>';
+  }).join('');
+  // Nicht zugeordnete Disziplin (kein Mapping) nicht stillschweigend verlieren
+  var bekannt = liste.some(function(d) { return d.disziplin === diszName; });
+  if (diszName && !bekannt) {
+    opts = '<option value="" selected>' + _esc(diszName) + ' (ohne Zuordnung)</option>' + opts;
+  }
+  return opts;
+}
+
+// Kategoriewechsel: Disziplinliste neu aufbauen
+function _meeKatWechsel() {
+  var katEl  = document.getElementById('mee-kat');
+  var diszEl = document.getElementById('mee-disz');
+  if (!katEl || !diszEl) return;
+  diszEl.innerHTML = _meeDiszOpts(katEl.value, null, null);
+}
+
+// Bereits verwendete Schuhmodelle als Vorschlaege (aus den geladenen Zeilen)
+function _meeSchuhOpts() {
+  var gesehen = {}, schuhe = [];
+  (window._meinVeranstRows || []).forEach(function(r) {
+    var s = _eeDecode(r.schuh);
+    if (s && !gesehen[s]) { gesehen[s] = 1; schuhe.push(s); }
+  });
+  schuhe.sort(function(a, b) { return a.localeCompare(b, 'de'); });
+  return schuhe.map(function(s) { return '<option value="' + _esc(s) + '"></option>'; }).join('');
+}
+
 // ── Einzelnes Ergebnis bearbeiten ────────────────────────
 function _openMeineErgEdit(ergId) {
   var r = window._meineTblRowMap && window._meineTblRowMap[ergId];
@@ -959,12 +1032,14 @@ function _openMeineErgEdit(ergId) {
         '</div>'
       : '') +
     '<div class="form-grid">' +
-      '<div class="form-group full"><label>Disziplin</label>' +
-        '<input type="text" id="mee-disz" value="' + r.disziplin.replace(/"/g,'&quot;') + '" list="disz-list"/></div>' +
+      '<div class="form-group"><label>Kategorie</label>' +
+        '<select id="mee-kat" onchange="_meeKatWechsel()">' + _meeKatOpts(r) + '</select></div>' +
+      '<div class="form-group"><label>Disziplin</label>' +
+        '<select id="mee-disz">' + _meeDiszOpts(_meeKatKey(r), r.disziplin_mapping_id, r.disziplin) + '</select></div>' +
       '<div class="form-group"><label>Ergebnis</label>' +
-        '<input type="text" id="mee-res" value="' + r.resultat.replace(/"/g,'&quot;') + '" placeholder="z.B. 00:40:08 oder 8,45"/></div>' +
+        '<input type="text" id="mee-res" value="' + _mvText(r.resultat) + '" placeholder="z.B. 00:40:08 oder 8,45"/></div>' +
       '<div class="form-group"><label>Altersklasse</label>' +
-        '<input type="text" id="mee-ak" value="' + (r.altersklasse || '').replace(/"/g,'&quot;') + '" placeholder="z.B. M40"/></div>' +
+        '<input type="text" id="mee-ak" value="' + _mvText(r.altersklasse) + '" placeholder="z.B. M40"/></div>' +
       '<div class="form-group"><label>Platz AK</label>' +
         '<input type="number" id="mee-akp" value="' + (r.ak_platzierung || '') + '" min="1" placeholder="—"/></div>' +
       '<div class="form-group"><label>Meisterschaft</label>' +
@@ -972,15 +1047,16 @@ function _openMeineErgEdit(ergId) {
       '<div class="form-group"><label>Platz MS</label>' +
         '<input type="number" id="mee-mstr-platz" value="' + (r.ak_platz_meisterschaft || '') + '" min="1" placeholder="—"/></div>' +
       '<div class="form-group"><label>Startnummer</label>' +
-        '<input type="text" id="mee-snr" maxlength="20" value="' + String(r.startnummer || '').replace(/"/g,'&quot;') + '" placeholder="—"/></div>' +
+        '<input type="text" id="mee-snr" maxlength="20" value="' + _mvText(r.startnummer) + '" placeholder="—"/></div>' +
       '<div class="form-group"><label>Pos (m/w)</label>' +
         '<input type="number" id="mee-pos-mw" value="' + (r.pos_geschlecht || '') + '" min="1" placeholder="—"/></div>' +
       '<div class="form-group"><label>Pos (gesamt)</label>' +
         '<input type="number" id="mee-pos-ges" value="' + (r.pos_gesamt || '') + '" min="1" placeholder="—"/></div>' +
       '<div class="form-group"><label>Schuh</label>' +
-        '<input type="text" id="mee-schuh" maxlength="120" value="' + String(r.schuh || '').replace(/"/g,'&quot;') + '" placeholder="—"/></div>' +
+        '<input type="text" id="mee-schuh" maxlength="120" list="mee-schuh-liste" value="' + _mvText(r.schuh) + '" placeholder="—"/>' +
+        '<datalist id="mee-schuh-liste">' + _meeSchuhOpts() + '</datalist></div>' +
       '<div class="form-group full"><label>Bemerkungen</label>' +
-        '<input type="text" id="mee-bem" maxlength="500" value="' + String(r.bemerkungen || '').replace(/"/g,'&quot;') + '" placeholder="—"/></div>' +
+        '<input type="text" id="mee-bem" maxlength="500" value="' + _mvText(r.bemerkungen) + '" placeholder="—"/></div>' +
     '</div>' +
     '<div class="modal-actions">' +
       (r.loeschantrag
@@ -994,7 +1070,14 @@ function _openMeineErgEdit(ergId) {
 }
 
 async function _saveMeineErgEdit(ergId, tblKey) {
-  var disz  = (document.getElementById('mee-disz')       || {}).value.trim();
+  // Die Disziplin-Auswahl liefert die mapping_id – daraus ergeben sich
+  // Disziplinname und (neue) Kategorie eindeutig.
+  var diszSel = document.getElementById('mee-disz');
+  var mapId   = diszSel ? diszSel.value.trim() : '';
+  var diszObj = mapId ? ((state && state.disziplinen) || []).find(function(d) { return d.id == mapId; }) : null;
+  var disz    = diszObj ? diszObj.disziplin
+              : (diszSel && diszSel.selectedOptions && diszSel.selectedOptions[0]
+                  ? diszSel.selectedOptions[0].textContent.replace(/ \(ohne Zuordnung\)$/, '').trim() : '');
   var res   = (document.getElementById('mee-res')        || {}).value.trim();
   var ak    = (document.getElementById('mee-ak')         || {}).value.trim();
   var akp   = (document.getElementById('mee-akp')        || {}).value.trim();
@@ -1002,6 +1085,7 @@ async function _saveMeineErgEdit(ergId, tblKey) {
   var mstrP = (document.getElementById('mee-mstr-platz') || {}).value.trim();
   if (!disz || !res) { notify('Disziplin und Ergebnis sind Pflicht!', 'err'); return; }
   var body = { disziplin: disz, resultat: res, altersklasse: ak };
+  if (mapId) body.disziplin_mapping_id = parseInt(mapId);
   if (akp)   body.ak_platzierung = parseInt(akp);
   if (mstr)  body.meisterschaft = parseInt(mstr);
   body.ak_platz_meisterschaft = mstrP ? parseInt(mstrP) : null;
