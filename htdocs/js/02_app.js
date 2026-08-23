@@ -197,6 +197,24 @@ function mstrLabel(val) {
   var n = parseInt(val, 10);
   return MSTR_MAP[n] || ('MS ' + val);
 }
+
+// URL-Slug einer Disziplin für Deep-Links: "5.000 m" → "5000m", "Kugelstoß" → "kugelstoss",
+// "800m Straße" → "800m-strasse". Punkte in Zahlen (Tausendertrennzeichen) entfallen.
+function diszSlug(name) {
+  return normalizeUmlauts(String(name || ''))
+    .toLowerCase()
+    .replace(/(\d)\.(?=\d{3}\b)/g, '$1')   // 5.000 → 5000
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+// Disziplin anhand von Kategorie + Slug in state.disziplinen finden
+function diszBySlug(kat, slug) {
+  var list = (typeof state !== 'undefined' && state.disziplinen) || [];
+  return list.find(function(d) {
+    return diszSlug(d.disziplin) === slug && (!kat || d.tbl_key === kat);
+  }) || list.find(function(d) { return diszSlug(d.disziplin) === slug; }) || null;
+}
 // Globale Hilfsfunktion: AK-Array → lesbarer Range-String (W45–W65, W35–W45 und W55–W65, …)
 function compressAKList(aks) {
   var seen = {}, unique = [];
@@ -2198,7 +2216,7 @@ function _shareAllBadges(badgeMap, e) {
   return out;
 }
 
-// Deep-Link auf die Rekordliste einer Disziplin: #rekorde/<kategorie>/<mapping_id>
+// Deep-Link auf die Rekordliste einer Disziplin: #rekorde/<kategorie>/<disziplin-slug>
 function _shareRekordeUrl(e) {
   var base = location.origin + location.pathname + '#rekorde';
   var kat  = e.tbl_key || '';
@@ -2207,7 +2225,8 @@ function _shareRekordeUrl(e) {
     if (d) kat = d.tbl_key || '';
   }
   if (!kat) return base;
-  return base + '/' + kat + (e.disziplin_mapping_id ? '/' + e.disziplin_mapping_id : '');
+  var slug = e.disziplin ? diszSlug(e.disziplin) : '';
+  return base + '/' + kat + (slug ? '/' + slug : '');
 }
 
 // Ergebnisse nach Disziplin gruppieren (gemeinsam f\u00fcr beide Formate)
@@ -3209,11 +3228,11 @@ function syncHash() {
   else if (state.tab === 'admin' && state.adminTab) hash += '/' + state.adminTab;
   else if (state.tab === 'jahr' && state.jahrState && state.jahrState.jahr) hash += '/' + state.jahrState.jahr;
   else if (state.tab === 'rekorde') {
-    // #rekorde/<kategorie>[/<mapping_id>] – Deep-Link auf eine Disziplin
+    // #rekorde/<kategorie>[/<disziplin-slug>] – Deep-Link auf eine Disziplin
     var _rs = state.rekState || {};
     if (_rs.kat) {
       hash += '/' + _rs.kat;
-      if (_rs.mapping_id) hash += '/' + _rs.mapping_id;
+      if (_rs.disz) hash += '/' + diszSlug(_rs.disz);
     } else if (state.subTab) hash += '/' + state.subTab;
   }
   else if (state.tab === 'eintragen'  && state.subTab) hash += '/' + state.subTab;
@@ -3254,14 +3273,17 @@ function restoreFromHash() {
     if (!state.jahrState) _jahrState();
     state.jahrState.jahr = parseInt(sub, 10);
   } else if (tab === 'rekorde' && sub) {
-    // #rekorde/<kategorie>[/<mapping_id>]
+    // #rekorde/<kategorie>[/<disziplin-slug>] – numerisch = alter Link mit mapping_id
     state.subTab = sub;
     if (!state.rekState) state.rekState = {};
     state.rekState.kat  = sub;
     state.rekState.disz = null;
-    var _mid = parts[2] ? parseInt(parts[2], 10) : null;
-    state.rekState.mapping_id = _mid || null;   // Disziplinname löst renderRekorde() auf
-    state.rekState.view = 'gesamt';
+    state.rekState.mapping_id = null;
+    state.rekState.diszSlug   = null;
+    var _seg = parts[2] || '';
+    if (/^\d+$/.test(_seg)) state.rekState.mapping_id = parseInt(_seg, 10); // Abwärtskompatibilität
+    else if (_seg)          state.rekState.diszSlug   = _seg.toLowerCase();
+    state.rekState.view = 'gesamt';                // Auflösung in renderRekorde()
   } else if (tab === 'eintragen') {
     state.subTab = null;
     var validEint = ['bulk'];

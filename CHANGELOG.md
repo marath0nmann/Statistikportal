@@ -1,3 +1,6 @@
+## v1524
+- Rekorde-Deep-Link nutzt jetzt den Disziplinnamen statt der internen ID: `#rekorde/strasse/5km` statt `#rekorde/strasse/12`. Neue Helfer `diszSlug()` (Umlaute, Tausendertrennpunkt, Sonderzeichen) und `diszBySlug()`; die Kategorie im Pfad trennt gleichnamige Disziplinen (`#rekorde/bahn/800m` vs. `#rekorde/strasse/800m`). Alte Links mit numerischer ID funktionieren weiterhin.
+
 ## v1523
 - Rekorde: Deep-Link `#rekorde/<kategorie>/<mapping_id>` führt jetzt direkt zur Bestenliste einer Disziplin. Bisher setzte der Hash nur `state.subTab`, das die Rekorde-Seite gar nicht auswertet – ein Link auf eine bestimmte Disziplin war nicht möglich.
 - Teilen: Meisterschaften werden ausgeschrieben („Nordrhein" + Disziplin → „Nordrhein-Meisterschaften 5km – 1. Platz") statt nur mit dem Kürzel
