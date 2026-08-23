@@ -2168,6 +2168,9 @@ function _shareRekLabel(lbl) {
   if (lbl === 'Bestleistung M\u00e4nner'  || lbl === 'Gesamtbestleistung M\u00e4nner') return 'Vereinsrekord';
   if (lbl === 'Bestleistung Frauen'  || lbl === 'Gesamtbestleistung Frauen') return 'Vereinsrekord';
   if (lbl === 'Gesamtbestleistung') return 'Vereinsrekord';
+  // "Bestleistung M60" → "Vereins-Bestleistung M60": macht deutlich, dass es sich um die
+  // vereinsinterne Altersklassen-Bestzeit handelt und nicht um einen Wettkampftitel
+  if (/^Bestleistung /.test(lbl)) return 'Vereins-' + lbl;
   return lbl;
 }
 
@@ -2325,7 +2328,7 @@ function _veranstWhatsapp(v, badgeMap) {
     var rekUrl = '';
     rows.forEach(function(e) {
       var badges = _shareAllBadges(badgeMap, e, !!mstrRow);
-      if (!rekUrl && badges.some(function(b) { return /^(Vereinsrekord|Bestleistung )/.test(b); })) {
+      if (!rekUrl && badges.some(function(b) { return /^(Vereinsrekord|Vereins-Bestleistung )/.test(b); })) {
         rekUrl = _shareRekordeUrl(e);
       }
       var line   = (e.ak_platzierung ? e.ak_platzierung + '. ' : '\u2022 ') + _shareAthletName(e);
@@ -2337,7 +2340,7 @@ function _veranstWhatsapp(v, badgeMap) {
       out += line + '\n';
     });
     // Bestenliste verlinken, wenn in dieser Disziplin eine Vereins-/AK-Bestleistung fiel
-    if (rekUrl) out += '\ud83d\udcc8 Vereinsbestenliste ' + disz + ': ' + rekUrl + '\n';
+    if (rekUrl) out += '\n\ud83d\udcc8 Vereinsbestenliste ' + disz + ': ' + rekUrl + '\n';
   });
 
   out += '\n\ud83d\udd17 ' + url;
@@ -2484,7 +2487,7 @@ function _veranstClaudePrompt(v, badgeMap) {
       var badges = _shareAllBadges(badgeMap, e);
       if (e.meisterschaft) anyMstr = true;
       // Bestenlisten-Link merken, wenn eine vereinsinterne Bestleistung vorliegt
-      if (badges.some(function(b) { return /^(Vereinsrekord|Bestleistung )/.test(b); }) && !rekSeen[disz]) {
+      if (badges.some(function(b) { return /^(Vereinsrekord|Vereins-Bestleistung )/.test(b); }) && !rekSeen[disz]) {
         rekSeen[disz] = 1;
         rekLinks.push({ disz: disz, url: _shareRekordeUrl(e) });
       }
@@ -2510,7 +2513,7 @@ function _veranstClaudePrompt(v, badgeMap) {
   p += '- **Debüt** – erster Start dieser Person auf dieser Strecke überhaupt\n';
   p += '- **Vereinsrekord** – **vereinsinterne Bestleistung**: die beste Leistung, die jemals ein ' +
        'Mitglied von ' + club + ' auf dieser Strecke erzielt hat\n';
-  p += '- **Bestleistung <AK>** (z. B. „Bestleistung M60") – **vereinsinterne Altersklassen-Bestzeit**: ' +
+  p += '- **Vereins-Bestleistung <AK>** (z. B. „Vereins-Bestleistung M60") – **vereinsinterne Altersklassen-Bestzeit**: ' +
        'die beste Leistung, die je ein Vereinsmitglied dieser Altersklasse auf dieser Strecke erreicht hat. ' +
        'Also kein Meisterschafts- oder Wettkampftitel, sondern ein Eintrag in unserer Bestenliste' +
        (rekLinks.length ? ' – nachzulesen hier:\n' + rekLinks.map(function(l) {

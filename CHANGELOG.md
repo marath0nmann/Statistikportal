@@ -1,3 +1,7 @@
+## v1526
+- Teilen: „Bestleistung M60" heißt jetzt in allen drei Formaten „Vereins-Bestleistung M60" – macht deutlich, dass es die vereinsinterne Altersklassen-Bestzeit ist und kein Wettkampftitel
+- WhatsApp: Leerzeile vor dem Link zur Vereinsbestenliste, damit er sich vom Ergebnisblock absetzt
+
 ## v1525
 - WhatsApp-Teilen: Zählt eine ganze Disziplin zu einer Meisterschaft, steht diese jetzt in der Überschrift („*Nordrhein-Meisterschaften 5km*"); in den Zeilen genügt dann die Kurzform „Nordrhein – 2. Platz" statt der vollen Wiederholung
 - WhatsApp-Teilen: Bei Vereins- oder Altersklassen-Bestleistungen wird die passende Bestenliste je Disziplin verlinkt (`📈 Vereinsbestenliste 5km: …#rekorde/strasse/5km`)
