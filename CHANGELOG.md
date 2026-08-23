@@ -1,3 +1,6 @@
+## v1521
+- Nav-Leiste kompakter: `letter-spacing` der Tab-Beschriftungen von 1px auf 0.4px, horizontales Padding von 16px auf 11px reduziert. Rein typografisch – gleiche Tabs, gleiche Optik, rund 15 % weniger Breitenbedarf, damit die volle Navigation auf schmaleren Desktop-Fenstern ohne Horizontal-Scroll passt
+
 ## v1513
 - **Filterleiste: Spalten mit Mehrfachzuordnung.** Gibt eine Spalte ein Array zurück, zählt jeder Eintrag einzeln in der Auswahlliste und die Zeile passt, sobald einer davon zutrifft. Konkret der Gruppen-Filter der Athleten-Tabelle: Athlet\*innen in mehreren Gruppen erschienen bisher unter der zusammengesetzten Bezeichnung („Senioren, Masters") statt unter jeder Gruppe einzeln.
 
