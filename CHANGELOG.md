@@ -1,3 +1,7 @@
+## v1522
+- Fix Teilen: Meisterschaftswertungen fehlten in den Ausgaben. WordPress- und WhatsApp-Format haben `meisterschaft` gar nicht ausgewertet, der Claude-Prompt zeigte nur ein generisches „Meisterschaft" statt des Namens. Alle drei nutzen jetzt die gemeinsame Funktion `_shareAllBadges()`, die Bestleistungen und Meisterschaftswertung zusammenführt und den echten Namen samt Meisterschaftsplatz ausgibt (z. B. „Nordrhein-Meisterschaft (2. Platz)")
+- Claude-Prompt: Anweisung ergänzt, Meisterschaften im Fließtext eigens hervorzuheben und den Meisterschaftsplatz höher zu gewichten als den AK-Platz im Gesamtfeld; Legende erklärt die Klammer-Angabe
+
 ## v1521
 - Nav-Leiste kompakter: `letter-spacing` der Tab-Beschriftungen von 1px auf 0.4px, horizontales Padding von 16px auf 11px reduziert. Rein typografisch – gleiche Tabs, gleiche Optik, rund 15 % weniger Breitenbedarf, damit die volle Navigation auf schmaleren Desktop-Fenstern ohne Horizontal-Scroll passt
 

@@ -2177,6 +2177,18 @@ function _shareBadgesFor(badgeMap, e) {
   return badgeMap[key] || [];
 }
 
+// Alle Auszeichnungen eines Ergebnisses: Bestleistungen + Meisterschaftswertung.
+// Wird von allen drei Teilen-Formaten genutzt, damit sie nicht auseinanderlaufen.
+function _shareAllBadges(badgeMap, e) {
+  var out = _shareBadgesFor(badgeMap, e).slice();
+  if (e.meisterschaft) {
+    var lbl = (typeof mstrLabel === 'function') ? mstrLabel(e.meisterschaft) : 'Meisterschaft';
+    if (e.ak_platz_meisterschaft) lbl += ' (' + e.ak_platz_meisterschaft + '. Platz)';
+    out.push(lbl);
+  }
+  return out;
+}
+
 // Ergebnisse nach Disziplin gruppieren (gemeinsam f\u00fcr beide Formate)
 function _shareGroupByDisz(v) {
   var byDisz = {}, diszOrder = [];
@@ -2216,7 +2228,7 @@ function _veranstWordpress(v, badgeMap) {
            '<th>Platz AK</th><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Bestleistung</th>' +
            '</tr></thead><tbody>\n';
     g.byDisz[disz].forEach(function(e) {
-      var badges = _shareBadgesFor(badgeMap, e);
+      var badges = _shareAllBadges(badgeMap, e);
       out += '<tr>' +
         '<td>' + _esc(e.ak_platzierung || '') + '</td>' +
         '<td>' + _esc(_shareAthletName(e)) + '</td>' +
@@ -2251,7 +2263,7 @@ function _veranstWhatsapp(v, badgeMap) {
   g.order.forEach(function(disz) {
     out += '\n*' + disz + '*\n';
     g.byDisz[disz].forEach(function(e) {
-      var badges = _shareBadgesFor(badgeMap, e);
+      var badges = _shareAllBadges(badgeMap, e);
       var line   = (e.ak_platzierung ? e.ak_platzierung + '. ' : '\u2022 ') + _shareAthletName(e);
       if (e.altersklasse) line += ' (' + e.altersklasse + ')';
       line += ' \u2013 ' + _veranstFormatResult(e);
@@ -2318,6 +2330,8 @@ function _veranstClaudePrompt(v, badgeMap) {
   p += '- Die **Altersklasse** steht am Zeilenende, direkt **vor** dem Medaillen-Emoji (ohne Leerzeichen).\n';
   p += '- Medaillen-Emojis nur für das Podest: 🥇 (1.), 🥈 (2.), 🥉 (3.)\n';
   p += '- Zusätze wie `PB`, `SB` oder `Vereinsrekord` stehen zwischen Leistung und Platz.\n';
+  p += '- Ist eine **Meisterschaftswertung** angegeben (z. B. „Nordrhein-Meisterschaft"), gehört sie ' +
+       'ebenfalls in die Zeile – mit dem dort genannten Meisterschaftsplatz, falls vorhanden.\n';
   p += '- Beispiele:\n';
   p += '  - `Roger Simons – 16,55 sec – SB – 1. Platz M75🥇`\n';
   p += '  - `Simon Heiß – 39:57 min – 2. Platz M35🥈`\n';
@@ -2329,6 +2343,10 @@ function _veranstClaudePrompt(v, badgeMap) {
   p += '- **Einleitung kurz halten** (kompakter Teaser, passend zum More-Block).\n';
   p += '- **Für den Rest gibt es keine Längenvorgabe** – lieber ausführlich als knapp. ' +
        'Erzähle die Höhepunkte aus, ordne Leistungen ein, würdige einzelne Athlet:innen.\n';
+  p += '- **Meisterschaften sind ein Höhepunkt:** Wird bei Ergebnissen eine Meisterschaftswertung ' +
+       'genannt, greife das im Fließtext auf (z. B. „im Rahmen der Nordrhein-Meisterschaften") und ' +
+       'hebe die dort erreichten Platzierungen eigens hervor – sie sind höher zu bewerten als der ' +
+       'Altersklassenplatz im Gesamtfeld.\n';
   p += '- Abschluss: Glückwunsch an alle Teilnehmenden + Wunsch für gute Regeneration.\n';
   p += '- **Sonderfall heimische Veranstaltung:** Wenn wir selbst ausrichten, den Fokus verschieben – ' +
        'Dank an alle Teilnehmenden, Vorfreude auf das nächste Jahr, Hinweis auf Fotos. ' +
@@ -2394,11 +2412,8 @@ function _veranstClaudePrompt(v, badgeMap) {
     p += '\n### ' + disz + '\n\n';
     p += '| Athlet:in | Leistung | Platz AK | AK | Auszeichnung |\n|---|---|---|---|---|\n';
     rows.forEach(function(e) {
-      var badges = _shareBadgesFor(badgeMap, e).slice();
-      if (e.meisterschaft) {
-        anyMstr = true;
-        badges.push('Meisterschaft' + (e.ak_platz_meisterschaft ? ' (Platz ' + e.ak_platz_meisterschaft + ')' : ''));
-      }
+      var badges = _shareAllBadges(badgeMap, e);
+      if (e.meisterschaft) anyMstr = true;
       p += '| ' + _shareAthletName(e) +
            ' | ' + _sharePromptResult(e) +
            ' | ' + (e.ak_platzierung || '–') +
@@ -2420,7 +2435,11 @@ function _veranstClaudePrompt(v, badgeMap) {
   p += '- **Debüt** – erster Start dieser Person auf dieser Strecke\n';
   p += '- **Vereinsrekord** – beste jemals im Verein erzielte Leistung auf dieser Strecke\n';
   p += '- **Bestleistung <AK>** – beste Leistung in der jeweiligen Altersklasse\n';
-  if (anyMstr) p += '- **Meisterschaft** – Wertung im Rahmen einer offiziellen Meisterschaft\n';
+  if (anyMstr) {
+    p += '- **Meisterschaftsname mit Platz in Klammern** (z. B. „Nordrhein-Meisterschaft (2. Platz)") – ' +
+         'das Ergebnis zählte zugleich als Meisterschaftswertung; der Platz in Klammern ist der ' +
+         'Meisterschaftsplatz, **nicht** der Platz im Gesamtfeld\n';
+  }
   p += '- **SB** (Saisonbestleistung) liegt in diesen Daten nicht vor – nur ergänzen, wenn es ' +
        'aus der offiziellen Ergebnisliste hervorgeht\n';
   p += '- Altersklassen: M/W + Alter (z. B. M35 = Männer ab 35), MHK/WHK = Hauptklasse\n';
