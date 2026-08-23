@@ -1,3 +1,6 @@
+## v1520
+- RaceResult-Event-ID wird jetzt auch aus Anmelde-Links erkannt (`RRRegStart(...)`-Widget, z.B. `cologne-timing.de/anmeldung/eschweiler-1`), nicht nur aus Ergebnis-Seiten (`RRPublish(...)`). Registrierung und Ergebnisse teilen dieselbe Event-ID – verifiziert an Event 402257 (Eschweiler Citylauf)
+
 ## v1519
 - Fix RaceResult: AK-Platz-Felder mit regionalem/Meisterschafts-Präfix (z.B. `AKLVNPlp` bei Landesverbands-Meisterschaften) wurden fälschlich als Gesamt-Platz erkannt, da „akpl" dort kein zusammenhängendes Substring ist. Neue Erkennung via Platzhalter-Präfix `[ak`, in allen 5 Kalibrierungs-Blöcken. Behebt falsche Platzierungen (Gesamt- statt AK-Platz) bei Events mit Landesverbands-Meisterschaftswertung
 - Fix: `isAkList`-Listenname-Erkennung erkennt jetzt „AK" auch als eigenständiges, leerzeichengetrenntes Wort (z.B. „Ergebnisliste AK LVN"), nicht nur mit Unterstrich

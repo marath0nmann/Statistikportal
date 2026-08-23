@@ -5723,10 +5723,11 @@ if ($res === 'rr-fetch' && $method === 'GET') {
 
         $foundId = null;
 
-        // 1. Inline-Script: RRPublish(element, 334519, ...) oder new RRPublish(..., 334519, ...)
+        // 1. Inline-Script: RRPublish(element, 334519, ...) / RRRegStart(element, 402257, ...)
+        // (Anmelde-Widget – gleiche Event-ID wie die zugehörige Ergebnisseite) oder new RR...(...)
         // [^;]*? statt [^,)]+ : erstes Argument kann geschachtelte Klammern/Kommas
         // enthalten, z.B. RRPublish(document.getElementById("divRRPublish"), 383217, "results")
-        if (preg_match('/RRPublish\s*\([^;]*?,\s*(\d{4,7})\s*[,)]/i', $html, $m)) {
+        if (preg_match('/RR(?:Publish|RegStart)\s*\([^;]*?,\s*(\d{4,7})\s*[,)]/i', $html, $m)) {
             $foundId = $m[1];
         }
         // 2. URL-Muster: raceresult.com/334519/
