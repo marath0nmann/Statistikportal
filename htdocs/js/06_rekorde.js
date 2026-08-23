@@ -3,6 +3,12 @@ var REK_CATS = []; // wird dynamisch geladen
 
 async function renderRekorde() {
   var rs = state.rekState;
+  // Deep-Link #rekorde/<kat>/<mapping_id>: Disziplinname nachträglich auflösen,
+  // da state.disziplinen beim Hash-Parsen noch nicht geladen war
+  if (!rs.disz && rs.mapping_id) {
+    var _dm = (state.disziplinen || []).find(function(d) { return d.id == rs.mapping_id; });
+    if (_dm) { rs.disz = _dm.disziplin; if (_dm.tbl_key) rs.kat = _dm.tbl_key; }
+  }
   // Defaults: erst aus gespeicherten User-Prefs, dann hard-coded Defaults
   var _up = state.userPrefs || {};
   if (rs.unique           === undefined) rs.unique           = _up.rek_unique   !== undefined ? !!_up.rek_unique   : true;

@@ -1,3 +1,8 @@
+## v1523
+- Rekorde: Deep-Link `#rekorde/<kategorie>/<mapping_id>` führt jetzt direkt zur Bestenliste einer Disziplin. Bisher setzte der Hash nur `state.subTab`, das die Rekorde-Seite gar nicht auswertet – ein Link auf eine bestimmte Disziplin war nicht möglich.
+- Teilen: Meisterschaften werden ausgeschrieben („Nordrhein" + Disziplin → „Nordrhein-Meisterschaften 5km – 1. Platz") statt nur mit dem Kürzel
+- Claude-Prompt: Meisterschaften sollen eine eigene Zwischenüberschrift bekommen und den übrigen Ergebnissen vorangestellt werden; Legende erklärt „Bestleistung M60" ausdrücklich als vereinsinterne Altersklassen-Bestzeit und verlinkt die passende Bestenliste per Deep-Link
+
 ## v1522
 - Fix Teilen: Meisterschaftswertungen fehlten in den Ausgaben. WordPress- und WhatsApp-Format haben `meisterschaft` gar nicht ausgewertet, der Claude-Prompt zeigte nur ein generisches „Meisterschaft" statt des Namens. Alle drei nutzen jetzt die gemeinsame Funktion `_shareAllBadges()`, die Bestleistungen und Meisterschaftswertung zusammenführt und den echten Namen samt Meisterschaftsplatz ausgibt (z. B. „Nordrhein-Meisterschaft (2. Platz)")
 - Claude-Prompt: Anweisung ergänzt, Meisterschaften im Fließtext eigens hervorzuheben und den Meisterschaftsplatz höher zu gewichten als den AK-Platz im Gesamtfeld; Legende erklärt die Klammer-Angabe

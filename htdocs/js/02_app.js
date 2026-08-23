@@ -2177,16 +2177,37 @@ function _shareBadgesFor(badgeMap, e) {
   return badgeMap[key] || [];
 }
 
+// Meisterschaftsbezeichnung ausformulieren: "Nordrhein" + "5km" → "Nordrhein-Meisterschaften 5km"
+function _shareMstrTitel(e) {
+  var raw = (typeof mstrLabel === 'function') ? String(mstrLabel(e.meisterschaft) || '') : '';
+  if (!raw) return 'Meisterschaften';
+  // Enthält das Label bereits "Meisterschaft(en)", nur die Disziplin anhängen
+  var name = /meisterschaft/i.test(raw) ? raw : raw + '-Meisterschaften';
+  return name + (e.disziplin ? ' ' + e.disziplin : '');
+}
+
 // Alle Auszeichnungen eines Ergebnisses: Bestleistungen + Meisterschaftswertung.
 // Wird von allen drei Teilen-Formaten genutzt, damit sie nicht auseinanderlaufen.
 function _shareAllBadges(badgeMap, e) {
   var out = _shareBadgesFor(badgeMap, e).slice();
   if (e.meisterschaft) {
-    var lbl = (typeof mstrLabel === 'function') ? mstrLabel(e.meisterschaft) : 'Meisterschaft';
-    if (e.ak_platz_meisterschaft) lbl += ' (' + e.ak_platz_meisterschaft + '. Platz)';
+    var lbl = _shareMstrTitel(e);
+    if (e.ak_platz_meisterschaft) lbl += ' – ' + e.ak_platz_meisterschaft + '. Platz';
     out.push(lbl);
   }
   return out;
+}
+
+// Deep-Link auf die Rekordliste einer Disziplin: #rekorde/<kategorie>/<mapping_id>
+function _shareRekordeUrl(e) {
+  var base = location.origin + location.pathname + '#rekorde';
+  var kat  = e.tbl_key || '';
+  if (!kat && e.disziplin_mapping_id && typeof state !== 'undefined') {
+    var d = (state.disziplinen || []).find(function(x) { return x.id == e.disziplin_mapping_id; });
+    if (d) kat = d.tbl_key || '';
+  }
+  if (!kat) return base;
+  return base + '/' + kat + (e.disziplin_mapping_id ? '/' + e.disziplin_mapping_id : '');
 }
 
 // Ergebnisse nach Disziplin gruppieren (gemeinsam f\u00fcr beide Formate)
@@ -2330,8 +2351,8 @@ function _veranstClaudePrompt(v, badgeMap) {
   p += '- Die **Altersklasse** steht am Zeilenende, direkt **vor** dem Medaillen-Emoji (ohne Leerzeichen).\n';
   p += '- Medaillen-Emojis nur für das Podest: 🥇 (1.), 🥈 (2.), 🥉 (3.)\n';
   p += '- Zusätze wie `PB`, `SB` oder `Vereinsrekord` stehen zwischen Leistung und Platz.\n';
-  p += '- Ist eine **Meisterschaftswertung** angegeben (z. B. „Nordrhein-Meisterschaft"), gehört sie ' +
-       'ebenfalls in die Zeile – mit dem dort genannten Meisterschaftsplatz, falls vorhanden.\n';
+  p += '- Ist eine **Meisterschaftswertung** angegeben (z. B. „Nordrhein-Meisterschaften 5km – 1. Platz"), ' +
+       'gehört sie ausgeschrieben in die Zeile, inklusive Meisterschaftsplatz.\n';
   p += '- Beispiele:\n';
   p += '  - `Roger Simons – 16,55 sec – SB – 1. Platz M75🥇`\n';
   p += '  - `Simon Heiß – 39:57 min – 2. Platz M35🥈`\n';
@@ -2343,10 +2364,12 @@ function _veranstClaudePrompt(v, badgeMap) {
   p += '- **Einleitung kurz halten** (kompakter Teaser, passend zum More-Block).\n';
   p += '- **Für den Rest gibt es keine Längenvorgabe** – lieber ausführlich als knapp. ' +
        'Erzähle die Höhepunkte aus, ordne Leistungen ein, würdige einzelne Athlet:innen.\n';
-  p += '- **Meisterschaften sind ein Höhepunkt:** Wird bei Ergebnissen eine Meisterschaftswertung ' +
-       'genannt, greife das im Fließtext auf (z. B. „im Rahmen der Nordrhein-Meisterschaften") und ' +
-       'hebe die dort erreichten Platzierungen eigens hervor – sie sind höher zu bewerten als der ' +
-       'Altersklassenplatz im Gesamtfeld.\n';
+  p += '- **Meisterschaften sind der Höhepunkt:** Wird bei Ergebnissen eine Meisterschaftswertung ' +
+       'genannt, gib ihr im Beitrag eigenen Raum. Der Meisterschaftsplatz wiegt schwerer als der ' +
+       'Altersklassenplatz im Gesamtfeld – eine Medaille bei den Nordrhein-Meisterschaften ist die ' +
+       'eigentliche Nachricht, nicht Rang 2 im Gesamtfeld eines Volkslaufs. Wenn mehrere Ergebnisse ' +
+       'zur selben Meisterschaft zählen, ziehe sie unter einer **eigenen Zwischenüberschrift** ' +
+       'zusammen (z. B. `h3` „Nordrhein-Meisterschaften 5km") und stelle sie den übrigen Ergebnissen voran.\n';
   p += '- Abschluss: Glückwunsch an alle Teilnehmenden + Wunsch für gute Regeneration.\n';
   p += '- **Sonderfall heimische Veranstaltung:** Wenn wir selbst ausrichten, den Fokus verschieben – ' +
        'Dank an alle Teilnehmenden, Vorfreude auf das nächste Jahr, Hinweis auf Fotos. ' +
@@ -2402,6 +2425,7 @@ function _veranstClaudePrompt(v, badgeMap) {
        '(deutsches Dezimalkomma, passende Einheit) – bitte unverändert übernehmen.\n';
 
   var anyMstr = false, externCount = 0, hasAny = false;
+  var rekLinks = [], rekSeen = {};   // Deep-Links zu den Bestenlisten betroffener Disziplinen
   g.order.forEach(function(disz) {
     var rows = g.byDisz[disz].filter(function(e) {
       if (parseInt(e.extern) === 1) { externCount++; return false; }
@@ -2414,6 +2438,11 @@ function _veranstClaudePrompt(v, badgeMap) {
     rows.forEach(function(e) {
       var badges = _shareAllBadges(badgeMap, e);
       if (e.meisterschaft) anyMstr = true;
+      // Bestenlisten-Link merken, wenn eine vereinsinterne Bestleistung vorliegt
+      if (badges.some(function(b) { return /^(Vereinsrekord|Bestleistung )/.test(b); }) && !rekSeen[disz]) {
+        rekSeen[disz] = 1;
+        rekLinks.push({ disz: disz, url: _shareRekordeUrl(e) });
+      }
       p += '| ' + _shareAthletName(e) +
            ' | ' + _sharePromptResult(e) +
            ' | ' + (e.ak_platzierung || '–') +
@@ -2431,14 +2460,21 @@ function _veranstClaudePrompt(v, badgeMap) {
   p += '\n## Legende\n\n';
   p += '- **Platz AK** – Platzierung **innerhalb der Altersklasse**, nicht im Gesamtfeld' +
        (v.datenquelle ? ' (Gesamtplatz bitte aus der Ergebnisliste ergänzen)' : '') + '\n';
-  p += '- **PB** – persönliche Bestleistung auf dieser Strecke\n';
-  p += '- **Debüt** – erster Start dieser Person auf dieser Strecke\n';
-  p += '- **Vereinsrekord** – beste jemals im Verein erzielte Leistung auf dieser Strecke\n';
-  p += '- **Bestleistung <AK>** – beste Leistung in der jeweiligen Altersklasse\n';
+  p += '- **PB** – persönliche Bestleistung: die schnellste Zeit, die **diese Person** je auf dieser ' +
+       'Strecke gelaufen ist\n';
+  p += '- **Debüt** – erster Start dieser Person auf dieser Strecke überhaupt\n';
+  p += '- **Vereinsrekord** – **vereinsinterne Bestleistung**: die beste Leistung, die jemals ein ' +
+       'Mitglied von ' + club + ' auf dieser Strecke erzielt hat\n';
+  p += '- **Bestleistung <AK>** (z. B. „Bestleistung M60") – **vereinsinterne Altersklassen-Bestzeit**: ' +
+       'die beste Leistung, die je ein Vereinsmitglied dieser Altersklasse auf dieser Strecke erreicht hat. ' +
+       'Also kein Meisterschafts- oder Wettkampftitel, sondern ein Eintrag in unserer Bestenliste' +
+       (rekLinks.length ? ' – nachzulesen hier:\n' + rekLinks.map(function(l) {
+         return '    - ' + l.disz + ': ' + l.url;
+       }).join('\n') + '\n' : '.\n');
   if (anyMstr) {
-    p += '- **Meisterschaftsname mit Platz in Klammern** (z. B. „Nordrhein-Meisterschaft (2. Platz)") – ' +
-         'das Ergebnis zählte zugleich als Meisterschaftswertung; der Platz in Klammern ist der ' +
-         'Meisterschaftsplatz, **nicht** der Platz im Gesamtfeld\n';
+    p += '- **Meisterschaftsangabe** (z. B. „Nordrhein-Meisterschaften 5km – 2. Platz") – das Ergebnis ' +
+         'zählte zugleich als offizielle Meisterschaftswertung. Die genannte Platzierung ist der ' +
+         '**Meisterschaftsplatz**, nicht der Rang im Gesamtfeld des Laufs.\n';
   }
   p += '- **SB** (Saisonbestleistung) liegt in diesen Daten nicht vor – nur ergänzen, wenn es ' +
        'aus der offiziellen Ergebnisliste hervorgeht\n';
@@ -3172,7 +3208,14 @@ function syncHash() {
   else if (state.tab === 'athlet' && state.athletSlug) hash = 'athlet/' + state.athletSlug;
   else if (state.tab === 'admin' && state.adminTab) hash += '/' + state.adminTab;
   else if (state.tab === 'jahr' && state.jahrState && state.jahrState.jahr) hash += '/' + state.jahrState.jahr;
-  else if (state.tab === 'rekorde'    && state.subTab) hash += '/' + state.subTab;
+  else if (state.tab === 'rekorde') {
+    // #rekorde/<kategorie>[/<mapping_id>] – Deep-Link auf eine Disziplin
+    var _rs = state.rekState || {};
+    if (_rs.kat) {
+      hash += '/' + _rs.kat;
+      if (_rs.mapping_id) hash += '/' + _rs.mapping_id;
+    } else if (state.subTab) hash += '/' + state.subTab;
+  }
   else if (state.tab === 'eintragen'  && state.subTab) hash += '/' + state.subTab;
   history.replaceState(null, '', '#' + hash);
 }
@@ -3211,7 +3254,14 @@ function restoreFromHash() {
     if (!state.jahrState) _jahrState();
     state.jahrState.jahr = parseInt(sub, 10);
   } else if (tab === 'rekorde' && sub) {
+    // #rekorde/<kategorie>[/<mapping_id>]
     state.subTab = sub;
+    if (!state.rekState) state.rekState = {};
+    state.rekState.kat  = sub;
+    state.rekState.disz = null;
+    var _mid = parts[2] ? parseInt(parts[2], 10) : null;
+    state.rekState.mapping_id = _mid || null;   // Disziplinname löst renderRekorde() auf
+    state.rekState.view = 'gesamt';
   } else if (tab === 'eintragen') {
     state.subTab = null;
     var validEint = ['bulk'];
