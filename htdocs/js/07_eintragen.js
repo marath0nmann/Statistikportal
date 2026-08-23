@@ -2532,6 +2532,12 @@ function bulkDetectUrl(text) {
   if (/^https?:\/\//i.test(t) && (/\/\d+\/results\b/i.test(t) || /#\d+_[0-9A-Fa-f]{4,}/.test(t))) return 'raceresult';
   // Seltec/Track&Field HTML-Export (ältere Darstellung als .htm/.html-Datei)
   if (/^https?:\/\/.+\.html?(\?[^#]*)?$/i.test(t))    return 'html';
+  // Letzter Fallback: unbekannte Domain mit "Ergebnis/Result/Timing"-typischem Namen →
+  // serverseitig auf RaceResult-White-Label (RRPublish im Quelltext) prüfen lassen.
+  // z.B. cologne-timing.de/ergebnisse/eschweiler-2026 → RR-Event 402257 (kein /{id}/results-
+  // Pfad, kein #Hash in der URL, daher ohne diesen Fallback nicht erkennbar). Falscher
+  // Verdacht ist ungefährlich: der Proxy meldet einfach "keine Event-ID gefunden".
+  if (/^https?:\/\//i.test(t) && /(ergebnis|result|timing)/i.test(t)) return 'raceresult';
   return null;
 }
 

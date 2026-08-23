@@ -1,3 +1,6 @@
+## v1517
+- RaceResult White-Label-Erkennung erweitert: Domains ohne `/{id}/results`-Pfad oder `#N_HEX`-Hash in der URL (z.B. `cologne-timing.de/ergebnisse/eschweiler-2026`) werden jetzt per Namens-Heuristik ("ergebnis"/"result"/"timing" in der URL) erkannt und serverseitig auf RRPublish geprüft. Verifiziert: Eschweiler Citylauf (Event 402257)
+
 ## v1516
 - Meine Ergebnisse: Auch die Kachelmaße der Bestzeiten-Buttons sind wieder wie vor v1513 (`min-width: 80px`, `padding: 8px 14px`). Damit entspricht die Kachel selbst wieder der Vorversion; übernommen aus dem Dashboard bleiben die Gruppierung nach Kategorie und die farbige Bestzeit.
 
