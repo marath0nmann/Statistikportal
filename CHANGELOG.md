@@ -1,3 +1,8 @@
+## v1519
+- Fix RaceResult: AK-Platz-Felder mit regionalem/Meisterschafts-Präfix (z.B. `AKLVNPlp` bei Landesverbands-Meisterschaften) wurden fälschlich als Gesamt-Platz erkannt, da „akpl" dort kein zusammenhängendes Substring ist. Neue Erkennung via Platzhalter-Präfix `[ak`, in allen 5 Kalibrierungs-Blöcken. Behebt falsche Platzierungen (Gesamt- statt AK-Platz) bei Events mit Landesverbands-Meisterschaftswertung
+- Fix: `isAkList`-Listenname-Erkennung erkennt jetzt „AK" auch als eigenständiges, leerzeichengetrenntes Wort (z.B. „Ergebnisliste AK LVN"), nicht nur mit Unterstrich
+- Neu: RaceResult-Contests/Listen mit „LVN" (Landesverband Nordrhein) oder „Meisterschaft" im Namen werden automatisch als Meisterschafts-Wertung erkannt und ins Meisterschafts-Feld übernommen (Label + Platz), mit Fallback auf den rohen Contest-Namen falls keine passende Meisterschaft konfiguriert ist – nutzt die bereits vorhandene Zuordnungs-Logik (`_bkMstrIdFromLabel`)
+
 ## v1518
 - Debug: `rr-fetch?proxy_url=` liefert bei „keine Event-ID gefunden" jetzt HTTP-Status, Antwortlänge und einen Seitenausschnitt zurück – sichtbar im Debug-Log. Diagnose für Fälle, in denen die Ziel-Domain den Hosting-Server blockiert (Bot-Schutz/WAF), obwohl die Seite von außen normal erreichbar ist (z.B. cologne-timing.de)
 

@@ -2788,7 +2788,9 @@ async function bulkImportFromRR(url, kat, statusEl) {
     // Laufserie: *_Serie_* Listen enthalten kumulierte Gesamtzeiten → überspringen
     if(/_serie_/i.test(ln))continue;
     // Ges/MW-Listen: importieren, aber Platz nur wenn kein AK-Platz gesetzt (isAkList-Prio)
-    var _isAkList = /_ak(?:_|$)/i.test(ln); // z.B. Ergebnisse_AK oder Ergebnisliste_AK_Tag_1
+    // Erkennt "AK" als eigenständiges Wort, egal ob mit Unterstrich oder Leerzeichen umgeben
+    // (z.B. Ergebnisse_AK, Ergebnisliste_AK_Tag_1, "Ergebnisliste AK LVN")
+    var _isAkList = /(^|[^a-z])ak([^a-z]|$)/i.test(ln);
     var lkey=ln+'|'+lc;
     if(_seen[lkey])continue;
     _seen[lkey]=true;
@@ -2830,8 +2832,10 @@ async function bulkImportFromRR(url, kat, statusEl) {
       else if(f.indexOf('club')>=0||f.indexOf('verein')>=0)iClub=fi;
       // "ZeitMitStatus"/"BruttozeitMitStatus"/"NettozeitMitStatus" → Zeitfeld (vor dem mitstatus-Check!)
       else if(f.indexOf('zeit') >= 0){if(f.indexOf('netto')>=0)iNetto=fi;else iZeit=fi;}
-      else if(f.indexOf('autorankp')>=0||f.indexOf('overallrank')>=0||f.indexOf('withstatus')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0||f.indexOf('agegrouprank')>=0){if(f.indexOf('akpl')>=0||f.indexOf('agegrouprank')>=0)iAKPlatz=fi;else iPlatz=fi;}
-      else if(f.indexOf('akpl')>=0)iAKPlatz=fi;
+      // "[AKPlp]"/"[AKLVNPlp]"/"[AKMSTRPlp]" – Platzhalter-Name beginnt mit "ak" (regionale/Meisterschafts-
+      // Varianten wie AKLVN haben "akpl" nicht als zusammenhängendes Substring, daher zusätzlich "[ak"-Check)
+      else if(f.indexOf('autorankp')>=0||f.indexOf('overallrank')>=0||f.indexOf('withstatus')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0||f.indexOf('agegrouprank')>=0){if(f.indexOf('akpl')>=0||f.indexOf('[ak')>=0||f.indexOf('agegrouprank')>=0)iAKPlatz=fi;else iPlatz=fi;}
+      else if(f.indexOf('akpl')>=0||f.indexOf('[ak')>=0)iAKPlatz=fi;
       else if(/^rank\dp$/.test(f)){if(f==='rank1p')iPlatz=fi;else iAKPlatz=fi;}
       else if((f.indexOf('agegroup')>=0||f==='[agegroup1.nameshort]'||f.indexOf('akabk')>=0||f.indexOf('ak_abk')>=0||f==='es_akabkürzung'||f.indexOf('agegroupname')>=0)&&f.indexOf('rank')<0)iAK=fi;
       else if(f==='year'||f==='yob'||f==='birthyear'||f==='es_jahrgang')iYear=fi;
@@ -2847,6 +2851,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
   }
 
   function _proc(payload, contestName, le, externMode) { le = le || {}; var _cnDLogged = false;
+    var _rrMstr = _rrDetectMeisterschaft(contestName, le.name);
     var df=payload.DataFields||[];
     if(Array.isArray(df)&&df.length>0)_cal(df);
     // Debug: DataFields + Namens-Indices beim ersten Extern-Aufruf pro Liste
@@ -2951,6 +2956,9 @@ async function bulkImportFromRR(url, kat, statusEl) {
             if(rAK && rAK !== '.' && rAK.length > 1 && !_dupAkOk) _dup.ak = rAK;
             // Disziplin übernehmen wenn bisher leer (z.B. Allgemein-Gesamtliste vor distanzspez. Liste verarbeitet)
             if(!_dup.disziplin && disz){_dup.disziplin=dObj?dObj.disziplin:disz;_dup.diszMid=dObj?(dObj.id||dObj.mapping_id):null;}
+            // Meisterschaft: übernehmen wenn bisher leer; Platz analog zu platzIsAk bevorzugt AK-Quelle
+            if(_rrMstr && !_dup.meisterschaft){_dup.meisterschaft=_rrMstr;_dup.mstrPlatz=rP;_dup.mstrPlatzIsAk=_pIsAk;}
+            else if(_rrMstr && _dup.meisterschaft && _pIsAk && !_dup.mstrPlatzIsAk){_dup.mstrPlatz=rP;_dup.mstrPlatzIsAk=_pIsAk;}
           } else {
             allResults.push({name:rName,resultat:rZeit,ak:rAK,platz:rP,platzIsAk:_pIsAk,
               disziplin:dObj?dObj.disziplin:disz,diszMid:dObj?(dObj.id||dObj.mapping_id):null,
@@ -2960,7 +2968,8 @@ async function bulkImportFromRR(url, kat, statusEl) {
               tagNr:le ? (le.tagNr||0) : 0,
               isAkList:le ? !!le.isAkList : false,
               extern:externMode?true:false,
-              verein:externMode?club:''});
+              verein:externMode?club:'',
+              meisterschaft:_rrMstr||'', mstrPlatz:_rrMstr?rP:0, mstrPlatzIsAk:_rrMstr?_pIsAk:false});
           }
         });
     }
@@ -4132,6 +4141,23 @@ function _bkMstrIdFromLabel(label) {
     });
   }
   return hit ? hit.id : null;
+}
+
+// RaceResult-Contest/Liste als Meisterschafts-Wertung erkennen und passendes Label
+// liefern (leer = keine Meisterschaft). "LVN" = Landesverband Nordrhein, RaceResults
+// stehende Abkürzung für regionale Leichtathletik-Meisterschaften (z.B. Contest-Name
+// "5-km-Meisterschaftslauf" + Listen-Ordner "02-ERGEBNISSE-LVN|Ergebnisliste AK LVN").
+function _rrDetectMeisterschaft(contestName, listName) {
+  var cn = (contestName || '').toLowerCase();
+  var ln = (listName || '').toLowerCase();
+  var _hasLvn = /(^|[^a-z])lvn([^a-z]|$)/.test(cn) || /(^|[^a-z])lvn([^a-z]|$)/.test(ln);
+  var _hasMstr = cn.indexOf('meisterschaft') >= 0 || ln.indexOf('meisterschaft') >= 0;
+  if (!_hasLvn && !_hasMstr) return '';
+  if (_hasLvn) {
+    var _lvnMid = _bkMstrIdFromLabel('Nordrhein-Meisterschaft');
+    if (_lvnMid) return mstrLabel(_lvnMid);
+  }
+  return contestName || listName || '';
 }
 
 async function bulkFillFromImport(rows, statusEl) {
@@ -6622,10 +6648,10 @@ async function rrFetch() {
             else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0 || f === 'ziel' || f.indexOf('ziel') >= 0 || f.indexOf('finish') >= 0) iZeit = fi;
             else if (f === 'time' || f.indexOf('time') === 0 || f.indexOf('timetext') >= 0) iZeit = fi;
             else if (/^rank\dp$/.test(f)) { if (f === 'rank1p') iPlatz = fi; else iAKPlatz = fi; }
-            else if (f.indexOf('akpl') >= 0) iAKPlatz = fi;  // AKPlp, AKPl.P direkt
+            else if (f.indexOf('akpl') >= 0 || f.indexOf('[ak') >= 0) iAKPlatz = fi;  // AKPlp, AKPl.P, AKLVNPlp direkt
             else if (f.indexOf('autorankp') >= 0 || f.indexOf('overallrank') >= 0 || f.indexOf('withstatus') >= 0 || f.indexOf('mitstatus') >= 0 || f.indexOf('statusplatz') >= 0) { // withstatus BEFORE agegroup check
-              // MitStatus([AKPlp]) / StatusPlatz([AKPl.P]) = AK-Platz
-              if (f.indexOf('akpl') >= 0) iAKPlatz = fi;
+              // MitStatus([AKPlp]) / StatusPlatz([AKPl.P]) / MitStatus([AKLVNPlp]) = AK-Platz
+              if (f.indexOf('akpl') >= 0 || f.indexOf('[ak') >= 0) iAKPlatz = fi;
               else iPlatz = fi;
             }
           }
@@ -6671,8 +6697,8 @@ async function rrFetch() {
                   else if (_fa.indexOf('geschlechtmw') >= 0 || _fa === 'gendermf' || _fa === 'gender') iGeschlecht = _fai;
                   else if (_fa.indexOf('chip') >= 0 || _fa.indexOf('netto') >= 0) iNetto = _fai;
                   else if (_fa.indexOf('gun') >= 0 || _fa.indexOf('brutto') >= 0 || _fa === 'ziel' || _fa.indexOf('finish') >= 0 || _fa.indexOf('ziel') >= 0) iZeit = _fai;
-                  else if (_fa.indexOf('akpl') >= 0) iAKPlatz = _fai;
-                  else if (_fa.indexOf('mitstatus') >= 0 || _fa.indexOf('statusplatz') >= 0) { if (_fa.indexOf('akpl') >= 0) iAKPlatz = _fai; else iPlatz = _fai; }
+                  else if (_fa.indexOf('akpl') >= 0 || _fa.indexOf('[ak') >= 0) iAKPlatz = _fai;
+                  else if (_fa.indexOf('mitstatus') >= 0 || _fa.indexOf('statusplatz') >= 0) { if (_fa.indexOf('akpl') >= 0 || _fa.indexOf('[ak') >= 0) iAKPlatz = _fai; else iPlatz = _fai; }
                 }
                 if (_hnf3) iFirstname = -1;
                 if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
@@ -6796,9 +6822,9 @@ async function rrFetch() {
               else if (f2.indexOf('geschlechtmw') >= 0 || f2 === 'es_geschlecht') iGeschlecht = fi2;
               else if (f2.indexOf('chip') >= 0 || f2.indexOf('netto') >= 0) iNetto = fi2;
               else if (f2.indexOf('gun') >= 0 || f2.indexOf('brutto') >= 0 || f2 === 'ziel' || f2.indexOf('finish') >= 0) iZeit = fi2;
-              else if (f2.indexOf('akpl') >= 0) iAKPlatz = fi2;  // AKPlp, AKPl.P direkt
+              else if (f2.indexOf('akpl') >= 0 || f2.indexOf('[ak') >= 0) iAKPlatz = fi2;  // AKPlp, AKPl.P, AKLVNPlp direkt
               else if (f2.indexOf('autorankp') >= 0 || f2.indexOf('mitstatus') >= 0 || f2.indexOf('statusplatz') >= 0) {
-                if (f2.indexOf('akpl') >= 0) iAKPlatz = fi2;
+                if (f2.indexOf('akpl') >= 0 || f2.indexOf('[ak') >= 0) iAKPlatz = fi2;
                 else iPlatz = fi2;
               }
             }
@@ -6861,7 +6887,7 @@ async function rrFetch() {
             else if (_ff.indexOf('chip') >= 0 || _ff.indexOf('netto') >= 0) iNetto = _ffi;
             else if (_ff.indexOf('gun') >= 0 || _ff.indexOf('brutto') >= 0 || _ff.indexOf('ziel') >= 0) iZeit = _ffi;
             else if (_ff === 'time' || _ff.indexOf('time') === 0 || _ff.indexOf('timetext') >= 0) iZeit = _ffi;
-            else if (_ff.indexOf('mitstatus') >= 0 || _ff.indexOf('statusplatz') >= 0) { if (_ff.indexOf('akpl') >= 0) _fiAKPlatz = _ffi; else iPlatz = _ffi; }
+            else if (_ff.indexOf('mitstatus') >= 0 || _ff.indexOf('statusplatz') >= 0) { if (_ff.indexOf('akpl') >= 0 || _ff.indexOf('[ak') >= 0) _fiAKPlatz = _ffi; else iPlatz = _ffi; }
           }
           if (_hnf5) iFirstname = -1;
           if (iNetto < 0 && iZeit >= 0) iNetto = iZeit;
