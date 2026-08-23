@@ -2206,14 +2206,30 @@ function _shareMstrTitel(e) {
 
 // Alle Auszeichnungen eines Ergebnisses: Bestleistungen + Meisterschaftswertung.
 // Wird von allen drei Teilen-Formaten genutzt, damit sie nicht auseinanderlaufen.
-function _shareAllBadges(badgeMap, e) {
+// kurzMstr=true → nur das Label statt des vollen Titels ("Nordrhein – 2. Platz"),
+// sinnvoll wenn die Meisterschaft schon in der Überschrift steht.
+function _shareAllBadges(badgeMap, e, kurzMstr) {
   var out = _shareBadgesFor(badgeMap, e).slice();
   if (e.meisterschaft) {
-    var lbl = _shareMstrTitel(e);
+    var lbl = kurzMstr
+      ? ((typeof mstrLabel === 'function') ? String(mstrLabel(e.meisterschaft) || 'Meisterschaft') : 'Meisterschaft')
+      : _shareMstrTitel(e);
     if (e.ak_platz_meisterschaft) lbl += ' – ' + e.ak_platz_meisterschaft + '. Platz';
     out.push(lbl);
   }
   return out;
+}
+
+// Haben alle Ergebnisse einer Disziplin dieselbe Meisterschaftswertung?
+// Dann darf sie in die Überschrift.
+function _shareEinheitlicheMstr(rows) {
+  if (!rows.length) return null;
+  var first = rows[0].meisterschaft;
+  if (!first) return null;
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i].meisterschaft || '') !== String(first)) return null;
+  }
+  return rows[0];
 }
 
 // Deep-Link auf die Rekordliste einer Disziplin: #rekorde/<kategorie>/<disziplin-slug>
@@ -2301,9 +2317,17 @@ function _veranstWhatsapp(v, badgeMap) {
   out += '\ud83d\udcc5 ' + date + (v.ort ? ' \u00b7 \ud83d\udccd ' + v.ort : '') + '\n';
 
   g.order.forEach(function(disz) {
-    out += '\n*' + disz + '*\n';
-    g.byDisz[disz].forEach(function(e) {
-      var badges = _shareAllBadges(badgeMap, e);
+    var rows = g.byDisz[disz];
+    // Z\u00e4hlt die ganze Disziplin zu einer Meisterschaft? Dann in die \u00dcberschrift,
+    // in den Zeilen gen\u00fcgt danach die Kurzform ("Nordrhein \u2013 2. Platz").
+    var mstrRow = _shareEinheitlicheMstr(rows);
+    out += '\n*' + (mstrRow ? _shareMstrTitel(mstrRow) : disz) + '*\n';
+    var rekUrl = '';
+    rows.forEach(function(e) {
+      var badges = _shareAllBadges(badgeMap, e, !!mstrRow);
+      if (!rekUrl && badges.some(function(b) { return /^(Vereinsrekord|Bestleistung )/.test(b); })) {
+        rekUrl = _shareRekordeUrl(e);
+      }
       var line   = (e.ak_platzierung ? e.ak_platzierung + '. ' : '\u2022 ') + _shareAthletName(e);
       if (e.altersklasse) line += ' (' + e.altersklasse + ')';
       line += ' \u2013 ' + _veranstFormatResult(e);
@@ -2312,6 +2336,8 @@ function _veranstWhatsapp(v, badgeMap) {
       if (badges.length) line += '  \ud83c\udfc5 ' + badges.join(', ');
       out += line + '\n';
     });
+    // Bestenliste verlinken, wenn in dieser Disziplin eine Vereins-/AK-Bestleistung fiel
+    if (rekUrl) out += '\ud83d\udcc8 Vereinsbestenliste ' + disz + ': ' + rekUrl + '\n';
   });
 
   out += '\n\ud83d\udd17 ' + url;

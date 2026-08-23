@@ -1,3 +1,7 @@
+## v1525
+- WhatsApp-Teilen: Zählt eine ganze Disziplin zu einer Meisterschaft, steht diese jetzt in der Überschrift („*Nordrhein-Meisterschaften 5km*"); in den Zeilen genügt dann die Kurzform „Nordrhein – 2. Platz" statt der vollen Wiederholung
+- WhatsApp-Teilen: Bei Vereins- oder Altersklassen-Bestleistungen wird die passende Bestenliste je Disziplin verlinkt (`📈 Vereinsbestenliste 5km: …#rekorde/strasse/5km`)
+
 ## v1524
 - Rekorde-Deep-Link nutzt jetzt den Disziplinnamen statt der internen ID: `#rekorde/strasse/5km` statt `#rekorde/strasse/12`. Neue Helfer `diszSlug()` (Umlaute, Tausendertrennpunkt, Sonderzeichen) und `diszBySlug()`; die Kategorie im Pfad trennt gleichnamige Disziplinen (`#rekorde/bahn/800m` vs. `#rekorde/strasse/800m`). Alte Links mit numerischer ID funktionieren weiterhin.
 
