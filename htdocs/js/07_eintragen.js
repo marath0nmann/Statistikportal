@@ -2659,9 +2659,16 @@ async function bulkImportFromRR(url, kat, statusEl) {
     try {
       var _pr = await apiGet('rr-fetch?proxy_url=' + encodeURIComponent(url));
       if (_pr && _pr.ok && _pr.data && _pr.data.event_id) eid = String(_pr.data.event_id);
-    } catch(e) {}
+      else if (_pr && _pr.data && _pr.data.debug) {
+        var _dbg = _pr.data.debug;
+        _bkDbgLine('Proxy-Fehler', 'HTTP ' + (_dbg.http_status||'?') + ' | L\u00e4nge ' + _dbg.html_len + ' | RRPublish gefunden: ' + (_dbg.has_RRPublish?'ja':'nein'));
+        _bkDbgLine('Seiten-Ausschnitt', _dbg.html_sample||'');
+      } else if (_pr && !_pr.ok) {
+        _bkDbgLine('Proxy-Fehler', _pr.fehler || JSON.stringify(_pr));
+      }
+    } catch(e) { _bkDbgLine('Proxy-Fehler', 'Exception: ' + e.message); }
   }
-  if (!eid) { if (statusEl) statusEl.textContent = '\u274c Keine RaceResult-Event-ID gefunden'; return; }
+  if (!eid) { if (statusEl) statusEl.textContent = '\u274c Keine RaceResult-Event-ID gefunden'; _bkDbgFlush(); return; }
   if (statusEl) statusEl.textContent = '\u23f3 Lade RaceResult-Konfiguration\u2026';
 
   async function _freshCfg() {

@@ -1,3 +1,6 @@
+## v1518
+- Debug: `rr-fetch?proxy_url=` liefert bei „keine Event-ID gefunden" jetzt HTTP-Status, Antwortlänge und einen Seitenausschnitt zurück – sichtbar im Debug-Log. Diagnose für Fälle, in denen die Ziel-Domain den Hosting-Server blockiert (Bot-Schutz/WAF), obwohl die Seite von außen normal erreichbar ist (z.B. cologne-timing.de)
+
 ## v1517
 - RaceResult White-Label-Erkennung erweitert: Domains ohne `/{id}/results`-Pfad oder `#N_HEX`-Hash in der URL (z.B. `cologne-timing.de/ergebnisse/eschweiler-2026`) werden jetzt per Namens-Heuristik ("ergebnis"/"result"/"timing" in der URL) erkannt und serverseitig auf RRPublish geprüft. Verifiziert: Eschweiler Citylauf (Event 402257)
 

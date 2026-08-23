@@ -5714,7 +5714,12 @@ if ($res === 'rr-fetch' && $method === 'GET') {
             'ignore_errors' => true,
         ]]);
         $html = @file_get_contents($proxyUrl, false, $ctx);
-        if ($html === false) jsonErr('Seite konnte nicht geladen werden.', 502);
+        $respHeaders = function_exists('http_get_last_response_headers')
+            ? (http_get_last_response_headers() ?: [])
+            : ($http_response_header ?? []);
+        $httpStatus = null;
+        if ($respHeaders && preg_match('#^HTTP/\S+\s+(\d+)#', $respHeaders[0], $hsm)) $httpStatus = (int)$hsm[1];
+        if ($html === false) jsonErr('Seite konnte nicht geladen werden (HTTP ' . ($httpStatus ?: '?') . ').', 502);
 
         $foundId = null;
 
@@ -5749,7 +5754,18 @@ if ($res === 'rr-fetch' && $method === 'GET') {
             }
         }
 
-        jsonOk(['event_id' => $foundId]);
+        $resp = ['event_id' => $foundId];
+        // Debug-Infos wenn nichts gefunden wurde: zeigt ob der Server die Seite überhaupt
+        // erreicht hat oder z.B. von einem Bot-Schutz (Cloudflare/WAF) abgeblockt wurde
+        if (!$foundId) {
+            $resp['debug'] = [
+                'http_status' => $httpStatus,
+                'html_len'    => strlen($html),
+                'html_sample' => mb_substr($html, 0, 300),
+                'has_RRPublish' => (stripos($html, 'RRPublish') !== false),
+            ];
+        }
+        jsonOk($resp);
     }
 
     // Zweig B: event_id → RaceResult-Seite fetchen (bisherige Logik)
