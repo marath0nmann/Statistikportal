@@ -422,8 +422,9 @@ function _athFilterInit() {
       wert: function(a) { return a.geburtsjahr ? String(a.geburtsjahr) : ''; } },
     { key: 'ak', label: 'Altersklasse', wert: function(a) {
         return (a.geschlecht && a.geburtsjahr) ? calcDlvAK(a.geburtsjahr, a.geschlecht, jetzt) : ''; } },
+    // Mehrfachzuordnung: jede Gruppe zaehlt einzeln
     { key: 'gruppe', label: 'Gruppe', wert: function(a) {
-        return (a.gruppen || []).map(function(g) { return g.name; }).join(', '); } }
+        return (a.gruppen || []).map(function(g) { return g.name; }); } }
   ];
   if (details) spalten.push(
     { key: 'status', label: 'Status', wert: function(a) {

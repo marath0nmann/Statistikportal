@@ -78,13 +78,25 @@ function tfReset(id) {
   _tfChanged(id);
 }
 
-// Klartextwert einer Zeile fuer eine Filterspalte – identisch fuer Werteliste
-// und Vergleich beim Filtern.
-function tfWert(id, row, key) {
+// Klartextwert(e) einer Zeile fuer eine Filterspalte – identisch fuer Werteliste
+// und Vergleich beim Filtern. `wert` darf ein Array liefern (Mehrfachzuordnung,
+// z.B. Trainingsgruppen eines Athleten): dann zaehlt jeder Eintrag einzeln und
+// die Zeile passt, sobald einer davon dem Filterwert entspricht.
+function tfWerte(id, row, key) {
   var cfg = _tfCfg[id] || {};
   var sp  = (cfg.spalten || []).find(function(c) { return c.key === key; });
   var v   = sp && sp.wert ? sp.wert(row) : row[key];
-  return v == null ? '' : String(v);
+  if (Array.isArray(v)) {
+    return v.map(function(x) { return x == null ? '' : String(x); })
+            .filter(function(x) { return x !== ''; });
+  }
+  return [v == null ? '' : String(v)];
+}
+
+// Einzelwert – fuer Spalten ohne Mehrfachzuordnung
+function tfWert(id, row, key) {
+  var w = tfWerte(id, row, key);
+  return w.length ? w[0] : '';
 }
 
 // Trifft eine Zeile alle Regeln? `ausser` blendet eine Regel aus – so enthaelt
@@ -96,7 +108,7 @@ function tfTrifftRegeln(id, row, ausser) {
     if (i === ausser) continue;
     var g = regeln[i];
     if (!g || !g.key || g.wert === '' || g.wert == null) continue;
-    if (tfWert(id, row, g.key) !== g.wert) return false;
+    if (tfWerte(id, row, g.key).indexOf(g.wert) < 0) return false;
   }
   return true;
 }
@@ -115,7 +127,7 @@ function tfTrifftSuche(id, row) {
   var rx  = (cfg.wildcard && (q.indexOf('*') >= 0 || q.indexOf('?') >= 0)) ? _tfWildcardRx(q) : null;
   var felder = cfg.suche
     ? cfg.suche(row)
-    : (cfg.spalten || []).map(function(c) { return tfWert(id, row, c.key); });
+    : (cfg.spalten || []).reduce(function(acc, c) { return acc.concat(tfWerte(id, row, c.key)); }, []);
   if (!Array.isArray(felder)) felder = [felder];
   for (var i = 0; i < felder.length; i++) {
     if (felder[i] == null) continue;
@@ -216,9 +228,10 @@ function tfWerteliste(id, key, ausser) {
   var zaehler = {};
   alle.forEach(function(r) {
     if (!tfTrifftSuche(id, r) || !tfTrifftRegeln(id, r, ausser)) return;
-    var w = tfWert(id, r, key);
-    if (w === '') return;
-    zaehler[w] = (zaehler[w] || 0) + 1;
+    tfWerte(id, r, key).forEach(function(w) {
+      if (w === '') return;
+      zaehler[w] = (zaehler[w] || 0) + 1;
+    });
   });
   return zaehler;
 }

@@ -1,3 +1,6 @@
+## v1513
+- **Filterleiste: Spalten mit Mehrfachzuordnung.** Gibt eine Spalte ein Array zurück, zählt jeder Eintrag einzeln in der Auswahlliste und die Zeile passt, sobald einer davon zutrifft. Konkret der Gruppen-Filter der Athleten-Tabelle: Athlet\*innen in mehreren Gruppen erschienen bisher unter der zusammengesetzten Bezeichnung („Senioren, Masters") statt unter jeder Gruppe einzeln.
+
 ## v1520
 - RaceResult-Event-ID wird jetzt auch aus Anmelde-Links erkannt (`RRRegStart(...)`-Widget, z.B. `cologne-timing.de/anmeldung/eschweiler-1`), nicht nur aus Ergebnis-Seiten (`RRPublish(...)`). Registrierung und Ergebnisse teilen dieselbe Event-ID – verifiziert an Event 402257 (Eschweiler Citylauf)
 
