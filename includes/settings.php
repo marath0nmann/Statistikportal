@@ -36,11 +36,15 @@ class Settings {
         'uits_scan_aktiv'            => ['0',                                                   'uitslagen.nl-Scanner aktiv',                      'uitslagen'],
         'uits_scan_begriffe'         => ['',                                                    'Suchbegriffe (leer = wie RaceResult-Scanner)',    'uitslagen'],
         'uits_scan_tage'             => ['30',                                                  'Rückblick-Fenster in Tagen',                      'uitslagen'],
+        'la_scan_aktiv'              => ['0',                                                   'leichtathletik.de-Scanner aktiv',                 'leichtathletik'],
+        'la_scan_begriffe'           => ['',                                                    'Suchbegriffe (leer = wie RaceResult-Scanner)',    'leichtathletik'],
+        'la_scan_tage'               => ['14',                                                  'Rückblick-Fenster in Tagen',                      'leichtathletik'],
+        'la_scan_budget'             => ['40',                                                  'Max. Wettkämpfe pro Scanlauf',                    'leichtathletik'],
     ];
 
     // Nie über die öffentliche GET-Route ausliefern (Zugangsdaten).
-    public const GEHEIM = ['github_token', 'rr_scan_token', 'uits_scan_token',
-                           'rr_scan_fortschritt', 'uits_scan_fortschritt'];
+    public const GEHEIM = ['github_token', 'rr_scan_token', 'uits_scan_token', 'la_scan_token',
+                           'rr_scan_fortschritt', 'uits_scan_fortschritt', 'la_scan_fortschritt'];
 
     // ── Alle Einstellungen als key→value laden, fehlende Defaults einmalig schreiben
     public static function all(): array {

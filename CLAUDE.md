@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1530
+## Aktuelle Version: v1531
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -153,15 +153,19 @@ gegen erfasste Ergebnisse), gemeinsames Panel-Rendering in `_bkFundePanelHtml()`
 |---|---|---|---|
 | RaceResult | `includes/raceresult.php` | Discovery je Land + Volltextsuche je Event, Warteschlange `rr_events` | `/api/rr-scan?token=…` (stündlich) |
 | uitslagen.nl | `includes/uitslagen.php` | Eine seitenweite Volltextsuche je Suchbegriff (`/results.php?naam=…`), keine Discovery | `/api/uits-scan?token=…` (täglich) |
+| leichtathletik.de | `includes/leichtathletik.php` | Discovery über `/Competitions/CurrentPast?page=N` + Teilnehmerliste je Wettkampf, Warteschlange `la_events` | `/api/la-scan?token=…` (stündlich) |
 
 Fortschritt eines laufenden Scans: `Scanner::fortschritt()` schreibt nach jedem
-Schritt nach `rr_scan_fortschritt` / `uits_scan_fortschritt`; das Admin-Panel
+Schritt nach `rr_scan_fortschritt` / `uits_scan_fortschritt` / `la_scan_fortschritt`; das Admin-Panel
 pollt ihn über die `*-scan-status`-Routen. Scan-Routen geben vorher die Session
 frei (`session_write_close()`), sonst blockiert die Sperre jede Statusabfrage.
 Abfragebegriffe werden über `Scanner::sucheBegriffe()` reduziert (Teilstring-Suche),
 geprüft wird gegen die volle Liste.
 
-Nicht proaktiv (nur manueller Import): ACN Timing, leichtathletik.de.
+leichtathletik.de wertet eine **Meldeliste** aus: ein Fund heißt „war gemeldet",
+nicht „hat ein Ergebnis". Datum mehrtägiger Wettkämpfe = letzter Tag.
+
+Nicht proaktiv (nur manueller Import): ACN Timing.
 
 ### PB-Prioritäten
 - Prio 0: Gesamtbestleistung

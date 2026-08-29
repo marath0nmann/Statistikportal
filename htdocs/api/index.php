@@ -1721,6 +1721,7 @@ if ($res === 'einstellungen') {
                 'eigenes_veranst_prufen','eigenes_ergebnis_prufen',
                 'rr_scan_aktiv','rr_scan_laender','rr_scan_begriffe','rr_scan_tage','rr_scan_budget',
                 'uits_scan_aktiv','uits_scan_begriffe','uits_scan_tage',
+                'la_scan_aktiv','la_scan_begriffe','la_scan_tage','la_scan_budget',
             ];
             $save = [];
             foreach ($erlaubt as $k) {
@@ -8961,6 +8962,107 @@ if ($res === 'uits-funde' && $method === 'POST') {
     if (!$ids) jsonErr('Keine Funde angegeben.', 400);
     $ph = implode(',', array_fill(0, count($ids), '?'));
     $n = DB::query('UPDATE ' . DB::tbl('uits_funde') . ' SET status = ? WHERE id IN (' . $ph . ')',
+        array_merge([$status], $ids))->rowCount();
+    jsonOk(['geaendert' => $n]);
+}
+
+// ============================================================
+// LEICHTATHLETIK.DE-SCANNER (DLV-Ergebnisportal)
+// Discovery über die Wettkampfliste, Trefferprüfung über die
+// Teilnehmerliste je Wettkampf. Details: includes/leichtathletik.php
+// ============================================================
+
+// ── GET la-scan – Scanlauf starten ──────────────────────────────────────
+if ($res === 'la-scan' && $method === 'GET') {
+    require_once __DIR__ . '/../../includes/leichtathletik.php';
+
+    $token = trim($_GET['token'] ?? '');
+    if ($token !== '') {
+        $soll = Settings::get('la_scan_token', '');
+        if ($soll === '' || !hash_equals($soll, $token)) jsonErr('Ungültiges Token.', 403);
+    } else {
+        Auth::requireAdmin();
+    }
+    if (Settings::get('la_scan_aktiv', '0') !== '1' && empty($_GET['force'])) {
+        jsonOk(['aktiv' => false, 'hinweis' => 'Scanner ist deaktiviert.']);
+    }
+
+    @set_time_limit(0);
+    ignore_user_abort(true);
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+    $maxSek = max(30, min(900, (int)($_GET['sekunden'] ?? 240)));
+    $budget = max(0, min(300, (int)($_GET['budget'] ?? 0)));
+    jsonOk(Leichtathletik::scan($budget, $maxSek, empty($_GET['nodiscovery'])));
+}
+
+// ── GET la-scan-status – Konfiguration + letzter Lauf (Admin) ────────────
+if ($res === 'la-scan-status' && $method === 'GET') {
+    Auth::requireAdmin();
+    require_once __DIR__ . '/../../includes/leichtathletik.php';
+    require_once __DIR__ . '/../../includes/scanner.php';
+    Leichtathletik::migrate();
+
+    $token = Settings::get('la_scan_token', '');
+    if ($token === '') { $token = bin2hex(random_bytes(16)); Settings::set('la_scan_token', $token); }
+
+    $z = DB::fetchOne('SELECT SUM(status = ?) AS offen, SUM(status = ?) AS fertig,
+                              SUM(status = ?) AS ohne, COUNT(*) AS gesamt
+                         FROM ' . DB::tbl('la_events'), ['offen', 'fertig', 'ohne_liste']) ?: [];
+    $funde = DB::fetchOne('SELECT SUM(status = ?) AS neu, COUNT(*) AS gesamt FROM ' . DB::tbl('la_funde'), ['neu']) ?: [];
+
+    jsonOk([
+        'token'          => $token,
+        'scan_url'       => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/la-scan?token=' . $token,
+        'letzter_lauf'   => Settings::get('la_scan_letzter_lauf', ''),
+        'letzter_status' => json_decode(Settings::get('la_scan_letzter_status', '') ?: 'null', true),
+        'begriffe'       => Leichtathletik::begriffe(),
+        'abfrage'        => Leichtathletik::begriffe(),   // keine Suchabfrage – Verein steht im Feld
+        'fortschritt'    => Scanner::fortschrittLesen(Leichtathletik::FORTSCHRITT),
+        'events'         => array_map('intval', $z),
+        'funde'          => array_map('intval', $funde),
+    ]);
+}
+
+// ── GET la-funde – neue Vereinsfunde, nach Wettkampf gruppiert ──────────
+if ($res === 'la-funde' && $method === 'GET') {
+    Auth::requireRecht('bulk_eintragen');
+    require_once __DIR__ . '/../../includes/leichtathletik.php';
+    require_once __DIR__ . '/../../includes/scanner.php';
+    Leichtathletik::migrate();
+
+    $rows = DB::fetchAll(
+        'SELECT f.*, e.name AS event_name, e.datum, e.ort
+           FROM ' . DB::tbl('la_funde') . ' f
+           JOIN ' . DB::tbl('la_events') . ' e ON e.event_id = f.event_id
+          WHERE f.status = ?
+          ORDER BY e.datum DESC, e.event_id, f.name',
+        ['neu']
+    );
+    // Der Link zeigt auf die Ergebnisübersicht, nicht auf die Meldeliste:
+    // von dort importiert der bestehende leichtathletik.de-Importer.
+    jsonOk(Scanner::gruppiere($rows, function ($eid) {
+        return 'https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/' . (int)$eid;
+    }));
+}
+
+// ── POST la-funde – Funde als erledigt/ignoriert markieren ──────────────
+if ($res === 'la-funde' && $method === 'POST') {
+    Auth::requireRecht('bulk_eintragen');
+    require_once __DIR__ . '/../../includes/leichtathletik.php';
+    Leichtathletik::migrate();
+
+    $status = $body['status'] ?? 'erledigt';
+    if (!in_array($status, ['neu', 'erledigt', 'ignoriert'], true)) jsonErr('Ungültiger Status.', 400);
+
+    if (!empty($body['event_id'])) {
+        $n = DB::query('UPDATE ' . DB::tbl('la_funde') . ' SET status = ? WHERE event_id = ?',
+            [$status, (int)$body['event_id']])->rowCount();
+        jsonOk(['geaendert' => $n]);
+    }
+    $ids = array_values(array_filter(array_map('intval', (array)($body['ids'] ?? []))));
+    if (!$ids) jsonErr('Keine Funde angegeben.', 400);
+    $ph = implode(',', array_fill(0, count($ids), '?'));
+    $n = DB::query('UPDATE ' . DB::tbl('la_funde') . ' SET status = ? WHERE id IN (' . $ph . ')',
         array_merge([$status], $ids))->rowCount();
     jsonOk(['geaendert' => $n]);
 }

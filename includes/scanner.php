@@ -115,7 +115,9 @@ class Scanner {
 
     // ── Funde nach Wettkampf gruppieren ──────────────────────────────────
     // $rows  Fundzeilen inkl. Wettkampfdaten (event_id, event_name, datum,
-    //        ort, optional land) – so, wie beide Scanner sie liefern.
+    //        ort, optional land) – so, wie die Scanner sie liefern. Felder,
+    //        die eine Quelle nicht kennt (leichtathletik.de meldet aus der
+    //        Meldeliste weder Zeit noch Platz), dürfen fehlen.
     // $urlFn Wettkampf-ID → Link auf die Ergebnisseite des Dienstleisters.
     //
     // Ergänzt je Fund die Athleten-ID (sofern ein Profil auf den Namen
@@ -167,10 +169,10 @@ class Scanner {
                 'verein'       => $r['verein'],
                 'jahrgang'     => $r['jahrgang']   ?? '',
                 'geschlecht'   => $r['geschlecht'] ?? '',
-                'altersklasse' => $r['altersklasse'],
-                'wettbewerb'   => $r['wettbewerb'],
-                'zeit'         => $r['zeit'],
-                'platz'        => $r['platz'],
+                'altersklasse' => $r['altersklasse'] ?? '',
+                'wettbewerb'   => $r['wettbewerb']   ?? '',
+                'zeit'         => $r['zeit']         ?? '',
+                'platz'        => $r['platz']        ?? '',
                 'ak_platz'     => $r['ak_platz'] ?? '',
                 'startnr'      => $r['startnr']  ?? '',
                 'athlet_id'    => $ath ? (int)$ath['id'] : null,

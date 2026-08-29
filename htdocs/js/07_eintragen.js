@@ -1422,6 +1422,7 @@ function renderEintragen() {
         '<div id="bk-offene-wk"></div>' +
         '<div id="bk-rr-funde"></div>' +
         '<div id="bk-uits-funde"></div>' +
+        '<div id="bk-la-funde"></div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
           '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;Ergebnis-PDF/HTML URL: https://example.com/ergebnisse.pdf&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Ergebnis-PDF oder Seltec-HTML (.htm) hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
@@ -1537,6 +1538,7 @@ function renderEintragen() {
   _bkLoadOffeneWK();
   _bkLadeRrFunde();
   _bkLadeUitsFunde();
+  _bkLadeLaFunde();
   _bkSelectedOrtId = null;
 
   if (isBulk) {
@@ -8225,6 +8227,7 @@ async function _bkLoadOffeneWK() {
 
 var _rrFunde   = [];
 var _uitsFunde = [];
+var _laFunde   = [];
 
 // ── Gemeinsame Darstellung beider Scanner-Panels ───────────────────────
 // evs: Wettkämpfe mit .funde (siehe Scanner::gruppiere in PHP).
@@ -8375,6 +8378,48 @@ async function uitsFundIgnorieren(i) {
   if (!ev) return;
   var r = await apiPost('uits-funde', { event_id: ev.event_id, status: 'ignoriert' });
   if (r && r.ok) { notify('Wettkampf wird nicht mehr gemeldet.', 'ok'); _bkLadeUitsFunde(); }
+  else notify((r && r.fehler) || 'Fehler beim Speichern.', 'err');
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// leichtathletik.de-Funde
+// ---------------------------------------------------------------
+// Der Scanner (includes/leichtathletik.php) prüft die Teilnehmerlisten
+// des DLV-Ergebnisportals. Anders als bei den beiden anderen Quellen
+// ist das eine Meldeliste: der Fund sagt, wer gemeldet war – die
+// Ergebnisse holt der bestehende leichtathletik.de-Importer.
+// ═══════════════════════════════════════════════════════════════
+
+async function _bkLadeLaFunde() {
+  var box = document.getElementById('bk-la-funde');
+  if (!box) return;
+  var r = await apiGet('la-funde');
+  _laFunde = (r && r.ok && Array.isArray(r.data)) ? r.data : [];
+  window._eintragenLaFunde = _laFunde.length;
+  if (typeof _patchEintragenNavBadge === 'function' && typeof _eintragenBadgeSumme === 'function')
+    _patchEintragenNavBadge(_eintragenBadgeSumme());
+
+  box = document.getElementById('bk-la-funde');
+  if (!box) return;
+  if (!_laFunde.length) { box.innerHTML = ''; return; }
+
+  box.innerHTML = _bkFundePanelHtml(_laFunde, {
+    titel:       'Neue Meldungen bei leichtathletik.de',
+    hinweis:     ' mit Meldungen unseres Vereins, die hier noch nicht erfasst sind.',
+    linkTitel:   'Ergebnisübersicht bei leichtathletik.de',
+    importFn:    'laFundImport',
+    ignorierFn:  'laFundIgnorieren'
+  });
+}
+
+function laFundImport(i) { _bkFundImport(_laFunde[i], 'leichtathletik.de'); }
+
+async function laFundIgnorieren(i) {
+  var ev = _laFunde[i];
+  if (!ev) return;
+  var r = await apiPost('la-funde', { event_id: ev.event_id, status: 'ignoriert' });
+  if (r && r.ok) { notify('Wettkampf wird nicht mehr gemeldet.', 'ok'); _bkLadeLaFunde(); }
   else notify((r && r.fehler) || 'Fehler beim Speichern.', 'err');
 }
 

@@ -1957,6 +1957,26 @@ async function renderAdminQuellen() {
       '</div>' +
     '</div>' +
 
+    '<div class="panel" style="padding:20px;margin-bottom:16px">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">&#x1F50E; leichtathletik.de-Scanner</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Geht die Wettkampfliste des DLV-Ergebnisportals durch und prüft je Wettkampf die <strong>Teilnehmerliste</strong> auf Meldungen unseres Vereins. Da es eine Melde- und keine Ergebnisliste ist, heißt ein Fund „war gemeldet" – ob Ergebnisse vorliegen, zeigt erst der Import. Geprüft wird ab dem Wettkampftag.</div>' +
+      _admRow('Scanner aktiv', 'Ohne Häkchen ignoriert die Scan-URL alle Aufrufe',
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
+        '<input type="checkbox" id="cfg-la_scan_aktiv" ' + (_admCfg(cfg, 'la_scan_aktiv','0') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer"/>' +
+        '<span style="font-size:13px;color:var(--text2)">Aktiv</span>' +
+        '</label>') +
+      _admRow('Suchbegriffe', 'Kommagetrennt. Leer = Begriffe des RaceResult-Scanners, ersatzweise Vereinsname + Kurzbezeichnung',
+        _admTextIn('cfg-la_scan_begriffe', _admCfg(cfg, 'la_scan_begriffe',''), 'z.B. TuS Oedt')) +
+      _admRow('Rückblick (Tage)', 'Wie weit die tägliche Wettkampfsuche zurückreicht (eine Listenseite deckt rund drei Tage ab)',
+        _admNumIn('cfg-la_scan_tage', _admCfg(cfg, 'la_scan_tage','14'), 1, 60)) +
+      _admRow('Wettkämpfe pro Lauf', 'Obergrenze je Cron-Aufruf (ein Abruf je Wettkampf, ca. 2 Sekunden)',
+        _admNumIn('cfg-la_scan_budget', _admCfg(cfg, 'la_scan_budget','40'), 1, 300)) +
+      '<div id="la-scan-status" style="margin-top:14px;font-size:12px;color:var(--text2)">Status wird geladen&hellip;</div>' +
+      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button class="btn btn-sm" onclick="laScanJetzt()">&#x25B6;&#xFE0E; Jetzt scannen</button>' +
+      '</div>' +
+    '</div>' +
+
     '<div style="padding:4px 0 8px">' +
       '<button class="btn btn-primary" onclick="saveAllSettings()">&#x1F4BE; Einstellungen speichern</button>' +
     '</div>' +
@@ -1964,6 +1984,7 @@ async function renderAdminQuellen() {
 
   _rrScanStatus();
   _uitsScanStatus();
+  _laScanStatus();
 }
 
 async function renderAdminDarstellung() {
@@ -2248,7 +2269,7 @@ function _scanFortschrittHtml(f) {
 // Antwort da ist (oder der Fortschritt „fertig" meldet).
 function _scanStarten(name, url, statusFn) {
   if (_scanPoll[name]) return;
-  var boxId = name === 'rr' ? 'rr-scan-status' : 'uits-scan-status';
+  var boxId = name + '-scan-status';
   var fertig = false;
   var p = apiGet(url).then(function(r) {
     fertig = true;
@@ -2335,6 +2356,39 @@ async function _uitsScanStatus() {
         : '') +
       (st.fehler ? ' – <span style="color:var(--danger,#c00)">' + esc(st.fehler) + '</span>' : '') +
     '</div>';
+}
+
+// Status des leichtathletik.de-Scanners.
+async function _laScanStatus() {
+  var box = document.getElementById('la-scan-status');
+  if (!box) return;
+  var r = await apiGet('la-scan-status');
+  if (!r || !r.ok) { box.textContent = 'Status konnte nicht geladen werden.'; return; }
+  var d = r.data;
+  var st = d.letzter_status || {};
+  box.innerHTML =
+    _scanFortschrittHtml(d.fortschritt) +
+    '<div style="margin-bottom:6px"><strong>Cron-URL</strong> (z.B. stündlich bei all-inkl aufrufen):</div>' +
+    '<code style="display:block;padding:8px 10px;background:var(--surf2);border:1px solid var(--border);' +
+      'border-radius:6px;word-break:break-all;font-size:11px;margin-bottom:10px">' + _scanEsc(d.scan_url) + '</code>' +
+    '<div>Suchbegriffe: <strong>' + _scanEsc((d.begriffe || []).join(', ') || '–') + '</strong>' +
+      '<br><span style="color:var(--text2)">Zusätzliche Begriffe kosten hier nichts: der Verein steht in einer eigenen Spalte, es wird verglichen statt gesucht.</span>' +
+    '</div>' +
+    '<div>Wettkämpfe: ' + (d.events.gesamt || 0) + ' bekannt · ' + (d.events.offen || 0) + ' offen · ' +
+      (d.events.fertig || 0) + ' geprüft · ' + (d.events.ohne || 0) + ' ohne Teilnehmerliste</div>' +
+    '<div>Funde: ' + (d.funde.gesamt || 0) + ' gesamt · ' + (d.funde.neu || 0) + ' offen</div>' +
+    '<div>Letzter Lauf: ' + _scanEsc(d.letzter_lauf || '–') +
+      (st.gescannt !== undefined
+        ? ' (' + st.gescannt + ' Wettkämpfe, ' + st.neue_funde + ' neue Funde, ' +
+          st.requests + ' Abrufe, ' + st.dauer + ' s' + (st.abgebrochen ? ', Zeitlimit erreicht' : '') + ')'
+        : '') +
+      (st.fehler ? ' – <span style="color:var(--danger,#c00)">' + _scanEsc(st.fehler) + '</span>' : '') +
+    '</div>';
+}
+
+function laScanJetzt() {
+  notify('Scan gestartet – Fortschritt erscheint gleich im Panel.', 'ok');
+  _scanStarten('la', 'la-scan?force=1&sekunden=240', _laScanStatus);
 }
 
 function uitsScanJetzt() {
@@ -2458,6 +2512,7 @@ async function saveAllSettings() {
     'passkey_rp_id',
     'rr_scan_laender','rr_scan_begriffe','rr_scan_tage','rr_scan_budget',
     'uits_scan_begriffe','uits_scan_tage',
+    'la_scan_begriffe','la_scan_tage','la_scan_budget',
   ];
   var payload = {};
   for (var i = 0; i < keys.length; i++) {
@@ -2465,7 +2520,7 @@ async function saveAllSettings() {
     if (el) payload[keys[i]] = el.value;
   }
   // Checkboxen separat (checked → '1', unchecked → '0')
-  var cbKeys = ['version_nur_admins', 'wartung_aktiv', 'login_portal_aktiv', 'eigenes_veranst_prufen', 'eigenes_ergebnis_prufen', 'rr_scan_aktiv', 'uits_scan_aktiv'];
+  var cbKeys = ['version_nur_admins', 'wartung_aktiv', 'login_portal_aktiv', 'eigenes_veranst_prufen', 'eigenes_ergebnis_prufen', 'rr_scan_aktiv', 'uits_scan_aktiv', 'la_scan_aktiv'];
 
   for (var j = 0; j < cbKeys.length; j++) {
     var cb = document.getElementById('cfg-' + cbKeys[j]);

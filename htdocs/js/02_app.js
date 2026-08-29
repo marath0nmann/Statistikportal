@@ -2954,18 +2954,21 @@ async function _ladeEintragenBadge(force) {
   }
   try {
     // Offene Wettkämpfe (Trainingsportal) + Funde beider Scanner in einem Badge
-    var rs = await Promise.all([apiGet('offene-wettkaempfe'), apiGet('rr-funde'), apiGet('uits-funde')]);
+    var rs = await Promise.all([apiGet('offene-wettkaempfe'), apiGet('rr-funde'),
+                                apiGet('uits-funde'), apiGet('la-funde')]);
     var n = function(r) { return (r && r.ok && Array.isArray(r.data)) ? r.data.length : 0; };
     window._eintragenOffeneWK  = n(rs[0]);
     window._eintragenRrFunde   = n(rs[1]);
     window._eintragenUitsFunde = n(rs[2]);
+    window._eintragenLaFunde   = n(rs[3]);
     _patchEintragenNavBadge(_eintragenBadgeSumme());
   } catch (e) {}
 }
 
 // Zahl im „Eintragen"-Badge: offene Wettkämpfe + Funde aller Scanner.
 function _eintragenBadgeSumme() {
-  return (window._eintragenOffeneWK || 0) + (window._eintragenRrFunde || 0) + (window._eintragenUitsFunde || 0);
+  return (window._eintragenOffeneWK || 0) + (window._eintragenRrFunde || 0) +
+         (window._eintragenUitsFunde || 0) + (window._eintragenLaFunde || 0);
 }
 
 // Nav-Buttons (Desktop + Mobile-Drawer) direkt patchen – ohne buildNav(),
