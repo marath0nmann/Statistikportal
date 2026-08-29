@@ -1,3 +1,8 @@
+## v1535
+- **Ein Scanlauf ohne Arbeit sagt jetzt, warum.** Bisher kam bei leerer Warteschlange sofort eine Antwort mit lauter Nullen zurück – nicht unterscheidbar von einem Fehler. Der Lauf ergänzt jetzt ein Feld `hinweis`: alles geprüft / die offenen Wettkämpfe liegen außerhalb des Fensters (mit dem Tipp `&tage=N`) / sie wurden erst vor kurzem geprüft (Abkühlzeit).
+- **Fix: `&tage=N` war wirkungslos, solange die Discovery des Tages schon gelaufen war.** Ein Aufhol-Lauf konnte damit gar keine älteren Wettkämpfe finden – die Tagessperre (`rr_scan_discovery_am`) hatte den Tag bereits mit dem kleineren Fenster abgehakt. Ein ausdrücklich übergebenes Fenster hebt die Sperre jetzt auf.
+- **Abkühlzeit gestaffelt: 3 statt 20 Stunden bei den ersten acht Versuchen.** Die 20 h stammten aus der abgelösten Zwei-Durchgang-Regel. Seit der Prüfung über `EventOver` kostet ein erneuter Blick auf einen noch nicht abgeschlossenen Wettkampf nur einen Abruf – ein Lauf vom Vormittag wird damit noch am selben Abend erfasst statt erst am Folgetag. Ab dem achten Versuch bleibt es bei 20 h, damit hängengebliebene Wettkämpfe nicht dauerhaft Budget kosten.
+
 ## v1534
 - **Fix: Die im Admin-Panel angezeigte Cron-URL der Scanner war seit v1466 nicht aufrufbar.** Ausgegeben wurde `https://…/api/rr-scan?token=…`, aber es gibt kein URL-Rewriting – die API ist ausschließlich als `api/index.php?_route=…` erreichbar (so ruft sie auch das Frontend auf). Der Aufruf endete deshalb in einem Apache-404, und zwar für alle drei Scanner. Richtig lautet sie jetzt `https://…/api/index.php?_route=rr-scan&token=…` (bzw. `uits-scan`, `la-scan`).
 - An der Token-Erzeugung steht der Hinweis, dass kein Rewriting aktiv ist, damit dieselbe Annahme nicht wieder in eine neue Route wandert.

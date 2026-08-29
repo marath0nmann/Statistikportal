@@ -401,8 +401,12 @@ class RaceResult {
         ]);
 
         // ── Discovery: neue Events der letzten $fenster Tage einsammeln ──
+        // Ein ausdrücklich übergebenes Fenster (?tage=…) erzwingt die
+        // Discovery auch dann, wenn sie heute schon lief – sonst brächte ein
+        // Aufhol-Lauf nichts: die Tagessperre hätte ihn mit dem alten,
+        // kleineren Fenster abgehakt.
         $letzteDiscovery = Settings::get('rr_scan_discovery_am', '');
-        if ($discovery && $letzteDiscovery !== $heute) {
+        if ($discovery && ($tage > 0 || $letzteDiscovery !== $heute)) {
             $laender = array_filter(array_map('intval', explode(',', Settings::get('rr_scan_laender', '276,528,56'))));
             foreach ($laender as $landId) {
                 if (!isset(self::LAENDER[$landId])) continue;
@@ -426,7 +430,6 @@ class RaceResult {
         }
 
         // ── Warteschlange: offene Events, deren Termin vorbei ist ────────
-        // Frühestens 20 h nach dem letzten Versuch erneut anfassen.
         $queue = DB::fetchAll(
             'SELECT * FROM ' . DB::tbl('rr_events') . '
               WHERE status = ? AND datum IS NOT NULL AND datum <= CURDATE()
@@ -435,7 +438,14 @@ class RaceResult {
                 -- immer in der Warteschlange und belegen das Budget. Wird das
                 -- Fenster wieder vergrößert, kommen sie von selbst zurück.
                 AND datum >= ?
-                AND (letzter_scan IS NULL OR letzter_scan < NOW() - INTERVAL 20 HOUR)
+                -- Abkühlzeit: Wettkämpfe, die noch nicht abgeschlossen waren,
+                -- lohnen einen neuen Blick schon nach 3 Stunden – ein Lauf
+                -- vom Vormittag ist am Abend fertig. Die früheren 20 h
+                -- stammten aus der Zwei-Durchgang-Regel und sind erst nach
+                -- mehreren Fehlversuchen sinnvoll.
+                AND (letzter_scan IS NULL
+                     OR (versuche <  8 AND letzter_scan < NOW() - INTERVAL 3 HOUR)
+                     OR (versuche >= 8 AND letzter_scan < NOW() - INTERVAL 20 HOUR))
               -- Wettkämpfe vergangener Tage zuerst: die von heute sind
               -- meist noch nicht abgeschlossen und würden den Platz im
               -- Budget belegen, ohne verwertbare Listen zu liefern.
@@ -522,6 +532,26 @@ class RaceResult {
                   WHERE event_id = ?',
                 [$okScans, min(32000, count($zeilen)), $fertig ? 'fertig' : 'offen', $eid]
             );
+        }
+
+        // Ein Lauf ohne jede Arbeit sieht sonst aus wie ein Fehler. Sagen,
+        // warum nichts zu tun war.
+        if (!$stat['gescannt'] && !$stat['nicht_final'] && !$stat['neue_events']) {
+            $z = DB::fetchOne(
+                'SELECT SUM(status = ?) AS offen,
+                        SUM(status = ? AND datum >= ? AND datum <= CURDATE()) AS im_fenster,
+                        SUM(status = ?) AS fertig
+                   FROM ' . DB::tbl('rr_events'), ['offen', 'offen', $grenze, 'fertig']) ?: [];
+            $offen  = (int)($z['offen'] ?? 0);
+            $imFens = (int)($z['im_fenster'] ?? 0);
+            $stat['hinweis'] = $offen === 0
+                ? 'Nichts zu tun: alle bekannten Wettkämpfe sind geprüft ('
+                  . (int)($z['fertig'] ?? 0) . ').'
+                : ($imFens === 0
+                    ? 'Nichts zu tun: die ' . $offen . ' offenen Wettkämpfe liegen außerhalb des Fensters ab '
+                      . $grenze . '. Mit &tage=N erneut starten.'
+                    : 'Nichts zu tun: die ' . $imFens . ' offenen Wettkämpfe im Fenster wurden erst vor '
+                      . 'kurzem geprüft (Abkühlzeit 3 h). Später erneut starten.');
         }
 
         $stat['requests'] = self::$requests;
