@@ -33,6 +33,7 @@ class RaceResult {
 
     const BASE = 'https://my.raceresult.com';
     const FORTSCHRITT = 'rr_scan_fortschritt';
+    const ABBRUCH     = 'rr_scan_abbruch';
 
     // Numerische ISO-3166-Länder-IDs (RREvents/list) → ISO-Alpha-2.
     // Die API filtert unscharf; das Alpha-2 dient zur Nachkontrolle.
@@ -444,6 +445,7 @@ class RaceResult {
             $laender = array_filter(array_map('intval', explode(',', Settings::get('rr_scan_laender', '276,528,56'))));
             foreach ($laender as $landId) {
                 if (!isset(self::LAENDER[$landId])) continue;
+                if (Scanner::abbruchGewuenscht(self::ABBRUCH, $start)) { $stat['abbruch'] = true; break; }
                 Scanner::fortschritt(self::FORTSCHRITT, [
                     'phase' => 'discovery', 'begonnen' => date('Y-m-d H:i:s', (int)$start),
                     'i' => 0, 'gesamt' => 0, 'neue_funde' => 0,
@@ -494,6 +496,7 @@ class RaceResult {
         $nr = 0;
         foreach ($queue as $ev) {
             if (microtime(true) - $start > $maxSekunden) { $stat['abgebrochen'] = true; break; }
+            if (Scanner::abbruchGewuenscht(self::ABBRUCH, $start)) { $stat['abbruch'] = true; break; }
             $eid = (int)$ev['event_id'];
             $nr++;
             Scanner::fortschritt(self::FORTSCHRITT, [
@@ -598,9 +601,11 @@ class RaceResult {
 
         $stat['requests'] = self::$requests;
         $stat['dauer']    = round(microtime(true) - $start, 1);
+        if (!empty($stat['abbruch'])) Scanner::abbruchLoeschen(self::ABBRUCH);
         Scanner::fortschritt(self::FORTSCHRITT, [
             'phase' => 'fertig', 'i' => $stat['gescannt'], 'gesamt' => $stat['gescannt'],
-            'aktuell' => $stat['abgebrochen'] ? 'Zeitlimit erreicht' : 'Lauf beendet',
+            'aktuell' => !empty($stat['abbruch']) ? 'Abgebrochen'
+                         : ($stat['abgebrochen'] ? 'Zeitlimit erreicht' : 'Lauf beendet'),
             'neue_funde' => $stat['neue_funde'], 'requests' => $stat['requests'],
         ]);
         Settings::set('rr_scan_letzter_lauf', date('Y-m-d H:i:s'));

@@ -1,3 +1,10 @@
+## v1542
+- **Laufende Scans lassen sich jetzt abbrechen** – bei allen drei Quellen. Im Fortschrittsbalken sitzt dafür ein ✕-Knopf; der Lauf endet nach dem gerade bearbeiteten Wettkampf, also spätestens nach wenigen Sekunden.
+- Technisch geht das nicht über die Verbindung: Ein Lauf hält seine HTTP-Anfrage minutenlang offen und arbeitet dank `ignore_user_abort` auch dann weiter, wenn der Aufrufer verschwindet. Der Abbruch läuft deshalb über ein Signal in den Einstellungen (`*_scan_abbruch`), das die Schleife zwischen zwei Wettkämpfen liest.
+- **Wichtig dabei:** Dieses Signal wird direkt per SQL gelesen, nicht über `Settings::get()`. Die Einstellungen halten ihren Cache je Anfrage – und der gesamte Scan ist eine einzige Anfrage. Über den normalen Weg bekäme die Schleife immer nur den Stand von Laufbeginn und sähe die Anforderung nie.
+- Ein liegengebliebenes Signal bricht keinen späteren Lauf ab: Berücksichtigt werden nur Anforderungen, die nach dem Start des jeweiligen Laufs eingegangen sind. Nach dem Abbruch wird es gelöscht.
+- Neuer Endpunkt `POST scan-stop` mit `{ quelle: 'rr' | 'uits' | 'la' }` (Admin). Die Abschlussmeldung unterscheidet jetzt „abgebrochen nach N Wettkämpfen" von einem regulären Ende.
+
 ## v1541
 - **Fix: „Diese nachholen" hat die falschen Wettkämpfe gescannt.** Der Knopf öffnete das Rückblick-Fenster auf 365 Tage, um an die alten Wettkämpfe zu kommen – damit fielen aber auch alle *aktuellen* offenen Wettkämpfe in die Warteschlange, und wegen der Sortierung („vergangene Tage zuerst, davon die neuesten") standen sie sogar vorn. Gescannt wurden dann Läufe von vorgestern statt der Altbestände, für die der Knopf gedacht ist.
 - Neue Option `nur_alt` (Route: `&nuralt=1`) setzt eine Obergrenze auf die Grenze des **eingestellten** Fensters. Der Nachhol-Lauf arbeitet damit genau die Menge ab, die das Panel als „liegen vor dem Fenster" zählt – nicht mehr und nicht weniger.

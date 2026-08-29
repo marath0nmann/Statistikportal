@@ -8848,6 +8848,27 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
     ]);
 }
 
+// ── POST scan-stop – laufenden Scan abbrechen ───────────────────────────
+// Body: { quelle: 'rr' | 'uits' | 'la' }
+// Der Lauf hält seine eigene Anfrage minutenlang offen; abgebrochen wird
+// deshalb über ein Signal, das seine Schleife zwischen zwei Wettkämpfen
+// liest (Scanner::abbruchGewuenscht).
+if ($res === 'scan-stop' && $method === 'POST') {
+    Auth::requireAdmin();
+    require_once __DIR__ . '/../../includes/scanner.php';
+
+    $schluessel = [
+        'rr'   => 'rr_scan_abbruch',
+        'uits' => 'uits_scan_abbruch',
+        'la'   => 'la_scan_abbruch',
+    ];
+    $quelle = (string)($body['quelle'] ?? '');
+    if (!isset($schluessel[$quelle])) jsonErr('Unbekannte Quelle.', 400);
+
+    Scanner::abbruchAnfordern($schluessel[$quelle]);
+    jsonOk(['angefordert' => true]);
+}
+
 // ── GET rr-events-alt – offene Wettkämpfe vor dem Rückblick-Fenster ─────
 // Sie werden vom regulären Lauf nicht mehr angefasst (siehe Warteschlange
 // in includes/raceresult.php). Hier zum Nachsehen und gezielten Nachholen.

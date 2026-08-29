@@ -30,6 +30,7 @@ class Uitslagen {
 
     const BASE   = 'https://uitslagen.nl';
     const FORTSCHRITT = 'uits_scan_fortschritt';
+    const ABBRUCH     = 'uits_scan_abbruch';
     // Sicherheitsnetz gegen endloses Blättern (der Cursor ist undokumentiert)
     const MAX_SEITEN = 12;
 
@@ -275,6 +276,7 @@ class Uitslagen {
                     'neue_funde' => $stat['neue_funde'], 'requests' => self::$requests,
                 ]);
                 if (microtime(true) - $start > $maxSekunden) { $stat['abgebrochen'] = true; break 2; }
+                if (Scanner::abbruchGewuenscht(self::ABBRUCH, $start)) { $stat['abbruch'] = true; break 2; }
 
                 $url = self::BASE . '/results.php?naam=' . rawurlencode($begriff)
                      . '&gbjr=&exct=&next=' . rawurlencode($next);
@@ -310,9 +312,11 @@ class Uitslagen {
 
         $stat['requests'] = self::$requests;
         $stat['dauer']    = round(microtime(true) - $start, 1);
+        if (!empty($stat['abbruch'])) Scanner::abbruchLoeschen(self::ABBRUCH);
         Scanner::fortschritt(self::FORTSCHRITT, [
             'phase' => 'fertig', 'i' => count($abfrage), 'gesamt' => count($abfrage),
-            'aktuell' => $stat['abgebrochen'] ? 'Zeitlimit erreicht' : 'Lauf beendet',
+            'aktuell' => !empty($stat['abbruch']) ? 'Abgebrochen'
+                         : ($stat['abgebrochen'] ? 'Zeitlimit erreicht' : 'Lauf beendet'),
             'neue_funde' => $stat['neue_funde'], 'requests' => $stat['requests'],
         ]);
         Settings::set('uits_scan_letzter_lauf', date('Y-m-d H:i:s'));

@@ -2244,7 +2244,7 @@ function _scanVorschlagHtml(d, abfrage) {
     '(Teilstring-Suche) und verkürzt den Lauf entsprechend.</span>';
 }
 
-function _scanFortschrittHtml(f) {
+function _scanFortschrittHtml(f, quelle) {
   if (!f) return '';
   if (!f.laeuft) {
     if (f.phase !== 'fertig' && f.alter >= 180)
@@ -2255,10 +2255,13 @@ function _scanFortschrittHtml(f) {
   }
   var pct = (f.gesamt > 0) ? Math.min(100, Math.round((f.i / f.gesamt) * 100)) : 0;
   return '<div style="margin:8px 0;padding:8px 10px;border-radius:6px;background:var(--surf2);border:1px solid var(--border)">' +
-    '<div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px">' +
+    '<div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px;align-items:center">' +
       '<span>⏳ ' + _scanEsc(f.aktuell || 'läuft…') + '</span>' +
-      '<span style="white-space:nowrap">' + (f.gesamt > 0 ? f.i + '/' + f.gesamt : f.i) +
-        (f.neue_funde ? ' · ' + f.neue_funde + ' neu' : '') + '</span>' +
+      '<span style="white-space:nowrap;display:flex;gap:8px;align-items:center">' +
+        (f.gesamt > 0 ? f.i + '/' + f.gesamt : f.i) +
+        (f.neue_funde ? ' · ' + f.neue_funde + ' neu' : '') +
+        (quelle ? '<button class="btn btn-ghost btn-sm" onclick="scanAbbrechen(\'' + quelle + '\')">&#x2715; Abbrechen</button>' : '') +
+      '</span>' +
     '</div>' +
     '<div style="height:6px;border-radius:3px;background:var(--border);overflow:hidden">' +
       '<div style="height:100%;width:' + pct + '%;background:var(--accent);transition:width .4s"></div>' +
@@ -2277,6 +2280,9 @@ function _scanStarten(name, url, statusFn) {
     // Ein Lauf ohne Arbeit meldet im Feld „hinweis", warum – sonst stünde
     // dort nur „0 neue Funde" und man wüsste nicht, ob etwas passiert ist.
     if (r && r.ok && r.data && r.data.hinweis) notify(r.data.hinweis, 'err');
+    else if (r && r.ok && r.data && r.data.abbruch)
+      notify('Lauf abgebrochen nach ' + (r.data.gescannt || 0) + ' Wettkämpfen, ' +
+             (r.data.neue_funde || 0) + ' neue Funde.', 'ok');
     else if (r && r.ok) notify('Scan beendet: ' + ((r.data && r.data.gescannt) || 0) + ' Wettkämpfe geprüft, ' +
       ((r.data && r.data.neue_funde) || 0) + ' neue Funde.', 'ok');
     else notify((r && r.fehler) || 'Scan fehlgeschlagen.', 'err');
@@ -2306,7 +2312,7 @@ async function _rrScanStatus() {
   var abfrage = d.abfrage || d.begriffe || [];
   var sparsam = (d.begriffe || []).length > abfrage.length;
   box.innerHTML =
-    _scanFortschrittHtml(d.fortschritt) +
+    _scanFortschrittHtml(d.fortschritt, 'rr') +
     '<div style="margin-bottom:6px"><strong>Cron-URL</strong> (z.B. stündlich bei all-inkl aufrufen):</div>' +
     '<code style="display:block;padding:8px 10px;background:var(--surf2);border:1px solid var(--border);' +
       'border-radius:6px;word-break:break-all;font-size:11px;margin-bottom:10px">' + esc(d.scan_url) + '</code>' +
@@ -2343,6 +2349,14 @@ async function _rrScanStatus() {
           st.requests + ' Abrufe, ' + st.dauer + ' s' + (st.abgebrochen ? ', Zeitlimit erreicht' : '') + ')'
         : '') +
     '</div>';
+}
+
+// Laufenden Scan abbrechen. Der Lauf prüft das Signal zwischen zwei
+// Wettkämpfen – der gerade laufende Abruf wird noch zu Ende gebracht.
+async function scanAbbrechen(quelle) {
+  var r = await apiPost('scan-stop', { quelle: quelle });
+  if (r && r.ok) notify('Abbruch angefordert – der Lauf endet nach dem aktuellen Wettkampf.', 'ok');
+  else notify((r && r.fehler) || 'Abbruch fehlgeschlagen.', 'err');
 }
 
 // ── Wettkämpfe vor dem Rückblick-Fenster ──────────────────────────────
@@ -2403,7 +2417,7 @@ async function _uitsScanStatus() {
   var abfrage = d.abfrage || d.begriffe || [];
   var sparsam = (d.begriffe || []).length > abfrage.length;
   box.innerHTML =
-    _scanFortschrittHtml(d.fortschritt) +
+    _scanFortschrittHtml(d.fortschritt, 'uits') +
     '<div style="margin-bottom:6px"><strong>Cron-URL</strong> (z.B. täglich bei all-inkl aufrufen):</div>' +
     '<code style="display:block;padding:8px 10px;background:var(--surf2);border:1px solid var(--border);' +
       'border-radius:6px;word-break:break-all;font-size:11px;margin-bottom:10px">' + esc(d.scan_url) + '</code>' +
@@ -2432,7 +2446,7 @@ async function _laScanStatus() {
   var d = r.data;
   var st = d.letzter_status || {};
   box.innerHTML =
-    _scanFortschrittHtml(d.fortschritt) +
+    _scanFortschrittHtml(d.fortschritt, 'la') +
     '<div style="margin-bottom:6px"><strong>Cron-URL</strong> (z.B. stündlich bei all-inkl aufrufen):</div>' +
     '<code style="display:block;padding:8px 10px;background:var(--surf2);border:1px solid var(--border);' +
       'border-radius:6px;word-break:break-all;font-size:11px;margin-bottom:10px">' + _scanEsc(d.scan_url) + '</code>' +

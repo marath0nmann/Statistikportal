@@ -38,6 +38,7 @@ class Leichtathletik {
 
     const BASE        = 'https://ergebnisse.leichtathletik.de';
     const FORTSCHRITT = 'la_scan_fortschritt';
+    const ABBRUCH     = 'la_scan_abbruch';
     // Sicherheitsnetz: 555 Seiten gibt es insgesamt, das Fenster braucht ~6
     const MAX_SEITEN  = 20;
 
@@ -267,6 +268,7 @@ class Leichtathletik {
         if ($discovery && $letzteDiscovery !== $heute) {
             for ($seite = 1; $seite <= self::MAX_SEITEN; $seite++) {
                 if (microtime(true) - $start > $maxSekunden) { $stat['abgebrochen'] = true; break; }
+                if (Scanner::abbruchGewuenscht(self::ABBRUCH, $start)) { $stat['abbruch'] = true; break; }
                 Scanner::fortschritt(self::FORTSCHRITT, [
                     'phase' => 'discovery', 'begonnen' => date('Y-m-d H:i:s', (int)$start),
                     'i' => $seite, 'gesamt' => 0, 'neue_funde' => 0,
@@ -307,6 +309,7 @@ class Leichtathletik {
         $nr = 0;
         foreach ($queue as $ev) {
             if (microtime(true) - $start > $maxSekunden) { $stat['abgebrochen'] = true; break; }
+            if (Scanner::abbruchGewuenscht(self::ABBRUCH, $start)) { $stat['abbruch'] = true; break; }
             $eid = (int)$ev['event_id'];
             $nr++;
             Scanner::fortschritt(self::FORTSCHRITT, [
@@ -341,9 +344,11 @@ class Leichtathletik {
 
         $stat['requests'] = self::$requests;
         $stat['dauer']    = round(microtime(true) - $start, 1);
+        if (!empty($stat['abbruch'])) Scanner::abbruchLoeschen(self::ABBRUCH);
         Scanner::fortschritt(self::FORTSCHRITT, [
             'phase' => 'fertig', 'i' => $stat['gescannt'], 'gesamt' => $stat['gescannt'],
-            'aktuell' => $stat['abgebrochen'] ? 'Zeitlimit erreicht' : 'Lauf beendet',
+            'aktuell' => !empty($stat['abbruch']) ? 'Abgebrochen'
+                         : ($stat['abgebrochen'] ? 'Zeitlimit erreicht' : 'Lauf beendet'),
             'neue_funde' => $stat['neue_funde'], 'requests' => $stat['requests'],
         ]);
         Settings::set('la_scan_letzter_lauf', date('Y-m-d H:i:s'));

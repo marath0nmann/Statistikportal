@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1541
+## Aktuelle Version: v1542
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -165,6 +165,8 @@ pollt ihn über die `*-scan-status`-Routen. Scan-Routen geben vorher die Session
 frei (`session_write_close()`), sonst blockiert die Sperre jede Statusabfrage.
 Abfragebegriffe werden über `Scanner::sucheBegriffe()` reduziert (Teilstring-Suche),
 geprüft wird gegen die volle Liste.
+Abbruch: `POST scan-stop {quelle}` setzt `*_scan_abbruch`; die Schleife liest das
+Signal **direkt per SQL** (`Settings` cacht je Anfrage, der Scan *ist* eine Anfrage).
 
 leichtathletik.de wertet eine **Meldeliste** aus: ein Fund heißt „war gemeldet",
 nicht „hat ein Ergebnis". Datum mehrtägiger Wettkämpfe = letzter Tag.

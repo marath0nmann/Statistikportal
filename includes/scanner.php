@@ -42,6 +42,35 @@ class Scanner {
         return $d;
     }
 
+    // ── Abbruch eines laufenden Scans ────────────────────────────────────
+    // Ein Lauf hält seine HTTP-Anfrage minutenlang offen und läuft dank
+    // ignore_user_abort auch dann weiter, wenn der Aufrufer verschwindet.
+    // Abgebrochen wird deshalb über ein Signal in den Einstellungen, das
+    // die Schleife zwischen zwei Wettkämpfen prüft.
+    public static function abbruchAnfordern(string $key): void {
+        Settings::set($key, date('Y-m-d H:i:s'));
+    }
+
+    // WICHTIG: direkt aus der Datenbank lesen. Settings::all() hält seinen
+    // Cache je Anfrage – und der ganze Scan ist eine einzige Anfrage. Über
+    // Settings::get() bekäme die Schleife immer nur den Stand von vorhin
+    // und sähe die Anforderung nie.
+    public static function abbruchGewuenscht(string $key, float $startZeit): bool {
+        try {
+            $r = DB::fetchOne('SELECT wert FROM ' . DB::tbl('einstellungen') . ' WHERE schluessel = ?', [$key]);
+        } catch (Throwable $e) { return false; }
+        $wert = trim((string)($r['wert'] ?? ''));
+        if ($wert === '') return false;
+        $t = strtotime($wert);
+        // Nur Anforderungen berücksichtigen, die nach dem Start kamen –
+        // ein liegengebliebenes Signal soll keinen neuen Lauf killen.
+        return $t !== false && $t >= (int)$startZeit - 2;
+    }
+
+    public static function abbruchLoeschen(string $key): void {
+        try { Settings::set($key, ''); } catch (Throwable $e) {}
+    }
+
     // Vergleichsform: klein, ohne Umlaute/Sonderzeichen.
     public static function norm(string $s): string {
         $s = mb_strtolower(trim($s));
