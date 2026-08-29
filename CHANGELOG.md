@@ -1,3 +1,12 @@
+## v1529
+- **Beide Scanner melden jetzt laufend ihren Fortschritt.** Bisher wurde erst am Ende eines Laufs etwas geschrieben (`rr_scan_letzter_lauf`/`-status`) – während der minutenlangen Laufzeit war nirgends zu sehen, wo der Scanner steht, und ein abgebrochener Lauf hinterließ überhaupt keine Spur. `Scanner::fortschritt()` schreibt jetzt nach jedem Wettkampf bzw. Suchbegriff Phase, Position, aktuellen Wettkampf und Fundzahl in die Einstellungen; ein UPDATE gegenüber ~11 s Netzwerkarbeit je Wettkampf.
+- Das Admin-Panel zeigt daraus einen Fortschrittsbalken samt aktuellem Wettkampf – auch für Läufe, die der Cronjob angestoßen hat. Meldet sich ein Lauf über drei Minuten nicht, weist das Panel ihn als vermutlich abgebrochen aus (`Scanner::fortschrittLesen()`).
+- **„Jetzt scannen" blockiert nicht mehr.** Der Knopf wartete bisher die volle Laufzeit auf die Antwort (bis zu 120 s ohne jede Rückmeldung). Er startet den Lauf jetzt und pollt den Fortschritt alle 3 s; beim Verlassen des Panels endet das Pollen, der Lauf serverseitig nicht. Der Admin-Lauf darf dadurch 240 s statt 120 s nutzen.
+- Dafür geben beide Scan-Routen die Session frei (`session_write_close()`), sobald die Rechte geprüft sind – sonst hätte die gehaltene Session-Sperre jede Fortschrittsabfrage derselben Sitzung bis zum Ende des Laufs blockiert.
+- **Suchbegriffe werden für die Abfrage reduziert.** Jeder Begriff kostet pro Wettkampf und Liste einen eigenen Abruf; da beide Dienste als Teilstring suchen, ist ein Begriff überflüssig, sobald ein kürzerer in ihm steckt („Oedt" deckt „TuS Oedt" ab). `Scanner::sucheBegriffe()` fragt deshalb nur noch den jeweils kürzesten ab – nachkontrolliert wird weiterhin gegen die vollständige Liste, damit kein fremder Verein mit ähnlichem Namen durchrutscht.
+- Greift die Reduktion nicht, weil die Begriffe einander nicht enthalten („TuS Oedt" + „TuS 1911 Oedt"), schlägt das Panel das längste gemeinsame Wort vor („Oedt") und beziffert die Ersparnis. `Scanner::begriffVorschlag()`, ab 4 Zeichen.
+- Der Fortschritt wird nicht über die öffentliche Einstellungsroute ausgeliefert (`Settings::GEHEIM`) – er enthält Wettkampfnamen.
+
 ## v1528
 - Doku: Beide Scanner-Panels liegen unter **Admin → ⚙️ Einstellungen** (`renderAdminDarstellung()`), nicht unter Admin → System. Die Angabe „Admin → System" stand seit v1466 falsch im Changelog und war in v1527 übernommen worden; `CLAUDE.md` nennt den Ort jetzt ausdrücklich.
 

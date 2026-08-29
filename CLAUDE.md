@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1528
+## Aktuelle Version: v1529
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -154,6 +154,13 @@ gegen erfasste Ergebnisse), gemeinsames Panel-Rendering in `_bkFundePanelHtml()`
 |---|---|---|---|
 | RaceResult | `includes/raceresult.php` | Discovery je Land + Volltextsuche je Event, Warteschlange `rr_events` | `/api/rr-scan?token=…` (stündlich) |
 | uitslagen.nl | `includes/uitslagen.php` | Eine seitenweite Volltextsuche je Suchbegriff (`/results.php?naam=…`), keine Discovery | `/api/uits-scan?token=…` (täglich) |
+
+Fortschritt eines laufenden Scans: `Scanner::fortschritt()` schreibt nach jedem
+Schritt nach `rr_scan_fortschritt` / `uits_scan_fortschritt`; das Admin-Panel
+pollt ihn über die `*-scan-status`-Routen. Scan-Routen geben vorher die Session
+frei (`session_write_close()`), sonst blockiert die Sperre jede Statusabfrage.
+Abfragebegriffe werden über `Scanner::sucheBegriffe()` reduziert (Teilstring-Suche),
+geprüft wird gegen die volle Liste.
 
 Nicht proaktiv (nur manueller Import): ACN Timing, leichtathletik.de.
 

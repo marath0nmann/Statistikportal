@@ -8777,6 +8777,10 @@ if ($res === 'rr-scan' && $method === 'GET') {
 
     @set_time_limit(0);
     ignore_user_abort(true);
+    // Session-Sperre lösen: der Lauf dauert Minuten, und das Admin-Panel
+    // fragt währenddessen den Fortschritt ab – mit gehaltener Sperre
+    // würde jede Folgeanfrage derselben Session bis zum Ende warten.
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
     $maxSek = max(30, min(900, (int)($_GET['sekunden'] ?? 240)));
     $budget = max(0, min(500, (int)($_GET['budget'] ?? 0)));
     jsonOk(RaceResult::scan($budget, $maxSek, empty($_GET['nodiscovery'])));
@@ -8786,6 +8790,7 @@ if ($res === 'rr-scan' && $method === 'GET') {
 if ($res === 'rr-scan-status' && $method === 'GET') {
     Auth::requireAdmin();
     require_once __DIR__ . '/../../includes/raceresult.php';
+    require_once __DIR__ . '/../../includes/scanner.php';
     RaceResult::migrate();
 
     // Token beim ersten Aufruf erzeugen – wird nur hier ausgeliefert,
@@ -8804,6 +8809,9 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
         'letzter_lauf'  => Settings::get('rr_scan_letzter_lauf', ''),
         'letzter_status'=> json_decode(Settings::get('rr_scan_letzter_status', '') ?: 'null', true),
         'begriffe'      => RaceResult::begriffe(),
+        'abfrage'       => Scanner::sucheBegriffe(RaceResult::begriffe()),
+        'vorschlag'     => Scanner::begriffVorschlag(Scanner::sucheBegriffe(RaceResult::begriffe())),
+        'fortschritt'   => Scanner::fortschrittLesen(RaceResult::FORTSCHRITT),
         'laender'       => RaceResult::LAENDER,
         'events'        => array_map('intval', $z),
         'funde'         => array_map('intval', $funde),
@@ -8878,6 +8886,7 @@ if ($res === 'uits-scan' && $method === 'GET') {
 
     @set_time_limit(0);
     ignore_user_abort(true);
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
     $maxSek = max(30, min(600, (int)($_GET['sekunden'] ?? 120)));
     $tage   = max(0, min(3650, (int)($_GET['tage'] ?? 0)));
     jsonOk(Uitslagen::scan($tage, $maxSek));
@@ -8887,6 +8896,7 @@ if ($res === 'uits-scan' && $method === 'GET') {
 if ($res === 'uits-scan-status' && $method === 'GET') {
     Auth::requireAdmin();
     require_once __DIR__ . '/../../includes/uitslagen.php';
+    require_once __DIR__ . '/../../includes/scanner.php';
     Uitslagen::migrate();
 
     // Token beim ersten Aufruf erzeugen – wird nur hier ausgeliefert,
@@ -8904,6 +8914,9 @@ if ($res === 'uits-scan-status' && $method === 'GET') {
         'letzter_lauf'   => Settings::get('uits_scan_letzter_lauf', ''),
         'letzter_status' => json_decode(Settings::get('uits_scan_letzter_status', '') ?: 'null', true),
         'begriffe'       => Uitslagen::begriffe(),
+        'abfrage'        => Scanner::sucheBegriffe(Uitslagen::begriffe()),
+        'vorschlag'      => Scanner::begriffVorschlag(Scanner::sucheBegriffe(Uitslagen::begriffe())),
+        'fortschritt'    => Scanner::fortschrittLesen(Uitslagen::FORTSCHRITT),
         'funde'          => array_map('intval', $f),
     ]);
 }

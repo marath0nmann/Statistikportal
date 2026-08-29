@@ -39,7 +39,8 @@ class Settings {
     ];
 
     // Nie über die öffentliche GET-Route ausliefern (Zugangsdaten).
-    public const GEHEIM = ['github_token', 'rr_scan_token', 'uits_scan_token'];
+    public const GEHEIM = ['github_token', 'rr_scan_token', 'uits_scan_token',
+                           'rr_scan_fortschritt', 'uits_scan_fortschritt'];
 
     // ── Alle Einstellungen als key→value laden, fehlende Defaults einmalig schreiben
     public static function all(): array {

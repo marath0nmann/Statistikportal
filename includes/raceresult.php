@@ -27,10 +27,12 @@
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/settings.php';
+require_once __DIR__ . '/scanner.php';
 
 class RaceResult {
 
     const BASE = 'https://my.raceresult.com';
+    const FORTSCHRITT = 'rr_scan_fortschritt';
 
     // Numerische ISO-3166-Länder-IDs (RREvents/list) → ISO-Alpha-2.
     // Die API filtert unscharf; das Alpha-2 dient zur Nachkontrolle.
@@ -368,9 +370,22 @@ class RaceResult {
         $begriffe  = self::begriffe();
         $heute     = date('Y-m-d');
 
+        // Abfragebegriffe (reduziert) vs. Prüfbegriffe (vollständig)
+        $abfrage = Scanner::sucheBegriffe($begriffe);
+
         $stat = ['neue_events' => 0, 'gescannt' => 0, 'treffer' => 0, 'neue_funde' => 0,
-                 'requests' => 0, 'abgebrochen' => false, 'begriffe' => $begriffe];
-        if (!$begriffe) { $stat['fehler'] = 'Keine Suchbegriffe konfiguriert.'; return $stat; }
+                 'requests' => 0, 'abgebrochen' => false, 'begriffe' => $begriffe,
+                 'abfrage_begriffe' => $abfrage];
+        if (!$begriffe) {
+            $stat['fehler'] = 'Keine Suchbegriffe konfiguriert.';
+            Scanner::fortschritt(self::FORTSCHRITT, ['phase' => 'fertig', 'fehler' => $stat['fehler']]);
+            return $stat;
+        }
+
+        Scanner::fortschritt(self::FORTSCHRITT, [
+            'phase' => 'start', 'begonnen' => date('Y-m-d H:i:s'),
+            'i' => 0, 'gesamt' => 0, 'aktuell' => 'Lauf gestartet', 'neue_funde' => 0,
+        ]);
 
         // ── Discovery: neue Events der letzten $fenster Tage einsammeln ──
         $letzteDiscovery = Settings::get('rr_scan_discovery_am', '');
@@ -378,6 +393,11 @@ class RaceResult {
             $laender = array_filter(array_map('intval', explode(',', Settings::get('rr_scan_laender', '276,528,56'))));
             foreach ($laender as $landId) {
                 if (!isset(self::LAENDER[$landId])) continue;
+                Scanner::fortschritt(self::FORTSCHRITT, [
+                    'phase' => 'discovery', 'begonnen' => date('Y-m-d H:i:s', (int)$start),
+                    'i' => 0, 'gesamt' => 0, 'neue_funde' => 0,
+                    'aktuell' => 'Wettkampfsuche ' . self::LAENDER[$landId],
+                ]);
                 $events = self::events($landId, date('Y-m-d', strtotime("-$fenster days")), $heute);
                 foreach ($events as $eid => $e) {
                     $n = DB::query(
@@ -403,9 +423,17 @@ class RaceResult {
             ['offen']
         );
 
+        $nr = 0;
         foreach ($queue as $ev) {
             if (microtime(true) - $start > $maxSekunden) { $stat['abgebrochen'] = true; break; }
             $eid = (int)$ev['event_id'];
+            $nr++;
+            Scanner::fortschritt(self::FORTSCHRITT, [
+                'phase'   => 'scan', 'begonnen' => date('Y-m-d H:i:s', (int)$start),
+                'i'       => $nr, 'gesamt' => count($queue),
+                'aktuell' => trim(($ev['datum'] ?? '') . ' ' . ($ev['name'] ?? ('Event ' . $eid))),
+                'neue_funde' => $stat['neue_funde'], 'requests' => self::$requests,
+            ]);
 
             $cfg = self::config($eid);
             if (!$cfg) {
@@ -423,7 +451,7 @@ class RaceResult {
             $erfolg = false;
             foreach ($cfg['listen'] as $liste) {
                 $rowsListe = [];
-                foreach ($begriffe as $begriff) {
+                foreach ($abfrage as $begriff) {
                     $r = self::suche($eid, $cfg['key'], $liste['name'], $liste['contest'], $begriff);
                     if ($r === null) { $rowsListe = null; break; }
                     foreach ($r as $z) $rowsListe[] = $z;
@@ -463,6 +491,11 @@ class RaceResult {
 
         $stat['requests'] = self::$requests;
         $stat['dauer']    = round(microtime(true) - $start, 1);
+        Scanner::fortschritt(self::FORTSCHRITT, [
+            'phase' => 'fertig', 'i' => $stat['gescannt'], 'gesamt' => $stat['gescannt'],
+            'aktuell' => $stat['abgebrochen'] ? 'Zeitlimit erreicht' : 'Lauf beendet',
+            'neue_funde' => $stat['neue_funde'], 'requests' => $stat['requests'],
+        ]);
         Settings::set('rr_scan_letzter_lauf', date('Y-m-d H:i:s'));
         Settings::set('rr_scan_letzter_status', json_encode($stat, JSON_UNESCAPED_UNICODE));
         return $stat;

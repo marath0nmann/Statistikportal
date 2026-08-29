@@ -2162,6 +2162,73 @@ async function renderAdminDarstellung() {
   _uitsScanStatus();
 }
 
+// ── Gemeinsame Anzeige beider Scanner ─────────────────────────────────
+// Ein Lauf dauert Minuten. Der Knopf wartet deshalb nicht mehr auf die
+// Antwort, sondern startet den Lauf und pollt den Fortschritt, den der
+// Scanner nach jedem Wettkampf in die Einstellungen schreibt.
+var _scanPoll = {};
+
+function _scanEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Fortschrittszeile: Balken + aktueller Schritt, oder Hinweis auf einen
+// Lauf, der sich seit über drei Minuten nicht gemeldet hat.
+// Jeder zusätzliche Abfragebegriff kostet pro Wettkampf einen weiteren
+// Abruf. Deckt ein gemeinsames Wort alle ab, hier vorschlagen.
+function _scanVorschlagHtml(d, abfrage) {
+  if (!d.vorschlag || abfrage.length < 2) return '';
+  return '<br><span style="color:var(--text2)">💡 ' + abfrage.length + ' Begriffe bedeuten ' + abfrage.length +
+    ' Abrufe je Wettkampf. <strong>' + _scanEsc(d.vorschlag) + '</strong> allein deckt sie alle ab ' +
+    '(Teilstring-Suche) und verkürzt den Lauf entsprechend.</span>';
+}
+
+function _scanFortschrittHtml(f) {
+  if (!f) return '';
+  if (!f.laeuft) {
+    if (f.phase !== 'fertig' && f.alter >= 180)
+      return '<div style="margin:8px 0;padding:8px 10px;border-radius:6px;background:var(--surf2);border:1px solid var(--border)">' +
+        '⚠️ Letzter Lauf hat sich zuletzt vor ' + Math.round(f.alter / 60) + ' Min. gemeldet (' +
+        _scanEsc(f.aktuell || '') + ') und ist vermutlich abgebrochen.</div>';
+    return '';
+  }
+  var pct = (f.gesamt > 0) ? Math.min(100, Math.round((f.i / f.gesamt) * 100)) : 0;
+  return '<div style="margin:8px 0;padding:8px 10px;border-radius:6px;background:var(--surf2);border:1px solid var(--border)">' +
+    '<div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px">' +
+      '<span>⏳ ' + _scanEsc(f.aktuell || 'läuft…') + '</span>' +
+      '<span style="white-space:nowrap">' + (f.gesamt > 0 ? f.i + '/' + f.gesamt : f.i) +
+        (f.neue_funde ? ' · ' + f.neue_funde + ' neu' : '') + '</span>' +
+    '</div>' +
+    '<div style="height:6px;border-radius:3px;background:var(--border);overflow:hidden">' +
+      '<div style="height:100%;width:' + pct + '%;background:var(--accent);transition:width .4s"></div>' +
+    '</div>' +
+  '</div>';
+}
+
+// Lauf starten, ohne auf das Ende zu warten; solange pollen, bis die
+// Antwort da ist (oder der Fortschritt „fertig" meldet).
+function _scanStarten(name, url, statusFn) {
+  if (_scanPoll[name]) return;
+  var boxId = name === 'rr' ? 'rr-scan-status' : 'uits-scan-status';
+  var fertig = false;
+  var p = apiGet(url).then(function(r) {
+    fertig = true;
+    if (r && r.ok) notify('Scan beendet: ' + ((r.data && r.data.neue_funde) || 0) + ' neue Funde.', 'ok');
+    else notify((r && r.fehler) || 'Scan fehlgeschlagen.', 'err');
+  }).catch(function() {
+    fertig = true;
+    notify('Scan abgebrochen – der Lauf kann im Hintergrund weiterlaufen.', 'err');
+  });
+  _scanPoll[name] = setInterval(function() {
+    // Panel verlassen → nicht weiter pollen (der Lauf läuft serverseitig weiter)
+    if (!document.getElementById(boxId)) { clearInterval(_scanPoll[name]); _scanPoll[name] = null; return; }
+    statusFn();
+    if (fertig) { clearInterval(_scanPoll[name]); _scanPoll[name] = null; statusFn(); }
+  }, 3000);
+  statusFn();
+  return p;
+}
+
 // Scanner-Status + Cron-URL nachladen (Token kommt nur über diese Route).
 async function _rrScanStatus() {
   var box = document.getElementById('rr-scan-status');
@@ -2170,12 +2237,19 @@ async function _rrScanStatus() {
   if (!r || !r.ok) { box.textContent = 'Status konnte nicht geladen werden.'; return; }
   var d = r.data;
   var st = d.letzter_status || {};
-  var esc = function(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  var esc = _scanEsc;
+  var abfrage = d.abfrage || d.begriffe || [];
+  var sparsam = (d.begriffe || []).length > abfrage.length;
   box.innerHTML =
+    _scanFortschrittHtml(d.fortschritt) +
     '<div style="margin-bottom:6px"><strong>Cron-URL</strong> (z.B. stündlich bei all-inkl aufrufen):</div>' +
     '<code style="display:block;padding:8px 10px;background:var(--surf2);border:1px solid var(--border);' +
       'border-radius:6px;word-break:break-all;font-size:11px;margin-bottom:10px">' + esc(d.scan_url) + '</code>' +
-    '<div>Suchbegriffe: <strong>' + esc((d.begriffe || []).join(', ') || '–') + '</strong></div>' +
+    '<div>Suchbegriffe: <strong>' + esc((d.begriffe || []).join(', ') || '–') + '</strong>' +
+      (sparsam ? '<br><span style="color:var(--text2)">Abgefragt wird nur <strong>' + esc(abfrage.join(', ')) +
+        '</strong> – kürzere Begriffe decken die längeren ab (Teilstring-Suche). Geprüft wird gegen alle.</span>' : '') +
+      _scanVorschlagHtml(d, abfrage) +
+    '</div>' +
     '<div>Wettkämpfe: ' + (d.events.gesamt || 0) + ' bekannt · ' + (d.events.offen || 0) + ' offen · ' +
       (d.events.fertig || 0) + ' geprüft · ' + (d.events.ohne || 0) + ' ohne Ergebnisliste</div>' +
     '<div>Funde: ' + (d.funde.gesamt || 0) + ' gesamt · ' + (d.funde.neu || 0) + ' offen</div>' +
@@ -2187,13 +2261,9 @@ async function _rrScanStatus() {
     '</div>';
 }
 
-async function rrScanJetzt() {
-  var box = document.getElementById('rr-scan-status');
-  if (box) box.textContent = '⏳ Scan läuft – das kann einige Minuten dauern…';
-  var r = await apiGet('rr-scan?force=1&sekunden=120');
-  if (r && r.ok) notify('Scan beendet: ' + (r.data.neue_funde || 0) + ' neue Funde.', 'ok');
-  else notify((r && r.fehler) || 'Scan fehlgeschlagen.', 'err');
-  _rrScanStatus();
+function rrScanJetzt() {
+  notify('Scan gestartet – Fortschritt erscheint gleich im Panel.', 'ok');
+  _scanStarten('rr', 'rr-scan?force=1&sekunden=240', _rrScanStatus);
 }
 
 // Status des uitslagen.nl-Scanners (eigene Route wegen des Cron-Tokens).
@@ -2204,12 +2274,19 @@ async function _uitsScanStatus() {
   if (!r || !r.ok) { box.textContent = 'Status konnte nicht geladen werden.'; return; }
   var d = r.data;
   var st = d.letzter_status || {};
-  var esc = function(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  var esc = _scanEsc;
+  var abfrage = d.abfrage || d.begriffe || [];
+  var sparsam = (d.begriffe || []).length > abfrage.length;
   box.innerHTML =
+    _scanFortschrittHtml(d.fortschritt) +
     '<div style="margin-bottom:6px"><strong>Cron-URL</strong> (z.B. täglich bei all-inkl aufrufen):</div>' +
     '<code style="display:block;padding:8px 10px;background:var(--surf2);border:1px solid var(--border);' +
       'border-radius:6px;word-break:break-all;font-size:11px;margin-bottom:10px">' + esc(d.scan_url) + '</code>' +
-    '<div>Suchbegriffe: <strong>' + esc((d.begriffe || []).join(', ') || '–') + '</strong></div>' +
+    '<div>Suchbegriffe: <strong>' + esc((d.begriffe || []).join(', ') || '–') + '</strong>' +
+      (sparsam ? '<br><span style="color:var(--text2)">Abgefragt wird nur <strong>' + esc(abfrage.join(', ')) +
+        '</strong> – kürzere Begriffe decken die längeren ab.</span>' : '') +
+      _scanVorschlagHtml(d, abfrage) +
+    '</div>' +
     '<div>Funde: ' + (d.funde.gesamt || 0) + ' gesamt aus ' + (d.funde.events || 0) + ' Wettkämpfen · ' +
       (d.funde.neu || 0) + ' offen</div>' +
     '<div>Letzter Lauf: ' + esc(d.letzter_lauf || '–') +
@@ -2221,13 +2298,9 @@ async function _uitsScanStatus() {
     '</div>';
 }
 
-async function uitsScanJetzt() {
-  var box = document.getElementById('uits-scan-status');
-  if (box) box.textContent = '⏳ Scan läuft…';
-  var r = await apiGet('uits-scan?force=1&sekunden=120');
-  if (r && r.ok) notify('Scan beendet: ' + (r.data.neue_funde || 0) + ' neue Funde.', 'ok');
-  else notify((r && r.fehler) || 'Scan fehlgeschlagen.', 'err');
-  _uitsScanStatus();
+function uitsScanJetzt() {
+  notify('Scan gestartet – Fortschritt erscheint gleich im Panel.', 'ok');
+  _scanStarten('uits', 'uits-scan?force=1&sekunden=120', _uitsScanStatus);
 }
 
 async function saveWartungAktiv(checked) {

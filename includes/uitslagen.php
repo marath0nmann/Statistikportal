@@ -29,6 +29,7 @@ require_once __DIR__ . '/scanner.php';
 class Uitslagen {
 
     const BASE   = 'https://uitslagen.nl';
+    const FORTSCHRITT = 'uits_scan_fortschritt';
     // Sicherheitsnetz gegen endloses Blättern (der Cursor ist undokumentiert)
     const MAX_SEITEN = 12;
 
@@ -242,14 +243,37 @@ class Uitslagen {
         $begriffe = self::begriffe();
         $grenze   = date('Y-m-d', strtotime("-$tage days"));
 
+        // Wie bei RaceResult kostet jeder Begriff einen eigenen Abruf und
+        // die Suche arbeitet als Teilstring – kürzere Begriffe decken die
+        // längeren mit ab. Geprüft wird weiterhin gegen die volle Liste.
+        $abfrage = Scanner::sucheBegriffe($begriffe);
+
         $stat = ['events' => 0, 'treffer' => 0, 'neue_funde' => 0, 'seiten' => 0,
-                 'requests' => 0, 'abgebrochen' => false, 'begriffe' => $begriffe, 'ab' => $grenze];
-        if (!$begriffe) { $stat['fehler'] = 'Keine Suchbegriffe konfiguriert.'; return $stat; }
+                 'requests' => 0, 'abgebrochen' => false, 'begriffe' => $begriffe,
+                 'abfrage_begriffe' => $abfrage, 'ab' => $grenze];
+        if (!$begriffe) {
+            $stat['fehler'] = 'Keine Suchbegriffe konfiguriert.';
+            Scanner::fortschritt(self::FORTSCHRITT, ['phase' => 'fertig', 'fehler' => $stat['fehler']]);
+            return $stat;
+        }
+
+        Scanner::fortschritt(self::FORTSCHRITT, [
+            'phase' => 'start', 'begonnen' => date('Y-m-d H:i:s'),
+            'i' => 0, 'gesamt' => count($abfrage), 'aktuell' => 'Lauf gestartet', 'neue_funde' => 0,
+        ]);
 
         $gesehen = [];
-        foreach ($begriffe as $begriff) {
+        $nr = 0;
+        foreach ($abfrage as $begriff) {
             $next = '';
+            $nr++;
             for ($seite = 0; $seite < self::MAX_SEITEN; $seite++) {
+                Scanner::fortschritt(self::FORTSCHRITT, [
+                    'phase'   => 'scan', 'begonnen' => date('Y-m-d H:i:s', (int)$start),
+                    'i'       => $nr, 'gesamt' => count($abfrage),
+                    'aktuell' => 'Suche „' . $begriff . '"' . ($seite ? ' – Seite ' . ($seite + 1) : ''),
+                    'neue_funde' => $stat['neue_funde'], 'requests' => self::$requests,
+                ]);
                 if (microtime(true) - $start > $maxSekunden) { $stat['abgebrochen'] = true; break 2; }
 
                 $url = self::BASE . '/results.php?naam=' . rawurlencode($begriff)
@@ -286,6 +310,11 @@ class Uitslagen {
 
         $stat['requests'] = self::$requests;
         $stat['dauer']    = round(microtime(true) - $start, 1);
+        Scanner::fortschritt(self::FORTSCHRITT, [
+            'phase' => 'fertig', 'i' => count($abfrage), 'gesamt' => count($abfrage),
+            'aktuell' => $stat['abgebrochen'] ? 'Zeitlimit erreicht' : 'Lauf beendet',
+            'neue_funde' => $stat['neue_funde'], 'requests' => $stat['requests'],
+        ]);
         Settings::set('uits_scan_letzter_lauf', date('Y-m-d H:i:s'));
         Settings::set('uits_scan_letzter_status', json_encode($stat, JSON_UNESCAPED_UNICODE));
         return $stat;
