@@ -387,20 +387,34 @@ class RaceResult {
     // ── Hauptlauf ────────────────────────────────────────────────────────
     // $budget      max. Events pro Lauf, $maxSekunden Wanduhr-Deckel.
     // $discovery   false = nur Warteschlange abarbeiten.
-    // $tage überschreibt das eingestellte Rückblick-Fenster für einen
-    // einzelnen Lauf – gedacht zum Aufholen eines Rückstands.
-    // $sofort übergeht die Abkühlzeit. Sie schützt die automatischen Läufe
-    // davor, dieselben Wettkämpfe stündlich anzufassen – bei einem
-    // ausdrücklich angestoßenen Nachhol-Lauf steht sie nur im Weg.
-    public static function scan(int $budget = 0, int $maxSekunden = 240, bool $discovery = true, int $tage = 0, bool $sofort = false): array {
+    // Optionen ($opt):
+    //   discovery  false = nur die Warteschlange abarbeiten
+    //   tage       überschreibt das eingestellte Rückblick-Fenster
+    //   sofort     übergeht die Abkühlzeit. Sie schützt die automatischen
+    //              Läufe davor, dieselben Wettkämpfe stündlich anzufassen;
+    //              bei einem ausdrücklich angestoßenen Lauf steht sie im Weg.
+    //   nur_alt    nur Wettkämpfe VOR dem eingestellten Fenster – das ist
+    //              genau die Menge, die das Panel als „liegen vor dem
+    //              Fenster" zählt. Ohne diese Grenze würde ein Nachhol-Lauf
+    //              mit großem `tage` auch die aktuellen offenen Wettkämpfe
+    //              einsammeln und wegen der Sortierung sogar zuerst.
+    public static function scan(int $budget = 0, int $maxSekunden = 240, array $opt = []): array {
         self::migrate();
         $start = microtime(true);
+
+        $discovery = $opt['discovery'] ?? true;
+        $tage      = (int)($opt['tage'] ?? 0);
+        $sofort    = !empty($opt['sofort']);
+        $nurAlt    = !empty($opt['nur_alt']);
 
         $budget    = $budget > 0 ? $budget : max(1, (int)Settings::get('rr_scan_budget', '60'));
         $fenster   = $tage > 0 ? min(365, $tage) : max(1, min(60, (int)Settings::get('rr_scan_tage', '14')));
         $begriffe  = self::begriffe();
         $heute     = date('Y-m-d');
         $grenze    = date('Y-m-d', strtotime("-$fenster days"));
+        // Grenze des regulären Fensters – Obergrenze beim Nachholen
+        $regFenster = max(1, min(60, (int)Settings::get('rr_scan_tage', '14')));
+        $regGrenze  = date('Y-m-d', strtotime("-$regFenster days"));
 
         // Abfragebegriffe (reduziert) vs. Prüfbegriffe (vollständig)
         $abfrage = Scanner::sucheBegriffe($begriffe);
@@ -408,6 +422,7 @@ class RaceResult {
         $stat = ['neue_events' => 0, 'gescannt' => 0, 'nicht_final' => 0, 'treffer' => 0,
                  'neue_funde' => 0, 'requests' => 0, 'abgebrochen' => false,
                  'begriffe' => $begriffe, 'abfrage_begriffe' => $abfrage, 'ab' => $grenze];
+        if ($nurAlt) $stat['bis'] = $regGrenze;
         if (!$begriffe) {
             $stat['fehler'] = 'Keine Suchbegriffe konfiguriert.';
             Scanner::fortschritt(self::FORTSCHRITT, ['phase' => 'fertig', 'fehler' => $stat['fehler']]);
@@ -466,13 +481,14 @@ class RaceResult {
                 -- immer in der Warteschlange und belegen das Budget. Wird das
                 -- Fenster wieder vergrößert, kommen sie von selbst zurück.
                 AND datum >= ?
+                ' . ($nurAlt ? 'AND datum < ?' : '') . '
                 ' . $abkuehlung . '
               -- Wettkämpfe vergangener Tage zuerst: die von heute sind
               -- meist noch nicht abgeschlossen und würden den Platz im
               -- Budget belegen, ohne verwertbare Listen zu liefern.
               ORDER BY (datum < CURDATE()) DESC, letzter_scan IS NULL DESC, datum DESC
               LIMIT ' . (int)$budget,
-            ['offen', $grenze]
+            $nurAlt ? ['offen', $grenze, $regGrenze] : ['offen', $grenze]
         );
 
         $nr = 0;
@@ -572,10 +588,12 @@ class RaceResult {
                 : ($imFens === 0
                     ? 'Nichts zu tun: die ' . $offen . ' offenen Wettkämpfe liegen außerhalb des Fensters ab '
                       . $grenze . '. Mit &tage=N erneut starten.'
-                    : ($sofort
+                    : ($nurAlt
+                        ? 'Nichts zu tun: vor dem Fenster (' . $regGrenze . ') ist kein Wettkampf mehr offen.'
+                        : ($sofort
                         ? 'Nichts zu tun: keiner der ' . $imFens . ' offenen Wettkämpfe im Fenster ist abrufbar.'
                         : 'Nichts zu tun: die ' . $imFens . ' offenen Wettkämpfe im Fenster wurden erst vor '
-                          . 'kurzem geprüft (Abkühlzeit 3 h). Mit „Diese nachholen" oder &sofort=1 sofort starten.'));
+                          . 'kurzem geprüft (Abkühlzeit 3 h). Mit „Diese nachholen" oder &sofort=1 sofort starten.')));
         }
 
         $stat['requests'] = self::$requests;

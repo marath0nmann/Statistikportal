@@ -2382,8 +2382,8 @@ async function rrAltAnzeigen() {
 // Nachholen ohne Discovery: sonst kämen mit dem größeren Fenster wieder
 // neue alte Wettkämpfe herein, und die Liste bliebe dauerhaft lang.
 function rrAltNachholen() {
-  notify('Nachhol-Lauf gestartet – ohne neue Wettkampfsuche.', 'ok');
-  _scanStarten('rr', 'rr-scan?force=1&nodiscovery=1&sofort=1&tage=365&sekunden=600', _rrScanStatus);
+  notify('Nachhol-Lauf gestartet – nur Wettkämpfe vor dem Fenster, ohne neue Suche.', 'ok');
+  _scanStarten('rr', 'rr-scan?force=1&nodiscovery=1&sofort=1&nuralt=1&tage=365&sekunden=600', _rrScanStatus);
 }
 
 function rrScanJetzt() {

@@ -1,3 +1,8 @@
+## v1541
+- **Fix: „Diese nachholen" hat die falschen Wettkämpfe gescannt.** Der Knopf öffnete das Rückblick-Fenster auf 365 Tage, um an die alten Wettkämpfe zu kommen – damit fielen aber auch alle *aktuellen* offenen Wettkämpfe in die Warteschlange, und wegen der Sortierung („vergangene Tage zuerst, davon die neuesten") standen sie sogar vorn. Gescannt wurden dann Läufe von vorgestern statt der Altbestände, für die der Knopf gedacht ist.
+- Neue Option `nur_alt` (Route: `&nuralt=1`) setzt eine Obergrenze auf die Grenze des **eingestellten** Fensters. Der Nachhol-Lauf arbeitet damit genau die Menge ab, die das Panel als „liegen vor dem Fenster" zählt – nicht mehr und nicht weniger.
+- Die Optionen von `RaceResult::scan()` stehen jetzt in einem Array (`discovery`, `tage`, `sofort`, `nur_alt`) statt in inzwischen fünf Positionsparametern.
+
 ## v1540
 - **Fix: „Diese nachholen" lief gegen die Abkühlzeit und tat deshalb nichts.** Wettkämpfe, die in den letzten drei Stunden schon einmal angefasst wurden, blieben aus der Warteschlange – also genau die, die ein vorangegangener Aufhol-Versuch gerade berührt hatte. Der Knopf schickt jetzt `&sofort=1`, was die Abkühlzeit übergeht. Sie schützt die automatischen Läufe davor, dieselben Wettkämpfe stündlich abzuklappern; bei einem ausdrücklich angestoßenen Lauf steht sie nur im Weg.
 - **Fix: Läufe ohne Arbeit meldeten „0 neue Funde" statt ihres Grundes.** Das Feld `hinweis` aus v1535 wurde von der Oberfläche gar nicht ausgewertet – die Meldung sah aus wie ein Scan ohne Treffer, obwohl überhaupt nichts geprüft wurde. Die Meldung zeigt jetzt den Hinweis, sonst „N Wettkämpfe geprüft, M neue Funde".
