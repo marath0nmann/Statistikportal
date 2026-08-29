@@ -2274,7 +2274,11 @@ function _scanStarten(name, url, statusFn) {
   var fertig = false;
   var p = apiGet(url).then(function(r) {
     fertig = true;
-    if (r && r.ok) notify('Scan beendet: ' + ((r.data && r.data.neue_funde) || 0) + ' neue Funde.', 'ok');
+    // Ein Lauf ohne Arbeit meldet im Feld „hinweis", warum – sonst stünde
+    // dort nur „0 neue Funde" und man wüsste nicht, ob etwas passiert ist.
+    if (r && r.ok && r.data && r.data.hinweis) notify(r.data.hinweis, 'err');
+    else if (r && r.ok) notify('Scan beendet: ' + ((r.data && r.data.gescannt) || 0) + ' Wettkämpfe geprüft, ' +
+      ((r.data && r.data.neue_funde) || 0) + ' neue Funde.', 'ok');
     else notify((r && r.fehler) || 'Scan fehlgeschlagen.', 'err');
   }).catch(function() {
     fertig = true;
@@ -2379,7 +2383,7 @@ async function rrAltAnzeigen() {
 // neue alte Wettkämpfe herein, und die Liste bliebe dauerhaft lang.
 function rrAltNachholen() {
   notify('Nachhol-Lauf gestartet – ohne neue Wettkampfsuche.', 'ok');
-  _scanStarten('rr', 'rr-scan?force=1&nodiscovery=1&tage=365&sekunden=600', _rrScanStatus);
+  _scanStarten('rr', 'rr-scan?force=1&nodiscovery=1&sofort=1&tage=365&sekunden=600', _rrScanStatus);
 }
 
 function rrScanJetzt() {

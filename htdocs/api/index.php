@@ -8786,7 +8786,8 @@ if ($res === 'rr-scan' && $method === 'GET') {
     $budget = max(0, min(500, (int)($_GET['budget'] ?? 0)));
     // ?tage=… überschreibt das Rückblick-Fenster für diesen einen Lauf
     $tage   = max(0, min(365, (int)($_GET['tage'] ?? 0)));
-    jsonOk(RaceResult::scan($budget, $maxSek, empty($_GET['nodiscovery']), $tage));
+    // &sofort=1 übergeht die Abkühlzeit (ausdrücklicher Nachhol-Lauf)
+    jsonOk(RaceResult::scan($budget, $maxSek, empty($_GET['nodiscovery']), $tage, !empty($_GET['sofort'])));
 }
 
 // ── GET rr-scan-status – Konfiguration + letzter Lauf (Admin) ────────────

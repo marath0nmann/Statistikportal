@@ -389,7 +389,10 @@ class RaceResult {
     // $discovery   false = nur Warteschlange abarbeiten.
     // $tage überschreibt das eingestellte Rückblick-Fenster für einen
     // einzelnen Lauf – gedacht zum Aufholen eines Rückstands.
-    public static function scan(int $budget = 0, int $maxSekunden = 240, bool $discovery = true, int $tage = 0): array {
+    // $sofort übergeht die Abkühlzeit. Sie schützt die automatischen Läufe
+    // davor, dieselben Wettkämpfe stündlich anzufassen – bei einem
+    // ausdrücklich angestoßenen Nachhol-Lauf steht sie nur im Weg.
+    public static function scan(int $budget = 0, int $maxSekunden = 240, bool $discovery = true, int $tage = 0, bool $sofort = false): array {
         self::migrate();
         $start = microtime(true);
 
@@ -446,6 +449,15 @@ class RaceResult {
         }
 
         // ── Warteschlange: offene Events, deren Termin vorbei ist ────────
+        // Abkühlzeit: Wettkämpfe, die noch nicht abgeschlossen waren, lohnen
+        // einen neuen Blick schon nach 3 Stunden – ein Lauf vom Vormittag ist
+        // am Abend fertig. Die früheren 20 h stammten aus der abgelösten
+        // Zwei-Durchgang-Regel und sind erst nach mehreren Fehlversuchen sinnvoll.
+        $abkuehlung = $sofort ? '' :
+            'AND (letzter_scan IS NULL
+                  OR (versuche <  8 AND letzter_scan < NOW() - INTERVAL 3 HOUR)
+                  OR (versuche >= 8 AND letzter_scan < NOW() - INTERVAL 20 HOUR))';
+
         $queue = DB::fetchAll(
             'SELECT * FROM ' . DB::tbl('rr_events') . '
               WHERE status = ? AND datum IS NOT NULL AND datum <= CURDATE()
@@ -454,14 +466,7 @@ class RaceResult {
                 -- immer in der Warteschlange und belegen das Budget. Wird das
                 -- Fenster wieder vergrößert, kommen sie von selbst zurück.
                 AND datum >= ?
-                -- Abkühlzeit: Wettkämpfe, die noch nicht abgeschlossen waren,
-                -- lohnen einen neuen Blick schon nach 3 Stunden – ein Lauf
-                -- vom Vormittag ist am Abend fertig. Die früheren 20 h
-                -- stammten aus der Zwei-Durchgang-Regel und sind erst nach
-                -- mehreren Fehlversuchen sinnvoll.
-                AND (letzter_scan IS NULL
-                     OR (versuche <  8 AND letzter_scan < NOW() - INTERVAL 3 HOUR)
-                     OR (versuche >= 8 AND letzter_scan < NOW() - INTERVAL 20 HOUR))
+                ' . $abkuehlung . '
               -- Wettkämpfe vergangener Tage zuerst: die von heute sind
               -- meist noch nicht abgeschlossen und würden den Platz im
               -- Budget belegen, ohne verwertbare Listen zu liefern.
@@ -567,8 +572,10 @@ class RaceResult {
                 : ($imFens === 0
                     ? 'Nichts zu tun: die ' . $offen . ' offenen Wettkämpfe liegen außerhalb des Fensters ab '
                       . $grenze . '. Mit &tage=N erneut starten.'
-                    : 'Nichts zu tun: die ' . $imFens . ' offenen Wettkämpfe im Fenster wurden erst vor '
-                      . 'kurzem geprüft (Abkühlzeit 3 h). Später erneut starten.');
+                    : ($sofort
+                        ? 'Nichts zu tun: keiner der ' . $imFens . ' offenen Wettkämpfe im Fenster ist abrufbar.'
+                        : 'Nichts zu tun: die ' . $imFens . ' offenen Wettkämpfe im Fenster wurden erst vor '
+                          . 'kurzem geprüft (Abkühlzeit 3 h). Mit „Diese nachholen" oder &sofort=1 sofort starten.'));
         }
 
         $stat['requests'] = self::$requests;
