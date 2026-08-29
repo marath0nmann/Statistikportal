@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1529
+## Aktuelle Version: v1530
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -127,7 +127,7 @@ Modals schließen **ausschließlich per Button** – Klick außerhalb des Modals
 - `inaktive_athleten_sehen`, `veranstaltung_eintragen`, `veranstaltung_loeschen`
 
 ## Admin-Tabs
-system, benutzer, registrierungen, disziplinen, altersklassen, meisterschaften, darstellung, dashboard_cfg, antraege, papierkorb
+system, benutzer, registrierungen, disziplinen, altersklassen, meisterschaften, orte, darstellung (UI-Label „Einstellungen“), quellen (Ergebnis-Scanner), dashboard_cfg, antraege, wartung, papierkorb
 
 ## Bulk-Import-Quellen
 - RaceResult (`my.raceresult.com`, `my4.raceresult.com`)
@@ -145,8 +145,7 @@ system, benutzer, registrierungen, disziplinen, altersklassen, meisterschaften, 
 ### Ergebnis-Scanner (proaktive Funde)
 Beide melden Starts des eigenen Vereins auf der Eintragen-Seite; der Import läuft
 unverändert über die bestehenden Importer. Konfiguration für beide:
-**Admin → ⚙️ Einstellungen** (`renderAdminDarstellung()` in `08_admin.js`, Tab-Id
-`darstellung`) – *nicht* Admin → System. Gemeinsame Aufbereitung in
+**Admin → 🔎 Quellen** (`renderAdminQuellen()` in `08_admin.js`, Tab-Id `quellen`). Gemeinsame Aufbereitung in
 `includes/scanner.php` (`Scanner::gruppiere()` → Athletenzuordnung + Abgleich
 gegen erfasste Ergebnisse), gemeinsames Panel-Rendering in `_bkFundePanelHtml()`.
 

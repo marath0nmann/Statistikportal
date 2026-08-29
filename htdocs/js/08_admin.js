@@ -391,6 +391,7 @@ function adminSubtabs() {
     '<button class="subtab' + (t==='meisterschaften'? ' active' : '') + '" onclick="navAdmin(\'meisterschaften\')">&#x1F3C5; Meisterschaften</button>' +
     '<button class="subtab' + (t==='orte'           ? ' active' : '') + '" onclick="navAdmin(\'orte\')">&#x1F4CD; Orte</button>' +
     '<button class="subtab' + (t==='darstellung'    ? ' active' : '') + '" onclick="navAdmin(\'darstellung\')">&#x2699;&#xFE0F; Einstellungen</button>' +
+    '<button class="subtab' + (t==='quellen'        ? ' active' : '') + '" onclick="navAdmin(\'quellen\')">&#x1F50E; Quellen</button>' +
     '<button class="subtab' + (t==='dashboard_cfg'  ? ' active' : '') + '" onclick="navAdmin(\'dashboard_cfg\')">&#x1F4CA;&#xFE0E; Dashboard</button>' +
     '<button class="subtab' + (t==='antraege'       ? ' active' : '') + '" onclick="navAdmin(\'antraege\')">✋ Anträge' + _adminBadge((window._adminPendingAntraege||0)+(window._adminPendingFreigabe||0)) + '</button>' +
     '<button class="subtab' + (t==='wartung'        ? ' active' : '') + '" onclick="navAdmin(\'wartung\')">🔧 Wartung</button>' +
@@ -447,6 +448,7 @@ async function renderAdmin() {
   if (state.adminTab === 'wartung')        { await renderAdminWartung(); return; }
   if (state.adminTab === 'papierkorb')     { await renderPapierkorb(); return; }
   if (state.adminTab === 'darstellung')    { renderAdminDarstellung(); return; }
+  if (state.adminTab === 'quellen')        { await renderAdminQuellen(); return; }
   if (state.adminTab === 'dashboard_cfg')  { await renderAdminDashboard(); return; }
   if (state.adminTab === 'ergebnisse')     { if (!state.subTab) state.subTab = 'strasse'; await renderErgebnisse(); return; }
   if (state.adminTab === 'athleten')       { await renderAthleten(); return; }
@@ -1868,6 +1870,102 @@ function dashResetLayout() {
   notify('Layout zurückgesetzt – bitte speichern.', 'ok');
 }
 
+// ══════════════════════════════════════════════════════════════
+// ADMIN: QUELLEN
+// --------------------------------------------------------------
+// Eigene Seite für die Ergebnis-Scanner. Sie standen vorher unter
+// „Einstellungen" zwischen Wartungsmodus, Farben und Login-Portal –
+// dort werden sie übersehen, obwohl sie laufenden Betrieb haben
+// (Fortschritt, Funde, Cron-URL).
+// ══════════════════════════════════════════════════════════════
+
+// Eingabe-Helfer, die sich die Einstellungs- und die Quellen-Seite teilen.
+function _admCfg(cfg, k, def) {
+  if (cfg && cfg[k] !== undefined) return cfg[k];
+  if (appConfig[k] !== undefined) return appConfig[k];
+  return def;
+}
+function _admRow(label, desc, inputHtml) {
+  return '<div class="settings-row">' +
+    '<div class="settings-row-label">' +
+      '<div style="font-size:13px;font-weight:600;color:var(--text)">' + label + '</div>' +
+      (desc ? '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + desc + '</div>' : '') +
+    '</div>' +
+    '<div class="settings-row-input">' + inputHtml + '</div>' +
+  '</div>';
+}
+function _admTextIn(id, val, placeholder) {
+  return '<input type="text" id="' + id + '" value="' + (val||'').replace(/"/g,'&quot;') + '" placeholder="' + (placeholder||'') + '" class="settings-input"/>';
+}
+function _admNumIn(id, val, min, max) {
+  return '<input type="number" id="' + id + '" value="' + (val||'') + '" min="' + min + '" max="' + max + '" class="settings-input" style="width:100px"/>';
+}
+
+async function renderAdminQuellen() {
+  var el = document.getElementById('main-content');
+  el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
+
+  var r = await apiGet('einstellungen');
+  var cfg = (r && r.ok) ? r.data : appConfig;
+
+  el.innerHTML = adminSubtabs() +
+    '<div style="max-width:680px">' +
+
+    '<div style="font-size:12px;color:var(--text2);margin-bottom:16px">' +
+      'Die Scanner suchen selbstständig nach Wettkämpfen, bei denen unser Verein gestartet ist, ' +
+      'und melden die Funde auf der Eintragen-Seite. Der Import selbst bleibt unverändert – ' +
+      'gemeldet wird nur, was hier noch nicht erfasst ist. Angestoßen werden die Läufe per Cronjob.' +
+    '</div>' +
+
+    '<div class="panel" style="padding:20px;margin-bottom:16px">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">&#x1F50E; RaceResult-Scanner</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Durchsucht täglich alle von RaceResult gezeiteten Wettkämpfe der ausgewählten Länder nach Starts unseres Vereins und meldet Funde auf der Eintragen-Seite. Der Lauf selbst wird per Cronjob angestoßen.</div>' +
+      _admRow('Scanner aktiv', 'Ohne Häkchen ignoriert die Scan-URL alle Aufrufe',
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
+        '<input type="checkbox" id="cfg-rr_scan_aktiv" ' + (_admCfg(cfg, 'rr_scan_aktiv','0') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer"/>' +
+        '<span style="font-size:13px;color:var(--text2)">Aktiv</span>' +
+        '</label>') +
+      _admRow('Länder', 'Numerische ISO-IDs, kommagetrennt: 276 = DE, 528 = NL, 56 = BE, 756 = CH, 40 = AT, 250 = FR, 442 = LU',
+        _admTextIn('cfg-rr_scan_laender', _admCfg(cfg, 'rr_scan_laender','276,528,56'), '276,528,56')) +
+      _admRow('Suchbegriffe', 'Kommagetrennt. Leer = Vereinsname + Kurzbezeichnung aus den Vereinsdaten',
+        _admTextIn('cfg-rr_scan_begriffe', _admCfg(cfg, 'rr_scan_begriffe',''), 'z.B. TuS Oedt, TuS 1911 Oedt')) +
+      _admRow('Rückblick (Tage)', 'Wie weit die tägliche Wettkampfsuche zurückreicht',
+        _admNumIn('cfg-rr_scan_tage', _admCfg(cfg, 'rr_scan_tage','14'), 1, 60)) +
+      _admRow('Wettkämpfe pro Lauf', 'Obergrenze je Cron-Aufruf (ca. 2,5 Sekunden pro Wettkampf)',
+        _admNumIn('cfg-rr_scan_budget', _admCfg(cfg, 'rr_scan_budget','60'), 1, 500)) +
+      '<div id="rr-scan-status" style="margin-top:14px;font-size:12px;color:var(--text2)">Status wird geladen&hellip;</div>' +
+      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button class="btn btn-sm" onclick="rrScanJetzt()">&#x25B6;&#xFE0E; Jetzt scannen</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="panel" style="padding:20px;margin-bottom:16px">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">&#x1F50E; uitslagen.nl-Scanner</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">uitslagen.nl durchsucht selbst alle veröffentlichten Ergebnisse – ein Abruf je Suchbegriff genügt, ein Wettkampfkalender wird nicht gebraucht. Gesucht wird über Name, Wohnort und Verein; gemeldet werden nur Zeilen, deren Vereinsfeld wirklich passt.</div>' +
+      _admRow('Scanner aktiv', 'Ohne Häkchen ignoriert die Scan-URL alle Aufrufe',
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
+        '<input type="checkbox" id="cfg-uits_scan_aktiv" ' + (_admCfg(cfg, 'uits_scan_aktiv','0') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer"/>' +
+        '<span style="font-size:13px;color:var(--text2)">Aktiv</span>' +
+        '</label>') +
+      _admRow('Suchbegriffe', 'Kommagetrennt. Leer = Begriffe des RaceResult-Scanners, ersatzweise Vereinsname + Kurzbezeichnung',
+        _admTextIn('cfg-uits_scan_begriffe', _admCfg(cfg, 'uits_scan_begriffe',''), 'z.B. TuS Oedt')) +
+      _admRow('Rückblick (Tage)', 'Die Suche liefert die gesamte Historie – gemeldet werden nur Wettkämpfe innerhalb dieses Fensters',
+        _admNumIn('cfg-uits_scan_tage', _admCfg(cfg, 'uits_scan_tage','30'), 1, 3650)) +
+      '<div id="uits-scan-status" style="margin-top:14px;font-size:12px;color:var(--text2)">Status wird geladen&hellip;</div>' +
+      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button class="btn btn-sm" onclick="uitsScanJetzt()">&#x25B6;&#xFE0E; Jetzt scannen</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div style="padding:4px 0 8px">' +
+      '<button class="btn btn-primary" onclick="saveAllSettings()">&#x1F4BE; Einstellungen speichern</button>' +
+    '</div>' +
+  '</div>';
+
+  _rrScanStatus();
+  _uitsScanStatus();
+}
+
 async function renderAdminDarstellung() {
   var el = document.getElementById('main-content');
   el.innerHTML = adminSubtabs() + '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
@@ -1875,26 +1973,9 @@ async function renderAdminDarstellung() {
   var r = await apiGet('einstellungen');
   var cfg = (r && r.ok) ? r.data : appConfig;
 
-  function cfgVal(k, def) {
-    if (cfg[k] !== undefined) return cfg[k];
-    if (appConfig[k] !== undefined) return appConfig[k];
-    return def;
-  }
-  function row(label, desc, inputHtml) {
-    return '<div class="settings-row">' +
-      '<div class="settings-row-label">' +
-        '<div style="font-size:13px;font-weight:600;color:var(--text)">' + label + '</div>' +
-        (desc ? '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + desc + '</div>' : '') +
-      '</div>' +
-      '<div class="settings-row-input">' + inputHtml + '</div>' +
-    '</div>';
-  }
-  function textIn(id, val, placeholder) {
-    return '<input type="text" id="' + id + '" value="' + (val||'').replace(/"/g,'&quot;') + '" placeholder="' + (placeholder||'') + '" class="settings-input"/>';
-  }
-  function numIn(id, val, min, max) {
-    return '<input type="number" id="' + id + '" value="' + (val||'') + '" min="' + min + '" max="' + max + '" class="settings-input" style="width:100px"/>';
-  }
+  // Eingabe-Helfer teilen sich diese Seite und Admin → Quellen
+  function cfgVal(k, def) { return _admCfg(cfg, k, def); }
+  var row = _admRow, textIn = _admTextIn, numIn = _admNumIn;
   function colorIn(id, val) {
     return '<div style="display:flex;align-items:center;gap:10px">' +
       '<input type="color" id="' + id + '-picker" value="' + (val||'#000000') + '" style="width:42px;height:36px;border:none;background:none;cursor:pointer;padding:0" oninput="document.getElementById(\'' + id + '\').value=this.value"/>' +
@@ -2104,46 +2185,6 @@ async function renderAdminDarstellung() {
       '</div>' +
     '</div>' +
 
-    '<div class="panel" style="padding:20px;margin-bottom:16px">' +
-      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">&#x1F50E; RaceResult-Scanner</div>' +
-      '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">Durchsucht täglich alle von RaceResult gezeiteten Wettkämpfe der ausgewählten Länder nach Starts unseres Vereins und meldet Funde auf der Eintragen-Seite. Der Lauf selbst wird per Cronjob angestoßen.</div>' +
-      row('Scanner aktiv', 'Ohne Häkchen ignoriert die Scan-URL alle Aufrufe',
-        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
-        '<input type="checkbox" id="cfg-rr_scan_aktiv" ' + (cfgVal('rr_scan_aktiv','0') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer"/>' +
-        '<span style="font-size:13px;color:var(--text2)">Aktiv</span>' +
-        '</label>') +
-      row('Länder', 'Numerische ISO-IDs, kommagetrennt: 276 = DE, 528 = NL, 56 = BE, 756 = CH, 40 = AT, 250 = FR, 442 = LU',
-        textIn('cfg-rr_scan_laender', cfgVal('rr_scan_laender','276,528,56'), '276,528,56')) +
-      row('Suchbegriffe', 'Kommagetrennt. Leer = Vereinsname + Kurzbezeichnung aus den Vereinsdaten',
-        textIn('cfg-rr_scan_begriffe', cfgVal('rr_scan_begriffe',''), 'z.B. TuS Oedt, TuS 1911 Oedt')) +
-      row('Rückblick (Tage)', 'Wie weit die tägliche Wettkampfsuche zurückreicht',
-        numIn('cfg-rr_scan_tage', cfgVal('rr_scan_tage','14'), 1, 60)) +
-      row('Wettkämpfe pro Lauf', 'Obergrenze je Cron-Aufruf (ca. 2,5 Sekunden pro Wettkampf)',
-        numIn('cfg-rr_scan_budget', cfgVal('rr_scan_budget','60'), 1, 500)) +
-      '<div id="rr-scan-status" style="margin-top:14px;font-size:12px;color:var(--text2)">Status wird geladen&hellip;</div>' +
-      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
-        '<button class="btn btn-sm" onclick="rrScanJetzt()">&#x25B6;&#xFE0E; Jetzt scannen</button>' +
-      '</div>' +
-    '</div>' +
-
-    '<div class="panel" style="padding:20px;margin-bottom:16px">' +
-      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">&#x1F50E; uitslagen.nl-Scanner</div>' +
-      '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">uitslagen.nl durchsucht selbst alle veröffentlichten Ergebnisse – ein Abruf je Suchbegriff genügt, ein Wettkampfkalender wird nicht gebraucht. Gesucht wird über Name, Wohnort und Verein; gemeldet werden nur Zeilen, deren Vereinsfeld wirklich passt.</div>' +
-      row('Scanner aktiv', 'Ohne Häkchen ignoriert die Scan-URL alle Aufrufe',
-        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
-        '<input type="checkbox" id="cfg-uits_scan_aktiv" ' + (cfgVal('uits_scan_aktiv','0') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer"/>' +
-        '<span style="font-size:13px;color:var(--text2)">Aktiv</span>' +
-        '</label>') +
-      row('Suchbegriffe', 'Kommagetrennt. Leer = Begriffe des RaceResult-Scanners, ersatzweise Vereinsname + Kurzbezeichnung',
-        textIn('cfg-uits_scan_begriffe', cfgVal('uits_scan_begriffe',''), 'z.B. TuS Oedt')) +
-      row('Rückblick (Tage)', 'Die Suche liefert die gesamte Historie – gemeldet werden nur Wettkämpfe innerhalb dieses Fensters',
-        numIn('cfg-uits_scan_tage', cfgVal('uits_scan_tage','30'), 1, 3650)) +
-      '<div id="uits-scan-status" style="margin-top:14px;font-size:12px;color:var(--text2)">Status wird geladen&hellip;</div>' +
-      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
-        '<button class="btn btn-sm" onclick="uitsScanJetzt()">&#x25B6;&#xFE0E; Jetzt scannen</button>' +
-      '</div>' +
-    '</div>' +
-
     '<div style="padding-bottom:8px">' +
       '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-bottom:8px">' +
         '<div class="panel" style="padding:20px;margin-bottom:16px">' +
@@ -2158,8 +2199,6 @@ async function renderAdminDarstellung() {
     '</div>' +
   '</div>';
 
-  _rrScanStatus();
-  _uitsScanStatus();
 }
 
 // ── Gemeinsame Anzeige beider Scanner ─────────────────────────────────
@@ -2433,8 +2472,12 @@ async function saveAllSettings() {
     if (cb) payload[cbKeys[j]] = cb.checked ? '1' : '0';
   }
 
-  // Login-Portal Apps aus den Zeilen sammeln
-  var appRows = document.querySelectorAll('#portal-apps-list .portal-app-row');
+  // Login-Portal Apps aus den Zeilen sammeln.
+  // Nur, wenn die Liste auf der Seite überhaupt vorhanden ist – sonst würde
+  // ein Speichern von einer anderen Einstellungsseite (z.B. Admin → Quellen)
+  // die registrierten Apps mit einer leeren Liste überschreiben.
+  var appListe = document.getElementById('portal-apps-list');
+  var appRows = appListe ? appListe.querySelectorAll('.portal-app-row') : [];
   var portalApps = [];
   for (var k = 0; k < appRows.length; k++) {
     var nameEl = appRows[k].querySelector('[data-pa="name"]');
@@ -2450,7 +2493,7 @@ async function saveAllSettings() {
       farbe: (farbeEl && farbeEl.value) || '#5b6cf8'
     });
   }
-  payload['login_portal_apps'] = JSON.stringify(portalApps);
+  if (appListe) payload['login_portal_apps'] = JSON.stringify(portalApps);
 
   // E-Mail-Domain: leer wenn Checkbox deaktiviert
   var emailDomainAktiv = document.getElementById('cfg-email_domain_aktiv');
@@ -2460,10 +2503,10 @@ async function saveAllSettings() {
   var autoFreigabe = document.querySelector('input[name="cfg-auto_freigabe"]:checked');
   if (autoFreigabe) payload['registrierung_auto_freigabe'] = autoFreigabe.value;
 
-  // Farbvalidierung
+  // Farbvalidierung – nur für Felder, die auf dieser Seite auch vorkommen
   var farbFehler = [
-    _validateFarbe(payload.farbe_primary, 'Hauptfarbe'),
-    _validateFarbe(payload.farbe_accent,  'Akzentfarbe'),
+    payload.farbe_primary !== undefined ? _validateFarbe(payload.farbe_primary, 'Hauptfarbe') : null,
+    payload.farbe_accent  !== undefined ? _validateFarbe(payload.farbe_accent,  'Akzentfarbe') : null,
   ].filter(Boolean);
   if (farbFehler.length) { notify(farbFehler.join('\n'), 'err'); return; }
 
