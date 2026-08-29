@@ -2312,8 +2312,11 @@ async function _rrScanStatus() {
     '</div>' +
     '<div>Wettkämpfe: ' + (d.events.gesamt || 0) + ' bekannt · ' +
       (d.events.fertig || 0) + ' geprüft · ' + (d.events.nie || 0) + ' noch nicht dran · ' +
-      (d.events.wartend || 0) + ' warten auf Abschluss · ' + (d.events.ohne || 0) + ' ohne Ergebnisliste</div>' +
-    '<div style="color:var(--text2)">„Warten auf Abschluss": RaceResult meldet den Wettkampf noch nicht als beendet (EventOver) – die Ergebnisliste wäre unvollständig. Solche Wettkämpfe kosten pro Lauf nur einen Abruf und werden am Folgetag fertig geprüft.</div>' +
+      (d.events.wartend || 0) + ' warten auf Abschluss · ' +
+      (d.events.ohne_seite || 0) + ' ohne Ergebnisseite · ' + (d.events.ohne || 0) + ' aufgegeben</div>' +
+    '<div style="color:var(--text2)">„Warten auf Abschluss": RaceResult meldet den Wettkampf noch nicht als beendet (EventOver) – die Liste wäre unvollständig; nächster Blick nach 3 h. ' +
+      '„Ohne Ergebnisseite": es gibt (noch) keine öffentliche Liste – oft reine Anmeldungen ohne Zeitmessung; nach 6 Versuchen bzw. 21 Tagen werden sie aufgegeben. ' +
+      'Beide kosten pro Lauf nur einen Abruf.</div>' +
     ((d.events.ausserhalb || 0) > 0
       ? '<div style="margin-top:4px">' + d.events.ausserhalb + ' Wettkämpfe liegen vor dem Fenster (älter als ' + esc(d.ab || '') +
         ') und werden nicht mehr geprüft.<br><span style="color:var(--text2)">Sie stammen aus einem früher größeren Rückblick. Zum Nachholen einmalig mit größerem Fenster laufen lassen: ' +

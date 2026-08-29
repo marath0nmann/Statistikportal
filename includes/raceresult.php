@@ -69,6 +69,13 @@ class RaceResult {
             KEY idx_scan (status, letzter_scan)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+        // Nachrüstung: unterscheidet die Gründe, aus denen ein Wettkampf
+        // „offen" bleibt – NULL = keine abrufbare Ergebnisseite, 0 = Seite da,
+        // aber RaceResult meldet den Wettkampf noch nicht als beendet.
+        try {
+            DB::query("ALTER TABLE " . DB::tbl('rr_events') . " ADD COLUMN IF NOT EXISTS event_over TINYINT NULL DEFAULT NULL");
+        } catch (Throwable $e) {}
+
         DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('rr_funde') . " (
             id           INT AUTO_INCREMENT PRIMARY KEY,
             event_id     INT NOT NULL,
@@ -471,7 +478,7 @@ class RaceResult {
                 // Noch keine öffentliche Ergebnisseite – begrenzt nachfassen
                 $neuerStatus = ((int)$ev['versuche'] + 1 >= 6 || $ev['datum'] < date('Y-m-d', strtotime('-21 days')))
                     ? 'ohne_ergebnis' : 'offen';
-                DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET versuche = versuche + 1, letzter_scan = NOW(), status = ? WHERE event_id = ?',
+                DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET versuche = versuche + 1, letzter_scan = NOW(), event_over = NULL, status = ? WHERE event_id = ?',
                     [$neuerStatus, $eid]);
                 continue;
             }
@@ -483,7 +490,7 @@ class RaceResult {
             if (!$cfg['over']) {
                 $stat['nicht_final']++;
                 $neuerStatus = ($ev['datum'] < date('Y-m-d', strtotime('-21 days'))) ? 'ohne_ergebnis' : 'offen';
-                DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET versuche = versuche + 1, letzter_scan = NOW(), status = ? WHERE event_id = ?',
+                DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET versuche = versuche + 1, letzter_scan = NOW(), event_over = 0, status = ? WHERE event_id = ?',
                     [$neuerStatus, $eid]);
                 continue;
             }
@@ -510,7 +517,7 @@ class RaceResult {
                 // dauerhaft in der Warteschlange.
                 $neuerStatus = ((int)$ev['versuche'] + 1 >= 6 || $ev['datum'] < date('Y-m-d', strtotime('-21 days')))
                     ? 'ohne_ergebnis' : 'offen';
-                DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET versuche = versuche + 1, letzter_scan = NOW(), status = ? WHERE event_id = ?',
+                DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET versuche = versuche + 1, letzter_scan = NOW(), event_over = NULL, status = ? WHERE event_id = ?',
                     [$neuerStatus, $eid]);
                 continue;
             }
@@ -528,7 +535,8 @@ class RaceResult {
             $fertig  = true;
             DB::query(
                 'UPDATE ' . DB::tbl('rr_events') . '
-                    SET ok_scans = ?, versuche = versuche + 1, treffer = ?, letzter_scan = NOW(), status = ?
+                    SET ok_scans = ?, versuche = versuche + 1, treffer = ?, letzter_scan = NOW(),
+                        event_over = 1, status = ?
                   WHERE event_id = ?',
                 [$okScans, min(32000, count($zeilen)), $fertig ? 'fertig' : 'offen', $eid]
             );

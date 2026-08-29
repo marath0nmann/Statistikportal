@@ -1,3 +1,8 @@
+## v1536
+- **Fix Statuspanel: „Warten auf Abschluss" war ein Sammeltopf.** Drei verschiedene Zweige lassen einen Wettkampf „offen" – (1) RaceResult meldet ihn noch nicht als beendet (`EventOver`), (2) es gibt gar keine öffentliche Ergebnisseite (oft reine Anmeldungen ohne Zeitmessung), (3) die Ergebnisseite ist da, aber keine Liste abrufbar. Gezählt wurden alle drei unter der Beschriftung des ersten Falls, obwohl der zweite in der Praxis überwiegt.
+- Neue Spalte `rr_events.event_over` (`NULL` = keine abrufbare Ergebnisseite, `0` = Seite da, aber nicht beendet, `1` = beendet), per `ALTER TABLE … ADD COLUMN IF NOT EXISTS` nachgerüstet. Das Panel weist die Fälle jetzt getrennt aus: **warten auf Abschluss · ohne Ergebnisseite · aufgegeben**, jeweils mit Erklärung, was daraus wird.
+- Bestehende Wettkämpfe haben die Spalte zunächst auf `NULL` und erscheinen deshalb einmalig unter „ohne Ergebnisseite"; beim nächsten Kontakt korrigiert sich das.
+
 ## v1535
 - **Ein Scanlauf ohne Arbeit sagt jetzt, warum.** Bisher kam bei leerer Warteschlange sofort eine Antwort mit lauter Nullen zurück – nicht unterscheidbar von einem Fehler. Der Lauf ergänzt jetzt ein Feld `hinweis`: alles geprüft / die offenen Wettkämpfe liegen außerhalb des Fensters (mit dem Tipp `&tage=N`) / sie wurden erst vor kurzem geprüft (Abkühlzeit).
 - **Fix: `&tage=N` war wirkungslos, solange die Discovery des Tages schon gelaufen war.** Ein Aufhol-Lauf konnte damit gar keine älteren Wettkämpfe finden – die Tagessperre (`rr_scan_discovery_am`) hatte den Tag bereits mit dem kleineren Fenster abgehakt. Ein ausdrücklich übergebenes Fenster hebt die Sperre jetzt auf.

@@ -8813,11 +8813,13 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
     $z = DB::fetchOne('SELECT
             SUM(status = ?) AS offen,
             SUM(status = ? AND versuche = 0 AND datum >= ?) AS nie,
-            SUM(status = ? AND versuche > 0 AND datum >= ?) AS wartend,
+            SUM(status = ? AND versuche > 0 AND datum >= ? AND event_over = 0) AS wartend,
+            SUM(status = ? AND versuche > 0 AND datum >= ? AND event_over IS NULL) AS ohne_seite,
             SUM(status = ? AND (datum < ? OR datum IS NULL)) AS ausserhalb,
             SUM(status = ?) AS fertig, SUM(status = ?) AS ohne, COUNT(*) AS gesamt
           FROM ' . DB::tbl('rr_events'),
-          ['offen', 'offen', $grenze, 'offen', $grenze, 'offen', $grenze, 'fertig', 'ohne_ergebnis']) ?: [];
+          ['offen', 'offen', $grenze, 'offen', $grenze, 'offen', $grenze,
+           'offen', $grenze, 'fertig', 'ohne_ergebnis']) ?: [];
     $funde = DB::fetchOne('SELECT SUM(status = ?) AS neu, COUNT(*) AS gesamt FROM ' . DB::tbl('rr_funde'), ['neu']) ?: [];
 
     jsonOk([
