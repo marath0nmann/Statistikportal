@@ -47,6 +47,8 @@ class RaceResult {
 
     private static float $letzterRequest = 0.0;
     private static int   $requests       = 0;
+    private static int   $letzterCode    = 0;
+    private static float $abstand        = 1.15;   // wächst bei Drosselung
 
     public static function requests(): int { return self::$requests; }
 
@@ -99,7 +101,7 @@ class RaceResult {
     // ── HTTP mit Rate-Limit ──────────────────────────────────────────────
     // Gibt [httpCode, body] zurück; body ist '' bei Transportfehlern.
     private static function http(string $url, int $timeout = 20): array {
-        $wartet = 1.15 - (microtime(true) - self::$letzterRequest);
+        $wartet = self::$abstand - (microtime(true) - self::$letzterRequest);
         if ($wartet > 0) usleep((int)($wartet * 1000000));
 
         $ch = curl_init($url);
@@ -121,7 +123,18 @@ class RaceResult {
 
         self::$letzterRequest = microtime(true);
         self::$requests++;
+        self::$letzterCode = $code;
+        // Drosselt RaceResult, für den Rest des Laufs langsamer werden
+        if ($code === 429) self::$abstand = min(5.0, self::$abstand + 1.0);
         return [$code, is_string($body) ? $body : ''];
+    }
+
+    // Vorübergehende Störung (Drosselung, Serverfehler, Transportfehler) –
+    // im Unterschied zu einem echten „gibt es nicht" (404). Ein solcher
+    // Fehlschlag darf keinen Versuch verbrauchen und den Wettkampf nicht
+    // Richtung „aufgegeben" schieben; er kommt einfach später dran.
+    private static function voruebergehend(): bool {
+        return in_array(self::$letzterCode, [0, 408, 425, 429, 500, 502, 503, 504], true);
     }
 
     // RaceResult liefert in Listen-/Config-JSON gelegentlich rohe
@@ -227,13 +240,25 @@ class RaceResult {
             return self::listenRang($a['name']) <=> self::listenRang($b['name']);
         });
 
+        // Je Contest die Namen in Rangfolge sammeln. Alternativen sind nötig,
+        // weil einzelne Listennamen aus der Config beim Abruf mit 404
+        // antworten (verwaiste Einträge) – ohne Ausweichname gälte der
+        // Wettkampf dann als „keine Liste abrufbar".
         $proContest = [];
         foreach ($brauchbar as $l) {
-            if (!isset($proContest[$l['contest']])) $proContest[$l['contest']] = $l;
+            $proContest[$l['contest']][] = $l['name'];
+        }
+        foreach ($proContest as $c => $namen) {
+            $proContest[$c] = array_slice(array_values(array_unique($namen)), 0, 3);
         }
         // Deckt eine Liste alle Wettbewerbe ab (Contest 0), genügt sie allein
-        if (isset($proContest['0'])) return [$proContest['0']];
-        return array_slice(array_values($proContest), 0, 4);
+        if (isset($proContest['0'])) return [['contest' => '0', 'namen' => $proContest['0']]];
+
+        $out = [];
+        foreach (array_slice($proContest, 0, 4, true) as $c => $namen) {
+            $out[] = ['contest' => (string)$c, 'namen' => $namen];
+        }
+        return $out;
     }
 
     private static function listenRang(string $name): int {
@@ -424,7 +449,7 @@ class RaceResult {
         // Abfragebegriffe (reduziert) vs. Prüfbegriffe (vollständig)
         $abfrage = Scanner::sucheBegriffe($begriffe);
 
-        $stat = ['neue_events' => 0, 'gescannt' => 0, 'nicht_final' => 0, 'treffer' => 0,
+        $stat = ['neue_events' => 0, 'gescannt' => 0, 'nicht_final' => 0, 'gedrosselt' => 0, 'treffer' => 0,
                  'neue_funde' => 0, 'requests' => 0, 'abgebrochen' => false,
                  'begriffe' => $begriffe, 'abfrage_begriffe' => $abfrage, 'ab' => $grenze,
                  'lauf_id' => $laufId];
@@ -512,6 +537,12 @@ class RaceResult {
             ]);
 
             $cfg = self::config($eid);
+            if (!$cfg && self::voruebergehend()) {
+                // Drosselung oder Serverfehler – kein Versuch, nur später erneut
+                $stat['gedrosselt']++;
+                DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET letzter_scan = NOW() WHERE event_id = ?', [$eid]);
+                continue;
+            }
             if (!$cfg) {
                 // Noch keine öffentliche Ergebnisseite – begrenzt nachfassen
                 $neuerStatus = ((int)$ev['versuche'] + 1 >= 6 || $ev['datum'] < date('Y-m-d', strtotime('-21 days')))
@@ -537,16 +568,36 @@ class RaceResult {
             // überspringen, solange mindestens eine geantwortet hat.
             $zeilen = [];
             $erfolg = false;
-            foreach ($cfg['listen'] as $liste) {
-                $rowsListe = [];
-                foreach ($abfrage as $begriff) {
-                    $r = self::suche($eid, $cfg['key'], $liste['name'], $liste['contest'], $begriff);
-                    if ($r === null) { $rowsListe = null; break; }
-                    foreach ($r as $z) $rowsListe[] = $z;
+            $gedrosselt = false;
+            foreach ($cfg['listen'] as $eintrag) {
+                // Namen der Reihe nach probieren, bis einer antwortet
+                foreach ($eintrag['namen'] as $listenname) {
+                    $rowsListe = [];
+                    $ok = true;
+                    foreach ($abfrage as $begriff) {
+                        $r = self::suche($eid, $cfg['key'], $listenname, $eintrag['contest'], $begriff);
+                        if ($r === null) {
+                            $ok = false;
+                            if (self::voruebergehend()) $gedrosselt = true;
+                            break;
+                        }
+                        foreach ($r as $z) $rowsListe[] = $z;
+                    }
+                    if ($ok) {
+                        $erfolg = true;
+                        foreach ($rowsListe as $z) $zeilen[] = $z;
+                        break;   // dieser Contest ist abgedeckt
+                    }
                 }
-                if ($rowsListe === null) continue;
-                $erfolg = true;
-                foreach ($rowsListe as $z) $zeilen[] = $z;
+            }
+
+            // Nur gedrosselt/gestört: nicht als Fehlversuch werten, sonst
+            // wandert ein Wettkampf wegen fremder Serverlast Richtung
+            // „aufgegeben". Er kommt beim nächsten Lauf wieder dran.
+            if (!$erfolg && $gedrosselt) {
+                $stat['gedrosselt']++;
+                DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET letzter_scan = NOW() WHERE event_id = ?', [$eid]);
+                continue;
             }
 
             if (!$erfolg) {
