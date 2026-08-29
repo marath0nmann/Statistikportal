@@ -1,3 +1,8 @@
+## v1549
+- **Wettkämpfe, deren Veranstalter ausdrücklich nichts veröffentlicht, werden sofort abgeschlossen** statt sechsmal nachgefragt. RaceResult sagt das in der Config unmissverständlich: `showResults: false`, `showLive: false`, `showParticipants: false`, `lists: []` – bei einem gültigen Schlüssel also die Aussage „hier kommt nichts" statt eines Zwischenstands. Solche Wettkämpfe gehen direkt auf „aufgegeben".
+- Die Einzelprüfung benennt diesen Fall eigens („Der Veranstalter veröffentlicht keine Ergebnisse (showResults=false) – abgeschlossen") und unterscheidet ihn von „keine abrufbare Ergebnisliste", wo es schlicht gar keine Config gibt und ein späterer Versuch noch etwas bringen kann.
+- Konkreter Anlass: „VDSV VA/VK 2026" (Baunatal, Tauchsport, RaceResult nur zur Anmeldung genutzt) stand nach fünf Versuchen weiter in der Liste, obwohl seit dem ersten Blick feststand, dass nie etwas erscheinen wird.
+
 ## v1548
 - **Jeder Wettkampf in der Liste „vor dem Fenster" lässt sich jetzt einzeln prüfen.** Neuer Knopf „Prüfen" je Zeile: Er scannt genau diesen Wettkampf – ohne Rückblick-Fenster, ohne Abkühlzeit, ohne Budget – und schreibt das Ergebnis in die Zeile. Damit ist ohne Raten sichtbar, woran ein einzelner Wettkampf hängt:
   - „geprüft – N passende Zeilen, M neu" (er ist erledigt),

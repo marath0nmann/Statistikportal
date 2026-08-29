@@ -48,6 +48,9 @@ class RaceResult {
     private static float $letzterRequest = 0.0;
     private static int   $requests       = 0;
     private static int   $letzterCode    = 0;
+    // Der Veranstalter hat ausdrücklich nichts veröffentlicht (showResults
+    // false, keine Listen) – dann lohnt kein Nachfassen.
+    private static bool  $nichtsVeroeffentlicht = false;
     private static float $abstand        = 1.15;   // wächst bei Drosselung
 
     public static function requests(): int { return self::$requests; }
@@ -183,6 +186,7 @@ class RaceResult {
     // der Contest muss aus dem Listeneintrag übernommen werden. Nur wenn
     // eine Liste selbst Contest 0 meldet, deckt ein Abruf alle Wettbewerbe ab.
     public static function config(int $eventId): ?array {
+        self::$nichtsVeroeffentlicht = false;
         $pfade = [
             '/results/config?lang=de&noVisitor=1&oldFavs=',
             '/RRPublish/data/config?lang=de&page=results&noVisitor=1',
@@ -213,7 +217,15 @@ class RaceResult {
                     elseif (is_scalar($v))   $add((string)$k, (string)$v);
                 }
             }
-            if (!$kandidaten) continue;
+            if (!$kandidaten) {
+                // Gültige Config, aber der Veranstalter stellt weder
+                // Ergebnisse noch Teilnehmer online. Das ist eine Aussage,
+                // kein Zwischenstand – der Wettkampf braucht kein Nachfassen.
+                if (array_key_exists('showResults', $c) && !$c['showResults']) {
+                    self::$nichtsVeroeffentlicht = true;
+                }
+                continue;
+            }
 
             $listen = self::listenWaehlen(array_values($kandidaten));
             if (!$listen) continue;
@@ -551,8 +563,12 @@ class RaceResult {
                 continue;
             }
             if (!$cfg) {
-                // Noch keine öffentliche Ergebnisseite – begrenzt nachfassen
-                $neuerStatus = ((int)$ev['versuche'] + 1 >= 6 || $ev['datum'] < date('Y-m-d', strtotime('-21 days')))
+                // Noch keine öffentliche Ergebnisseite – begrenzt nachfassen.
+                // Sagt der Veranstalter ausdrücklich, dass nichts veröffentlicht
+                // wird, sofort abschließen statt sechsmal wiederzukommen.
+                $neuerStatus = (self::$nichtsVeroeffentlicht
+                    || (int)$ev['versuche'] + 1 >= 6
+                    || $ev['datum'] < date('Y-m-d', strtotime('-21 days')))
                     ? 'ohne_ergebnis' : 'offen';
                 DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET versuche = versuche + 1, letzter_scan = NOW(), event_over = NULL, status = ? WHERE event_id = ?',
                     [$neuerStatus, $eid]);
@@ -668,7 +684,9 @@ class RaceResult {
                                                           . $stat['neue_funde'] . ' neu'
                 : ($stat['nicht_final']                ? 'noch nicht abgeschlossen (EventOver ist false)'
                 : ($stat['gedrosselt']                 ? 'RaceResult hat gedrosselt oder gestört – später erneut'
-                                                        : 'keine abrufbare Ergebnisliste')));
+                : (self::$nichtsVeroeffentlicht
+                    ? 'Der Veranstalter veröffentlicht keine Ergebnisse (showResults=false) – abgeschlossen'
+                    : 'keine abrufbare Ergebnisliste'))));
         }
 
         $stat['requests'] = self::$requests;
