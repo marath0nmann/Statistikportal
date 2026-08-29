@@ -29,8 +29,6 @@ require_once __DIR__ . '/scanner.php';
 class Uitslagen {
 
     const BASE   = 'https://uitslagen.nl';
-    const FORTSCHRITT = 'uits_scan_fortschritt';
-    const ABBRUCH     = 'uits_scan_abbruch';
     // Sicherheitsnetz gegen endloses Blättern (der Cursor ist undokumentiert)
     const MAX_SEITEN = 12;
 
@@ -236,9 +234,12 @@ class Uitslagen {
     // $tage  Rückblick-Fenster; ältere Treffer werden übergangen. Die Suche
     //        liefert die gesamte Historie (bis 2003) – ohne Fenster würde
     //        der erste Lauf Jahre alter Ergebnisse melden.
-    public static function scan(int $tage = 0, int $maxSekunden = 120): array {
+    public static function scan(int $tage = 0, int $maxSekunden = 120, string $ausloeser = ''): array {
         self::migrate();
         $start = microtime(true);
+        // Eigene Zeile je Lauf – zwei gleichzeitige Läufe derselben Quelle
+        // (Cronjob und „Jetzt scannen") sollen sich nicht überschreiben.
+        $laufId = Scanner::laufStart('uits', $ausloeser);
 
         $tage     = $tage > 0 ? $tage : max(1, (int)Settings::get('uits_scan_tage', '30'));
         $begriffe = self::begriffe();
@@ -251,14 +252,14 @@ class Uitslagen {
 
         $stat = ['events' => 0, 'treffer' => 0, 'neue_funde' => 0, 'seiten' => 0,
                  'requests' => 0, 'abgebrochen' => false, 'begriffe' => $begriffe,
-                 'abfrage_begriffe' => $abfrage, 'ab' => $grenze];
+                 'abfrage_begriffe' => $abfrage, 'ab' => $grenze, 'lauf_id' => $laufId];
         if (!$begriffe) {
             $stat['fehler'] = 'Keine Suchbegriffe konfiguriert.';
-            Scanner::fortschritt(self::FORTSCHRITT, ['phase' => 'fertig', 'fehler' => $stat['fehler']]);
+            Scanner::laufFortschritt($laufId, ['phase' => 'fertig', 'fehler' => $stat['fehler']]);
             return $stat;
         }
 
-        Scanner::fortschritt(self::FORTSCHRITT, [
+        Scanner::laufFortschritt($laufId, [
             'phase' => 'start', 'begonnen' => date('Y-m-d H:i:s'),
             'i' => 0, 'gesamt' => count($abfrage), 'aktuell' => 'Lauf gestartet', 'neue_funde' => 0,
         ]);
@@ -269,14 +270,14 @@ class Uitslagen {
             $next = '';
             $nr++;
             for ($seite = 0; $seite < self::MAX_SEITEN; $seite++) {
-                Scanner::fortschritt(self::FORTSCHRITT, [
+                Scanner::laufFortschritt($laufId, [
                     'phase'   => 'scan', 'begonnen' => date('Y-m-d H:i:s', (int)$start),
                     'i'       => $nr, 'gesamt' => count($abfrage),
                     'aktuell' => 'Suche „' . $begriff . '"' . ($seite ? ' – Seite ' . ($seite + 1) : ''),
                     'neue_funde' => $stat['neue_funde'], 'requests' => self::$requests,
                 ]);
                 if (microtime(true) - $start > $maxSekunden) { $stat['abgebrochen'] = true; break 2; }
-                if (Scanner::abbruchGewuenscht(self::ABBRUCH, $start)) { $stat['abbruch'] = true; break 2; }
+                if (Scanner::laufAbbruchGewuenscht($laufId)) { $stat['abbruch'] = true; break 2; }
 
                 $url = self::BASE . '/results.php?naam=' . rawurlencode($begriff)
                      . '&gbjr=&exct=&next=' . rawurlencode($next);
@@ -312,8 +313,7 @@ class Uitslagen {
 
         $stat['requests'] = self::$requests;
         $stat['dauer']    = round(microtime(true) - $start, 1);
-        if (!empty($stat['abbruch'])) Scanner::abbruchLoeschen(self::ABBRUCH);
-        Scanner::fortschritt(self::FORTSCHRITT, [
+        Scanner::laufFortschritt($laufId, [
             'phase' => 'fertig', 'i' => count($abfrage), 'gesamt' => count($abfrage),
             'aktuell' => !empty($stat['abbruch']) ? 'Abgebrochen'
                          : ($stat['abgebrochen'] ? 'Zeitlimit erreicht' : 'Lauf beendet'),

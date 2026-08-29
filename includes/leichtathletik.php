@@ -37,8 +37,6 @@ require_once __DIR__ . '/scanner.php';
 class Leichtathletik {
 
     const BASE        = 'https://ergebnisse.leichtathletik.de';
-    const FORTSCHRITT = 'la_scan_fortschritt';
-    const ABBRUCH     = 'la_scan_abbruch';
     // Sicherheitsnetz: 555 Seiten gibt es insgesamt, das Fenster braucht ~6
     const MAX_SEITEN  = 20;
 
@@ -239,9 +237,12 @@ class Leichtathletik {
     }
 
     // ── Hauptlauf ────────────────────────────────────────────────────────
-    public static function scan(int $budget = 0, int $maxSekunden = 240, bool $discovery = true): array {
+    public static function scan(int $budget = 0, int $maxSekunden = 240, bool $discovery = true, string $ausloeser = ''): array {
         self::migrate();
         $start = microtime(true);
+        // Eigene Zeile je Lauf – zwei gleichzeitige Läufe derselben Quelle
+        // (Cronjob und „Jetzt scannen") sollen sich nicht überschreiben.
+        $laufId = Scanner::laufStart('la', $ausloeser);
 
         $budget  = $budget > 0 ? $budget : max(1, (int)Settings::get('la_scan_budget', '40'));
         $fenster = max(1, min(60, (int)Settings::get('la_scan_tage', '14')));
@@ -251,14 +252,14 @@ class Leichtathletik {
 
         $stat = ['neue_events' => 0, 'gescannt' => 0, 'treffer' => 0, 'neue_funde' => 0,
                  'seiten' => 0, 'requests' => 0, 'abgebrochen' => false,
-                 'begriffe' => $begriffe, 'ab' => $grenze];
+                 'begriffe' => $begriffe, 'ab' => $grenze, 'lauf_id' => $laufId];
         if (!$begriffe) {
             $stat['fehler'] = 'Keine Suchbegriffe konfiguriert.';
-            Scanner::fortschritt(self::FORTSCHRITT, ['phase' => 'fertig', 'fehler' => $stat['fehler']]);
+            Scanner::laufFortschritt($laufId, ['phase' => 'fertig', 'fehler' => $stat['fehler']]);
             return $stat;
         }
 
-        Scanner::fortschritt(self::FORTSCHRITT, [
+        Scanner::laufFortschritt($laufId, [
             'phase' => 'start', 'begonnen' => date('Y-m-d H:i:s'),
             'i' => 0, 'gesamt' => 0, 'aktuell' => 'Lauf gestartet', 'neue_funde' => 0,
         ]);
@@ -268,8 +269,8 @@ class Leichtathletik {
         if ($discovery && $letzteDiscovery !== $heute) {
             for ($seite = 1; $seite <= self::MAX_SEITEN; $seite++) {
                 if (microtime(true) - $start > $maxSekunden) { $stat['abgebrochen'] = true; break; }
-                if (Scanner::abbruchGewuenscht(self::ABBRUCH, $start)) { $stat['abbruch'] = true; break; }
-                Scanner::fortschritt(self::FORTSCHRITT, [
+                if (Scanner::laufAbbruchGewuenscht($laufId)) { $stat['abbruch'] = true; break; }
+                Scanner::laufFortschritt($laufId, [
                     'phase' => 'discovery', 'begonnen' => date('Y-m-d H:i:s', (int)$start),
                     'i' => $seite, 'gesamt' => 0, 'neue_funde' => 0,
                     'aktuell' => 'Wettkampfliste, Seite ' . $seite,
@@ -309,10 +310,10 @@ class Leichtathletik {
         $nr = 0;
         foreach ($queue as $ev) {
             if (microtime(true) - $start > $maxSekunden) { $stat['abgebrochen'] = true; break; }
-            if (Scanner::abbruchGewuenscht(self::ABBRUCH, $start)) { $stat['abbruch'] = true; break; }
+            if (Scanner::laufAbbruchGewuenscht($laufId)) { $stat['abbruch'] = true; break; }
             $eid = (int)$ev['event_id'];
             $nr++;
-            Scanner::fortschritt(self::FORTSCHRITT, [
+            Scanner::laufFortschritt($laufId, [
                 'phase' => 'scan', 'begonnen' => date('Y-m-d H:i:s', (int)$start),
                 'i' => $nr, 'gesamt' => count($queue),
                 'aktuell' => trim(($ev['datum'] ?? '') . ' ' . ($ev['name'] ?? ('Wettkampf ' . $eid))),
@@ -344,8 +345,7 @@ class Leichtathletik {
 
         $stat['requests'] = self::$requests;
         $stat['dauer']    = round(microtime(true) - $start, 1);
-        if (!empty($stat['abbruch'])) Scanner::abbruchLoeschen(self::ABBRUCH);
-        Scanner::fortschritt(self::FORTSCHRITT, [
+        Scanner::laufFortschritt($laufId, [
             'phase' => 'fertig', 'i' => $stat['gescannt'], 'gesamt' => $stat['gescannt'],
             'aktuell' => !empty($stat['abbruch']) ? 'Abgebrochen'
                          : ($stat['abgebrochen'] ? 'Zeitlimit erreicht' : 'Lauf beendet'),

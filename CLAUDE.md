@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1543
+## Aktuelle Version: v1544
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -159,14 +159,15 @@ gegen erfasste Ergebnisse), gemeinsames Panel-Rendering in `_bkFundePanelHtml()`
 | uitslagen.nl | `includes/uitslagen.php` | Eine seitenweite Volltextsuche je Suchbegriff (`/results.php?naam=…`), keine Discovery | `api/index.php?_route=uits-scan&token=…` (täglich) |
 | leichtathletik.de | `includes/leichtathletik.php` | Discovery über `/Competitions/CurrentPast?page=N` + Teilnehmerliste je Wettkampf, Warteschlange `la_events` | `api/index.php?_route=la-scan&token=…` (stündlich) |
 
-Fortschritt eines laufenden Scans: `Scanner::fortschritt()` schreibt nach jedem
-Schritt nach `rr_scan_fortschritt` / `uits_scan_fortschritt` / `la_scan_fortschritt`; das Admin-Panel
-pollt ihn über die `*-scan-status`-Routen. Scan-Routen geben vorher die Session
+Fortschritt: Tabelle `scan_laeufe`, **eine Zeile je Lauf** (`Scanner::laufStart()`,
+`laufFortschritt()`, `laeufe()`). Nicht ein Wert je Quelle – von einer Quelle können
+mehrere Läufe gleichzeitig laufen (Cronjob + Panel), die sich sonst überschreiben.
+Das Admin-Panel pollt sie über die `*-scan-status`-Routen und zeigt je Lauf eine Leiste. Scan-Routen geben vorher die Session
 frei (`session_write_close()`), sonst blockiert die Sperre jede Statusabfrage.
 Abfragebegriffe werden über `Scanner::sucheBegriffe()` reduziert (Teilstring-Suche),
 geprüft wird gegen die volle Liste.
-Abbruch: `POST scan-stop {quelle}` setzt `*_scan_abbruch`; die Schleife liest das
-Signal **direkt per SQL** (`Settings` cacht je Anfrage, der Scan *ist* eine Anfrage).
+Abbruch: `POST scan-stop {lauf}` setzt `scan_laeufe.abbruch`; die Schleife liest das
+Kennzeichen **direkt per SQL** (`Settings` cacht je Anfrage, der Scan *ist* eine Anfrage).
 
 leichtathletik.de wertet eine **Meldeliste** aus: ein Fund heißt „war gemeldet",
 nicht „hat ein Ergebnis". Datum mehrtägiger Wettkämpfe = letzter Tag.

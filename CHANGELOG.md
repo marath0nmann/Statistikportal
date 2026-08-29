@@ -1,3 +1,9 @@
+## v1544
+- **Zwei gleichzeitige Läufe derselben Quelle bekommen jetzt je eine eigene Fortschrittsleiste.** Bisher teilten sich alle Läufe einer Quelle einen einzigen Fortschrittswert – starteten Cronjob und „Jetzt scannen" gleichzeitig, überschrieben sie sich gegenseitig und die Anzeige sprang zwischen beiden hin und her.
+- Der Stand liegt dafür jetzt in einer eigenen Tabelle `scan_laeufe` mit **einer Zeile je Lauf** statt in einem Wert je Quelle. Das ist auch der Grund gegen ein gemeinsames JSON: Das müsste gelesen, ergänzt und zurückgeschrieben werden – zwei Prozesse würden sich dabei überholen. So schreibt jeder Lauf nur sein eigenes `UPDATE`.
+- Jede Leiste zeigt, woher ihr Lauf kam („Cronjob" oder „Panel"), und hat **ihren eigenen Abbrechen-Knopf** – man kann den Panel-Lauf beenden und den des Cronjobs weiterlaufen lassen. `POST scan-stop` nimmt dafür jetzt eine Lauf-ID statt der Quelle.
+- Läuft ein Lauf ins Leere (kein Lebenszeichen seit 3 Minuten), weist die Anzeige ihn weiterhin als vermutlich abgebrochen aus, jetzt mit Startzeitpunkt. Zeilen älter als zwei Tage werden beim nächsten Start aufgeräumt.
+
 ## v1543
 - **Mehrere Scans werden jetzt gleichzeitig angezeigt.** Bisher pollte nur die Quelle, die man selbst über ihren Knopf gestartet hatte – ein parallel laufender Scan oder einer, den der Cronjob angestoßen hatte, blieb unsichtbar, bis man die Seite neu lud. An die Stelle der drei getrennten Timer tritt ein gemeinsamer Taktgeber: laufende Quellen werden alle 3 Sekunden aktualisiert, ruhende alle 15 – dadurch taucht auch ein von außen gestarteter Lauf von selbst im Panel auf. Beim Verlassen der Seite hört er auf.
 - **Fix: „Liste anzeigen" wurde bei laufendem Scan sofort wieder ausgeblendet.** Der Listencontainer lag innerhalb der Statusbox, und die wird im Sekundentakt neu gezeichnet – die geöffnete Liste war jedes Mal weg. Sie steht jetzt außerhalb und bleibt offen, bis man den Knopf erneut drückt.

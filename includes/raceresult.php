@@ -32,8 +32,6 @@ require_once __DIR__ . '/scanner.php';
 class RaceResult {
 
     const BASE = 'https://my.raceresult.com';
-    const FORTSCHRITT = 'rr_scan_fortschritt';
-    const ABBRUCH     = 'rr_scan_abbruch';
 
     // Numerische ISO-3166-Länder-IDs (RREvents/list) → ISO-Alpha-2.
     // Die API filtert unscharf; das Alpha-2 dient zur Nachkontrolle.
@@ -402,11 +400,16 @@ class RaceResult {
     public static function scan(int $budget = 0, int $maxSekunden = 240, array $opt = []): array {
         self::migrate();
         $start = microtime(true);
+        // Eigene Zeile je Lauf – zwei gleichzeitige Läufe derselben Quelle
+        // (Cronjob und „Jetzt scannen") sollen sich nicht überschreiben.
+        $laufId = Scanner::laufStart('rr', $ausloeser);
 
         $discovery = $opt['discovery'] ?? true;
         $tage      = (int)($opt['tage'] ?? 0);
         $sofort    = !empty($opt['sofort']);
         $nurAlt    = !empty($opt['nur_alt']);
+        // Woher der Lauf kam – erscheint im Panel neben dem Balken
+        $ausloeser = (string)($opt['ausloeser'] ?? '');
 
         $budget    = $budget > 0 ? $budget : max(1, (int)Settings::get('rr_scan_budget', '60'));
         $fenster   = $tage > 0 ? min(365, $tage) : max(1, min(60, (int)Settings::get('rr_scan_tage', '14')));
@@ -422,15 +425,16 @@ class RaceResult {
 
         $stat = ['neue_events' => 0, 'gescannt' => 0, 'nicht_final' => 0, 'treffer' => 0,
                  'neue_funde' => 0, 'requests' => 0, 'abgebrochen' => false,
-                 'begriffe' => $begriffe, 'abfrage_begriffe' => $abfrage, 'ab' => $grenze];
+                 'begriffe' => $begriffe, 'abfrage_begriffe' => $abfrage, 'ab' => $grenze,
+                 'lauf_id' => $laufId];
         if ($nurAlt) $stat['bis'] = $regGrenze;
         if (!$begriffe) {
             $stat['fehler'] = 'Keine Suchbegriffe konfiguriert.';
-            Scanner::fortschritt(self::FORTSCHRITT, ['phase' => 'fertig', 'fehler' => $stat['fehler']]);
+            Scanner::laufFortschritt($laufId, ['phase' => 'fertig', 'fehler' => $stat['fehler']]);
             return $stat;
         }
 
-        Scanner::fortschritt(self::FORTSCHRITT, [
+        Scanner::laufFortschritt($laufId, [
             'phase' => 'start', 'begonnen' => date('Y-m-d H:i:s'),
             'i' => 0, 'gesamt' => 0, 'aktuell' => 'Lauf gestartet', 'neue_funde' => 0,
         ]);
@@ -445,8 +449,8 @@ class RaceResult {
             $laender = array_filter(array_map('intval', explode(',', Settings::get('rr_scan_laender', '276,528,56'))));
             foreach ($laender as $landId) {
                 if (!isset(self::LAENDER[$landId])) continue;
-                if (Scanner::abbruchGewuenscht(self::ABBRUCH, $start)) { $stat['abbruch'] = true; break; }
-                Scanner::fortschritt(self::FORTSCHRITT, [
+                if (Scanner::laufAbbruchGewuenscht($laufId)) { $stat['abbruch'] = true; break; }
+                Scanner::laufFortschritt($laufId, [
                     'phase' => 'discovery', 'begonnen' => date('Y-m-d H:i:s', (int)$start),
                     'i' => 0, 'gesamt' => 0, 'neue_funde' => 0,
                     'aktuell' => 'Wettkampfsuche ' . self::LAENDER[$landId],
@@ -496,10 +500,10 @@ class RaceResult {
         $nr = 0;
         foreach ($queue as $ev) {
             if (microtime(true) - $start > $maxSekunden) { $stat['abgebrochen'] = true; break; }
-            if (Scanner::abbruchGewuenscht(self::ABBRUCH, $start)) { $stat['abbruch'] = true; break; }
+            if (Scanner::laufAbbruchGewuenscht($laufId)) { $stat['abbruch'] = true; break; }
             $eid = (int)$ev['event_id'];
             $nr++;
-            Scanner::fortschritt(self::FORTSCHRITT, [
+            Scanner::laufFortschritt($laufId, [
                 'phase'   => 'scan', 'begonnen' => date('Y-m-d H:i:s', (int)$start),
                 'i'       => $nr, 'gesamt' => count($queue),
                 'aktuell' => trim(($ev['datum'] ?? '') . ' ' . ($ev['name'] ?? ('Event ' . $eid))),
@@ -601,8 +605,7 @@ class RaceResult {
 
         $stat['requests'] = self::$requests;
         $stat['dauer']    = round(microtime(true) - $start, 1);
-        if (!empty($stat['abbruch'])) Scanner::abbruchLoeschen(self::ABBRUCH);
-        Scanner::fortschritt(self::FORTSCHRITT, [
+        Scanner::laufFortschritt($laufId, [
             'phase' => 'fertig', 'i' => $stat['gescannt'], 'gesamt' => $stat['gescannt'],
             'aktuell' => !empty($stat['abbruch']) ? 'Abgebrochen'
                          : ($stat['abgebrochen'] ? 'Zeitlimit erreicht' : 'Lauf beendet'),

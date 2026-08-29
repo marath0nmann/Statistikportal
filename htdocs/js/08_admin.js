@@ -2245,93 +2245,46 @@ function _scanVorschlagHtml(d, abfrage) {
     '(Teilstring-Suche) und verkürzt den Lauf entsprechend.</span>';
 }
 
-function _scanFortschrittHtml(f, quelle) {
-  if (!f) return '';
-  if (!f.laeuft) {
-    if (f.phase !== 'fertig' && f.alter >= 180)
-      return '<div style="margin:8px 0;padding:8px 10px;border-radius:6px;background:var(--surf2);border:1px solid var(--border)">' +
-        '⚠️ Letzter Lauf hat sich zuletzt vor ' + Math.round(f.alter / 60) + ' Min. gemeldet (' +
-        _scanEsc(f.aktuell || '') + ') und ist vermutlich abgebrochen.</div>';
-    return '';
+// Eine Leiste je Lauf. Von derselben Quelle können mehrere gleichzeitig
+// laufen – etwa der Cronjob und ein Klick auf „Jetzt scannen". Früher
+// teilten sie sich einen Fortschrittswert und die Anzeige sprang zwischen
+// ihnen hin und her.
+function _scanFortschrittHtml(laeufe) {
+  if (!laeufe || !laeufe.length) return '';
+  var html = '';
+
+  for (var k = 0; k < laeufe.length; k++) {
+    var f = laeufe[k];
+    if (!f.laeuft) {
+      // Nicht mehr gemeldet und nicht sauber beendet → vermutlich abgestürzt
+      if (f.phase !== 'fertig' && f.alter >= 180)
+        html += '<div style="margin:8px 0;padding:8px 10px;border-radius:6px;background:var(--surf2);border:1px solid var(--border)">' +
+          '⚠️ Lauf von ' + _scanEsc(f.begonnen || '') + ' hat sich zuletzt vor ' + Math.round(f.alter / 60) +
+          ' Min. gemeldet (' + _scanEsc(f.aktuell || '') + ') und ist vermutlich abgebrochen.</div>';
+      continue;
+    }
+    var pct = (f.gesamt > 0) ? Math.min(100, Math.round((f.i / f.gesamt) * 100)) : 0;
+    html +=
+      '<div style="margin:8px 0;padding:8px 10px;border-radius:6px;background:var(--surf2);border:1px solid var(--border)">' +
+        '<div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px;align-items:center;flex-wrap:wrap">' +
+          '<span>⏳ ' +
+            (f.ausloeser ? '<span style="padding:1px 6px;border-radius:8px;border:1px solid var(--border);' +
+              'font-size:11px;margin-right:6px">' + _scanEsc(f.ausloeser) + '</span>' : '') +
+            _scanEsc(f.aktuell || 'läuft…') + '</span>' +
+          '<span style="white-space:nowrap;display:flex;gap:8px;align-items:center">' +
+            (f.gesamt > 0 ? f.i + '/' + f.gesamt : f.i) +
+            (f.neue_funde ? ' · ' + f.neue_funde + ' neu' : '') +
+            (f.abbruch
+              ? '<span style="color:var(--text2)">Abbruch angefordert…</span>'
+              : '<button class="btn btn-ghost btn-sm" onclick="scanAbbrechen(\'' + _scanEsc(f.id) + '\')">&#x2715; Abbrechen</button>') +
+          '</span>' +
+        '</div>' +
+        '<div style="height:6px;border-radius:3px;background:var(--border);overflow:hidden">' +
+          '<div style="height:100%;width:' + pct + '%;background:var(--accent);transition:width .4s"></div>' +
+        '</div>' +
+      '</div>';
   }
-  var pct = (f.gesamt > 0) ? Math.min(100, Math.round((f.i / f.gesamt) * 100)) : 0;
-  return '<div style="margin:8px 0;padding:8px 10px;border-radius:6px;background:var(--surf2);border:1px solid var(--border)">' +
-    '<div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:6px;align-items:center">' +
-      '<span>⏳ ' + _scanEsc(f.aktuell || 'läuft…') + '</span>' +
-      '<span style="white-space:nowrap;display:flex;gap:8px;align-items:center">' +
-        (f.gesamt > 0 ? f.i + '/' + f.gesamt : f.i) +
-        (f.neue_funde ? ' · ' + f.neue_funde + ' neu' : '') +
-        (quelle ? '<button class="btn btn-ghost btn-sm" onclick="scanAbbrechen(\'' + quelle + '\')">&#x2715; Abbrechen</button>' : '') +
-      '</span>' +
-    '</div>' +
-    '<div style="height:6px;border-radius:3px;background:var(--border);overflow:hidden">' +
-      '<div style="height:100%;width:' + pct + '%;background:var(--accent);transition:width .4s"></div>' +
-    '</div>' +
-  '</div>';
-}
-
-// Lauf starten, ohne auf das Ende zu warten; solange pollen, bis die
-// Antwort da ist (oder der Fortschritt „fertig" meldet).
-// Ein einziger Taktgeber für alle drei Quellen. Vorher pollte nur der
-// Scanner, den man selbst gestartet hatte – ein parallel laufender (oder
-// per Cronjob gestarteter) blieb unsichtbar, bis man die Seite neu lud.
-// Laufende Quellen werden alle 3 s aktualisiert, ruhende alle 15 s; so
-// taucht auch ein von außen gestarteter Lauf von selbst auf.
-var _scanLaeuft  = {};
-var _scanZuletzt = {};
-var _scanFn      = {};
-var _scanTakt    = null;
-
-function _scanTaktStart() {
-  if (_scanTakt) return;
-  _scanTakt = setInterval(function() {
-    // Panel verlassen → aufhören (die Läufe laufen serverseitig weiter)
-    if (!document.getElementById('rr-scan-status')) {
-      clearInterval(_scanTakt); _scanTakt = null; return;
-    }
-    var jetzt = Date.now();
-    for (var q in _scanFn) {
-      var abstand = _scanLaeuft[q] ? 3000 : 15000;
-      if (jetzt - (_scanZuletzt[q] || 0) >= abstand) {
-        _scanZuletzt[q] = jetzt;
-        _scanFn[q]();
-      }
-    }
-  }, 1000);
-}
-
-// Von den Status-Funktionen aufgerufen: hält fest, ob diese Quelle gerade
-// arbeitet, und bestimmt damit ihren Takt.
-function _scanMelden(quelle, statusFn, laeuft) {
-  _scanFn[quelle]     = statusFn;
-  _scanLaeuft[quelle] = !!laeuft;
-  _scanZuletzt[quelle] = Date.now();
-  _scanTaktStart();
-}
-
-function _scanStarten(name, url, statusFn) {
-  _scanLaeuft[name] = true;
-  _scanFn[name]     = statusFn;
-  _scanTaktStart();
-
-  var p = apiGet(url).then(function(r) {
-    // Ein Lauf ohne Arbeit meldet im Feld „hinweis", warum – sonst stünde
-    // dort nur „0 neue Funde" und man wüsste nicht, ob etwas passiert ist.
-    if (r && r.ok && r.data && r.data.hinweis) notify(r.data.hinweis, 'err');
-    else if (r && r.ok && r.data && r.data.abbruch)
-      notify('Lauf abgebrochen nach ' + (r.data.gescannt || 0) + ' Wettkämpfen, ' +
-             (r.data.neue_funde || 0) + ' neue Funde.', 'ok');
-    else if (r && r.ok) notify('Scan beendet: ' + ((r.data && r.data.gescannt) || 0) + ' Wettkämpfe geprüft, ' +
-      ((r.data && r.data.neue_funde) || 0) + ' neue Funde.', 'ok');
-    else notify((r && r.fehler) || 'Scan fehlgeschlagen.', 'err');
-  }).catch(function() {
-    notify('Verbindung zum Lauf verloren – er läuft im Hintergrund weiter.', 'err');
-  }).then(function() {
-    _scanLaeuft[name] = false;
-    statusFn();
-  });
-  statusFn();
-  return p;
+  return html;
 }
 
 // Scanner-Status + Cron-URL nachladen (Token kommt nur über diese Route).
@@ -2342,12 +2295,12 @@ async function _rrScanStatus() {
   if (!r || !r.ok) { box.textContent = 'Status konnte nicht geladen werden.'; return; }
   var d = r.data;
   var st = d.letzter_status || {};
-  _scanMelden('rr', _rrScanStatus, d.fortschritt && d.fortschritt.laeuft);
+  _scanMelden('rr', _rrScanStatus, (d.laeufe || []).some(function(l) { return l.laeuft; }));
   var esc = _scanEsc;
   var abfrage = d.abfrage || d.begriffe || [];
   var sparsam = (d.begriffe || []).length > abfrage.length;
   box.innerHTML =
-    _scanFortschrittHtml(d.fortschritt, 'rr') +
+    _scanFortschrittHtml(d.laeufe) +
     '<div style="margin-bottom:6px"><strong>Cron-URL</strong> (z.B. stündlich bei all-inkl aufrufen):</div>' +
     '<code style="display:block;padding:8px 10px;background:var(--surf2);border:1px solid var(--border);' +
       'border-radius:6px;word-break:break-all;font-size:11px;margin-bottom:10px">' + esc(d.scan_url) + '</code>' +
@@ -2387,8 +2340,8 @@ async function _rrScanStatus() {
 
 // Laufenden Scan abbrechen. Der Lauf prüft das Signal zwischen zwei
 // Wettkämpfen – der gerade laufende Abruf wird noch zu Ende gebracht.
-async function scanAbbrechen(quelle) {
-  var r = await apiPost('scan-stop', { quelle: quelle });
+async function scanAbbrechen(lauf) {
+  var r = await apiPost('scan-stop', { lauf: lauf });
   if (r && r.ok) notify('Abbruch angefordert – der Lauf endet nach dem aktuellen Wettkampf.', 'ok');
   else notify((r && r.fehler) || 'Abbruch fehlgeschlagen.', 'err');
 }
@@ -2450,12 +2403,12 @@ async function _uitsScanStatus() {
   if (!r || !r.ok) { box.textContent = 'Status konnte nicht geladen werden.'; return; }
   var d = r.data;
   var st = d.letzter_status || {};
-  _scanMelden('uits', _uitsScanStatus, d.fortschritt && d.fortschritt.laeuft);
+  _scanMelden('uits', _uitsScanStatus, (d.laeufe || []).some(function(l) { return l.laeuft; }));
   var esc = _scanEsc;
   var abfrage = d.abfrage || d.begriffe || [];
   var sparsam = (d.begriffe || []).length > abfrage.length;
   box.innerHTML =
-    _scanFortschrittHtml(d.fortschritt, 'uits') +
+    _scanFortschrittHtml(d.laeufe) +
     '<div style="margin-bottom:6px"><strong>Cron-URL</strong> (z.B. täglich bei all-inkl aufrufen):</div>' +
     '<code style="display:block;padding:8px 10px;background:var(--surf2);border:1px solid var(--border);' +
       'border-radius:6px;word-break:break-all;font-size:11px;margin-bottom:10px">' + esc(d.scan_url) + '</code>' +
@@ -2483,9 +2436,9 @@ async function _laScanStatus() {
   if (!r || !r.ok) { box.textContent = 'Status konnte nicht geladen werden.'; return; }
   var d = r.data;
   var st = d.letzter_status || {};
-  _scanMelden('la', _laScanStatus, d.fortschritt && d.fortschritt.laeuft);
+  _scanMelden('la', _laScanStatus, (d.laeufe || []).some(function(l) { return l.laeuft; }));
   box.innerHTML =
-    _scanFortschrittHtml(d.fortschritt, 'la') +
+    _scanFortschrittHtml(d.laeufe) +
     '<div style="margin-bottom:6px"><strong>Cron-URL</strong> (z.B. stündlich bei all-inkl aufrufen):</div>' +
     '<code style="display:block;padding:8px 10px;background:var(--surf2);border:1px solid var(--border);' +
       'border-radius:6px;word-break:break-all;font-size:11px;margin-bottom:10px">' + _scanEsc(d.scan_url) + '</code>' +

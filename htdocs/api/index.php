@@ -8787,6 +8787,7 @@ if ($res === 'rr-scan' && $method === 'GET') {
     // ?tage=… überschreibt das Rückblick-Fenster für diesen einen Lauf
     $tage   = max(0, min(365, (int)($_GET['tage'] ?? 0)));
     jsonOk(RaceResult::scan($budget, $maxSek, [
+        'ausloeser' => $token !== '' ? 'Cronjob' : 'Panel',
         'discovery' => empty($_GET['nodiscovery']),
         'tage'      => $tage,
         'sofort'    => !empty($_GET['sofort']),   // Abkühlzeit übergehen
@@ -8841,7 +8842,7 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
         'begriffe'      => RaceResult::begriffe(),
         'abfrage'       => Scanner::sucheBegriffe(RaceResult::begriffe()),
         'vorschlag'     => Scanner::begriffVorschlag(Scanner::sucheBegriffe(RaceResult::begriffe())),
-        'fortschritt'   => Scanner::fortschrittLesen(RaceResult::FORTSCHRITT),
+        'laeufe'        => Scanner::laeufe('rr'),
         'laender'       => RaceResult::LAENDER,
         'events'        => array_map('intval', $z),
         'funde'         => array_map('intval', $funde),
@@ -8849,24 +8850,21 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
 }
 
 // ── POST scan-stop – laufenden Scan abbrechen ───────────────────────────
-// Body: { quelle: 'rr' | 'uits' | 'la' }
+// Body: { lauf: '<Lauf-ID>' }
 // Der Lauf hält seine eigene Anfrage minutenlang offen; abgebrochen wird
 // deshalb über ein Signal, das seine Schleife zwischen zwei Wettkämpfen
-// liest (Scanner::abbruchGewuenscht).
+// liest (Scanner::laufAbbruchGewuenscht).
 if ($res === 'scan-stop' && $method === 'POST') {
     Auth::requireAdmin();
     require_once __DIR__ . '/../../includes/scanner.php';
 
-    $schluessel = [
-        'rr'   => 'rr_scan_abbruch',
-        'uits' => 'uits_scan_abbruch',
-        'la'   => 'la_scan_abbruch',
-    ];
-    $quelle = (string)($body['quelle'] ?? '');
-    if (!isset($schluessel[$quelle])) jsonErr('Unbekannte Quelle.', 400);
+    // Abgebrochen wird ein einzelner Lauf – von derselben Quelle können
+    // mehrere gleichzeitig laufen (Cronjob und Panel).
+    $lauf = trim((string)($body['lauf'] ?? ''));
+    if ($lauf === '' || !preg_match('/^[a-f0-9]{12}$/', $lauf)) jsonErr('Keine Lauf-ID angegeben.', 400);
 
-    Scanner::abbruchAnfordern($schluessel[$quelle]);
-    jsonOk(['angefordert' => true]);
+    $n = Scanner::laufAbbrechen($lauf);
+    jsonOk(['angefordert' => $n > 0]);
 }
 
 // ── GET rr-events-alt – offene Wettkämpfe vor dem Rückblick-Fenster ─────
@@ -8976,7 +8974,7 @@ if ($res === 'uits-scan' && $method === 'GET') {
     if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
     $maxSek = max(30, min(600, (int)($_GET['sekunden'] ?? 120)));
     $tage   = max(0, min(3650, (int)($_GET['tage'] ?? 0)));
-    jsonOk(Uitslagen::scan($tage, $maxSek));
+    jsonOk(Uitslagen::scan($tage, $maxSek, $token !== '' ? 'Cronjob' : 'Panel'));
 }
 
 // ── GET uits-scan-status – Konfiguration + letzter Lauf (Admin) ──────────
@@ -9003,7 +9001,7 @@ if ($res === 'uits-scan-status' && $method === 'GET') {
         'begriffe'       => Uitslagen::begriffe(),
         'abfrage'        => Scanner::sucheBegriffe(Uitslagen::begriffe()),
         'vorschlag'      => Scanner::begriffVorschlag(Scanner::sucheBegriffe(Uitslagen::begriffe())),
-        'fortschritt'    => Scanner::fortschrittLesen(Uitslagen::FORTSCHRITT),
+        'laeufe'         => Scanner::laeufe('uits'),
         'funde'          => array_map('intval', $f),
     ]);
 }
@@ -9078,7 +9076,7 @@ if ($res === 'la-scan' && $method === 'GET') {
     if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
     $maxSek = max(30, min(900, (int)($_GET['sekunden'] ?? 240)));
     $budget = max(0, min(300, (int)($_GET['budget'] ?? 0)));
-    jsonOk(Leichtathletik::scan($budget, $maxSek, empty($_GET['nodiscovery'])));
+    jsonOk(Leichtathletik::scan($budget, $maxSek, empty($_GET['nodiscovery']), $token !== '' ? 'Cronjob' : 'Panel'));
 }
 
 // ── GET la-scan-status – Konfiguration + letzter Lauf (Admin) ────────────
@@ -9104,7 +9102,7 @@ if ($res === 'la-scan-status' && $method === 'GET') {
         'letzter_status' => json_decode(Settings::get('la_scan_letzter_status', '') ?: 'null', true),
         'begriffe'       => Leichtathletik::begriffe(),
         'abfrage'        => Leichtathletik::begriffe(),   // keine Suchabfrage – Verein steht im Feld
-        'fortschritt'    => Scanner::fortschrittLesen(Leichtathletik::FORTSCHRITT),
+        'laeufe'         => Scanner::laeufe('la'),
         'events'         => array_map('intval', $z),
         'funde'          => array_map('intval', $funde),
     ]);

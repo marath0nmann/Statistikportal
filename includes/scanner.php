@@ -15,60 +15,114 @@ require_once __DIR__ . '/settings.php';
 
 class Scanner {
 
-    // ── Fortschritt eines laufenden Scans ────────────────────────────────
-    // Ein Scanlauf dauert Minuten (jeder Abruf hält 1,15 s Abstand). Ohne
-    // Zwischenstand sieht weder das Admin-Panel noch ein Cronjob-Log, wo er
-    // gerade steht – und bricht der Lauf ab, bleibt gar keine Spur zurück.
-    // Deshalb nach jedem Schritt eine Zeile schreiben; das ist ein einzelner
-    // kleiner UPDATE gegenüber ~11 s Netzwerkarbeit je Wettkampf.
+    // ── Läufe: Fortschritt und Abbruch je Lauf ───────────────────────────
+    // Ein Scanlauf dauert Minuten. Ohne Zwischenstand sieht niemand, wo er
+    // steht, und ein Abbruch hinterlässt keine Spur. Der Stand liegt in
+    // einer eigenen Tabelle mit einer Zeile je Lauf – nicht in einem Wert
+    // je Quelle: Sonst überschreiben sich zwei gleichzeitige Läufe
+    // derselben Quelle gegenseitig (Cronjob und „Jetzt scannen"), und die
+    // Anzeige springt zwischen beiden hin und her.
     //
-    // $key    'rr_scan_fortschritt' | 'uits_scan_fortschritt'
-    // $daten  ['phase'=>…, 'i'=>…, 'gesamt'=>…, 'aktuell'=>…, …]
-    public static function fortschritt(string $key, array $daten): void {
-        $daten['aktualisiert'] = date('Y-m-d H:i:s');
-        try { Settings::set($key, json_encode($daten, JSON_UNESCAPED_UNICODE)); } catch (Throwable $e) {}
+    // Eine Zeile je Lauf heißt außerdem: jeder Lauf schreibt nur sein
+    // eigenes UPDATE. Ein gemeinsames JSON müsste gelesen, ergänzt und
+    // zurückgeschrieben werden – zwei Prozesse würden sich überholen.
+    public static function laufTabelle(): void {
+        DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('scan_laeufe') . " (
+            id           CHAR(12) NOT NULL PRIMARY KEY,
+            quelle       VARCHAR(8) NOT NULL DEFAULT '',
+            phase        VARCHAR(16) NOT NULL DEFAULT 'start',
+            i            INT NOT NULL DEFAULT 0,
+            gesamt       INT NOT NULL DEFAULT 0,
+            aktuell      VARCHAR(255) NOT NULL DEFAULT '',
+            neue_funde   INT NOT NULL DEFAULT 0,
+            requests     INT NOT NULL DEFAULT 0,
+            abbruch      TINYINT NOT NULL DEFAULT 0,
+            ausloeser    VARCHAR(32) NOT NULL DEFAULT '',
+            begonnen     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            aktualisiert DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            KEY idx_quelle (quelle, aktualisiert)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
 
-    // Gemeldeter Stand; 'laeuft' ist false, sobald die Phase abgeschlossen
-    // ist oder sich seit 3 Minuten nichts mehr getan hat (abgestürzter Lauf).
-    public static function fortschrittLesen(string $key): ?array {
-        $roh = Settings::get($key, '');
-        if ($roh === '') return null;
-        $d = json_decode($roh, true);
-        if (!is_array($d)) return null;
-        $alter = time() - strtotime($d['aktualisiert'] ?? '');
-        $d['alter']  = max(0, $alter);
-        $d['laeuft'] = ($d['phase'] ?? '') !== 'fertig' && $alter < 180;
-        return $d;
-    }
-
-    // ── Abbruch eines laufenden Scans ────────────────────────────────────
-    // Ein Lauf hält seine HTTP-Anfrage minutenlang offen und läuft dank
-    // ignore_user_abort auch dann weiter, wenn der Aufrufer verschwindet.
-    // Abgebrochen wird deshalb über ein Signal in den Einstellungen, das
-    // die Schleife zwischen zwei Wettkämpfen prüft.
-    public static function abbruchAnfordern(string $key): void {
-        Settings::set($key, date('Y-m-d H:i:s'));
-    }
-
-    // WICHTIG: direkt aus der Datenbank lesen. Settings::all() hält seinen
-    // Cache je Anfrage – und der ganze Scan ist eine einzige Anfrage. Über
-    // Settings::get() bekäme die Schleife immer nur den Stand von vorhin
-    // und sähe die Anforderung nie.
-    public static function abbruchGewuenscht(string $key, float $startZeit): bool {
+    // Neuen Lauf anlegen; gibt die Lauf-ID zurück.
+    public static function laufStart(string $quelle, string $ausloeser = ''): string {
         try {
-            $r = DB::fetchOne('SELECT wert FROM ' . DB::tbl('einstellungen') . ' WHERE schluessel = ?', [$key]);
-        } catch (Throwable $e) { return false; }
-        $wert = trim((string)($r['wert'] ?? ''));
-        if ($wert === '') return false;
-        $t = strtotime($wert);
-        // Nur Anforderungen berücksichtigen, die nach dem Start kamen –
-        // ein liegengebliebenes Signal soll keinen neuen Lauf killen.
-        return $t !== false && $t >= (int)$startZeit - 2;
+            self::laufTabelle();
+            // Alte Läufe aufräumen – die Tabelle ist reine Anzeige
+            DB::query('DELETE FROM ' . DB::tbl('scan_laeufe') . ' WHERE aktualisiert < NOW() - INTERVAL 2 DAY');
+            $id = bin2hex(random_bytes(6));
+            DB::query('INSERT INTO ' . DB::tbl('scan_laeufe') . ' (id, quelle, phase, aktuell, ausloeser) VALUES (?,?,?,?,?)',
+                [$id, $quelle, 'start', 'Lauf gestartet', mb_substr($ausloeser, 0, 32)]);
+            return $id;
+        } catch (Throwable $e) { return ''; }
     }
 
-    public static function abbruchLoeschen(string $key): void {
-        try { Settings::set($key, ''); } catch (Throwable $e) {}
+    public static function laufFortschritt(string $id, array $d): void {
+        if ($id === '') return;
+        try {
+            DB::query('UPDATE ' . DB::tbl('scan_laeufe') . '
+                          SET phase = ?, i = ?, gesamt = ?, aktuell = ?, neue_funde = ?, requests = ?,
+                              aktualisiert = NOW()
+                        WHERE id = ?',
+                [(string)($d['phase'] ?? 'scan'), (int)($d['i'] ?? 0), (int)($d['gesamt'] ?? 0),
+                 mb_substr((string)($d['aktuell'] ?? ''), 0, 255),
+                 (int)($d['neue_funde'] ?? 0), (int)($d['requests'] ?? 0), $id]);
+        } catch (Throwable $e) {}
+    }
+
+    // Abbruch: Der Lauf hält seine HTTP-Anfrage minutenlang offen und
+    // arbeitet dank ignore_user_abort weiter, wenn der Aufrufer geht.
+    // Deshalb ein Kennzeichen in seiner eigenen Zeile, das die Schleife
+    // zwischen zwei Wettkämpfen liest – direkt per SQL, denn Settings hält
+    // seinen Cache je Anfrage und der ganze Lauf IST eine Anfrage.
+    public static function laufAbbrechen(string $id): int {
+        try {
+            self::laufTabelle();
+            return DB::query('UPDATE ' . DB::tbl('scan_laeufe') . " SET abbruch = 1 WHERE id = ? AND phase <> 'fertig'",
+                [$id])->rowCount();
+        } catch (Throwable $e) { return 0; }
+    }
+
+    public static function laufAbbruchGewuenscht(string $id): bool {
+        if ($id === '') return false;
+        try {
+            $r = DB::fetchOne('SELECT abbruch FROM ' . DB::tbl('scan_laeufe') . ' WHERE id = ?', [$id]);
+        } catch (Throwable $e) { return false; }
+        return !empty($r['abbruch']);
+    }
+
+    // Läufe einer Quelle: alle noch laufenden plus der zuletzt beendete.
+    // „Laufend" heißt: Phase nicht 'fertig' und in den letzten 3 Minuten
+    // gemeldet – ein abgestürzter Lauf verschwindet damit von selbst.
+    public static function laeufe(string $quelle): array {
+        try {
+            self::laufTabelle();
+            $rows = DB::fetchAll(
+                'SELECT * FROM ' . DB::tbl('scan_laeufe') . '
+                  WHERE quelle = ? AND (phase <> ? OR aktualisiert > NOW() - INTERVAL 2 MINUTE)
+                  ORDER BY begonnen DESC LIMIT 8',
+                [$quelle, 'fertig']);
+        } catch (Throwable $e) { return []; }
+
+        $out = [];
+        foreach ($rows as $r) {
+            $alter = time() - strtotime($r['aktualisiert']);
+            $out[] = [
+                'id'         => $r['id'],
+                'phase'      => $r['phase'],
+                'i'          => (int)$r['i'],
+                'gesamt'     => (int)$r['gesamt'],
+                'aktuell'    => $r['aktuell'],
+                'neue_funde' => (int)$r['neue_funde'],
+                'requests'   => (int)$r['requests'],
+                'ausloeser'  => $r['ausloeser'],
+                'begonnen'   => $r['begonnen'],
+                'alter'      => max(0, $alter),
+                'abbruch'    => (int)$r['abbruch'],
+                'laeuft'     => $r['phase'] !== 'fertig' && $alter < 180,
+            ];
+        }
+        return $out;
     }
 
     // Vergleichsform: klein, ohne Umlaute/Sonderzeichen.
