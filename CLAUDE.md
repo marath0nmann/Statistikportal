@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1533
+## Aktuelle Version: v1534
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -57,6 +57,10 @@ GitHub Actions deployed automatisch per FTP nach all-inkl.com (`/html/statistik/
 - **JS validieren**: `node -e "new Function(require('fs').readFileSync('htdocs/js/DATEI.js','utf8'))"`
 
 ## Wichtige Patterns
+
+**Kein URL-Rewriting:** Die API ist nur als `api/index.php?_route=<route>`
+erreichbar (alternativ `api/index.php/<route>` per PATH_INFO). `/(api)/<route>`
+allein ergibt einen Apache-404 – relevant für Cronjob-URLs.
 
 **API-Aufrufe (Frontend):**
 ```js
@@ -151,9 +155,9 @@ gegen erfasste Ergebnisse), gemeinsames Panel-Rendering in `_bkFundePanelHtml()`
 
 | Quelle | Bibliothek | Verfahren | Cron |
 |---|---|---|---|
-| RaceResult | `includes/raceresult.php` | Discovery je Land + Volltextsuche je Event, Warteschlange `rr_events`; durchsucht wird erst, wenn die Config `EventOver` meldet | `/api/rr-scan?token=…` (stündlich) |
-| uitslagen.nl | `includes/uitslagen.php` | Eine seitenweite Volltextsuche je Suchbegriff (`/results.php?naam=…`), keine Discovery | `/api/uits-scan?token=…` (täglich) |
-| leichtathletik.de | `includes/leichtathletik.php` | Discovery über `/Competitions/CurrentPast?page=N` + Teilnehmerliste je Wettkampf, Warteschlange `la_events` | `/api/la-scan?token=…` (stündlich) |
+| RaceResult | `includes/raceresult.php` | Discovery je Land + Volltextsuche je Event, Warteschlange `rr_events`; durchsucht wird erst, wenn die Config `EventOver` meldet | `api/index.php?_route=rr-scan&token=…` (stündlich) |
+| uitslagen.nl | `includes/uitslagen.php` | Eine seitenweite Volltextsuche je Suchbegriff (`/results.php?naam=…`), keine Discovery | `api/index.php?_route=uits-scan&token=…` (täglich) |
+| leichtathletik.de | `includes/leichtathletik.php` | Discovery über `/Competitions/CurrentPast?page=N` + Teilnehmerliste je Wettkampf, Warteschlange `la_events` | `api/index.php?_route=la-scan&token=…` (stündlich) |
 
 Fortschritt eines laufenden Scans: `Scanner::fortschritt()` schreibt nach jedem
 Schritt nach `rr_scan_fortschritt` / `uits_scan_fortschritt` / `la_scan_fortschritt`; das Admin-Panel

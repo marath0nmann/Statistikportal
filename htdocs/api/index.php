@@ -8798,6 +8798,8 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
 
     // Token beim ersten Aufruf erzeugen – wird nur hier ausgeliefert,
     // nie über die öffentliche Einstellungsroute.
+    // Achtung: kein URL-Rewriting aktiv – die API ist ausschließlich als
+    // /api/index.php?_route=… erreichbar, nicht als /api/<route>.
     $token = Settings::get('rr_scan_token', '');
     if ($token === '') { $token = bin2hex(random_bytes(16)); Settings::set('rr_scan_token', $token); }
 
@@ -8820,7 +8822,7 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
 
     jsonOk([
         'token'         => $token,
-        'scan_url'      => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/rr-scan?token=' . $token,
+        'scan_url'      => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/index.php?_route=rr-scan&token=' . $token,
         'fenster'       => $fenster,
         'ab'            => $grenze,
         'letzter_lauf'  => Settings::get('rr_scan_letzter_lauf', ''),
@@ -8927,7 +8929,7 @@ if ($res === 'uits-scan-status' && $method === 'GET') {
 
     jsonOk([
         'token'          => $token,
-        'scan_url'       => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/uits-scan?token=' . $token,
+        'scan_url'       => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/index.php?_route=uits-scan&token=' . $token,
         'letzter_lauf'   => Settings::get('uits_scan_letzter_lauf', ''),
         'letzter_status' => json_decode(Settings::get('uits_scan_letzter_status', '') ?: 'null', true),
         'begriffe'       => Uitslagen::begriffe(),
@@ -9028,7 +9030,7 @@ if ($res === 'la-scan-status' && $method === 'GET') {
 
     jsonOk([
         'token'          => $token,
-        'scan_url'       => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/la-scan?token=' . $token,
+        'scan_url'       => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/index.php?_route=la-scan&token=' . $token,
         'letzter_lauf'   => Settings::get('la_scan_letzter_lauf', ''),
         'letzter_status' => json_decode(Settings::get('la_scan_letzter_status', '') ?: 'null', true),
         'begriffe'       => Leichtathletik::begriffe(),

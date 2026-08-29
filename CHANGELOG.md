@@ -1,3 +1,7 @@
+## v1534
+- **Fix: Die im Admin-Panel angezeigte Cron-URL der Scanner war seit v1466 nicht aufrufbar.** Ausgegeben wurde `https://…/api/rr-scan?token=…`, aber es gibt kein URL-Rewriting – die API ist ausschließlich als `api/index.php?_route=…` erreichbar (so ruft sie auch das Frontend auf). Der Aufruf endete deshalb in einem Apache-404, und zwar für alle drei Scanner. Richtig lautet sie jetzt `https://…/api/index.php?_route=rr-scan&token=…` (bzw. `uits-scan`, `la-scan`).
+- An der Token-Erzeugung steht der Hinweis, dass kein Rewriting aktiv ist, damit dieselbe Annahme nicht wieder in eine neue Route wandert.
+
 ## v1533
 - **Fix RaceResult-Scanner: Die Warteschlange hat das Rückblick-Fenster ignoriert.** Das eingestellte Fenster begrenzte nur die *Entdeckung* neuer Wettkämpfe – einmal in `rr_events` eingetragen, wurde ein Wettkampf ohne untere Datumsgrenze weiter abgearbeitet. Wettkämpfe, die unter einem früher größeren Fenster entdeckt wurden, tauchten dadurch dauerhaft im Lauf auf (z.B. ein Wettkampf vom 09.08. bei eingestellten 7 Tagen) und belegten das Budget, während aktuellere liegen blieben. Die Abfrage hat jetzt auch eine untere Grenze; wird das Fenster wieder vergrößert, kommen die Wettkämpfe von selbst zurück.
 - Das Statuspanel weist Wettkämpfe außerhalb des Fensters gesondert aus, statt sie unter „noch nicht dran" mitzuzählen – mit dem fertigen Befehl zum einmaligen Nachholen.
