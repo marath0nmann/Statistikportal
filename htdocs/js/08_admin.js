@@ -1935,6 +1935,9 @@ async function renderAdminQuellen() {
         'Bei täglichem Cron trägt ein Lauf das ganze Wochenende – auf Samstag und Sonntag entfallen rund zwei Drittel aller Wettkämpfe; 120 geben dann Reserve, bei stündlichem Cron genügen 60.',
         _admNumIn('cfg-rr_scan_budget', _admCfg(cfg, 'rr_scan_budget','60'), 1, 500)) +
       '<div id="rr-scan-status" style="margin-top:14px;font-size:12px;color:var(--text2)">Status wird geladen&hellip;</div>' +
+      // Außerhalb der Statusbox: die wird im Sekundentakt neu gezeichnet und
+      // hätte eine geöffnete Liste jedes Mal wieder weggeräumt.
+      '<div id="rr-alt-liste" style="font-size:12px"></div>' +
       '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
         '<button class="btn btn-sm" onclick="rrScanJetzt()">&#x25B6;&#xFE0E; Jetzt scannen</button>' +
       '</div>' +
@@ -2227,8 +2230,6 @@ async function renderAdminDarstellung() {
 // Ein Lauf dauert Minuten. Der Knopf wartet deshalb nicht mehr auf die
 // Antwort, sondern startet den Lauf und pollt den Fortschritt, den der
 // Scanner nach jedem Wettkampf in die Einstellungen schreibt.
-var _scanPoll = {};
-
 function _scanEsc(s) {
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -2271,12 +2272,49 @@ function _scanFortschrittHtml(f, quelle) {
 
 // Lauf starten, ohne auf das Ende zu warten; solange pollen, bis die
 // Antwort da ist (oder der Fortschritt „fertig" meldet).
+// Ein einziger Taktgeber für alle drei Quellen. Vorher pollte nur der
+// Scanner, den man selbst gestartet hatte – ein parallel laufender (oder
+// per Cronjob gestarteter) blieb unsichtbar, bis man die Seite neu lud.
+// Laufende Quellen werden alle 3 s aktualisiert, ruhende alle 15 s; so
+// taucht auch ein von außen gestarteter Lauf von selbst auf.
+var _scanLaeuft  = {};
+var _scanZuletzt = {};
+var _scanFn      = {};
+var _scanTakt    = null;
+
+function _scanTaktStart() {
+  if (_scanTakt) return;
+  _scanTakt = setInterval(function() {
+    // Panel verlassen → aufhören (die Läufe laufen serverseitig weiter)
+    if (!document.getElementById('rr-scan-status')) {
+      clearInterval(_scanTakt); _scanTakt = null; return;
+    }
+    var jetzt = Date.now();
+    for (var q in _scanFn) {
+      var abstand = _scanLaeuft[q] ? 3000 : 15000;
+      if (jetzt - (_scanZuletzt[q] || 0) >= abstand) {
+        _scanZuletzt[q] = jetzt;
+        _scanFn[q]();
+      }
+    }
+  }, 1000);
+}
+
+// Von den Status-Funktionen aufgerufen: hält fest, ob diese Quelle gerade
+// arbeitet, und bestimmt damit ihren Takt.
+function _scanMelden(quelle, statusFn, laeuft) {
+  _scanFn[quelle]     = statusFn;
+  _scanLaeuft[quelle] = !!laeuft;
+  _scanZuletzt[quelle] = Date.now();
+  _scanTaktStart();
+}
+
 function _scanStarten(name, url, statusFn) {
-  if (_scanPoll[name]) return;
-  var boxId = name + '-scan-status';
-  var fertig = false;
+  _scanLaeuft[name] = true;
+  _scanFn[name]     = statusFn;
+  _scanTaktStart();
+
   var p = apiGet(url).then(function(r) {
-    fertig = true;
     // Ein Lauf ohne Arbeit meldet im Feld „hinweis", warum – sonst stünde
     // dort nur „0 neue Funde" und man wüsste nicht, ob etwas passiert ist.
     if (r && r.ok && r.data && r.data.hinweis) notify(r.data.hinweis, 'err');
@@ -2287,15 +2325,11 @@ function _scanStarten(name, url, statusFn) {
       ((r.data && r.data.neue_funde) || 0) + ' neue Funde.', 'ok');
     else notify((r && r.fehler) || 'Scan fehlgeschlagen.', 'err');
   }).catch(function() {
-    fertig = true;
-    notify('Scan abgebrochen – der Lauf kann im Hintergrund weiterlaufen.', 'err');
-  });
-  _scanPoll[name] = setInterval(function() {
-    // Panel verlassen → nicht weiter pollen (der Lauf läuft serverseitig weiter)
-    if (!document.getElementById(boxId)) { clearInterval(_scanPoll[name]); _scanPoll[name] = null; return; }
+    notify('Verbindung zum Lauf verloren – er läuft im Hintergrund weiter.', 'err');
+  }).then(function() {
+    _scanLaeuft[name] = false;
     statusFn();
-    if (fertig) { clearInterval(_scanPoll[name]); _scanPoll[name] = null; statusFn(); }
-  }, 3000);
+  });
   statusFn();
   return p;
 }
@@ -2308,6 +2342,7 @@ async function _rrScanStatus() {
   if (!r || !r.ok) { box.textContent = 'Status konnte nicht geladen werden.'; return; }
   var d = r.data;
   var st = d.letzter_status || {};
+  _scanMelden('rr', _rrScanStatus, d.fortschritt && d.fortschritt.laeuft);
   var esc = _scanEsc;
   var abfrage = d.abfrage || d.begriffe || [];
   var sparsam = (d.begriffe || []).length > abfrage.length;
@@ -2337,7 +2372,6 @@ async function _rrScanStatus() {
             '<button class="btn btn-sm" onclick="rrAltAnzeigen()">&#x1F4C4; Liste anzeigen</button>' +
             '<button class="btn btn-sm" onclick="rrAltNachholen()">&#x25B6;&#xFE0E; Diese nachholen (ohne neue Suche)</button>' +
           '</div>' +
-          '<div id="rr-alt-liste"></div>' +
         '</div>'
       : '') +
     '<div>Funde: ' + (d.funde.gesamt || 0) + ' gesamt · ' + (d.funde.neu || 0) + ' offen</div>' +
@@ -2362,10 +2396,13 @@ async function scanAbbrechen(quelle) {
 // ── Wettkämpfe vor dem Rückblick-Fenster ──────────────────────────────
 // Sie fallen aus der Warteschlange, bleiben aber in der Tabelle. Hier
 // lassen sie sich einsehen und gezielt nachholen.
+var _rrAltOffen = false;
+
 async function rrAltAnzeigen() {
   var box = document.getElementById('rr-alt-liste');
   if (!box) return;
-  if (box.innerHTML) { box.innerHTML = ''; return; }        // zweiter Klick klappt zu
+  if (_rrAltOffen) { _rrAltOffen = false; box.innerHTML = ''; return; }   // zweiter Klick klappt zu
+  _rrAltOffen = true;
   box.innerHTML = '<div style="padding:8px 0">Lade&hellip;</div>';
   var r = await apiGet('rr-events-alt');
   if (!r || !r.ok) { box.innerHTML = '<div style="padding:8px 0">Liste konnte nicht geladen werden.</div>'; return; }
@@ -2413,6 +2450,7 @@ async function _uitsScanStatus() {
   if (!r || !r.ok) { box.textContent = 'Status konnte nicht geladen werden.'; return; }
   var d = r.data;
   var st = d.letzter_status || {};
+  _scanMelden('uits', _uitsScanStatus, d.fortschritt && d.fortschritt.laeuft);
   var esc = _scanEsc;
   var abfrage = d.abfrage || d.begriffe || [];
   var sparsam = (d.begriffe || []).length > abfrage.length;
@@ -2445,6 +2483,7 @@ async function _laScanStatus() {
   if (!r || !r.ok) { box.textContent = 'Status konnte nicht geladen werden.'; return; }
   var d = r.data;
   var st = d.letzter_status || {};
+  _scanMelden('la', _laScanStatus, d.fortschritt && d.fortschritt.laeuft);
   box.innerHTML =
     _scanFortschrittHtml(d.fortschritt, 'la') +
     '<div style="margin-bottom:6px"><strong>Cron-URL</strong> (z.B. stündlich bei all-inkl aufrufen):</div>' +

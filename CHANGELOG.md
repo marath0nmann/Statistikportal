@@ -1,3 +1,7 @@
+## v1543
+- **Mehrere Scans werden jetzt gleichzeitig angezeigt.** Bisher pollte nur die Quelle, die man selbst über ihren Knopf gestartet hatte – ein parallel laufender Scan oder einer, den der Cronjob angestoßen hatte, blieb unsichtbar, bis man die Seite neu lud. An die Stelle der drei getrennten Timer tritt ein gemeinsamer Taktgeber: laufende Quellen werden alle 3 Sekunden aktualisiert, ruhende alle 15 – dadurch taucht auch ein von außen gestarteter Lauf von selbst im Panel auf. Beim Verlassen der Seite hört er auf.
+- **Fix: „Liste anzeigen" wurde bei laufendem Scan sofort wieder ausgeblendet.** Der Listencontainer lag innerhalb der Statusbox, und die wird im Sekundentakt neu gezeichnet – die geöffnete Liste war jedes Mal weg. Sie steht jetzt außerhalb und bleibt offen, bis man den Knopf erneut drückt.
+
 ## v1542
 - **Laufende Scans lassen sich jetzt abbrechen** – bei allen drei Quellen. Im Fortschrittsbalken sitzt dafür ein ✕-Knopf; der Lauf endet nach dem gerade bearbeiteten Wettkampf, also spätestens nach wenigen Sekunden.
 - Technisch geht das nicht über die Verbindung: Ein Lauf hält seine HTTP-Anfrage minutenlang offen und arbeitet dank `ignore_user_abort` auch dann weiter, wenn der Aufrufer verschwindet. Der Abbruch läuft deshalb über ein Signal in den Einstellungen (`*_scan_abbruch`), das die Schleife zwischen zwei Wettkämpfen liest.
