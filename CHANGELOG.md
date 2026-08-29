@@ -1,3 +1,7 @@
+## v1545
+- **Fix: Die Scanner-Panels blieben bei „Status wird geladen…" stehen.** Beim Umbau auf eine Fortschrittsleiste je Lauf (v1544) hat mein Blockersatz drei Funktionen mitgenommen, die direkt hinter der ersetzten Stelle standen: den Taktgeber (`_scanTaktStart`), `_scanMelden` und `_scanStarten`. Die Status-Funktionen brachen dadurch mitten im Rendern ab – nach der Fehlerprüfung, aber vor dem Schreiben des Inhalts, weshalb genau der Platzhalter stehen blieb. Die Funktionen sind wieder da.
+- Die drei Status-Funktionen werden jetzt auch geprüft, nicht nur der Seitenaufbau: ein Testlauf ruft sie mit einer realistischen API-Antwort auf und stellt sicher, dass sie tatsächlich Inhalt erzeugen (Fortschrittsleiste, Auslöser, Abbrechen-Knopf je Lauf, Cron-URL). Genau diese Lücke hatte den Fehler durchgelassen.
+
 ## v1544
 - **Zwei gleichzeitige Läufe derselben Quelle bekommen jetzt je eine eigene Fortschrittsleiste.** Bisher teilten sich alle Läufe einer Quelle einen einzigen Fortschrittswert – starteten Cronjob und „Jetzt scannen" gleichzeitig, überschrieben sie sich gegenseitig und die Anzeige sprang zwischen beiden hin und her.
 - Der Stand liegt dafür jetzt in einer eigenen Tabelle `scan_laeufe` mit **einer Zeile je Lauf** statt in einem Wert je Quelle. Das ist auch der Grund gegen ein gemeinsames JSON: Das müsste gelesen, ergänzt und zurückgeschrieben werden – zwei Prozesse würden sich dabei überholen. So schreibt jeder Lauf nur sein eigenes `UPDATE`.

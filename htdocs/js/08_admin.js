@@ -2340,6 +2340,67 @@ async function _rrScanStatus() {
 
 // Laufenden Scan abbrechen. Der Lauf prüft das Signal zwischen zwei
 // Wettkämpfen – der gerade laufende Abruf wird noch zu Ende gebracht.
+// Ein einziger Taktgeber für alle drei Quellen. Vorher pollte nur der
+// Scanner, den man selbst gestartet hatte – ein parallel laufender (oder
+// per Cronjob gestarteter) blieb unsichtbar, bis man die Seite neu lud.
+// Laufende Quellen werden alle 3 s aktualisiert, ruhende alle 15 s.
+var _scanLaeuft  = {};
+var _scanZuletzt = {};
+var _scanFn      = {};
+var _scanTakt    = null;
+
+function _scanTaktStart() {
+  if (_scanTakt) return;
+  _scanTakt = setInterval(function() {
+    // Panel verlassen → aufhören (die Läufe laufen serverseitig weiter)
+    if (!document.getElementById('rr-scan-status')) {
+      clearInterval(_scanTakt); _scanTakt = null; return;
+    }
+    var jetzt = Date.now();
+    for (var q in _scanFn) {
+      var abstand = _scanLaeuft[q] ? 3000 : 15000;
+      if (jetzt - (_scanZuletzt[q] || 0) >= abstand) {
+        _scanZuletzt[q] = jetzt;
+        _scanFn[q]();
+      }
+    }
+  }, 1000);
+}
+
+// Von den Status-Funktionen aufgerufen: hält fest, ob diese Quelle gerade
+// arbeitet, und bestimmt damit ihren Takt.
+function _scanMelden(quelle, statusFn, laeuft) {
+  _scanFn[quelle]      = statusFn;
+  _scanLaeuft[quelle]  = !!laeuft;
+  _scanZuletzt[quelle] = Date.now();
+  _scanTaktStart();
+}
+
+function _scanStarten(name, url, statusFn) {
+  _scanLaeuft[name] = true;
+  _scanFn[name]     = statusFn;
+  _scanTaktStart();
+
+  var p = apiGet(url).then(function(r) {
+    // Ein Lauf ohne Arbeit meldet im Feld „hinweis", warum – sonst stünde
+    // dort nur „0 neue Funde" und man wüsste nicht, ob etwas passiert ist.
+    if (r && r.ok && r.data && r.data.hinweis) notify(r.data.hinweis, 'err');
+    else if (r && r.ok && r.data && r.data.abbruch)
+      notify('Lauf abgebrochen nach ' + (r.data.gescannt || 0) + ' Wettkämpfen, ' +
+             (r.data.neue_funde || 0) + ' neue Funde.', 'ok');
+    else if (r && r.ok) notify('Scan beendet: ' + ((r.data && r.data.gescannt) || 0) + ' Wettkämpfe geprüft, ' +
+      ((r.data && r.data.neue_funde) || 0) + ' neue Funde.', 'ok');
+    else notify((r && r.fehler) || 'Scan fehlgeschlagen.', 'err');
+  }).catch(function() {
+    notify('Verbindung zum Lauf verloren – er läuft im Hintergrund weiter.', 'err');
+  }).then(function() {
+    _scanLaeuft[name] = false;
+    statusFn();
+  });
+  statusFn();
+  return p;
+}
+
 async function scanAbbrechen(lauf) {
   var r = await apiPost('scan-stop', { lauf: lauf });
   if (r && r.ok) notify('Abbruch angefordert – der Lauf endet nach dem aktuellen Wettkampf.', 'ok');
