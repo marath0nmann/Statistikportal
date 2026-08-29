@@ -1,3 +1,12 @@
+## v1548
+- **Jeder Wettkampf in der Liste „vor dem Fenster" lässt sich jetzt einzeln prüfen.** Neuer Knopf „Prüfen" je Zeile: Er scannt genau diesen Wettkampf – ohne Rückblick-Fenster, ohne Abkühlzeit, ohne Budget – und schreibt das Ergebnis in die Zeile. Damit ist ohne Raten sichtbar, woran ein einzelner Wettkampf hängt:
+  - „geprüft – N passende Zeilen, M neu" (er ist erledigt),
+  - „noch nicht abgeschlossen (EventOver ist false)",
+  - „RaceResult hat gedrosselt oder gestört – später erneut",
+  - „keine abrufbare Ergebnisliste" (echtes Anmelde-Event ohne Zeitmessung).
+- Neue Option `event` (Route: `&event=<id>`) für `RaceResult::scan()`.
+- Zur Einordnung der Liste: Wettkämpfe **vor** dem Rückblick-Fenster werden von regulären Läufen absichtlich nicht angefasst – weder vom Cronjob noch von „Jetzt scannen". Nur „Diese nachholen" und die neue Einzelprüfung erreichen sie. Bleibt die Zahl nach einem regulären Lauf unverändert, ist das kein Fehler.
+
 ## v1547
 - **Fix: Vorübergehende Störungen bei RaceResult wurden als „keine Ergebnisseite" verbucht.** Jede Antwort außer HTTP 200 galt als endgültiges „gibt es nicht", verbrauchte einen Versuch und schob den Wettkampf Richtung „aufgegeben" (6 Versuche). Bei Drosselung (429), Serverfehlern (5xx) oder Transportfehlern wird jetzt nur der Zeitstempel gesetzt – der Wettkampf kommt beim nächsten Lauf unbeschadet wieder dran. Ein echtes 404 zählt weiterhin als Versuch.
 - Das erklärt die hartnäckig offenen Wettkämpfe: Neun von zwölf ließen sich sofort fehlerfrei einlesen, als sie einzeln geprüft wurden – sie waren nur zur Unzeit abgefragt worden, vermutlich während mehrerer gleichzeitiger Nachhol-Läufe.

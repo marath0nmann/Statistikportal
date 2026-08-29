@@ -8792,6 +8792,7 @@ if ($res === 'rr-scan' && $method === 'GET') {
         'tage'      => $tage,
         'sofort'    => !empty($_GET['sofort']),   // Abkühlzeit übergehen
         'nur_alt'   => !empty($_GET['nuralt']),   // nur Wettkämpfe vor dem Fenster
+        'event'     => (int)($_GET['event'] ?? 0),  // genau diesen Wettkampf prüfen
     ]));
 }
 

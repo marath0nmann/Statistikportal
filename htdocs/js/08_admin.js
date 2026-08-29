@@ -2432,6 +2432,9 @@ async function rrAltAnzeigen() {
         '<a href="' + _scanEsc(e.url) + '" target="_blank" rel="noopener">' + _scanEsc(e.name || ('Event ' + e.event_id)) + '</a></td>' +
       '<td style="padding:3px 8px 3px 0;color:var(--text2)">' + _scanEsc(e.ort || '') + (e.land ? ' (' + _scanEsc(e.land) + ')' : '') + '</td>' +
       '<td style="padding:3px 0;color:var(--text2);white-space:nowrap">' + e.versuche + '× · ' + grund + '</td>' +
+      '<td style="padding:3px 0;white-space:nowrap">' +
+        '<button class="btn btn-ghost btn-sm" onclick="rrEventPruefen(' + e.event_id + ', this)">Prüfen</button>' +
+      '</td>' +
     '</tr>';
   }).join('');
 
@@ -2442,6 +2445,20 @@ async function rrAltAnzeigen() {
     (d.gezeigt < d.anzahl
       ? '<div style="color:var(--text2);margin-top:4px">' + d.gezeigt + ' von ' + d.anzahl + ' angezeigt.</div>'
       : '');
+}
+
+// Einzelnen Wettkampf prüfen und das Ergebnis in der Zeile anzeigen.
+// Ohne Fenster und ohne Abkühlzeit – hier will man wissen, woran es liegt.
+async function rrEventPruefen(eventId, knopf) {
+  if (knopf) { knopf.disabled = true; knopf.textContent = 'Prüfe…'; }
+  var r = await apiGet('rr-scan?force=1&nodiscovery=1&sofort=1&sekunden=60&budget=1&event=' + eventId);
+  var text = (r && r.ok && r.data && r.data.ergebnis) ? r.data.ergebnis
+           : ((r && r.fehler) || 'Prüfung fehlgeschlagen');
+  if (knopf) {
+    var zelle = knopf.parentNode;
+    zelle.innerHTML = '<span style="color:var(--text2)">' + _scanEsc(text) + '</span>';
+  }
+  _rrScanStatus();
 }
 
 // Nachholen ohne Discovery: sonst kämen mit dem größeren Fenster wieder

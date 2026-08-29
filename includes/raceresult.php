@@ -430,6 +430,9 @@ class RaceResult {
         $tage      = (int)($opt['tage'] ?? 0);
         $sofort    = !empty($opt['sofort']);
         $nurAlt    = !empty($opt['nur_alt']);
+        // Genau einen Wettkampf prüfen – ohne Fenster, ohne Abkühlzeit.
+        // Für die Diagnose einzelner hängengebliebener Wettkämpfe.
+        $nurEvent  = (int)($opt['event'] ?? 0);
         // Woher der Lauf kam – erscheint im Panel neben dem Balken
         $ausloeser = (string)($opt['ausloeser'] ?? '');
 
@@ -505,6 +508,9 @@ class RaceResult {
                   OR (versuche <  8 AND letzter_scan < NOW() - INTERVAL 3 HOUR)
                   OR (versuche >= 8 AND letzter_scan < NOW() - INTERVAL 20 HOUR))';
 
+        if ($nurEvent) {
+            $queue = DB::fetchAll('SELECT * FROM ' . DB::tbl('rr_events') . ' WHERE event_id = ?', [$nurEvent]);
+        } else {
         $queue = DB::fetchAll(
             'SELECT * FROM ' . DB::tbl('rr_events') . '
               WHERE status = ? AND datum IS NOT NULL AND datum <= CURDATE()
@@ -522,6 +528,7 @@ class RaceResult {
               LIMIT ' . (int)$budget,
             $nurAlt ? ['offen', $grenze, $regGrenze] : ['offen', $grenze]
         );
+        }
 
         $nr = 0;
         foreach ($queue as $ev) {
@@ -653,6 +660,15 @@ class RaceResult {
                         ? 'Nichts zu tun: keiner der ' . $imFens . ' offenen Wettkämpfe im Fenster ist abrufbar.'
                         : 'Nichts zu tun: die ' . $imFens . ' offenen Wettkämpfe im Fenster wurden erst vor '
                           . 'kurzem geprüft (Abkühlzeit 3 h). Mit „Diese nachholen" oder &sofort=1 sofort starten.')));
+        }
+
+        if ($nurEvent) {
+            $stat['ergebnis'] = !$queue                ? 'Wettkampf nicht in der Warteschlange'
+                : ($stat['gescannt']                   ? 'geprüft – ' . $stat['treffer'] . ' passende Zeilen, '
+                                                          . $stat['neue_funde'] . ' neu'
+                : ($stat['nicht_final']                ? 'noch nicht abgeschlossen (EventOver ist false)'
+                : ($stat['gedrosselt']                 ? 'RaceResult hat gedrosselt oder gestört – später erneut'
+                                                        : 'keine abrufbare Ergebnisliste')));
         }
 
         $stat['requests'] = self::$requests;
