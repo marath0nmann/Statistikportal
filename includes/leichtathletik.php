@@ -42,6 +42,8 @@ class Leichtathletik {
 
     private static float $letzterRequest = 0.0;
     private static int   $requests       = 0;
+    private static int   $letzterCode    = 0;
+    private static float $abstand        = 1.5;   // wächst bei Drosselung
 
     public static function requests(): int { return self::$requests; }
 
@@ -80,7 +82,7 @@ class Leichtathletik {
 
     // ── HTTP mit Rate-Limit ──────────────────────────────────────────────
     private static function http(string $url, int $timeout = 40): array {
-        $wartet = 1.5 - (microtime(true) - self::$letzterRequest);
+        $wartet = self::$abstand - (microtime(true) - self::$letzterRequest);
         if ($wartet > 0) usleep((int)($wartet * 1000000));
 
         $ch = curl_init($url);
@@ -102,7 +104,19 @@ class Leichtathletik {
 
         self::$letzterRequest = microtime(true);
         self::$requests++;
+        self::$letzterCode = $code;
+        // Drosselt die Seite, für den Rest des Laufs langsamer werden
+        if ($code === 429 || $code === 503) self::$abstand = min(6.0, self::$abstand + 1.0);
         return [$code, is_string($body) ? $body : ''];
+    }
+
+    // Vorübergehende Störung (Drosselung, Serverfehler, Transportfehler) im
+    // Unterschied zu „diese Seite gibt es nicht". Ein solcher Fehlschlag darf
+    // keinen Versuch verbrauchen: sonst schreibt eine halbe Stunde Serverlast
+    // einen Wettkampf dauerhaft ab – bei nur drei erlaubten Versuchen geht das
+    // schnell. Gelernt am RaceResult-Scanner (v1547).
+    private static function voruebergehend(): bool {
+        return in_array(self::$letzterCode, [0, 408, 425, 429, 500, 502, 503, 504], true);
     }
 
     // Suchbegriffe: eigene Liste, sonst die des RaceResult-Scanners,
@@ -250,7 +264,7 @@ class Leichtathletik {
         $heute   = date('Y-m-d');
         $grenze  = date('Y-m-d', strtotime("-$fenster days"));
 
-        $stat = ['neue_events' => 0, 'gescannt' => 0, 'treffer' => 0, 'neue_funde' => 0,
+        $stat = ['neue_events' => 0, 'gescannt' => 0, 'gedrosselt' => 0, 'treffer' => 0, 'neue_funde' => 0,
                  'seiten' => 0, 'requests' => 0, 'abgebrochen' => false,
                  'begriffe' => $begriffe, 'ab' => $grenze, 'lauf_id' => $laufId];
         if (!$begriffe) {
@@ -301,7 +315,11 @@ class Leichtathletik {
         $queue = DB::fetchAll(
             'SELECT * FROM ' . DB::tbl('la_events') . '
               WHERE status = ? AND datum IS NOT NULL AND datum <= CURDATE() AND datum >= ?
-                AND (letzter_scan IS NULL OR letzter_scan < NOW() - INTERVAL 20 HOUR)
+                -- Gestaffelte Abkühlzeit: eine Teilnehmerliste, die beim
+                -- ersten Blick fehlte, ist oft Stunden später da.
+                AND (letzter_scan IS NULL
+                     OR (versuche <  3 AND letzter_scan < NOW() - INTERVAL 3 HOUR)
+                     OR (versuche >= 3 AND letzter_scan < NOW() - INTERVAL 20 HOUR))
               ORDER BY datum DESC
               LIMIT ' . (int)$budget,
             ['offen', $grenze]
@@ -321,6 +339,12 @@ class Leichtathletik {
             ]);
 
             $zeilen = self::meldeliste($eid);
+            if ($zeilen === null && self::voruebergehend()) {
+                // Nur gestört – kein Fehlversuch, kommt später wieder dran
+                $stat['gedrosselt']++;
+                DB::query('UPDATE ' . DB::tbl('la_events') . ' SET letzter_scan = NOW() WHERE event_id = ?', [$eid]);
+                continue;
+            }
             if ($zeilen === null) {
                 // Keine Teilnehmerliste – begrenzt nachfassen
                 $neuerStatus = ((int)$ev['versuche'] + 1 >= 3 || $ev['datum'] < date('Y-m-d', strtotime('-21 days')))
@@ -341,6 +365,22 @@ class Leichtathletik {
                   WHERE event_id = ?',
                 [min(32000, count($zeilen)), 'fertig', $eid]
             );
+        }
+
+        // Ein Lauf ohne jede Arbeit sieht sonst aus wie ein Fehler.
+        if (!$stat['gescannt'] && !$stat['gedrosselt'] && !$stat['neue_events']) {
+            $z = DB::fetchOne(
+                'SELECT SUM(status = ?) AS offen,
+                        SUM(status = ? AND datum >= ? AND datum <= CURDATE()) AS im_fenster,
+                        SUM(status = ?) AS fertig
+                   FROM ' . DB::tbl('la_events'), ['offen', 'offen', $grenze, 'fertig']) ?: [];
+            $offen  = (int)($z['offen'] ?? 0);
+            $imFens = (int)($z['im_fenster'] ?? 0);
+            $stat['hinweis'] = $offen === 0
+                ? 'Nichts zu tun: alle bekannten Wettkämpfe sind geprüft (' . (int)($z['fertig'] ?? 0) . ').'
+                : ($imFens === 0
+                    ? 'Nichts zu tun: die ' . $offen . ' offenen Wettkämpfe liegen außerhalb des Fensters ab ' . $grenze . '.'
+                    : 'Nichts zu tun: die ' . $imFens . ' offenen Wettkämpfe im Fenster wurden erst vor kurzem geprüft (Abkühlzeit 3 h).');
         }
 
         $stat['requests'] = self::$requests;

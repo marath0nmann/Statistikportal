@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1549
+## Aktuelle Version: v1550
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -171,6 +171,11 @@ Kennzeichen **direkt per SQL** (`Settings` cacht je Anfrage, der Scan *ist* eine
 
 leichtathletik.de wertet eine **Meldeliste** aus: ein Fund heißt „war gemeldet",
 nicht „hat ein Ergebnis". Datum mehrtägiger Wettkämpfe = letzter Tag.
+
+Gemeinsame Regel für RaceResult und leichtathletik.de: HTTP 429/5xx/Transportfehler
+sind **vorübergehend** – sie dürfen keinen Versuch verbrauchen (sonst schreibt fremde
+Serverlast Wettkämpfe ab) und erhöhen den Abstand zwischen Abrufen für den Rest des
+Laufs. Nur ein echtes 404 zählt als Versuch.
 
 Nicht proaktiv (nur manueller Import): ACN Timing.
 

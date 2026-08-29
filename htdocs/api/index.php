@@ -9090,15 +9090,24 @@ if ($res === 'la-scan-status' && $method === 'GET') {
     $token = Settings::get('la_scan_token', '');
     if ($token === '') { $token = bin2hex(random_bytes(16)); Settings::set('la_scan_token', $token); }
 
-    $z = DB::fetchOne('SELECT SUM(status = ?) AS offen, SUM(status = ?) AS fertig,
+    // Wie bei RaceResult: „offen" aufschlüsseln, damit Wettkämpfe außerhalb
+    // des Rückblick-Fensters nicht als unerklärlicher Rest stehen bleiben.
+    $laFenster = max(1, min(60, (int)Settings::get('la_scan_tage', '14')));
+    $laGrenze  = date('Y-m-d', strtotime("-$laFenster days"));
+    $z = DB::fetchOne('SELECT SUM(status = ?) AS offen,
+                              SUM(status = ? AND datum >= ?) AS im_fenster,
+                              SUM(status = ? AND (datum < ? OR datum IS NULL)) AS ausserhalb,
+                              SUM(status = ?) AS fertig,
                               SUM(status = ?) AS ohne, COUNT(*) AS gesamt
-                         FROM ' . DB::tbl('la_events'), ['offen', 'fertig', 'ohne_liste']) ?: [];
+                         FROM ' . DB::tbl('la_events'),
+                         ['offen', 'offen', $laGrenze, 'offen', $laGrenze, 'fertig', 'ohne_liste']) ?: [];
     $funde = DB::fetchOne('SELECT SUM(status = ?) AS neu, COUNT(*) AS gesamt FROM ' . DB::tbl('la_funde'), ['neu']) ?: [];
 
     jsonOk([
         'token'          => $token,
         'scan_url'       => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/index.php?_route=la-scan&token=' . $token
                             . '&sekunden=' . max(240, min(900, (int)Settings::get('la_scan_budget', '40') * 5)),
+        'ab'             => $laGrenze,
         'letzter_lauf'   => Settings::get('la_scan_letzter_lauf', ''),
         'letzter_status' => json_decode(Settings::get('la_scan_letzter_status', '') ?: 'null', true),
         'begriffe'       => Leichtathletik::begriffe(),

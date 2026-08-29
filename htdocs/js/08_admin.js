@@ -2332,6 +2332,7 @@ async function _rrScanStatus() {
       (st.gescannt !== undefined
         ? ' (' + st.gescannt + ' Wettkämpfe geprüft' +
           (st.nicht_final ? ', ' + st.nicht_final + ' noch nicht abgeschlossen' : '') +
+          (st.gedrosselt ? ', ' + st.gedrosselt + '× gedrosselt' : '') +
           ', ' + st.neue_funde + ' neue Funde, ' +
           st.requests + ' Abrufe, ' + st.dauer + ' s' + (st.abgebrochen ? ', Zeitlimit erreicht' : '') + ')'
         : '') +
@@ -2499,7 +2500,8 @@ async function _uitsScanStatus() {
       (d.funde.neu || 0) + ' offen</div>' +
     '<div>Letzter Lauf: ' + esc(d.letzter_lauf || '–') +
       (st.events !== undefined
-        ? ' (' + st.events + ' Wettkämpfe ab ' + esc(st.ab || '') + ', ' + st.neue_funde + ' neue Funde, ' +
+        ? ' (' + st.events + ' Wettkämpfe ab ' + esc(st.ab || '') +
+          (st.gedrosselt ? ', ' + st.gedrosselt + '× gedrosselt' : '') + ', ' + st.neue_funde + ' neue Funde, ' +
           st.requests + ' Abrufe, ' + st.dauer + ' s' + (st.abgebrochen ? ', Zeitlimit erreicht' : '') + ')'
         : '') +
       (st.fehler ? ' – <span style="color:var(--danger,#c00)">' + esc(st.fehler) + '</span>' : '') +
@@ -2523,12 +2525,19 @@ async function _laScanStatus() {
     '<div>Suchbegriffe: <strong>' + _scanEsc((d.begriffe || []).join(', ') || '–') + '</strong>' +
       '<br><span style="color:var(--text2)">Zusätzliche Begriffe kosten hier nichts: der Verein steht in einer eigenen Spalte, es wird verglichen statt gesucht.</span>' +
     '</div>' +
-    '<div>Wettkämpfe: ' + (d.events.gesamt || 0) + ' bekannt · ' + (d.events.offen || 0) + ' offen · ' +
-      (d.events.fertig || 0) + ' geprüft · ' + (d.events.ohne || 0) + ' ohne Teilnehmerliste</div>' +
+    '<div>Wettkämpfe: ' + (d.events.gesamt || 0) + ' bekannt · ' +
+      (d.events.fertig || 0) + ' geprüft · ' + (d.events.im_fenster || 0) + ' offen im Fenster · ' +
+      (d.events.ausserhalb || 0) + ' vor dem Fenster · ' + (d.events.ohne || 0) + ' ohne Teilnehmerliste</div>' +
+    ((d.events.ausserhalb || 0) > 0
+      ? '<div style="color:var(--text2)">Wettkämpfe vor dem Fenster (älter als ' + _scanEsc(d.ab || '') +
+        ') werden von regulären Läufen nicht mehr angefasst.</div>'
+      : '') +
     '<div>Funde: ' + (d.funde.gesamt || 0) + ' gesamt · ' + (d.funde.neu || 0) + ' offen</div>' +
     '<div>Letzter Lauf: ' + _scanEsc(d.letzter_lauf || '–') +
       (st.gescannt !== undefined
-        ? ' (' + st.gescannt + ' Wettkämpfe, ' + st.neue_funde + ' neue Funde, ' +
+        ? ' (' + st.gescannt + ' Wettkämpfe geprüft' +
+          (st.gedrosselt ? ', ' + st.gedrosselt + '× gedrosselt' : '') +
+          ', ' + st.neue_funde + ' neue Funde, ' +
           st.requests + ' Abrufe, ' + st.dauer + ' s' + (st.abgebrochen ? ', Zeitlimit erreicht' : '') + ')'
         : '') +
       (st.fehler ? ' – <span style="color:var(--danger,#c00)">' + _scanEsc(st.fehler) + '</span>' : '') +

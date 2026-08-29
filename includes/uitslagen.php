@@ -34,6 +34,8 @@ class Uitslagen {
 
     private static float $letzterRequest = 0.0;
     private static int   $requests       = 0;
+    private static int   $letzterCode    = 0;
+    private static float $abstand        = 1.15;   // wächst bei Drosselung
 
     public static function requests(): int { return self::$requests; }
 
@@ -67,7 +69,7 @@ class Uitslagen {
     // uitslagen.nl drosselt nicht erkennbar; der Abstand bleibt trotzdem,
     // weil pro Lauf ohnehin nur eine Handvoll Abrufe anfällt.
     private static function http(string $url, int $timeout = 25): array {
-        $wartet = 1.15 - (microtime(true) - self::$letzterRequest);
+        $wartet = self::$abstand - (microtime(true) - self::$letzterRequest);
         if ($wartet > 0) usleep((int)($wartet * 1000000));
 
         $ch = curl_init($url);
@@ -90,7 +92,16 @@ class Uitslagen {
 
         self::$letzterRequest = microtime(true);
         self::$requests++;
+        self::$letzterCode = $code;
+        if ($code === 429 || $code === 503) self::$abstand = min(5.0, self::$abstand + 1.0);
         return [$code, is_string($body) ? $body : ''];
+    }
+
+    // Vorübergehende Störung – hier ohne Warteschlange weniger folgenreich
+    // als bei den anderen Quellen (der nächste Lauf holt ohnehin alles neu),
+    // aber ein zweiter Versuch nach Pause rettet den laufenden Durchgang.
+    private static function voruebergehend(): bool {
+        return in_array(self::$letzterCode, [0, 408, 425, 429, 500, 502, 503, 504], true);
     }
 
     // ── Suchbegriffe ─────────────────────────────────────────────────────
@@ -250,7 +261,7 @@ class Uitslagen {
         // längeren mit ab. Geprüft wird weiterhin gegen die volle Liste.
         $abfrage = Scanner::sucheBegriffe($begriffe);
 
-        $stat = ['events' => 0, 'treffer' => 0, 'neue_funde' => 0, 'seiten' => 0,
+        $stat = ['events' => 0, 'treffer' => 0, 'neue_funde' => 0, 'seiten' => 0, 'gedrosselt' => 0,
                  'requests' => 0, 'abgebrochen' => false, 'begriffe' => $begriffe,
                  'abfrage_begriffe' => $abfrage, 'ab' => $grenze, 'lauf_id' => $laufId];
         if (!$begriffe) {
@@ -282,6 +293,12 @@ class Uitslagen {
                 $url = self::BASE . '/results.php?naam=' . rawurlencode($begriff)
                      . '&gbjr=&exct=&next=' . rawurlencode($next);
                 [$code, $body] = self::http($url);
+                // Bei Drosselung/Störung einmal nachfassen – der Abstand ist
+                // durch den Backoff bereits gewachsen.
+                if (($code !== 200 || $body === '') && self::voruebergehend()) {
+                    $stat['gedrosselt']++;
+                    [$code, $body] = self::http($url);
+                }
                 if ($code !== 200 || $body === '') {
                     $stat['fehler'] = 'uitslagen.nl nicht erreichbar (HTTP ' . $code . ').';
                     break;
