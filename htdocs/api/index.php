@@ -8843,6 +8843,42 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
     ]);
 }
 
+// ── GET rr-events-alt – offene Wettkämpfe vor dem Rückblick-Fenster ─────
+// Sie werden vom regulären Lauf nicht mehr angefasst (siehe Warteschlange
+// in includes/raceresult.php). Hier zum Nachsehen und gezielten Nachholen.
+if ($res === 'rr-events-alt' && $method === 'GET') {
+    Auth::requireAdmin();
+    require_once __DIR__ . '/../../includes/raceresult.php';
+    RaceResult::migrate();
+
+    $fenster = max(1, min(60, (int)Settings::get('rr_scan_tage', '14')));
+    $grenze  = date('Y-m-d', strtotime("-$fenster days"));
+    $limit   = max(1, min(1000, (int)($_GET['limit'] ?? 300)));
+
+    $rows = DB::fetchAll(
+        'SELECT event_id, name, datum, ort, land, versuche, event_over
+           FROM ' . DB::tbl('rr_events') . '
+          WHERE status = ? AND (datum < ? OR datum IS NULL)
+          ORDER BY datum DESC
+          LIMIT ' . $limit,
+        ['offen', $grenze]
+    );
+    $anzahl = (int)(DB::fetchOne(
+        'SELECT COUNT(*) AS n FROM ' . DB::tbl('rr_events') . ' WHERE status = ? AND (datum < ? OR datum IS NULL)',
+        ['offen', $grenze])['n'] ?? 0);
+
+    foreach ($rows as &$r) {
+        $r['event_id'] = (int)$r['event_id'];
+        $r['versuche'] = (int)$r['versuche'];
+        $r['url']      = 'https://my.raceresult.com/' . $r['event_id'] . '/';
+        // NULL = noch keine Ergebnisseite gesehen, 0 = da, aber nicht beendet
+        $r['event_over'] = $r['event_over'] === null ? null : (int)$r['event_over'];
+    }
+    unset($r);
+
+    jsonOk(['grenze' => $grenze, 'anzahl' => $anzahl, 'gezeigt' => count($rows), 'events' => $rows]);
+}
+
 // ── GET rr-funde – neue Vereinsfunde, nach Veranstaltung gruppiert ──────
 if ($res === 'rr-funde' && $method === 'GET') {
     Auth::requireRecht('bulk_eintragen');

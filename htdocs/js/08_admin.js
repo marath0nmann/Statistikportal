@@ -2319,9 +2319,16 @@ async function _rrScanStatus() {
       '„Ohne Ergebnisseite": es gibt (noch) keine öffentliche Liste – oft reine Anmeldungen ohne Zeitmessung; nach 6 Versuchen bzw. 21 Tagen werden sie aufgegeben. ' +
       'Beide kosten pro Lauf nur einen Abruf.</div>' +
     ((d.events.ausserhalb || 0) > 0
-      ? '<div style="margin-top:4px">' + d.events.ausserhalb + ' Wettkämpfe liegen vor dem Fenster (älter als ' + esc(d.ab || '') +
-        ') und werden nicht mehr geprüft.<br><span style="color:var(--text2)">Sie stammen aus einem früher größeren Rückblick. Zum Nachholen einmalig mit größerem Fenster laufen lassen: ' +
-        '<code>' + esc(d.scan_url) + '&amp;tage=30</code></span></div>'
+      ? '<div style="margin-top:6px;padding:8px 10px;border:1px solid var(--border);border-radius:6px">' +
+          '<strong>' + d.events.ausserhalb + ' Wettkämpfe liegen vor dem Fenster</strong> (älter als ' + esc(d.ab || '') +
+          ') und werden vom regulären Lauf nicht mehr angefasst.' +
+          '<div style="color:var(--text2);margin-top:2px">Sie stammen aus einem früher größeren Rückblick – jeder Lauf mit <code>&amp;tage=N</code> sucht auch N Tage zurück und trägt dabei weitere alte Wettkämpfe ein.</div>' +
+          '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' +
+            '<button class="btn btn-sm" onclick="rrAltAnzeigen()">&#x1F4C4; Liste anzeigen</button>' +
+            '<button class="btn btn-sm" onclick="rrAltNachholen()">&#x25B6;&#xFE0E; Diese nachholen (ohne neue Suche)</button>' +
+          '</div>' +
+          '<div id="rr-alt-liste"></div>' +
+        '</div>'
       : '') +
     '<div>Funde: ' + (d.funde.gesamt || 0) + ' gesamt · ' + (d.funde.neu || 0) + ' offen</div>' +
     '<div>Letzter Lauf: ' + esc(d.letzter_lauf || '–') +
@@ -2332,6 +2339,47 @@ async function _rrScanStatus() {
           st.requests + ' Abrufe, ' + st.dauer + ' s' + (st.abgebrochen ? ', Zeitlimit erreicht' : '') + ')'
         : '') +
     '</div>';
+}
+
+// ── Wettkämpfe vor dem Rückblick-Fenster ──────────────────────────────
+// Sie fallen aus der Warteschlange, bleiben aber in der Tabelle. Hier
+// lassen sie sich einsehen und gezielt nachholen.
+async function rrAltAnzeigen() {
+  var box = document.getElementById('rr-alt-liste');
+  if (!box) return;
+  if (box.innerHTML) { box.innerHTML = ''; return; }        // zweiter Klick klappt zu
+  box.innerHTML = '<div style="padding:8px 0">Lade&hellip;</div>';
+  var r = await apiGet('rr-events-alt');
+  if (!r || !r.ok) { box.innerHTML = '<div style="padding:8px 0">Liste konnte nicht geladen werden.</div>'; return; }
+  var d = r.data;
+  if (!d.events.length) { box.innerHTML = '<div style="padding:8px 0">Keine.</div>'; return; }
+
+  var zeilen = d.events.map(function(e) {
+    var grund = e.event_over === null ? 'keine Ergebnisseite gesehen'
+              : (e.event_over === 0 ? 'war noch nicht abgeschlossen' : 'geprüft');
+    return '<tr>' +
+      '<td style="padding:3px 8px 3px 0;white-space:nowrap">' + formatDate(e.datum) + '</td>' +
+      '<td style="padding:3px 8px 3px 0">' +
+        '<a href="' + _scanEsc(e.url) + '" target="_blank" rel="noopener">' + _scanEsc(e.name || ('Event ' + e.event_id)) + '</a></td>' +
+      '<td style="padding:3px 8px 3px 0;color:var(--text2)">' + _scanEsc(e.ort || '') + (e.land ? ' (' + _scanEsc(e.land) + ')' : '') + '</td>' +
+      '<td style="padding:3px 0;color:var(--text2);white-space:nowrap">' + e.versuche + '× · ' + grund + '</td>' +
+    '</tr>';
+  }).join('');
+
+  box.innerHTML =
+    '<div style="margin-top:8px;max-height:320px;overflow:auto;border-top:1px solid var(--border)">' +
+      '<table style="width:100%;font-size:12px;border-collapse:collapse">' + zeilen + '</table>' +
+    '</div>' +
+    (d.gezeigt < d.anzahl
+      ? '<div style="color:var(--text2);margin-top:4px">' + d.gezeigt + ' von ' + d.anzahl + ' angezeigt.</div>'
+      : '');
+}
+
+// Nachholen ohne Discovery: sonst kämen mit dem größeren Fenster wieder
+// neue alte Wettkämpfe herein, und die Liste bliebe dauerhaft lang.
+function rrAltNachholen() {
+  notify('Nachhol-Lauf gestartet – ohne neue Wettkampfsuche.', 'ok');
+  _scanStarten('rr', 'rr-scan?force=1&nodiscovery=1&tage=365&sekunden=600', _rrScanStatus);
 }
 
 function rrScanJetzt() {
