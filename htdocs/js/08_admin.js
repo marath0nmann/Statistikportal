@@ -2310,12 +2310,16 @@ async function _rrScanStatus() {
         '</strong> – kürzere Begriffe decken die längeren ab (Teilstring-Suche). Geprüft wird gegen alle.</span>' : '') +
       _scanVorschlagHtml(d, abfrage) +
     '</div>' +
-    '<div>Wettkämpfe: ' + (d.events.gesamt || 0) + ' bekannt · ' + (d.events.offen || 0) + ' offen · ' +
-      (d.events.fertig || 0) + ' geprüft · ' + (d.events.ohne || 0) + ' ohne Ergebnisliste</div>' +
+    '<div>Wettkämpfe: ' + (d.events.gesamt || 0) + ' bekannt · ' +
+      (d.events.fertig || 0) + ' geprüft · ' + (d.events.nie || 0) + ' noch nicht dran · ' +
+      (d.events.wartend || 0) + ' warten auf Abschluss · ' + (d.events.ohne || 0) + ' ohne Ergebnisliste</div>' +
+    '<div style="color:var(--text2)">„Warten auf Abschluss": RaceResult meldet den Wettkampf noch nicht als beendet (EventOver) – die Ergebnisliste wäre unvollständig. Solche Wettkämpfe kosten pro Lauf nur einen Abruf und werden am Folgetag fertig geprüft.</div>' +
     '<div>Funde: ' + (d.funde.gesamt || 0) + ' gesamt · ' + (d.funde.neu || 0) + ' offen</div>' +
     '<div>Letzter Lauf: ' + esc(d.letzter_lauf || '–') +
       (st.gescannt !== undefined
-        ? ' (' + st.gescannt + ' Wettkämpfe, ' + st.neue_funde + ' neue Funde, ' +
+        ? ' (' + st.gescannt + ' Wettkämpfe geprüft' +
+          (st.nicht_final ? ', ' + st.nicht_final + ' noch nicht abgeschlossen' : '') +
+          ', ' + st.neue_funde + ' neue Funde, ' +
           st.requests + ' Abrufe, ' + st.dauer + ' s' + (st.abgebrochen ? ', Zeitlimit erreicht' : '') + ')'
         : '') +
     '</div>';

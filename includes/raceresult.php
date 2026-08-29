@@ -150,9 +150,14 @@ class RaceResult {
         return $out;
     }
 
-    // ── 2a. Event-Config (Key + Listen) ──────────────────────────────────
-    // Gibt ['key' => …, 'listen' => [['name'=>…,'contest'=>…], …]] zurück
-    // oder null, wenn das Event keine öffentliche Ergebnisseite hat.
+    // ── 2a. Event-Config (Key + Listen + Abschluss-Flag) ─────────────────
+    // Gibt ['key' => …, 'listen' => […], 'over' => bool] zurück oder null,
+    // wenn das Event keine öffentliche Ergebnisseite hat.
+    //
+    // `EventOver` ist RaceResults eigenes Kennzeichen dafür, dass die
+    // Zeitmessung abgeschlossen ist – am Wettkampftag steht es auf False,
+    // spätestens am Folgetag auf True. Damit muss der Scanner nicht mehr
+    // über zwei Durchgänge raten, ob eine Liste vollständig ist.
     //
     // Wichtig: Listen sind oft an einen Contest gebunden ("Contest":"1").
     // Ein Abruf mit contest=0 antwortet dann mit 404 "list not found" –
@@ -194,7 +199,12 @@ class RaceResult {
             $listen = self::listenWaehlen(array_values($kandidaten));
             if (!$listen) continue;
 
-            return ['key' => (string)$c['key'], 'listen' => $listen];
+            $over = $c['EventOver'] ?? null;
+            return [
+                'key'    => (string)$c['key'],
+                'listen' => $listen,
+                'over'   => ($over === true || $over === 'True' || $over === 1 || $over === '1'),
+            ];
         }
         return null;
     }
@@ -373,9 +383,9 @@ class RaceResult {
         // Abfragebegriffe (reduziert) vs. Prüfbegriffe (vollständig)
         $abfrage = Scanner::sucheBegriffe($begriffe);
 
-        $stat = ['neue_events' => 0, 'gescannt' => 0, 'treffer' => 0, 'neue_funde' => 0,
-                 'requests' => 0, 'abgebrochen' => false, 'begriffe' => $begriffe,
-                 'abfrage_begriffe' => $abfrage];
+        $stat = ['neue_events' => 0, 'gescannt' => 0, 'nicht_final' => 0, 'treffer' => 0,
+                 'neue_funde' => 0, 'requests' => 0, 'abgebrochen' => false,
+                 'begriffe' => $begriffe, 'abfrage_begriffe' => $abfrage];
         if (!$begriffe) {
             $stat['fehler'] = 'Keine Suchbegriffe konfiguriert.';
             Scanner::fortschritt(self::FORTSCHRITT, ['phase' => 'fertig', 'fehler' => $stat['fehler']]);
@@ -418,7 +428,10 @@ class RaceResult {
             'SELECT * FROM ' . DB::tbl('rr_events') . '
               WHERE status = ? AND datum IS NOT NULL AND datum <= CURDATE()
                 AND (letzter_scan IS NULL OR letzter_scan < NOW() - INTERVAL 20 HOUR)
-              ORDER BY letzter_scan IS NULL DESC, datum DESC
+              -- Wettkämpfe vergangener Tage zuerst: die von heute sind
+              -- meist noch nicht abgeschlossen und würden den Platz im
+              -- Budget belegen, ohne verwertbare Listen zu liefern.
+              ORDER BY (datum < CURDATE()) DESC, letzter_scan IS NULL DESC, datum DESC
               LIMIT ' . (int)$budget,
             ['offen']
         );
@@ -440,6 +453,18 @@ class RaceResult {
                 // Noch keine öffentliche Ergebnisseite – begrenzt nachfassen
                 $neuerStatus = ((int)$ev['versuche'] + 1 >= 6 || $ev['datum'] < date('Y-m-d', strtotime('-21 days')))
                     ? 'ohne_ergebnis' : 'offen';
+                DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET versuche = versuche + 1, letzter_scan = NOW(), status = ? WHERE event_id = ?',
+                    [$neuerStatus, $eid]);
+                continue;
+            }
+
+            // Noch nicht abgeschlossen → gar nicht erst durchsuchen. Das spart
+            // die Suchabrufe und verhindert Funde mit vorläufigen Zeiten, die
+            // beim späteren Lauf als zweiter Fund derselben Person auftauchen
+            // würden (der Schlüssel enthält die Zeit).
+            if (!$cfg['over']) {
+                $stat['nicht_final']++;
+                $neuerStatus = ($ev['datum'] < date('Y-m-d', strtotime('-21 days'))) ? 'ohne_ergebnis' : 'offen';
                 DB::query('UPDATE ' . DB::tbl('rr_events') . ' SET versuche = versuche + 1, letzter_scan = NOW(), status = ? WHERE event_id = ?',
                     [$neuerStatus, $eid]);
                 continue;
@@ -477,10 +502,12 @@ class RaceResult {
             $stat['treffer']    += count($zeilen);
             $stat['neue_funde'] += $neu;
 
-            // Zweiter erfolgreicher Scan (frühestens am Folgetag) reicht:
-            // bis dahin sind Ergebnislisten praktisch immer vollständig.
+            // RaceResult meldet den Wettkampf als abgeschlossen (EventOver),
+            // die Liste ändert sich also nicht mehr – ein Durchgang genügt.
+            // Früher waren es zwei im Abstand von 20 h; das war doppelt so
+            // teuer und trotzdem nur geraten.
             $okScans = (int)$ev['ok_scans'] + 1;
-            $fertig  = $okScans >= 2 && $ev['datum'] < $heute;
+            $fertig  = true;
             DB::query(
                 'UPDATE ' . DB::tbl('rr_events') . '
                     SET ok_scans = ?, versuche = versuche + 1, treffer = ?, letzter_scan = NOW(), status = ?

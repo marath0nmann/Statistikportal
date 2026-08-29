@@ -8799,9 +8799,14 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
     $token = Settings::get('rr_scan_token', '');
     if ($token === '') { $token = bin2hex(random_bytes(16)); Settings::set('rr_scan_token', $token); }
 
+    // „offen" trennen: noch nie angefasst vs. schon geprüft, aber von
+    // RaceResult noch nicht als abgeschlossen gemeldet (EventOver).
     $z = DB::fetchOne('SELECT
-            SUM(status = ?) AS offen, SUM(status = ?) AS fertig, SUM(status = ?) AS ohne, COUNT(*) AS gesamt
-          FROM ' . DB::tbl('rr_events'), ['offen', 'fertig', 'ohne_ergebnis']) ?: [];
+            SUM(status = ?) AS offen,
+            SUM(status = ? AND versuche = 0) AS nie,
+            SUM(status = ? AND versuche > 0) AS wartend,
+            SUM(status = ?) AS fertig, SUM(status = ?) AS ohne, COUNT(*) AS gesamt
+          FROM ' . DB::tbl('rr_events'), ['offen', 'offen', 'offen', 'fertig', 'ohne_ergebnis']) ?: [];
     $funde = DB::fetchOne('SELECT SUM(status = ?) AS neu, COUNT(*) AS gesamt FROM ' . DB::tbl('rr_funde'), ['neu']) ?: [];
 
     jsonOk([

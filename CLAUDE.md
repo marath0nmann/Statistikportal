@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1531
+## Aktuelle Version: v1532
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -151,7 +151,7 @@ gegen erfasste Ergebnisse), gemeinsames Panel-Rendering in `_bkFundePanelHtml()`
 
 | Quelle | Bibliothek | Verfahren | Cron |
 |---|---|---|---|
-| RaceResult | `includes/raceresult.php` | Discovery je Land + Volltextsuche je Event, Warteschlange `rr_events` | `/api/rr-scan?token=…` (stündlich) |
+| RaceResult | `includes/raceresult.php` | Discovery je Land + Volltextsuche je Event, Warteschlange `rr_events`; durchsucht wird erst, wenn die Config `EventOver` meldet | `/api/rr-scan?token=…` (stündlich) |
 | uitslagen.nl | `includes/uitslagen.php` | Eine seitenweite Volltextsuche je Suchbegriff (`/results.php?naam=…`), keine Discovery | `/api/uits-scan?token=…` (täglich) |
 | leichtathletik.de | `includes/leichtathletik.php` | Discovery über `/Competitions/CurrentPast?page=N` + Teilnehmerliste je Wettkampf, Warteschlange `la_events` | `/api/la-scan?token=…` (stündlich) |
 
