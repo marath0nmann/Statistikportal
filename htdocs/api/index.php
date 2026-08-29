@@ -8784,7 +8784,9 @@ if ($res === 'rr-scan' && $method === 'GET') {
     if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
     $maxSek = max(30, min(900, (int)($_GET['sekunden'] ?? 240)));
     $budget = max(0, min(500, (int)($_GET['budget'] ?? 0)));
-    jsonOk(RaceResult::scan($budget, $maxSek, empty($_GET['nodiscovery'])));
+    // ?tage=… überschreibt das Rückblick-Fenster für diesen einen Lauf
+    $tage   = max(0, min(365, (int)($_GET['tage'] ?? 0)));
+    jsonOk(RaceResult::scan($budget, $maxSek, empty($_GET['nodiscovery']), $tage));
 }
 
 // ── GET rr-scan-status – Konfiguration + letzter Lauf (Admin) ────────────
@@ -8801,17 +8803,26 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
 
     // „offen" trennen: noch nie angefasst vs. schon geprüft, aber von
     // RaceResult noch nicht als abgeschlossen gemeldet (EventOver).
+    // „offen" aufschlüsseln: noch nie angefasst, schon geprüft aber von
+    // RaceResult noch nicht als abgeschlossen gemeldet (EventOver), oder
+    // inzwischen aus dem Rückblick-Fenster gefallen.
+    $fenster = max(1, min(60, (int)Settings::get('rr_scan_tage', '14')));
+    $grenze  = date('Y-m-d', strtotime("-$fenster days"));
     $z = DB::fetchOne('SELECT
             SUM(status = ?) AS offen,
-            SUM(status = ? AND versuche = 0) AS nie,
-            SUM(status = ? AND versuche > 0) AS wartend,
+            SUM(status = ? AND versuche = 0 AND datum >= ?) AS nie,
+            SUM(status = ? AND versuche > 0 AND datum >= ?) AS wartend,
+            SUM(status = ? AND (datum < ? OR datum IS NULL)) AS ausserhalb,
             SUM(status = ?) AS fertig, SUM(status = ?) AS ohne, COUNT(*) AS gesamt
-          FROM ' . DB::tbl('rr_events'), ['offen', 'offen', 'offen', 'fertig', 'ohne_ergebnis']) ?: [];
+          FROM ' . DB::tbl('rr_events'),
+          ['offen', 'offen', $grenze, 'offen', $grenze, 'offen', $grenze, 'fertig', 'ohne_ergebnis']) ?: [];
     $funde = DB::fetchOne('SELECT SUM(status = ?) AS neu, COUNT(*) AS gesamt FROM ' . DB::tbl('rr_funde'), ['neu']) ?: [];
 
     jsonOk([
         'token'         => $token,
         'scan_url'      => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/rr-scan?token=' . $token,
+        'fenster'       => $fenster,
+        'ab'            => $grenze,
         'letzter_lauf'  => Settings::get('rr_scan_letzter_lauf', ''),
         'letzter_status'=> json_decode(Settings::get('rr_scan_letzter_status', '') ?: 'null', true),
         'begriffe'      => RaceResult::begriffe(),

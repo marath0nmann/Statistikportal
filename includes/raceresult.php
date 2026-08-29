@@ -371,21 +371,24 @@ class RaceResult {
     // ── Hauptlauf ────────────────────────────────────────────────────────
     // $budget      max. Events pro Lauf, $maxSekunden Wanduhr-Deckel.
     // $discovery   false = nur Warteschlange abarbeiten.
-    public static function scan(int $budget = 0, int $maxSekunden = 240, bool $discovery = true): array {
+    // $tage überschreibt das eingestellte Rückblick-Fenster für einen
+    // einzelnen Lauf – gedacht zum Aufholen eines Rückstands.
+    public static function scan(int $budget = 0, int $maxSekunden = 240, bool $discovery = true, int $tage = 0): array {
         self::migrate();
         $start = microtime(true);
 
         $budget    = $budget > 0 ? $budget : max(1, (int)Settings::get('rr_scan_budget', '60'));
-        $fenster   = max(1, min(60, (int)Settings::get('rr_scan_tage', '14')));
+        $fenster   = $tage > 0 ? min(365, $tage) : max(1, min(60, (int)Settings::get('rr_scan_tage', '14')));
         $begriffe  = self::begriffe();
         $heute     = date('Y-m-d');
+        $grenze    = date('Y-m-d', strtotime("-$fenster days"));
 
         // Abfragebegriffe (reduziert) vs. Prüfbegriffe (vollständig)
         $abfrage = Scanner::sucheBegriffe($begriffe);
 
         $stat = ['neue_events' => 0, 'gescannt' => 0, 'nicht_final' => 0, 'treffer' => 0,
                  'neue_funde' => 0, 'requests' => 0, 'abgebrochen' => false,
-                 'begriffe' => $begriffe, 'abfrage_begriffe' => $abfrage];
+                 'begriffe' => $begriffe, 'abfrage_begriffe' => $abfrage, 'ab' => $grenze];
         if (!$begriffe) {
             $stat['fehler'] = 'Keine Suchbegriffe konfiguriert.';
             Scanner::fortschritt(self::FORTSCHRITT, ['phase' => 'fertig', 'fehler' => $stat['fehler']]);
@@ -408,7 +411,7 @@ class RaceResult {
                     'i' => 0, 'gesamt' => 0, 'neue_funde' => 0,
                     'aktuell' => 'Wettkampfsuche ' . self::LAENDER[$landId],
                 ]);
-                $events = self::events($landId, date('Y-m-d', strtotime("-$fenster days")), $heute);
+                $events = self::events($landId, $grenze, $heute);
                 foreach ($events as $eid => $e) {
                     $n = DB::query(
                         'INSERT IGNORE INTO ' . DB::tbl('rr_events') . ' (event_id, name, datum, ort, land) VALUES (?,?,?,?,?)',
@@ -427,13 +430,18 @@ class RaceResult {
         $queue = DB::fetchAll(
             'SELECT * FROM ' . DB::tbl('rr_events') . '
               WHERE status = ? AND datum IS NOT NULL AND datum <= CURDATE()
+                -- Auch nach unten begrenzen: sonst bleiben Wettkämpfe, die
+                -- unter einem früher größeren Fenster entdeckt wurden, für
+                -- immer in der Warteschlange und belegen das Budget. Wird das
+                -- Fenster wieder vergrößert, kommen sie von selbst zurück.
+                AND datum >= ?
                 AND (letzter_scan IS NULL OR letzter_scan < NOW() - INTERVAL 20 HOUR)
               -- Wettkämpfe vergangener Tage zuerst: die von heute sind
               -- meist noch nicht abgeschlossen und würden den Platz im
               -- Budget belegen, ohne verwertbare Listen zu liefern.
               ORDER BY (datum < CURDATE()) DESC, letzter_scan IS NULL DESC, datum DESC
               LIMIT ' . (int)$budget,
-            ['offen']
+            ['offen', $grenze]
         );
 
         $nr = 0;
