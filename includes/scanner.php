@@ -45,14 +45,14 @@ class Scanner {
     }
 
     // Neuen Lauf anlegen; gibt die Lauf-ID zurück.
-    public static function laufStart(string $quelle, string $ausloeser = ''): string {
+    public static function laufStart(string $quelle, ?string $ausloeser = ''): string {
         try {
             self::laufTabelle();
             // Alte Läufe aufräumen – die Tabelle ist reine Anzeige
             DB::query('DELETE FROM ' . DB::tbl('scan_laeufe') . ' WHERE aktualisiert < NOW() - INTERVAL 2 DAY');
             $id = bin2hex(random_bytes(6));
             DB::query('INSERT INTO ' . DB::tbl('scan_laeufe') . ' (id, quelle, phase, aktuell, ausloeser) VALUES (?,?,?,?,?)',
-                [$id, $quelle, 'start', 'Lauf gestartet', mb_substr($ausloeser, 0, 32)]);
+                [$id, $quelle, 'start', 'Lauf gestartet', mb_substr((string)$ausloeser, 0, 32)]);
             return $id;
         } catch (Throwable $e) { return ''; }
     }

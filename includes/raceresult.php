@@ -400,9 +400,6 @@ class RaceResult {
     public static function scan(int $budget = 0, int $maxSekunden = 240, array $opt = []): array {
         self::migrate();
         $start = microtime(true);
-        // Eigene Zeile je Lauf – zwei gleichzeitige Läufe derselben Quelle
-        // (Cronjob und „Jetzt scannen") sollen sich nicht überschreiben.
-        $laufId = Scanner::laufStart('rr', $ausloeser);
 
         $discovery = $opt['discovery'] ?? true;
         $tage      = (int)($opt['tage'] ?? 0);
@@ -410,6 +407,10 @@ class RaceResult {
         $nurAlt    = !empty($opt['nur_alt']);
         // Woher der Lauf kam – erscheint im Panel neben dem Balken
         $ausloeser = (string)($opt['ausloeser'] ?? '');
+
+        // Eigene Zeile je Lauf – zwei gleichzeitige Läufe derselben Quelle
+        // (Cronjob und „Jetzt scannen") sollen sich nicht überschreiben.
+        $laufId = Scanner::laufStart('rr', $ausloeser);
 
         $budget    = $budget > 0 ? $budget : max(1, (int)Settings::get('rr_scan_budget', '60'));
         $fenster   = $tage > 0 ? min(365, $tage) : max(1, min(60, (int)Settings::get('rr_scan_tage', '14')));

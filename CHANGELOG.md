@@ -1,3 +1,8 @@
+## v1546
+- **Fix: Jeder RaceResult-Lauf brach sofort mit einem TypeError ab** („Argument #2 ($ausloeser) must be of type string, null given"). Beim Umbau auf Läufe (v1544) landete `Scanner::laufStart()` in `RaceResult::scan()` vor dem Auspacken der Optionen – `$ausloeser` existierte an dieser Stelle noch nicht und kam als `null` an. Betroffen war nur RaceResult; bei den beiden anderen Scannern ist der Auslöser ein Funktionsparameter und damit immer gesetzt.
+- `Scanner::laufStart()` nimmt den Auslöser zusätzlich als `?string` entgegen, damit ein fehlender Wert nie wieder den ganzen Lauf verhindert.
+- Der Testlauf ruft jetzt alle fünf Einstiegspunkte der drei Scanner durch (RaceResult mit und ohne Optionen, uitslagen.nl, leichtathletik.de) statt nur die Hilfsfunktionen. Der Fehler wäre sonst wieder erst auf dem Server aufgefallen.
+
 ## v1545
 - **Fix: Die Scanner-Panels blieben bei „Status wird geladen…" stehen.** Beim Umbau auf eine Fortschrittsleiste je Lauf (v1544) hat mein Blockersatz drei Funktionen mitgenommen, die direkt hinter der ersetzten Stelle standen: den Taktgeber (`_scanTaktStart`), `_scanMelden` und `_scanStarten`. Die Status-Funktionen brachen dadurch mitten im Rendern ab – nach der Fehlerprüfung, aber vor dem Schreiben des Inhalts, weshalb genau der Platzhalter stehen blieb. Die Funktionen sind wieder da.
 - Die drei Status-Funktionen werden jetzt auch geprüft, nicht nur der Seitenaufbau: ein Testlauf ruft sie mit einer realistischen API-Antwort auf und stellt sicher, dass sie tatsächlich Inhalt erzeugen (Fortschrittsleiste, Auslöser, Abbrechen-Knopf je Lauf, Cron-URL). Genau diese Lücke hatte den Fehler durchgelassen.
