@@ -9094,13 +9094,17 @@ if ($res === 'la-scan-status' && $method === 'GET') {
     // des Rückblick-Fensters nicht als unerklärlicher Rest stehen bleiben.
     $laFenster = max(1, min(60, (int)Settings::get('la_scan_tage', '14')));
     $laGrenze  = date('Y-m-d', strtotime("-$laFenster days"));
+    // Die Wettkampfliste des DLV enthält auch künftige Termine. Die sind
+    // „offen", aber nicht fällig – sie getrennt zählen, sonst sieht ein
+    // Rückstand aus, wo nur der Kalender vorausläuft.
     $z = DB::fetchOne('SELECT SUM(status = ?) AS offen,
-                              SUM(status = ? AND datum >= ?) AS im_fenster,
+                              SUM(status = ? AND datum >= ? AND datum <= CURDATE()) AS im_fenster,
+                              SUM(status = ? AND datum > CURDATE()) AS kuenftig,
                               SUM(status = ? AND (datum < ? OR datum IS NULL)) AS ausserhalb,
                               SUM(status = ?) AS fertig,
                               SUM(status = ?) AS ohne, COUNT(*) AS gesamt
                          FROM ' . DB::tbl('la_events'),
-                         ['offen', 'offen', $laGrenze, 'offen', $laGrenze, 'fertig', 'ohne_liste']) ?: [];
+                         ['offen', 'offen', $laGrenze, 'offen', 'offen', $laGrenze, 'fertig', 'ohne_liste']) ?: [];
     $funde = DB::fetchOne('SELECT SUM(status = ?) AS neu, COUNT(*) AS gesamt FROM ' . DB::tbl('la_funde'), ['neu']) ?: [];
 
     jsonOk([

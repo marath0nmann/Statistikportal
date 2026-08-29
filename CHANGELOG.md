@@ -1,3 +1,8 @@
+## v1551
+- **leichtathletik.de: „offen im Fenster" zählte zwei verschiedene Dinge zusammen.** Die Wettkampfliste des DLV nennt auch **künftige** Termine (Seite 1 reicht rund eine Woche voraus). Die landen in der Warteschlange, sind „offen", aber gar nicht fällig – geprüft wird erst ab dem Wettkampftag. Sie erschienen damit als Rückstand, wo nur der Kalender vorausläuft.
+- Die Zeile trennt jetzt **zu prüfen** (Termin vorbei, Liste noch nicht eingelesen – kommt beim nächsten Lauf dran) von **noch nicht stattgefunden** (künftige Termine) und erklärt beide.
+- RaceResult ist davon nicht betroffen: dessen Discovery fragt ausdrücklich den Zeitraum bis heute ab und trägt keine künftigen Wettkämpfe ein.
+
 ## v1550
 - **Die Erkenntnisse aus dem RaceResult-Scanner auf die beiden anderen Quellen übertragen.** Geprüft wurde jeder Punkt einzeln; übernommen wurde, was dort tatsächlich zutrifft.
 - **leichtathletik.de hatte denselben Fehler wie RaceResult vor v1547, sogar schärfer:** Jede Antwort außer HTTP 200 galt als „keine Teilnehmerliste" und verbrauchte einen Versuch – bei nur **drei** erlaubten Versuchen hätte eine halbe Stunde Serverlast einen Wettkampf dauerhaft abgeschrieben. Drosselung (429), Serverfehler und Transportfehler zählen jetzt nicht mehr als Fehlversuch; bei 429/503 wächst der Abstand zwischen Abrufen (bis 6 s, für den Rest des Laufs).

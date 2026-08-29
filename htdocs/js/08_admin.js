@@ -2526,8 +2526,11 @@ async function _laScanStatus() {
       '<br><span style="color:var(--text2)">Zusätzliche Begriffe kosten hier nichts: der Verein steht in einer eigenen Spalte, es wird verglichen statt gesucht.</span>' +
     '</div>' +
     '<div>Wettkämpfe: ' + (d.events.gesamt || 0) + ' bekannt · ' +
-      (d.events.fertig || 0) + ' geprüft · ' + (d.events.im_fenster || 0) + ' offen im Fenster · ' +
+      (d.events.fertig || 0) + ' geprüft · ' + (d.events.im_fenster || 0) + ' zu prüfen · ' +
+      (d.events.kuenftig || 0) + ' noch nicht stattgefunden · ' +
       (d.events.ausserhalb || 0) + ' vor dem Fenster · ' + (d.events.ohne || 0) + ' ohne Teilnehmerliste</div>' +
+    '<div style="color:var(--text2)">„Zu prüfen": Termin vorbei, Teilnehmerliste noch nicht eingelesen – kommt beim nächsten Lauf dran. ' +
+      '„Noch nicht stattgefunden": künftige Termine, die die Wettkampfliste schon nennt; sie werden ab ihrem Wettkampftag geprüft.</div>' +
     ((d.events.ausserhalb || 0) > 0
       ? '<div style="color:var(--text2)">Wettkämpfe vor dem Fenster (älter als ' + _scanEsc(d.ab || '') +
         ') werden von regulären Läufen nicht mehr angefasst.</div>'
