@@ -289,6 +289,9 @@ class RaceResult {
                 'platz'        => self::feld($zeile, $map, 'platz'),
                 'ak_platz'     => self::feld($zeile, $map, 'ak_platz'),
                 'startnr'      => self::feld($zeile, $map, 'startnr'),
+                // Rohwerte für den Rückfall in funde(), falls die Liste keine
+                // eigene Vereinsspalte hat.
+                '_roh'         => array_map(fn($v) => is_scalar($v) ? trim(strip_tags((string)$v)) : '', $zeile),
             ];
         }
         return $out;
@@ -325,7 +328,13 @@ class RaceResult {
             $f = mb_strtolower((string)$roh);
             $setz = function(string $k) use (&$m, $i) { if (!isset($m[$k])) $m[$k] = $i; };
 
-            if (str_contains($f, 'anzeigename') || str_contains($f, 'fullname')
+            // „AnzeigeTitel" ist in RaceResult-Vorlagen ein gängiger Name für
+            // die Anzeigespalte des Teilnehmers – wurde sie nicht erkannt,
+            // blieb der Name leer und die Zeile fiel in funde() heraus,
+            // obwohl der Verein passte.
+            if (str_contains($f, 'anzeigename') || str_contains($f, 'anzeigetitel')
+                || str_contains($f, 'fullname') || str_contains($f, 'displayname')
+                || str_contains($f, 'teilnehmer') || str_contains($f, 'participant')
                 || str_contains($f, 'flname') || str_contains($f, 'lfname')
                 || preg_match('/\[name\]|^name$/', $f))                  $setz('name');
             elseif (str_contains($f, 'nachname') || str_contains($f, 'lastname')) $setz('name');
@@ -580,10 +589,33 @@ class RaceResult {
     // wird die Zeile verworfen (sonst überwiegt das Rauschen).
     private static function funde(int $eventId, array $zeilen, array $begriffe): int {
         $normBegriffe = array_map([self::class, 'norm'], $begriffe);
+        // Nur mehrteilige Begriffe taugen für den Rückfall unten: „TuS Oedt"
+        // ist eindeutig genug, „Oedt" allein wäre auch ein Wohnort.
+        $eindeutig = [];
+        foreach ($begriffe as $i => $b) {
+            if (count(preg_split('/\s+/', trim($b), -1, PREG_SPLIT_NO_EMPTY) ?: []) >= 2)
+                $eindeutig[] = $normBegriffe[$i];
+        }
+
         $neu = 0;
         foreach ($zeilen as $z) {
             $verein = trim($z['verein'] ?? '');
+
+            // Manche Ergebnislisten führen gar keine Vereinsspalte (sie zeigen
+            // z.B. nur den Wohnort). Dann ist die Zeile nicht verloren: die
+            // serverseitige Suche hat ja irgendwo getroffen. Ein mehrteiliger
+            // Begriff, der in einem der Rohfelder steht, wird deshalb als
+            // Vereinsangabe übernommen.
+            if ($verein === '' && $eindeutig && !empty($z['_roh'])) {
+                foreach ($z['_roh'] as $wert) {
+                    $nw = self::norm((string)$wert);
+                    foreach ($eindeutig as $b) {
+                        if ($b !== '' && str_contains($nw, $b)) { $verein = trim((string)$wert); break 2; }
+                    }
+                }
+            }
             if ($verein === '') continue;
+
             $nv = self::norm($verein);
             $passt = false;
             foreach ($normBegriffe as $b) { if ($b !== '' && str_contains($nv, $b)) { $passt = true; break; } }
