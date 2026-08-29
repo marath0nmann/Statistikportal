@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1527
+## Aktuelle Version: v1528
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -144,7 +144,9 @@ system, benutzer, registrierungen, disziplinen, altersklassen, meisterschaften, 
 
 ### Ergebnis-Scanner (proaktive Funde)
 Beide melden Starts des eigenen Vereins auf der Eintragen-Seite; der Import läuft
-unverändert über die bestehenden Importer. Gemeinsame Aufbereitung in
+unverändert über die bestehenden Importer. Konfiguration für beide:
+**Admin → ⚙️ Einstellungen** (`renderAdminDarstellung()` in `08_admin.js`, Tab-Id
+`darstellung`) – *nicht* Admin → System. Gemeinsame Aufbereitung in
 `includes/scanner.php` (`Scanner::gruppiere()` → Athletenzuordnung + Abgleich
 gegen erfasste Ergebnisse), gemeinsames Panel-Rendering in `_bkFundePanelHtml()`.
 
