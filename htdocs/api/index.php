@@ -8824,7 +8824,11 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
 
     jsonOk([
         'token'         => $token,
-        'scan_url'      => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/index.php?_route=rr-scan&token=' . $token,
+        // Zeitbudget aus dem Wettkampf-Budget ableiten (~3 s je Wettkampf,
+        // plus Reserve). Ohne passendes &sekunden bräche ein Lauf mit großem
+        // Budget nach der Vorgabe von 240 s ab und ließe den Rest liegen.
+        'scan_url'      => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/index.php?_route=rr-scan&token=' . $token
+                           . '&sekunden=' . max(240, min(900, (int)Settings::get('rr_scan_budget', '60') * 5)),
         'fenster'       => $fenster,
         'ab'            => $grenze,
         'letzter_lauf'  => Settings::get('rr_scan_letzter_lauf', ''),
@@ -9032,7 +9036,8 @@ if ($res === 'la-scan-status' && $method === 'GET') {
 
     jsonOk([
         'token'          => $token,
-        'scan_url'       => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/index.php?_route=la-scan&token=' . $token,
+        'scan_url'       => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/index.php?_route=la-scan&token=' . $token
+                            . '&sekunden=' . max(240, min(900, (int)Settings::get('la_scan_budget', '40') * 5)),
         'letzter_lauf'   => Settings::get('la_scan_letzter_lauf', ''),
         'letzter_status' => json_decode(Settings::get('la_scan_letzter_status', '') ?: 'null', true),
         'begriffe'       => Leichtathletik::begriffe(),

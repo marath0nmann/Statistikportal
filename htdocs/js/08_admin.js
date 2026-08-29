@@ -1931,7 +1931,8 @@ async function renderAdminQuellen() {
         _admTextIn('cfg-rr_scan_begriffe', _admCfg(cfg, 'rr_scan_begriffe',''), 'z.B. TuS Oedt, TuS 1911 Oedt')) +
       _admRow('Rückblick (Tage)', 'Wie weit die tägliche Wettkampfsuche zurückreicht',
         _admNumIn('cfg-rr_scan_tage', _admCfg(cfg, 'rr_scan_tage','14'), 1, 60)) +
-      _admRow('Wettkämpfe pro Lauf', 'Obergrenze je Cron-Aufruf (ca. 2,5 Sekunden pro Wettkampf)',
+      _admRow('Wettkämpfe pro Lauf', 'Obergrenze je Cron-Aufruf (ca. 3 Sekunden pro Wettkampf). ' +
+        'Bei täglichem Cron trägt ein Lauf das ganze Wochenende – auf Samstag und Sonntag entfallen rund zwei Drittel aller Wettkämpfe; 120 geben dann Reserve, bei stündlichem Cron genügen 60.',
         _admNumIn('cfg-rr_scan_budget', _admCfg(cfg, 'rr_scan_budget','60'), 1, 500)) +
       '<div id="rr-scan-status" style="margin-top:14px;font-size:12px;color:var(--text2)">Status wird geladen&hellip;</div>' +
       '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
