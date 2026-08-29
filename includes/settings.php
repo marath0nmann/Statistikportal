@@ -33,10 +33,13 @@ class Settings {
         'rr_scan_begriffe'           => ['',                                                    'Suchbegriffe (leer = Vereinsname + Kurzbezeichnung)', 'raceresult'],
         'rr_scan_tage'               => ['14',                                                  'Rückblick-Fenster in Tagen',                       'raceresult'],
         'rr_scan_budget'             => ['60',                                                  'Max. Wettkämpfe pro Scanlauf',                     'raceresult'],
+        'uits_scan_aktiv'            => ['0',                                                   'uitslagen.nl-Scanner aktiv',                      'uitslagen'],
+        'uits_scan_begriffe'         => ['',                                                    'Suchbegriffe (leer = wie RaceResult-Scanner)',    'uitslagen'],
+        'uits_scan_tage'             => ['30',                                                  'Rückblick-Fenster in Tagen',                      'uitslagen'],
     ];
 
     // Nie über die öffentliche GET-Route ausliefern (Zugangsdaten).
-    public const GEHEIM = ['github_token', 'rr_scan_token'];
+    public const GEHEIM = ['github_token', 'rr_scan_token', 'uits_scan_token'];
 
     // ── Alle Einstellungen als key→value laden, fehlende Defaults einmalig schreiben
     public static function all(): array {

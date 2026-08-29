@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1514
+## Aktuelle Version: v1527
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -141,6 +141,19 @@ system, benutzer, registrierungen, disziplinen, altersklassen, meisterschaften, 
 - Event-Name: `prod.chronorace.be/api/Event/view/{uuid}` → `.Title`
 - ctx-Format: `YYYYMMDD_ort` (z.B. `20260329_venlo`)
 - HTML-stripping: `/<.*$/` (nicht `/<[^>]+>/g` wegen Geschwindigkeitsangaben wie "20.4 km/h")
+
+### Ergebnis-Scanner (proaktive Funde)
+Beide melden Starts des eigenen Vereins auf der Eintragen-Seite; der Import läuft
+unverändert über die bestehenden Importer. Gemeinsame Aufbereitung in
+`includes/scanner.php` (`Scanner::gruppiere()` → Athletenzuordnung + Abgleich
+gegen erfasste Ergebnisse), gemeinsames Panel-Rendering in `_bkFundePanelHtml()`.
+
+| Quelle | Bibliothek | Verfahren | Cron |
+|---|---|---|---|
+| RaceResult | `includes/raceresult.php` | Discovery je Land + Volltextsuche je Event, Warteschlange `rr_events` | `/api/rr-scan?token=…` (stündlich) |
+| uitslagen.nl | `includes/uitslagen.php` | Eine seitenweite Volltextsuche je Suchbegriff (`/results.php?naam=…`), keine Discovery | `/api/uits-scan?token=…` (täglich) |
+
+Nicht proaktiv (nur manueller Import): ACN Timing, leichtathletik.de.
 
 ### PB-Prioritäten
 - Prio 0: Gesamtbestleistung

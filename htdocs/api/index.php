@@ -1720,6 +1720,7 @@ if ($res === 'einstellungen') {
                 'login_portal_aktiv','login_portal_url','login_portal_apps','passkey_rp_id',
                 'eigenes_veranst_prufen','eigenes_ergebnis_prufen',
                 'rr_scan_aktiv','rr_scan_laender','rr_scan_begriffe','rr_scan_tage','rr_scan_budget',
+                'uits_scan_aktiv','uits_scan_begriffe','uits_scan_tage',
             ];
             $save = [];
             foreach ($erlaubt as $k) {
@@ -8813,6 +8814,7 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
 if ($res === 'rr-funde' && $method === 'GET') {
     Auth::requireRecht('bulk_eintragen');
     require_once __DIR__ . '/../../includes/raceresult.php';
+    require_once __DIR__ . '/../../includes/scanner.php';
     RaceResult::migrate();
 
     $rows = DB::fetchAll(
@@ -8823,77 +8825,9 @@ if ($res === 'rr-funde' && $method === 'GET') {
           ORDER BY e.datum DESC, e.event_id, f.wettbewerb, f.name',
         ['neu']
     );
-    if (!$rows) jsonOk([]);
-
-    // Athletenzuordnung + Abgleich mit bereits erfassten Ergebnissen.
-    // Namensform unterscheidet sich (RaceResult "Vorname Nachname",
-    // hier "Nachname, Vorname") → Vergleich über sortierte Namensteile.
-    $namensKey = function (string $n): string {
-        $t = preg_split('/[\s,]+/', mb_strtolower(trim($n)), -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        $t = array_map([RaceResult::class, 'norm'], $t);
-        sort($t);
-        return implode(' ', array_filter($t));
-    };
-
-    $athIdx = [];
-    foreach (DB::fetchAll('SELECT id, vorname, nachname, geschlecht, geburtsjahr FROM ' . DB::tbl('athleten')) as $a) {
-        $athIdx[$namensKey($a['vorname'] . ' ' . $a['nachname'])] = $a;
-    }
-
-    // Bereits erfasste Ergebnisse im Zeitraum der Funde (Verein + extern)
-    $daten = array_values(array_unique(array_filter(array_column($rows, 'datum'))));
-    $bekannt = [];
-    if ($daten) {
-        $ph = implode(',', array_fill(0, count($daten), '?'));
-        $sql = 'SELECT v.datum, a.vorname, a.nachname
-                  FROM ' . DB::tbl('ergebnisse') . ' erg
-                  JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id = erg.veranstaltung_id
-                  JOIN ' . DB::tbl('athleten') . ' a ON a.id = erg.athlet_id
-                 WHERE erg.geloescht_am IS NULL AND v.datum IN (' . $ph . ')';
-        foreach (DB::fetchAll($sql, $daten) as $r) {
-            $bekannt[$r['datum'] . '|' . $namensKey($r['vorname'] . ' ' . $r['nachname'])] = true;
-        }
-    }
-
-    $events = [];
-    foreach ($rows as $r) {
-        $eid = (int)$r['event_id'];
-        if (!isset($events[$eid])) {
-            $events[$eid] = [
-                'event_id' => $eid,
-                'name'     => $r['event_name'],
-                'datum'    => $r['datum'],
-                'ort'      => $r['ort'],
-                'land'     => $r['land'],
-                'url'      => 'https://my.raceresult.com/' . $eid . '/',
-                'funde'    => [],
-            ];
-        }
-        $nk  = $namensKey($r['name']);
-        $ath = $athIdx[$nk] ?? null;
-        $events[$eid]['funde'][] = [
-            'id'           => (int)$r['id'],
-            'name'         => $r['name'],
-            'verein'       => $r['verein'],
-            'jahrgang'     => $r['jahrgang'],
-            'geschlecht'   => $r['geschlecht'],
-            'altersklasse' => $r['altersklasse'],
-            'wettbewerb'   => $r['wettbewerb'],
-            'zeit'         => $r['zeit'],
-            'platz'        => $r['platz'],
-            'ak_platz'     => $r['ak_platz'],
-            'startnr'      => $r['startnr'],
-            'athlet_id'    => $ath ? (int)$ath['id'] : null,
-            'bekannt'      => isset($bekannt[$r['datum'] . '|' . $nk]),
-        ];
-    }
-
-    // Veranstaltungen, in denen jedes Ergebnis schon erfasst ist, nicht melden
-    $out = [];
-    foreach ($events as $e) {
-        foreach ($e['funde'] as $f) { if (!$f['bekannt']) { $out[] = $e; break; } }
-    }
-    jsonOk(array_values($out));
+    jsonOk(Scanner::gruppiere($rows, function ($eid) {
+        return 'https://my.raceresult.com/' . (int)$eid . '/';
+    }));
 }
 
 // ── POST rr-funde – Funde als erledigt/ignoriert markieren ──────────────
@@ -8915,6 +8849,105 @@ if ($res === 'rr-funde' && $method === 'POST') {
     if (!$ids) jsonErr('Keine Funde angegeben.', 400);
     $ph = implode(',', array_fill(0, count($ids), '?'));
     $n = DB::query('UPDATE ' . DB::tbl('rr_funde') . ' SET status = ? WHERE id IN (' . $ph . ')',
+        array_merge([$status], $ids))->rowCount();
+    jsonOk(['geaendert' => $n]);
+}
+
+// ============================================================
+// UITSLAGEN.NL-SCANNER
+// Nutzt die seitenweite Volltextsuche von uitslagen.nl – ein Abruf je
+// Suchbegriff genügt, eine Wettkampf-Discovery entfällt.
+// Details zum Verfahren: includes/uitslagen.php
+// ============================================================
+
+// ── GET uits-scan – Scanlauf starten ────────────────────────────────────
+// Aufruf per Cronjob mit ?token=… oder als eingeloggter Admin ohne Token.
+if ($res === 'uits-scan' && $method === 'GET') {
+    require_once __DIR__ . '/../../includes/uitslagen.php';
+
+    $token = trim($_GET['token'] ?? '');
+    if ($token !== '') {
+        $soll = Settings::get('uits_scan_token', '');
+        if ($soll === '' || !hash_equals($soll, $token)) jsonErr('Ungültiges Token.', 403);
+    } else {
+        Auth::requireAdmin();
+    }
+    if (Settings::get('uits_scan_aktiv', '0') !== '1' && empty($_GET['force'])) {
+        jsonOk(['aktiv' => false, 'hinweis' => 'Scanner ist deaktiviert.']);
+    }
+
+    @set_time_limit(0);
+    ignore_user_abort(true);
+    $maxSek = max(30, min(600, (int)($_GET['sekunden'] ?? 120)));
+    $tage   = max(0, min(3650, (int)($_GET['tage'] ?? 0)));
+    jsonOk(Uitslagen::scan($tage, $maxSek));
+}
+
+// ── GET uits-scan-status – Konfiguration + letzter Lauf (Admin) ──────────
+if ($res === 'uits-scan-status' && $method === 'GET') {
+    Auth::requireAdmin();
+    require_once __DIR__ . '/../../includes/uitslagen.php';
+    Uitslagen::migrate();
+
+    // Token beim ersten Aufruf erzeugen – wird nur hier ausgeliefert,
+    // nie über die öffentliche Einstellungsroute.
+    $token = Settings::get('uits_scan_token', '');
+    if ($token === '') { $token = bin2hex(random_bytes(16)); Settings::set('uits_scan_token', $token); }
+
+    $f = DB::fetchOne('SELECT SUM(status = ?) AS neu, COUNT(*) AS gesamt,
+                              COUNT(DISTINCT event_id) AS events
+                         FROM ' . DB::tbl('uits_funde'), ['neu']) ?: [];
+
+    jsonOk([
+        'token'          => $token,
+        'scan_url'       => 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . '/api/uits-scan?token=' . $token,
+        'letzter_lauf'   => Settings::get('uits_scan_letzter_lauf', ''),
+        'letzter_status' => json_decode(Settings::get('uits_scan_letzter_status', '') ?: 'null', true),
+        'begriffe'       => Uitslagen::begriffe(),
+        'funde'          => array_map('intval', $f),
+    ]);
+}
+
+// ── GET uits-funde – neue Vereinsfunde, nach Wettkampf gruppiert ────────
+if ($res === 'uits-funde' && $method === 'GET') {
+    Auth::requireRecht('bulk_eintragen');
+    require_once __DIR__ . '/../../includes/uitslagen.php';
+    require_once __DIR__ . '/../../includes/scanner.php';
+    Uitslagen::migrate();
+
+    // Die Wettkampfdaten stehen am Fund selbst (keine Event-Tabelle),
+    // 'land' bleibt leer – uitslagen.nl führt fast nur NL-Wettkämpfe,
+    // meldet das Land aber nicht mit.
+    $rows = DB::fetchAll(
+        'SELECT * FROM ' . DB::tbl('uits_funde') . '
+          WHERE status = ?
+          ORDER BY datum DESC, event_id, wettbewerb, name',
+        ['neu']
+    );
+    jsonOk(Scanner::gruppiere($rows, function ($eid) {
+        return 'https://uitslagen.nl/uitslag?id=' . rawurlencode((string)$eid);
+    }));
+}
+
+// ── POST uits-funde – Funde als erledigt/ignoriert markieren ────────────
+// Body: { status: 'erledigt'|'ignoriert'|'neu', ids: [...] } oder { event_id: "…" }
+if ($res === 'uits-funde' && $method === 'POST') {
+    Auth::requireRecht('bulk_eintragen');
+    require_once __DIR__ . '/../../includes/uitslagen.php';
+    Uitslagen::migrate();
+
+    $status = $body['status'] ?? 'erledigt';
+    if (!in_array($status, ['neu', 'erledigt', 'ignoriert'], true)) jsonErr('Ungültiger Status.', 400);
+
+    if (!empty($body['event_id'])) {
+        $n = DB::query('UPDATE ' . DB::tbl('uits_funde') . ' SET status = ? WHERE event_id = ?',
+            [$status, (string)$body['event_id']])->rowCount();
+        jsonOk(['geaendert' => $n]);
+    }
+    $ids = array_values(array_filter(array_map('intval', (array)($body['ids'] ?? []))));
+    if (!$ids) jsonErr('Keine Funde angegeben.', 400);
+    $ph = implode(',', array_fill(0, count($ids), '?'));
+    $n = DB::query('UPDATE ' . DB::tbl('uits_funde') . ' SET status = ? WHERE id IN (' . $ph . ')',
         array_merge([$status], $ids))->rowCount();
     jsonOk(['geaendert' => $n]);
 }

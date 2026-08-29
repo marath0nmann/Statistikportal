@@ -1421,6 +1421,7 @@ function renderEintragen() {
         '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Mehrere Ergebnisse auf einmal eintragen &ndash; alle geh&ouml;ren zur selben Veranstaltung.</div>' +
         '<div id="bk-offene-wk"></div>' +
         '<div id="bk-rr-funde"></div>' +
+        '<div id="bk-uits-funde"></div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
           '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;Ergebnis-PDF/HTML URL: https://example.com/ergebnisse.pdf&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Ergebnis-PDF oder Seltec-HTML (.htm) hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
@@ -1535,6 +1536,7 @@ function renderEintragen() {
   _bkLoadOrte();
   _bkLoadOffeneWK();
   _bkLadeRrFunde();
+  _bkLadeUitsFunde();
   _bkSelectedOrtId = null;
 
   if (isBulk) {
@@ -8165,8 +8167,8 @@ async function _bkLoadOffeneWK() {
   _owItems = (r && r.ok && Array.isArray(r.data)) ? r.data : [];
   // Nav-Badge synchron halten (spart einen separaten Request beim Tab-Öffnen)
   window._eintragenOffeneWK = _owItems.length;
-  if (typeof _patchEintragenNavBadge === 'function')
-    _patchEintragenNavBadge(_owItems.length + (window._eintragenRrFunde || 0));
+  if (typeof _patchEintragenNavBadge === 'function' && typeof _eintragenBadgeSumme === 'function')
+    _patchEintragenNavBadge(_eintragenBadgeSumme());
   box = document.getElementById('bk-offene-wk');
   if (!box) return;
   if (!_owItems.length) { box.innerHTML = ''; return; }
@@ -8218,41 +8220,27 @@ async function _bkLoadOffeneWK() {
 
 
 // ═══════════════════════════════════════════════════════════════
-// RaceResult-Funde
-// ---------------------------------------------------------------
-// Der Scanner (includes/raceresult.php) durchsucht nächtlich alle von
-// RaceResult gezeiteten Wettkämpfe in DE/NL/BE nach Starts unseres
-// Vereins. Hier werden die Funde gemeldet; der Import selbst läuft
-// über den bestehenden RaceResult-Importer.
+// Scanner-Funde (RaceResult + uitslagen.nl)
 // ═══════════════════════════════════════════════════════════════
 
-var _rrFunde = [];
+var _rrFunde   = [];
+var _uitsFunde = [];
 
-async function _bkLadeRrFunde() {
-  var box = document.getElementById('bk-rr-funde');
-  if (!box) return;
-  var r = await apiGet('rr-funde');
-  _rrFunde = (r && r.ok && Array.isArray(r.data)) ? r.data : [];
-  window._eintragenRrFunde = _rrFunde.length;
-  if (typeof _patchEintragenNavBadge === 'function')
-    _patchEintragenNavBadge((window._eintragenOffeneWK || 0) + _rrFunde.length);
-
-  box = document.getElementById('bk-rr-funde');
-  if (!box) return;
-  if (!_rrFunde.length) { box.innerHTML = ''; return; }
-
+// ── Gemeinsame Darstellung beider Scanner-Panels ───────────────────────
+// evs: Wettkämpfe mit .funde (siehe Scanner::gruppiere in PHP).
+// cfg: { titel, hinweis, linkTitel, importFn, ignorierFn }
+function _bkFundePanelHtml(evs, cfg) {
   var html =
     '<div style="margin-bottom:18px;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:14px 16px;background:var(--surf2)">' +
-      '<div style="font-size:13px;font-weight:700;margin-bottom:2px">&#x1F50E; Neue Ergebnisse bei RaceResult</div>' +
+      '<div style="font-size:13px;font-weight:700;margin-bottom:2px">&#x1F50E; ' + cfg.titel + '</div>' +
       '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">' +
-        _rrFunde.length + ' Wettkampf' + (_rrFunde.length !== 1 ? 'e' : '') +
-        ' mit Starts unseres Vereins, die hier noch nicht erfasst sind.' +
+        evs.length + ' Wettkampf' + (evs.length !== 1 ? 'e' : '') + cfg.hinweis +
       '</div>';
 
-  for (var i = 0; i < _rrFunde.length; i++) {
-    var ev = _rrFunde[i];
+  for (var i = 0; i < evs.length; i++) {
+    var ev = evs[i];
     var chips = (ev.funde || []).map(function(f) {
-      var detail = [f.wettbewerb, f.zeit].filter(Boolean).join(' · ');
+      var detail = [f.altersklasse, f.wettbewerb, f.zeit].filter(Boolean).join(' · ');
       return '<span style="display:inline-block;padding:3px 9px;border-radius:12px;' +
         'background:var(--surface);border:1px solid var(--border);font-size:12px;margin:2px 4px 2px 0' +
         (f.bekannt ? ';opacity:.5' : '') + '"' +
@@ -8275,20 +8263,18 @@ async function _bkLadeRrFunde() {
           '<div>' + chips + '</div>' +
         '</div>' +
         '<div style="display:flex;gap:6px;align-items:center">' +
-          '<a href="' + _owEsc(ev.url) + '" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" title="Bei RaceResult ansehen">&#x1F310;</a>' +
-          '<button class="btn btn-ghost btn-sm" onclick="rrFundIgnorieren(' + i + ')" title="Nicht mehr melden">&#x2715; Ignorieren</button>' +
-          '<button class="btn btn-primary btn-sm" onclick="rrFundImport(' + i + ')">&#x1F4E5; Ergebnisse importieren</button>' +
+          '<a href="' + _owEsc(ev.url) + '" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" title="' + cfg.linkTitel + '">&#x1F310;</a>' +
+          '<button class="btn btn-ghost btn-sm" onclick="' + cfg.ignorierFn + '(' + i + ')" title="Nicht mehr melden">&#x2715; Ignorieren</button>' +
+          '<button class="btn btn-primary btn-sm" onclick="' + cfg.importFn + '(' + i + ')">&#x1F4E5; Ergebnisse importieren</button>' +
         '</div>' +
       '</div>';
   }
-
-  box.innerHTML = html + '</div>';
+  return html + '</div>';
 }
 
-// Fund in den bestehenden RaceResult-Importer übergeben: Veranstaltung
-// vorbelegen, Event-URL ins Paste-Feld, Quellenerkennung anstoßen.
-function rrFundImport(i) {
-  var ev = _rrFunde[i];
+// Wettkampf in den passenden Importer übergeben: Veranstaltung vorbelegen,
+// Event-URL ins Paste-Feld, Quellenerkennung anstoßen.
+function _bkFundImport(ev, quelle) {
   if (!ev) return;
 
   bkToggleVeranst('neu');
@@ -8304,9 +8290,43 @@ function rrFundImport(i) {
   if (ta) ta.value = ev.url;
   bulkPasteInput();
 
-  notify('RaceResult-Wettkampf vorbereitet – Importkategorie wählen und einlesen.', 'ok');
+  notify(quelle + '-Wettkampf vorbereitet – Importkategorie wählen und einlesen.', 'ok');
   if (ta) ta.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// RaceResult-Funde
+// ---------------------------------------------------------------
+// Der Scanner (includes/raceresult.php) durchsucht nächtlich alle von
+// RaceResult gezeiteten Wettkämpfe in DE/NL/BE nach Starts unseres
+// Vereins. Hier werden die Funde gemeldet; der Import selbst läuft
+// über den bestehenden RaceResult-Importer.
+// ═══════════════════════════════════════════════════════════════
+
+async function _bkLadeRrFunde() {
+  var box = document.getElementById('bk-rr-funde');
+  if (!box) return;
+  var r = await apiGet('rr-funde');
+  _rrFunde = (r && r.ok && Array.isArray(r.data)) ? r.data : [];
+  window._eintragenRrFunde = _rrFunde.length;
+  if (typeof _patchEintragenNavBadge === 'function' && typeof _eintragenBadgeSumme === 'function')
+    _patchEintragenNavBadge(_eintragenBadgeSumme());
+
+  box = document.getElementById('bk-rr-funde');
+  if (!box) return;
+  if (!_rrFunde.length) { box.innerHTML = ''; return; }
+
+  box.innerHTML = _bkFundePanelHtml(_rrFunde, {
+    titel:       'Neue Ergebnisse bei RaceResult',
+    hinweis:     ' mit Starts unseres Vereins, die hier noch nicht erfasst sind.',
+    linkTitel:   'Bei RaceResult ansehen',
+    importFn:    'rrFundImport',
+    ignorierFn:  'rrFundIgnorieren'
+  });
+}
+
+function rrFundImport(i) { _bkFundImport(_rrFunde[i], 'RaceResult'); }
 
 async function rrFundIgnorieren(i) {
   var ev = _rrFunde[i];
@@ -8315,6 +8335,49 @@ async function rrFundIgnorieren(i) {
   if (r && r.ok) { notify('Wettkampf wird nicht mehr gemeldet.', 'ok'); _bkLadeRrFunde(); }
   else notify((r && r.fehler) || 'Fehler beim Speichern.', 'err');
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+// uitslagen.nl-Funde
+// ---------------------------------------------------------------
+// Der Scanner (includes/uitslagen.php) nutzt die seitenweite Volltext-
+// suche von uitslagen.nl – ein Abruf je Suchbegriff liefert alle Starts
+// unseres Vereins. Der Import läuft über den bestehenden
+// uitslagen.nl-Importer.
+// ═══════════════════════════════════════════════════════════════
+
+async function _bkLadeUitsFunde() {
+  var box = document.getElementById('bk-uits-funde');
+  if (!box) return;
+  var r = await apiGet('uits-funde');
+  _uitsFunde = (r && r.ok && Array.isArray(r.data)) ? r.data : [];
+  window._eintragenUitsFunde = _uitsFunde.length;
+  if (typeof _patchEintragenNavBadge === 'function' && typeof _eintragenBadgeSumme === 'function')
+    _patchEintragenNavBadge(_eintragenBadgeSumme());
+
+  box = document.getElementById('bk-uits-funde');
+  if (!box) return;
+  if (!_uitsFunde.length) { box.innerHTML = ''; return; }
+
+  box.innerHTML = _bkFundePanelHtml(_uitsFunde, {
+    titel:       'Neue Ergebnisse bei uitslagen.nl',
+    hinweis:     ' mit Starts unseres Vereins, die hier noch nicht erfasst sind.',
+    linkTitel:   'Bei uitslagen.nl ansehen',
+    importFn:    'uitsFundImport',
+    ignorierFn:  'uitsFundIgnorieren'
+  });
+}
+
+function uitsFundImport(i) { _bkFundImport(_uitsFunde[i], 'uitslagen.nl'); }
+
+async function uitsFundIgnorieren(i) {
+  var ev = _uitsFunde[i];
+  if (!ev) return;
+  var r = await apiPost('uits-funde', { event_id: ev.event_id, status: 'ignoriert' });
+  if (r && r.ok) { notify('Wettkampf wird nicht mehr gemeldet.', 'ok'); _bkLadeUitsFunde(); }
+  else notify((r && r.fehler) || 'Fehler beim Speichern.', 'err');
+}
+
 
 // Disziplin einer Bulk-Zeile über den Anzeigenamen setzen.
 function _owSetDisz(tr, name) {

@@ -2126,6 +2126,24 @@ async function renderAdminDarstellung() {
       '</div>' +
     '</div>' +
 
+    '<div class="panel" style="padding:20px;margin-bottom:16px">' +
+      '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px">&#x1F50E; uitslagen.nl-Scanner</div>' +
+      '<div style="font-size:12px;color:var(--text2);margin-bottom:14px">uitslagen.nl durchsucht selbst alle veröffentlichten Ergebnisse – ein Abruf je Suchbegriff genügt, ein Wettkampfkalender wird nicht gebraucht. Gesucht wird über Name, Wohnort und Verein; gemeldet werden nur Zeilen, deren Vereinsfeld wirklich passt.</div>' +
+      row('Scanner aktiv', 'Ohne Häkchen ignoriert die Scan-URL alle Aufrufe',
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">' +
+        '<input type="checkbox" id="cfg-uits_scan_aktiv" ' + (cfgVal('uits_scan_aktiv','0') === '1' ? 'checked' : '') + ' style="width:18px;height:18px;cursor:pointer"/>' +
+        '<span style="font-size:13px;color:var(--text2)">Aktiv</span>' +
+        '</label>') +
+      row('Suchbegriffe', 'Kommagetrennt. Leer = Begriffe des RaceResult-Scanners, ersatzweise Vereinsname + Kurzbezeichnung',
+        textIn('cfg-uits_scan_begriffe', cfgVal('uits_scan_begriffe',''), 'z.B. TuS Oedt')) +
+      row('Rückblick (Tage)', 'Die Suche liefert die gesamte Historie – gemeldet werden nur Wettkämpfe innerhalb dieses Fensters',
+        numIn('cfg-uits_scan_tage', cfgVal('uits_scan_tage','30'), 1, 3650)) +
+      '<div id="uits-scan-status" style="margin-top:14px;font-size:12px;color:var(--text2)">Status wird geladen&hellip;</div>' +
+      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button class="btn btn-sm" onclick="uitsScanJetzt()">&#x25B6;&#xFE0E; Jetzt scannen</button>' +
+      '</div>' +
+    '</div>' +
+
     '<div style="padding-bottom:8px">' +
       '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-bottom:8px">' +
         '<div class="panel" style="padding:20px;margin-bottom:16px">' +
@@ -2141,6 +2159,7 @@ async function renderAdminDarstellung() {
   '</div>';
 
   _rrScanStatus();
+  _uitsScanStatus();
 }
 
 // Scanner-Status + Cron-URL nachladen (Token kommt nur über diese Route).
@@ -2175,6 +2194,40 @@ async function rrScanJetzt() {
   if (r && r.ok) notify('Scan beendet: ' + (r.data.neue_funde || 0) + ' neue Funde.', 'ok');
   else notify((r && r.fehler) || 'Scan fehlgeschlagen.', 'err');
   _rrScanStatus();
+}
+
+// Status des uitslagen.nl-Scanners (eigene Route wegen des Cron-Tokens).
+async function _uitsScanStatus() {
+  var box = document.getElementById('uits-scan-status');
+  if (!box) return;
+  var r = await apiGet('uits-scan-status');
+  if (!r || !r.ok) { box.textContent = 'Status konnte nicht geladen werden.'; return; }
+  var d = r.data;
+  var st = d.letzter_status || {};
+  var esc = function(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  box.innerHTML =
+    '<div style="margin-bottom:6px"><strong>Cron-URL</strong> (z.B. täglich bei all-inkl aufrufen):</div>' +
+    '<code style="display:block;padding:8px 10px;background:var(--surf2);border:1px solid var(--border);' +
+      'border-radius:6px;word-break:break-all;font-size:11px;margin-bottom:10px">' + esc(d.scan_url) + '</code>' +
+    '<div>Suchbegriffe: <strong>' + esc((d.begriffe || []).join(', ') || '–') + '</strong></div>' +
+    '<div>Funde: ' + (d.funde.gesamt || 0) + ' gesamt aus ' + (d.funde.events || 0) + ' Wettkämpfen · ' +
+      (d.funde.neu || 0) + ' offen</div>' +
+    '<div>Letzter Lauf: ' + esc(d.letzter_lauf || '–') +
+      (st.events !== undefined
+        ? ' (' + st.events + ' Wettkämpfe ab ' + esc(st.ab || '') + ', ' + st.neue_funde + ' neue Funde, ' +
+          st.requests + ' Abrufe, ' + st.dauer + ' s' + (st.abgebrochen ? ', Zeitlimit erreicht' : '') + ')'
+        : '') +
+      (st.fehler ? ' – <span style="color:var(--danger,#c00)">' + esc(st.fehler) + '</span>' : '') +
+    '</div>';
+}
+
+async function uitsScanJetzt() {
+  var box = document.getElementById('uits-scan-status');
+  if (box) box.textContent = '⏳ Scan läuft…';
+  var r = await apiGet('uits-scan?force=1&sekunden=120');
+  if (r && r.ok) notify('Scan beendet: ' + (r.data.neue_funde || 0) + ' neue Funde.', 'ok');
+  else notify((r && r.fehler) || 'Scan fehlgeschlagen.', 'err');
+  _uitsScanStatus();
 }
 
 async function saveWartungAktiv(checked) {
@@ -2292,6 +2345,7 @@ async function saveAllSettings() {
     'login_portal_url',
     'passkey_rp_id',
     'rr_scan_laender','rr_scan_begriffe','rr_scan_tage','rr_scan_budget',
+    'uits_scan_begriffe','uits_scan_tage',
   ];
   var payload = {};
   for (var i = 0; i < keys.length; i++) {
@@ -2299,7 +2353,7 @@ async function saveAllSettings() {
     if (el) payload[keys[i]] = el.value;
   }
   // Checkboxen separat (checked → '1', unchecked → '0')
-  var cbKeys = ['version_nur_admins', 'wartung_aktiv', 'login_portal_aktiv', 'eigenes_veranst_prufen', 'eigenes_ergebnis_prufen', 'rr_scan_aktiv'];
+  var cbKeys = ['version_nur_admins', 'wartung_aktiv', 'login_portal_aktiv', 'eigenes_veranst_prufen', 'eigenes_ergebnis_prufen', 'rr_scan_aktiv', 'uits_scan_aktiv'];
 
   for (var j = 0; j < cbKeys.length; j++) {
     var cb = document.getElementById('cfg-' + cbKeys[j]);
