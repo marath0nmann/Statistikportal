@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1553
+## Aktuelle Version: v1554
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -20,6 +20,7 @@ htdocs/               → Web-Root
     09b_tabellenfilter.js → Gemeinsame Filterleiste aller Tabellen (Suche + Spalte/Wert-Regeln)
     10_veranstaltungen.js → Regelmäßige Veranstaltungen + Zeitstrahl
     13_uitslagen.js   → uitslagen.nl + evenementen Importer
+    14_maxfun.js      → MaxFun Sports (Copy-&-Paste-Importer)
   api/index.php       → REST-API (alle Endpunkte, ~5000 Zeilen)
   api/setup.php       → Ersteinrichtung
   opcache-clear.php   → Nach jedem Deploy aufrufen: /opcache-clear.php
@@ -138,6 +139,19 @@ system, benutzer, registrierungen, disziplinen, altersklassen, meisterschaften, 
 - ACN Timing (`acn-timing.com` / `chronorace.be`)
 - Leichtathletik.de
 - Uitslagen.nl / Evenementen.uitslagen.nl
+- MaxFun Sports (`maxfunsports.com`) – **nur Copy & Paste**, siehe unten
+
+### MaxFun Sports (Copy & Paste)
+Kein automatischer Abruf möglich: Cloudflare Managed Challenge (jede serverseitige
+Anfrage → HTTP 403 + JS-Challenge, auch mit vollständigen Browser-Headern), und die
+`robots.txt` untersagt Crawler ausdrücklich. Daher `14_maxfun.js`: der Nutzer kopiert die
+Ergebnistabelle im Browser, `mfsIstPaste()` erkennt sie im Einlesen-Feld,
+`bulkImportFromMaxFun()` parst sie und übergibt an `bulkFillFromImport()`.
+Wird eine MaxFun-URL eingefügt, zeigt `bulkMaxFunHinweis()` die Anleitung samt Direktlink
+auf die vereinsgefilterte Seite: `?id=<ID>&ResultSearch[clubTeam]=<Verein>`
+(`per-page` wird serverseitig auf 50 gedeckelt – längere Listen seitenweise einfügen).
+Tabellenaufbau: `Pos | Stnr | Vorname | Nachname | Nation | Club/Team | Kategorie | GPos | KPos | TPos | Zeit`.
+Spalten werden über die Nation-Spalte verankert, damit es auch ohne mitkopierte Kopfzeile passt.
 
 ### ACN Timing API
 - Discovery: `results.chronorace.be/api/results/table/search/{ctx}/{raceId}?pageSize=1`

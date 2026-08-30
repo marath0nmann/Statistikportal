@@ -1425,7 +1425,7 @@ function renderEintragen() {
         '<div id="bk-la-funde"></div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
-          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;Ergebnis-PDF/HTML URL: https://example.com/ergebnisse.pdf&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Ergebnis-PDF oder Seltec-HTML (.htm) hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;Ergebnis-PDF/HTML URL: https://example.com/ergebnisse.pdf&#10;&#10;MaxFun Sports: Ergebnistabelle kopieren und hier einf&uuml;gen&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Ergebnis-PDF oder Seltec-HTML (.htm) hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
             '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
             '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
@@ -2530,6 +2530,9 @@ function bulkDetectUrl(text) {
   if (/^https?:\/\/evenementen\.uitslagen\.nl\//i.test(t)) return 'evenementen';
   if (/^https?:\/\/ergebnisse\.leichtathletik\.de\//i.test(t)) return 'leichtathletik';
   if (/^https?:\/\/(www\.)?acn-timing\.com/i.test(t)) return 'acn';
+  // maxfunsports.com: nur Copy-&-Paste (Cloudflare-Challenge blockt jeden Abruf).
+  // Muss vor dem generischen /result|timing/-Fallback stehen, sonst greift RaceResult.
+  if (MFS_URL_RE.test(t)) return 'maxfun';
   if (/^https?:\/\/.+\.pdf(\?[^#]*)?$/i.test(t))      return 'pdf';
   // RaceResult White-Label (eigene Domain, aber RRPublish): /{id}/results oder RR-Hash #N_HEX
   // z.B. https://portal.run-timing.de/977/results#8_D13BA9 → echte RR-Event-ID wird serverseitig aufgelöst
@@ -2558,10 +2561,16 @@ function bulkPasteInput() {
                   urlType === 'mikatiming'      ? '⌛︎ MikaTiming' :
                   urlType === 'leichtathletik'  ? '🏃︎ leichtathletik.de' :
                   urlType === 'acn'             ? '🇳🇱 ACN Timing' :
+                  urlType === 'maxfun'          ? '⛰︎ MaxFun Sports (nur Einfügen)' :
                   urlType === 'evenementen'     ? '🇳🇱 evenementen.uitslagen.nl' :
                   urlType === 'pdf'             ? '📄 Ergebnis-PDF (URL)' :
                   urlType === 'html'            ? '📄 Seltec HTML-Ergebnisse (URL)' : '🇳🇱 uitslagen.nl';
     if (srcLabel) srcLabel.textContent = srcText;
+    if (statusEl) statusEl.textContent = '';
+  } else if (typeof mfsIstPaste === 'function' && mfsIstPaste(raw)) {
+    // Eingefuegte MaxFun-Ergebnistabelle: Kategorie-Auswahl anbieten (fuer die Disziplin)
+    katWrap.style.display = 'flex';
+    if (srcLabel) srcLabel.textContent = '⛰︎ MaxFun Sports (eingefügte Tabelle)';
     if (statusEl) statusEl.textContent = '';
   } else {
     katWrap.style.display = 'none';
@@ -2601,6 +2610,13 @@ async function bulkImportUrl() {
     } finally {
       if (einlesenBtn) einlesenBtn.style.display = '';
     }
+    return;
+  }
+
+  // MaxFun Sports laesst sich nicht abrufen (Cloudflare Managed Challenge + robots.txt).
+  // Statt eines fehlschlagenden Ladeversuchs die Copy-&-Paste-Anleitung zeigen.
+  if (urlType === 'maxfun') {
+    bulkMaxFunHinweis(raw);
     return;
   }
 
@@ -5923,7 +5939,7 @@ function bulkEinlesen() {
   if (!raw) return;
   var urlType = bulkDetectUrl(raw);
   if (urlType) {
-    if (urlType !== 'pdf' && urlType !== 'html') {
+    if (urlType !== 'pdf' && urlType !== 'html' && urlType !== 'maxfun') {
       var kat = ((document.getElementById('bk-import-kat') || {}).value || '');
       if (!kat) {
         notify('Bitte Importkategorie wählen.', 'err');
@@ -5945,7 +5961,7 @@ function bulkParsePaste() {
   // URL-Erkennung: wenn URL → Import starten
   var urlType = bulkDetectUrl(raw.trim());
   if (urlType) {
-    if (urlType !== 'pdf' && urlType !== 'html') {
+    if (urlType !== 'pdf' && urlType !== 'html' && urlType !== 'maxfun') {
       var kat = ((document.getElementById('bk-import-kat') || {}).value || '');
       if (!kat) {
         notify('Bitte Importkategorie wählen.', 'err');
@@ -5955,6 +5971,25 @@ function bulkParsePaste() {
       }
     }
     bulkImportUrl();
+    return;
+  }
+
+  // Eingefuegte MaxFun-Ergebnistabelle: eigener Parser statt des Freitext-Parsers
+  if (typeof mfsIstPaste === 'function' && mfsIstPaste(raw)) {
+    var _mfKat = ((document.getElementById('bk-import-kat') || {}).value || '').trim();
+    var _mfStatus = document.getElementById('bk-import-status');
+    var _mfBtn = document.getElementById('bk-einlesen-btn');
+    window._bkLastImportUrl = 'MaxFun Sports (eingef\u00fcgte Tabelle)';
+    var _mfQuelle = document.getElementById('bk-quelle');
+    if (_mfQuelle && !_mfQuelle.value) _mfQuelle.value = 'maxfunsports.com';
+    var _mfKatEl = document.getElementById('bk-kat');
+    if (_mfKatEl && _mfKat) { _mfKatEl.value = _mfKat; bkKatChanged(); }
+    if (_mfBtn) _mfBtn.style.display = 'none';
+    if (_mfStatus) { _mfStatus.style.display = 'inline-flex'; _mfStatus.textContent = '\u23f3 Lese MaxFun-Tabelle\u2026'; }
+    _bkDebugInit('(eingef\u00fcgte Tabelle)', 'MaxFun Sports', _mfKat);
+    bulkImportFromMaxFun(raw, _mfKat, _mfStatus)
+      .catch(function(e) { if (_mfStatus) _mfStatus.textContent = '\u274c ' + e.message; })
+      .then(function() { if (_mfBtn) _mfBtn.style.display = ''; });
     return;
   }
 

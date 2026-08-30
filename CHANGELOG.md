@@ -1,3 +1,9 @@
+## v1554
+- **Neue Importquelle MaxFun Sports (`maxfunsports.com`) per Copy & Paste.** Die Ergebnistabelle im Browser markieren, hier einfügen, ▶ Einlesen – der Rest läuft wie bei den übrigen Importern: Vereinsathleten werden herausgefiltert, Serie/Ort/Datum zugeordnet, Disziplin aus dem Wettkampfnamen erkannt.
+- **Warum kein automatischer Abruf?** maxfunsports.com liegt hinter einer Cloudflare Managed Challenge – jede serverseitige Anfrage bekommt HTTP 403 mit JS-Challenge, auch mit vollständigen Browser-Headern. Zusätzlich untersagt die `robots.txt` Crawler ausdrücklich. Ein Scanner wie bei RaceResult oder leichtathletik.de ist damit weder technisch möglich noch gewollt.
+- Wird trotzdem eine MaxFun-URL eingefügt, erklärt ein Dialog den Weg – **mit Direktlink auf die bereits nach dem eigenen Verein gefilterte Ergebnisseite** (`ResultSearch[clubTeam]`). Das reduziert die Liste meist von mehreren tausend auf eine Handvoll Zeilen; die Seite zeigt fest 50 Einträge pro Seite (`per-page` wird serverseitig gedeckelt).
+- Der Parser liest das Tab-Format des Browser-Kopiervorgangs und kommt auch ohne Kopfzeile aus (Spalten werden über die Nation-Spalte verankert); für aus PDF/E-Mail kopierte Zeilen ohne Tabs gibt es einen Fallback. Kategorien werden auf DLV-Altersklassen abgebildet („Elite M"/„M AK" → MHK), DNS/DNF/DQ werden übersprungen und im Debug-Log vermerkt.
+
 ## v1553
 - **Neue Ansicht „🗂 Abgehakte Funde" bei jeder Quelle.** Sie zeigt, was der Scanner gefunden und wieder aus der Meldung genommen hat – bisher stand darüber nur eine Zahl in der Statuszeile („4 gesamt · 0 offen"), ohne dass sich nachsehen ließ, worum es ging.
 - Je Fund ist erkennbar, **warum** er abgehakt ist: ✅ beim Abgleich als bereits erfasst erkannt, 🚫 von Hand ignoriert. Gruppiert nach Wettkampf, mit Datum, Ort und Link zum Dienstleister.
