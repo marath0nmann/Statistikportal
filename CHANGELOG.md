@@ -1,3 +1,8 @@
+## v1552
+- **Der Abgleich mit bereits erfassten Ergebnissen greift jetzt auch bei abweichendem Datum – und hält sein Ergebnis fest.** Bisher musste der Wettkampftag exakt übereinstimmen. Bei mehrtägigen Veranstaltungen geht das schief: leichtathletik.de führt in der Wettkampfliste den **letzten** Tag („25 - 26.08."), eingetragen wird aber meist der Tag des eigenen Starts. Verglichen wird deshalb mit **±2 Tagen Spielraum**; ein Ergebnis fünf Tage daneben gilt weiterhin als anderer Wettkampf.
+- Der Abgleich war bisher reine Anzeige: Ein Fund, der nachweislich schon eingetragen war, verschwand zwar aus dem Panel, blieb in der Datenbank aber „offen" und wurde weiter mitgezählt. Solche Funde werden jetzt auf „erledigt" gesetzt (`Scanner::gruppiere()` mit Tabellenangabe), sodass die Zählung „N gesamt · M offen" das aussagt, was sie verspricht.
+- Zur Einordnung: Der Abgleich sieht Vereins- **und** extern erfasste Ergebnisse – beide liegen seit der Migration in `ergebnisse` (externe mit `extern=1`). Verglichen wird über Datum und Namen, wobei die Namensreihenfolge egal ist („Kebeck, Rüdiger" = „Rüdiger Kebeck").
+
 ## v1551
 - **leichtathletik.de: „offen im Fenster" zählte zwei verschiedene Dinge zusammen.** Die Wettkampfliste des DLV nennt auch **künftige** Termine (Seite 1 reicht rund eine Woche voraus). Die landen in der Warteschlange, sind „offen", aber gar nicht fällig – geprüft wird erst ab dem Wettkampftag. Sie erschienen damit als Rückstand, wo nur der Kalender vorausläuft.
 - Die Zeile trennt jetzt **zu prüfen** (Termin vorbei, Liste noch nicht eingelesen – kommt beim nächsten Lauf dran) von **noch nicht stattgefunden** (künftige Termine) und erklärt beide.

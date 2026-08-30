@@ -8921,7 +8921,7 @@ if ($res === 'rr-funde' && $method === 'GET') {
     );
     jsonOk(Scanner::gruppiere($rows, function ($eid) {
         return 'https://my.raceresult.com/' . (int)$eid . '/';
-    }));
+    }, 'rr_funde'));
 }
 
 // ── POST rr-funde – Funde als erledigt/ignoriert markieren ──────────────
@@ -9025,7 +9025,7 @@ if ($res === 'uits-funde' && $method === 'GET') {
     );
     jsonOk(Scanner::gruppiere($rows, function ($eid) {
         return 'https://uitslagen.nl/uitslag?id=' . rawurlencode((string)$eid);
-    }));
+    }, 'uits_funde'));
 }
 
 // ── POST uits-funde – Funde als erledigt/ignoriert markieren ────────────
@@ -9141,7 +9141,7 @@ if ($res === 'la-funde' && $method === 'GET') {
     // von dort importiert der bestehende leichtathletik.de-Importer.
     jsonOk(Scanner::gruppiere($rows, function ($eid) {
         return 'https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/' . (int)$eid;
-    }));
+    }, 'la_funde'));
 }
 
 // ── POST la-funde – Funde als erledigt/ignoriert markieren ──────────────

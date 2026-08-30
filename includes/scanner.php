@@ -207,7 +207,11 @@ class Scanner {
     // passt) und das Kennzeichen `bekannt` (Ergebnis am selben Tag für
     // dieselbe Person bereits erfasst). Wettkämpfe, bei denen jede Zeile
     // schon erfasst ist, fallen ganz heraus.
-    public static function gruppiere(array $rows, callable $urlFn): array {
+    // $tabelle  optional: Funde, die nachweislich schon erfasst sind, dort
+    //           auf 'erledigt' setzen. Ohne das bliebe der Abgleich eine
+    //           reine Anzeige – die Zählung „offen" zeigte weiter Funde,
+    //           die längst über einen anderen Weg eingetragen wurden.
+    public static function gruppiere(array $rows, callable $urlFn, string $tabelle = ''): array {
         if (!$rows) return [];
 
         $athIdx = [];
@@ -215,20 +219,38 @@ class Scanner {
             $athIdx[self::namensKey($a['vorname'] . ' ' . $a['nachname'])] = $a;
         }
 
-        // Bereits erfasste Ergebnisse an den Wettkampftagen der Funde
+        // ── Abgleich mit bereits erfassten Ergebnissen ───────────────────
+        // Erfasst sind Vereins- UND externe Ergebnisse: beide liegen in
+        // `ergebnisse` (externe mit extern=1), deshalb genügt eine Abfrage.
+        //
+        // Verglichen wird über Datum + Namen, mit ±2 Tagen Spielraum. Der
+        // Spielraum ist nötig, weil mehrtägige Wettkämpfe je nach Quelle
+        // mit einem anderen Tag geführt werden – leichtathletik.de nennt
+        // in der Liste den letzten Tag („25 - 26.08."), eingetragen wird
+        // aber oft der Tag des eigenen Starts.
         $daten   = array_values(array_unique(array_filter(array_column($rows, 'datum'))));
         $bekannt = [];
         if ($daten) {
-            $ph  = implode(',', array_fill(0, count($daten), '?'));
+            $von = date('Y-m-d', strtotime(min($daten) . ' -2 days'));
+            $bis = date('Y-m-d', strtotime(max($daten) . ' +2 days'));
             $sql = 'SELECT v.datum, a.vorname, a.nachname
                       FROM ' . DB::tbl('ergebnisse') . ' erg
                       JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id = erg.veranstaltung_id
                       JOIN ' . DB::tbl('athleten') . ' a ON a.id = erg.athlet_id
-                     WHERE erg.geloescht_am IS NULL AND v.datum IN (' . $ph . ')';
-            foreach (DB::fetchAll($sql, $daten) as $r) {
+                     WHERE erg.geloescht_am IS NULL AND v.datum BETWEEN ? AND ?';
+            foreach (DB::fetchAll($sql, [$von, $bis]) as $r) {
                 $bekannt[$r['datum'] . '|' . self::namensKey($r['vorname'] . ' ' . $r['nachname'])] = true;
             }
         }
+
+        // Trifft ein Fund auf ein erfasstes Ergebnis? Datum ±2 Tage.
+        $istBekannt = function (?string $datum, string $nk) use ($bekannt): bool {
+            if ($datum === null || $datum === '') return isset($bekannt['|' . $nk]);
+            for ($d = -2; $d <= 2; $d++) {
+                if (isset($bekannt[date('Y-m-d', strtotime($datum . ' ' . $d . ' days')) . '|' . $nk])) return true;
+            }
+            return false;
+        };
 
         $events = [];
         foreach ($rows as $r) {
@@ -259,8 +281,24 @@ class Scanner {
                 'ak_platz'     => $r['ak_platz'] ?? '',
                 'startnr'      => $r['startnr']  ?? '',
                 'athlet_id'    => $ath ? (int)$ath['id'] : null,
-                'bekannt'      => isset($bekannt[$r['datum'] . '|' . $nk]),
+                'bekannt'      => $istBekannt($r['datum'], $nk),
             ];
+        }
+
+        // Bereits erfasste Funde abhaken, damit sie nicht dauerhaft als
+        // „offen" mitgezählt werden.
+        if ($tabelle !== '') {
+            $erledigt = [];
+            foreach ($events as $e) {
+                foreach ($e['funde'] as $f) if ($f['bekannt']) $erledigt[] = (int)$f['id'];
+            }
+            if ($erledigt) {
+                try {
+                    $ph = implode(',', array_fill(0, count($erledigt), '?'));
+                    DB::query('UPDATE ' . DB::tbl($tabelle) . " SET status = 'erledigt'
+                                WHERE status = 'neu' AND id IN ($ph)", $erledigt);
+                } catch (Throwable $e) {}
+            }
         }
 
         $out = [];
