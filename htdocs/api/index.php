@@ -8850,6 +8850,65 @@ if ($res === 'rr-scan-status' && $method === 'GET') {
     ]);
 }
 
+// ── GET scan-funde – bereits abgehakte Funde einer Quelle ───────────────
+// Zeigt, was der Scanner gefunden und wieder aus dem Panel genommen hat:
+// entweder weil das Ergebnis schon erfasst war (Abgleich → 'erledigt')
+// oder weil jemand „Ignorieren" geklickt hat.
+if ($res === 'scan-funde' && $method === 'GET') {
+    Auth::requireRecht('bulk_eintragen');
+
+    $quellen = [
+        'rr'   => ['tabelle' => 'rr_funde',   'events' => 'rr_events',
+                   'url' => 'https://my.raceresult.com/%d/'],
+        'uits' => ['tabelle' => 'uits_funde', 'events' => null,
+                   'url' => 'https://uitslagen.nl/uitslag?id=%s'],
+        'la'   => ['tabelle' => 'la_funde',   'events' => 'la_events',
+                   'url' => 'https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/%d'],
+    ];
+    $q = (string)($_GET['quelle'] ?? '');
+    if (!isset($quellen[$q])) jsonErr('Unbekannte Quelle.', 400);
+    $cfg   = $quellen[$q];
+    $limit = max(1, min(500, (int)($_GET['limit'] ?? 200)));
+
+    // uitslagen.nl führt die Wettkampfdaten am Fund selbst, die anderen
+    // beiden in einer eigenen Event-Tabelle.
+    $sql = $cfg['events'] === null
+        ? 'SELECT * FROM ' . DB::tbl($cfg['tabelle']) . ' f
+            WHERE f.status <> ? ORDER BY f.datum DESC, f.event_id, f.name LIMIT ' . $limit
+        : 'SELECT f.*, e.name AS event_name, e.datum, e.ort
+             FROM ' . DB::tbl($cfg['tabelle']) . ' f
+             JOIN ' . DB::tbl($cfg['events']) . ' e ON e.event_id = f.event_id
+            WHERE f.status <> ? ORDER BY e.datum DESC, e.event_id, f.name LIMIT ' . $limit;
+
+    try { $rows = DB::fetchAll($sql, ['neu']); } catch (Throwable $e) { $rows = []; }
+
+    $events = [];
+    foreach ($rows as $r) {
+        $eid = (string)$r['event_id'];
+        if (!isset($events[$eid])) {
+            $events[$eid] = [
+                'event_id' => $r['event_id'],
+                'name'     => $r['event_name'] ?? '',
+                'datum'    => $r['datum'] ?? null,
+                'ort'      => $r['ort'] ?? '',
+                'url'      => sprintf($cfg['url'], is_numeric($r['event_id']) && $q !== 'uits'
+                                                   ? (int)$r['event_id'] : $r['event_id']),
+                'funde'    => [],
+            ];
+        }
+        $events[$eid]['funde'][] = [
+            'id'         => (int)$r['id'],
+            'name'       => $r['name'],
+            'verein'     => $r['verein'],
+            'wettbewerb' => $r['wettbewerb'] ?? '',
+            'zeit'       => $r['zeit'] ?? '',
+            'status'     => $r['status'],
+            'gefunden'   => $r['gefunden_am'] ?? '',
+        ];
+    }
+    jsonOk(['quelle' => $q, 'anzahl' => count($rows), 'events' => array_values($events)]);
+}
+
 // ── POST scan-stop – laufenden Scan abbrechen ───────────────────────────
 // Body: { lauf: '<Lauf-ID>' }
 // Der Lauf hält seine eigene Anfrage minutenlang offen; abgebrochen wird

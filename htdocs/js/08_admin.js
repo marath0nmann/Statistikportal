@@ -1935,11 +1935,13 @@ async function renderAdminQuellen() {
         'Bei täglichem Cron trägt ein Lauf das ganze Wochenende – auf Samstag und Sonntag entfallen rund zwei Drittel aller Wettkämpfe; 120 geben dann Reserve, bei stündlichem Cron genügen 60.',
         _admNumIn('cfg-rr_scan_budget', _admCfg(cfg, 'rr_scan_budget','60'), 1, 500)) +
       '<div id="rr-scan-status" style="margin-top:14px;font-size:12px;color:var(--text2)">Status wird geladen&hellip;</div>' +
+      '<div id="rr-funde-archiv" style="font-size:12px"></div>' +
       // Außerhalb der Statusbox: die wird im Sekundentakt neu gezeichnet und
       // hätte eine geöffnete Liste jedes Mal wieder weggeräumt.
       '<div id="rr-alt-liste" style="font-size:12px"></div>' +
       '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
         '<button class="btn btn-sm" onclick="rrScanJetzt()">&#x25B6;&#xFE0E; Jetzt scannen</button>' +
+        '<button class="btn btn-sm" onclick="scanFundeArchiv(\'rr\')">&#x1F5C2;&#xFE0F; Abgehakte Funde</button>' +
       '</div>' +
     '</div>' +
 
@@ -1956,8 +1958,10 @@ async function renderAdminQuellen() {
       _admRow('Rückblick (Tage)', 'Die Suche liefert die gesamte Historie – gemeldet werden nur Wettkämpfe innerhalb dieses Fensters',
         _admNumIn('cfg-uits_scan_tage', _admCfg(cfg, 'uits_scan_tage','30'), 1, 3650)) +
       '<div id="uits-scan-status" style="margin-top:14px;font-size:12px;color:var(--text2)">Status wird geladen&hellip;</div>' +
+      '<div id="uits-funde-archiv" style="font-size:12px"></div>' +
       '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
         '<button class="btn btn-sm" onclick="uitsScanJetzt()">&#x25B6;&#xFE0E; Jetzt scannen</button>' +
+        '<button class="btn btn-sm" onclick="scanFundeArchiv(\'uits\')">&#x1F5C2;&#xFE0F; Abgehakte Funde</button>' +
       '</div>' +
     '</div>' +
 
@@ -1976,8 +1980,10 @@ async function renderAdminQuellen() {
       _admRow('Wettkämpfe pro Lauf', 'Obergrenze je Cron-Aufruf (ein Abruf je Wettkampf, ca. 2 Sekunden)',
         _admNumIn('cfg-la_scan_budget', _admCfg(cfg, 'la_scan_budget','40'), 1, 300)) +
       '<div id="la-scan-status" style="margin-top:14px;font-size:12px;color:var(--text2)">Status wird geladen&hellip;</div>' +
+      '<div id="la-funde-archiv" style="font-size:12px"></div>' +
       '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
         '<button class="btn btn-sm" onclick="laScanJetzt()">&#x25B6;&#xFE0E; Jetzt scannen</button>' +
+        '<button class="btn btn-sm" onclick="scanFundeArchiv(\'la\')">&#x1F5C2;&#xFE0F; Abgehakte Funde</button>' +
       '</div>' +
     '</div>' +
 
@@ -2446,6 +2452,62 @@ async function rrAltAnzeigen() {
     (d.gezeigt < d.anzahl
       ? '<div style="color:var(--text2);margin-top:4px">' + d.gezeigt + ' von ' + d.anzahl + ' angezeigt.</div>'
       : '');
+}
+
+// ── Abgehakte Funde ───────────────────────────────────────────────────
+// Was der Scanner gefunden und wieder aus dem Panel genommen hat: weil das
+// Ergebnis beim Abgleich schon erfasst war („erledigt") oder weil jemand
+// „Ignorieren" geklickt hat. Sonst wäre das nur eine Zahl in der Statuszeile.
+var _fundeArchivOffen = {};
+
+async function scanFundeArchiv(quelle) {
+  var box = document.getElementById(quelle + '-funde-archiv');
+  if (!box) return;
+  if (_fundeArchivOffen[quelle]) { _fundeArchivOffen[quelle] = false; box.innerHTML = ''; return; }
+  _fundeArchivOffen[quelle] = true;
+  box.innerHTML = '<div style="padding:8px 0">Lade&hellip;</div>';
+
+  var r = await apiGet('scan-funde?quelle=' + quelle);
+  if (!r || !r.ok) { box.innerHTML = '<div style="padding:8px 0">Konnte nicht geladen werden.</div>'; return; }
+  var d = r.data;
+  if (!d.events.length) { box.innerHTML = '<div style="padding:8px 0">Keine abgehakten Funde.</div>'; return; }
+
+  var html = '<div style="margin-top:8px;max-height:340px;overflow:auto;border-top:1px solid var(--border);padding-top:6px">';
+  for (var i = 0; i < d.events.length; i++) {
+    var ev = d.events[i];
+    html += '<div style="padding:6px 0' + (i ? ';border-top:1px solid var(--border)' : '') + '">' +
+      '<div style="font-weight:600">' + formatDate(ev.datum) + ' · ' +
+        '<a href="' + _scanEsc(ev.url) + '" target="_blank" rel="noopener">' + _scanEsc(ev.name || ('Event ' + ev.event_id)) + '</a>' +
+        (ev.ort ? '<span style="color:var(--text2)"> · ' + _scanEsc(ev.ort) + '</span>' : '') +
+      '</div>';
+    html += ev.funde.map(function(f) {
+      var detail = [f.wettbewerb, f.zeit].filter(Boolean).join(' · ');
+      // „erledigt" heißt: beim Abgleich als bereits erfasst erkannt.
+      var marke = f.status === 'ignoriert'
+        ? '<span title="von Hand ignoriert">🚫</span>'
+        : '<span title="beim Abgleich als bereits erfasst erkannt">✅</span>';
+      return '<div style="display:flex;gap:8px;align-items:center;padding:1px 0">' +
+        marke + '<span>' + _scanEsc(f.name) + '</span>' +
+        (detail ? '<span style="color:var(--text2)">' + _scanEsc(detail) + '</span>' : '') +
+        '<button class="btn btn-ghost btn-sm" style="margin-left:auto" ' +
+          'onclick="scanFundWiederOeffnen(\'' + quelle + '\', ' + f.id + ', this)" ' +
+          'title="Wieder als offen melden">&#x21BA; Wieder öffnen</button>' +
+      '</div>';
+    }).join('');
+    html += '</div>';
+  }
+  box.innerHTML = html + '</div>' +
+    '<div style="color:var(--text2);margin-top:4px">✅ beim Abgleich als bereits erfasst erkannt · 🚫 von Hand ignoriert</div>';
+}
+
+// Einen abgehakten Fund wieder in die Meldung holen.
+async function scanFundWiederOeffnen(quelle, id, knopf) {
+  var route = quelle === 'rr' ? 'rr-funde' : (quelle === 'uits' ? 'uits-funde' : 'la-funde');
+  var r = await apiPost(route, { ids: [id], status: 'neu' });
+  if (r && r.ok) {
+    if (knopf) knopf.outerHTML = '<span style="margin-left:auto;color:var(--text2)">wieder offen</span>';
+    notify('Fund wird wieder gemeldet.', 'ok');
+  } else notify((r && r.fehler) || 'Fehler beim Speichern.', 'err');
 }
 
 // Einzelnen Wettkampf prüfen und das Ergebnis in der Zeile anzeigen.

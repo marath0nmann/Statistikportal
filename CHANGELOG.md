@@ -1,3 +1,9 @@
+## v1553
+- **Neue Ansicht „🗂 Abgehakte Funde" bei jeder Quelle.** Sie zeigt, was der Scanner gefunden und wieder aus der Meldung genommen hat – bisher stand darüber nur eine Zahl in der Statuszeile („4 gesamt · 0 offen"), ohne dass sich nachsehen ließ, worum es ging.
+- Je Fund ist erkennbar, **warum** er abgehakt ist: ✅ beim Abgleich als bereits erfasst erkannt, 🚫 von Hand ignoriert. Gruppiert nach Wettkampf, mit Datum, Ort und Link zum Dienstleister.
+- **„↺ Wieder öffnen" je Fund** holt einen Eintrag zurück in die Meldung – nützlich, seit der Abgleich Funde selbstständig abhakt (v1552): Liegt er einmal daneben, lässt sich das ohne Datenbankzugriff korrigieren.
+- Neuer Endpunkt `GET scan-funde?quelle=rr|uits|la`. Die Liste steht außerhalb der Statusbox, bleibt beim Aktualisieren des Status also offen.
+
 ## v1552
 - **Der Abgleich mit bereits erfassten Ergebnissen greift jetzt auch bei abweichendem Datum – und hält sein Ergebnis fest.** Bisher musste der Wettkampftag exakt übereinstimmen. Bei mehrtägigen Veranstaltungen geht das schief: leichtathletik.de führt in der Wettkampfliste den **letzten** Tag („25 - 26.08."), eingetragen wird aber meist der Tag des eigenen Starts. Verglichen wird deshalb mit **±2 Tagen Spielraum**; ein Ergebnis fünf Tage daneben gilt weiterhin als anderer Wettkampf.
 - Der Abgleich war bisher reine Anzeige: Ein Fund, der nachweislich schon eingetragen war, verschwand zwar aus dem Panel, blieb in der Datenbank aber „offen" und wurde weiter mitgezählt. Solche Funde werden jetzt auf „erledigt" gesetzt (`Scanner::gruppiere()` mit Tabellenangabe), sodass die Zählung „N gesamt · M offen" das aussagt, was sie verspricht.
