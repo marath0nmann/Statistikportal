@@ -1,3 +1,8 @@
+## v1557
+- Bulk-Eintragen, „Ergebnisse ausstehend": Anmeldungen aus dem Trainingsportal lassen sich jetzt abhaken, wenn doch niemand gestartet ist bzw. kein Ergebnis mehr kommt – ✕ am Namens-Chip für eine Person, „✕ Erledigt" für den ganzen Wettkampf. Bisher blieb so ein Wettkampf dauerhaft in der Meldung stehen.
+- Abgehakte Anmeldungen stehen unter „🗂️ Abgehakte Anmeldungen" im Panelkopf und können von dort einzeln wieder in die Meldung geholt werden.
+- Gespeichert wird je Ausgabe (Serie + Jahr) und Person in der neuen Tabelle `offene_wk_erledigt`; das Trainingsportal bleibt unverändert.
+
 ## v1556
 - Teilen: Checkbox „Externe Ergebnisse einbeziehen" ist jetzt immer sichtbar – bei Veranstaltungen ohne externe Starts ausgegraut mit dem Hinweis „(bei dieser Veranstaltung keine vorhanden)". Vorher fehlte sie in dem Fall ganz, wodurch nicht erkennbar war, ob gefiltert wird oder schlicht nichts vorliegt.
 - Fix: Der öffentliche `veranstaltungen`-Endpoint lieferte `verein` bei externen Ergebnissen nicht mit (nur der Serien-Endpoint tat das). Dadurch stand in den Teilen-Listen `[extern]` statt des Vereinsnamens.

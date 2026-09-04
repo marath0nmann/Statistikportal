@@ -8215,18 +8215,24 @@ async function _bkLoadOffeneWK() {
       '<div style="font-size:13px;font-weight:700;margin-bottom:2px">&#x1F4CC; Ergebnisse ausstehend</div>' +
       '<div style="font-size:12px;color:var(--text2);margin-bottom:12px">' +
         _owItems.length + ' Wettkampf' + (_owItems.length !== 1 ? 'e' : '') +
-        ' mit Anmeldungen aus dem Trainingsportal, aber noch ohne Ergebnis.' +
+        ' mit Anmeldungen aus dem Trainingsportal, aber noch ohne Ergebnis. ' +
+        '<a href="#" onclick="owArchiv();return false" style="color:var(--text2);text-decoration:underline">' +
+        '&#x1F5C2;&#xFE0F; Abgehakte Anmeldungen</a>' +
       '</div>';
 
   for (var i = 0; i < _owItems.length; i++) {
     var it = _owItems[i];
     var athHtml = it.athleten.map(function(a) {
       var disz = (a.disziplinen || []).map(function(d) { return d.disziplin; }).filter(Boolean);
-      return '<span style="display:inline-block;padding:3px 9px;border-radius:12px;background:var(--surface);' +
+      return '<span style="display:inline-block;padding:3px 4px 3px 9px;border-radius:12px;background:var(--surface);' +
         'border:1px solid var(--border);font-size:12px;margin:2px 4px 2px 0"' +
         (a.athlet_id ? '' : ' title="Kein Athletenprofil verkn&uuml;pft"') + '>' +
         (a.athlet_id ? '' : '&#x26A0;&#xFE0F; ') + _owEsc(a.name) +
         (disz.length ? '<span style="color:var(--text2)"> &middot; ' + _owEsc(disz.join(', ')) + '</span>' : '') +
+        '<button onclick="owAbhaken(' + i + ',' + a.benutzer_id + ')" ' +
+          'title="Nicht gestartet \u2013 nicht mehr melden" ' +
+          'style="border:0;background:none;color:var(--text2);cursor:pointer;font-size:12px;padding:0 4px;line-height:1">' +
+          '&#x2715;</button>' +
         '</span>';
     }).join('');
 
@@ -8246,6 +8252,7 @@ async function _bkLoadOffeneWK() {
         '<div style="display:flex;gap:6px;align-items:center">' +
           (it.url ? '<a href="' + _owEsc(it.url) + '" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" title="Website der Veranstaltung">&#x1F310;</a>' : '') +
           '<a href="#veranstaltungen/serie/' + it.serie_id + '" class="btn btn-ghost btn-sm" title="Zur Serie">&#x1F4CA;</a>' +
+          '<button class="btn btn-ghost btn-sm" onclick="owAbhaken(' + i + ')" title="Niemand aus der Liste ist gestartet bzw. es kommt kein Ergebnis mehr">&#x2715; Erledigt</button>' +
           '<button class="btn btn-' + (it.ergebnis_url ? 'ghost' : 'primary') + ' btn-sm" onclick="owPrefill(' + i + ')">&#x270D;&#xFE0F; Ergebnisse eintragen</button>' +
           (it.ergebnis_url ? '<button class="btn btn-primary btn-sm" onclick="owImportUrl(' + i + ')" title="' + _owEsc(it.ergebnis_url) + '">&#x1F4E5; Ergebnisse direkt importieren</button>' : '') +
         '</div>' +
@@ -8253,6 +8260,71 @@ async function _bkLoadOffeneWK() {
   }
 
   box.innerHTML = html + '</div>';
+}
+
+// Anmeldung(en) abhaken: ohne benutzerId der ganze Wettkampf, sonst nur diese
+// Person. Beides landet in offene_wk_erledigt und wird nicht mehr gemeldet.
+async function owAbhaken(i, benutzerId) {
+  var it = _owItems[i];
+  if (!it) return;
+  var uids = benutzerId ? [benutzerId]
+                        : it.athleten.map(function(a) { return a.benutzer_id; });
+  var r = await apiPost('offene-wettkaempfe/erledigt', {
+    serie_id:     it.serie_id,
+    jahr:         it.jahr,
+    benutzer_ids: uids,
+    grund:        benutzerId ? 'nicht_gelaufen' : 'erledigt'
+  });
+  if (r && r.ok) {
+    notify(benutzerId ? 'Anmeldung abgehakt – wird nicht mehr gemeldet.'
+                      : 'Wettkampf abgehakt – wird nicht mehr gemeldet.', 'ok');
+    _bkLoadOffeneWK();
+  } else notify((r && r.fehler) || 'Fehler beim Speichern.', 'err');
+}
+
+// Archiv der abgehakten Anmeldungen – je Zeile wieder in die Meldung holbar.
+async function owArchiv() {
+  var r = await apiGet('offene-wettkaempfe/erledigt');
+  var rows = (r && r.ok && Array.isArray(r.data)) ? r.data : [];
+  var html = '<h3 style="margin:0 0 6px;font-size:17px">🗂️ Abgehakte Anmeldungen</h3>' +
+    '<p style="color:var(--text2);font-size:13px;margin:0 0 16px">' +
+      'Anmeldungen aus dem Trainingsportal, die hier abgehakt wurden.</p>';
+
+  if (!rows.length) {
+    html += '<div style="color:var(--text2);font-size:13px;padding:8px 0">Nichts abgehakt.</div>';
+  } else {
+    html += '<table style="border-collapse:collapse;width:100%;font-size:13px">';
+    for (var i = 0; i < rows.length; i++) {
+      var w = rows[i];
+      html +=
+        '<tr style="border-bottom:1px solid var(--border)">' +
+          '<td style="padding:8px 10px">' + _owEsc(w.name || ('#' + w.benutzer_id)) + '</td>' +
+          '<td style="padding:8px 10px">' + _owEsc(w.serie_name || ('Serie ' + w.serie_id)) +
+            ' <span style="color:var(--text2)">' + w.jahr + '</span></td>' +
+          '<td style="padding:8px 10px;color:var(--text2)">' +
+            (w.grund === 'erledigt' ? 'erledigt' : 'nicht gestartet') + '</td>' +
+          '<td style="padding:8px 10px;text-align:right">' +
+            '<button class="btn btn-ghost btn-sm" onclick="owArchivZurueck(' +
+              w.serie_id + ',' + w.jahr + ',' + w.benutzer_id + ')">↩︎ Wieder melden</button>' +
+          '</td>' +
+        '</tr>';
+    }
+    html += '</table>';
+  }
+  html += '<div style="display:flex;justify-content:flex-end;margin-top:18px">' +
+    '<button class="btn btn-ghost" onclick="closeModal()">Schließen</button></div>';
+  showModal(html, true);
+}
+
+async function owArchivZurueck(serieId, jahr, benutzerId) {
+  var r = await apiPost('offene-wettkaempfe/erledigt', {
+    serie_id: serieId, jahr: jahr, benutzer_ids: [benutzerId], aktion: 'zurueck'
+  });
+  if (r && r.ok) {
+    notify('Anmeldung wird wieder gemeldet.', 'ok');
+    _bkLoadOffeneWK();
+    owArchiv();
+  } else notify((r && r.fehler) || 'Fehler beim Speichern.', 'err');
 }
 
 

@@ -6497,12 +6497,92 @@ function owPredictDate(?string $letztesDatum, int $jahr): ?string {
     return sprintf('%04d-%02d-%02d', $jahr, $month, $tag);
 }
 
+// ── Abgehakte Anmeldungen aus dem Trainingsportal ────────────────────────
+// Nicht jede Anmeldung wird zu einem Ergebnis: wer doch nicht gestartet ist
+// (oder wessen Ergebnis nie erfasst wird), wird je Ausgabe (Serie + Jahr) und
+// Person abgehakt und dann nicht mehr als „Ergebnis ausstehend" gemeldet.
+// Eigene Tabelle des Statistikportals – das Trainingsportal bleibt unberührt.
+function owErledigtTbl(): string {
+    static $bereit = false;
+    $t = DB::tbl('offene_wk_erledigt');
+    if (!$bereit) {
+        try { DB::query("CREATE TABLE IF NOT EXISTS `$t` (
+            serie_id    INT NOT NULL,
+            jahr        SMALLINT NOT NULL,
+            benutzer_id INT NOT NULL,
+            grund       VARCHAR(32) NOT NULL DEFAULT 'nicht_gelaufen',
+            erledigt_von INT NULL,
+            erledigt_am  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (serie_id, jahr, benutzer_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"); } catch (\Exception $e) {}
+        $bereit = true;
+    }
+    return $t;
+}
+
+// GET offene-wettkaempfe/erledigt – Archiv der abgehakten Anmeldungen
+if ($res === 'offene-wettkaempfe' && ($parts[1] ?? '') === 'erledigt' && $method === 'GET') {
+    Auth::requireRecht('bulk_eintragen');
+    $t = owErledigtTbl();
+    $limit = max(1, min(500, (int)($_GET['limit'] ?? 200)));
+    try {
+        $rows = DB::fetchAll(
+            "SELECT e.*, s.name AS serie_name,
+                    COALESCE(NULLIF(TRIM(CONCAT(COALESCE(a.vorname,''),' ',COALESCE(a.nachname,''))),''),
+                             b.benutzername) AS name
+               FROM `$t` e
+               LEFT JOIN " . DB::tbl('veranstaltung_serien') . " s ON s.id = e.serie_id
+               LEFT JOIN " . DB::tbl('benutzer') . " b ON b.id = e.benutzer_id
+               LEFT JOIN " . DB::tbl('athleten') . " a ON a.id = b.athlet_id
+              ORDER BY e.erledigt_am DESC LIMIT $limit"
+        );
+    } catch (\Exception $e) { $rows = []; }
+    foreach ($rows as &$r) {
+        $r['serie_id']    = (int)$r['serie_id'];
+        $r['jahr']        = (int)$r['jahr'];
+        $r['benutzer_id'] = (int)$r['benutzer_id'];
+    }
+    jsonOk($rows);
+}
+
+// POST offene-wettkaempfe/erledigt – abhaken oder wieder melden
+// Body: { serie_id, jahr, benutzer_ids: [...], grund?, aktion?: 'setzen'|'zurueck' }
+if ($res === 'offene-wettkaempfe' && ($parts[1] ?? '') === 'erledigt' && $method === 'POST') {
+    $user = Auth::requireRecht('bulk_eintragen');
+    $t    = owErledigtTbl();
+
+    $sid  = (int)($body['serie_id'] ?? 0);
+    $jahr = (int)($body['jahr'] ?? 0);
+    $uids = array_values(array_unique(array_filter(array_map('intval', (array)($body['benutzer_ids'] ?? [])))));
+    if (!$sid || !$jahr || !$uids) jsonErr('Serie, Jahr und Personen sind nötig.', 400);
+
+    if (($body['aktion'] ?? 'setzen') === 'zurueck') {
+        $ph = implode(',', array_fill(0, count($uids), '?'));
+        $n  = DB::query("DELETE FROM `$t` WHERE serie_id = ? AND jahr = ? AND benutzer_id IN ($ph)",
+            array_merge([$sid, $jahr], $uids))->rowCount();
+        jsonOk(['geaendert' => $n]);
+    }
+
+    $grund = (string)($body['grund'] ?? 'nicht_gelaufen');
+    if (!in_array($grund, ['nicht_gelaufen', 'erledigt'], true)) $grund = 'nicht_gelaufen';
+    $n = 0;
+    foreach ($uids as $uid) {
+        DB::query("INSERT INTO `$t` (serie_id, jahr, benutzer_id, grund, erledigt_von)
+                        VALUES (?,?,?,?,?)
+                   ON DUPLICATE KEY UPDATE grund = VALUES(grund), erledigt_von = VALUES(erledigt_von),
+                                           erledigt_am = NOW()",
+            [$sid, $jahr, $uid, $grund, (int)$user['id']]);
+        $n++;
+    }
+    jsonOk(['geaendert' => $n]);
+}
+
 // GET offene-wettkaempfe[?tage=400]
 // Liefert Serien, für die sich im Trainingsportal Athlet:innen angemeldet haben,
 // deren Termin bereits vorbei ist und für die hier noch kein Ergebnis erfasst wurde.
 // Liest die gemeinsam genutzten training_*-Tabellen (gleiche DB + TABLE_PREFIX);
 // fehlen sie, ist das Ergebnis schlicht leer.
-if ($res === 'offene-wettkaempfe' && $method === 'GET') {
+if ($res === 'offene-wettkaempfe' && empty($parts[1]) && $method === 'GET') {
     Auth::requireRecht('bulk_eintragen');
 
     $tage  = max(1, min(1000, (int)($_GET['tage'] ?? 400)));
@@ -6560,6 +6640,12 @@ if ($res === 'offene-wettkaempfe' && $method === 'GET') {
         foreach (array_keys($kand) as $k) {
             if (in_array($statusMap[$k] ?? '', $final, true)) unset($kand[$k]);
         }
+        // Hier abgehakte Anmeldungen (nicht gestartet o.ä.) fallen ebenfalls raus
+        try {
+            foreach (DB::fetchAll('SELECT serie_id, jahr, benutzer_id FROM `' . owErledigtTbl() . '`') as $r) {
+                unset($kand[$r['serie_id'] . '|' . $r['jahr'] . '|' . $r['benutzer_id']]);
+            }
+        } catch (\Exception $ignored) {}
         if (!$kand) jsonOk([]);
 
         $serieIds = array_values(array_unique(array_map(fn($x) => $x[0], $kand)));
