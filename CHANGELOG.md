@@ -1,3 +1,6 @@
+## v1558
+- RaceResult-Erkennung erweitert: Domains mit „anmeldung"/„register" im URL-Text (z.B. `frielingsdorf-datenservice.de/anmeldung/2025/remscheid-silvesterlauf`) werden jetzt ebenfalls per Proxy auf RRPublish/RRRegStart geprüft. Verifiziert: Event 367288 (21. Remscheider Silvesterlauf)
+
 ## v1557
 - Bulk-Eintragen, „Ergebnisse ausstehend": Anmeldungen aus dem Trainingsportal lassen sich jetzt abhaken, wenn doch niemand gestartet ist bzw. kein Ergebnis mehr kommt – ✕ am Namens-Chip für eine Person, „✕ Erledigt" für den ganzen Wettkampf. Bisher blieb so ein Wettkampf dauerhaft in der Meldung stehen.
 - Abgehakte Anmeldungen stehen unter „🗂️ Abgehakte Anmeldungen" im Panelkopf und können von dort einzeln wieder in die Meldung geholt werden.
