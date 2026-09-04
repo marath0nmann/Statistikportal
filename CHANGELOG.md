@@ -1,3 +1,7 @@
+## v1556
+- Teilen: Checkbox „Externe Ergebnisse einbeziehen" ist jetzt immer sichtbar – bei Veranstaltungen ohne externe Starts ausgegraut mit dem Hinweis „(bei dieser Veranstaltung keine vorhanden)". Vorher fehlte sie in dem Fall ganz, wodurch nicht erkennbar war, ob gefiltert wird oder schlicht nichts vorliegt.
+- Fix: Der öffentliche `veranstaltungen`-Endpoint lieferte `verein` bei externen Ergebnissen nicht mit (nur der Serien-Endpoint tat das). Dadurch stand in den Teilen-Listen `[extern]` statt des Vereinsnamens.
+
 ## v1555
 - Teilen: Externe Ergebnisse (Start für einen anderen Verein) bleiben jetzt in allen drei Formaten standardmäßig außen vor. Neue Checkbox im Modal blendet sie bei Bedarf ein; sie werden dann gekennzeichnet – WhatsApp/Claude-Prompt `[LG Kempen]`, WordPress kursiv hinter dem Namen. Die Checkbox erscheint nur, wenn die Veranstaltung überhaupt externe Starts enthält, und nennt deren Anzahl.
 - Umschalten baut alle drei Texte sofort neu auf, ohne das Modal zu schließen

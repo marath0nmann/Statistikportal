@@ -2608,17 +2608,22 @@ async function shareVeranstaltung(vid) {
       '</div>' +
     '</div>' +
 
-    // Externe Starts sind standardmäßig ausgeblendet – hier optional zuschaltbar
-    (externAnz
-      ? '<label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:9px 12px;' +
-          'background:var(--surf2);border-radius:7px;cursor:pointer;font-size:13px">' +
-          '<input type="checkbox" id="share-extern-cb" onchange="_shareToggleExtern(this)" ' +
-            'style="width:15px;height:15px;cursor:pointer;flex-shrink:0">' +
-          '<span>Externe Ergebnisse einbeziehen ' +
-            '<span style="color:var(--text2)">(' + externAnz + ' Start' + (externAnz === 1 ? '' : 's') +
-            ' für einen anderen Verein – werden in den Listen gekennzeichnet)</span></span>' +
-        '</label>'
-      : '') +
+    // Externe Starts sind standardmäßig ausgeblendet – hier optional zuschaltbar.
+    // Immer sichtbar, damit erkennbar bleibt, ob gefiltert wird oder schlicht nichts vorliegt.
+    '<label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:9px 12px;' +
+        'background:var(--surf2);border-radius:7px;font-size:13px' +
+        (externAnz ? ';cursor:pointer' : ';opacity:.55') + '">' +
+      '<input type="checkbox" id="share-extern-cb" onchange="_shareToggleExtern(this)"' +
+        (externAnz ? '' : ' disabled') +
+        ' style="width:15px;height:15px;flex-shrink:0' + (externAnz ? ';cursor:pointer' : '') + '">' +
+      '<span>Externe Ergebnisse einbeziehen ' +
+        '<span style="color:var(--text2)">' +
+          (externAnz
+            ? '(' + externAnz + ' Start' + (externAnz === 1 ? '' : 's') +
+              ' für einen anderen Verein – wird in den Listen gekennzeichnet)'
+            : '(bei dieser Veranstaltung keine vorhanden)') +
+        '</span></span>' +
+    '</label>' +
 
     '<div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:12px">' +
       '<button id="share-tab-wp" style="' + tabBtn + ';color:var(--primary);border-bottom-color:var(--primary)" onclick="_shareTab(\'wp\')">\ud83d\udcdd WordPress</button>' +
