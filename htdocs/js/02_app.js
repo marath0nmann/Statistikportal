@@ -2248,16 +2248,30 @@ function _shareRekordeUrl(e) {
   return base + '/' + kat + (slug ? '/' + slug : '');
 }
 
-// Ergebnisse nach Disziplin gruppieren (gemeinsam f\u00fcr beide Formate)
-function _shareGroupByDisz(v) {
-  var byDisz = {}, diszOrder = [];
+// Ergebnisse nach Disziplin gruppieren (gemeinsam f\u00fcr alle Teilen-Formate).
+// Externe Starts (f\u00fcr einen anderen Verein) bleiben au\u00dfen vor, sofern nicht
+// ausdr\u00fccklich mit einbezogen. Z\u00e4hlt zus\u00e4tzlich, wie viele ausgelassen wurden.
+function _shareGroupByDisz(v, mitExtern) {
+  var byDisz = {}, diszOrder = [], externAus = 0;
   (v.ergebnisse || []).forEach(function(e) {
+    if (parseInt(e.extern) === 1 && !mitExtern) { externAus++; return; }
     var d = e.disziplin || '?';
     if (!byDisz[d]) { byDisz[d] = []; diszOrder.push(d); }
     byDisz[d].push(e);
   });
   if (typeof sortDisziplinen === 'function') sortDisziplinen(diszOrder);
-  return { byDisz: byDisz, order: diszOrder };
+  return { byDisz: byDisz, order: diszOrder, externAus: externAus };
+}
+
+// Anzahl externer Starts einer Veranstaltung
+function _shareExternAnz(v) {
+  return (v.ergebnisse || []).filter(function(e) { return parseInt(e.extern) === 1; }).length;
+}
+
+// Kennzeichnung eines externen Starts: " [LG Kempen]" bzw. " [extern]"
+function _shareExternTag(e) {
+  if (parseInt(e.extern) !== 1) return '';
+  return ' [' + (e.verein ? e.verein : 'extern') + ']';
 }
 
 function _shareAthletName(e) {
@@ -2270,11 +2284,11 @@ function _esc(s) {
 }
 
 // \u2500\u2500 WordPress-HTML (Gutenberg-kompatible Tabellen) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-function _veranstWordpress(v, badgeMap) {
+function _veranstWordpress(v, badgeMap, mitExtern) {
   var url   = location.origin + location.pathname + '#veranstaltung/' + v.id;
   var date  = v.datum ? v.datum.split('-').reverse().join('.') : '';
   var title = v.name || v.kuerzel || 'Veranstaltung';
-  var g     = _shareGroupByDisz(v);
+  var g     = _shareGroupByDisz(v, mitExtern);
 
   var out = '<!-- wp:heading -->\n<h2>' + _esc(title) + '</h2>\n<!-- /wp:heading -->\n\n';
 
@@ -2290,7 +2304,8 @@ function _veranstWordpress(v, badgeMap) {
       var badges = _shareAllBadges(badgeMap, e);
       out += '<tr>' +
         '<td>' + _esc(e.ak_platzierung || '') + '</td>' +
-        '<td>' + _esc(_shareAthletName(e)) + '</td>' +
+        '<td>' + _esc(_shareAthletName(e)) +
+          (parseInt(e.extern) === 1 ? ' <em>(' + _esc(e.verein || 'anderer Verein') + ')</em>' : '') + '</td>' +
         '<td>' + _esc(e.altersklasse || '') + '</td>' +
         '<td>' + _esc(_veranstFormatResult(e)) + '</td>' +
         '<td>' + (badges.length ? '<strong>' + _esc(badges.join(', ')) + '</strong>' : '') + '</td>' +
@@ -2310,11 +2325,11 @@ function _veranstWordpress(v, badgeMap) {
 }
 
 // \u2500\u2500 WhatsApp-Text (Unicode-Formatierung, *fett*) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-function _veranstWhatsapp(v, badgeMap) {
+function _veranstWhatsapp(v, badgeMap, mitExtern) {
   var url   = location.origin + location.pathname + '#veranstaltung/' + v.id;
   var date  = v.datum ? v.datum.split('-').reverse().join('.') : '';
   var title = v.name || v.kuerzel || 'Veranstaltung';
-  var g     = _shareGroupByDisz(v);
+  var g     = _shareGroupByDisz(v, mitExtern);
 
   var out = '*' + title + '*\n';
   out += '\ud83d\udcc5 ' + date + (v.ort ? ' \u00b7 \ud83d\udccd ' + v.ort : '') + '\n';
@@ -2333,6 +2348,7 @@ function _veranstWhatsapp(v, badgeMap) {
       }
       var line   = (e.ak_platzierung ? e.ak_platzierung + '. ' : '\u2022 ') + _shareAthletName(e);
       if (e.altersklasse) line += ' (' + e.altersklasse + ')';
+      line += _shareExternTag(e);
       line += ' \u2013 ' + _veranstFormatResult(e);
       var medal = _shareMedal(e.ak_platzierung);
       if (medal) line += ' ' + medal;
@@ -2360,12 +2376,12 @@ function _sharePromptResult(e) {
 }
 
 // \u2500\u2500 Claude-Prompt: fertiger Auftrag + strukturierte Daten \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-function _veranstClaudePrompt(v, badgeMap) {
+function _veranstClaudePrompt(v, badgeMap, mitExtern) {
   var url     = location.origin + location.pathname + '#veranstaltung/' + v.id;
   var date    = v.datum ? v.datum.split('-').reverse().join('.') : '';
   var title   = v.name || v.kuerzel || 'Veranstaltung';
   var club    = (typeof appConfig !== 'undefined' && (appConfig.verein_name || appConfig.verein_kuerzel)) || 'unseren Verein';
-  var g       = _shareGroupByDisz(v);
+  var g       = _shareGroupByDisz(v, mitExtern);
 
   var p = '';
   p += 'Ich sende dir Informationen zu Wettkämpfen und du schreibst auf dieser Basis einen ' +
@@ -2467,18 +2483,22 @@ function _veranstClaudePrompt(v, badgeMap) {
   if (v.datenquelle) p += '| Offizielle Ergebnisliste | ' + v.datenquelle + ' |\n';
   p += '\n';
 
-  // ── Ergebnisse (nur eigener Verein) ──
+  // ── Ergebnisse ──
   p += '## Ergebnisse\n\n';
-  p += 'Ausschließlich Athlet:innen von ' + club + '. Leistungen sind bereits korrekt formatiert ' +
-       '(deutsches Dezimalkomma, passende Einheit) – bitte unverändert übernehmen.\n';
+  if (mitExtern) {
+    p += 'Enthält auch Starts für andere Vereine – diese sind in eckigen Klammern hinter dem Namen ' +
+         'gekennzeichnet (z. B. `[LG Kempen]`). Erwähne bei diesen Personen den fremden Verein oder ' +
+         'lasse sie weg, aber stelle sie **nicht** als Starter:innen von ' + club + ' dar. ';
+  } else {
+    p += 'Ausschließlich Athlet:innen von ' + club + '. ';
+  }
+  p += 'Leistungen sind bereits korrekt formatiert (deutsches Dezimalkomma, passende Einheit) – ' +
+       'bitte unverändert übernehmen.\n';
 
-  var anyMstr = false, externCount = 0, hasAny = false;
+  var anyMstr = false, hasAny = false;
   var rekLinks = [], rekSeen = {};   // Deep-Links zu den Bestenlisten betroffener Disziplinen
   g.order.forEach(function(disz) {
-    var rows = g.byDisz[disz].filter(function(e) {
-      if (parseInt(e.extern) === 1) { externCount++; return false; }
-      return true;
-    });
+    var rows = g.byDisz[disz];
     if (!rows.length) return;
     hasAny = true;
     p += '\n### ' + disz + '\n\n';
@@ -2491,16 +2511,16 @@ function _veranstClaudePrompt(v, badgeMap) {
         rekSeen[disz] = 1;
         rekLinks.push({ disz: disz, url: _shareRekordeUrl(e) });
       }
-      p += '| ' + _shareAthletName(e) +
+      p += '| ' + _shareAthletName(e) + _shareExternTag(e) +
            ' | ' + _sharePromptResult(e) +
            ' | ' + (e.ak_platzierung || '–') +
            ' | ' + (e.altersklasse || '–') +
            ' | ' + (badges.length ? badges.join(', ') : '–') + ' |\n';
     });
   });
-  if (!hasAny) p += '\n_Keine Vereinsergebnisse vorhanden._\n';
-  if (externCount) {
-    p += '\n> ' + externCount + ' weitere' + (externCount === 1 ? 's Ergebnis wurde' : ' Ergebnisse wurden') +
+  if (!hasAny) p += '\n_Keine Ergebnisse vorhanden._\n';
+  if (g.externAus) {
+    p += '\n> ' + g.externAus + ' weitere' + (g.externAus === 1 ? 's Ergebnis wurde' : ' Ergebnisse wurden') +
          ' ausgelassen, weil die Person für einen anderen Verein gestartet ist.\n';
   }
 
@@ -2562,9 +2582,13 @@ async function shareVeranstaltung(vid) {
     console.warn('Bestleistungen konnten nicht geladen werden:', err);
   }
 
-  window._shareWpText = _veranstWordpress(v, badgeMap);
-  window._shareWaText = _veranstWhatsapp(v, badgeMap);
-  window._shareAiText = _veranstClaudePrompt(v, badgeMap);
+  // Für das Neuaufbauen beim Umschalten der Extern-Checkbox merken
+  window._shareV        = v;
+  window._shareBadgeMap = badgeMap;
+  window._shareMitExtern = false;   // Standard: externe Starts nicht mitteilen
+  _shareBuildTexts();
+
+  var externAnz = _shareExternAnz(v);
   var url = location.origin + location.pathname + '#veranstaltung/' + vid;
 
   var tabBtn = 'padding:9px 16px;border:none;background:none;cursor:pointer;font-family:inherit;' +
@@ -2583,6 +2607,18 @@ async function shareVeranstaltung(vid) {
         '<button class="btn btn-ghost btn-sm" onclick="_shareCopy(\'share-url-input\',this)">Kopieren</button>' +
       '</div>' +
     '</div>' +
+
+    // Externe Starts sind standardmäßig ausgeblendet – hier optional zuschaltbar
+    (externAnz
+      ? '<label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:9px 12px;' +
+          'background:var(--surf2);border-radius:7px;cursor:pointer;font-size:13px">' +
+          '<input type="checkbox" id="share-extern-cb" onchange="_shareToggleExtern(this)" ' +
+            'style="width:15px;height:15px;cursor:pointer;flex-shrink:0">' +
+          '<span>Externe Ergebnisse einbeziehen ' +
+            '<span style="color:var(--text2)">(' + externAnz + ' Start' + (externAnz === 1 ? '' : 's') +
+            ' für einen anderen Verein – werden in den Listen gekennzeichnet)</span></span>' +
+        '</label>'
+      : '') +
 
     '<div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:12px">' +
       '<button id="share-tab-wp" style="' + tabBtn + ';color:var(--primary);border-bottom-color:var(--primary)" onclick="_shareTab(\'wp\')">\ud83d\udcdd WordPress</button>' +
@@ -2637,6 +2673,28 @@ async function shareVeranstaltung(vid) {
       '</div>' +
     '</div>'
   , true, true);
+}
+
+// Baut alle drei Teilen-Texte aus den gemerkten Daten neu auf
+function _shareBuildTexts() {
+  var v  = window._shareV;
+  var bm = window._shareBadgeMap || {};
+  var mx = !!window._shareMitExtern;
+  if (!v) return;
+  window._shareWpText = _veranstWordpress(v, bm, mx);
+  window._shareWaText = _veranstWhatsapp(v, bm, mx);
+  window._shareAiText = _veranstClaudePrompt(v, bm, mx);
+}
+
+// Checkbox „Externe Ergebnisse einbeziehen": Texte neu erzeugen und Felder aktualisieren
+function _shareToggleExtern(cb) {
+  window._shareMitExtern = !!(cb && cb.checked);
+  _shareBuildTexts();
+  var map = { 'share-wp-area': '_shareWpText', 'share-wa-area': '_shareWaText', 'share-ai-area': '_shareAiText' };
+  Object.keys(map).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = window[map[id]];
+  });
 }
 
 function _shareTab(which) {

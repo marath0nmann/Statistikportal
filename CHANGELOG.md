@@ -1,3 +1,7 @@
+## v1555
+- Teilen: Externe Ergebnisse (Start für einen anderen Verein) bleiben jetzt in allen drei Formaten standardmäßig außen vor. Neue Checkbox im Modal blendet sie bei Bedarf ein; sie werden dann gekennzeichnet – WhatsApp/Claude-Prompt `[LG Kempen]`, WordPress kursiv hinter dem Namen. Die Checkbox erscheint nur, wenn die Veranstaltung überhaupt externe Starts enthält, und nennt deren Anzahl.
+- Umschalten baut alle drei Texte sofort neu auf, ohne das Modal zu schließen
+
 ## v1554
 - **Neue Importquelle MaxFun Sports (`maxfunsports.com`) per Copy & Paste.** Die Ergebnistabelle im Browser markieren, hier einfügen, ▶ Einlesen – der Rest läuft wie bei den übrigen Importern: Vereinsathleten werden herausgefiltert, Serie/Ort/Datum zugeordnet, Disziplin aus dem Wettkampfnamen erkannt.
 - **Warum kein automatischer Abruf?** maxfunsports.com liegt hinter einer Cloudflare Managed Challenge – jede serverseitige Anfrage bekommt HTTP 403 mit JS-Challenge, auch mit vollständigen Browser-Headern. Zusätzlich untersagt die `robots.txt` Crawler ausdrücklich. Ein Scanner wie bei RaceResult oder leichtathletik.de ist damit weder technisch möglich noch gewollt.
