@@ -1,3 +1,7 @@
+## v1560
+- Fix RaceResult: mehrsprachiges Format `{DE:...|EN:...}` wird jetzt auch beim Eventnamen aufgelöst (bisher nur bei Disziplinen) – behebt kryptische Anzeige im Debug-Log und fehlerhafte Serien-Zuordnung (z.B. „Boston Marathon" statt „Kölnmarathon" beim Generali Köln Marathon)
+- Fix RaceResult: „Drittelmarathon" wurde fälschlich für einen normalen Marathon erkannt, da „Drittelmarathon" das Substring „marathon" enthält und mit identischer Punktzahl wie „Marathon" bewertet wurde (Gewinner dann zufällig per Listenreihenfolge). Neue Qualifikator-Prüfung wie bei Halbmarathon – „Generali Köln Marathon" → „Marathon" (vorher „Drittelmarathon")
+
 ## v1559
 - Fix RaceResult: Zeitfeld-Erkennung übersah Formel-Felder wie `choose([STATUS]+1;[TIME1];"a.k.";"DSQ";"DNF";"DNS";"n.a.")` – „time" stand nicht am Feldnamen-Anfang, nur mittendrin als „TIME1". Erkennung von "beginnt mit time" auf "enthält time" geändert, in allen 5 Kalibrierungs-Blöcken (2 davon hatten bisher gar keinen Zeit-Fallback). Behebt 0 Treffer beim Karl-Heinz-Hahn Walk (Manfred/Angelika Kappenhagen)
 

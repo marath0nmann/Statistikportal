@@ -2726,7 +2726,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
     _bkDbgLine('Fehler', String(e)); return;
   }
 
-  var eventName  = cfg.EventName || cfg.Name || cfg.eventname || '';
+  var eventName  = _rrResolveMultilang(cfg.EventName || cfg.Name || cfg.eventname || '');
   var contestObj = cfg.contests  || cfg.Contests || {};
   // Datum pro Contest-ID aus Config extrahieren
   var contestDateMap = {};
@@ -6395,7 +6395,7 @@ async function rrFetch() {
 
     _rrDebug.cfgRaw = JSON.stringify(cfg).slice(0, 800);
     var apiKey     = cfg.key || cfg.Key || cfg.apikey || cfg.APIKey || '';
-    var eventName  = cfg.EventName || cfg.Name || cfg.eventname || '';
+    var eventName  = _rrResolveMultilang(cfg.EventName || cfg.Name || cfg.eventname || '');
     var _cfgDateRaw = cfg.EventDate || cfg.Date || cfg.eventdate || cfg.eventDatum || cfg.StartDate || cfg.start_date || cfg.datestring || cfg.Datestring || '';
     var eventDate = '';
     if (_cfgDateRaw) {
@@ -7025,11 +7025,18 @@ async function rrFetch() {
   }
 }
 
+// Mehrsprachiges RaceResult-Format auflösen: "{DE:Köln Marathon|EN:Cologne Marathon}" → "Köln Marathon"
+// (bevorzugt Deutsch, sonst erste vorhandene Sprache). Betrifft Contest-/Event-Namen gleichermaßen.
+function _rrResolveMultilang(name) {
+  var _ml = (name||'').match(/\{DE:([^|}]+)/i);
+  if (_ml) return _ml[1].trim();
+  var _mlen = (name||'').match(/\{[A-Z]{2}:([^|}]+)/i);
+  if (_mlen) return _mlen[1].trim();
+  return name;
+}
+
 function rrBestDisz(rrName, diszList) {
-  // Mehrsprachiges Format auflösen: "{DE:Köln Marathon|EN:Cologne Marathon}" → "Köln Marathon"
-  var _ml = (rrName||'').match(/\{DE:([^|}]+)/i);
-  if (_ml) rrName = _ml[1].trim();
-  else { var _mlen = (rrName||'').match(/\{[A-Z]{2}:([^|}]+)/i); if (_mlen) rrName = _mlen[1].trim(); }
+  rrName = _rrResolveMultilang(rrName);
   // Extrahiert Schlüsselbegriffe aus dem RR-Namen und sucht besten Treffer in System-Disziplinen
   var q = rrName.toLowerCase()
     .replace(/^#\d+_/, '')  // "#1_STADTWERKE Halbmarathon" → "stadtwerke halbmarathon"
@@ -7082,19 +7089,26 @@ function rrBestDisz(rrName, diszList) {
     }
     // Distanz → benannte Disziplin (Halbmarathon/Marathon ohne Ziffern)
     if (_named === 'halb' && dl.indexOf('halbmara') >= 0) score += 20;
-    else if (_named === 'full' && dl.indexOf('marathon') >= 0 && dl.indexOf('halb') < 0) score += 20;
+    else if (_named === 'full' && dl.indexOf('marathon') >= 0 && dl.indexOf('halb') < 0 && dl.indexOf('drittel') < 0) score += 20;
     // Einzelne Wörter matchen
     var words = q.split(/\s+/);
     for (var w = 0; w < words.length; w++) {
       if (words[w].length > 2 && dl.indexOf(words[w]) >= 0) score += 2;
     }
-    // Keyword-Bonus — Marathon vs Halbmarathon präzise unterscheiden
+    // Keyword-Bonus — Marathon vs Halb-/Drittelmarathon präzise unterscheiden.
+    // "Drittelmarathon" enthält "marathon" als Substring → ohne diesen Check gleiche
+    // Punktzahl wie "Marathon" selbst, Gewinner dann zufällig per Listenreihenfolge
+    // (z.B. "Generali Köln Marathon" → fälschlich "Drittelmarathon" statt "Marathon").
     var _qHalb = q.indexOf('halb') >= 0 || q.indexOf('half') >= 0;
     var _dHalb = dl.indexOf('halb') >= 0;
+    var _qDrittel = q.indexOf('drittel') >= 0 || q.indexOf('third') >= 0;
+    var _dDrittel = dl.indexOf('drittel') >= 0;
     if (q.indexOf('marathon') >= 0 && dl.indexOf('marathon') >= 0) {
-      score += (_qHalb === _dHalb) ? 10 : -5; // Match: +10, Mismatch: -5
+      var _qualMatch = (_qHalb === _dHalb) && (_qDrittel === _dDrittel);
+      score += _qualMatch ? 10 : -5; // Match: +10, Mismatch: -5
     }
     if (_qHalb && _dHalb) score += 5;
+    if (_qDrittel && _dDrittel) score += 5;
     if (q.indexOf('walking') >= 0 && dl.indexOf('walk') >= 0) score += 5;
     if (score > bestScore) { bestScore = score; best = d; }
   }
