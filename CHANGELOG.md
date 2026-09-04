@@ -1,3 +1,6 @@
+## v1559
+- Fix RaceResult: Zeitfeld-Erkennung übersah Formel-Felder wie `choose([STATUS]+1;[TIME1];"a.k.";"DSQ";"DNF";"DNS";"n.a.")` – „time" stand nicht am Feldnamen-Anfang, nur mittendrin als „TIME1". Erkennung von "beginnt mit time" auf "enthält time" geändert, in allen 5 Kalibrierungs-Blöcken (2 davon hatten bisher gar keinen Zeit-Fallback). Behebt 0 Treffer beim Karl-Heinz-Hahn Walk (Manfred/Angelika Kappenhagen)
+
 ## v1558
 - RaceResult-Erkennung erweitert: Domains mit „anmeldung"/„register" im URL-Text (z.B. `frielingsdorf-datenservice.de/anmeldung/2025/remscheid-silvesterlauf`) werden jetzt ebenfalls per Proxy auf RRPublish/RRRegStart geprüft. Verifiziert: Event 367288 (21. Remscheider Silvesterlauf)
 

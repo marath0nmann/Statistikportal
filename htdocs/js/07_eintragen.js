@@ -2863,7 +2863,9 @@ async function bulkImportFromRR(url, kat, statusEl) {
       else if(f.indexOf('geschlechtmw')>=0||f==='es_geschlecht'||f==='gendermf'||f==='gender'||f==='sex')iGeschlecht=fi;
       else if(f.indexOf('chip')>=0||f.indexOf('netto')>=0)iNetto=fi;
       else if(f.indexOf('gun')>=0||f.indexOf('brutto')>=0||f==='ziel'||f.indexOf('ziel')>=0||f.indexOf('finish')>=0)iZeit=fi;
-      else if(f==='time'||f.indexOf('time')===0||f.indexOf('timetext')>=0)iZeit=fi;
+      // Fängt auch Formel-Felder wie "choose([STATUS]+1;[TIME1];...)" ab, bei denen
+      // "time" nicht am Feldnamen-Anfang steht (RaceResult-Idiom für "Zeit mit Status")
+      else if(f.indexOf('time')>=0)iZeit=fi;
     }
     if(_hnf)iFirstname=-1; // Vollname-Feld gefunden → kein separates Vorname-Feld nötig
     if(iNetto>=0&&iZeit<0)iZeit=iNetto;
@@ -6686,7 +6688,7 @@ async function rrFetch() {
             else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht' || f === 'gendermf' || f === 'gender' || f === 'sex') iGeschlecht = fi;
             else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
             else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0 || f === 'ziel' || f.indexOf('ziel') >= 0 || f.indexOf('finish') >= 0) iZeit = fi;
-            else if (f === 'time' || f.indexOf('time') === 0 || f.indexOf('timetext') >= 0) iZeit = fi;
+            else if (f.indexOf('time') >= 0) iZeit = fi;  // fängt auch "choose([STATUS]+1;[TIME1];...)" ab
             else if (/^rank\dp$/.test(f)) { if (f === 'rank1p') iPlatz = fi; else iAKPlatz = fi; }
             else if (f.indexOf('akpl') >= 0 || f.indexOf('[ak') >= 0) iAKPlatz = fi;  // AKPlp, AKPl.P, AKLVNPlp direkt
             else if (f.indexOf('autorankp') >= 0 || f.indexOf('overallrank') >= 0 || f.indexOf('withstatus') >= 0 || f.indexOf('mitstatus') >= 0 || f.indexOf('statusplatz') >= 0) { // withstatus BEFORE agegroup check
@@ -6737,6 +6739,7 @@ async function rrFetch() {
                   else if (_fa.indexOf('geschlechtmw') >= 0 || _fa === 'gendermf' || _fa === 'gender') iGeschlecht = _fai;
                   else if (_fa.indexOf('chip') >= 0 || _fa.indexOf('netto') >= 0) iNetto = _fai;
                   else if (_fa.indexOf('gun') >= 0 || _fa.indexOf('brutto') >= 0 || _fa === 'ziel' || _fa.indexOf('finish') >= 0 || _fa.indexOf('ziel') >= 0) iZeit = _fai;
+                  else if (_fa.indexOf('time') >= 0) iZeit = _fai;  // fängt auch "choose([STATUS]+1;[TIME1];...)" ab
                   else if (_fa.indexOf('akpl') >= 0 || _fa.indexOf('[ak') >= 0) iAKPlatz = _fai;
                   else if (_fa.indexOf('mitstatus') >= 0 || _fa.indexOf('statusplatz') >= 0) { if (_fa.indexOf('akpl') >= 0 || _fa.indexOf('[ak') >= 0) iAKPlatz = _fai; else iPlatz = _fai; }
                 }
@@ -6862,6 +6865,7 @@ async function rrFetch() {
               else if (f2.indexOf('geschlechtmw') >= 0 || f2 === 'es_geschlecht') iGeschlecht = fi2;
               else if (f2.indexOf('chip') >= 0 || f2.indexOf('netto') >= 0) iNetto = fi2;
               else if (f2.indexOf('gun') >= 0 || f2.indexOf('brutto') >= 0 || f2 === 'ziel' || f2.indexOf('finish') >= 0) iZeit = fi2;
+              else if (f2.indexOf('time') >= 0) iZeit = fi2;  // fängt auch "choose([STATUS]+1;[TIME1];...)" ab
               else if (f2.indexOf('akpl') >= 0 || f2.indexOf('[ak') >= 0) iAKPlatz = fi2;  // AKPlp, AKPl.P, AKLVNPlp direkt
               else if (f2.indexOf('autorankp') >= 0 || f2.indexOf('mitstatus') >= 0 || f2.indexOf('statusplatz') >= 0) {
                 if (f2.indexOf('akpl') >= 0 || f2.indexOf('[ak') >= 0) iAKPlatz = fi2;
@@ -6926,7 +6930,7 @@ async function rrFetch() {
             else if (_ff.indexOf('geschlechtmw') >= 0 || _ff === 'es_geschlecht') iGeschlecht = _ffi;
             else if (_ff.indexOf('chip') >= 0 || _ff.indexOf('netto') >= 0) iNetto = _ffi;
             else if (_ff.indexOf('gun') >= 0 || _ff.indexOf('brutto') >= 0 || _ff.indexOf('ziel') >= 0) iZeit = _ffi;
-            else if (_ff === 'time' || _ff.indexOf('time') === 0 || _ff.indexOf('timetext') >= 0) iZeit = _ffi;
+            else if (_ff.indexOf('time') >= 0) iZeit = _ffi;  // fängt auch "choose([STATUS]+1;[TIME1];...)" ab
             else if (_ff.indexOf('mitstatus') >= 0 || _ff.indexOf('statusplatz') >= 0) { if (_ff.indexOf('akpl') >= 0 || _ff.indexOf('[ak') >= 0) _fiAKPlatz = _ffi; else iPlatz = _ffi; }
           }
           if (_hnf5) iFirstname = -1;
