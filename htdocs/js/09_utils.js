@@ -1,22 +1,12 @@
-// Fokus eines Eingabefelds sichern/wiederherstellen (verhindert Fokusverlust bei innerHTML-Ersatz)
-function _saveFocus() {
-  var ae = document.activeElement;
-  if (!ae || !ae.id) return null;
-  return { id: ae.id, s: ae.selectionStart, e: ae.selectionEnd };
-}
-function _restoreFocus(saved) {
-  if (!saved) return;
-  var el = document.getElementById(saved.id);
-  if (!el) return;
-  el.focus();
-  try { if (saved.s !== null) el.setSelectionRange(saved.s, saved.e); } catch(e) {}
-}
-
-// Standard-Modal-Header: `<h2>title <close-x></h2>`. Spart das Inline-Markup
-// bei den ~24 showModal()-Aufrufen mit einfachem closeModal()-Schließer.
-function modalH2(titleHtml) {
-  return '<h2>' + titleHtml + ' <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>';
-}
+// ============================================================
+// Statistikportal – Helfer
+// ------------------------------------------------------------
+// Portal-neutrale Bausteine (showModal, closeModal, confirmModal,
+// notify, modalH2, buildPagination, buildSelectOptions, debounce,
+// normalizeUmlauts, formatDate, Theme) stehen in
+// 09a_utils_shared.js und werden vom Trainingsportal ueber
+// shared.php mitbenutzt – eine Quelle fuer beide Portale.
+// ============================================================
 
 // Disziplin-Objekt für Importer ermitteln: erst kat-strikt (tbl_key===kat),
 // dann Fallback über bkKatMitGruppen (Bahn/Halle/Straße/...).
@@ -29,37 +19,6 @@ function findDiszObj(disz, kat, disziplinen) {
   });
 }
 
-function buildSelectOptions(items, emptyLabel, getVal, getLabel, isSelected) {
-  var html = '<option value="">' + (emptyLabel || '') + '</option>';
-  for (var _i = 0; _i < items.length; _i++) {
-    var _item = items[_i];
-    var _v = getVal ? getVal(_item) : String(_item);
-    var _l = getLabel ? getLabel(_item) : String(_item);
-    html += '<option value="' + _v + '"' + (isSelected(_item, _v) ? ' selected' : '') + '>' + _l + '</option>';
-  }
-  return html;
-}
-
-function debounce(fn, delay) {
-  var timer = null;
-  return function() {
-    var args = arguments;
-    clearTimeout(timer);
-    timer = setTimeout(function() { fn.apply(null, args); }, delay || 300);
-  };
-}
-
-function normalizeUmlauts(s) {
-  return (s||'')
-    .replace(/ß/g,'ss').replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue')
-    .replace(/Ä/g,'Ae').replace(/Ö/g,'Oe').replace(/Ü/g,'Ue')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/ø/g,'o').replace(/Ø/g,'O')
-    .replace(/æ/g,'ae').replace(/Æ/g,'Ae')
-    .replace(/œ/g,'oe').replace(/Œ/g,'Oe')
-    .replace(/ð/g,'d').replace(/Ð/g,'D')
-    .replace(/þ/g,'th').replace(/Þ/g,'Th');
-}
 
 function setSubTab(t) { state.subTab = t; state.page = 1; state.filters = {}; state.diszFilter = null; tfLeeren('erg'); syncHash(); renderPage(); }
 function setDiszFilter(d) { state.diszFilter = d; state.page = 1; loadErgebnisseData(); }
@@ -74,38 +33,10 @@ function setFilter(k, v) {
 
 function clearFilters() { state.filters = {}; state.page = 1; tfLeeren('erg'); loadErgebnisseData(); }
 
-function buildPagination(page, totalPages, total, callbackFn) {
-  if (totalPages <= 1) return '';
-  callbackFn = callbackFn || 'goPage';
-  var pages = [];
-  var s = Math.max(1, page-2), e = Math.min(totalPages, page+2);
-  if (s > 1) { pages.push(1); pages.push('...'); }
-  for (var i = s; i <= e; i++) pages.push(i);
-  if (e < totalPages) { pages.push('...'); pages.push(totalPages); }
-  var btns = '';
-  for (var i = 0; i < pages.length; i++) {
-    var p = pages[i];
-    if (p === '...') btns += '<button class="page-btn" disabled>&hellip;</button>';
-    else btns += '<button class="page-btn ' + (p === page ? 'active' : '') + '" onclick="' + callbackFn + '(' + p + ')">' + p + '</button>';
-  }
-  return '<div class="pagination">' +
-    '<div class="page-info">Seite ' + page + ' von ' + totalPages + ' &middot; ' + total + ' Eintr&auml;ge</div>' +
-    '<div class="page-btns">' +
-      '<button class="page-btn" ' + (page===1?'disabled':'') + ' onclick="' + callbackFn + '(' + (page-1) + ')">&#x2190;</button>' +
-      btns +
-      '<button class="page-btn" ' + (page===totalPages?'disabled':'') + ' onclick="' + callbackFn + '(' + (page+1) + ')">&#x2192;</button>' +
-    '</div>' +
-  '</div>';
-}
 
 function goPage(p) { state.page = p; loadErgebnisseData(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 function goPageVeranst(p) { state.veranstPage = p; renderVeranstaltungen(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
-function formatDate(d) {
-  if (!d) return '&ndash;';
-  var p = String(d).slice(0,10).split('-');
-  return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : d;
-}
 
 function fmtTime(t, unit) {
   if (!t || t === 'null' || t === 'None') return '&ndash;';
@@ -231,73 +162,6 @@ function akBadge(ak) {
   return '<span class="badge ' + cls + '">' + ak + '</span>';
 }
 
-function notify(msg, type) {
-  var el = document.createElement('div');
-  el.className = 'notification notif-' + (type || 'ok');
-  el.textContent = msg;
-  document.getElementById('notification-container').appendChild(el);
-  setTimeout(function() { el.remove(); }, 3500);
-}
-
-function showModal(html, wide, noClose) {
-  var cls = wide === 'profile' ? 'modal modal-profile' : (wide ? 'modal modal-wide' : 'modal');
-  var overlayClick = '';
-  document.getElementById('modal-container').innerHTML =
-    '<div class="modal-overlay"' + overlayClick + '>' +
-      '<div class="' + cls + '">' + html + '</div>' +
-    '</div>';
-}
-
-function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
-
-function confirmModal(msg) {
-  return new Promise(function(resolve) {
-    var safe = msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    showModal(
-      '<p style="margin:0 0 20px;white-space:pre-wrap">' + safe + '</p>' +
-      '<div class="modal-actions">' +
-        '<button class="btn btn-ghost" onclick="closeModal();window._cmR(false)">Abbrechen</button>' +
-        '<button class="btn btn-danger" onclick="closeModal();window._cmR(true)">OK</button>' +
-      '</div>'
-    );
-    window._cmR = resolve;
-  });
-}
-
-// ── THEME ─────────────────────────────────────────────────
-function getThemePref() {
-  return localStorage.getItem('theme') || 'auto';
-}
-
-function applyTheme() {
-  var pref = getThemePref();
-  var root = document.documentElement;
-  if (pref === 'dark') {
-    root.setAttribute('data-theme', 'dark');
-  } else if (pref === 'light') {
-    root.setAttribute('data-theme', 'light');
-  } else {
-    // auto: entferne data-theme, OS-Einstellung greift über media query
-    root.removeAttribute('data-theme');
-  }
-}
-
-function setTheme(pref) {
-  localStorage.setItem('theme', pref);
-  applyTheme();
-  // Adressleiste neu einfärben nach Theme-Wechsel
-  _updateBodyThemeColor();
-  if (window.appConfig) applyConfig(window.appConfig);
-  // Buttons im Modal aktualisieren falls geöffnet
-  var container = document.getElementById('theme-btns');
-  if (container) {
-    var btns = container.querySelectorAll('button');
-    var prefs = ['auto', 'light', 'dark'];
-    for (var i = 0; i < btns.length; i++) {
-      btns[i].className = 'btn btn-sm ' + (pref === prefs[i] ? 'btn-primary' : 'btn-ghost');
-    }
-  }
-}
 
 // ── START ──────────────────────────────────────────────────
 applyTheme();
