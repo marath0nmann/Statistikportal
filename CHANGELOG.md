@@ -1,3 +1,6 @@
+## v1562
+- **Fix `build.sh`: der CHANGELOG-Bump lief auf macOS ins Leere.** Die Überschrift wurde mit `s/^## vCUR\b/…` ersetzt – BSD-`sed` kennt `\b` nicht als Wortgrenze, das Muster passte dort nie. Das Skript meldete trotzdem „✓ CHANGELOG.md → vNNN", während `index.html`, `README.md` und `COMMIT_EDITMSG` korrekt gesetzt wurden; die Changelog-Überschrift blieb auf der alten Nummer zurück. Jetzt steht die Wortgrenze als `([^A-Za-z0-9_]|$)` ausgeschrieben – gleiches Verhalten in beiden `sed`-Varianten. Zusätzlich prüft das Skript hinterher nach, ob die Überschrift wirklich steht, und warnt sichtbar, wenn keine passende gefunden wurde.
+
 ## v1561
 - **Portal-neutrale Helfer nach `js/09a_utils_shared.js` ausgelagert.** `showModal()`, `closeModal()`, `confirmModal()`, `notify()`, `modalH2()`, `buildPagination()`, `buildSelectOptions()`, `debounce()`, `normalizeUmlauts()`, `formatDate()`, `_saveFocus()`/`_restoreFocus()` und die Theme-Funktionen stehen jetzt in einer eigenen Datei; `09_utils.js` behält alles Statistikportal-Spezifische samt Bootstrap (`init()`). Reines Verschieben – keine Funktion geändert, keine entfallen. Das Trainingsportal liest die Datei über seinen `shared.php`-Proxy, wie schon die Tabellen-Filterleiste.
 

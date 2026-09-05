@@ -24,7 +24,8 @@ rm -f "$REPO_DIR/htdocs/index.html.bak" "$REPO_DIR/htdocs/index.html.bak2"
 echo "✓ index.html → v${NEW_VER}"
 
 # ── README.md aktualisieren ──────────────────────────────────────────────────
-sed -i.bak "s/## Version v[0-9]\+/## Version v${NEW_VER}/" "$REPO_DIR/README.md"
+# Auch hier ohne GNU-Erweiterung (\+), damit BSD-sed dasselbe tut – wie im Trainingsportal.
+sed -i.bak "s/## Version v[0-9][0-9]*/## Version v${NEW_VER}/" "$REPO_DIR/README.md"
 sed -i.bak2 "s/| Stand: [^|]*/| Stand: ${DATUM} /" "$REPO_DIR/README.md"
 rm -f "$REPO_DIR/README.md.bak" "$REPO_DIR/README.md.bak2"
 echo "✓ README.md → v${NEW_VER}"
@@ -40,9 +41,17 @@ fi
 echo "✓ COMMIT_EDITMSG → v${NEW_VER}"
 
 # ── CHANGELOG.md: Version in letztem Eintrag aktualisieren (falls noch CUR_VER) ──
-sed -i.bak "s/^## v${CUR_VER}\b/## v${NEW_VER}/" "$REPO_DIR/CHANGELOG.md"
+# Wortgrenze bewusst ausgeschrieben statt \b: BSD-sed (macOS) kennt \b nicht als
+# Wortgrenze, das Muster passte dort nie – der Bump meldete Erfolg und aenderte
+# nichts. [^A-Za-z0-9_] bzw. Zeilenende verhaelt sich in beiden sed-Varianten wie
+# das gemeinte \b: "## v1560" und "## v1560 – Titel" treffen, "## v15600" nicht.
+sed -i.bak -E "s/^## v${CUR_VER}([^A-Za-z0-9_]|$)/## v${NEW_VER}\1/" "$REPO_DIR/CHANGELOG.md"
 rm -f "$REPO_DIR/CHANGELOG.md.bak"
-echo "✓ CHANGELOG.md → v${NEW_VER}"
+if grep -q "^## v${NEW_VER}\([^A-Za-z0-9_]\|$\)" "$REPO_DIR/CHANGELOG.md"; then
+  echo "✓ CHANGELOG.md → v${NEW_VER}"
+else
+  echo "⚠ CHANGELOG.md: keine Ueberschrift '## v${CUR_VER}' gefunden – bitte von Hand setzen"
+fi
 
 # ── Git: vom Build geänderte Dateien stagen ─────────────────────────────────
 git -C "$REPO_DIR" add htdocs/index.html README.md CHANGELOG.md COMMIT_EDITMSG 2>/dev/null || true
