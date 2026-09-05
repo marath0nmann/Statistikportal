@@ -1,3 +1,6 @@
+## v1561
+- **Portal-neutrale Helfer nach `js/09a_utils_shared.js` ausgelagert.** `showModal()`, `closeModal()`, `confirmModal()`, `notify()`, `modalH2()`, `buildPagination()`, `buildSelectOptions()`, `debounce()`, `normalizeUmlauts()`, `formatDate()`, `_saveFocus()`/`_restoreFocus()` und die Theme-Funktionen stehen jetzt in einer eigenen Datei; `09_utils.js` behält alles Statistikportal-Spezifische samt Bootstrap (`init()`). Reines Verschieben – keine Funktion geändert, keine entfallen. Das Trainingsportal liest die Datei über seinen `shared.php`-Proxy, wie schon die Tabellen-Filterleiste.
+
 ## v1560
 - Fix RaceResult: mehrsprachiges Format `{DE:...|EN:...}` wird jetzt auch beim Eventnamen aufgelöst (bisher nur bei Disziplinen) – behebt kryptische Anzeige im Debug-Log und fehlerhafte Serien-Zuordnung (z.B. „Boston Marathon" statt „Kölnmarathon" beim Generali Köln Marathon)
 - Fix RaceResult: „Drittelmarathon" wurde fälschlich für einen normalen Marathon erkannt, da „Drittelmarathon" das Substring „marathon" enthält und mit identischer Punktzahl wie „Marathon" bewertet wurde (Gewinner dann zufällig per Listenreihenfolge). Neue Qualifikator-Prüfung wie bei Halbmarathon – „Generali Köln Marathon" → „Marathon" (vorher „Drittelmarathon")
