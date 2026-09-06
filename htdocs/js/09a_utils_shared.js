@@ -107,17 +107,108 @@ function showModal(html, wide, noClose) {
 
 function closeModal() { document.getElementById('modal-container').innerHTML = ''; }
 
+/**
+ * Eigenes Overlay fuer Rueckfragen und Eingaben – bewusst NICHT ueber
+ * showModal().
+ *
+ * showModal() ersetzt den Inhalt von #modal-container. Eine Rueckfrage aus
+ * einem offenen Formular heraus ("Diese Einheit wirklich loeschen?") wuerde
+ * dieses Formular damit ueberschreiben, und nach "Abbrechen" waere es weg.
+ * Diese Dialoge haengen sich deshalb als eigenes Overlay an <body> und legen
+ * sich mit hoeherem z-index darueber; darunter bleibt alles unberuehrt.
+ */
+function _dialogOverlay(innerHtml) {
+  var ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.style.zIndex = '3000';
+  ov.innerHTML = '<div class="modal">' + innerHtml + '</div>';
+  document.body.appendChild(ov);
+  return ov;
+}
+
+function _htmlEsc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 function confirmModal(msg) {
   return new Promise(function(resolve) {
-    var safe = msg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    showModal(
-      '<p style="margin:0 0 20px;white-space:pre-wrap">' + safe + '</p>' +
+    var ov = _dialogOverlay(
+      '<p style="margin:0 0 20px;white-space:pre-wrap">' + _htmlEsc(msg) + '</p>' +
       '<div class="modal-actions">' +
-        '<button class="btn btn-ghost" onclick="closeModal();window._cmR(false)">Abbrechen</button>' +
-        '<button class="btn btn-danger" onclick="closeModal();window._cmR(true)">OK</button>' +
+        '<button class="btn btn-ghost" data-cm="0">Abbrechen</button>' +
+        '<button class="btn btn-danger" data-cm="1">OK</button>' +
       '</div>'
     );
-    window._cmR = resolve;
+    function fertig(wert) {
+      document.removeEventListener('keydown', beiTaste, true);
+      ov.remove();
+      resolve(wert);
+    }
+    function beiTaste(ev) {
+      if (ev.key === 'Escape') { ev.stopPropagation(); fertig(false); }
+    }
+    ov.querySelector('[data-cm="0"]').addEventListener('click', function() { fertig(false); });
+    ov.querySelector('[data-cm="1"]').addEventListener('click', function() { fertig(true); });
+    document.addEventListener('keydown', beiTaste, true);
+    ov.querySelector('[data-cm="1"]').focus();
+  });
+}
+
+/**
+ * Texteingabe im Portal-Design – der Ersatz fuer window.prompt().
+ * Loest mit dem eingegebenen Text auf, oder mit null bei Abbruch.
+ *
+ * promptModal('Neuer Name:', 'alter Name').then(function(wert) { … });
+ *
+ * `mehrzeilig` schaltet auf ein Textfeld um; `readonly` zeigt einen Wert nur
+ * zum Kopieren an (dann gibt es keinen Abbrechen-Knopf, nur Schliessen).
+ */
+function promptModal(msg, vorgabe, opt) {
+  opt = opt || {};
+  return new Promise(function(resolve) {
+    var wert = (vorgabe === undefined || vorgabe === null) ? '' : String(vorgabe);
+    var attr = 'class="settings-input" style="width:100%"' + (opt.readonly ? ' readonly' : '');
+    var feld = opt.mehrzeilig
+      ? '<textarea ' + attr + ' rows="4">' + _htmlEsc(wert) + '</textarea>'
+      : '<input type="text" ' + attr + ' value="' +
+        _htmlEsc(wert).replace(/"/g, '&quot;') + '">';
+
+    var ov = _dialogOverlay(
+      '<p style="margin:0 0 12px;white-space:pre-wrap">' + _htmlEsc(msg) + '</p>' +
+      feld +
+      '<div class="modal-actions">' +
+        (opt.readonly
+          ? '<button class="btn btn-primary" data-pm="cancel">Schließen</button>'
+          : '<button class="btn btn-ghost" data-pm="cancel">Abbrechen</button>' +
+            '<button class="btn btn-primary" data-pm="ok">OK</button>') +
+      '</div>'
+    );
+
+    var el = ov.querySelector('input, textarea');
+    function fertig(wert) {
+      document.removeEventListener('keydown', beiTaste, true);
+      ov.remove();
+      resolve(wert);
+    }
+    function beiTaste(ev) {
+      if (ev.key === 'Escape') { ev.stopPropagation(); fertig(null); }
+    }
+    ov.querySelector('[data-pm="cancel"]').addEventListener('click', function() { fertig(null); });
+    var okBtn = ov.querySelector('[data-pm="ok"]');
+    if (okBtn) okBtn.addEventListener('click', function() { fertig(el ? el.value : null); });
+
+    document.addEventListener('keydown', beiTaste, true);
+    if (el) {
+      el.focus();
+      el.select();
+      // Enter bestaetigt – aber nicht im mehrzeiligen Feld, dort ist er ein Zeilenumbruch.
+      el.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter' && !opt.mehrzeilig && !opt.readonly) {
+          ev.preventDefault();
+          fertig(el.value);
+        }
+      });
+    }
   });
 }
 
