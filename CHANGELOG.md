@@ -1,4 +1,5 @@
-## v1562
+## v1563
+- **`confirmModal()` überschreibt kein offenes Formular mehr, `promptModal()` ist neu.** Beide Dialoge hingen bisher an `showModal()` und ersetzten damit den Inhalt von `#modal-container`. Eine Rückfrage aus einem offenen Formular heraus („Wirklich löschen?") löschte dieses Formular mit – nach „Abbrechen" war es weg. Sie hängen sich jetzt als eigenes Overlay an `<body>` und legen sich mit höherem `z-index` darüber; darunter bleibt alles unberührt. Escape bricht ab, Enter bestätigt. Neu dazu `promptModal(text, vorgabe, opt)` als Ersatz für `window.prompt()` – mit `mehrzeilig` für ein Textfeld und `readonly` für einen Wert, den man nur kopieren soll.
 - **Fix `build.sh`: der CHANGELOG-Bump lief auf macOS ins Leere.** Die Überschrift wurde mit `s/^## vCUR\b/…` ersetzt – BSD-`sed` kennt `\b` nicht als Wortgrenze, das Muster passte dort nie. Das Skript meldete trotzdem „✓ CHANGELOG.md → vNNN", während `index.html`, `README.md` und `COMMIT_EDITMSG` korrekt gesetzt wurden; die Changelog-Überschrift blieb auf der alten Nummer zurück. Jetzt steht die Wortgrenze als `([^A-Za-z0-9_]|$)` ausgeschrieben – gleiches Verhalten in beiden `sed`-Varianten. Zusätzlich prüft das Skript hinterher nach, ob die Überschrift wirklich steht, und warnt sichtbar, wenn keine passende gefunden wurde.
 
 ## v1561
