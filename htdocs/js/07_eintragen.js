@@ -2847,7 +2847,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
     var _hnf=false;
     for(var fi=0;fi<df.length;fi++){
       var f=df[fi].toLowerCase();
-      if(f.indexOf('anzeigename')>=0||f.indexOf('flname')>=0||f.indexOf('lfname')>=0||f==='displayname'||f==='fullname'||f==='name'){iName=fi;_hnf=true;}
+      if(f.indexOf('anzeigename')>=0||f.indexOf('flname')>=0||f.indexOf('lfname')>=0||f==='displayname'||f==='fullname'||f==='name'||f.indexOf('es_name')>=0){iName=fi;_hnf=true;}
       else if((f.indexOf('lastname')>=0||f.indexOf('nachname')>=0||f.indexOf('surname')>=0)&&!_hnf)iName=fi;
       else if(f.indexOf('firstname')>=0||f.indexOf('vorname')>=0||f==='first')iFirstname=fi;
       else if(f.indexOf('club')>=0||f.indexOf('verein')>=0)iClub=fi;
@@ -2858,9 +2858,9 @@ async function bulkImportFromRR(url, kat, statusEl) {
       else if(f.indexOf('autorankp')>=0||f.indexOf('overallrank')>=0||f.indexOf('withstatus')>=0||f.indexOf('mitstatus')>=0||f.indexOf('statusplatz')>=0||f.indexOf('agegrouprank')>=0){if(f.indexOf('akpl')>=0||f.indexOf('[ak')>=0||f.indexOf('agegrouprank')>=0)iAKPlatz=fi;else iPlatz=fi;}
       else if(f.indexOf('akpl')>=0||f.indexOf('[ak')>=0)iAKPlatz=fi;
       else if(/^rank\dp$/.test(f)){if(f==='rank1p')iPlatz=fi;else iAKPlatz=fi;}
-      else if((f.indexOf('agegroup')>=0||f==='[agegroup1.nameshort]'||f.indexOf('akabk')>=0||f.indexOf('ak_abk')>=0||f==='es_akabkürzung'||f.indexOf('agegroupname')>=0)&&f.indexOf('rank')<0)iAK=fi;
-      else if(f==='year'||f==='yob'||f==='birthyear'||f==='es_jahrgang')iYear=fi;
-      else if(f.indexOf('geschlechtmw')>=0||f==='es_geschlecht'||f==='gendermf'||f==='gender'||f==='sex')iGeschlecht=fi;
+      else if((f.indexOf('agegroup')>=0||f==='[agegroup1.nameshort]'||f.indexOf('akabk')>=0||f.indexOf('ak_abk')>=0||f.indexOf('es_akabkürzung')>=0||f.indexOf('agegroupname')>=0)&&f.indexOf('rank')<0)iAK=fi;
+      else if(f==='year'||f==='yob'||f==='birthyear'||f.indexOf('es_jahrgang')>=0)iYear=fi;
+      else if(f.indexOf('geschlechtmw')>=0||f.indexOf('es_geschlecht')>=0||f==='gendermf'||f==='gender'||f==='sex')iGeschlecht=fi;
       else if(f.indexOf('chip')>=0||f.indexOf('netto')>=0)iNetto=fi;
       else if(f.indexOf('gun')>=0||f.indexOf('brutto')>=0||f==='ziel'||f.indexOf('ziel')>=0||f.indexOf('finish')>=0)iZeit=fi;
       // Fängt auch Formel-Felder wie "choose([STATUS]+1;[TIME1];...)" ab, bei denen
@@ -6677,15 +6677,15 @@ async function rrFetch() {
           var _hnf2 = false;
           for (var fi = 0; fi < df.length; fi++) {
             var f = df[fi].toLowerCase();
-            if (f.indexOf('anzeigename') >= 0 || f.indexOf('flname') >= 0 || f.indexOf('lfname') >= 0 || f === 'displayname' || f === 'fullname' || f === 'name') { iName = fi; _hnf2 = true; }
+            if (f.indexOf('anzeigename') >= 0 || f.indexOf('flname') >= 0 || f.indexOf('lfname') >= 0 || f === 'displayname' || f === 'fullname' || f === 'name' || f.indexOf('es_name') >= 0) { iName = fi; _hnf2 = true; }
             else if ((f.indexOf('lastname') >= 0 || f.indexOf('nachname') >= 0 || f.indexOf('surname') >= 0) && !_hnf2) iName = fi;
             else if (f.indexOf('firstname') >= 0 || f.indexOf('vorname') >= 0 || f === 'first') iFirstname = fi;
             else if (f.indexOf('club') >= 0 || f.indexOf('verein') >= 0) iClub = fi;
             else if (f.indexOf('zeit') >= 0) { if (f.indexOf('netto') >= 0) iNetto = fi; else iZeit = fi; } // "ZeitMitStatus" vor mitstatus-Check!
-            else if ((f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]' || f.indexOf('akabk') >= 0 || f.indexOf('ak_abk') >= 0 || f === 'es_akabkürzung' || f.indexOf('agegroupname') >= 0) && f.indexOf('rank') < 0) iAK = fi;
+            else if ((f.indexOf('agegroup') >= 0 || f === '[agegroup1.nameshort]' || f.indexOf('akabk') >= 0 || f.indexOf('ak_abk') >= 0 || f.indexOf('es_akabkürzung') >= 0 || f.indexOf('agegroupname') >= 0) && f.indexOf('rank') < 0) iAK = fi;
             else if (f.indexOf('flag') >= 0 || f.indexOf('nation') >= 0) { /* skip */ }
-            else if (f === 'year' || f === 'yob' || f === 'birthyear' || f === 'es_jahrgang') iYear = fi;
-            else if (f.indexOf('geschlechtmw') >= 0 || f === 'es_geschlecht' || f === 'gendermf' || f === 'gender' || f === 'sex') iGeschlecht = fi;
+            else if (f === 'year' || f === 'yob' || f === 'birthyear' || f.indexOf('es_jahrgang') >= 0) iYear = fi;
+            else if (f.indexOf('geschlechtmw') >= 0 || f.indexOf('es_geschlecht') >= 0 || f === 'gendermf' || f === 'gender' || f === 'sex') iGeschlecht = fi;
             else if (f.indexOf('chip') >= 0 || f.indexOf('netto') >= 0) iNetto = fi;
             else if (f.indexOf('gun') >= 0 || f.indexOf('brutto') >= 0 || f === 'ziel' || f.indexOf('ziel') >= 0 || f.indexOf('finish') >= 0) iZeit = fi;
             else if (f.indexOf('time') >= 0) iZeit = fi;  // fängt auch "choose([STATUS]+1;[TIME1];...)" ab
@@ -6729,7 +6729,7 @@ async function rrFetch() {
                 var _hnf3 = false;
                 for (var _fai = 0; _fai < _dfAll.length; _fai++) {
                   var _fa = _dfAll[_fai].toLowerCase();
-                  if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('flname') >= 0 || _fa.indexOf('lfname') >= 0 || _fa === 'displayname' || _fa === 'fullname' || _fa === 'name') { iName = _fai; _hnf3 = true; }
+                  if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('flname') >= 0 || _fa.indexOf('lfname') >= 0 || _fa === 'displayname' || _fa === 'fullname' || _fa === 'name' || _fa.indexOf('es_name') >= 0) { iName = _fai; _hnf3 = true; }
                   else if ((_fa.indexOf('lastname') >= 0 || _fa.indexOf('nachname') >= 0 || _fa.indexOf('surname') >= 0) && !_hnf3) iName = _fai;
                   else if (_fa.indexOf('firstname') >= 0 || _fa.indexOf('vorname') >= 0 || _fa === 'first') iFirstname = _fai;
                   else if (_fa.indexOf('club') >= 0 || _fa.indexOf('verein') >= 0) iClub = _fai;
@@ -6855,14 +6855,14 @@ async function rrFetch() {
             var _hnf4 = false;
             for (var fi2 = 0; fi2 < df2.length; fi2++) {
               var f2 = df2[fi2].toLowerCase();
-              if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('flname') >= 0 || f2.indexOf('lfname') >= 0 || f2 === 'displayname' || f2 === 'fullname' || f2 === 'name') { iName = fi2; _hnf4 = true; }
+              if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('flname') >= 0 || f2.indexOf('lfname') >= 0 || f2 === 'displayname' || f2 === 'fullname' || f2 === 'name' || f2.indexOf('es_name') >= 0) { iName = fi2; _hnf4 = true; }
               else if ((f2.indexOf('lastname') >= 0 || f2.indexOf('nachname') >= 0 || f2.indexOf('surname') >= 0) && !_hnf4) iName = fi2;
               else if (f2.indexOf('firstname') >= 0 || f2.indexOf('vorname') >= 0 || f2 === 'first') iFirstname = fi2;
               else if (f2.indexOf('club') >= 0 || f2.indexOf('verein') >= 0) iClub = fi2;
               else if (f2.indexOf('zeit') >= 0) { if (f2.indexOf('netto') >= 0) iNetto = fi2; else iZeit = fi2; }
-              else if ((f2.indexOf('agegroup') >= 0 || f2.indexOf('akabk') >= 0 || f2.indexOf('ak_abk') >= 0 || f2 === 'es_akabkürzung') && f2.indexOf('rank') < 0) iAK = fi2;
-              else if (f2 === 'year' || f2 === 'yob' || f2 === 'es_jahrgang') iYear = fi2;
-              else if (f2.indexOf('geschlechtmw') >= 0 || f2 === 'es_geschlecht') iGeschlecht = fi2;
+              else if ((f2.indexOf('agegroup') >= 0 || f2.indexOf('akabk') >= 0 || f2.indexOf('ak_abk') >= 0 || f2.indexOf('es_akabkürzung') >= 0) && f2.indexOf('rank') < 0) iAK = fi2;
+              else if (f2 === 'year' || f2 === 'yob' || f2.indexOf('es_jahrgang') >= 0) iYear = fi2;
+              else if (f2.indexOf('geschlechtmw') >= 0 || f2.indexOf('es_geschlecht') >= 0) iGeschlecht = fi2;
               else if (f2.indexOf('chip') >= 0 || f2.indexOf('netto') >= 0) iNetto = fi2;
               else if (f2.indexOf('gun') >= 0 || f2.indexOf('brutto') >= 0 || f2 === 'ziel' || f2.indexOf('finish') >= 0) iZeit = fi2;
               else if (f2.indexOf('time') >= 0) iZeit = fi2;  // fängt auch "choose([STATUS]+1;[TIME1];...)" ab
@@ -6920,14 +6920,14 @@ async function rrFetch() {
           var _hnf5 = false;
           for (var _ffi = 0; _ffi < _fdf.length; _ffi++) {
             var _ff = _fdf[_ffi].toLowerCase();
-            if (_ff.indexOf('anzeigename') >= 0 || _ff.indexOf('flname') >= 0 || _ff.indexOf('lfname') >= 0 || _ff === 'displayname' || _ff === 'fullname' || _ff === 'name') { iName = _ffi; _hnf5 = true; }
+            if (_ff.indexOf('anzeigename') >= 0 || _ff.indexOf('flname') >= 0 || _ff.indexOf('lfname') >= 0 || _ff === 'displayname' || _ff === 'fullname' || _ff === 'name' || _ff.indexOf('es_name') >= 0) { iName = _ffi; _hnf5 = true; }
             else if ((_ff.indexOf('lastname') >= 0 || _ff.indexOf('nachname') >= 0 || _ff.indexOf('surname') >= 0) && !_hnf5) iName = _ffi;
             else if (_ff.indexOf('firstname') >= 0 || _ff.indexOf('vorname') >= 0 || _ff === 'first') iFirstname = _ffi;
             else if (_ff.indexOf('club') >= 0 || _ff.indexOf('verein') >= 0) iClub = _ffi;
             else if (_ff.indexOf('zeit') >= 0) { if (_ff.indexOf('netto') >= 0) iNetto = _ffi; else iZeit = _ffi; }
-            else if ((_ff.indexOf('agegroup') >= 0 || _ff.indexOf('akabk') >= 0 || _ff === 'es_akabkürzung') && _ff.indexOf('rank') < 0) iAK = _ffi;
-            else if (_ff === 'year' || _ff === 'yob' || _ff === 'es_jahrgang') iYear = _ffi;
-            else if (_ff.indexOf('geschlechtmw') >= 0 || _ff === 'es_geschlecht') iGeschlecht = _ffi;
+            else if ((_ff.indexOf('agegroup') >= 0 || _ff.indexOf('akabk') >= 0 || _ff.indexOf('es_akabkürzung') >= 0) && _ff.indexOf('rank') < 0) iAK = _ffi;
+            else if (_ff === 'year' || _ff === 'yob' || _ff.indexOf('es_jahrgang') >= 0) iYear = _ffi;
+            else if (_ff.indexOf('geschlechtmw') >= 0 || _ff.indexOf('es_geschlecht') >= 0) iGeschlecht = _ffi;
             else if (_ff.indexOf('chip') >= 0 || _ff.indexOf('netto') >= 0) iNetto = _ffi;
             else if (_ff.indexOf('gun') >= 0 || _ff.indexOf('brutto') >= 0 || _ff.indexOf('ziel') >= 0) iZeit = _ffi;
             else if (_ff.indexOf('time') >= 0) iZeit = _ffi;  // fängt auch "choose([STATUS]+1;[TIME1];...)" ab
