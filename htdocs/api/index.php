@@ -1852,6 +1852,18 @@ function migrateNormalizeOverflowTimes(): void {
 migrateResultatNum();
 migrateNormalizeOverflowTimes();
 
+// Gehört eine Vereinsangabe zum eigenen Verein? Vergleich ohne Groß-/Kleinschreibung
+// gegen Vereinsname und Vereinskürzel. Leere Angabe => nicht eigener Verein (extern).
+function istEigenerVerein(string $verein): bool {
+    $v = mb_strtolower(trim($verein));
+    if ($v === '') return false;
+    foreach (['verein_name', 'verein_kuerzel'] as $key) {
+        $club = mb_strtolower(trim((string)Settings::get($key, '')));
+        if ($club !== '' && $v === $club) return true;
+    }
+    return false;
+}
+
 // Hilfsfunktion: Zeit-String normalisieren und resultat_num berechnen
 // "4:28:29" → "04:28:29", gibt [normalisiert, sekunden] zurück
 function normalizeResultat(string $r, string $fmt = 'min'): array {
@@ -2138,8 +2150,7 @@ function mergeErgebnisFelder(int $ergId, array $neu, array $ueberschreiben = [])
         }
         if ($k === 'verein') {
             // Vereinswechsel wirkt sich auf die Extern-Kennzeichnung aus
-            $clubM = (string)Settings::get('verein_name', '');
-            $felder[] = 'extern=?'; $params[] = mb_strtolower((string)$wert) === mb_strtolower($clubM) ? 0 : 1;
+            $felder[] = 'extern=?'; $params[] = istEigenerVerein((string)$wert) ? 0 : 1;
         }
     }
     if (!$felder) return [];
@@ -3094,8 +3105,7 @@ if (in_array($res, $ergebnisTabellen)) {
             // `extern` muss zum Vereinsnamen passen – dieselbe Regel wie beim
             // Anlegen: eigener Verein => intern, anderer oder keiner => extern.
             // Sonst entstehen widersprüchliche Zeilen (Verein gesetzt, extern=0).
-            $clubU   = (string)Settings::get('verein_name', '');
-            $externU = ($vNeu === null || $vNeu === '' || mb_strtolower($vNeu) !== mb_strtolower($clubU));
+            $externU = !istEigenerVerein((string)$vNeu);
             $felder[] = 'extern=?'; $params[] = $externU ? 1 : 0;
         }
         if (isset($body['disziplin'])) {
@@ -7262,15 +7272,32 @@ if ($res === 'externe-ergebnisse' && $method === 'PUT' && $id) {
     if (isset($body['disziplin_mapping_id'])){ $felder[] = 'disziplin_mapping_id=?'; $params[] = intOrNull($body['disziplin_mapping_id']); }
     if (isset($body['resultat']))            { $felder[] = 'resultat=?';             $params[] = sanitize($body['resultat']); }
     if (isset($body['altersklasse']))        { $felder[] = 'altersklasse=?';         $params[] = sanitize($body['altersklasse']) ?: null; }
-    if (isset($body['verein']))              { $felder[] = 'verein=?';               $params[] = sanitize($body['verein']) ?: null; }
+    if (array_key_exists('verein', $body))   { $felder[] = 'verein=?';               $params[] = sanitize($body['verein']) ?: null; }
     if (array_key_exists('veranstaltung_id', $body)) {
         $vid = $body['veranstaltung_id'] ? (int)$body['veranstaltung_id'] : null;
         $felder[] = 'veranstaltung_id=?';
         $params[] = $vid;
     }
     if (!$felder) jsonErr('Keine Änderungen.');
+    // Vereinswechsel bestimmt `extern` neu – dieselbe Regel wie beim Anlegen und
+    // in PUT ergebnisse. Sonst bleibt ein auf den eigenen Verein korrigiertes
+    // Ergebnis dauerhaft extern (Verein „TuS Oedt", extern=1).
+    $externNeu = null;
+    if (array_key_exists('verein', $body)) {
+        $externNeu = !istEigenerVerein((string)(sanitize($body['verein']) ?? ''));
+        $felder[] = 'extern=?'; $params[] = $externNeu ? 1 : 0;
+    }
+    if (isset($body['resultat'])) {
+        $dmIdX = isset($body['disziplin_mapping_id']) ? intOrNull($body['disziplin_mapping_id'])
+            : (DB::fetchOne('SELECT disziplin_mapping_id FROM ' . DB::tbl('ergebnisse') . ' WHERE id=?', [(int)$id])['disziplin_mapping_id'] ?? null);
+        $fmtX = DB::fetchOne('SELECT COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt FROM ' . DB::tbl('disziplin_mapping') . ' dm
+            LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id WHERE dm.id=?', [(int)$dmIdX]);
+        [$normX, $rnumX] = normalizeResultat((string)sanitize($body['resultat']), $fmtX['fmt'] ?? 'min');
+        $params[array_search('resultat=?', $felder, true)] = $normX;
+        $felder[] = 'resultat_num=?'; $params[] = $rnumX;
+    }
     DB::updateById(DB::tbl('ergebnisse'), $felder, $params, (int)$id);
-    jsonOk('Gespeichert.');
+    jsonOk(['extern' => $externNeu]);
 }
 
 // ERGEBNISSE/BULK
@@ -7369,8 +7396,7 @@ function eigenesErgebnisVerarbeiten(array $item, int $athId, int $userId, string
     // Vereinsangabe: anderer oder KEIN Verein → externes Ergebnis.
     // Eine leere Angabe bleibt leer und wird nicht durch den eigenen Verein ersetzt.
     $verein   = (string)(sanitize($item['verein'] ?? ($item['externer_verein'] ?? '')) ?? '');
-    $clubName = (string)Settings::get('verein_name', '');
-    $isExtern = $verein === '' || mb_strtolower($verein) !== mb_strtolower($clubName);
+    $isExtern = !istEigenerVerein($verein);
 
     // Dubletten-Abgleich
     $dup     = findeErgebnisDublette($athId, $vid, $disziplin, $dmId) ?: $dupDatum;

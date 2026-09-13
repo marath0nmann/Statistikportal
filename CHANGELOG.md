@@ -1,3 +1,6 @@
+## v1567
+- **Fix: Externes Ergebnis ließ sich nicht in ein Vereinsergebnis umwandeln.** `PUT externe-ergebnisse/{id}` speicherte einen geänderten Verein, setzte `extern` aber nicht neu – ein auf „TuS Oedt" korrigiertes Ergebnis blieb extern. Die Route bestimmt `extern` jetzt wie Anlegen und `PUT ergebnisse` aus der Vereinsangabe und berechnet bei geändertem Ergebnis auch `resultat_num`. Neue gemeinsame Prüfung `istEigenerVerein()` (Vereinsname **oder** Vereinskürzel, ohne Groß-/Kleinschreibung) ersetzt die drei bisher separat kopierten Vergleiche. Ein leerer Verein lässt sich jetzt auch wieder löschen.
+
 ## v1566
 - **Fix Mehrkampf-Import: Einzeldisziplinen landeten als „Dreikampf".** Die Einzellisten eines Mehrkampfs heißen auf leichtathletik.de z.B. „Schlagballwurf Kinder W9 Dreikampf". Seit v1565 steht „Dreikampf" über die Kategoriegruppe in der Bahn-Disziplinliste, und der Namensabgleich zog ihn dem „Schlagballwurf 80g" vor – das Wurfergebnis (15,50) wurde als Dreikampf eingelesen. Einzellisten werden jetzt nur gegen Disziplinen ohne Punkte-Format abgeglichen, der „…kampf"-Zusatz am Titelende wird vorher entfernt. `GET disziplinen` liefert dafür zusätzlich `fmt`.
 
