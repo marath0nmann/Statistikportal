@@ -2989,7 +2989,7 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
     var _fmt = selKat.fmt || 'min';
     var _dir = selKat.sort_dir || 'ASC';
     var _canDel = selKat.disz_anzahl === 0 || selKat.disz_anzahl === '0';
-    var _fmtOpts = [['min','Zeit (min)'],['min_h','Zeit (min) mit Hundertstel'],['s','Zeit (s)'],['m','Weite (m)']];
+    var _fmtOpts = [['min','Zeit (min)'],['min_h','Zeit (min) mit Hundertstel'],['s','Zeit (s)'],['m','Weite (m)'],['pkt','Punkte']];
     var _fmtSel = '<select id="ik-fmt" style="width:100%">';
     _fmtOpts.forEach(function(o) { _fmtSel += '<option value="' + o[0] + '"' + (_fmt === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; });
     _fmtSel += '</select>';
@@ -3000,7 +3000,7 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
           '<div class="form-group"><label>Ergebnisformat</label>' + _fmtSel + '</div>' +
           '<div class="form-group"><label>Sortierung</label><select id="ik-dir" style="width:100%">' +
             '<option value="ASC"' + (_dir === 'ASC' ? ' selected' : '') + '>Aufsteigend (Zeit)</option>' +
-            '<option value="DESC"' + (_dir === 'DESC' ? ' selected' : '') + '>Absteigend (Weite)</option>' +
+            '<option value="DESC"' + (_dir === 'DESC' ? ' selected' : '') + '>Absteigend (Weite/Punkte)</option>' +
           '</select></div>' +
           '<div class="form-group full"><label>Wettkampfz&auml;hlung &bdquo;#km&ldquo;</label>' +
             '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
@@ -3337,8 +3337,8 @@ function showNeueKatModal() {
     '<div class="form-grid">' +
       '<div class="form-group"><label>Name *</label><input type="text" id="nk-name" placeholder="z.B. Mehrkampf"/></div>' +
       '<div class="form-group"><label>Schlüssel * <span style="font-size:11px;color:var(--text2)">(a-z, 0-9, _)</span></label><input type="text" id="nk-key" placeholder="z.B. mehrkampf"/></div>' +
-      '<div class="form-group"><label>Ergebnisformat</label><select id="nk-fmt"><option value="min">Zeit (min)</option><option value="min_h">Zeit (min) mit Hundertstel</option><option value="s">Zeit (s / Sekunden)</option><option value="m">Weite (m)</option></select></div>' +
-      '<div class="form-group"><label>Sortierung</label><select id="nk-dir"><option value="ASC">Aufsteigend (Zeit)</option><option value="DESC">Absteigend (Weite)</option></select></div>' +
+      '<div class="form-group"><label>Ergebnisformat</label><select id="nk-fmt"><option value="min">Zeit (min)</option><option value="min_h">Zeit (min) mit Hundertstel</option><option value="s">Zeit (s / Sekunden)</option><option value="m">Weite (m)</option><option value="pkt">Punkte</option></select></div>' +
+      '<div class="form-group"><label>Sortierung</label><select id="nk-dir"><option value="ASC">Aufsteigend (Zeit)</option><option value="DESC">Absteigend (Weite/Punkte)</option></select></div>' +
     '</div>' +
     '<div style="font-size:12px;color:var(--text2);margin-bottom:16px">&#x26A0;&#xFE0F; Der Schlüssel muss mit einer bestehenden Ergebnistabelle (<code>ergebnisse_[schlüssel]</code>) übereinstimmen oder eine neue Tabelle wird benötigt.</div>' +
     '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button><button class="btn btn-primary" onclick="createKat()">Erstellen</button></div>'
@@ -3370,6 +3370,7 @@ function showKatEditModal(btn) {
         '<option value="min_h"' + (fmt==='min_h'?' selected':'') + '>Zeit (min) mit Hundertstel</option>' +
         '<option value="s"' + (fmt==='s'?' selected':'') + '>Zeit (s)</option>' +
         '<option value="m"' + (fmt==='m'?' selected':'') + '>Weite (m)</option>' +
+        '<option value="pkt"' + (fmt==='pkt'?' selected':'') + '>Punkte</option>' +
       '</select></div>' +
       '<div class="form-group"><label>Sortierung</label><select id="ek-dir">' +
         '<option value="ASC"' + (dir==='ASC'?' selected':'') + '>Aufsteigend</option>' +
@@ -3415,6 +3416,7 @@ function showDiszEditModal(btn) {
     { v:'min_h', label:'Zeit (min) mit Hundertstel – z.B. 45:30,99 min' },
     { v:'s',     label:'Zeit (s) – z.B. 10,45s' },
     { v:'m',     label:'Weite (m) – z.B. 7.85m' },
+    { v:'pkt',   label:'Punkte (Mehrkampf) – z.B. 649 Pkt.' },
   ];
   var fmtSel = '<select id="de-fmt" style="width:100%">';
   for (var i = 0; i < fmtOpts.length; i++) {
@@ -3460,7 +3462,7 @@ function showDiszEditModal(btn) {
   setTimeout(function() {
     var distEl = document.getElementById('de-distanz');
     var nameEl = document.getElementById('de-name');
-    var isField = katfmt === 'm';
+    var isField = katfmt === 'm' || katfmt === 'pkt';
     if (distEl && isField) {
       distEl.disabled = true;
       distEl.value = '';
@@ -3530,6 +3532,7 @@ async function showNeueDiszModal(preSelKatId, preName, onSaved) {
       '<option value="min_h">Zeit (min) mit Hundertstel – z.B. 45:30,99 min</option>' +
       '<option value="s">Zeit (s) – z.B. 10,45s</option>' +
       '<option value="m">Weite (m) – z.B. 7.85m</option>' +
+      '<option value="pkt">Punkte (Mehrkampf) – z.B. 649 Pkt.</option>' +
     '</select>';
   var katSuffixSel =
     '<select id="nd-katsuffix" style="width:100%">' +
@@ -3576,7 +3579,7 @@ async function showNeueDiszModal(preSelKatId, preName, onSaved) {
       var selId = katEl.value;
       var kat = null;
       for (var i = 0; i < kats.length; i++) { if (String(kats[i].id) === String(selId)) { kat = kats[i]; break; } }
-      var isField = kat && kat.fmt === 'm';
+      var isField = kat && (kat.fmt === 'm' || kat.fmt === 'pkt');
       distEl.disabled = !!isField;
       distEl.placeholder = isField ? 'Nicht relevant (Sprung/Wurf)' : 'z.B. 800';
       if (isField) distEl.value = '';

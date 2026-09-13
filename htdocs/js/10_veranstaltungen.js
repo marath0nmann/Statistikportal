@@ -125,9 +125,9 @@ function _buildVeranstErgTable(ergebnisse) {
     for (var ei2 = 0; ei2 < ergs.length; ei2++) {
       var e2 = ergs[ei2];
       var fmt = e2.fmt || '';
-      var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
+      var res = fmtErgebnis(e2.resultat, fmt);
       var _ePace = diszKm(e2.disziplin, e2.disziplin_mapping_id) >= 1 ? calcPace(e2.disziplin, e2.resultat, e2.disziplin_mapping_id) : '';
-      var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
+      var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's' && fmt !== 'pkt';
       rows +=
         '<tr>' +
           '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span>' + (e2.extern ? ' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>' : '') + '</td>' +
@@ -464,7 +464,7 @@ async function renderMeineVeranstaltungen() {
     if (wert == null) return;
     var k = r.disziplin_mapping_id ? 'm' + r.disziplin_mapping_id
           : 'd' + (r.kategorie || '') + '|' + (r.disziplin || '');
-    var hochBesser = r.fmt === 'm'; // Weiten/Höhen: mehr ist besser
+    var hochBesser = fmtHoeherBesser(r.fmt); // Weiten/Höhen/Punkte: mehr ist besser
     var best = pbBest[k];
     if (best === undefined || (hochBesser ? wert > best : wert < best)) {
       pbBest[k] = wert; pbHalter[k] = r; r.ist_pb = 1;
@@ -975,7 +975,7 @@ function _renderMeineTabelle() {
     meisterschaft: function(r) { return r.meisterschaft ? mstrBadge(r.meisterschaft) : ''; },
     pos_mstr:     function(r) { return r.meisterschaft && r.ak_platz_meisterschaft ? medalBadge(r.ak_platz_meisterschaft) : ''; },
     resultat:     function(r) {
-      var res = r.fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, r.fmt === 's' ? 's' : (r.fmt === 'min_h' ? 'min_h' : undefined));
+      var res = fmtErgebnis(r.resultat, r.fmt);
       // Pille links: die Ergebniszelle ist rechtsbündig, so bleiben die Ziffern
       // untereinander ausgerichtet.
       return (r.ist_pb ? '<span class="badge badge-pb" title="' +
@@ -1861,7 +1861,7 @@ function _buildSerieMeineTeilnahmen(veranst) {
   var tdR = td + ';text-align:right;font-variant-numeric:tabular-nums';
 
   var tableRows = rows.map(function(r) {
-    var res = r.fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, r.fmt === 's' ? 's' : (r.fmt === 'min_h' ? 'min_h' : undefined));
+    var res = fmtErgebnis(r.resultat, r.fmt);
     var showPace = r.pace && r.pace !== '00:00';
     return '<tr onmouseover="this.style.background=\'var(--surf2)\'" onmouseout="this.style.background=\'\'">' +
       '<td style="' + td + ';white-space:nowrap">' + formatDate(r.datum) + '</td>' +

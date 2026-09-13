@@ -2370,6 +2370,7 @@ function _sharePromptResult(e) {
   var raw = String(e.resultat == null ? '' : e.resultat).trim();
   var fmt = e.fmt || 'min';
   if (fmt === 'm') return raw.replace('.', ',') + ' m';
+  if (fmt === 'pkt') return raw + ' Punkte';
   var v = raw.replace(/^0+:?/, '').replace(/^:/, '').replace('.', ',');
   if (fmt === 's') return v + ' sec';
   return v + (raw.split(':').length >= 3 && !/^0+:/.test(raw) ? ' h' : ' min');
@@ -2785,9 +2786,9 @@ async function renderVeranstaltungDetail(vid) {
     for (var ei2 = 0; ei2 < dErgs.length; ei2++) {
       var e2 = dErgs[ei2];
       var fmt = e2.fmt || '';
-      var res = fmt === 'm' ? fmtMeter(e2.resultat) : fmtTime(e2.resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
+      var res = fmtErgebnis(e2.resultat, fmt);
       var _ePace = diszKm(e2.disziplin, e2.disziplin_mapping_id) >= 1 ? calcPace(e2.disziplin, e2.resultat, e2.disziplin_mapping_id) : '';
-      var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's';
+      var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's' && fmt !== 'pkt';
       rows +=
         '<tr>' +
           '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span></td>' +

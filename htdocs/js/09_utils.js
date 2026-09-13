@@ -112,11 +112,28 @@ function fmtMeter(v) {
   return String(v).replace(/\.0+$/, '') + '<span style="font-size:.75em;opacity:.7;margin-left:1px">m</span>';
 }
 
-// Formatiert einen numerischen Vorher-Wert (Sekunden oder Meter) aus der API
+// Mehrkampf-Punkte, z.B. "649" -> "649 Pkt."
+function fmtPunkte(v) {
+  if (v === null || v === undefined || v === '' || v === 'null' || v === 'None') return '&ndash;';
+  return String(v).replace(/\.0+$/, '') + '<span style="font-size:.75em;opacity:.7;margin-left:2px">Pkt.</span>';
+}
+
+// Ergebnis gemäß Disziplin-Format darstellen (Zeit, Weite oder Punkte)
+function fmtErgebnis(resultat, fmt) {
+  if (fmt === 'pkt') return fmtPunkte(resultat);
+  if (fmt === 'm')   return fmtMeter(resultat);
+  return fmtTime(resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
+}
+
+// Formate, bei denen der höhere Wert besser ist
+function fmtHoeherBesser(fmt) { return fmt === 'm' || fmt === 'pkt'; }
+
+// Formatiert einen numerischen Vorher-Wert (Sekunden, Meter oder Punkte) aus der API
 function fmtValNum(val, fmt) {
   if (val === null || val === undefined) return null;
   val = parseFloat(val);
   if (isNaN(val)) return null;
+  if (fmt === 'pkt') return fmtPunkte(Math.round(val));
   if (fmt === 'm') {
     var m = Math.round(val * 100) / 100;
     return String(m).replace(/\.0+$/, '').replace('.', ',') + '<span style="font-size:.75em;opacity:.7;margin-left:1px">m</span>';

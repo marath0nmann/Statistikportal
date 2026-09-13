@@ -571,10 +571,14 @@ async function bulkImportFromLA(url, kat, statusEl) {
   if (eventOrt  && ortEl && !ortEl.value) ortEl.value = eventOrt;
   if (eventName && evEl  && !evEl.value)  evEl.value  = eventName;
 
-  // Alle CurrentList-Links
+  // Alle CurrentList-Links + MultiResultList (Mehrkampf-Gesamtwertung in Punkten,
+  // z.B. „Dreikampf Kinder M8" – die Einzeldisziplinen stehen zusätzlich als CurrentList)
   var _seenHref = {};
-  var listLinks = Array.from(ovDoc.querySelectorAll('a[href*="/CurrentList/"]'))
-    .map(function(a) { return { href: a.getAttribute('href') || a.href, text: (a.textContent||'').trim() }; })
+  var listLinks = Array.from(ovDoc.querySelectorAll('a[href*="/CurrentList/"], a[href*="/MultiResultList/"]'))
+    .map(function(a) {
+      var h = a.getAttribute('href') || a.href;
+      return { href: h, text: (a.textContent||'').trim(), multi: /\/MultiResultList\//i.test(h) };
+    })
     .filter(function(l) {
       if (!l.href || !l.text) return false;
       // Relative URLs zu absoluten machen
@@ -633,6 +637,14 @@ async function bulkImportFromLA(url, kat, statusEl) {
         var lastFL = (col4s[col4s.length-1].querySelector('.firstline')||{}).textContent||'';
         rAK = normalizeAK(lastFL.trim());
       }
+      // Mehrkampf-Liste hat nur eine col-4 (Punkte) → AK aus dem Listentitel
+      // („Dreikampf Kinder W9") bzw. der Blockklasse („c-W9")
+      if (!rAK && ll.multi) {
+        var _mkBlk = line.closest('.multiblock');
+        var _mkCls = ll.text.match(/\b([MW](?:K?U?\d{1,2}|HK|JU\d{2}))\s*$/) ||
+                     (_mkBlk ? (_mkBlk.className || '').match(/\bc-([MW][A-Z0-9]+)\b/) : null);
+        if (_mkCls) rAK = normalizeAK(_mkCls[1]);
+      }
       // Jahrgang und Geschlecht aus Ergebniszeile
       var col3la = line.querySelector('.col-3');
       var slJG = col3la ? col3la.querySelector('.secondline') : null;
@@ -679,7 +691,9 @@ async function bulkImportFromLA(url, kat, statusEl) {
       var _isAkBlock = /^(M\u00e4nner|Frauen|MHK|WHK|[MW]\d{2}|[MW]U\d{1,2}|Weiblich|M\u00e4nnlich|Senioren|Senior|Jugend)/i.test(_blockName);
 
 
-      var disz    = rrBestDisz(ll.text, diszList);
+      // Mehrkampf: Disziplin = Wettkampfbezeichnung ohne Klassenzusatz („Dreikampf Kinder M8" → „Dreikampf")
+      var _mkM    = ll.multi ? ll.text.match(/(\S*kampf)\b/i) : null;
+      var disz    = _mkM ? _mkM[1].charAt(0).toUpperCase() + _mkM[1].slice(1) : rrBestDisz(ll.text, diszList);
       var diszObj = findDiszObj(disz, kat, disziplinen);
 
       if (!_ownClub) {

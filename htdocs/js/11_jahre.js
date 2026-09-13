@@ -72,8 +72,7 @@ function _jahrFilterTimeline(d, js) {
 
 // Ergebnis gemäß fmt formatieren (identisch zu Dashboard/Timeline)
 function _jahrRes(resultat, fmt) {
-  if (fmt === 'm') return fmtMeter(resultat);
-  return fmtTime(resultat, fmt === 's' ? 's' : (fmt === 'min_h' ? 'min_h' : undefined));
+  return fmtErgebnis(resultat, fmt);
 }
 
 function _jahrEsc(s) {

@@ -389,6 +389,38 @@ if (Settings::get('entities_bereinigt') !== '1') {
     }
     try { Settings::set('entities_bereinigt', '1'); } catch (\Exception $e) {}
 }
+// v1565: Mehrkampf-Struktur – Kategorie „Mehrkampf" (Format Punkte, mehr ist besser)
+// mit Disziplin „Dreikampf"; beim Bahn-Import über die Kategoriegruppe erreichbar.
+if (Settings::get('mehrkampf_eingerichtet') !== '1') {
+    try {
+        $katTbl = DB::tbl('disziplin_kategorien');
+        $mk = DB::fetchOne("SELECT id FROM $katTbl WHERE tbl_key='mehrkampf'");
+        if (!$mk) {
+            DB::query("INSERT INTO $katTbl (name,tbl_key,fmt,sort_dir,reihenfolge) VALUES ('Mehrkampf','mehrkampf','pkt','DESC',99)");
+            $mkId = (int)DB::lastInsertId();
+        } else {
+            $mkId = (int)$mk['id'];
+        }
+        if (!DB::fetchOne("SELECT id FROM " . DB::tbl('disziplin_mapping') . " WHERE disziplin='Dreikampf'")) {
+            DB::query("INSERT INTO " . DB::tbl('disziplin_mapping') . " (disziplin, kategorie_id) VALUES ('Dreikampf', ?)", [$mkId]);
+        }
+        if (DB::fetchOne("SELECT id FROM $katTbl WHERE tbl_key='bahn'")) {
+            $gruppen = json_decode(Settings::get('kategoriegruppen', '[]'), true) ?: [];
+            $inGruppe = false;
+            foreach ($gruppen as &$g) {
+                $mit = $g['mitglieder'] ?? [];
+                if (in_array('bahn', $mit, true)) {
+                    if (!in_array('mehrkampf', $mit, true)) $g['mitglieder'][] = 'mehrkampf';
+                    $inGruppe = true;
+                }
+            }
+            unset($g);
+            if (!$inGruppe) $gruppen[] = ['mitglieder' => ['bahn', 'mehrkampf']];
+            Settings::set('kategoriegruppen', json_encode($gruppen, JSON_UNESCAPED_UNICODE));
+        }
+        Settings::set('mehrkampf_eingerichtet', '1');
+    } catch (\Exception $e) {}
+}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS genehmigt TINYINT(1) NOT NULL DEFAULT 1"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS datenquelle VARCHAR(1024) NULL DEFAULT NULL"); } catch (\Exception $e) {}
 // v942: Veranstaltungsserien (jährlich wiederkehrende Veranstaltungen)
@@ -2306,9 +2338,9 @@ function berechneTimelineEvents(bool $mergeAKTl = true): array
         $tblN     = $dInfo['tbl'];
         $disz     = $dInfo['disziplin'];
         $mappingId= $dInfo['mapping_id'];
-        $dir      = ($fmt === 'm') ? 'DESC' : 'ASC';
+        $dir      = in_array($fmt, ['m', 'pkt'], true) ? 'DESC' : 'ASC';
 
-        if ($fmt === 'm') {
+        if (in_array($fmt, ['m', 'pkt'], true)) {
             $valExpr = "COALESCE(e.resultat_num, CAST(e.resultat AS DECIMAL(10,3)))";
         } else {
             $valExpr = "CASE

@@ -32,7 +32,7 @@ async function renderRekorde() {
       REK_CATS = rk.data
         .filter(function(k) { return parseInt(k.disz_anzahl) > 0; })
         .sort(function(a,b) { return (b.ergebnis_anzahl||0) - (a.ergebnis_anzahl||0) || a.name.localeCompare(b.name); })
-        .map(function(k) { return { id: k.tbl_key, label: k.name, fmt: k.fmt === 'm' ? 'm' : k.fmt === 's' ? 's' : undefined }; });
+        .map(function(k) { return { id: k.tbl_key, label: k.name, fmt: k.fmt === 'm' ? 'm' : k.fmt === 's' ? 's' : k.fmt === 'pkt' ? 'pkt' : undefined }; });
     }
     if (!REK_CATS.length) {
       el.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F3C6;</div><div class="empty-text">Keine Kategorien mit Ergebnissen vorhanden</div></div>';
@@ -322,7 +322,7 @@ function buildRekTable(rows, fmt, compact, showPace, athletLabel, disz) {
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
     var rankCls = i===0 ? 'gold' : i===1 ? 'silver' : i===2 ? 'bronze' : '';
-    var result = fmt === 'm' ? fmtMeter(r.resultat) : fmtTime(r.resultat, fmt);
+    var result = fmt === 'm' || fmt === 'pkt' ? fmtErgebnis(r.resultat, fmt) : fmtTime(r.resultat, fmt);
     var curYear2 = new Date().getFullYear();
     var rowYear  = r.datum ? parseInt(r.datum.substr(0,4), 10) : 0;
     var rowCls   = '';
@@ -397,7 +397,7 @@ async function renderVereinsrekorde() {
   // Mobile: eine Zeile (♀/♂ Symbol + Name + Ergebnis)
   function vrMobileEntry(entry, fmt, symbol, isWoman) {
     var isEmpty = !entry || !entry.resultat;
-    var result = isEmpty ? '–' : (fmt === 'm' ? fmtMeter(entry.resultat) : fmtTime(entry.resultat, fmt));
+    var result = isEmpty ? '–' : (fmt === 'm' || fmt === 'pkt' ? fmtErgebnis(entry.resultat, fmt) : fmtTime(entry.resultat, fmt));
     var athlet = isEmpty ? '–'
       : (entry.athlet_id
           ? '<span class="athlet-link" data-athlet-id="' + entry.athlet_id + '" onclick="event.stopPropagation()">' + (entry.athlet || '–') + '</span>'
@@ -418,7 +418,7 @@ async function renderVereinsrekorde() {
              '<td class="ort-text vr-date"></td>' +
              '<td class="ort-text vr-event"></td>';
     }
-    var result = fmt === 'm' ? fmtMeter(entry.resultat) : fmtTime(entry.resultat, fmt);
+    var result = fmt === 'm' || fmt === 'pkt' ? fmtErgebnis(entry.resultat, fmt) : fmtTime(entry.resultat, fmt);
     var athlet = entry.athlet_id
       ? '<span class="athlet-link" data-athlet-id="' + entry.athlet_id + '">' + (entry.athlet || '–') + '</span>'
       : (entry.athlet || '–');
