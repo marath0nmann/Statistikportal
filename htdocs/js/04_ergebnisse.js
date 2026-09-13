@@ -545,7 +545,11 @@ async function _saveExternErgebnis(id) {
     veranstaltung_id: vid,
   };
   var r = await apiPut('externe-ergebnisse/' + id, body);
-  if (r && r.ok) { closeModal(); notify('Gespeichert.', 'ok'); loadErgebnisseData(); }
+  if (r && r.ok) {
+    closeModal();
+    notify(r.data && r.data.extern === false ? 'Gespeichert – jetzt ein Vereinsergebnis.' : 'Gespeichert.', 'ok');
+    loadErgebnisseData();
+  }
   else notify('❌ ' + ((r&&r.fehler)||'Fehler'), 'err');
 }
 
