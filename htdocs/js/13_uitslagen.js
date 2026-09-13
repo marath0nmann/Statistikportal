@@ -597,6 +597,10 @@ async function bulkImportFromLA(url, kat, statusEl) {
   var _erlaubt    = bkKatMitGruppen(kat);
   var _diszForKat = _erlaubt ? disziplinen.filter(function(d){ return _erlaubt.indexOf(d.tbl_key) >= 0; }) : disziplinen;
   var diszList    = _diszForKat.map(function(d){return d.disziplin;}).filter(function(v,i,a){return a.indexOf(v)===i;});
+  // Einzeldisziplinen eines Mehrkampfs heißen z.B. „Schlagballwurf Kinder W9 Dreikampf" –
+  // ohne Punkte-Disziplinen im Abgleich, sonst gewinnt „Dreikampf" gegen „Schlagballwurf 80g"
+  var diszListEinzel = _diszForKat.filter(function(d){ return d.fmt !== 'pkt'; })
+    .map(function(d){return d.disziplin;}).filter(function(v,i,a){return a.indexOf(v)===i;});
   var allResults  = [], listsChecked = 0;
   // Zeilen fremder Vereine sammeln → Extern-Suche nach bekannten Athlet:innen
   var fremdRows   = [], fremdVereine = {}, ohneErgebnis = 0;
@@ -693,7 +697,7 @@ async function bulkImportFromLA(url, kat, statusEl) {
 
       // Mehrkampf: Disziplin = Wettkampfbezeichnung ohne Klassenzusatz („Dreikampf Kinder M8" → „Dreikampf")
       var _mkM    = ll.multi ? ll.text.match(/(\S*kampf)\b/i) : null;
-      var disz    = _mkM ? _mkM[1].charAt(0).toUpperCase() + _mkM[1].slice(1) : rrBestDisz(ll.text, diszList);
+      var disz    = _mkM ? _mkM[1].charAt(0).toUpperCase() + _mkM[1].slice(1) : rrBestDisz(ll.text.replace(/\s+\S*kampf\s*$/i, ''), diszListEinzel);
       var diszObj = findDiszObj(disz, kat, disziplinen);
 
       if (!_ownClub) {
