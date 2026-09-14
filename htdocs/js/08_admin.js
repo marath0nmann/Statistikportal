@@ -2051,6 +2051,8 @@ async function renderAdminDarstellung() {
       '<div class="settings-panel-body">' +
         row('Vereinsname', 'Vollständiger Name, z.B. in E-Mails', textIn('cfg-verein_name', cfgVal('verein_name',''))) +
         row('Kurzbezeichnung', 'Im Header und Menü angezeigt', textIn('cfg-verein_kuerzel', cfgVal('verein_kuerzel',''))) +
+        row('Weitere Schreibweisen', 'Kommagetrennt, z.B. aus Ergebnislisten. Ergebnisse mit einem dieser Vereinsnamen gelten als Vereinsergebnis.',
+          textIn('cfg-verein_aliase', cfgVal('verein_aliase',''), 'z.B. TuS 1910 Oedt, TuS Oedt e.V.')) +
         row('App-Untertitel', 'Unter dem Vereinsnamen im Header', textIn('cfg-app_untertitel', cfgVal('app_untertitel','Leichtathletik-Statistik'))) +
         row('Vereinslogo', 'PNG, JPG, SVG oder WebP · max. 2 MB',
           '<div style="display:flex;flex-direction:column;gap:12px">' +
@@ -2723,7 +2725,7 @@ function _validateFarbe(hex, label) {
 
 async function saveAllSettings() {
   var keys = [
-    'verein_name','verein_kuerzel','app_untertitel',
+    'verein_name','verein_kuerzel','verein_aliase','app_untertitel',
     'farbe_primary','farbe_accent',
     'email_domain','noreply_email',
     'adressleiste_farbe',
@@ -3716,6 +3718,7 @@ var _wartungTab = 'duplikate';
 async function renderAdminWartung(subTab) {
   if (subTab) _wartungTab = subTab;
   if (_wartungTab === 'verwaist') { await renderAdminVerwaist(); return; }
+  if (_wartungTab === 'vereine')  { await renderAdminExternCheck(); return; }
   await renderAdminDuplikate();
 }
 
@@ -3723,6 +3726,7 @@ function _wartungSubtabs() {
   return '<div style="display:flex;gap:8px;margin-bottom:20px">' +
     '<button class="btn' + (_wartungTab === 'duplikate' ? ' btn-primary' : ' btn-ghost') + '" onclick="renderAdminWartung(\'duplikate\')">⚠️ Duplikate</button>' +
     '<button class="btn' + (_wartungTab === 'verwaist'  ? ' btn-primary' : ' btn-ghost') + '" onclick="renderAdminWartung(\'verwaist\')">🏚️ Verwaiste Veranstaltungen</button>' +
+    '<button class="btn' + (_wartungTab === 'vereine'   ? ' btn-primary' : ' btn-ghost') + '" onclick="renderAdminWartung(\'vereine\')">🏷️ Vereinszuordnung</button>' +
   '</div>';
 }
 
@@ -3900,6 +3904,81 @@ async function dupDelete(id, btn) {
 }
 
 // ── Admin: Verwaiste Veranstaltungen ─────────────────────────────────────────
+// ── Admin: Vereinszuordnung (Verein ↔ extern-Kennzeichen) ──────────────────
+// Findet Ergebnisse, deren eingetragener Verein nicht zum extern-Kennzeichen passt.
+// Ergebnisse ohne Verein sind nicht prüfbar und tauchen hier nicht auf.
+async function renderAdminExternCheck() {
+  var el = document.getElementById('main-content');
+  el.innerHTML = adminSubtabs() + _wartungSubtabs() + '<div class="loading"><div class="spinner"></div>Prüfe Vereinszuordnung&hellip;</div>';
+  var r = await apiGet('admin/extern-check');
+  if (!r || !r.ok) {
+    el.innerHTML = adminSubtabs() + _wartungSubtabs() + '<div style="color:var(--accent);padding:20px">Fehler: ' + _esc((r && r.fehler) || '?') + '</div>';
+    return;
+  }
+  var d = r.data || {};
+  window._externCheck = d;
+
+  function tabelle(rows, gruppe) {
+    if (!rows.length) return '<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Keine Auffälligkeiten</div></div>';
+    return '<div class="table-scroll"><table style="width:100%;border-collapse:collapse">' +
+      '<thead><tr style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text2)">' +
+        '<th style="padding:6px 10px;width:28px"><input type="checkbox" checked onchange="_externCheckAlle(\'' + gruppe + '\', this.checked)"/></th>' +
+        '<th style="padding:6px 10px;text-align:left">Athlet*in</th>' +
+        '<th style="padding:6px 10px;text-align:left">Verein</th>' +
+        '<th style="padding:6px 10px;text-align:left">Veranstaltung</th>' +
+        '<th style="padding:6px 10px;text-align:left">Datum</th>' +
+        '<th style="padding:6px 10px;text-align:left">Disziplin</th>' +
+        '<th style="padding:6px 10px;text-align:left">Ergebnis</th>' +
+      '</tr></thead><tbody>' +
+      rows.map(function(e) {
+        return '<tr style="border-bottom:1px solid var(--border)">' +
+          '<td style="padding:6px 10px"><input type="checkbox" data-ec-gruppe="' + gruppe + '" value="' + e.id + '" checked/></td>' +
+          '<td style="padding:6px 10px;font-weight:600">' + _esc(e.athlet) + '</td>' +
+          '<td style="padding:6px 10px">' + _esc(e.verein) + '</td>' +
+          '<td style="padding:6px 10px">' + (e.veranstaltung_id
+            ? '<a href="#veranstaltung/' + e.veranstaltung_id + '" style="color:var(--primary)">' + _esc(e.veranstaltung) + '</a>' : '–') + '</td>' +
+          '<td style="padding:6px 10px;color:var(--text2);font-size:13px">' + (e.datum ? formatDate(e.datum) : '–') + '</td>' +
+          '<td style="padding:6px 10px">' + _esc(e.disziplin) + ' ' + (e.altersklasse ? '<span style="color:var(--text2);font-size:12px">' + _esc(e.altersklasse) + '</span>' : '') + '</td>' +
+          '<td style="padding:6px 10px">' + _esc(e.resultat) + '</td>' +
+        '</tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+
+  var eigen = d.eigen_extern || [], fremd = d.fremd_intern || [];
+  el.innerHTML = adminSubtabs() + _wartungSubtabs() +
+    '<h2 style="margin-bottom:4px">🏷️ Vereinszuordnung</h2>' +
+    '<p style="color:var(--text2);font-size:13px;margin-bottom:18px">Ergebnisse, deren eingetragener Verein nicht zur Einstufung intern/extern passt. ' +
+      'Als eigener Verein gelten: <b>' + _esc((d.vereinsnamen || []).join(', ') || '–') + '</b> ' +
+      '(Name, Kurzbezeichnung und weitere Schreibweisen unter Admin → Einstellungen → Verein).</p>' +
+    '<div class="panel" style="padding:20px 24px;margin-bottom:20px">' +
+      '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">' +
+        '<b>Eigener Verein, aber extern</b><span style="color:var(--text2);font-size:13px">' + eigen.length + ' Ergebnis' + (eigen.length === 1 ? '' : 'se') + '</span>' +
+        (eigen.length ? '<button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="_externCheckSetzen(\'eigen\', 0)">Als Vereinsergebnis markieren</button>' : '') +
+      '</div>' + tabelle(eigen, 'eigen') +
+    '</div>' +
+    '<div class="panel" style="padding:20px 24px">' +
+      '<div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;flex-wrap:wrap">' +
+        '<b>Fremder Verein, aber Vereinsergebnis</b><span style="color:var(--text2);font-size:13px">' + fremd.length + ' Ergebnis' + (fremd.length === 1 ? '' : 'se') + '</span>' +
+        (fremd.length ? '<button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="_externCheckSetzen(\'fremd\', 1)">Als extern markieren</button>' : '') +
+      '</div>' +
+      (fremd.length ? '<p style="color:var(--text2);font-size:12px;margin:0 0 12px">Oft nur eine andere Schreibweise des eigenen Vereins – dann besser als weitere Schreibweise eintragen statt extern zu markieren.</p>' : '') +
+      tabelle(fremd, 'fremd') +
+    '</div>';
+}
+
+function _externCheckAlle(gruppe, an) {
+  document.querySelectorAll('[data-ec-gruppe="' + gruppe + '"]').forEach(function(cb) { cb.checked = an; });
+}
+
+async function _externCheckSetzen(gruppe, extern) {
+  var ids = Array.from(document.querySelectorAll('[data-ec-gruppe="' + gruppe + '"]:checked')).map(function(cb) { return parseInt(cb.value, 10); });
+  if (!ids.length) { notify('Keine Ergebnisse ausgewählt.', 'err'); return; }
+  if (!await confirmModal(ids.length + ' Ergebnis' + (ids.length === 1 ? '' : 'se') + (extern ? ' als extern' : ' als Vereinsergebnis') + ' markieren?')) return;
+  var r = await apiPost('admin/extern-check', { ids: ids, extern: extern });
+  if (r && r.ok) { notify((r.data && r.data.geaendert) + ' geändert.', 'ok'); renderAdminExternCheck(); }
+  else notify('❌ ' + ((r && r.fehler) || 'Fehler'), 'err');
+}
+
 async function renderAdminVerwaist() {
   var el = document.getElementById('main-content');
   el.innerHTML = adminSubtabs() + _wartungSubtabs() + '<div class="loading"><div class="spinner"></div>Lade verwaiste Veranstaltungen&hellip;</div>';

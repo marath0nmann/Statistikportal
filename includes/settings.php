@@ -11,6 +11,7 @@ class Settings {
     private static array $defaults = [
         'verein_name'                => ['Mein Verein e.V.',                                    'Vereinsname',                                    'verein'],
         'verein_kuerzel'             => ['Mein Verein',                                         'Kurzbezeichnung (Header)',                        'verein'],
+        'verein_aliase'              => ['',                                                    'Weitere Schreibweisen des Vereins',               'verein'],
         'app_untertitel'             => ['Leichtathletik-Statistik',                            'App-Untertitel',                                 'verein'],
         'logo_datei'                 => ['uploads/logo_default.png',                           'Logo (hochgeladene Datei)',                       'verein'],
         'email_domain'               => [        '',                                             'Zugelassene E-Mail-Domain (Registrierung)',       'registrierung'],
