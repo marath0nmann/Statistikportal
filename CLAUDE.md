@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1557
+## Aktuelle Version: v1569
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -115,12 +115,21 @@ Modals schließen **ausschließlich per Button** – Klick außerhalb des Modals
 
 **fmtTime():** gibt HTML zurück (`<span style="...">h</span>`) → für Tooltips/title-Attribute immer Klartext-Formatierung verwenden und HTML-escapen.
 
+**Verein ↔ `extern` (Ergebnisse):**
+- `extern` ist maßgeblich, nicht der Text `verein`. Vereinsergebnisse speichern meist **keinen** Verein
+  (leer = eigener Verein) – `extern` lässt sich daher nicht aus `verein` ableiten.
+- Wird ein Verein geschrieben, **immer** über `vereinFelder($verein)` (liefert `verein=?, extern=?`).
+  Eigener Verein = `verein_name`, `verein_kuerzel` oder Einstellung `verein_aliase` (`istEigenerVerein()`).
+- Bearbeiten interner und externer Ergebnisse läuft durch dieselbe PUT-Logik
+  (`PUT externe-ergebnisse/{id}` wird auf die Ergebnis-Route umgeleitet).
+- Admin → Wartung → 🏷️ Vereinszuordnung (`admin/extern-check`) findet widersprüchliche Zeilen.
+
 ## Datenmodell (wichtige Tabellen)
 
 | Tabelle | Zweck |
 |---|---|
 | `ergebnisse` | Vereinsergebnisse (mit `veranstaltung_id`) |
-| `athlet_pb` | Externe Ergebnisse (mit optionaler `veranstaltung_id`, `erstellt_von`) |
+| `ergebnisse` mit `extern=1` | Externe Ergebnisse (nicht für den Verein gestartet). Die frühere Tabelle `athlet_pb` ist seit v1569 entfernt |
 | `veranstaltungen` | Veranstaltungen (`genehmigt`, `serie_id`) |
 | `veranstaltung_serien` | Regelmäßige Veranstaltungen |
 | `benutzer` | Login, Rollen, Passkey, TOTP, `reset_code_hash` |

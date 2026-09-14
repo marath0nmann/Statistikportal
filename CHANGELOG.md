@@ -1,3 +1,12 @@
+## v1569
+- **Externe Ergebnisse: Vereinszuordnung zentral und konsistent.** Aus der Prüfung des falsch erfassten Ergebnisses (Ruhr Trail Run) umgesetzt:
+  - **Eine Regel für Verein → `extern`:** `vereinFelder()` ist jetzt die einzige Stelle, die eine Vereinsangabe in `verein`/`extern` übersetzt – Bearbeiten, Nachtragen bei Dubletten, eigene Ergebnisse, Bulk-Import und **Genehmigen von Änderungsanträgen** (dort ging ein Vereinswechsel bisher stillschweigend verloren). Im Bulk-Import ist eine Angabe mit dem eigenen Verein immer intern.
+  - **Weitere Schreibweisen des Vereins:** neue Einstellung `verein_aliase` (Admin → Einstellungen → Verein, kommagetrennt). Neben Vereinsname und Kurzbezeichnung zählen diese Namen als eigener Verein.
+  - **Eine Bearbeiten-Logik:** `PUT externe-ergebnisse/{id}` nutzt dieselbe Logik wie Vereinsergebnisse (Rechte, Änderungsanträge für Athleten, Verein/extern, Veranstaltung umhängen). `resultat` wird dabei wie beim Import normalisiert und `resultat_num` nach Disziplinformat berechnet. Ein unsinniger Rollenwechsel mit undefinierter Variable im Athlet-Zweig entfällt.
+  - **Umwandeln mit Nacherfassung:** Trägt man im Dialog „Externes Ergebnis bearbeiten" den eigenen Verein ein, erscheint ein Hinweis; nach dem Speichern öffnet sich direkt die vollständige Bearbeitung (Disziplin-Zuordnung, AK-Platz, Meisterschaft).
+  - **Wartung → 🏷️ Vereinszuordnung:** listet Ergebnisse mit eigenem Verein, die extern markiert sind, und fremdem Verein, die intern markiert sind – mit Auswahl und Sammelkorrektur (`GET/POST admin/extern-check`).
+  - **Aufgeräumt:** ungenutzte Route `athleten/{id}/pb` entfernt; Legacy-Tabelle `athlet_pb` wird gelöscht, sofern die Migration von v1309 vollständig war (Zeilenzahl geprüft), samt ihrer bei jeder Anfrage laufenden `ALTER TABLE`-Befehle.
+
 ## v1567
 - **Fix: Externes Ergebnis ließ sich nicht in ein Vereinsergebnis umwandeln.** `PUT externe-ergebnisse/{id}` speicherte einen geänderten Verein, setzte `extern` aber nicht neu – ein auf „TuS Oedt" korrigiertes Ergebnis blieb extern. Die Route bestimmt `extern` jetzt wie Anlegen und `PUT ergebnisse` aus der Vereinsangabe und berechnet bei geändertem Ergebnis auch `resultat_num`. Neue gemeinsame Prüfung `istEigenerVerein()` (Vereinsname **oder** Vereinskürzel, ohne Groß-/Kleinschreibung) ersetzt die drei bisher separat kopierten Vergleiche. Ein leerer Verein lässt sich jetzt auch wieder löschen.
 

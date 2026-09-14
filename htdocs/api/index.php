@@ -336,11 +336,6 @@ try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXIST
 try { DB::query("ALTER TABLE " . DB::tbl('registrierungen') . " ADD COLUMN IF NOT EXISTS email_login_bevorzugt TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS email_login_bevorzugt TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('benutzer') . " ADD COLUMN IF NOT EXISTS letzter_aktivitaet DATETIME NULL"); } catch (\Exception $e) {}
-try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS verein VARCHAR(120) NULL"); } catch (\Exception $e) {}
-try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS disziplin_mapping_id INT NULL"); } catch (\Exception $e) {}
-try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS altersklasse VARCHAR(20) NULL"); } catch (\Exception $e) {}
-try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS veranstaltung_id INT NULL"); } catch (\Exception $e) {}
-try { DB::query("ALTER TABLE " . DB::tbl('athlet_pb') . " ADD COLUMN IF NOT EXISTS erstellt_von INT NULL"); } catch (\Exception $e) {}
 // v1309: externe Ergebnisse in ergebnisse-Tabelle vereinen
 try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS extern TINYINT(1) NOT NULL DEFAULT 0"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS verein VARCHAR(120) NULL"); } catch (\Exception $e) {}
@@ -351,15 +346,31 @@ try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXI
 try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS pos_geschlecht INT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS schuh VARCHAR(120) NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('ergebnisse') . " ADD COLUMN IF NOT EXISTS bemerkungen VARCHAR(500) NULL"); } catch (\Exception $e) {}
-// Einmalige Datenmigration: athlet_pb → ergebnisse
-if (Settings::get('athlet_pb_migriert') !== '1') {
+// v1569: Legacy-Tabelle athlet_pb entfernen. Ihr Inhalt wurde in v1309 nach
+// ergebnisse (extern=1, import_quelle='migration_pb') übernommen. Gelöscht wird
+// nur, wenn die Migration gelaufen ist und jede Zeile dort angekommen ist.
+if (Settings::get('athlet_pb_entfernt') !== '1') {
     try {
-        DB::query("INSERT INTO " . DB::tbl('ergebnisse') . "
-            (veranstaltung_id, athlet_id, altersklasse, disziplin, disziplin_mapping_id, resultat, erstellt_von, extern, verein, import_quelle)
-            SELECT pb.veranstaltung_id, pb.athlet_id, pb.altersklasse, pb.disziplin, pb.disziplin_mapping_id,
-                   pb.resultat, pb.erstellt_von, 1, pb.verein, 'migration_pb'
-            FROM " . DB::tbl('athlet_pb') . " pb");
-        Settings::set('athlet_pb_migriert', '1');
+        $pbDa = (int)(DB::fetchOne("SELECT COUNT(*) AS c FROM information_schema.tables
+                                     WHERE table_schema = DATABASE() AND table_name = ?", [DB::tbl('athlet_pb')])['c'] ?? 0);
+        if ($pbDa && Settings::get('athlet_pb_migriert') !== '1') {
+            // Alte Installation ohne Migration: erst übernehmen, beim nächsten Aufruf löschen
+            DB::query("INSERT INTO " . DB::tbl('ergebnisse') . "
+                (veranstaltung_id, athlet_id, altersklasse, disziplin, disziplin_mapping_id, resultat, erstellt_von, extern, verein, import_quelle)
+                SELECT pb.veranstaltung_id, pb.athlet_id, pb.altersklasse, pb.disziplin, pb.disziplin_mapping_id,
+                       pb.resultat, pb.erstellt_von, 1, pb.verein, 'migration_pb'
+                FROM " . DB::tbl('athlet_pb') . " pb");
+            Settings::set('athlet_pb_migriert', '1');
+        } elseif (!$pbDa) {
+            Settings::set('athlet_pb_entfernt', '1');
+        } else {
+            $pbAnz  = (int)(DB::fetchOne('SELECT COUNT(*) AS c FROM ' . DB::tbl('athlet_pb'))['c'] ?? 0);
+            $migAnz = (int)(DB::fetchOne('SELECT COUNT(*) AS c FROM ' . DB::tbl('ergebnisse') . " WHERE import_quelle = 'migration_pb'")['c'] ?? 0);
+            if ($migAnz >= $pbAnz) {
+                DB::query('DROP TABLE ' . DB::tbl('athlet_pb'));
+                Settings::set('athlet_pb_entfernt', '1');
+            }
+        }
     } catch (\Exception $e) {}
 }
 // v1417: Einmalige Bereinigung doppelt kodierter HTML-Entities („Run&amp;Fun" → „Run&Fun").
@@ -1736,7 +1747,7 @@ if ($res === 'einstellungen') {
         } else {
             // POST einstellungen – mehrere auf einmal
             $erlaubt = [
-                'verein_name','verein_kuerzel','app_untertitel','logo_datei',
+                'verein_name','verein_kuerzel','verein_aliase','app_untertitel','logo_datei',
                 'email_domain','noreply_email',
                 'farbe_primary','farbe_accent',
                 'dashboard_timeline_limit','registrierung_auto_freigabe','version_nur_admins',
@@ -1852,16 +1863,32 @@ function migrateNormalizeOverflowTimes(): void {
 migrateResultatNum();
 migrateNormalizeOverflowTimes();
 
-// Gehört eine Vereinsangabe zum eigenen Verein? Vergleich ohne Groß-/Kleinschreibung
-// gegen Vereinsname und Vereinskürzel. Leere Angabe => nicht eigener Verein (extern).
+// Alle Schreibweisen des eigenen Vereins: Vereinsname, Kürzel und die Aliase aus
+// den Einstellungen (Komma oder Zeilenumbruch getrennt), kleingeschrieben.
+function eigeneVereinsnamen(): array {
+    $namen = [(string)Settings::get('verein_name', ''), (string)Settings::get('verein_kuerzel', '')];
+    foreach (preg_split('/[,\n;]+/', (string)Settings::get('verein_aliase', '')) as $a) $namen[] = $a;
+    $out = [];
+    foreach ($namen as $n) {
+        $n = mb_strtolower(trim($n));
+        if ($n !== '') $out[$n] = true;
+    }
+    return array_keys($out);
+}
+
+// Gehört eine Vereinsangabe zum eigenen Verein? Leere Angabe => nein.
 function istEigenerVerein(string $verein): bool {
     $v = mb_strtolower(trim($verein));
-    if ($v === '') return false;
-    foreach (['verein_name', 'verein_kuerzel'] as $key) {
-        $club = mb_strtolower(trim((string)Settings::get($key, '')));
-        if ($club !== '' && $v === $club) return true;
-    }
-    return false;
+    return $v !== '' && in_array($v, eigeneVereinsnamen(), true);
+}
+
+// Die EINE Stelle, an der eine Vereinsangabe in `verein` + `extern` übersetzt wird.
+// Eigener Verein => intern, anderer oder kein Verein => extern.
+// Achtung: Umgekehrt ist `extern` nicht aus `verein` ableitbar – Vereinsergebnisse
+// aus Importen speichern meist keinen Verein (leer = eigener Verein).
+function vereinFelder(?string $verein): array {
+    $v = trim((string)$verein);
+    return [['verein=?', 'extern=?'], [$v !== '' ? $v : null, istEigenerVerein($v) ? 0 : 1]];
 }
 
 // Hilfsfunktion: Zeit-String normalisieren und resultat_num berechnen
@@ -2150,7 +2177,8 @@ function mergeErgebnisFelder(int $ergId, array $neu, array $ueberschreiben = [])
         }
         if ($k === 'verein') {
             // Vereinswechsel wirkt sich auf die Extern-Kennzeichnung aus
-            $felder[] = 'extern=?'; $params[] = istEigenerVerein((string)$wert) ? 0 : 1;
+            [, $vp] = vereinFelder((string)$wert);
+            $felder[] = 'extern=?'; $params[] = $vp[1];
         }
     }
     if (!$felder) return [];
@@ -2877,6 +2905,10 @@ function ergFacetten(string $vonSql, callable $whereFn, ?array $spalten = null):
 // ERGEBNISSE
 // ============================================================
 $ergebnisTabellen = ['strasse','sprint','mittelstrecke','sprungwurf','bahn','cross','halle'];
+// Externe Ergebnisse liegen in derselben Tabelle und werden mit derselben Logik
+// bearbeitet (Rechte, Änderungsanträge, Verein/extern, resultat_num). Der Tabellen-
+// schlüssel ist dafür bedeutungslos – alle Kategorien teilen sich ergebnisse.
+if ($res === 'externe-ergebnisse' && $method === 'PUT' && $id) $res = 'strasse';
 // Selbst angelegte Kategorien (eigener tbl_key) ebenfalls bedienen – sonst laufen
 // Bearbeiten/Löschen von Ergebnissen solcher Kategorien in einen 404.
 if (!in_array($res, $ergebnisTabellen) && $res !== '' && preg_match('/^[a-z0-9_]+$/i', $res)) {
@@ -3093,20 +3125,21 @@ if (in_array($res, $ergebnisTabellen)) {
         if (isset($body['athlet_id']) && Auth::isAdmin()) {
             $aid = (int)$body['athlet_id'];
             if ($aid > 0) { $felder[] = 'athlet_id=?'; $params[] = $aid; }
-            // Auto: leser->athlet wenn Profil gesetzt; athlet->leser wenn entfernt
-            $curRolle = DB::fetchOne('SELECT rolle FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [(int)$bid])['rolle'] ?? '';
-            if ($aid && $curRolle === 'leser') { $felder[] = 'rolle=?'; $params[] = 'athlet'; }
-            elseif (!$aid && $curRolle === 'athlet') { $felder[] = 'rolle=?'; $params[] = 'leser'; }
         }
         if (isset($body['altersklasse']))  { $felder[] = 'altersklasse=?';  $params[] = sanitize($body['altersklasse']); }
+        // Veranstaltung umhängen (Bearbeiten-Dialog externer Ergebnisse)
+        if (!empty($body['veranstaltung_id']) && Auth::canEditAll()) {
+            $vidU = (int)$body['veranstaltung_id'];
+            if (!DB::fetchOne('SELECT id FROM ' . DB::tbl('veranstaltungen') . ' WHERE id=? AND geloescht_am IS NULL', [$vidU]))
+                jsonErr('Veranstaltung nicht gefunden.');
+            $felder[] = 'veranstaltung_id=?'; $params[] = $vidU;
+        }
+        // `extern` muss zum Verein passen (eigener Verein => intern, sonst extern)
+        $externU = null;
         if (array_key_exists('verein', $body)) {
-            $vNeu = sanitize($body['verein']);
-            $felder[] = 'verein=?'; $params[] = $vNeu ?: null;
-            // `extern` muss zum Vereinsnamen passen – dieselbe Regel wie beim
-            // Anlegen: eigener Verein => intern, anderer oder keiner => extern.
-            // Sonst entstehen widersprüchliche Zeilen (Verein gesetzt, extern=0).
-            $externU = !istEigenerVerein((string)$vNeu);
-            $felder[] = 'extern=?'; $params[] = $externU ? 1 : 0;
+            [$vf, $vp] = vereinFelder(sanitize($body['verein']));
+            array_push($felder, ...$vf); array_push($params, ...$vp);
+            $externU = (bool)$vp[1];
         }
         if (isset($body['disziplin'])) {
             $felder[] = 'disziplin=?'; $params[] = sanitize($body['disziplin']);
@@ -3129,12 +3162,15 @@ if (in_array($res, $ergebnisTabellen)) {
             if ($dmDist) { $felder[] = 'distanz=?'; $params[] = $dmDist['distanz']; }
         }
         if (isset($body['resultat'])) {
-            $felder[] = 'resultat=?'; $params[] = sanitize($body['resultat']);
-            $rv = $body['resultat'];
-            if (preg_match('/^\d+:\d/', $rv)) {
-                $p = explode(':', $rv);
-                $rnum = count($p) === 3 ? $p[0]*3600+$p[1]*60+$p[2] : $p[0]*60+$p[1];
-            } else $rnum = floatOrNull($rv);
+            // Gleiche Normalisierung wie beim Import ("4:28:29" → "04:28:29")
+            $dmIdR = (isset($body['disziplin_mapping_id']) && is_numeric($body['disziplin_mapping_id']))
+                ? (int)$body['disziplin_mapping_id']
+                : (int)(DB::fetchOne("SELECT disziplin_mapping_id FROM $tbl WHERE id=?", [$id])['disziplin_mapping_id'] ?? 0);
+            $fmtR = DB::fetchOne('SELECT COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt FROM ' . DB::tbl('disziplin_mapping') . ' dm
+                LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id WHERE dm.id=?', [$dmIdR]);
+            [$rv, $rnum] = normalizeResultat((string)sanitize($body['resultat']), $fmtR['fmt'] ?? 'min');
+            if ($rnum === null) $rnum = floatOrNull(str_replace(',', '.', $rv));
+            $felder[] = 'resultat=?'; $params[] = $rv;
             $felder[] = 'resultat_num=?'; $params[] = $rnum;
         }
         // pace wird nicht mehr aktualisiert
@@ -3148,7 +3184,7 @@ if (in_array($res, $ergebnisTabellen)) {
         }
         if (!$felder) jsonErr('Keine Felder zum Aktualisieren.');
         DB::updateById($tbl, $felder, $params, $id);
-        jsonOk('OK');
+        jsonOk(['extern' => $externU]);
     }
 
     if ($method === 'DELETE' && $id) {
@@ -3257,8 +3293,6 @@ if ($res === 'athleten') {
                 $verschoben += $st->rowCount();
             } catch (\Exception $e) {}
         }
-        // Legacy-PB-Tabelle (falls Migration noch nicht gelaufen)
-        try { DB::query('UPDATE ' . DB::tbl('athlet_pb') . " SET athlet_id=? WHERE athlet_id IN ($ph)", array_merge([$zielId], $quellIds)); } catch (\Exception $e) {}
 
         // Gruppen übernehmen (Duplikate ignorieren), danach Quell-Zuordnungen entfernen
         try {
@@ -3323,71 +3357,6 @@ if ($res === 'athleten') {
         ]);
     }
 
-    // ── Sub-Ressource: externe PBs  /athleten/{id}/pb[/{pbid}] ──
-    if ($id && ($parts[2] ?? '') === 'pb') {
-        $user = Auth::requireLogin();
-        // Athleten dürfen nur eigene PBs schreiben; Editoren/Admins dürfen alle
-        $athletId = (int)$id;
-        $isEditorOrAdmin = in_array($user['rolle'], ['admin','editor']);
-        if (!$isEditorOrAdmin) {
-            $buRow = DB::fetchOne('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [$user['id']]);
-            if (!$buRow || (int)($buRow['athlet_id'] ?? 0) !== $athletId) jsonErr('Keine Berechtigung.', 403);
-        }
-        $pbId     = isset($parts[3]) ? (int)$parts[3] : null;
-
-        if ($method === 'GET') {
-            $rows = DB::fetchAll(
-                'SELECT e.id, e.disziplin, e.resultat, v.name AS wettkampf, v.datum, e.verein, e.altersklasse,
-                        e.disziplin_mapping_id, e.veranstaltung_id,
-                        COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
-                        COALESCE(dk.name, \'Sonstige\') AS kat_name,
-                        COALESCE(dk.reihenfolge, 99) AS kat_sort,
-                        COALESCE(dm.disziplin, e.disziplin) AS disziplin_mapped
-                 FROM ' . DB::tbl('ergebnisse') . ' e
-                 LEFT JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
-                 LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
-                 LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id
-                 WHERE e.athlet_id=? AND e.extern=1 AND e.geloescht_am IS NULL
-                 ORDER BY dk.reihenfolge, e.disziplin',
-                [$athletId]);
-            jsonOk($rows);
-        }
-        if ($method === 'POST') {
-            $disz = sanitize($body['disziplin'] ?? '');
-            $res2 = sanitize($body['resultat']  ?? '');
-            if (!$disz || !$res2) jsonErr('Disziplin und Ergebnis erforderlich.');
-            $vid  = intOrNull($body['veranstaltung_id'] ?? null);
-            if (!$vid) jsonErr('Veranstaltung erforderlich.');
-            $vr   = sanitize($body['verein']    ?? '');
-            $ak   = sanitize($body['altersklasse'] ?? '');
-            $dmId = intOrNull($body['disziplin_mapping_id'] ?? null);
-            $pbUser = Auth::requireLogin();
-            DB::query(
-                'INSERT INTO ' . DB::tbl('ergebnisse') . ' (athlet_id, disziplin, resultat, veranstaltung_id, verein, altersklasse, disziplin_mapping_id, erstellt_von, extern) VALUES (?,?,?,?,?,?,?,?,1)',
-                [$athletId, $disz, $res2, $vid, $vr ?: null, $ak ?: null, $dmId, $pbUser['id']]);
-            jsonOk(['id' => DB::lastInsertId()]);
-        }
-        if ($method === 'PUT' && $pbId) {
-            $disz = sanitize($body['disziplin'] ?? '');
-            $res2 = sanitize($body['resultat']  ?? '');
-            if (!$disz || !$res2) jsonErr('Disziplin und Ergebnis erforderlich.');
-            $vid  = intOrNull($body['veranstaltung_id'] ?? null);
-            if (!$vid) jsonErr('Veranstaltung erforderlich.');
-            $vr   = sanitize($body['verein']    ?? '');
-            $ak   = sanitize($body['altersklasse'] ?? '');
-            $dmId = intOrNull($body['disziplin_mapping_id'] ?? null);
-            $felder = ['disziplin=?','resultat=?','verein=?','altersklasse=?','disziplin_mapping_id=?','veranstaltung_id=?'];
-            $params = [$disz, $res2, $vr ?: null, $ak ?: null, $dmId, $vid];
-            $params[] = $pbId; $params[] = $athletId;
-            DB::query('UPDATE ' . DB::tbl('ergebnisse') . ' SET ' . implode(',', $felder) . ' WHERE id=? AND athlet_id=? AND extern=1', $params);
-            jsonOk('OK');
-        }
-        if ($method === 'DELETE' && $pbId) {
-            DB::query('UPDATE ' . DB::tbl('ergebnisse') . ' SET geloescht_am=NOW() WHERE id=? AND athlet_id=? AND extern=1', [$pbId, $athletId]);
-            jsonOk('OK');
-        }
-        jsonErr('Methode nicht erlaubt.', 405);
-    }
 
     if ($method === 'GET' && !$id) {
         $s = sanitize($_GET['suche'] ?? '');
@@ -6761,15 +6730,6 @@ if ($res === 'offene-wettkaempfe' && empty($parts[1]) && $method === 'GET') {
                 ) as $e) $erfasst[$e['athlet_id'] . '|' . $e['serie_id'] . '|' . $e['jahr']] = true;
             } catch (\Exception $ignored) {}
         }
-        // Externe Ergebnisse (athlet_pb) zählen ebenfalls als erfasst
-        try {
-            foreach (DB::fetchAll(
-                "SELECT DISTINCT p.athlet_id, v.serie_id, YEAR(v.datum) AS jahr
-                   FROM " . DB::tbl('athlet_pb') . " p JOIN `$vTbl` v ON v.id = p.veranstaltung_id
-                  WHERE v.serie_id IN ($sIn) AND v.geloescht_am IS NULL"
-            ) as $e) $erfasst[$e['athlet_id'] . '|' . $e['serie_id'] . '|' . $e['jahr']] = true;
-        } catch (\Exception $ignored) {}
-
         // ── 5) Pro Serie+Jahr zusammenbauen ──────────────────────────────────
         $gruppen = [];
         foreach ($kand as $k => $c) {
@@ -7264,42 +7224,6 @@ if ($res === 'externe-ergebnisse' && $method === 'DELETE' && $id) {
     jsonOk('Gelöscht.');
 }
 
-// externe-ergebnisse PUT (edit)
-if ($res === 'externe-ergebnisse' && $method === 'PUT' && $id) {
-    $user = Auth::requireEditor();
-    $felder = []; $params = [];
-    if (isset($body['disziplin']))           { $felder[] = 'disziplin=?';           $params[] = sanitize($body['disziplin']); }
-    if (isset($body['disziplin_mapping_id'])){ $felder[] = 'disziplin_mapping_id=?'; $params[] = intOrNull($body['disziplin_mapping_id']); }
-    if (isset($body['resultat']))            { $felder[] = 'resultat=?';             $params[] = sanitize($body['resultat']); }
-    if (isset($body['altersklasse']))        { $felder[] = 'altersklasse=?';         $params[] = sanitize($body['altersklasse']) ?: null; }
-    if (array_key_exists('verein', $body))   { $felder[] = 'verein=?';               $params[] = sanitize($body['verein']) ?: null; }
-    if (array_key_exists('veranstaltung_id', $body)) {
-        $vid = $body['veranstaltung_id'] ? (int)$body['veranstaltung_id'] : null;
-        $felder[] = 'veranstaltung_id=?';
-        $params[] = $vid;
-    }
-    if (!$felder) jsonErr('Keine Änderungen.');
-    // Vereinswechsel bestimmt `extern` neu – dieselbe Regel wie beim Anlegen und
-    // in PUT ergebnisse. Sonst bleibt ein auf den eigenen Verein korrigiertes
-    // Ergebnis dauerhaft extern (Verein „TuS Oedt", extern=1).
-    $externNeu = null;
-    if (array_key_exists('verein', $body)) {
-        $externNeu = !istEigenerVerein((string)(sanitize($body['verein']) ?? ''));
-        $felder[] = 'extern=?'; $params[] = $externNeu ? 1 : 0;
-    }
-    if (isset($body['resultat'])) {
-        $dmIdX = isset($body['disziplin_mapping_id']) ? intOrNull($body['disziplin_mapping_id'])
-            : (DB::fetchOne('SELECT disziplin_mapping_id FROM ' . DB::tbl('ergebnisse') . ' WHERE id=?', [(int)$id])['disziplin_mapping_id'] ?? null);
-        $fmtX = DB::fetchOne('SELECT COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt FROM ' . DB::tbl('disziplin_mapping') . ' dm
-            LEFT JOIN ' . DB::tbl('disziplin_kategorien') . ' dk ON dk.id=dm.kategorie_id WHERE dm.id=?', [(int)$dmIdX]);
-        [$normX, $rnumX] = normalizeResultat((string)sanitize($body['resultat']), $fmtX['fmt'] ?? 'min');
-        $params[array_search('resultat=?', $felder, true)] = $normX;
-        $felder[] = 'resultat_num=?'; $params[] = $rnumX;
-    }
-    DB::updateById(DB::tbl('ergebnisse'), $felder, $params, (int)$id);
-    jsonOk(['extern' => $externNeu]);
-}
-
 // ERGEBNISSE/BULK
 // ============================================================
 /**
@@ -7396,7 +7320,7 @@ function eigenesErgebnisVerarbeiten(array $item, int $athId, int $userId, string
     // Vereinsangabe: anderer oder KEIN Verein → externes Ergebnis.
     // Eine leere Angabe bleibt leer und wird nicht durch den eigenen Verein ersetzt.
     $verein   = (string)(sanitize($item['verein'] ?? ($item['externer_verein'] ?? '')) ?? '');
-    $isExtern = !istEigenerVerein($verein);
+    $isExtern = (bool)vereinFelder($verein)[1][1];
 
     // Dubletten-Abgleich
     $dup     = findeErgebnisDublette($athId, $vid, $disziplin, $dmId) ?: $dupDatum;
@@ -7689,7 +7613,9 @@ if ($res === 'ergebnisse' && $method === 'POST' && $id === 'bulk') {
         [$resultat, $rnum] = normalizeResultat($resultat, $dmFmt);
 
         $verein   = sanitize($item['verein'] ?? '');
-        $isExtern = !empty($item['extern']);
+        // Der Importer entscheidet, ob ein Treffer zum Verein gehört; eine Angabe,
+        // die auf den eigenen Verein (inkl. Aliase) passt, ist aber immer intern.
+        $isExtern = !empty($item['extern']) && !istEigenerVerein((string)$verein);
 
         // Duplikat-Check: gleicher Athlet, gleiche Disziplin, gleiches Ergebnis in ergebnisse
         $dup = DB::fetchOne('SELECT id FROM ' . DB::tbl('ergebnisse') . ' WHERE veranstaltung_id=? AND athlet_id=? AND disziplin=? AND resultat=? AND geloescht_am IS NULL',
@@ -7873,6 +7799,42 @@ if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'duplikate' && $metho
 // ============================================================
 // ADMIN – VERWAISTE VERANSTALTUNGEN
 // ============================================================
+// Wartung: Ergebnisse, deren Vereinsangabe nicht zum extern-Kennzeichen passt.
+//   eigen_extern: Verein = eigener Verein, aber extern=1 → sollte intern sein
+//   fremd_intern: fremder Verein eingetragen, aber extern=0 → evtl. fehlender Alias
+// Ergebnisse ohne Verein sind nicht prüfbar (leer ist bei beiden Arten gültig).
+if ($res === 'admin' && ($parts[1] ?? '') === 'extern-check') {
+    Auth::requireAdmin();
+    $eTbl = ergTbl();
+    if ($method === 'GET') {
+        $namen = eigeneVereinsnamen();
+        $rows = DB::fetchAll(
+            "SELECT e.id, e.extern, e.verein, e.disziplin, e.resultat, e.altersklasse, a.name_nv AS athlet,
+                    v.id AS veranstaltung_id, COALESCE(NULLIF(v.name,''), v.kuerzel) AS veranstaltung, v.datum
+               FROM $eTbl e
+               JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
+               LEFT JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
+              WHERE e.geloescht_am IS NULL AND e.verein IS NOT NULL AND TRIM(e.verein) <> ''
+              ORDER BY v.datum DESC, a.name_nv");
+        $out = ['eigen_extern' => [], 'fremd_intern' => [], 'vereinsnamen' => $namen];
+        foreach ($rows as $r) {
+            $eigen = in_array(mb_strtolower(trim($r['verein'])), $namen, true);
+            if ($eigen && (int)$r['extern'] === 1)  $out['eigen_extern'][] = $r;
+            if (!$eigen && (int)$r['extern'] === 0) $out['fremd_intern'][] = $r;
+        }
+        jsonOk($out);
+    }
+    if ($method === 'POST') {
+        $ids = array_values(array_filter(array_map('intval', (array)($body['ids'] ?? []))));
+        if (!$ids) jsonErr('Keine Ergebnisse ausgewählt.');
+        $extern = !empty($body['extern']) ? 1 : 0;
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $st = DB::query("UPDATE $eTbl SET extern=? WHERE id IN ($ph) AND geloescht_am IS NULL", array_merge([$extern], $ids));
+        jsonOk(['geaendert' => $st->rowCount()]);
+    }
+    jsonErr('Methode nicht erlaubt.', 405);
+}
+
 if ($res === 'admin' && !empty($parts[1]) && $parts[1] === 'verwaist' && $method === 'GET') {
     Auth::requireAdmin();
     $eTbl = ergTbl();
@@ -8745,6 +8707,11 @@ if ($res === 'ergebnis-aenderungen') {
                     }
                     foreach ($updFelder as $k2) {
                         if (array_key_exists($k2, $vals)) { $f2[] = "$k2=?"; $p2[] = $vals[$k2]; }
+                    }
+                    // Vereinswechsel setzt `extern` mit (sonst ging er beim Genehmigen verloren)
+                    if ($tbl2 === DB::tbl('ergebnisse') && array_key_exists('verein', $vals)) {
+                        [$vf2, $vp2] = vereinFelder(sanitize((string)$vals['verein']));
+                        array_push($f2, ...$vf2); array_push($p2, ...$vp2);
                     }
                 }
                 if ($f2) { $p2[] = $antrag['ergebnis_id']; DB::query("UPDATE $tbl2 SET ".implode(',',$f2)." WHERE id=?", $p2); }

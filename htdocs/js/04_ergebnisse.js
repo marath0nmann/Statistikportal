@@ -264,7 +264,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
         // Externes Ergebnis: eigene Edit/Delete Buttons
         cells +=
           '<td style="white-space:nowrap">' +
-            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-ext-edit-id="' + rr.id + '" data-ext-disz="' + (rr.disziplin||'').replace(/"/g,'&quot;') + '" data-ext-res="' + (rr.resultat||'') + '" data-ext-ak="' + (rr.altersklasse||'') + '" data-ext-wettkampf="' + (rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-datum="' + (rr.datum||'').slice(0,10) + '" data-ext-vid="' + (rr.veranstaltung_id||'') + '" data-ext-vname="' + (rr.verknuepfte_veranstaltung_name||rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-verein="' + (rr.verein||'').replace(/"/g,'&quot;') + '" data-ext-athlet-id="' + (rr.athlet_id||'') + '">&#x270E;</button>' +
+            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-ext-edit-id="' + rr.id + '" data-ext-disz="' + (rr.disziplin||'').replace(/"/g,'&quot;') + '" data-ext-res="' + (rr.resultat||'') + '" data-ext-ak="' + (rr.altersklasse||'') + '" data-ext-wettkampf="' + (rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-datum="' + (rr.datum||'').slice(0,10) + '" data-ext-vid="' + (rr.veranstaltung_id||'') + '" data-ext-vname="' + (rr.verknuepfte_veranstaltung_name||rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-verein="' + (rr.verein||'').replace(/"/g,'&quot;') + '" data-ext-athlet-id="' + (rr.athlet_id||'') + '" data-ext-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '" data-ext-mapping-id="' + (rr.disziplin_mapping_id||'') + '" data-ext-fmt="' + (rr.fmt||'') + '">&#x270E;</button>' +
             '<button class="btn btn-danger btn-sm" data-ext-del-id="' + rr.id + '">&#x1F5D1;&#xFE0F;</button>' +
           '</td>';
       } else {
@@ -468,7 +468,21 @@ function editKatChanged() {
 
 
 // ── Externe Ergebnisse: Edit + Delete ────────────────────────────────────────
+// Gleiche Regel wie istEigenerVerein() in der API: Name, Kürzel oder Alias
+function _istEigenerVereinName(v) {
+  v = String(v || '').trim().toLowerCase();
+  if (!v) return false;
+  var namen = [appConfig.verein_name, appConfig.verein_kuerzel].concat(String(appConfig.verein_aliase || '').split(/[,;\n]+/));
+  return namen.some(function(n) { return String(n || '').trim().toLowerCase() === v; });
+}
+
+function _extVereinHinweis() {
+  var box = document.getElementById('ext-verein-hinweis');
+  if (box) box.hidden = !_istEigenerVereinName((document.getElementById('ext-verein') || {}).value);
+}
+
 async function openEditExternErgebnis(ds) {
+  window._extDs = ds;
   window._extVid = ds.extVid ? parseInt(ds.extVid) : null;
   window._extVname = ds.extVname || ds.extWettkampf || '';
 
@@ -478,7 +492,11 @@ async function openEditExternErgebnis(ds) {
       '<div class="form-group"><label>Disziplin</label><input type="text" id="ext-disz" value="' + (ds.extDisz||'').replace(/"/g,'&quot;') + '"/></div>' +
       '<div class="form-group"><label>Ergebnis</label><input type="text" id="ext-res" value="' + (ds.extRes||'') + '"/></div>' +
       '<div class="form-group"><label>Altersklasse</label><input type="text" id="ext-ak" value="' + (ds.extAk||'') + '" placeholder="z.B. M40"/></div>' +
-      '<div class="form-group full"><label>Verein</label><input type="text" id="ext-verein" value="' + (ds.extVerein||'').replace(/"/g,'&quot;') + '" placeholder="z.B. SV Musterstadt"/></div>' +
+      '<div class="form-group full"><label>Verein</label><input type="text" id="ext-verein" value="' + (ds.extVerein||'').replace(/"/g,'&quot;') + '" placeholder="z.B. SV Musterstadt" oninput="_extVereinHinweis()"/>' +
+        '<div id="ext-verein-hinweis" hidden style="font-size:12px;background:var(--surf2);border-radius:8px;padding:8px 12px;margin-top:6px">' +
+          '&#x2139;&#xFE0F; Das ist der eigene Verein – das Ergebnis wird beim Speichern zum <b>Vereinsergebnis</b>. ' +
+          'Danach öffnet sich die vollständige Bearbeitung für Disziplin-Zuordnung, Platzierung und Meisterschaft.' +
+        '</div></div>' +
       '<div class="form-group full">' +
         '<label>Veranstaltung *</label>' +
         '<input type="text" id="ext-veranst-search" placeholder="Name suchen…" ' +
@@ -495,6 +513,7 @@ async function openEditExternErgebnis(ds) {
       '<button class="btn btn-primary" onclick="_saveExternErgebnis(' + ds.extEditId + ')">Speichern</button>' +
     '</div>'
   , false, true); // noClose=true
+  _extVereinHinweis();
 }
 
 var _extSearchTimer = null;
@@ -547,8 +566,19 @@ async function _saveExternErgebnis(id) {
   var r = await apiPut('externe-ergebnisse/' + id, body);
   if (r && r.ok) {
     closeModal();
-    notify(r.data && r.data.extern === false ? 'Gespeichert – jetzt ein Vereinsergebnis.' : 'Gespeichert.', 'ok');
+    var d = r.data || {};
+    if (d.pending) { notify(d.msg || 'Änderungsantrag gestellt.', 'ok'); loadErgebnisseData(); return; }
     loadErgebnisseData();
+    if (d.extern === false) {
+      // Vereinsergebnisse haben Felder, die externe nicht kennen – direkt nachtragen lassen
+      notify('Gespeichert – jetzt ein Vereinsergebnis. Bitte fehlende Angaben ergänzen.', 'ok');
+      var ds = window._extDs || {};
+      var dm = ds.extMappingId ? (state.disziplinen || []).find(function(x) { return x.id == ds.extMappingId; }) : null;
+      openEditErgebnis(id, (dm && dm.tbl_key) || 'strasse', body.disziplin, body.resultat, body.altersklasse || '',
+        '', '', ds.extFmt || '', ds.extAthletId || '', ds.extAthletName || '', ds.extMappingId || '', '');
+    } else {
+      notify('Gespeichert.', 'ok');
+    }
   }
   else notify('❌ ' + ((r&&r.fehler)||'Fehler'), 'err');
 }

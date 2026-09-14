@@ -493,12 +493,13 @@ function _mvErgebnisZahl(r) {
 
 // Vereinszuordnung eines Ergebnisses – einzige gueltige Regel in der Anwendung:
 // Massgeblich ist ausschliesslich das Flag `extern`, nie der Textwert `verein`.
-//   extern=0            -> fuer den eigenen Verein gestartet (verein ist dann immer leer)
+//   extern=0            -> fuer den eigenen Verein gestartet (verein leer oder eigener Verein)
 //   extern=1 + Vereins-  -> fuer diesen fremden Verein gestartet
 //   extern=1 ohne Verein -> ohne Vereinsbindung gestartet, NICHT fuer den eigenen Verein
 // Ein leerer Vereinsname darf deshalb nur bei extern=0 auf den eigenen Verein
-// zurueckfallen. Gegenstueck beim Speichern: index.php:6752 setzt extern=1,
-// sobald der Vereinsname leer ist oder vom eigenen Verein abweicht.
+// zurueckfallen. Gegenstueck beim Speichern: vereinFelder() in api/index.php setzt
+// extern=1, sobald der Vereinsname leer ist oder zu keiner Schreibweise des
+// eigenen Vereins (Name, Kuerzel, verein_aliase) passt.
 function _meinVereinText(r, ownClub) {
   if (r.verein) return r.verein;
   return r.extern ? '' : ownClub;
