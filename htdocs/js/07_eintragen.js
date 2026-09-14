@@ -2834,6 +2834,29 @@ async function bulkImportFromRR(url, kat, statusEl) {
   var diszList    = disziplinen
     .filter(function(d){return !_diszKatErlaubt||!d.tbl_key||_diszKatErlaubt.indexOf(d.tbl_key)>=0;})
     .map(function(d){return d.disziplin;}).filter(function(v,i,a){return a.indexOf(v)===i;});
+  // Ein RaceResult-Event kann mehrere Kategorien kombinieren (Kategorie ist keine
+  // Eigenschaft der Veranstaltung, nur ein Import-Filter für die Disziplin-Auswahl –
+  // z.B. ein "5 km-Lauf" (Straße) UND ein "5.000 m Bahnlauf der Asse" (Bahn) im selben
+  // Event). Signalisiert der Contest-/Listenname explizit eine andere Kategorie, wird
+  // diszList NUR für diese Auflösung um die Disziplinen dieser Kategorie erweitert –
+  // ohne diese Erweiterung würde "Bahnlauf" beim Straße-Import fälschlich auf "5km"
+  // statt "5000m Bahn" matchen (die Bahn-Disziplin fehlt sonst im Kandidatenpool).
+  var _rrKatKeywords = {bahn:'bahn', halle:'halle', indoor:'halle', cross:'cross', trail:'trail'};
+  // Liefert {list, prefer}: list = diszList ggf. um die signalisierte Kategorie erweitert,
+  // prefer = deren Disziplin-Namen (bekommen in rrBestDisz einen entscheidenden Bonus,
+  // damit "5000m Bahn" nicht knapp gegen "5km" verliert – siehe rrBestDisz preferNames).
+  function _rrWidenDiszList(name) {
+    var n = (name||'').toLowerCase();
+    for (var kw in _rrKatKeywords) {
+      if (n.indexOf(kw) < 0) continue;
+      var signalKat = _rrKatKeywords[kw];
+      if (_diszKatErlaubt && _diszKatErlaubt.indexOf(signalKat) < 0) {
+        var extra = disziplinen.filter(function(d){return d.tbl_key===signalKat;}).map(function(d){return d.disziplin;});
+        if (extra.length) return {list: extra.concat(diszList).filter(function(v,i,a){return a.indexOf(v)===i;}), prefer: extra};
+      }
+    }
+    return {list: diszList, prefer: null};
+  }
   var allResults  = [], listsChecked = 0, _externPayloads = [];
   // /results/list statt /RRPublish/data/list: einige Events sind über den RRPublish-Datenpfad
   // nicht erreichbar (404), obwohl die Website selbst (die intern /results/list nutzt) läuft
@@ -2923,16 +2946,20 @@ async function bulkImportFromRR(url, kat, statusEl) {
           if(_m){akFG=normalizeAK(_m[1]);}
           else{akFG=normalizeAK(k2clean)||'';}
         }
+        // Kategorie-Erweiterung anhand der Roh-Texte (contestName/le.name) entscheiden,
+        // bevor cnD feststeht – ein Contest-Name wie "Bahnlauf" muss schon bei der
+        // Kandidaten-Auswahl unten Bahn-Disziplinen sehen können.
+        var _rrWidened = _rrWidenDiszList(contestName + ' ' + (le.name||''));
         // Disziplin-Name: beste Quelle mit Distanz-Treffer wählen
         // Kandidaten-Reihenfolge: contestName, le.name (Listenname, enthält oft Distanz), kClean, gk
         var cnD=(function(){
           var cands=[contestName, le.name||'', kClean, gk].filter(Boolean);
           for(var ci=0;ci<cands.length;ci++){
-            if(rrBestDisz(cands[ci],diszList))return cands[ci];
+            if(rrBestDisz(cands[ci],_rrWidened.list,_rrWidened.prefer))return cands[ci];
           }
           return contestName||le.name||kClean||gk;
         })();
-        var _cnDDisz = rrBestDisz(cnD, diszList);
+        var _cnDDisz = rrBestDisz(cnD, _rrWidened.list, _rrWidened.prefer);
         if (!_cnDLogged) {
           _bkDbgLines.push('  cnD: "' + cnD + '" → "' + (_cnDDisz||'(keine)') + '"' +
             (cnD !== contestName ? ' [via List: ' + (le.name||'') + ']' : ''));
@@ -2966,7 +2993,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
             if(clubPhrase&&club.toLowerCase().indexOf(clubPhrase)>=0)return;
             if(!uitsAutoMatch(rName,state.athleten||[]))return;
           }
-          var disz=rrBestDisz(cnD,diszList);
+          var disz=rrBestDisz(cnD,_rrWidened.list,_rrWidened.prefer);
           var dObj=findDiszObj(disz,kat,disziplinen);
           var _dup=allResults.find(function(r){return r.name===rName&&r.resultat===rZeit;});
           if(_dup){
@@ -7035,7 +7062,7 @@ function _rrResolveMultilang(name) {
   return name;
 }
 
-function rrBestDisz(rrName, diszList) {
+function rrBestDisz(rrName, diszList, preferNames) {
   rrName = _rrResolveMultilang(rrName);
   // Extrahiert Schlüsselbegriffe aus dem RR-Namen und sucht besten Treffer in System-Disziplinen
   var q = rrName.toLowerCase()
@@ -7087,6 +7114,11 @@ function rrBestDisz(rrName, diszList) {
         score += (dl === numKey) ? 20 : 15;
       }
     }
+    // Explizit per Kategorie-Schlüsselwort im Contest-Namen signalisierte Kandidaten
+    // (z.B. "Bahnlauf" → Bahn-Disziplinen) gewinnen bewusst deutlich vor einem rein
+    // zahlenbasierten Treffer in der (falschen) aktiven Import-Kategorie – sonst
+    // gewinnt "5km" knapp gegen "5000m Bahn" allein über den exakten-numKey-Bonus.
+    if (preferNames && preferNames.indexOf(d) >= 0) score += 25;
     // Distanz → benannte Disziplin (Halbmarathon/Marathon ohne Ziffern)
     if (_named === 'halb' && dl.indexOf('halbmara') >= 0) score += 20;
     else if (_named === 'full' && dl.indexOf('marathon') >= 0 && dl.indexOf('halb') < 0 && dl.indexOf('drittel') < 0) score += 20;
