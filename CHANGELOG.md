@@ -1,3 +1,6 @@
+## v1573
+- **Veranstaltung teilen: Vereinsrekord-Zusätze nur noch für favorisierte Disziplinen.** Die Seite „Vereinsrekorde“ und die „neuesten Bestleistungen“ führen ausschließlich die in `top_disziplinen` hinterlegten Disziplinen – Nischenstrecken (z. B. 6,6 km oder 16 km Cross) tauchen dort bewusst nicht auf. Das Teilen-Format meldete für sie trotzdem „Vereinsrekord“ bzw. „Vereins-Bestleistung M55“. `_shareBuildBadgeMap()` verwirft `label_club` jetzt für nicht favorisierte Disziplinen (persönliche Zusätze wie PB und Debüt bleiben); damit entfällt für diese Disziplinen auch der daran gekoppelte Link auf die Vereinsbestenliste. Ohne konfigurierte Favoriten wird wie bisher nicht gefiltert.
+
 ## v1572
 - **Rekorde: Kategorie-Tabs (Bahn/Halle/Sprung…) nach einem Deep-Link wieder klickbar.** Nach `#rekorde/<kat>/<disziplin>` blieb `state.rekState.mapping_id` gesetzt; `setRekKat()` löschte nur `disz`, worauf der Auflöse-Block am Anfang von `renderRekorde()` die Disziplin über die alte `mapping_id` wiederfand und `rs.kat` auf deren `tbl_key` zurücksetzte – der Klick auf eine andere Kategorie war folgenlos. `setRekKat()` verwirft jetzt auch `mapping_id` und `diszSlug`.
 
