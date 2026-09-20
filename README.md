@@ -1,5 +1,5 @@
 # Statistikportal – Leichtathletik
-## Version v1571 | Stand: September 2026 
+## Version v1573 | Stand: September 2026 
 
 [![Lizenz: AGPL v3](https://img.shields.io/badge/Lizenz-AGPL%20v3-blue.svg)](LICENSE)
 

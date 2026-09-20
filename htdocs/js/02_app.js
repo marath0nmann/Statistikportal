@@ -2181,17 +2181,46 @@ function _shareRekLabel(lbl) {
   return lbl;
 }
 
+// Favorisierte Disziplinen (Einstellung top_disziplinen) als Menge der mapping_ids.
+// Nur diese Disziplinen erscheinen auf der Seite \u201eVereinsrekorde\u201c und in den
+// \u201eneuesten Bestleistungen\u201c \u2013 Nischendisziplinen bleiben dort bewusst au\u00dfen vor.
+function _shareFavMids() {
+  var ids = {};
+  try {
+    ((typeof appConfig !== 'undefined' && appConfig.top_disziplinen)
+      ? JSON.parse(appConfig.top_disziplinen) : [])
+      .forEach(function(id) { ids[parseInt(id)] = 1; });
+  } catch (e) {}
+  return ids;
+}
+
+// Z\u00e4hlt die Disziplin eines Timeline-Events zu den Favoriten?
+// Ohne konfigurierte Favoriten wird nicht gefiltert (alles gilt als Favorit).
+function _shareIstFavoritDisz(ev, favMids) {
+  if (!favMids || !Object.keys(favMids).length) return true;
+  var mid = ev.disziplin_mapping_id ? parseInt(ev.disziplin_mapping_id) : 0;
+  if (!mid && ev.disziplin && typeof state !== 'undefined') {
+    var d = (state.disziplinen || []).find(function(x) { return x.disziplin === ev.disziplin; });
+    if (d) mid = parseInt(d.id);
+  }
+  return !!(mid && favMids[mid]);
+}
+
 // Baut aus den Timeline-Events eine Map athlet_id|disziplin \u2192 ['PB', 'Vereinsrekord', \u2026]
+// Vereins-Auszeichnungen (label_club) nur f\u00fcr favorisierte Disziplinen \u2013 sonst w\u00fcrde
+// das Teilen-Format Rekorde melden, die auf der Vereinsrekorde-Seite gar nicht gef\u00fchrt werden.
 function _shareBuildBadgeMap(timelineEvents) {
   var map = {};
+  var favMids = _shareFavMids();
   (timelineEvents || []).forEach(function(ev) {
     var key = ev.athlet_id + '|' + (ev.disziplin || '');
     if (!map[key]) map[key] = [];
-    var lc = ev.label_club || null;
+    var fav = _shareIstFavoritDisz(ev, favMids);
+    var lc = (fav && ev.label_club) ? ev.label_club : null;
     var lp = ev.label_pers || null;
     if (lc) map[key].push(_shareRekLabel(lc));
     if (lp) map[key].push(_shareRekLabel(lp));
-    if (!lc && !lp && ev.label) map[key].push(_shareRekLabel(ev.label));
+    if (!lc && !lp && ev.label && (fav || !ev.label_club)) map[key].push(_shareRekLabel(ev.label));
   });
   // Duplikate entfernen
   Object.keys(map).forEach(function(k) {
