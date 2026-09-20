@@ -347,6 +347,10 @@ function buildRekTable(rows, fmt, compact, showPace, athletLabel, disz) {
 function setRekKat(kat) {
   state.rekState.kat  = kat;
   state.rekState.disz = null;
+  // Disziplin-Referenzen aus Deep-Link/vorheriger Auswahl mit verwerfen, sonst
+  // stellt der Auflöse-Block in renderRekorde() die alte Kategorie wieder her
+  state.rekState.mapping_id = null;
+  state.rekState.diszSlug   = null;
   state.rekState.view = 'gesamt';
   renderRekorde();
 }
