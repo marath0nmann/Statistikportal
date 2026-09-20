@@ -1,3 +1,10 @@
+// ============================================================
+// Statistikportal Leichtathletik
+// Copyright (C) 2026 Daniel Weyers <dw@vy99.de>
+// Lizenziert unter der GNU Affero General Public License v3
+// oder (nach Wahl) einer spaeteren Version – ohne jede Gewaehrleistung.
+// Quelltext: https://github.com/marath0nmann/Statistikportal
+// ============================================================
 // ── GLOBALER ZUSTAND ────────────────────────────────────────
 var currentUser = null;
 var state = {
@@ -2915,7 +2922,10 @@ function buildFooter() {
                   footerLink(nuUrl,  '#/nutzung',     'Nutzungsbedingungen') + ' &nbsp;&middot;&nbsp; ' +
                   footerLink(impUrl, '#/impressum',   'Impressum');
   el.innerHTML =
-    '<div>Powered by <a href="' + ghUrl + '" target="_blank" style="' + linkStyle + '">Statistikportal</a> &copy; 2026 <a href="' + authorUrl + '" target="_blank" style="' + linkStyle + '">Daniel Weyers</a></div>' +
+    '<div>Powered by <a href="' + ghUrl + '" target="_blank" style="' + linkStyle + '">Statistikportal</a> &copy; 2026 <a href="' + authorUrl + '" target="_blank" style="' + linkStyle + '">Daniel Weyers</a> &nbsp;&middot;&nbsp; ' +
+      // AGPL-3.0 \u00a713: Netzwerknutzer muessen den Quelltext angeboten bekommen
+      '<a href="' + ghUrl + '/blob/main/LICENSE" target="_blank" style="' + linkStyle + '">AGPL-3.0</a> &nbsp;&middot;&nbsp; ' +
+      '<a href="' + ghUrl + '" target="_blank" style="' + linkStyle + '">Quelltext</a></div>' +
     '<div>' + legalLine + '</div>';
 }
 
