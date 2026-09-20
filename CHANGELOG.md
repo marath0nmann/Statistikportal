@@ -1,3 +1,6 @@
+## v1574
+- **Ergebnisliste: Vereinszuordnung sichtbar und per Klick umschaltbar.** Sobald externe Ergebnisse mit angezeigt werden (Filter „Mit externen"/„Nur externe"), trägt jede Zeile hinter dem Namen ein Kennzeichen: „Verein" für eigene Starts, sonst den fremden Verein bzw. „extern" ohne Vereinsbindung (langer Name nur im Tooltip). Editoren öffnen per Klick den Dialog „Vereinszuordnung", tragen den Verein ein – Schaltfläche für den eigenen Verein inklusive – und sehen vorab, ob daraus ein Vereins- oder ein externes Ergebnis wird. Gespeichert wird über die gemeinsame Ergebnis-PUT-Logik, `extern` leitet `vereinFelder()` wie überall aus dem Vereinsnamen ab.
+
 ## v1573
 - **Veranstaltung teilen: Vereinsrekord-Zusätze nur noch für favorisierte Disziplinen.** Die Seite „Vereinsrekorde“ und die „neuesten Bestleistungen“ führen ausschließlich die in `top_disziplinen` hinterlegten Disziplinen – Nischenstrecken (z. B. 6,6 km oder 16 km Cross) tauchen dort bewusst nicht auf. Das Teilen-Format meldete für sie trotzdem „Vereinsrekord“ bzw. „Vereins-Bestleistung M55“. `_shareBuildBadgeMap()` verwirft `label_club` jetzt für nicht favorisierte Disziplinen (persönliche Zusätze wie PB und Debüt bleiben); damit entfällt für diese Disziplinen auch der daran gekoppelte Link auf die Vereinsbestenliste. Ohne konfigurierte Favoriten wird wie bisher nicht gefiltert.
 

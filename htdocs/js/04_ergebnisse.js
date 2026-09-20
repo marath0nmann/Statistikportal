@@ -192,6 +192,8 @@ async function loadErgebnisseData() {
         );
       }
       if (delBtn) deleteErgebnis(delBtn.dataset.delTab, delBtn.dataset.delId);
+      var vereinBadge = e.target.closest('[data-verein-id]');
+      if (vereinBadge) _ergVereinModal(vereinBadge.dataset);
       // Externe Ergebnisse
       var extEditBtn = e.target.closest('[data-ext-edit-id]');
       var extDelBtn  = e.target.closest('[data-ext-del-id]');
@@ -199,6 +201,81 @@ async function loadErgebnisseData() {
       if (extDelBtn)  deleteExternErgebnis(extDelBtn.dataset.extDelId);
     });
   }
+}
+
+// ── Vereinszuordnung: Kennzeichen + Umschalten ──────────────────────────────
+// Sichtbar, sobald externe Ergebnisse mit angezeigt werden – sonst sind ohnehin
+// alle Zeilen Vereinsergebnisse. Editoren schalten per Klick um.
+function _ergVereinBadge(rr, canEdit) {
+  var modus = (state.filters || {}).extern_modus || 'aus';
+  if (modus === 'aus' && !rr.extern) return '';
+  var titel = rr.extern
+    ? (rr.verein ? 'Extern: für ' + rr.verein + ' gestartet' : 'Extern: ohne Vereinsbindung')
+    : 'Für den eigenen Verein gestartet';
+  // Lange Vereinsnamen sprengen die Spalte – dann nur „extern", Rest im Tooltip
+  var text  = rr.extern ? (rr.verein && rr.verein.length <= 18 ? rr.verein : 'extern') : 'Verein';
+  var stil  = rr.extern
+    ? 'color:var(--text2);background:var(--surf2)'
+    : 'color:var(--primary);background:var(--surf2)';
+  var attrs = ' style="font-size:10px;border-radius:3px;padding:1px 5px;margin-left:5px;white-space:nowrap;' + stil +
+    (canEdit ? ';cursor:pointer;border:1px solid var(--border)' : '') + '"' +
+    ' title="' + _esc(titel + (canEdit ? ' – klicken zum Umschalten' : '')) + '"';
+  if (!canEdit) return '<span' + attrs + '>' + _esc(text) + '</span>';
+  return '<span' + attrs +
+    ' data-verein-id="' + rr.id + '"' +
+    ' data-verein-tab="' + _esc(rr.kategorie_key || state.subTab || 'strasse') + '"' +
+    ' data-verein-wert="' + _esc(rr.verein || '') + '"' +
+    ' data-verein-extern="' + (rr.extern ? '1' : '0') + '"' +
+    ' data-verein-athlet="' + _esc(rr.athlet || '') + '">' + _esc(text) + '</span>';
+}
+
+function _ergEigenerVerein() {
+  return (appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '';
+}
+
+// Ein Eingabefeld statt zweier Schalter: die API leitet `extern` aus dem
+// Vereinsnamen ab (vereinFelder()), hier gilt genau dieselbe Regel.
+function _ergVereinModal(ds) {
+  var eigen = _ergEigenerVerein();
+  showModal(
+    modalH2('&#x1F3F7;&#xFE0F; Vereinszuordnung') +
+    '<div style="font-size:12px;color:var(--text2);margin:-6px 0 14px">' + _esc(ds.vereinAthlet || '') + '</div>' +
+    '<div class="form-group full"><label>Verein</label>' +
+      '<input type="text" id="ev-verein" value="' + _esc(ds.vereinWert || '') + '" placeholder="leer = ohne Vereinsbindung" oninput="_ergVereinVorschau()"/>' +
+      (eigen ? '<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'ev-verein\').value=' +
+        JSON.stringify(eigen).replace(/"/g, '&quot;') + ';_ergVereinVorschau()">' + _esc(eigen) + ' eintragen</button></div>' : '') +
+      '<div id="ev-vorschau" style="font-size:12px;background:var(--surf2);border-radius:8px;padding:8px 12px;margin-top:10px"></div>' +
+    '</div>' +
+    '<div class="modal-actions">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
+      '<button class="btn btn-primary" onclick="_ergVereinSpeichern(' + parseInt(ds.vereinId, 10) + ',\'' + (ds.vereinTab || 'strasse').replace(/'/g, '') + '\')">Speichern</button>' +
+    '</div>'
+  );
+  _ergVereinVorschau();
+}
+
+function _ergVereinVorschau() {
+  var box = document.getElementById('ev-vorschau');
+  if (!box) return;
+  var v = ((document.getElementById('ev-verein') || {}).value || '').trim();
+  box.innerHTML = !v
+    ? '&#x2192; <b>Externes Ergebnis</b> ohne Vereinsbindung'
+    : (_istEigenerVereinName(v)
+        ? '&#x2192; <b>Vereinsergebnis</b> (eigener Verein)'
+        : '&#x2192; <b>Externes Ergebnis</b> f&uuml;r ' + _esc(v) +
+          '<br><span style="color:var(--text2)">Geh&ouml;rt das zum eigenen Verein? Dann die Schreibweise unter Admin &rarr; Einstellungen &rarr; Verein erg&auml;nzen.</span>');
+}
+
+async function _ergVereinSpeichern(id, tblKey) {
+  var v = ((document.getElementById('ev-verein') || {}).value || '').trim();
+  var r = await apiPut((tblKey || 'strasse') + '/' + id, { verein: v });
+  if (!r || !r.ok) { notify('❌ ' + ((r && r.fehler) || 'Fehler beim Speichern'), 'err'); return; }
+  closeModal();
+  var d = r.data || {};
+  notify(d.pending ? (d.msg || 'Änderungsantrag gestellt.')
+       : d.extern === false ? 'Jetzt ein Vereinsergebnis.'
+       : 'Jetzt ein externes Ergebnis.', 'ok');
+  loadErgebnisseData();
 }
 
 function buildErgebnisseTable(subTab, rows, canEdit) {
@@ -234,7 +311,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
     var ort = fmtVeranstName(rr);
     var cells =
       '<td class="ort-text">' + formatDate(rr.datum) + '</td>' +
-      '<td><span class="athlet-link" onclick="openAthletById(' + rr.athlet_id + ')">' + rr.athlet + '</span>' + (rr.extern ? ' <span style="font-size:10px;color:var(--text2);background:var(--surf2);border-radius:3px;padding:1px 4px">ext.</span>' : '') + '</td>' +
+      '<td><span class="athlet-link" onclick="openAthletById(' + rr.athlet_id + ')">' + rr.athlet + '</span>' + _ergVereinBadge(rr, canEdit) + '</td>' +
       '<td>' + akBadge(rr.altersklasse) + '</td>' +
       '<td class="disziplin-text">' + (rr.disziplin_mapping_id ? ergDiszLabel(rr) : diszMitKat(rr.disziplin)) + '</td>' +
       '<td class="result">' + ergebnis + '</td>';
