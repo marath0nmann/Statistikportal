@@ -23,12 +23,6 @@ function _buildMstrFilterHtml() {
     '<div style="display:flex;flex-wrap:wrap;gap:6px 12px;padding:6px 0">' + boxes + '</div></div>';
 }
 
-function _ergExternToggle(val) {
-  state.filters.extern_modus = val; // 'aus' | 'mit' | 'nur'
-  state.page = 1;
-  loadErgebnisseData();
-}
-
 function _mstrFilterToggle(id, checked) {
   if (!state.filters.meisterschaften) state.filters.meisterschaften = {};
   if (checked) state.filters.meisterschaften[String(id)] = true;
@@ -109,35 +103,21 @@ async function loadErgebnisseData() {
   // Meisterschafts-Checkboxen: kommagetrennte IDs
   var mstrIds = Object.keys(state.filters.meisterschaften || {});
   if (mstrIds.length) params += '&meisterschaft=' + encodeURIComponent(mstrIds.join(','));
+  // Externe Ergebnisse gehören zur Ansicht – wer sie sehen darf, sieht sie immer
   var _canSeeExtern = currentUser && currentUser.rechte && currentUser.rechte.indexOf('externe_ergebnisse_sehen') >= 0;
-  var _externModus = _canSeeExtern ? (state.filters.extern_modus || 'aus') : 'aus';
-  // 'nur': externe Ergebnisse direkt laden ohne Vereinsergebnisse
   var rows, total, r;
-  if (_externModus === 'nur') {
+  r = await apiGet(state.subTab + '?' + params);
+  if (!r || !r.ok) {
+    var el = document.getElementById('main-content');
+    if (el) el.innerHTML = (state.tab === 'admin' && typeof adminSubtabs === 'function' ? adminSubtabs() : '') + '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler beim Laden der Ergebnisse:</strong><br><code>' + (r && r.fehler ? r.fehler : 'Unbekannter Fehler') + '</code></div>';
+    return;
+  }
+  rows = r.data.rows; total = r.data.total;
+  if (_canSeeExtern) {
     var rExt = await apiGet('externe-ergebnisse?' + params);
-    if (!rExt || !rExt.ok) {
-      var el = document.getElementById('main-content');
-      if (el) el.innerHTML = (state.tab === 'admin' && typeof adminSubtabs === 'function' ? adminSubtabs() : '') + '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler:</strong> ' + (rExt && rExt.fehler || 'Unbekannt') + '</div>';
-      return;
-    }
-    rows = rExt.data.rows; total = rExt.data.total;
-    // Für Dropdowns trotzdem Basisdaten laden
-    r = rExt;
-  } else {
-    r = await apiGet(state.subTab + '?' + params);
-    if (!r || !r.ok) {
-      var el = document.getElementById('main-content');
-      if (el) el.innerHTML = (state.tab === 'admin' && typeof adminSubtabs === 'function' ? adminSubtabs() : '') + '<div class="panel" style="padding:24px;color:var(--accent)"><strong>Fehler beim Laden der Ergebnisse:</strong><br><code>' + (r && r.fehler ? r.fehler : 'Unbekannter Fehler') + '</code></div>';
-      return;
-    }
-    rows = r.data.rows; total = r.data.total;
-    // 'mit': externe Ergebnisse zusätzlich anhängen
-    if (_externModus === 'mit') {
-      var rExt2 = await apiGet('externe-ergebnisse?' + params);
-      if (rExt2 && rExt2.ok && rExt2.data && rExt2.data.rows && rExt2.data.rows.length) {
-        rows = rows.concat(rExt2.data.rows);
-        total += (rExt2.data.total || 0);
-      }
+    if (rExt && rExt.ok && rExt.data && rExt.data.rows && rExt.data.rows.length) {
+      rows = rows.concat(rExt.data.rows);
+      total += (rExt.data.total || 0);
     }
   }
   // Auswahllisten der Filterregeln kommen aus der API
@@ -152,14 +132,6 @@ async function loadErgebnisseData() {
     (state.tab === 'admin' && typeof adminSubtabs === 'function' ? adminSubtabs() : '') +
     tfBarHtml('erg', { suchbreite: '1 1 260px', extra:
       _buildMstrFilterHtml() +
-      ((_canSeeExtern = currentUser && currentUser.rechte && currentUser.rechte.indexOf('externe_ergebnisse_sehen') >= 0) ?
-        '<div class="fg"><label>Externe Ergebnisse</label>' +
-          '<select onchange="_ergExternToggle(this.value)">' +
-            '<option value="aus"' + (!state.filters.extern_modus || state.filters.extern_modus === 'aus' ? ' selected' : '') + '>Keine</option>' +
-            '<option value="mit"' + (state.filters.extern_modus === 'mit' ? ' selected' : '') + '>Mit externen</option>' +
-            '<option value="nur"' + (state.filters.extern_modus === 'nur' ? ' selected' : '') + '>Nur externe</option>' +
-          '</select>' +
-        '</div>' : '') +
       '<button class="btn btn-ghost btn-sm" onclick="clearFilters()">&#x21BA; Reset</button>' }) +
     '<div class="panel">' +
       '<div class="panel-header"><div class="panel-title">' + (state.diszFilter || 'Alle Ergebnisse') + '</div><div class="panel-count">' + total + ' Ergebnisse</div></div>' +
@@ -188,7 +160,8 @@ async function loadErgebnisseData() {
           editBtn.dataset.editAthletId,
           editBtn.dataset.editAthletName,
           editBtn.dataset.editMappingId,
-          editBtn.dataset.editMstrPlatz
+          editBtn.dataset.editMstrPlatz,
+          editBtn.dataset.editVerein
         );
       }
       if (delBtn) deleteErgebnis(delBtn.dataset.delTab, delBtn.dataset.delId);
@@ -204,20 +177,14 @@ async function loadErgebnisseData() {
 }
 
 // ── Vereinszuordnung: Kennzeichen + Umschalten ──────────────────────────────
-// Sichtbar, sobald externe Ergebnisse mit angezeigt werden – sonst sind ohnehin
-// alle Zeilen Vereinsergebnisse. Editoren schalten per Klick um.
+// Nur externe Starts werden gekennzeichnet – eigene Vereinsergebnisse sind der
+// Normalfall und bleiben unmarkiert. Editoren schalten per Klick um.
 function _ergVereinBadge(rr, canEdit) {
-  var modus = (state.filters || {}).extern_modus || 'aus';
-  if (modus === 'aus' && !rr.extern) return '';
-  var titel = rr.extern
-    ? (rr.verein ? 'Extern: für ' + rr.verein + ' gestartet' : 'Extern: ohne Vereinsbindung')
-    : 'Für den eigenen Verein gestartet';
+  if (!rr.extern) return '';
+  var titel = rr.verein ? 'Extern: für ' + rr.verein + ' gestartet' : 'Extern: ohne Vereinsbindung';
   // Lange Vereinsnamen sprengen die Spalte – dann nur „extern", Rest im Tooltip
-  var text  = rr.extern ? (rr.verein && rr.verein.length <= 18 ? rr.verein : 'extern') : 'Verein';
-  var stil  = rr.extern
-    ? 'color:var(--text2);background:var(--surf2)'
-    : 'color:var(--primary);background:var(--surf2)';
-  var attrs = ' style="font-size:10px;border-radius:3px;padding:1px 5px;margin-left:5px;white-space:nowrap;' + stil +
+  var text  = rr.verein && rr.verein.length <= 18 ? rr.verein : 'extern';
+  var attrs = ' style="font-size:10px;border-radius:3px;padding:1px 5px;margin-left:5px;white-space:nowrap;color:var(--text2);background:var(--surf2)' +
     (canEdit ? ';cursor:pointer;border:1px solid var(--border)' : '') + '"' +
     ' title="' + _esc(titel + (canEdit ? ' – klicken zum Umschalten' : '')) + '"';
   if (!canEdit) return '<span' + attrs + '>' + _esc(text) + '</span>';
@@ -347,7 +314,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
       } else {
         cells +=
           '<td style="white-space:nowrap">' +
-            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-edit-id="' + rr.id + '" data-edit-tab="' + subTab + '" data-edit-disz="' + (rr.disziplin||'') + '" data-edit-mapping-id="' + (rr.disziplin_mapping_id||'') + '" data-edit-res="' + (rr.resultat||'') + '" data-edit-ak="' + (rr.altersklasse||'') + '" data-edit-akp="' + (rr.ak_platzierung||'') + '" data-edit-mstr="' + (rr.meisterschaft||'') + '" data-edit-mstr-platz="' + (rr.ak_platz_meisterschaft||'') + '" data-edit-fmt="' + (rr.fmt||'') + '" data-edit-athlet-id="' + (rr.athlet_id||'') + '" data-edit-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '">&#x270E;</button>' +
+            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-edit-id="' + rr.id + '" data-edit-tab="' + subTab + '" data-edit-disz="' + (rr.disziplin||'') + '" data-edit-mapping-id="' + (rr.disziplin_mapping_id||'') + '" data-edit-res="' + (rr.resultat||'') + '" data-edit-ak="' + (rr.altersklasse||'') + '" data-edit-akp="' + (rr.ak_platzierung||'') + '" data-edit-mstr="' + (rr.meisterschaft||'') + '" data-edit-mstr-platz="' + (rr.ak_platz_meisterschaft||'') + '" data-edit-fmt="' + (rr.fmt||'') + '" data-edit-athlet-id="' + (rr.athlet_id||'') + '" data-edit-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '" data-edit-verein="' + (rr.verein||'').replace(/"/g,'&quot;') + '">&#x270E;</button>' +
             '<button class="btn btn-danger btn-sm" data-del-id="' + rr.id + '" data-del-tab="' + subTab + '">&#x1F5D1;&#xFE0F;</button>' +
           '</td>';
       }
@@ -386,7 +353,7 @@ function _editAthletPick(id, name) {
   if (box) box.innerHTML = '';
 }
 
-async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, athletName, mappingId, mstrPlatz) {
+async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, athletName, mappingId, mstrPlatz, verein, extern) {
   mstr = parseInt(mstr, 10) || '';
   // Kategorie aus der Disziplin des Ergebnisses ableiten
   var _diszKat = '';
@@ -467,6 +434,12 @@ async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athle
       '<div class="form-group"><label>Platz AK</label><input type="number" id="edit-akp" value="' + (akp||'') + '" min="1"/></div>' +
       '<div class="form-group"><label>Meisterschaft</label><select id="edit-mstr">' + mstrOptions(mstr) + '</select></div>' +
       '<div class="form-group"><label>Platz MS</label><input type="number" id="edit-mstr-platz" value="' + (mstrPlatz||'') + '" min="1" placeholder="–"/></div>' +
+      // Vereinszuordnung: leer = ohne Vereinsbindung (extern). Deshalb ist der
+      // eigene Verein vorbelegt, wenn nichts gespeichert ist.
+      '<div class="form-group full"><label>Verein</label>' +
+        '<input type="text" id="ev-verein" value="' + _esc(verein || (extern ? '' : _ergEigenerVerein())) + '" placeholder="leer = ohne Vereinsbindung" oninput="_ergVereinVorschau()"/>' +
+        '<div id="ev-vorschau" style="font-size:12px;background:var(--surf2);border-radius:8px;padding:8px 12px;margin-top:8px"></div>' +
+      '</div>' +
     '</div>' +
     '<div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -475,6 +448,7 @@ async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athle
 
   showModal(html);
 
+  _ergVereinVorschau();
   document.getElementById('edit-save-btn').addEventListener('click', function() {
     saveEditErgebnis(id, subTab);
   });
@@ -506,11 +480,12 @@ async function saveEditErgebnis(id, subTab) {
   if (akp)  body.ak_platzierung = parseInt(akp);
   if (mstr) body.meisterschaft = parseInt(mstr);
   body.ak_platz_meisterschaft = mstrPlatz ? parseInt(mstrPlatz) : null;
+  body.verein = ((document.getElementById('ev-verein') || {}).value || '').trim();
   if (newAthletId) body.athlet_id = parseInt(newAthletId);
   var r = await apiPut(subTab + '/' + id, body);
   if (r && r.ok) {
     closeModal();
-    notify('Ergebnis gespeichert.', 'ok');
+    notify((r.data && r.data.extern) ? 'Gespeichert – jetzt ein externes Ergebnis.' : 'Ergebnis gespeichert.', 'ok');
     loadErgebnisseData();
   } else {
     notify((r && r.fehler) ? r.fehler : 'Fehler beim Speichern', 'err');

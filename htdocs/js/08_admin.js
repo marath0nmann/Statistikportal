@@ -3873,7 +3873,9 @@ function dupEditErgebnis(idx, which) {
     d['athlet_id'+n],
     d.athlet,
     d['mid'+n] || null,
-    d['mstr_platz'+n]
+    d['mstr_platz'+n],
+    d['verein'+n] || '',
+    d['extern'+n] ? 1 : 0
   );
 }
 

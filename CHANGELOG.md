@@ -1,3 +1,8 @@
+## v1575
+- **Externe Ergebnisse sind jetzt Standardansicht – Filter entfällt.** Wer externe Ergebnisse sehen darf, sieht sie in der Ergebnisliste immer; die Auswahl „Keine / Mit externen / Nur externe" ist damit überflüssig und aus der Filterleiste verschwunden (`_ergExternToggle()` und `state.filters.extern_modus` entfallen).
+- **Kennzeichen nur noch für externe Starts.** Vereinsergebnisse sind der Normalfall und bleiben unmarkiert; das Badge „Verein" ist weg. Externe Zeilen tragen weiterhin den fremden Verein bzw. „extern" und öffnen per Klick den Dialog „Vereinszuordnung".
+- **Vereinsfeld im Bearbeiten-Dialog.** Damit ein Vereinsergebnis trotz fehlendem Badge auf extern umgestellt werden kann, hat „Ergebnis bearbeiten" jetzt ein Vereinsfeld samt Vorschau – vorbelegt mit dem eigenen Verein, leer = ohne Vereinsbindung (extern). Der Duplikate-Dialog im Admin reicht Verein und Extern-Kennzeichen dafür mit durch (`admin/duplikate` liefert sie neu mit), damit dort kein externes Ergebnis versehentlich zum Vereinsergebnis wird.
+
 ## v1574
 - **Ergebnisliste: Vereinszuordnung sichtbar und per Klick umschaltbar.** Sobald externe Ergebnisse mit angezeigt werden (Filter „Mit externen"/„Nur externe"), trägt jede Zeile hinter dem Namen ein Kennzeichen: „Verein" für eigene Starts, sonst den fremden Verein bzw. „extern" ohne Vereinsbindung (langer Name nur im Tooltip). Editoren öffnen per Klick den Dialog „Vereinszuordnung", tragen den Verein ein – Schaltfläche für den eigenen Verein inklusive – und sehen vorab, ob daraus ein Vereins- oder ein externes Ergebnis wird. Gespeichert wird über die gemeinsame Ergebnis-PUT-Logik, `extern` leitet `vereinFelder()` wie überall aus dem Vereinsnamen ab.
 
