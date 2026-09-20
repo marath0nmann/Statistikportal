@@ -1,3 +1,6 @@
+## v1572
+- **Rekorde: Kategorie-Tabs (Bahn/Halle/Sprung…) nach einem Deep-Link wieder klickbar.** Nach `#rekorde/<kat>/<disziplin>` blieb `state.rekState.mapping_id` gesetzt; `setRekKat()` löschte nur `disz`, worauf der Auflöse-Block am Anfang von `renderRekorde()` die Disziplin über die alte `mapping_id` wiederfand und `rs.kat` auf deren `tbl_key` zurücksetzte – der Klick auf eine andere Kategorie war folgenlos. `setRekKat()` verwirft jetzt auch `mapping_id` und `diszSlug`.
+
 ## v1571
 - **Projekt unter AGPL-3.0 lizenziert.** Neue Datei `LICENSE` mit dem vollständigen Text der GNU Affero General Public License v3; README mit Badge und Lizenz-Abschnitt (AGPL-3.0-or-later). Kurze Lizenz-Header in den Einstiegsdateien (`htdocs/index.html`, `htdocs/api/index.php`, `htdocs/js/02_app.js`). Der Footer verlinkt zusätzlich zu „Statistikportal“ jetzt „AGPL-3.0“ und „Quelltext“ – §13 der AGPL verlangt, dass Nutzer eines über das Netz betriebenen Dienstes den Quelltext angeboten bekommen.
 
