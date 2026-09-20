@@ -1,5 +1,7 @@
 # Statistikportal – Leichtathletik
-## Version v1563 | Stand: September 2026 
+## Version v1571 | Stand: September 2026 
+
+[![Lizenz: AGPL v3](https://img.shields.io/badge/Lizenz-AGPL%20v3-blue.svg)](LICENSE)
 
 **Die komplette Statistik-Plattform für deinen Leichtathletik-Verein.**  
 Vereinsrekorde, Bestleistungen, Veranstaltungen und Athletenprofile – alles an einem Ort, schnell, sicher und ohne externe Abhängigkeiten.
@@ -195,3 +197,30 @@ Die API führt beim Start automatisch DDL-Migrationen aus (`ALTER TABLE … ADD 
 - `veranstaltungen`: `serie_id`
 - `passkeys` Tabelle (WebAuthn)
 - `rollen` Tabelle (Standard-Rollen: admin, editor, athlet, leser)
+
+---
+
+## 📜 Lizenz
+
+Statistikportal Leichtathletik – Copyright (C) 2026 Daniel Weyers
+
+Dieses Programm ist freie Software: Du kannst es unter den Bedingungen der
+[GNU Affero General Public License, Version 3](LICENSE) (AGPL-3.0-or-later),
+wie von der Free Software Foundation veröffentlicht, weitergeben und/oder
+verändern – entweder in Version 3 oder (nach deiner Wahl) einer späteren Version.
+
+Die Veröffentlichung erfolgt in der Hoffnung, dass sie nützlich ist, jedoch
+**OHNE JEDE GEWÄHRLEISTUNG** – sogar ohne die implizite Garantie der
+MARKTGÄNGIGKEIT oder EIGNUNG FÜR EINEN BESTIMMTEN ZWECK. Details in der
+[LICENSE](LICENSE), Volltext: <https://www.gnu.org/licenses/agpl-3.0.html>.
+
+**Was das praktisch bedeutet:**
+- Nutzung, Weitergabe und Anpassung sind ausdrücklich erlaubt – auch für andere Vereine.
+- Änderungen müssen ebenfalls unter der AGPL-3.0 stehen (Copyleft).
+- **§13 – Netzwerk-Nutzung:** Wer eine veränderte Fassung als Webdienst betreibt,
+  muss dessen Nutzern den vollständigen Quelltext anbieten. Der Footer des Portals
+  verlinkt deshalb auf Lizenz und Quelltext – bei einem Fork bitte auf das eigene
+  Repository umbiegen (`ghUrl` in `htdocs/js/02_app.js`, `buildFooter()`).
+
+Die eingebundenen Schriften (Google Fonts „Barlow“ / „Barlow Condensed“) stehen
+unter der SIL Open Font License und sind nicht Teil dieser Lizenz.

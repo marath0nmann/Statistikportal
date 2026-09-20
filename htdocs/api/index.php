@@ -1,5 +1,17 @@
 <?php
 // ============================================================
+// Statistikportal Leichtathletik
+// Copyright (C) 2026 Daniel Weyers <dw@vy99.de>
+//
+// Dieses Programm ist freie Software: Sie koennen es unter den
+// Bedingungen der GNU Affero General Public License, Version 3,
+// wie von der Free Software Foundation veroeffentlicht, weitergeben
+// und/oder veraendern. Es wird in der Hoffnung verbreitet, dass es
+// nuetzlich ist, jedoch OHNE JEDE GEWAEHRLEISTUNG. Siehe die
+// GNU AGPL fuer weitere Einzelheiten: <https://www.gnu.org/licenses/>.
+// Quelltext: https://github.com/marath0nmann/Statistikportal
+// ============================================================
+// ============================================================
 // Leichtathletik-Statistik – REST API
 // api/index.php
 // ============================================================
