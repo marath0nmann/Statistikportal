@@ -2271,9 +2271,17 @@ function _shareEinheitlicheMstr(rows) {
   return rows[0];
 }
 
-// Deep-Link auf die Rekordliste einer Disziplin: #rekorde/<kategorie>/<disziplin-slug>
+// Öffentliche Pfad-URL für geteilte Links (/veranstaltung/42, /rekorde/…, /athlet/…).
+// Programme ohne JavaScript (KI-Assistenten, Suchmaschinen, Link-Vorschauen) bekommen
+// dort eine Textfassung mit allen Daten (includes/seiten.php); Browser werden sofort
+// auf den passenden #-Link der App weitergeleitet.
+function seitenUrl(pfad) {
+  return location.origin + location.pathname.replace(/[^\/]*$/, '') + pfad;
+}
+
+// Deep-Link auf die Rekordliste einer Disziplin: /rekorde/<kategorie>/<disziplin-slug>
 function _shareRekordeUrl(e) {
-  var base = location.origin + location.pathname + '#rekorde';
+  var base = seitenUrl('rekorde');
   var kat  = e.tbl_key || '';
   if (!kat && e.disziplin_mapping_id && typeof state !== 'undefined') {
     var d = (state.disziplinen || []).find(function(x) { return x.id == e.disziplin_mapping_id; });
@@ -2321,7 +2329,7 @@ function _esc(s) {
 
 // \u2500\u2500 WordPress-HTML (Gutenberg-kompatible Tabellen) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function _veranstWordpress(v, badgeMap, mitExtern) {
-  var url   = location.origin + location.pathname + '#veranstaltung/' + v.id;
+  var url   = seitenUrl('veranstaltung/' + v.id);
   var date  = v.datum ? v.datum.split('-').reverse().join('.') : '';
   var title = v.name || v.kuerzel || 'Veranstaltung';
   var g     = _shareGroupByDisz(v, mitExtern);
@@ -2362,7 +2370,7 @@ function _veranstWordpress(v, badgeMap, mitExtern) {
 
 // \u2500\u2500 WhatsApp-Text (Unicode-Formatierung, *fett*) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function _veranstWhatsapp(v, badgeMap, mitExtern) {
-  var url   = location.origin + location.pathname + '#veranstaltung/' + v.id;
+  var url   = seitenUrl('veranstaltung/' + v.id);
   var date  = v.datum ? v.datum.split('-').reverse().join('.') : '';
   var title = v.name || v.kuerzel || 'Veranstaltung';
   var g     = _shareGroupByDisz(v, mitExtern);
@@ -2414,7 +2422,7 @@ function _sharePromptResult(e) {
 
 // \u2500\u2500 Claude-Prompt: fertiger Auftrag + strukturierte Daten \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function _veranstClaudePrompt(v, badgeMap, mitExtern) {
-  var url     = location.origin + location.pathname + '#veranstaltung/' + v.id;
+  var url     = seitenUrl('veranstaltung/' + v.id);
   var date    = v.datum ? v.datum.split('-').reverse().join('.') : '';
   var title   = v.name || v.kuerzel || 'Veranstaltung';
   var club    = (typeof appConfig !== 'undefined' && (appConfig.verein_name || appConfig.verein_kuerzel)) || 'unseren Verein';
@@ -2626,7 +2634,7 @@ async function shareVeranstaltung(vid) {
   _shareBuildTexts();
 
   var externAnz = _shareExternAnz(v);
-  var url = location.origin + location.pathname + '#veranstaltung/' + vid;
+  var url = seitenUrl('veranstaltung/' + vid);
 
   var tabBtn = 'padding:9px 16px;border:none;background:none;cursor:pointer;font-family:inherit;' +
                'font-size:13px;font-weight:600;color:var(--text2);border-bottom:2px solid transparent';

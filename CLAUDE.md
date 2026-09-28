@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1575
+## Aktuelle Version: v1576
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -24,7 +24,10 @@ htdocs/               → Web-Root
   api/index.php       → REST-API (alle Endpunkte, ~5000 Zeilen)
   api/setup.php       → Ersteinrichtung
   opcache-clear.php   → Nach jedem Deploy aufrufen: /opcache-clear.php
+  athlet/ veranstaltung/ rekorde/ → Textfassungen ohne JS (index.php + .htaccess)
 includes/             → PHP-Bibliotheken (außerhalb Web-Root)
+  seiten.php          → Serverseitige Textfassungen (Klasse Seiten)
+  helfer.php          → diszSortKey(), sortDisziplinen(), buildAkCaseExpr() (API + Seiten)
   auth.php            → Session/Auth/TOTP/Passkey
   db.php              → Datenbankzugriff (MariaDB)
   settings.php        → Vereinseinstellungen
@@ -62,6 +65,16 @@ GitHub Actions deployed automatisch per FTP nach all-inkl.com (`/html/statistik/
 **Kein URL-Rewriting:** Die API ist nur als `api/index.php?_route=<route>`
 erreichbar (alternativ `api/index.php/<route>` per PATH_INFO). `/(api)/<route>`
 allein ergibt einen Apache-404 – relevant für Cronjob-URLs.
+
+**Textfassungen ohne JavaScript (`includes/seiten.php`):**
+KI-Assistenten (Claude `web_fetch`), Suchmaschinen und Link-Vorschauen führen kein JS aus
+und sehen von der SPA sonst nichts. Unter `/athlet/<slug>`, `/veranstaltung/<id>` und
+`/rekorde/<kat>/<disziplin>` (jeweils auch ohne Parameter als Liste) liefert PHP eine schlichte
+HTML-Fassung; Browser leiten per JS sofort auf `/#athlet/…` usw. weiter. Geteilte Links
+(Teilen-Dialog, WhatsApp, Claude-Prompt) immer über `seitenUrl('veranstaltung/' + id)`
+bauen, nie mit `#`. Sichtbarkeit wie für Gäste (kein Jahrgang/Gruppen, nur aktive Athleten
+in der Liste, nur genehmigte Veranstaltungen). Slugs müssen `_athSlug()`/`diszSlug()` im
+Frontend exakt entsprechen.
 
 **API-Aufrufe (Frontend):**
 ```js

@@ -732,8 +732,9 @@ function _athSetFullPage(id, slug) {
   closeModal(); syncHash(); buildNav(); renderPage();
 }
 function _athCopyLink(slug) {
-  // Pfad-basierte URL (/athlet/slug) – Messenger/Crawler lesen OG-Tags aus athlet.php
-  var url = location.origin + '/athlet/' + slug;
+  // Pfad-basierte URL (/athlet/slug) – Messenger, Crawler und KI-Assistenten lesen
+  // dort OG-Tags und eine Textfassung des Profils (athlet/index.php)
+  var url = seitenUrl('athlet/' + slug);
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(url).then(function(){ notify('Link kopiert!','ok'); });
   } else {
