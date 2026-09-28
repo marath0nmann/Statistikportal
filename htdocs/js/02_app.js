@@ -2935,6 +2935,17 @@ async function adminFreigebenVeranst(vid, btn, restore) {
   }
 }
 
+// Copyright-Jahre: Beginn 2026 bis zum Jahr des letzten Deployments. Das
+// Deploy-Jahr trägt der GitHub-Workflow beim Hochladen in
+// <meta name="deploy-jahr"> ein – es folgt also dem Deployment, nicht der
+// Uhr des Besuchers.
+function copyrightJahre() {
+  var start = 2026;
+  var meta = document.querySelector('meta[name="deploy-jahr"]');
+  var jahr = parseInt(meta && meta.content, 10) || start;
+  return jahr > start ? start + '–' + jahr : String(start);
+}
+
 function buildFooter() {
   var el = document.getElementById('app-footer');
   if (!el) return;
@@ -2959,7 +2970,7 @@ function buildFooter() {
                   footerLink(nuUrl,  '#/nutzung',     'Nutzungsbedingungen') + ' &nbsp;&middot;&nbsp; ' +
                   footerLink(impUrl, '#/impressum',   'Impressum');
   el.innerHTML =
-    '<div>Powered by <a href="' + ghUrl + '" target="_blank" style="' + linkStyle + '">Statistikportal</a> &copy; 2026 <a href="' + authorUrl + '" target="_blank" style="' + linkStyle + '">Daniel Weyers</a> &nbsp;&middot;&nbsp; ' +
+    '<div>Powered by <a href="' + ghUrl + '" target="_blank" style="' + linkStyle + '">Statistikportal</a> &copy; ' + copyrightJahre() + ' <a href="' + authorUrl + '" target="_blank" style="' + linkStyle + '">Daniel Weyers</a> &nbsp;&middot;&nbsp; ' +
       // AGPL-3.0 \u00a713: Netzwerknutzer muessen den Quelltext angeboten bekommen
       '<a href="' + ghUrl + '/blob/main/LICENSE" target="_blank" style="' + linkStyle + '">AGPL-3.0</a> &nbsp;&middot;&nbsp; ' +
       '<a href="' + ghUrl + '" target="_blank" style="' + linkStyle + '">Quelltext</a></div>' +

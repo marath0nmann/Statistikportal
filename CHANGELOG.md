@@ -1,3 +1,6 @@
+## v1578
+- **Copyright im Footer richtet sich nach dem Deployment:** Der Deploy-Workflow trägt beim Hochladen das aktuelle Jahr (Europe/Berlin) in `<meta name="deploy-jahr">` der `index.html` ein; der Footer zeigt „© 2026" bzw. ab einem Deployment 2027 „© 2026–2027" (`copyrightJahre()`). Einheitlich in Statistik-, Trainings- und Planungsportal.
+
 ## v1577
 - **Textfassungen: Feinschliff nach dem Live-Test.** Meisterschaften heißen wie in den Auszeichnungen „Deutsche Meisterschaften“ statt „Deutsche-Meisterschaften“ (Leerzeichen nach Labels auf „e“). Sekundenwerte in Zeit-Kategorien (z. B. 300 m unter Straße) tragen die Einheit „s“. Die Jahresauswahl der Veranstaltungsliste zeigt kein Jahr „0“ mehr für Veranstaltungen ohne Datum.
 
