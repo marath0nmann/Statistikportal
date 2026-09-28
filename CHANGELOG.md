@@ -1,3 +1,6 @@
+## v1577
+- **Textfassungen: Feinschliff nach dem Live-Test.** Meisterschaften heißen wie in den Auszeichnungen „Deutsche Meisterschaften“ statt „Deutsche-Meisterschaften“ (Leerzeichen nach Labels auf „e“). Sekundenwerte in Zeit-Kategorien (z. B. 300 m unter Straße) tragen die Einheit „s“. Die Jahresauswahl der Veranstaltungsliste zeigt kein Jahr „0“ mehr für Veranstaltungen ohne Datum.
+
 ## v1576
 - **Textfassungen für Programme ohne JavaScript (KI-Assistenten, Suchmaschinen, Link-Vorschauen).** Die App ist eine SPA – wer Seiten ohne JavaScript abruft (z. B. Claude per `web_fetch`), bekam bisher nur eine leere Hülle bzw. beim Athletenprofil einen Weiterleitungs-Stub mit Namen. Neue Pfad-URLs liefern jetzt serverseitig eine schlichte HTML-Fassung mit denselben Daten, die Gäste in der App sehen; Browser werden wie bisher sofort auf den `#`-Link der App weitergeleitet:
   - `/athlet/<vorname-nachname>` – Profil mit Vereinsrekorden/-bestleistungen, Meisterschaften, persönlichen Bestleistungen und allen Ergebnissen; `/athlet/` listet die aktiven Athleten.

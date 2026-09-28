@@ -71,7 +71,8 @@ class Seiten {
         if ($fmt === 'm')   return str_replace('.', ',', $raw) . ' m';
         if ($fmt === 'pkt') return $raw . ' Punkte';
         if (strpos($raw, ':') === false) {
-            return str_replace('.', ',', $raw) . ($fmt === 's' ? ' s' : '');
+            // Zeit-Disziplin ohne Doppelpunkt = Sekunden (z.B. 300 m in der Kategorie Straße)
+            return str_replace('.', ',', $raw) . (is_numeric(str_replace(',', '.', $raw)) ? ' s' : '');
         }
         // "00:39:57" → "39:57 min", "3:36:19" → "3:36:19 h", "0:05:30" → "5:30 min"
         $t = $raw;
@@ -137,7 +138,8 @@ class Seiten {
     private static function mstrText(array $e, array $mstr): string {
         if (empty($e['meisterschaft'])) return '';
         $lbl = $mstr[(int)$e['meisterschaft']] ?? ('Meisterschaft ' . $e['meisterschaft']);
-        if (!preg_match('/meisterschaft/i', $lbl)) $lbl .= '-Meisterschaften';
+        // "Regio" → "Regio-Meisterschaften", "Deutsche" → "Deutsche Meisterschaften" (wie auszeichnungen-API)
+        if (!preg_match('/meisterschaft/i', $lbl)) $lbl .= (preg_match('/e$/i', $lbl) ? ' ' : '-') . 'Meisterschaften';
         if (!empty($e['ak_platz_meisterschaft'])) $lbl .= ' – ' . (int)$e['ak_platz_meisterschaft'] . '. Platz';
         return $lbl;
     }
@@ -620,7 +622,7 @@ a{color:#003087}.klein{color:#555;font-size:13px}
         $basis = self::basis();
         $vT = DB::tbl('veranstaltungen');
         $jahre = array_map(function($r) { return (int)$r['j']; }, DB::fetchAll(
-            "SELECT DISTINCT YEAR(datum) AS j FROM $vT WHERE geloescht_am IS NULL AND genehmigt = 1 AND datum IS NOT NULL ORDER BY j DESC"));
+            "SELECT DISTINCT YEAR(datum) AS j FROM $vT WHERE geloescht_am IS NULL AND genehmigt = 1 AND YEAR(datum) > 0 ORDER BY j DESC"));
         $jahr = isset($_GET['jahr']) && in_array((int)$_GET['jahr'], $jahre, true) ? (int)$_GET['jahr'] : ($jahre[0] ?? (int)date('Y'));
         $rows = DB::fetchAll(
             "SELECT v.id, v.name, v.kuerzel, v.datum, COALESCE(o.name, v.ort) AS ort,
