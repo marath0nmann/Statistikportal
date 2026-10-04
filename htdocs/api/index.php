@@ -2350,8 +2350,10 @@ function berechneTimelineEvents(bool $mergeAKTl = true): array
         // merge_ak: Jugend-AKs zu MHK/WHK zusammenfassen (aus Settings)
         // $mergeAKTl kommt als Funktionsparameter
         $akExprTl  = buildAkCaseExpr($mergeAKTl);
+        // Externe Ergebnisse werden mitgelesen, zählen aber nur für die
+        // persönliche Bestleistung (siehe Schleife) – nie für Vereinsbestleistungen.
         $extOnly = $dInfo['ext_only'] ?? false;
-        $extWhere = $extOnly ? " AND e.extern=1" : " AND e.extern=0";
+        $extWhere = $extOnly ? " AND e.extern=1" : "";
         $ergs = DB::fetchAll(
             "SELECT e.resultat, $valExpr AS val_sort, v.datum, ($akExprTl) AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht, e.extern,
@@ -2395,6 +2397,18 @@ function berechneTimelineEvents(bool $mergeAKTl = true): array
         foreach ($ergs as $e) {
             $val   = (float)($e['val_sort'] ?? 0);
             $datum = $e['datum'];
+
+            // Externes Ergebnis: nur die persönliche Bestleistung fortschreiben,
+            // kein eigenes Ereignis – sonst hieße ein langsamerer Vereinsstart „PB".
+            if (!$extOnly && !empty($e['extern'])) {
+                $aidX = $e['athlet_id'];
+                if (!isset($bestByAthlet[$aidX]) ||
+                    ($dir === 'ASC'  && $val < $bestByAthlet[$aidX]) ||
+                    ($dir === 'DESC' && $val > $bestByAthlet[$aidX])) {
+                    $bestByAthlet[$aidX] = $val;
+                }
+                continue;
+            }
             $g     = $e['geschlecht'] ?? '';
             $ak    = $e['altersklasse'] ?? '';
 

@@ -1,3 +1,6 @@
+## v1582
+- **„Neueste Bestleistungen“: PB berücksichtigt externe Ergebnisse.** Externe Starts (für einen anderen Verein) fließen jetzt in die persönliche Bestleistung ein, ohne selbst ein Ereignis zu erzeugen. Vereins-, Geschlechts- und AK-Bestleistungen zählen weiterhin nur Vereinsergebnisse. Vorher bekam z. B. ein 5km-Vereinsstart in 20:57 das Label „PB (war 21:00)“, obwohl eine externe 20:33 existierte. Betrifft auch die Jahresübersicht.
+
 ## v1581
 - **Fehler „_mvKtx is not a function“ auf der Athletenseite behoben.** Der Kontext lag unter `window._mvKtx` und überschrieb damit die gleichnamige Funktion – er heißt jetzt `window._mvKontext`.
 - **Athletenlinks öffnen direkt die Profil-Vollseite** statt des Profil-Modals (Ergebnisse, Dashboard, Veranstaltungen, Athletenliste usw.). Das alte Modal samt `_apRender`/`_apSetTab`/`_apRenderPb`/`_athSetFullPage` ist entfernt.
