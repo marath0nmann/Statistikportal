@@ -2957,7 +2957,7 @@ if (in_array($res, $ergebnisTabellen)) {
         $sql = "SELECT e.id, a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse,
                        e.disziplin, e.disziplin_mapping_id, e.resultat,
                        $extraCols
-                       e.ak_platzierung, e.meisterschaft,
+                       e.ak_platzierung, e.meisterschaft, e.extern, e.verein,
                        e.veranstaltung_id,
                        v.kuerzel AS veranstaltung, v.datum, v.ort, COALESCE(o.name, v.ort) AS veranstaltung_ort, v.name AS veranstaltung_name, v.datenquelle AS veranstaltung_quelle,
                        v.serie_id AS verknuepfte_serie_id, v.name AS verknuepfte_veranstaltung_name,

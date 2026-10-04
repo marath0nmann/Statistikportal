@@ -1,3 +1,6 @@
+## v1583
+- **Ergebnisliste (Admin → Ergebnisse) erkennt externe Ergebnisse wieder.** Die API lieferte `extern` und `verein` nicht mit. Externe Starts erschienen dadurch ohne Kennzeichen, und „Bearbeiten“ öffnete den Dialog für Vereinsergebnisse mit vorbelegtem eigenem Verein. Ein Speichern machte so stillschweigend ein Vereinsergebnis daraus. Jetzt bekommen sie wieder das Vereins-Kennzeichen und den Bearbeiten-Dialog für externe Ergebnisse.
+
 ## v1582
 - **„Neueste Bestleistungen“: PB berücksichtigt externe Ergebnisse.** Externe Starts (für einen anderen Verein) fließen jetzt in die persönliche Bestleistung ein, ohne selbst ein Ereignis zu erzeugen. Vereins-, Geschlechts- und AK-Bestleistungen zählen weiterhin nur Vereinsergebnisse. Vorher bekam z. B. ein 5km-Vereinsstart in 20:57 das Label „PB (war 21:00)“, obwohl eine externe 20:33 existierte. Betrifft auch die Jahresübersicht.
 
