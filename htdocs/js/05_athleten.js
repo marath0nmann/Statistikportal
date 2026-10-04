@@ -1130,7 +1130,9 @@ function showPbModal(athletId, pbId) {
 
     '<div id="_pb-err" style="color:var(--accent);font-size:13px;min-height:18px;margin-bottom:8px"></div>' +
     '<div class="modal-actions">' +
-      '<button class="btn btn-ghost" onclick="openAthletById(_apState.athletId)">&#x2190; Zurück</button>' +
+      (state.tab === 'athlet'
+        ? '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>'
+        : '<button class="btn btn-ghost" onclick="openAthletById(_apState.athletId)">&#x2190; Zurück</button>') +
       '<button class="btn btn-primary" onclick="savePb(' + athletId + ',' + (pbId || 'null') + ')">Speichern</button>' +
     '</div>';
 
@@ -1194,7 +1196,14 @@ async function savePb(athletId, pbId) {
   var reloaded = await apiGet('athleten/' + athletId + '/pb');
   _apState.pbs = (reloaded && reloaded.ok) ? (reloaded.data || []) : _apState.pbs;
   closeModal();
-  _apRender();
+  _apNachPbAenderung();
+}
+
+// Externe Ergebnisse geaendert: Modal-Profil neu zeichnen bzw. auf der
+// Vollseite (Engine aus 10_veranstaltungen.js) die Liste neu laden
+function _apNachPbAenderung() {
+  if (document.getElementById('_ap-table')) _apRender();
+  else if (state.tab === 'athlet' && typeof _mvNeuLaden === 'function') _mvNeuLaden();
 }
 
 var _pbSearchTimer = null;
@@ -1251,7 +1260,7 @@ async function _doDeletePb(athletId, pbId) {
   if (!r || !r.ok) { notify('Fehler beim Löschen.', 'err'); return; }
   var reloaded2 = await apiGet('athleten/' + athletId + '/pb');
   _apState.pbs = (reloaded2 && reloaded2.ok) ? (reloaded2.data || []) : _apState.pbs;
-  _apRender();
+  _apNachPbAenderung();
 }
 
 function _buildAthletCard(a, hof, letzteAkt) {
@@ -1477,6 +1486,8 @@ async function _loadWettkampfChart() {
 }
 
 // ── Athlet-Vollseite ─────────────────────────────────────────────────────────
+// Dieselbe Ansicht wie "Meine Ergebnisse" (Engine in 10_veranstaltungen.js),
+// fuer fremde Profile und Gaeste mit eingeschraenkten Filter-/Spaltenoptionen.
 async function renderAthletDetail(slug) {
   var el = document.getElementById('main-content');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
@@ -1496,135 +1507,5 @@ async function renderAthletDetail(slug) {
     el.innerHTML = '<div class="panel" style="padding:48px;text-align:center;color:var(--text2)"><div style="font-size:40px;margin-bottom:12px">&#x1F937;</div>Athlet nicht gefunden.</div>';
     return;
   }
-
-  var _rArr = await Promise.all([apiGet('athleten/' + id), apiGet('athleten/' + id + '/auszeichnungen')]);
-  var r = _rArr[0], rAusz = _rArr[1];
-  if (!r || !r.ok) {
-    el.innerHTML = '<div class="panel" style="padding:32px;text-align:center;color:var(--accent)">Fehler beim Laden.</div>';
-    return;
-  }
-
-  // State aufbauen (gleiche Logik wie openAthletById)
-  var athlet = r.data.athlet;
-  var kategorien = r.data.kategorien || [];
-  var rawPbs = r.data.pbs || [];
-  rawPbs.forEach(function(pb) {
-    var kn = pb.kat_name || 'Sonstige';
-    var fnd = false;
-    for (var ki = 0; ki < kategorien.length; ki++) {
-      if (kategorien[ki].name === kn) { if (!kategorien[ki].pbs) kategorien[ki].pbs = []; kategorien[ki].pbs.push(pb); fnd = true; break; }
-    }
-    if (!fnd) kategorien.push({ name: kn, fmt: pb.fmt || 'min', ergebnisse: [], pbs: [pb], kat_sort: pb.kat_sort || 99 });
-  });
-  kategorien.sort(function(a,b){ return (a.kat_sort||99)-(b.kat_sort||99); });
-  var totalErg = 0;
-  for (var ki2 = 0; ki2 < kategorien.length; ki2++) totalErg += (kategorien[ki2].ergebnisse||[]).length + (kategorien[ki2].pbs||[]).length;
-  _apState.kategorien = kategorien; _apState.pbs = rawPbs;
-  _apState.selKat = 0; _apState.selDisz = null; _apState.tab = 'ergebnisse'; _apState.athletId = id;
-
-  var canEdit = !!(currentUser && (currentUser.rolle === 'admin' ||
-    (currentUser.rechte||[]).indexOf('vollzugriff') >= 0 ||
-    (currentUser.rechte||[]).indexOf('alle_ergebnisse') >= 0));
-  var slug2 = _athSlug(athlet.vorname, athlet.nachname);
-  state.athletId = id; state.athletSlug = slug2;
-  syncHash();
-
-  // Seitentitel
-  var vereinName = (appConfig && appConfig.verein_name) || 'TuS Oedt';
-  document.title = vereinName + ' – Statistik – ' + (athlet.vorname||'') + ' ' + (athlet.nachname||'');
-
-  // Profil-Header (Gruppen, Avatar, Auszeichnungen) – gleicher HTML-Block wie im Modal
-  var initials = ((athlet.vorname||'')[0]||'') + ((athlet.nachname||'')[0]||'');
-  var gruppen2 = athlet.gruppen || [];
-  var gruppenTags2 = '';
-  for (var gi2 = 0; gi2 < gruppen2.length; gi2++) {
-    gruppenTags2 += '<span class="rek-cat-btn" style="font-size:12px;padding:3px 10px;cursor:default">' + gruppen2[gi2].name + '</span>';
-  }
-  var _profAvId2 = 'prof-av-' + athlet.id;
-  var avatarH = '<div class="profile-avatar" style="overflow:visible;position:relative;padding:0;' + (athlet.avatar_pfad ? 'background:none;' : '') + '" id="' + _profAvId2 + '">' +
-    (athlet.avatar_pfad ? '<img src="' + athlet.avatar_pfad + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">' : initials.toUpperCase()) + '</div>';
-  if (currentUser) {
-    apiGet('auth/online-status').then(function(ro) {
-      var onlineIds = (ro && ro.ok && ro.data) ? (ro.data.athlet_ids || ro.data) : [];
-      if (onlineIds.indexOf(athlet.id) >= 0 || onlineIds.indexOf(String(athlet.id)) >= 0) {
-        var _e2 = document.getElementById(_profAvId2);
-        if (_e2) { _e2.style.overflow = 'visible'; _e2.style.position = 'relative'; _e2.innerHTML += _avatarDot('online', 64); }
-      }
-    });
-  }
-  var _ak2 = (athlet.geschlecht && athlet.geburtsjahr) ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : '';
-  var ausz2 = (rAusz && rAusz.ok) ? rAusz.data : null;
-
-  // Auszeichnungen (gleiche Logik wie im Modal)
-  var auszHtml = '';
-  if (ausz2 && (ausz2.meisterschaften.length || ausz2.bestleistungen.length)) {
-    var mParts2 = [];
-    if (ausz2.meisterschaften.length) {
-      var mGrp2 = {}, mOrd2 = [];
-      (ausz2.meisterschaften||[]).forEach(function(mt){ var k=mt.label; if(!mGrp2[k]){mGrp2[k]={label:mt.label,jahre:[]};mOrd2.push(k);} if(mt.jahr&&mGrp2[k].jahre.indexOf(mt.jahr)<0)mGrp2[k].jahre.push(mt.jahr); });
-      mOrd2.forEach(function(k){ var mg=mGrp2[k]; mg.jahre.sort(); mParts2.push(mg.label+(mg.jahre.length?' '+mg.jahre.join(', '):'')); });
-    }
-    var bParts2 = [];
-    if (ausz2.bestleistungen.length) {
-      var bByKat2={},bKatOrder2=[];
-      (ausz2.bestleistungen||[]).forEach(function(b){ var kat=b.kat_name||'Sonstige'; if(!bByKat2[kat]){bByKat2[kat]=[];bKatOrder2.push(kat);} bByKat2[kat].push(b); });
-      bKatOrder2.forEach(function(kat){ var katItems=bByKat2[kat],katLines=[];
-        var byDisz2={};
-        katItems.forEach(function(b){ if(!byDisz2[b.disziplin])byDisz2[b.disziplin]={gold:[],ak:[]}; var isGold=b.label.indexOf('Gesamt')>=0||b.label.indexOf('Männer')>=0||b.label.indexOf('Frauen')>=0; if(isGold)byDisz2[b.disziplin].gold.push(b.label); else byDisz2[b.disziplin].ak.push(b.label.replace('Bestleistung ','')); });
-        Object.keys(byDisz2).forEach(function(d){ var dd=byDisz2[d]; var hW=dd.gold.some(function(l){return l.indexOf('Frauen')>=0||l==='Gesamtbestleistung';}); var hM=dd.gold.some(function(l){return l.indexOf('Männer')>=0||l==='Gesamtbestleistung';}); if(hW)dd.ak=dd.ak.filter(function(ak){return ak!=='WHK';}); if(hM)dd.ak=dd.ak.filter(function(ak){return ak!=='MHK';}); });
-        var gL2={},gO2=[],akMap2={};
-        Object.keys(byDisz2).forEach(function(d){ var dd=byDisz2[d]; dd.gold.forEach(function(lbl){if(!gL2[lbl]){gL2[lbl]=[];gO2.push(lbl);}gL2[lbl].push(d);}); if(dd.ak.length){var s2=dd.ak.slice().sort(),ak2k=s2.join('|');if(!akMap2[ak2k])akMap2[ak2k]={aks:s2,disz:[]};akMap2[ak2k].disz.push(d);} });
-        gO2.forEach(function(lbl){var dl=gL2[lbl],dStr=dl.length===1?dl[0]:dl.slice(0,-1).join(', ')+' und '+dl[dl.length-1];katLines.push(lbl+' über '+dStr);});
-        Object.keys(akMap2).forEach(function(k2){ var e2=akMap2[k2],dl2=e2.disz; var mAKs=e2.aks.filter(function(ak){return ak==='WHK'||ak==='MHK';}),nAKs=e2.aks.filter(function(ak){return ak!=='WHK'&&ak!=='MHK';}); var nStr=nAKs.length?compressAKList(nAKs):''; var akStr2=mAKs.length&&nStr?mAKs.join(', ')+', '+nStr:mAKs.length?mAKs.join(' und '):nStr; var dStr2=dl2.length===1?dl2[0]:dl2.slice(0,-1).join(', ')+' und '+dl2[dl2.length-1]; katLines.push('Bestleistung '+akStr2+' über '+dStr2); });
-        if(katLines.length){bParts2.push('▸ '+kat);katLines.forEach(function(l){bParts2.push('  '+l);});}
-      });
-    }
-    auszHtml = '<div style="margin-top:6px;display:flex;gap:12px">';
-    if (mParts2.length) auszHtml += '<span title="' + mParts2.join('&#10;') + '" style="font-size:13px;color:var(--text2);cursor:help">&#x1F947; ' + ausz2.meisterschaften.length + ' Titel</span>';
-    if (bParts2.length) auszHtml += '<span title="' + bParts2.join('&#10;') + '" style="font-size:13px;color:var(--text2);cursor:help">&#x1F3C6; ' + ausz2.bestleistungen.length + ' Bestleistungen</span>';
-    auszHtml += '</div>';
-  }
-
-  el.innerHTML =
-    '<div class="panel" style="padding:24px 20px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">' +
-        '<button class="btn btn-ghost btn-sm" onclick="navigate(\'athleten\')">&#x2190; Alle Athleten</button>' +
-        '<button class="btn btn-ghost btn-sm" onclick="_athCopyLink(\'' + slug2 + '\')">&#x1F517; Link kopieren</button>' +
-      '</div>' +
-      '<div class="profile-header" style="margin-bottom:16px">' +
-        avatarH +
-        '<div>' +
-          '<div style="font-size:22px;font-weight:700">' + (athlet.vorname||'') + ' ' + (athlet.nachname||'') + '</div>' +
-          (gruppenTags2 && _canSeePersoenlicheDaten() ? '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">' + gruppenTags2 + '</div>' : '') +
-          '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">' +
-            '<span class="badge badge-ak">' + totalErg + ' ' + (totalErg===1?'Ergebnis':'Ergebnisse') + '</span>' +
-            (athlet.geschlecht ? '<span class="badge" style="background:var(--surf2);color:var(--text)">' + (athlet.geschlecht==='M'?'&#x2642; Männlich':athlet.geschlecht==='W'?'&#x2640; Weiblich':'&#x26A7;&#xFE0E; Divers') + '</span>' : '') +
-            (_canSeePersoenlicheDaten() && athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jahrgang ' + athlet.geburtsjahr + '</span>' : '') +
-            (_ak2 ? akBadge(_ak2) : '') +
-          '</div>' +
-          auszHtml +
-        '</div>' +
-      '</div>' +
-      '<div id="_ap-kat-tabs" style="margin-bottom:12px"></div>' +
-      '<div id="_ap-disz-btns" style="margin-bottom:12px;display:flex;flex-wrap:wrap"></div>' +
-      '<div id="_ap-table"></div>' +
-      (canEdit ? '<div style="margin-top:16px"><button class="btn btn-primary btn-sm" onclick="showPbModal(' + athlet.id + ',null)">+ Externes Ergebnis</button></div>' : '') +
-    '</div>';
-
-  _apRender();
-
-  // Event-Delegation auf main-content (nicht Modal)
-  if (!el._apPageListener) {
-    el._apPageListener = true;
-    el.addEventListener('click', function(ev) {
-      var t = ev.target;
-      while (t && t !== el) {
-        if (t.getAttribute && t.getAttribute('data-ap-kat') !== null) { _apState.selKat = parseInt(t.getAttribute('data-ap-kat'),10); _apState.selDisz = null; _apRender(); return; }
-        if (t.getAttribute && t.getAttribute('data-ap-disz') !== null) { _apState.selDisz = t.getAttribute('data-ap-disz'); _apRender(); return; }
-        if (t.getAttribute && t.getAttribute('data-pb-edit')) { showPbModal(_apState.athletId, t.getAttribute('data-pb-edit')); return; }
-        if (t.getAttribute && t.getAttribute('data-pb-del')) { deletePb(_apState.athletId, t.getAttribute('data-pb-del'), t.getAttribute('data-pb-disz')); return; }
-        t = t.parentNode;
-      }
-    });
-  }
+  await renderAthletErgebnisse(id);
 }

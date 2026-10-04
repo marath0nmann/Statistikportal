@@ -8726,12 +8726,28 @@ if ($res === 'rollen') {
     }
 }
 
-// ── GET meine-veranstaltungen – Wettkämpfe des eingeloggten Athleten ─────
+// ── GET meine-veranstaltungen – Wettkämpfe eines Athleten ────────────────
+// Ohne Parameter: der mit dem Login verknüpfte Athlet ("Meine Ergebnisse").
+// Mit ?athlet_id=N: beliebiger Athlet für die Profilseite – öffentlich wie
+// GET athleten/{id}. Persönliches (Schuh, Bemerkungen, offene Anträge) sehen
+// dann nur der Athlet selbst und Editoren/Admins.
 if ($res === 'meine-veranstaltungen' && $method === 'GET') {
-    $user  = Auth::requireLogin();
-    $buRow = DB::fetchOne('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [$user['id']]);
-    if (!$buRow || !$buRow['athlet_id']) jsonErr('Kein Athletenprofil verknüpft.', 404);
-    $athletId = (int)$buRow['athlet_id'];
+    $user     = Auth::check();
+    $eigenId  = 0;
+    if ($user) {
+        $buRow   = DB::fetchOne('SELECT athlet_id FROM ' . DB::tbl('benutzer') . ' WHERE id=?', [$user['id']]);
+        $eigenId = (int)($buRow['athlet_id'] ?? 0);
+    }
+    $athletId = (int)($_GET['athlet_id'] ?? 0);
+    if (!$athletId) {
+        if (!$user) Auth::requireLogin();
+        if (!$eigenId) jsonErr('Kein Athletenprofil verknüpft.', 404);
+        $athletId = $eigenId;
+    } else {
+        $aRow = DB::fetchOne('SELECT id FROM ' . DB::tbl('athleten') . ' WHERE id=? AND geloescht_am IS NULL', [$athletId]);
+        if (!$aRow) jsonErr('Nicht gefunden.', 404);
+    }
+    $privat = ($athletId === $eigenId) || Auth::canEditAll();
     $eTbl = ergTbl();
     $vTbl = DB::tbl('veranstaltungen');
     $sTbl = DB::tbl('veranstaltung_serien');
@@ -8772,6 +8788,13 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
              ORDER BY dk.reihenfolge, e.disziplin",
             [$eTbl, DB::tbl($eTbl), $eTbl, DB::tbl($eTbl), $v['id'], $athletId]
         );
+        if (!$privat) {
+            foreach ($ergs as &$e) {
+                $e['schuh'] = null; $e['bemerkungen'] = null;
+                $e['loeschantrag'] = 0; $e['aenderungsantrag'] = 0;
+            }
+            unset($e);
+        }
         $v['ergebnisse'] = $ergs;
     }
     unset($v);

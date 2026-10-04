@@ -226,12 +226,9 @@ body.page-wide main { max-width: none; }
   width: max-content; min-width: min(100%, var(--seiten-breite)); max-width: 100%; margin: 0 auto;
 }
 #mv-box > .panel { width: 100%; }
-/* Veranstaltungsname: schrumpft mit "…" bevor die Tabelle horizontal scrollt.
-   Die Obergrenze setzt _mvBreiteAnpassen() zur Laufzeit. */
-.mv-vname {
-  display: inline-block; vertical-align: bottom; max-width: 100%;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+/* Veranstaltungsname: immer vollständig ausgeschrieben – nie mit "…" gekürzt.
+   Reicht der Platz nicht, bricht er um; danach scrollt die Tabelle. */
+.mv-vname { white-space: normal; overflow-wrap: anywhere; }
 /* Aktuell gültige persönliche Bestleistung: grün hinterlegte Zeile.
    Der Hintergrund sitzt auf den Zellen, sonst überdeckt ihn die Hover-Regel. */
 tr.mv-pb-aktiv td       { background: rgba(26,138,58,.10); }

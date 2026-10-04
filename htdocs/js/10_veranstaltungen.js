@@ -306,13 +306,37 @@ function _serienFilterInit() {
   });
 }
 
-// ── MEINE ERGEBNISSE (eigener Hauptmenüpunkt) ──────────────
+// ── ERGEBNISLISTE EINES ATHLETEN ───────────────────────────
+// Eine Engine fuer zwei Seiten: "Meine Ergebnisse" (eigenes Profil, voller
+// Funktionsumfang) und die Athletenprofil-Seite #athlet/<slug> (auch fuer
+// Gaeste). Was erlaubt ist, steht im Kontext window._mvKtx:
+//   athletId – angezeigter Athlet
+//   eigen    – eigenes Profil: Spalten konfigurierbar, alle Spalten filterbar,
+//              Antraege sichtbar
+//   profil   – Profilseite (Zurueck-/Link-Leiste, Seitentitel)
+//   tf       – Id der Filterleiste; Profilseiten haben eine eigene, damit
+//              Filter von "Meine Ergebnisse" dort nicht durchschlagen
 // Container ist die Hauptseite; die Seite braucht die volle Fensterbreite.
 function _mvViewEl() { return document.getElementById('mv-view'); }
+function _mvKtx() { return window._mvKtx || { eigen: true, tf: 'meine' }; }
+function _mvTf() { return _mvKtx().tf || 'meine'; }
+
+// Ergebnisse bearbeiten/loeschen: der Athlet selbst (per Antrag) sowie
+// Admins und Editoren (sofort) – Gaeste und fremde Leser nicht.
+function _mvDarfBearbeiten() {
+  if (!currentUser) return false;
+  return !!_mvKtx().eigen || currentUser.rolle === 'admin' || currentUser.rolle === 'editor';
+}
+
+// Schuh, Bemerkungen und Jahrgang/Gruppen: nur im eigenen Profil bzw. fuer
+// Editoren – die API liefert diese Felder fremden Betrachtern ohnehin leer.
+function _mvPrivatSichtbar() {
+  return !!_mvKtx().eigen || !!(currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor'));
+}
 
 async function renderMeineVeranstaltungen() {
   var el = document.getElementById('main-content');
-  if (!document.getElementById('mv-view')) el.innerHTML = '<div id="mv-view"></div>';
+  if (!document.getElementById('mv-view') || document.getElementById('mv-leiste')) el.innerHTML = '<div id="mv-view"></div>';
   document.body.classList.add('page-wide');
   var viewEl = _mvViewEl();
   if (!currentUser || !currentUser.athlet_id) {
@@ -322,28 +346,88 @@ async function renderMeineVeranstaltungen() {
       '<small style="color:var(--text2)">Bitte unter <em>Konto</em> ein Athletenprofil zuordnen.</small></div></div>';
     return;
   }
+  window._mvKtx = { athletId: currentUser.athlet_id, eigen: true, profil: false, tf: 'meine' };
+  await _mvLaden();
+}
+
+// Profilseite eines beliebigen Athleten. Das eigene Profil bekommt denselben
+// Funktionsumfang wie "Meine Ergebnisse".
+async function renderAthletErgebnisse(athletId) {
+  var el = document.getElementById('main-content');
+  el.innerHTML = '<div id="mv-leiste"></div><div id="mv-view"></div>';
+  document.body.classList.add('page-wide');
+  var eigen = !!(currentUser && currentUser.athlet_id && String(currentUser.athlet_id) === String(athletId));
+  var vorher = window._mvKtx;
+  if (!vorher || vorher.tf !== 'athlet' || String(vorher.athletId) !== String(athletId)) tfLeeren('athlet');
+  window._mvKtx = { athletId: athletId, eigen: eigen, profil: true, tf: 'athlet' };
+  await _mvLaden();
+}
+
+// Nach Speichern/Loeschen: dieselbe Seite neu laden
+async function _mvNeuLaden() {
+  window._meinVeranstRows = null;
+  if (_mvKtx().profil) await renderAthletErgebnisse(_mvKtx().athletId);
+  else await renderMeineVeranstaltungen();
+}
+
+// Leiste ueber dem Profil: zurueck zur Athletenliste, Link teilen und – fuer
+// Berechtigte – externe Ergebnisse nachtragen.
+function _mvLeisteHtml(athlet) {
+  var slug = athlet ? _athSlug(athlet.vorname, athlet.nachname) : '';
+  var darfExtern = !!(currentUser && (currentUser.rolle === 'admin' ||
+    (currentUser.rechte || []).indexOf('vollzugriff') >= 0 ||
+    (currentUser.rechte || []).indexOf('alle_ergebnisse') >= 0));
+  return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;' +
+           'max-width:var(--seiten-breite);margin:0 auto 16px">' +
+      '<button class="btn btn-ghost btn-sm" onclick="navigate(\'athleten\')">&#x2190; Alle Athleten</button>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        (darfExtern && athlet ? '<button class="btn btn-ghost btn-sm" onclick="showPbModal(' + athlet.id + ',null)">+ Externes Ergebnis</button>' : '') +
+        (slug ? '<button class="btn btn-ghost btn-sm" onclick="_athCopyLink(\'' + slug + '\')">&#x1F517; Link kopieren</button>' : '') +
+      '</div>' +
+    '</div>';
+}
+
+async function _mvLaden() {
+  var ktx = _mvKtx();
+  var viewEl = _mvViewEl();
+  if (!viewEl) return;
   viewEl.innerHTML = '<div class="loading"><div class="spinner"></div>Laden&hellip;</div>';
 
   // Ergebnisse und die Stammdaten fuers Profil-Kopfteil parallel holen.
   // Der Kopf ist Beiwerk – schlaegt er fehl, wird die Liste trotzdem angezeigt.
-  var athletId = currentUser.athlet_id;
+  var athletId = ktx.athletId;
   var erg = await Promise.all([
-    apiGet('meine-veranstaltungen'),
+    apiGet('meine-veranstaltungen' + (ktx.profil ? '?athlet_id=' + encodeURIComponent(athletId) : '')),
     apiGet('athleten/' + athletId).catch(function() { return null; }),
     apiGet('athleten/' + athletId + '/auszeichnungen').catch(function() { return null; }),
   ]);
+  if (window._mvKtx !== ktx) return; // inzwischen weiternavigiert
   var r = erg[0];
   window._meinAthlet = {
     athlet: (erg[1] && erg[1].ok && erg[1].data) ? erg[1].data.athlet : null,
     ausz:   (erg[2] && erg[2].ok) ? erg[2].data : null,
   };
+  var athlet = window._meinAthlet.athlet;
+  if (ktx.profil) {
+    var leiste = document.getElementById('mv-leiste');
+    if (leiste) leiste.innerHTML = _mvLeisteHtml(athlet);
+    if (athlet) {
+      state.athletId = athlet.id;
+      state.athletSlug = _athSlug(athlet.vorname, athlet.nachname);
+      syncHash();
+      var vereinName = (appConfig && appConfig.verein_name) || 'TuS Oedt';
+      document.title = vereinName + ' – Statistik – ' + _eeDecode((athlet.vorname || '') + ' ' + (athlet.nachname || ''));
+    }
+  }
   if (!r || !r.ok) {
     viewEl.innerHTML = '<div class="panel" style="padding:24px;color:var(--accent)">Fehler: ' + (r && r.fehler || 'Unbekannt') + '</div>';
     return;
   }
   var veranst = r.data || [];
   if (!veranst.length) {
-    viewEl.innerHTML = '<div class="empty"><div class="empty-icon">🏃</div>' +
+    window._meinVeranstRows = [];
+    viewEl.innerHTML = (athlet ? '<div id="mv-kopf">' + _mvKopfHtml([]) + '</div>' : '') +
+      '<div class="empty"><div class="empty-icon">🏃</div>' +
       '<div class="empty-text">Noch keine Wettkämpfe erfasst.</div></div>';
     return;
   }
@@ -516,8 +600,16 @@ function _mvText(v) { return _esc(_eeDecode(v)); }
 // hat, als Filter aber der naheliegendste Einstieg ist).
 function _mvFilterSpalten() {
   var liste = [{ key: 'jahr', label: 'Jahr' }];
+  // Fremde Profile: nur ueber die angezeigten Spalten (plus die Kategorie, die
+  // die Chips im Kopf ohnehin filtern) – keine ausgeblendeten Felder abfragbar.
+  var erlaubt = null;
+  if (!_mvKtx().eigen) {
+    erlaubt = { kategorie: 1 };
+    _mvSichtbareSpalten().forEach(function(c) { erlaubt[c.key] = 1; });
+  }
   MV_SPALTEN.forEach(function(c) {
     if (c.key === 'wk_nr' || c.key === 'wk_nr_disz') return; // laufende Nummern
+    if (erlaubt && !erlaubt[c.key]) return;
     liste.push({ key: c.key, label: c.label });
   });
   return liste;
@@ -561,7 +653,7 @@ function _mvMstrLabel(id) {
 // welche Spalten filterbar sind und welcher Klartext je Spalte gilt.
 function _meineFilterInit() {
   var ownClub = (appConfig && (appConfig.verein_name || appConfig.verein_kuerzel)) || '';
-  tfInit('meine', {
+  tfInit(_mvTf(), {
     platzhalter: 'Veranstaltung, Disziplin, Ort\u2026',
     rows: function() { return window._meinVeranstRows || []; },
     suche: function(r) { return [_eeDecode(r.veranst_name), _eeDecode(r.disziplin), _eeDecode(r.ort)]; },
@@ -575,15 +667,15 @@ function _meineFilterInit() {
     }),
     onChange: function() { _renderMeineTabelle(); }
   });
-  return tfState('meine');
+  return tfState(_mvTf());
 }
 
-function _mvRegeln() { return tfRegeln('meine'); }
+function _mvRegeln() { return tfRegeln(_mvTf()); }
 
 // Regel setzen/entfernen – auch aus dem Kopf (Kategorie-Chips, Disziplin-Kacheln)
-function _mvSetzeRegel(key, wert) { tfSetzeRegel('meine', key, wert); }
+function _mvSetzeRegel(key, wert) { tfSetzeRegel(_mvTf(), key, wert); }
 
-function _mvRegelWert(key) { return tfRegelWertVon('meine', key); }
+function _mvRegelWert(key) { return tfRegelWertVon(_mvTf(), key); }
 
 // ── Profilkopf (wie im Athletenprofil) ─────────────────────
 // Die Kategorie-Chips und Disziplin-Kacheln sind zugleich Filter fuer die
@@ -598,7 +690,8 @@ function _mvKopfHtml(allRows) {
     var initialen = (((athlet.vorname || '')[0] || '') + ((athlet.nachname || '')[0] || '')).toUpperCase();
     var ak = (athlet.geschlecht && athlet.geburtsjahr)
       ? calcDlvAK(athlet.geburtsjahr, athlet.geschlecht, new Date().getFullYear()) : '';
-    var gruppen = (athlet.gruppen || []).map(function(g) {
+    var persoenlich = !!_mvKtx().eigen || _canSeePersoenlicheDaten();
+    var gruppen = !persoenlich ? '' : (athlet.gruppen || []).map(function(g) {
       return '<span class="rek-cat-btn" style="font-size:12px;padding:3px 10px;cursor:default">' + _esc(g.name) + '</span>';
     }).join('');
     var wettkaempfe = Object.keys(allRows.reduce(function(m, r) { m[r.veranst_id] = 1; return m; }, {})).length;
@@ -618,7 +711,7 @@ function _mvKopfHtml(allRows) {
             '<span class="badge" style="background:var(--surf2);color:var(--text2)">' + wettkaempfe + ' ' + (wettkaempfe === 1 ? 'Wettkampf' : 'Wettk&auml;mpfe') + '</span>' +
             (athlet.geschlecht ? '<span class="badge" style="background:var(--surf2);color:var(--text)">' +
               (athlet.geschlecht === 'M' ? '♂ Männlich' : athlet.geschlecht === 'W' ? '♀ Weiblich' : '⚧ Divers') + '</span>' : '') +
-            (athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jahrgang ' + _esc(athlet.geburtsjahr) + '</span>' : '') +
+            (persoenlich && athlet.geburtsjahr ? '<span class="badge" style="background:var(--surf2);color:var(--text2)">Jahrgang ' + _esc(athlet.geburtsjahr) + '</span>' : '') +
             (ak ? akBadge(ak) : '') +
           '</div>' +
           _mvAuszeichnungenHtml() +
@@ -769,6 +862,7 @@ function _mvFilterDisziplin(disz) {
 // key    – interner Schluessel (auch in den Benutzer-Prefs gespeichert)
 // std    – standardmaessig sichtbar
 // sort   – Feld, nach dem die Spalte sortiert (fehlt = nicht sortierbar)
+// privat – persoenliche Angabe, auf fremden Profilen nicht verfuegbar
 var MV_SPALTEN = [
   { key: 'wk_nr',        label: '#',                  titel: 'Wievielter Wettkampf insgesamt (ältester = 1)', std: 1, sort: 'wk_nr',       align: 'right' },
   { key: 'wk_nr_disz',   label: '#km',                titel: 'Wievielter Wettkampf in dieser Disziplin (ältester = 1)', std: 0, sort: 'wk_nr_disz', align: 'right' },
@@ -786,9 +880,9 @@ var MV_SPALTEN = [
   { key: 'pos_mstr',     label: 'Pos (MS)',           titel: 'Platzierung in der Meisterschaftswertung', std: 0, sort: 'ak_platz_meisterschaft', align: 'center' },
   { key: 'resultat',     label: 'Ergebnis',           std: 1, sort: 'resultat', align: 'right' },
   { key: 'pace',         label: 'Pace',               std: 0, sort: 'pace', align: 'right' },
-  { key: 'schuh',        label: 'Schuh',              std: 0, sort: 'schuh' },
+  { key: 'schuh',        label: 'Schuh',              std: 0, sort: 'schuh', privat: 1 },
   { key: 'verein',       label: 'Verein',             std: 0, sort: 'verein' },
-  { key: 'bemerkungen',  label: 'Bemerkungen',        std: 0 },
+  { key: 'bemerkungen',  label: 'Bemerkungen',        std: 0, privat: 1 },
 ];
 
 // Spaltenkonfiguration des Benutzers: [{ key, sichtbar }] in Anzeigereihenfolge.
@@ -796,6 +890,11 @@ var MV_SPALTEN = [
 // haengen mit ihrer Standard-Sichtbarkeit hinten an – so bleibt eine gespeicherte
 // Konfiguration auch nach einem Update gueltig.
 function _mvSpaltenKonfig() {
+  // Fremde Profile zeigen immer die Standardspalten – ohne private Felder
+  if (!_mvKtx().eigen) {
+    return MV_SPALTEN.filter(function(c) { return !c.privat || _mvPrivatSichtbar(); })
+                     .map(function(c) { return { key: c.key, sichtbar: !!c.std }; });
+  }
   var prefs = (state.userPrefs && state.userPrefs.mv_spalten) || null;
   var katalog = {}; MV_SPALTEN.forEach(function(c) { katalog[c.key] = c; });
   var konfig = [], gesehen = {};
@@ -909,7 +1008,7 @@ function _renderMeineTabelle() {
   allRows.forEach(function(r) { window._meineTblRowMap[r.erg_id] = r; });
 
   // ── Filter: Suchfeld + beliebig viele Spalte/Wert-Regeln ──
-  var rows = tfFilter('meine', allRows);
+  var rows = tfFilter(_mvTf(), allRows);
 
   // ── Sortierung ───────────────────────────────────────────
   // Null-safe Zahl: fehlende Werte immer ans Ende
@@ -962,7 +1061,7 @@ function _renderMeineTabelle() {
     wk_nr_disz:   function(r) { return r.wk_nr_disz || ''; },
     datum:        function(r) { return formatDate(r.datum); },
     veranstaltung: function(r) {
-      return '<span class="mv-vname" title="' + _mvText(r.veranst_name) + '" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' + r.veranst_name + '</span>' +
+      return '<span class="mv-vname" style="cursor:pointer" onclick="window.open(location.origin+location.pathname+\'#veranstaltung/' + r.veranst_id + '\',\'_blank\')">' + r.veranst_name + '</span>' +
         (r.serie_id ? ' <span class="mv-hover" title="Regelm&auml;&szlig;ige Veranstaltung" style="font-size:11px;background:var(--surf2);color:var(--text2);border-radius:10px;padding:1px 6px;cursor:pointer" onclick="openSerieDetail(' + r.serie_id + ')">🔄</span>' : '');
     },
     ort:          function(r) { return r.ort ? (r.ort_land_code && flagEmoji ? flagEmoji(r.ort_land_code) + ' ' + r.ort : r.ort) : ''; },
@@ -1002,7 +1101,8 @@ function _renderMeineTabelle() {
 
   // Bearbeiten-Symbol haengt hinter dem Veranstaltungsnamen – ist diese Spalte
   // ausgeblendet, wandert es in die erste sichtbare Spalte, damit der Zugang bleibt.
-  var editSpalte = cols.some(function(c) { return c.key === 'veranstaltung'; })
+  var editSpalte = !_mvDarfBearbeiten() ? null
+    : cols.some(function(c) { return c.key === 'veranstaltung'; })
     ? 'veranstaltung' : (cols[0] && cols[0].key);
 
   var tableRows = rows.map(function(r) {
@@ -1054,7 +1154,7 @@ function _renderMeineTabelle() {
         : total + ' Ergebnis' + (total !== 1 ? 'se' : '')) +
       ' in ' + totalWettkampfe + ' Wettkampfauftritt' + (totalWettkampfe !== 1 ? 'en' : '') +
       '</div>' +
-      '<button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="_openMeineSpaltenModal()">&#x2699;&#xFE0F; Spalten</button>' +
+      (_mvKtx().eigen ? '<button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="_openMeineSpaltenModal()">&#x2699;&#xFE0F; Spalten</button>' : '') +
     '</div>';
 
   var table = rows.length
@@ -1064,7 +1164,7 @@ function _renderMeineTabelle() {
       '</table></div>'
     : '<div class="empty" style="padding:20px"><div class="empty-text">Keine Ergebnisse f&uuml;r diesen Filter.</div></div>';
 
-  var filterBar = tfBarHtml('meine', { suchbreite: '2' });
+  var filterBar = tfBarHtml(_mvTf(), { suchbreite: '2' });
 
   // Filterleiste haengt nur von allRows ab, nie vom aktiven Filter. Beim Filtern/Sortieren
   // deshalb ausschliesslich den Ergebnisteil ersetzen – sonst wird das Suchfeld neu erzeugt
@@ -1080,49 +1180,13 @@ function _renderMeineTabelle() {
     // Das Suchfeld bleibt unberührt, damit es den Fokus behält.
     var kopfEl = document.getElementById('mv-kopf');
     if (kopfEl) kopfEl.innerHTML = kopfHtml;
-    tfRefresh('meine');
+    tfRefresh(_mvTf());
   } else {
     viewEl.innerHTML = '<div id="mv-wrap">' +
         '<div id="mv-kopf">' + kopfHtml + '</div>' + filterBar +
         '<div id="mv-body">' + bodyHtml + '</div>' +
       '</div>';
   }
-
-  // Nach dem Layout messen: passt die Tabelle nicht, wird zuerst der
-  // Veranstaltungsname gekuerzt – horizontal gescrollt wird erst danach.
-  requestAnimationFrame(_mvBreiteAnpassen);
-  if (!window._mvResizeAktiv) {
-    window._mvResizeAktiv = 1;
-    window.addEventListener('resize', function() {
-      clearTimeout(window._mvResizeTimer);
-      window._mvResizeTimer = setTimeout(_mvBreiteAnpassen, 120);
-    });
-  }
-}
-
-// Reihenfolge der Einschraenkungen, wenn die Tabelle breiter ist als das Fenster:
-// 1. Veranstaltungsnamen mit "…" kuerzen, 2. erst dann horizontal scrollen.
-// Untergrenze, damit vom Namen etwas Erkennbares stehen bleibt:
-var MV_VNAME_MIN = 120;
-
-function _mvBreiteAnpassen() {
-  var wrap = document.querySelector('#mv-body .table-scroll');
-  if (!wrap) return;
-  var tabelle = wrap.querySelector('table');
-  var namen   = wrap.querySelectorAll('.mv-vname');
-  if (!tabelle || !namen.length) return;
-
-  // Erst ungekuerzt messen – sonst wuerde eine fruehere Kuerzung fortgeschrieben
-  namen.forEach(function(n) { n.style.maxWidth = ''; });
-  var ueberschuss = tabelle.scrollWidth - wrap.clientWidth;
-  if (ueberschuss <= 0) return; // passt vollstaendig → nichts kuerzen
-
-  var natuerlich = 0;
-  namen.forEach(function(n) { natuerlich = Math.max(natuerlich, n.scrollWidth); });
-  var ziel = Math.max(MV_VNAME_MIN, natuerlich - ueberschuss);
-  if (ziel >= natuerlich) return; // Kuerzen wuerde nichts bringen
-  namen.forEach(function(n) { n.style.maxWidth = ziel + 'px'; });
-  // Bleibt danach noch Ueberhang, uebernimmt .table-scroll (overflow-x: auto).
 }
 
 function _sortMeine(col) {
@@ -1332,8 +1396,7 @@ async function _saveMeineErgEdit(ergId, tblKey) {
     notify(d.aktualisiert ? 'Änderungsantrag aktualisiert. Ein Editor wird ihn prüfen.'
          : d.pending      ? 'Änderungsantrag gestellt. Ein Editor wird ihn prüfen.'
          : 'Ergebnis gespeichert.', 'ok');
-    window._meinVeranstRows = null;
-    await renderMeineVeranstaltungen();
+    await _mvNeuLaden();
   } else {
     notify((r && r.fehler) || 'Fehler beim Speichern', 'err');
   }
@@ -1366,8 +1429,7 @@ async function _deleteMeineErg(ergId, ausEditModal) {
     notify(d.bereits ? 'Für dieses Ergebnis liegt bereits ein Löschantrag vor.'
          : d.pending ? 'Löschantrag gestellt. Ein Editor wird ihn prüfen.'
          : 'Ergebnis gelöscht.', d.bereits ? 'err' : 'ok');
-    window._meinVeranstRows = null;
-    await renderMeineVeranstaltungen();
+    await _mvNeuLaden();
   } else {
     notify((r && r.fehler) || 'Fehler beim Löschen', 'err');
   }
