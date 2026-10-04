@@ -3738,6 +3738,17 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   var allRows = [];
   var rowNr   = 0;
   var MAX_PAGES = 200;
+  // Kategorie-Seiten (uitslag.php?catg=4-Run-M) melden bei manchen Events
+  // „Uitslagen zijn nog niet beschikbaar“, obwohl die Gesamtliste der Strecke
+  // (uitslag.php?on=4) vollständig ist. Die Zahl vor dem Bindestrich ist die
+  // Strecken-Nr. → bleiben alle Kategorien einer Strecke leer, deren Gesamtliste laden.
+  var _catgRows = {};          // Strecken-Nr. → Zeilen über alle Kategorien
+  var _catgLetzte = {};        // Strecken-Nr. → Index der letzten Kategorie
+  races.forEach(function(rc, i) {
+    var nr = rc.catg && (rc.catg.match(/^(\d+)-/) || [])[1];
+    if (nr) { _catgLetzte[nr] = i; _catgRows[nr] = 0; }
+  });
+  var _menuTexte = null;       // Strecken-Nr. → Name aus menu.php (lazy)
 
   for (var ri = 0; ri < races.length; ri++) {
     var race = races[ri];
@@ -3818,6 +3829,22 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
       page++;
     }
     _bkDbgLine(race.text, raceRows + ' Eintr\u00e4ge');
+
+    var _nr = race.catg && (race.catg.match(/^(\d+)-/) || [])[1];
+    if (_nr) {
+      _catgRows[_nr] += raceRows;
+      if (_catgLetzte[_nr] === ri && !_catgRows[_nr]) {
+        if (!_menuTexte) {
+          _menuTexte = {};
+          var rMenuOn = await apiGet('uits-fetch?url=' + encodeURIComponent(baseUrl + 'menu.php'));
+          if (rMenuOn && rMenuOn.ok && rMenuOn.data) {
+            uitsEvenementenParseMenu(rMenuOn.data.html || '').forEach(function(m) { if (m.on) _menuTexte[m.on] = m.text; });
+          }
+        }
+        // Ohne menu.php-Eintrag: Kategorie-Zusatz (\u201e - Mannen\u201c) vom Namen abschneiden
+        races.push({ on: _nr, text: _menuTexte[_nr] || race.text.replace(/\s+-\s+(?!.*\s-\s).*$/, '') });
+      }
+    }
   }
 
   _bkDbgHeader('evenementen.uitslagen.nl');
@@ -3833,8 +3860,8 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   if (ownRows.length) {
     _bkDbgSep(); _bkDbgHeader('Ergebnisse');
     ownRows.forEach(function(r, i) {
-      var mid = uitsEvenementenDiszFromStrecke(r.strecke, state.disziplinen || [], kat);
-      var dn  = mid ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==mid;})||{}).disziplin||'?' : '(keine)';
+      var dz = uitsEvenementenDiszFromStrecke(r.strecke, kat);
+      var dn = dz.diszMid ? dz.disz : '(unbekannt: ' + dz.disz + ')';
       _bkDbgLines.push(String(i+1).padStart(2)+'.  '+(r.name||'?').padEnd(22)+(r.ak||'').padEnd(6)+r.zeit.padEnd(10)+(r.platz?'Platz\u00a0'+r.platz:'').padEnd(9)+'\u2192 '+dn);
     });
     _bkDbgFlush();
@@ -3847,9 +3874,8 @@ async function bulkImportFromEvenementenUits(url, kat, statusEl) {
   if (evOrt && !((document.getElementById('bk-ort')||{}).value)) _bkAutoSetOrt(evOrt);
 
   var bulkRows = ownRows.map(function(row) {
-    var mid  = uitsEvenementenDiszFromStrecke(row.strecke, state.disziplinen, kat);
-    var disz = mid ? ((state.disziplinen||[]).find(function(d){return (d.id||d.mapping_id)==mid;})||{}).disziplin||'' : '';
-    return { name: row.name, resultat: row.zeit, ak: row.ak, platz: row.platz, disziplin: disz, diszMid: mid };
+    var dz = uitsEvenementenDiszFromStrecke(row.strecke, kat);
+    return { name: row.name, resultat: row.zeit, ak: row.ak, platz: row.platz, disziplin: dz.disz, diszMid: dz.diszMid };
   });
 
   await bulkFillFromImport(bulkRows, statusEl);

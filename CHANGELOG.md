@@ -1,3 +1,6 @@
+## v1579
+- **evenementen.uitslagen.nl: fehlende Strecken und falsche Disziplinen behoben.** Bei manchen Events (z. B. Kustmarathon Zeeland) melden die Kategorie-Seiten (`uitslag.php?catg=4-Run-M`) „Uitslagen zijn nog niet beschikbaar“, obwohl die Gesamtliste der Strecke (`uitslag.php?on=4`) vollständig ist – Light Kustrun, Trailrun und Ladiesrun ergaben 0 Einträge. Bleiben alle Kategorien einer Strecke leer, lädt der Import jetzt deren Gesamtliste (Strecken-Nr. = Zahl vor dem Bindestrich, Name aus `menu.php`). Kategorie-Codes mit Ziffer nach dem Bindestrich (`2-10km`) werden nicht mehr übersprungen. Die Disziplin wird über die Distanz im Streckennamen gesucht (auch „11 kilometer“, „1050 meter“); Wandelen/Walking nur auf passende Walking-Disziplinen. Ohne Treffer bleibt die Disziplin leer und wird zum Zuordnen/Anlegen angeboten – bisher fiel z. B. der Wandelmarathon still auf die erste Disziplin der Kategorie („1 Meile“).
+
 ## v1578
 - **Copyright im Footer richtet sich nach dem Deployment:** Der Deploy-Workflow trägt beim Hochladen das aktuelle Jahr (Europe/Berlin) in `<meta name="deploy-jahr">` der `index.html` ein; der Footer zeigt „© 2026" bzw. ab einem Deployment 2027 „© 2026–2027" (`copyrightJahre()`). Einheitlich in Statistik-, Trainings- und Planungsportal.
 

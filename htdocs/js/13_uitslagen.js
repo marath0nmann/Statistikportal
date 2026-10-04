@@ -873,8 +873,8 @@ function uitsEvenementenParseMenu(html) {
       var val = opt.value || '';
       var txt = opt.textContent.trim();
       if (!val || skipVal.test(val) || skipTxt.test(txt)) return;
-      // Catg-Code: Zahl-Buchstaben-Muster wie "1-Msen", "2-M40", "10-Vsen"
-      if (/^\d+-[A-Za-z]/.test(val)) opts.push({ catg: val, text: txt });
+      // Catg-Code: Strecken-Nr. + Kategorie wie "1-Msen", "2-M40", "2-10km"
+      if (/^\d+-\S/.test(val)) opts.push({ catg: val, text: txt });
     });
   }
 
@@ -1075,39 +1075,26 @@ function _uitsEvenementenRenderResult(parsed, container) {
 }
 
 // ── Disziplin-Match für evenementen.uitslagen.nl (aus Streckenname) ─────────
-// Wertet den Streckennamen aus (z.B. "Seacon Logistics 10 kilometer") statt
+// Wertet den Streckennamen aus (z.B. "Light Kustrun 11 kilometer - Mannen") statt
 // die Kategorie (z.B. "Msen"), da letztere keine Disziplin-Info enthält.
-function uitsEvenementenDiszFromStrecke(strecke, disziplinen, kat) {
-  var s = (strecke || '').toLowerCase();
-  var katDisz = kat
-    ? disziplinen.filter(function(d) { return d.tbl_key === kat; })
-    : disziplinen;
-  if (!katDisz.length) katDisz = disziplinen;
-
-  // Distanz aus Streckenname ableiten
-  var dist = '';
-  if (/halve\s+marathon|halbmarathon|half\s+marathon/.test(s))              dist = 'halb';
-  else if (/\bmarathon\b/.test(s) && !/halve|half|halb/.test(s))            dist = 'marathon';
-  else if (/\b10[\s\-]?km\b|\b10[\s\-]?kilometer\b|10\.000/.test(s))       dist = '10km';
-  else if (/\b5[\s\-]?km\b|\b5[\s\-]?kilometer\b|5\.000/.test(s))          dist = '5km';
-  else if (/\b1[\s\-]?km\b|\b1[\s\-]?kilometer\b|1\.000/.test(s))          dist = '1km';
-  else if (/\b500[\s\-]?m\b/.test(s))                                       dist = '500m';
-  else if (/\b200[\s\-]?m\b/.test(s))                                       dist = '200m';
-  else if (/\b100[\s\-]?m\b/.test(s))                                       dist = '100m';
-
-  if (!dist) return katDisz[0] ? (katDisz[0].mapping_id || katDisz[0].id) : null;
-
-  for (var i = 0; i < katDisz.length; i++) {
-    var dn = (katDisz[i].disziplin || '').toLowerCase();
-    var mid = katDisz[i].mapping_id || katDisz[i].id;
-    if (dist === 'halb'     && (dn.includes('halb') || dn.includes('half') || dn.includes('21'))) return mid;
-    if (dist === 'marathon' && dn.includes('marathon') && !dn.includes('halb') && !dn.includes('half')) return mid;
-    if (dist === '10km'     && (dn === '10km' || dn.includes('10.000') || /\b10\s?km\b/.test(dn))) return mid;
-    if (dist === '5km'      && (dn === '5km'  || dn.includes('5.000')  || /\b5\s?km\b/.test(dn))) return mid;
-    if (dist === '1km'      && (dn === '1km'  || dn.includes('1.000')  || /\b1\s?km\b/.test(dn))) return mid;
-    if (dist === '500m'     && dn.includes('500')) return mid;
-    if (dist === '200m'     && dn.includes('200')) return mid;
-    if (dist === '100m'     && dn.includes('100')) return mid;
+// Liefert { disz, diszMid }; ohne Treffer diszMid = null und disz = Rohname, damit
+// die Strecke als unbekannte Disziplin zum Zuordnen/Anlegen angeboten wird –
+// nie stillschweigend die erste Disziplin der Kategorie.
+function uitsEvenementenDiszFromStrecke(strecke, kat) {
+  var roh = (strecke || '').replace(/\s+-\s+(?!.*\s-\s).*$/, '').trim() || (strecke || '');
+  var s = roh.toLowerCase()
+    .replace(/(\d)\s*kilometers?\b/g, '$1 km')
+    .replace(/(\d)\s*meters?\b/g, '$1 m');
+  // Wandelen/Walking ist keine Laufdisziplin → nur exakte Walking-Treffer
+  var walking = /wandel|walking|nordic/.test(s);
+  var cands;
+  if (/halve\s*marathon|halbmarathon|half\s*marathon/.test(s)) {
+    cands = walking ? ['Halbmarathon Walking', 'Walking Halbmarathon'] : ['Halbmarathon', 'Half Marathon'];
+  } else if (/marathon/.test(s)) {
+    cands = walking ? ['Marathon Walking', 'Walking Marathon', 'Wandelmarathon'] : ['Marathon'];
+  } else {
+    cands = _volksDiszCands(walking ? s.replace(/wandelen|wandel\w*/, '') + ' walking' : s);
   }
-  return katDisz[0] ? (katDisz[0].mapping_id || katDisz[0].id) : null;
+  var r = _volksFindDisz(cands, kat, walking);
+  return r.diszMid ? r : { disz: roh, diszMid: null };
 }
