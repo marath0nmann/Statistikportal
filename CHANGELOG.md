@@ -1,3 +1,7 @@
+## v1581
+- **Fehler „_mvKtx is not a function“ auf der Athletenseite behoben.** Der Kontext lag unter `window._mvKtx` und überschrieb damit die gleichnamige Funktion – er heißt jetzt `window._mvKontext`.
+- **Athletenlinks öffnen direkt die Profil-Vollseite** statt des Profil-Modals (Ergebnisse, Dashboard, Veranstaltungen, Athletenliste usw.). Das alte Modal samt `_apRender`/`_apSetTab`/`_apRenderPb`/`_athSetFullPage` ist entfernt.
+
 ## v1580
 - **Athletenprofil nutzt die Ansicht von „Meine Ergebnisse“.** Die Vollseite `#athlet/<slug>` zeigt jetzt denselben Profilkopf (Kategorie-Chips, Disziplin-Kacheln mit Bestleistung, Titel/Bestleistungen) und dieselbe Ergebnistabelle mit Suche, Spaltenfiltern, Sortierung und PB-Markierung wie „Meine Ergebnisse“ – interne und externe Ergebnisse in einer Liste. Auf fremden Profilen und für Gäste ist sie eingeschränkt: feste Standardspalten (kein ⚙️ Spalten), Filterregeln nur über die angezeigten Spalten, kein Bearbeiten/Löschen, keine Anträge; Schuh und Bemerkungen liefert die API nur dem Athleten selbst und Editoren/Admins, Jahrgang und Gruppen nur mit dem Recht für personenbezogene Daten. Das eigene Profil hat dort den vollen Funktionsumfang. Admins/Editoren behalten „+ Externes Ergebnis“. API: `GET meine-veranstaltungen?athlet_id=N` (öffentlich wie `athleten/{id}`).
 - **Veranstaltungsnamen werden nicht mehr mit „…“ gekürzt** – in „Meine Ergebnisse“ und im Athletenprofil steht der Name immer vollständig (bei Platzmangel mit Umbruch).

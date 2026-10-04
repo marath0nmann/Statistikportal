@@ -309,7 +309,7 @@ function _serienFilterInit() {
 // ── ERGEBNISLISTE EINES ATHLETEN ───────────────────────────
 // Eine Engine fuer zwei Seiten: "Meine Ergebnisse" (eigenes Profil, voller
 // Funktionsumfang) und die Athletenprofil-Seite #athlet/<slug> (auch fuer
-// Gaeste). Was erlaubt ist, steht im Kontext window._mvKtx:
+// Gaeste). Was erlaubt ist, steht im Kontext window._mvKontext:
 //   athletId – angezeigter Athlet
 //   eigen    – eigenes Profil: Spalten konfigurierbar, alle Spalten filterbar,
 //              Antraege sichtbar
@@ -318,7 +318,7 @@ function _serienFilterInit() {
 //              Filter von "Meine Ergebnisse" dort nicht durchschlagen
 // Container ist die Hauptseite; die Seite braucht die volle Fensterbreite.
 function _mvViewEl() { return document.getElementById('mv-view'); }
-function _mvKtx() { return window._mvKtx || { eigen: true, tf: 'meine' }; }
+function _mvKtx() { return window._mvKontext || { eigen: true, tf: 'meine' }; }
 function _mvTf() { return _mvKtx().tf || 'meine'; }
 
 // Ergebnisse bearbeiten/loeschen: der Athlet selbst (per Antrag) sowie
@@ -346,7 +346,7 @@ async function renderMeineVeranstaltungen() {
       '<small style="color:var(--text2)">Bitte unter <em>Konto</em> ein Athletenprofil zuordnen.</small></div></div>';
     return;
   }
-  window._mvKtx = { athletId: currentUser.athlet_id, eigen: true, profil: false, tf: 'meine' };
+  window._mvKontext = { athletId: currentUser.athlet_id, eigen: true, profil: false, tf: 'meine' };
   await _mvLaden();
 }
 
@@ -357,9 +357,9 @@ async function renderAthletErgebnisse(athletId) {
   el.innerHTML = '<div id="mv-leiste"></div><div id="mv-view"></div>';
   document.body.classList.add('page-wide');
   var eigen = !!(currentUser && currentUser.athlet_id && String(currentUser.athlet_id) === String(athletId));
-  var vorher = window._mvKtx;
+  var vorher = window._mvKontext;
   if (!vorher || vorher.tf !== 'athlet' || String(vorher.athletId) !== String(athletId)) tfLeeren('athlet');
-  window._mvKtx = { athletId: athletId, eigen: eigen, profil: true, tf: 'athlet' };
+  window._mvKontext = { athletId: athletId, eigen: eigen, profil: true, tf: 'athlet' };
   await _mvLaden();
 }
 
@@ -401,7 +401,7 @@ async function _mvLaden() {
     apiGet('athleten/' + athletId).catch(function() { return null; }),
     apiGet('athleten/' + athletId + '/auszeichnungen').catch(function() { return null; }),
   ]);
-  if (window._mvKtx !== ktx) return; // inzwischen weiternavigiert
+  if (window._mvKontext !== ktx) return; // inzwischen weiternavigiert
   var r = erg[0];
   window._meinAthlet = {
     athlet: (erg[1] && erg[1].ok && erg[1].data) ? erg[1].data.athlet : null,
