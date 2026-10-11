@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1583
+## Aktuelle Version: v1584
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -21,6 +21,7 @@ htdocs/               → Web-Root
     10_veranstaltungen.js → Regelmäßige Veranstaltungen + Zeitstrahl
     13_uitslagen.js   → uitslagen.nl + evenementen Importer
     14_maxfun.js      → MaxFun Sports (Copy-&-Paste-Importer)
+    15_endu.js        → ENDU (endu.net) Importer
   api/index.php       → REST-API (alle Endpunkte, ~5000 Zeilen)
   api/setup.php       → Ersteinrichtung
   opcache-clear.php   → Nach jedem Deploy aufrufen: /opcache-clear.php
@@ -162,6 +163,17 @@ system, benutzer, registrierungen, disziplinen, altersklassen, meisterschaften, 
 - Leichtathletik.de
 - Uitslagen.nl / Evenementen.uitslagen.nl
 - MaxFun Sports (`maxfunsports.com`) – **nur Copy & Paste**, siehe unten
+- ENDU (`endu.net`) – siehe unten
+
+### ENDU (endu.net)
+Die Ergebnisseite ist eine SPA. Die Daten kommen von der JSON-API derselben Domain. Sie erlaubt
+kein CORS, deshalb holt der Server sie (`endu-fetch` in `api/index.php`, Frontend `15_endu.js`):
+- Event: `www.endu.net/api/events/id/{eventId}/` → `name`, `date.from` (UTC), `location.city`
+- Strecken: `www.endu.net/api/results/events/{eventId}/settings` → `races[].categories[].options[]`
+- Liste: `www.endu.net/api/results?editionId=&raceId=&categoryId=0&optionId=&page=N&pageSize=100` (`meta.hasNextPage`)
+Geladen wird die Gesamtliste (Kategorie 0, Option `type=general`). Vereinsstarter werden
+über `enduIstEigenerVerein()` erkannt (Name/Kürzel/Aliase, ohne Satzzeichen). Die robots.txt sperrt
+`/api/` für Crawler, deshalb **nur manueller Import, kein Scanner**.
 
 ### MaxFun Sports (Copy & Paste)
 Kein automatischer Abruf möglich: Cloudflare Managed Challenge (jede serverseitige

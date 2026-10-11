@@ -8326,6 +8326,102 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
 // ── uitslagen.nl Proxy ────────────────────────────────────────────
 // la-fetch: file_get_contents-Handler entfernt (curl-Handler weiter unten)
 
+// ── endu.net (ENDU / Engagigo, Italien) ─────────────────────────────────────
+// Die Ergebnisseite ist eine SPA; die Daten kommen von der JSON-API derselben
+// Domain (www.endu.net/api/…), die kein CORS erlaubt → Abruf hier serverseitig.
+//   Event:     /api/events/id/{eventId}/            → Name, Datum, Ort
+//   Strecken:  /api/results/events/{eventId}/settings → races[].categories[].options[]
+//   Liste:     /api/results?editionId=…&raceId=…&categoryId=0&optionId=…&page=N&pageSize=100
+// Je Strecke wird die Gesamtliste (Kategorie 0, Option „general") komplett geladen,
+// damit Vereinsschreibweisen und bekannte Athleten anderer Vereine erkannt werden.
+// Nur manueller Import auf Knopfdruck – kein Scanner (robots.txt sperrt /api/ für Crawler).
+function enduGet(string $pfad): ?array {
+    $ch = curl_init('https://www.endu.net/api/' . ltrim($pfad, '/'));
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_TIMEOUT        => 20,
+        CURLOPT_USERAGENT      => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0 Safari/537.36',
+        CURLOPT_HTTPHEADER     => ['Accept: application/json', 'Accept-Language: de-DE,de;q=0.9'],
+    ]);
+    $body = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($code !== 200 || !$body) return null;
+    $d = json_decode($body, true);
+    return is_array($d) ? $d : null;
+}
+
+if ($res === 'endu-fetch' && $method === 'GET') {
+    Auth::requireLogin();
+    session_write_close();
+    $url = trim($_GET['url'] ?? '');
+    if (!preg_match('#^https?://(www\.)?endu\.net/#i', $url)) jsonErr('Ungültige endu.net-URL.', 400);
+    parse_str((string)parse_url($url, PHP_URL_QUERY), $q);
+    $eventId = (int)($q['eventId'] ?? 0);
+    if (!$eventId) jsonErr('Die URL enthält keine eventId – bitte die Ergebnisseite der Veranstaltung verwenden.', 400);
+    $nurRace = (int)($q['raceId'] ?? 0);
+
+    $ev  = enduGet('events/id/' . $eventId . '/') ?? [];
+    $cfg = enduGet('results/events/' . $eventId . '/settings');
+    if (!$cfg || empty($cfg['races'])) jsonErr('endu.net liefert für diese Veranstaltung keine Ergebnislisten.', 502);
+
+    $strecken = [];
+    set_time_limit(180);
+    foreach ($cfg['races'] as $race) {
+        $raceId = (int)($race['id'] ?? 0);
+        if (!$raceId || ($nurRace && $raceId !== $nurRace)) continue;
+        // Gesamtwertung: Kategorie 0, Option vom Typ „general" (sonst die erste)
+        $kat = null;
+        foreach ($race['categories'] ?? [] as $c) if ((string)($c['id'] ?? '') === '0') { $kat = $c; break; }
+        if (!$kat) $kat = $race['categories'][0] ?? null;
+        if (!$kat || empty($kat['options'])) continue;
+        $opt = $kat['options'][0];
+        foreach ($kat['options'] as $o) if (($o['type'] ?? '') === 'general') { $opt = $o; break; }
+
+        $zeilen = [];
+        for ($seite = 1; $seite <= 200; $seite++) {
+            $d = enduGet('results?' . http_build_query([
+                'editionId' => $eventId, 'raceId' => $raceId, 'categoryId' => $kat['id'],
+                'optionId' => $opt['id'], 'page' => $seite, 'pageSize' => 100,
+            ]));
+            if (!$d || empty($d['items'])) break;
+            foreach ($d['items'] as $it) {
+                $c = $it['columns'] ?? [];
+                $zeilen[] = [
+                    'vorname'   => (string)($it['firstName'] ?? ''),
+                    'nachname'  => (string)($it['lastName'] ?? ''),
+                    'verein'    => trim((string)($c['teamName'] ?? '')),
+                    'geschlecht'=> (string)($c['gender'] ?? ''),
+                    'jahrgang'  => (string)($c['yearOfBirth'] ?? ''),
+                    'kategorie' => (string)($c['category'] ?? ''),
+                    'netto'     => (string)($c['realTime'] ?? ''),
+                    'brutto'    => (string)($c['officialTime'] ?? ''),
+                    'platz'     => (string)($c['absolutePosition'] ?? ''),
+                    'platzAk'   => (string)($c['positionInCategory'] ?? ''),
+                    'startnr'   => (string)($c['bib'] ?? ''),
+                ];
+            }
+            if (empty($d['meta']['hasNextPage'])) break;
+        }
+        $strecken[] = ['id' => $raceId, 'name' => (string)($race['name'] ?? ''), 'liste' => (string)($opt['name'] ?? ''), 'zeilen' => $zeilen];
+    }
+
+    // Startzeit kommt in UTC – in Ortszeit umrechnen, sonst rutscht ein Lauf um Mitternacht auf den Vortag
+    $datum = '';
+    try {
+        if (!empty($ev['date']['from'])) $datum = (new DateTime($ev['date']['from']))->setTimezone(new DateTimeZone('Europe/Rome'))->format('Y-m-d');
+    } catch (Exception $e) { /* ohne Datum weiter */ }
+
+    jsonOk([
+        'name'     => (string)($ev['name'] ?? ''),
+        'datum'    => $datum,
+        'ort'      => (string)($ev['location']['city'] ?? ''),
+        'land'     => (string)($ev['location']['country'] ?? ''),
+        'strecken' => $strecken,
+    ]);
+}
+
 if ($res === 'uits-fetch' && $method === 'GET') {
     Auth::requireLogin();
     $url = trim($_GET['url'] ?? '');
