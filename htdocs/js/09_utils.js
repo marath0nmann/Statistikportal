@@ -266,7 +266,8 @@ function fussnoteText(f) {
 function fussnotenHtml(liste, stil) {
   if (!liste || !liste.length) return '';
   return liste.map(function(f) {
-    return '<div class="fussnote" style="font-size:12px;color:var(--text2);' + (stil || '') + '">' +
+    // white-space:normal: Tabellenzellen sind nowrap + overflow:hidden (app.css)
+    return '<div class="fussnote" style="font-size:12px;color:var(--text2);white-space:normal;' + (stil || '') + '">' +
       '<span style="color:var(--accent);font-weight:700">*</span> ' + fussnoteText(f) + '</div>';
   }).join('');
 }
