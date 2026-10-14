@@ -1,3 +1,6 @@
+## v1589
+- **Fehler „Call to undefined function veranstFussnoten()“ auf der Seite einer regelmäßigen Veranstaltung behoben** (`#veranstaltungen/serie/<id>`). Die Funktion stand in `api/index.php` erst hinter der Serien-Route und war dort beim Aufruf noch nicht deklariert. Sie liegt jetzt in `includes/helfer.php`.
+
 ## v1588
 - **„Veranstaltung teilen“ nimmt die Fußnoten mit.** Fußnoten für die ganze Veranstaltung stehen unter Datum und Ort, die einer Disziplin direkt unter deren Überschrift. Bei WhatsApp stehen sie mit ⚠️, im WordPress-HTML als kursiver Absatz, im Claude-Prompt als „Hinweis“. Die Legende des Prompts erklärt außerdem: Bei „nicht in den Bestenlisten gewertet“ werden keine PBs, Rekorde oder Bestleistungen abgeleitet.
 - **Anführungszeichen und Sonderzeichen im Veranstaltungsnamen** erscheinen beim Teilen wieder als Zeichen statt als `&quot;`. Das gilt auch für den Ort. Die API liefert die Namen HTML-kodiert, die Texte zum Teilen dekodieren sie jetzt (`_shareTitel()`).

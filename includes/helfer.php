@@ -92,3 +92,21 @@ function fussnoteFelder(string $e = 'e'): string {
             (SELECT GROUP_CONCAT(fnt.text ORDER BY fnt.id SEPARATOR '\n') FROM $t fnt
               WHERE " . fussnoteBedingung('fnt', $e) . ") AS fussnote";
 }
+
+// Fußnoten einer Veranstaltung inkl. Disziplinname (für Anzeige und Bearbeiten)
+function veranstFussnoten(int $vid): array {
+    try {
+        $rows = DB::fetchAll(
+            "SELECT f.id, f.disziplin_mapping_id, f.text, f.ohne_wertung, m.disziplin
+             FROM " . DB::tbl('veranstaltung_fussnoten') . " f
+             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id = f.disziplin_mapping_id
+             WHERE f.veranstaltung_id = ? ORDER BY f.id", [$vid]);
+    } catch (\Exception $e) { return []; }
+    foreach ($rows as &$r) {
+        $r['id'] = (int)$r['id'];
+        $r['disziplin_mapping_id'] = $r['disziplin_mapping_id'] !== null ? (int)$r['disziplin_mapping_id'] : null;
+        $r['ohne_wertung'] = (int)$r['ohne_wertung'];
+    }
+    unset($r);
+    return $rows;
+}
