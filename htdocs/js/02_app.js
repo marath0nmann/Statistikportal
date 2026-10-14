@@ -2323,6 +2323,24 @@ function _shareAthletName(e) {
   return p.length >= 2 ? (p.slice(1).join(' ') + ' ' + p[0]).trim() : (e.athlet || '');
 }
 
+// Klartext: Die API liefert Namen HTML-kodiert (&quot; usw.), in den Texten
+// zum Teilen müssen sie lesbar sein.
+function _shareTitel(v) { return _eeDecode(v.name || v.kuerzel || 'Veranstaltung'); }
+
+// Fußnoten als Klartext – null = ganze Veranstaltung, sonst die Zeilen einer Disziplin
+function _shareFussnoten(v, rows) {
+  var liste = [];
+  if (rows === null) liste = fussnotenFuer(v.fussnoten, null);
+  else {
+    var mids = {};
+    rows.forEach(function(e) { if (e.disziplin_mapping_id) mids[e.disziplin_mapping_id] = 1; });
+    liste = (v.fussnoten || []).filter(function(f) { return f.disziplin_mapping_id && mids[f.disziplin_mapping_id]; });
+  }
+  return liste.map(function(f) {
+    return _eeDecode(f.text) + (parseInt(f.ohne_wertung) ? ' (nicht in den Bestenlisten gewertet)' : '');
+  });
+}
+
 function _esc(s) {
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -2331,13 +2349,17 @@ function _esc(s) {
 function _veranstWordpress(v, badgeMap, mitExtern) {
   var url   = seitenUrl('veranstaltung/' + v.id);
   var date  = v.datum ? v.datum.split('-').reverse().join('.') : '';
-  var title = v.name || v.kuerzel || 'Veranstaltung';
+  var title = _shareTitel(v);
+  var ort   = _eeDecode(v.ort);
   var g     = _shareGroupByDisz(v, mitExtern);
 
   var out = '<!-- wp:heading -->\n<h2>' + _esc(title) + '</h2>\n<!-- /wp:heading -->\n\n';
 
-  var meta = date + (v.ort ? ' &middot; ' + _esc(v.ort) : '');
+  var meta = date + (ort ? ' &middot; ' + _esc(ort) : '');
   out += '<!-- wp:paragraph -->\n<p><strong>' + meta + '</strong></p>\n<!-- /wp:paragraph -->\n\n';
+  _shareFussnoten(v, null).forEach(function(t) {
+    out += '<!-- wp:paragraph -->\n<p><em>* ' + _esc(t) + '</em></p>\n<!-- /wp:paragraph -->\n\n';
+  });
 
   g.order.forEach(function(disz) {
     out += '<!-- wp:heading {"level":3} -->\n<h3>' + _esc(disz) + '</h3>\n<!-- /wp:heading -->\n\n';
@@ -2356,6 +2378,9 @@ function _veranstWordpress(v, badgeMap, mitExtern) {
         '</tr>\n';
     });
     out += '</tbody></table></figure>\n<!-- /wp:table -->\n\n';
+    _shareFussnoten(v, g.byDisz[disz]).forEach(function(t) {
+      out += '<!-- wp:paragraph -->\n<p><em>* ' + _esc(t) + '</em></p>\n<!-- /wp:paragraph -->\n\n';
+    });
   });
 
   // Links: Statistikportal + externe Ergebnisseite
@@ -2372,18 +2397,22 @@ function _veranstWordpress(v, badgeMap, mitExtern) {
 function _veranstWhatsapp(v, badgeMap, mitExtern) {
   var url   = seitenUrl('veranstaltung/' + v.id);
   var date  = v.datum ? v.datum.split('-').reverse().join('.') : '';
-  var title = v.name || v.kuerzel || 'Veranstaltung';
+  var title = _shareTitel(v);
+  var ort   = _eeDecode(v.ort);
   var g     = _shareGroupByDisz(v, mitExtern);
 
   var out = '*' + title + '*\n';
-  out += '\ud83d\udcc5 ' + date + (v.ort ? ' \u00b7 \ud83d\udccd ' + v.ort : '') + '\n';
+  out += '\ud83d\udcc5 ' + date + (ort ? ' \u00b7 \ud83d\udccd ' + ort : '') + '\n';
+  _shareFussnoten(v, null).forEach(function(t) { out += '\u26a0\ufe0f ' + t + '\n'; });
 
   g.order.forEach(function(disz) {
     var rows = g.byDisz[disz];
     // Z\u00e4hlt die ganze Disziplin zu einer Meisterschaft? Dann in die \u00dcberschrift,
     // in den Zeilen gen\u00fcgt danach die Kurzform ("Nordrhein \u2013 2. Platz").
     var mstrRow = _shareEinheitlicheMstr(rows);
+    var fn = _shareFussnoten(v, rows);
     out += '\n*' + (mstrRow ? _shareMstrTitel(mstrRow) : disz) + '*\n';
+    fn.forEach(function(t) { out += '\u26a0\ufe0f ' + t + '\n'; });
     var rekUrl = '';
     rows.forEach(function(e) {
       var badges = _shareAllBadges(badgeMap, e, !!mstrRow);
@@ -2424,7 +2453,8 @@ function _sharePromptResult(e) {
 function _veranstClaudePrompt(v, badgeMap, mitExtern) {
   var url     = seitenUrl('veranstaltung/' + v.id);
   var date    = v.datum ? v.datum.split('-').reverse().join('.') : '';
-  var title   = v.name || v.kuerzel || 'Veranstaltung';
+  var title   = _shareTitel(v);
+  var ort     = _eeDecode(v.ort);
   var club    = (typeof appConfig !== 'undefined' && (appConfig.verein_name || appConfig.verein_kuerzel)) || 'unseren Verein';
   var g       = _shareGroupByDisz(v, mitExtern);
 
@@ -2522,11 +2552,13 @@ function _veranstClaudePrompt(v, badgeMap, mitExtern) {
   p += '| Feld | Wert |\n|---|---|\n';
   p += '| Name | ' + title + ' |\n';
   p += '| Datum | ' + date + ' |\n';
-  if (v.ort)         p += '| Ort | ' + v.ort + ' |\n';
+  if (ort)           p += '| Ort | ' + ort + ' |\n';
   if (v.serie_name)  p += '| Veranstaltungsreihe | ' + v.serie_name + ' |\n';
   p += '| Statistikportal | ' + url + ' |\n';
   if (v.datenquelle) p += '| Offizielle Ergebnisliste | ' + v.datenquelle + ' |\n';
   p += '\n';
+  var fnAlle = _shareFussnoten(v, null);
+  if (fnAlle.length) p += fnAlle.map(function(t) { return '> **Hinweis:** ' + t + '\n'; }).join('') + '\n';
 
   // ── Ergebnisse ──
   p += '## Ergebnisse\n\n';
@@ -2547,6 +2579,7 @@ function _veranstClaudePrompt(v, badgeMap, mitExtern) {
     if (!rows.length) return;
     hasAny = true;
     p += '\n### ' + disz + '\n\n';
+    _shareFussnoten(v, rows).forEach(function(t) { p += '> **Hinweis:** ' + t + '\n\n'; });
     p += '| Athlet:in | Leistung | Platz AK | AK | Auszeichnung |\n|---|---|---|---|---|\n';
     rows.forEach(function(e) {
       var badges = _shareAllBadges(badgeMap, e);
@@ -2592,6 +2625,11 @@ function _veranstClaudePrompt(v, badgeMap, mitExtern) {
   p += '- **SB** (Saisonbestleistung) liegt in diesen Daten nicht vor – nur ergänzen, wenn es ' +
        'aus der offiziellen Ergebnisliste hervorgeht\n';
   p += '- Altersklassen: M/W + Alter (z. B. M35 = Männer ab 35), MHK/WHK = Hauptklasse\n';
+  if (fnAlle.length || (v.fussnoten || []).length) {
+    p += '- **Hinweis** – Besonderheit dieser Veranstaltung bzw. Disziplin (z. B. Strecke zu kurz). ' +
+         'Bitte im Beitrag erwähnen. Steht dabei „nicht in den Bestenlisten gewertet", sind die Zeiten ' +
+         'nicht vergleichbar: dann **keine** PB, keinen Rekord und keine Bestleistung daraus ableiten.\n';
+  }
 
   return p;
 }
