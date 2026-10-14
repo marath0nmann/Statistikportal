@@ -1,3 +1,7 @@
+## v1588
+- **„Veranstaltung teilen“ nimmt die Fußnoten mit.** Fußnoten für die ganze Veranstaltung stehen unter Datum und Ort, die einer Disziplin direkt unter deren Überschrift. Bei WhatsApp stehen sie mit ⚠️, im WordPress-HTML als kursiver Absatz, im Claude-Prompt als „Hinweis“. Die Legende des Prompts erklärt außerdem: Bei „nicht in den Bestenlisten gewertet“ werden keine PBs, Rekorde oder Bestleistungen abgeleitet.
+- **Anführungszeichen und Sonderzeichen im Veranstaltungsnamen** erscheinen beim Teilen wieder als Zeichen statt als `&quot;`. Das gilt auch für den Ort. Die API liefert die Namen HTML-kodiert, die Texte zum Teilen dekodieren sie jetzt (`_shareTitel()`).
+
 ## v1587
 - **Fußnoten-Zusatz „nicht in den Bestenlisten gewertet“ vollständig sichtbar.** Er stand kursiv in Klammern. Barlow ist aber ohne Kursivschnitt eingebunden, der Browser neigt die Schrift deshalb künstlich. Zusammen mit `opacity` wurde dabei die Oberkante der schließenden Klammer abgeschnitten, sie sah aus wie ein Komma. Der Zusatz steht jetzt in normaler Schrift hinter einem Mittelpunkt.
 
