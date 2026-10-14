@@ -102,9 +102,11 @@ async function renderVeranstaltungen() {
   else                       await renderVeranstaltungenListe();
 }
 
-function _buildVeranstErgTable(ergebnisse) {
+function _buildVeranstErgTable(ergebnisse, fussnoten) {
+  // Fußnoten für die ganze Veranstaltung stehen über der Tabelle
+  var fnKopf = fussnotenHtml(fussnotenFuer(fussnoten, null), 'padding:4px 16px');
   if (!ergebnisse || !ergebnisse.length) {
-    return '<div class="empty" style="padding:16px">Keine Ergebnisse</div>';
+    return fnKopf + '<div class="empty" style="padding:16px">Keine Ergebnisse</div>';
   }
   var byDisz = {}; var diszOrder = [];
   for (var ei = 0; ei < ergebnisse.length; ei++) {
@@ -121,7 +123,9 @@ function _buildVeranstErgTable(ergebnisse) {
     var _df = byDisz[_dKey][0];
     var diszLabel = _df ? ergDiszLabel(_df) : _dKey;
     var ergs = byDisz[_dKey];
-    rows += '<tr class="disz-header-row"><td colspan="' + (hasMstr ? '7' : '5') + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszLabel + '</td></tr>';
+    var _dFn = _df && _df.disziplin_mapping_id ? fussnotenFuer(fussnoten, _df.disziplin_mapping_id) : [];
+    rows += '<tr class="disz-header-row"><td colspan="' + (hasMstr ? '7' : '5') + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszLabel + (_dFn.length ? ' <span style="color:var(--accent)">*</span>' : '') +
+      (_dFn.length ? fussnotenHtml(_dFn, 'font-weight:400;margin-top:2px') : '') + '</td></tr>';
     for (var ei2 = 0; ei2 < ergs.length; ei2++) {
       var e2 = ergs[ei2];
       var fmt = e2.fmt || '';
@@ -132,7 +136,7 @@ function _buildVeranstErgTable(ergebnisse) {
         '<tr>' +
           '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span>' + (e2.extern ? ' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>' : '') + '</td>' +
           '<td>' + akBadge(e2.altersklasse) + '</td>' +
-          '<td class="result">' + res + '</td>' +
+          '<td class="result">' + res + fussnoteMarker(e2) + '</td>' +
           '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +
           '<td>' + medalBadge(e2.ak_platzierung) + '</td>' +
           (hasMstr ? '<td>' + mstrBadge(e2.meisterschaft) + '</td>' : '') +
@@ -140,7 +144,7 @@ function _buildVeranstErgTable(ergebnisse) {
         '</tr>';
     }
   }
-  return '<div class="table-scroll"><table class="veranst-dash-table">' +
+  return fnKopf + '<div class="table-scroll"><table class="veranst-dash-table">' +
     '<colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' + (hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') + '</colgroup>' +
     '<thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th>' + (hasMstr ? '<th>Meisterschaft</th><th>Pl. MS</th>' : '') + '</tr></thead>' +
     '<tbody>' + rows + '</tbody>' +
@@ -216,7 +220,7 @@ async function renderVeranstaltungenListe() {
               '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&times;</button>' : '') +
           '</div>' +
         '</div>' +
-        _buildVeranstErgTable(v.ergebnisse) +
+        _buildVeranstErgTable(v.ergebnisse, v.fussnoten) +
       '</div>';
   }
   if (!html) html = '<div class="empty"><div class="empty-icon">&#x1F4CD;</div><div class="empty-text">Keine Veranstaltungen gefunden</div></div>';
@@ -475,6 +479,8 @@ async function _mvLaden() {
         bemerkungen:           e.bemerkungen || '',
         loeschantrag:          parseInt(e.loeschantrag) > 0 ? 1 : 0,
         aenderungsantrag:      parseInt(e.aenderungsantrag) > 0 ? 1 : 0,
+        fussnote:              e.fussnote || '',
+        ohne_wertung:          parseInt(e.ohne_wertung) ? 1 : 0,
       });
     }
   }
@@ -543,7 +549,7 @@ async function _mvLaden() {
   var pbBest = {}, pbHalter = {};
   chrono.forEach(function(r) {
     r.ist_pb = 0; r.ist_pb_aktuell = 0;
-    if (!r.ist_favorit) return;
+    if (!r.ist_favorit || r.ohne_wertung) return;   // Fußnote „ohne Wertung" zählt nie als PB
     var wert = _mvErgebnisZahl(r);
     if (wert == null) return;
     var k = r.disziplin_mapping_id ? 'm' + r.disziplin_mapping_id
@@ -1080,7 +1086,7 @@ function _renderMeineTabelle() {
       // untereinander ausgerichtet.
       return (r.ist_pb ? '<span class="badge badge-pb" title="' +
         (r.ist_pb_aktuell ? 'Aktuelle pers&ouml;nliche Bestleistung' : 'War bei diesem Wettkampf eine neue pers&ouml;nliche Bestleistung') +
-        '">PB</span> ' : '') + res;
+        '">PB</span> ' : '') + res + fussnoteMarker(r);
     },
     pace:         function(r) { return (r.pace && r.pace !== '00:00') ? fmtTime(r.pace, 'min/km') : ''; },
     schuh:        function(r) { return _mvText(r.schuh); },
@@ -1700,7 +1706,7 @@ function _buildSerieJahreHtml(veranst) {
             (v.datenquelle ? '<a href="' + v.datenquelle.replace(/"/g,'&quot;') + '" target="_blank" class="btn btn-ghost btn-sm" title="Ergebnisquelle">\uD83C\uDF10</a>' : '') +
           '</div>' +
         '</div>' +
-        _buildVeranstErgTable(v.ergebnisse) +
+        _buildVeranstErgTable(v.ergebnisse, v.fussnoten) +
       '</div>';
   }
   return html;
@@ -1906,6 +1912,7 @@ function _buildSerieMeineTeilnahmen(veranst) {
         ak_platz_meisterschaft: e.ak_platz_meisterschaft || null,
         extern: parseInt(e.extern) === 1,
         verein: e.verein || '',
+        fussnote: e.fussnote || '', ohne_wertung: e.ohne_wertung,
       });
     }
   }
@@ -1934,7 +1941,7 @@ function _buildSerieMeineTeilnahmen(veranst) {
       (hasExtern ? '<td style="' + td + ';font-size:12px;color:var(--text2)">' + _meinVereinText(r, ownClubSerie) + '</td>' : '') +
       '<td style="' + td + '">' + r.disziplin + '</td>' +
       '<td style="' + td + '">' + akBadge(r.altersklasse) + '</td>' +
-      '<td style="' + tdR + '" class="result">' + res + '</td>' +
+      '<td style="' + tdR + '" class="result">' + res + fussnoteMarker(r) + '</td>' +
       '<td style="' + tdR + ';font-size:12px;color:var(--text2)">' + (showPace ? fmtTime(r.pace, 'min/km') : '') + '</td>' +
       '<td style="' + td + ';text-align:center">' + medalBadge(r.ak_platzierung) + '</td>' +
       (hasMstr ? '<td style="' + td + '">' + (r.meisterschaft ? mstrBadge(r.meisterschaft) : '') + '</td>' : '') +
@@ -2200,6 +2207,12 @@ async function showVeranstEditModal(id) {
         '<select id="ve-serie">' + serieOptHtml + '</select></div>' +
       '<div class="form-group full"><label>\uD83C\uDF10 Ergebnisquelle (URL, optional)</label>' +
         '<input type="url" id="ve-quelle" value="' + (v.datenquelle || '').replace(/"/g,'&quot;') + '" placeholder="z.B. https://my.raceresult.com/..."/></div>' +
+      '<div class="form-group full"><label>* Fu&szlig;noten (optional)</label>' +
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Erl&auml;uterung f&uuml;r die ganze Veranstaltung oder eine Disziplin, z.&nbsp;B. &bdquo;Strecke ca. 300&nbsp;m zu kurz&ldquo;. ' +
+          'Mit &bdquo;Nicht werten&ldquo; bleiben die Ergebnisse sichtbar, z&auml;hlen aber nicht f&uuml;r Bestenlisten, Rekorde und PBs.</div>' +
+        '<div id="ve-fn-liste"></div>' +
+        '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="_veFnNeu()">+ Fu&szlig;note</button>' +
+      '</div>' +
     '</div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
@@ -2207,6 +2220,84 @@ async function showVeranstEditModal(id) {
     '</div>',
     false, true
   );
+  _veFnStart(v);
+}
+
+// ── Fußnoten im Bearbeiten-Dialog ──────────────────────────────────────────
+// Auswahl: zuerst die Disziplinen dieser Veranstaltung, dann alle übrigen
+// (falls die Fußnote vor dem Import der Ergebnisse angelegt wird).
+var _veFn = { liste: [], opts: '' };
+
+function _veFnStart(v) {
+  var gesehen = {}, eigene = [], andere = [];
+  (v.ergebnisse || []).forEach(function(e) {
+    var mid = e.disziplin_mapping_id;
+    if (!mid || gesehen[mid]) return;
+    gesehen[mid] = 1;
+    eigene.push({ id: mid, label: e.disziplin + (e.kategorie_name ? ' (' + e.kategorie_name + ')' : '') });
+  });
+  (state.disziplinen || []).forEach(function(d) {
+    if (!d.id || gesehen[d.id]) return;
+    gesehen[d.id] = 1;
+    andere.push({ id: d.id, label: d.disziplin + (d.kategorie ? ' (' + d.kategorie + ')' : '') });
+  });
+  var byLabel = function(a, b) { return diszSortKey(a.label) - diszSortKey(b.label) || a.label.localeCompare(b.label); };
+  eigene.sort(byLabel); andere.sort(byLabel);
+  var opt = function(d) { return '<option value="' + d.id + '">' + _esc(_eeDecode(d.label)) + '</option>'; };
+  _veFn.opts = '<option value="">Ganze Veranstaltung</option>' +
+    (eigene.length ? '<optgroup label="In dieser Veranstaltung">' + eigene.map(opt).join('') + '</optgroup>' : '') +
+    (andere.length ? '<optgroup label="Weitere Disziplinen">' + andere.map(opt).join('') + '</optgroup>' : '');
+  _veFn.liste = (v.fussnoten || []).map(function(f) {
+    return { disziplin_mapping_id: f.disziplin_mapping_id || '', text: _eeDecode(f.text), ohne_wertung: parseInt(f.ohne_wertung) ? 1 : 0 };
+  });
+  _veFnRender();
+}
+
+function _veFnLesen() {
+  _veFn.liste.forEach(function(f, i) {
+    var sel = document.getElementById('ve-fn-disz-' + i);
+    var txt = document.getElementById('ve-fn-text-' + i);
+    var cb  = document.getElementById('ve-fn-ow-' + i);
+    if (sel) f.disziplin_mapping_id = sel.value;
+    if (txt) f.text = txt.value;
+    if (cb)  f.ohne_wertung = cb.checked ? 1 : 0;
+  });
+}
+
+function _veFnRender() {
+  var el = document.getElementById('ve-fn-liste');
+  if (!el) return;
+  el.innerHTML = _veFn.liste.map(function(f, i) {
+    return '<div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px">' +
+      '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">' +
+        '<select id="ve-fn-disz-' + i + '" style="flex:1">' + _veFn.opts + '</select>' +
+        '<button type="button" class="btn btn-ghost btn-sm" title="Fu&szlig;note entfernen" onclick="_veFnWeg(' + i + ')">&times;</button>' +
+      '</div>' +
+      '<input type="text" id="ve-fn-text-' + i + '" maxlength="500" value="' + _esc(f.text) + '" placeholder="z.B. Strecke zu kurz, Zeitmessung startete ca. 1 Minute zu sp&auml;t"/>' +
+      '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:13px;cursor:pointer">' +
+        '<input type="checkbox" id="ve-fn-ow-' + i + '"' + (f.ohne_wertung ? ' checked' : '') + ' style="width:15px;height:15px">' +
+        'Nicht werten (keine Bestenlisten, Rekorde, PBs)' +
+      '</label>' +
+    '</div>';
+  }).join('');
+  _veFn.liste.forEach(function(f, i) {
+    var sel = document.getElementById('ve-fn-disz-' + i);
+    if (sel) sel.value = f.disziplin_mapping_id ? String(f.disziplin_mapping_id) : '';
+  });
+}
+
+function _veFnNeu() {
+  _veFnLesen();
+  _veFn.liste.push({ disziplin_mapping_id: '', text: '', ohne_wertung: 1 });
+  _veFnRender();
+  var t = document.getElementById('ve-fn-text-' + (_veFn.liste.length - 1));
+  if (t) t.focus();
+}
+
+function _veFnWeg(i) {
+  _veFnLesen();
+  _veFn.liste.splice(i, 1);
+  _veFnRender();
 }
 
 async function saveVeranstaltung(id) {
@@ -2232,8 +2323,22 @@ async function saveVeranstaltung(id) {
     datenquelle: quelleEl ? (quelleEl.value.trim() || null) : undefined,
     serie_id: serieEl ? (serieEl.value ? parseInt(serieEl.value) : null) : undefined,
   };
+  if (document.getElementById('ve-fn-liste')) {
+    _veFnLesen();
+    body.fussnoten = _veFn.liste
+      .filter(function(f) { return f.text.trim(); })
+      .map(function(f) {
+        return { disziplin_mapping_id: f.disziplin_mapping_id ? parseInt(f.disziplin_mapping_id) : null,
+                 text: f.text.trim(), ohne_wertung: f.ohne_wertung };
+      });
+  }
   var r = await apiPut('veranstaltungen/' + id, body);
-  if (r && r.ok) { closeModal(); notify('Gespeichert.', 'ok'); await renderVeranstaltungen(); }
+  if (r && r.ok) {
+    closeModal(); notify('Gespeichert.', 'ok');
+    // Detailseite bleibt stehen (Fußnoten sofort sichtbar), sonst die Liste neu laden
+    if (state.tab === 'veranstaltung') await renderPage();
+    else await renderVeranstaltungen();
+  }
   else notify((r && r.fehler) || 'Fehler', 'err');
 }
 

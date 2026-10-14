@@ -281,7 +281,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
       '<td><span class="athlet-link" onclick="openAthletById(' + rr.athlet_id + ')">' + rr.athlet + '</span>' + _ergVereinBadge(rr, canEdit) + '</td>' +
       '<td>' + akBadge(rr.altersklasse) + '</td>' +
       '<td class="disziplin-text">' + (rr.disziplin_mapping_id ? ergDiszLabel(rr) : diszMitKat(rr.disziplin)) + '</td>' +
-      '<td class="result">' + ergebnis + '</td>';
+      '<td class="result">' + ergebnis + fussnoteMarker(rr) + '</td>';
     var paceVal = diszKm(rr.disziplin, rr.disziplin_mapping_id) >= 1 ? calcPace(rr.disziplin, rr.resultat, rr.disziplin_mapping_id) : '';
     if (hasPace) cells += '<td class="ort-text">' + (paceVal ? fmtTime(paceVal, 'min/km') : '') + '</td>';
     cells += '<td>' + medalBadge(rr.ak_platzierung) + '</td>';

@@ -68,3 +68,27 @@ function buildAkCaseExpr(bool $merge, string $alias = 'e'): string {
         . "        {$mappingCases}"
         . "ELSE $alias.altersklasse END";
 }
+
+// ── Fußnoten zu Veranstaltungen ─────────────────────────────────────────────
+// Eine Fußnote gilt für eine ganze Veranstaltung (disziplin_mapping_id NULL)
+// oder nur für eine Disziplin darin. Mit ohne_wertung=1 zählen die betroffenen
+// Ergebnisse nicht für Bestenlisten, Rekorde und PBs (z. B. Strecke zu kurz),
+// bleiben aber als Teilnahme sichtbar.
+function fussnoteBedingung(string $fn, string $e): string {
+    return "$fn.veranstaltung_id = $e.veranstaltung_id
+            AND ($fn.disziplin_mapping_id IS NULL OR $fn.disziplin_mapping_id = $e.disziplin_mapping_id)";
+}
+
+/** SQL-Bedingung: Ergebnis zählt für Bestenlisten. */
+function wertbarSql(string $e = 'e'): string {
+    return "NOT EXISTS (SELECT 1 FROM " . DB::tbl('veranstaltung_fussnoten') . " fnw
+            WHERE fnw.ohne_wertung = 1 AND " . fussnoteBedingung('fnw', $e) . ")";
+}
+
+/** SELECT-Felder ohne_wertung + fussnote (Texte zeilenweise) für Ergebnislisten. */
+function fussnoteFelder(string $e = 'e'): string {
+    $t = DB::tbl('veranstaltung_fussnoten');
+    return "(SELECT COUNT(*) FROM $t fno WHERE fno.ohne_wertung = 1 AND " . fussnoteBedingung('fno', $e) . ") > 0 AS ohne_wertung,
+            (SELECT GROUP_CONCAT(fnt.text ORDER BY fnt.id SEPARATOR '\n') FROM $t fnt
+              WHERE " . fussnoteBedingung('fnt', $e) . ") AS fussnote";
+}

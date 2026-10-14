@@ -328,7 +328,10 @@ async function renderDashboard() {
       var _dKey = diszOrder[di];
       var disz = byDisz[_dKey][0] ? ergDiszLabel(byDisz[_dKey][0]) : _dKey;
       var ergs = byDisz[_dKey];
-      vrows += '<tr class="disz-header-row"><td colspan="6" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszMitKat(disz) + '</td></tr>';
+      var _vDf = byDisz[_dKey][0];
+      var _vFn = _vDf && _vDf.disziplin_mapping_id ? fussnotenFuer(v.fussnoten, _vDf.disziplin_mapping_id) : [];
+      vrows += '<tr class="disz-header-row"><td colspan="6" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszMitKat(disz) +
+        (_vFn.length ? ' <span style="color:var(--accent)">*</span>' + fussnotenHtml(_vFn, 'font-weight:400;margin-top:2px') : '') + '</td></tr>';
       for (var ei2 = 0; ei2 < ergs.length; ei2++) {
         var e2 = ergs[ei2];
         var vfmt = e2.fmt || '';
@@ -339,7 +342,7 @@ async function renderDashboard() {
           '<tr>' +
             '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span>' + (parseInt(e2.extern) ? ' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>' : '') + '</td>' +
             '<td>' + akBadge(e2.altersklasse) + '</td>' +
-            '<td class="result">' + vres + '</td>' +
+            '<td class="result">' + vres + fussnoteMarker(e2) + '</td>' +
             '<td class="ort-text">' + (vShowPace ? fmtTime(_vPace, 'min/km') : '') + '</td>' +
             '<td>' + medalBadge(e2.ak_platzierung) + '</td>' +
             '<td>' + mstrBadge(e2.meisterschaft) + '</td>' +
@@ -369,6 +372,7 @@ async function renderDashboard() {
           '</div>' +
           '<div style="font-size:12px;color:var(--text2);white-space:nowrap">' + _vErgStr + ' &middot; ' + _vAthStr + '</div>' +
         '</div>' +
+        fussnotenHtml(fussnotenFuer(v.fussnoten, null), 'margin-bottom:6px') +
         (vrows ? '<div class="table-scroll" style="margin-bottom:8px"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz"><col class="vcol-ms"></colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Platz AK</th><th>Meisterschaft</th></tr></thead><tbody>' + vrows + '</tbody></table></div>' :
                  '<div style="color:var(--text2);font-size:13px;padding:4px 0 8px">Keine Ergebnisse</div>') +
       '</div>';
@@ -592,14 +596,16 @@ async function renderDashboard() {
           for (var vdi = 0; vdi < vvDiszOrder.length; vdi++) {
             var vdisz = vvDiszOrder[vdi];
             var vergs = vvByDisz[vdisz];
-            vvrows += '<tr class="disz-header-row"><td colspan="' + visibleCols.length + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszMitKat(vdisz) + '</td></tr>';
+            var _vvFn = vergs[0] && vergs[0].disziplin_mapping_id ? fussnotenFuer(vv.fussnoten, vergs[0].disziplin_mapping_id) : [];
+            vvrows += '<tr class="disz-header-row"><td colspan="' + visibleCols.length + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + diszMitKat(vdisz) +
+              (_vvFn.length ? ' <span style="color:var(--accent)">*</span>' + fussnotenHtml(_vvFn, 'font-weight:400;margin-top:2px') : '') + '</td></tr>';
             for (var vei2 = 0; vei2 < vergs.length; vei2++) {
               var ve2 = vergs[vei2];
               var vvfmt = ve2.fmt || '';
               var vvres = fmtErgebnis(ve2.resultat, vvfmt);
               var vvpace = diszKm(ve2.disziplin, ve2.disziplin_mapping_id) >= 1 ? calcPace(ve2.disziplin, ve2.resultat, ve2.disziplin_mapping_id) : '';
               var vvShowPace = vvpace && vvpace !== '00:00' && vvfmt !== 'm' && vvfmt !== 's' && vvfmt !== 'pkt';
-              var vvCells = { athlet: '<td><span class="athlet-link" onclick="openAthletById('+ve2.athlet_id+')">'+ve2.athlet+'</span>'+(parseInt(ve2.extern)?' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>':'')+'</td>', ak: '<td>'+akBadge(ve2.altersklasse)+'</td>', result: '<td class="result">'+vvres+'</td>', pace: '<td class="ort-text">'+(vvShowPace?fmtTime(vvpace,'min/km'):'')+'</td>', platz: '<td>'+medalBadge(ve2.ak_platzierung)+'</td>', ms: '<td>'+mstrBadge(ve2.meisterschaft)+'</td>' };
+              var vvCells = { athlet: '<td><span class="athlet-link" onclick="openAthletById('+ve2.athlet_id+')">'+ve2.athlet+'</span>'+(parseInt(ve2.extern)?' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>':'')+'</td>', ak: '<td>'+akBadge(ve2.altersklasse)+'</td>', result: '<td class="result">'+vvres+fussnoteMarker(ve2)+'</td>', pace: '<td class="ort-text">'+(vvShowPace?fmtTime(vvpace,'min/km'):'')+'</td>', platz: '<td>'+medalBadge(ve2.ak_platzierung)+'</td>', ms: '<td>'+mstrBadge(ve2.meisterschaft)+'</td>' };
               var vvRow = '<tr>';
               for (var vci = 0; vci < visibleCols.length; vci++) vvRow += vvCells[visibleCols[vci]] || '<td></td>';
               vvrows += vvRow + '</tr>';
@@ -634,6 +640,7 @@ async function renderDashboard() {
               '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + formatDate(vv.datum) + (vv.ort?' &middot; '+vv.ort:'') + '</div></div>' +
               '<div style="font-size:12px;color:var(--text2);white-space:nowrap">' + _vvErgStr + ' &middot; ' + _vvAthStr + '</div>' +
             '</div>' +
+            fussnotenHtml(fussnotenFuer(vv.fussnoten, null), 'margin-bottom:6px') +
             (vvrows ? '<div class="table-scroll" style="margin-bottom:8px"><table class="veranst-dash-table">' + vvColgroup + '<thead>' + vvThead + '</thead><tbody>' + vvrows + '</tbody></table></div>'
                     : '<div style="color:var(--text2);font-size:13px;padding:4px 0 8px">Keine Ergebnisse</div>') +
           '</div>';

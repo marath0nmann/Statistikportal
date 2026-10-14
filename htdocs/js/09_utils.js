@@ -246,3 +246,34 @@ function flagEmoji(code) {
   var base = 0x1F1E6 - 'A'.charCodeAt(0);
   return String.fromCodePoint(c.charCodeAt(0) + base, c.charCodeAt(1) + base);
 }
+
+// ── Fußnoten zu Veranstaltungen ──────────────────────────────────────────────
+// v.fussnoten: [{disziplin_mapping_id|null, text, ohne_wertung}]. Ohne Disziplin
+// gilt eine Fußnote für die ganze Veranstaltung. Ergebnisse aus der API tragen
+// zusätzlich `fussnote` (Texte) und `ohne_wertung` (zählt nicht für Bestenlisten).
+function fussnotenFuer(fussnoten, mappingId) {
+  return (fussnoten || []).filter(function(f) {
+    return mappingId == null ? !f.disziplin_mapping_id : String(f.disziplin_mapping_id) === String(mappingId);
+  });
+}
+
+function fussnoteText(f) {
+  return _esc(_eeDecode(f.text)) +
+    (parseInt(f.ohne_wertung) ? ' <em style="opacity:.8">(nicht in den Bestenlisten gewertet)</em>' : '');
+}
+
+// Block mit Fußnoten (z. B. unter dem Veranstaltungskopf oder einer Disziplin)
+function fussnotenHtml(liste, stil) {
+  if (!liste || !liste.length) return '';
+  return liste.map(function(f) {
+    return '<div class="fussnote" style="font-size:12px;color:var(--text2);' + (stil || '') + '">' +
+      '<span style="color:var(--accent);font-weight:700">*</span> ' + fussnoteText(f) + '</div>';
+  }).join('');
+}
+
+// Kennzeichen hinter einem Ergebnis mit Fußnote (Tooltip = Fußnotentext)
+function fussnoteMarker(e) {
+  if (!e || !e.fussnote) return '';
+  var titel = _eeDecode(e.fussnote) + (parseInt(e.ohne_wertung) ? '\nNicht in den Bestenlisten gewertet.' : '');
+  return '<span class="fussnote-marker" title="' + _esc(titel) + '" style="color:var(--accent);font-weight:700;cursor:help;margin-left:2px">*</span>';
+}

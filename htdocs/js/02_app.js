@@ -2826,7 +2826,9 @@ async function renderVeranstaltungDetail(vid) {
     var _diszFirstErg = byDisz[_dKey][0];
     var disz = _diszFirstErg ? ergDiszLabel(_diszFirstErg) : _dKey;
     var dErgs = byDisz[_dKey];
-    rows += '<tr class="disz-header-row"><td colspan="' + _colspan + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + disz + '</td></tr>';
+    var _dFn = _diszFirstErg && _diszFirstErg.disziplin_mapping_id ? fussnotenFuer(v.fussnoten, _diszFirstErg.disziplin_mapping_id) : [];
+    rows += '<tr class="disz-header-row"><td colspan="' + _colspan + '" class="disziplin-text" style="background:var(--surf2);font-weight:600;padding:6px 12px">' + disz +
+      (_dFn.length ? ' <span style="color:var(--accent)">*</span>' + fussnotenHtml(_dFn, 'font-weight:400;margin-top:2px') : '') + '</td></tr>';
     for (var ei2 = 0; ei2 < dErgs.length; ei2++) {
       var e2 = dErgs[ei2];
       var fmt = e2.fmt || '';
@@ -2837,7 +2839,7 @@ async function renderVeranstaltungDetail(vid) {
         '<tr>' +
           '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span></td>' +
           '<td>' + akBadge(e2.altersklasse) + '</td>' +
-          '<td class="result">' + res + '</td>' +
+          '<td class="result">' + res + fussnoteMarker(e2) + '</td>' +
           '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +
           '<td>' + medalBadge(e2.ak_platzierung) + '</td>' +
           (_hasMstr ? '<td>' + mstrBadge(e2.meisterschaft) + '</td>' : '') +
@@ -2863,6 +2865,7 @@ async function renderVeranstaltungDetail(vid) {
             '<button class="btn btn-danger btn-sm" onclick="deleteVeranstaltung(' + v.id + ',\'' + name.replace(/'/g, "\\'") + '\')">&#x1F5D1;&#xFE0F;</button>' : '') +
         '</div>' +
       '</div>' +
+      fussnotenHtml(fussnotenFuer(v.fussnoten, null), 'padding:4px 16px') +
       (rows ? '<div class="table-scroll"><table class="veranst-dash-table"><colgroup><col class="vcol-athlet"><col class="vcol-ak"><col class="vcol-result"><col class="vcol-pace"><col class="vcol-platz">' + (_hasMstr ? '<col class="vcol-ms"><col class="vcol-ms-platz">' : '') + '</colgroup><thead><tr><th>Athlet*in</th><th>AK</th><th>Ergebnis</th><th>Pace</th><th>Pl. AK</th>' + (_hasMstr ? '<th>Meisterschaft</th><th>Pl. MS</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody></table></div>' :
               '<div class="empty" style="padding:16px">Keine Ergebnisse</div>') +
     '</div>';

@@ -550,6 +550,8 @@ function _apDiszSortKey(name) {
 }
 
 function _apBestOf(ergs, fmt) {
+  // Ergebnisse mit Fußnote „ohne Wertung" (z. B. Strecke zu kurz) sind nie Bestleistung
+  ergs = ergs.filter(function(e) { return !parseInt(e.ohne_wertung); });
   var dir = (fmt === 'm') ? 'DESC' : 'ASC';
   // Zeitstring HH:MM:SS oder M:SS in Sekunden umrechnen für zuverlässigen Vergleich
   function toSec(s) {

@@ -439,6 +439,16 @@ try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('veranstaltung_serien') 
     erstellt_am DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltungen') . " ADD COLUMN IF NOT EXISTS serie_id INT NULL"); } catch (\Exception $e) {}
+// v1585: Fußnoten je Veranstaltung/Disziplin, optional ohne Bestenlisten-Wertung
+// (siehe wertbarSql() in includes/helfer.php)
+try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('veranstaltung_fussnoten') . " (
+    id                   INT AUTO_INCREMENT PRIMARY KEY,
+    veranstaltung_id     INT NOT NULL,
+    disziplin_mapping_id INT NULL,
+    text                 VARCHAR(500) NOT NULL,
+    ohne_wertung         TINYINT(1) NOT NULL DEFAULT 0,
+    INDEX idx_veranst (veranstaltung_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (\Exception $e) {}
 // v1514: fester Veranstaltungsort einer Serie (leer => Ort der letzten Austragung)
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltung_serien') . " ADD COLUMN IF NOT EXISTS ort_id INT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltung_serien') . " ADD COLUMN IF NOT EXISTS lat DECIMAL(9,6) NULL"); } catch (\Exception $e) {}
@@ -2362,7 +2372,7 @@ function berechneTimelineEvents(bool $mergeAKTl = true): array
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              LEFT JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
              WHERE $ergWhere AND e.resultat IS NOT NULL AND e.resultat != ''
-               AND e.geloescht_am IS NULL AND v.datum IS NOT NULL$extWhere
+               AND e.geloescht_am IS NULL AND v.datum IS NOT NULL AND " . wertbarSql() . "$extWhere
              ORDER BY v.datum ASC, e.id ASC",
             [$ergParam]
         );
@@ -2964,7 +2974,8 @@ if (in_array($res, $ergebnisTabellen)) {
                        o.land_code AS ort_land_code,
                        COALESCE(CONCAT(ab.vorname,' ',ab.nachname), b.benutzername) AS eingetragen_von, e.erstellt_am,
                        COALESCE(dm.fmt_override, dk.fmt) AS fmt,
-                       dk.name AS kategorie_name, dk.tbl_key AS kategorie_key
+                       dk.name AS kategorie_name, dk.tbl_key AS kategorie_key,
+                       " . fussnoteFelder() . "
                 FROM $tbl e
                 JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
                 JOIN " . DB::tbl('veranstaltungen') . " v ON v.id=e.veranstaltung_id
@@ -3468,13 +3479,13 @@ if ($res === 'athleten') {
             $hofParam = $mappingId ?? $disz;
             // Bestes dieses Athleten in dieser Disziplin
             $bestMe = DB::fetchOne(
-                "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
+                "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND e.geloescht_am IS NULL AND e.extern=0 AND " . wertbarSql() . " ORDER BY val $dir LIMIT 1",
                 [$hofParam, $athletId]
             );
             if (!$bestMe) continue;
             $myVal = (float)$bestMe['val'];
             // 1. Gesamtbestleistung?
-            $bestAll = DB::fetchOne("SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1", [$hofParam]);
+            $bestAll = DB::fetchOne("SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.geloescht_am IS NULL AND e.extern=0 AND " . wertbarSql() . " ORDER BY val $dir LIMIT 1", [$hofParam]);
             $isGesamtBest = $bestAll && abs($myVal - (float)$bestAll['val']) < 0.001;
             if ($isGesamtBest) {
                 $result['bestleistungen'][] = ['disziplin' => $disz, 'label' => 'Gesamtbestleistung', 'kat_name' => $katName];
@@ -3483,7 +3494,7 @@ if ($res === 'athleten') {
             // 2. Geschlechts-Bestleistung? (nur wenn nicht bereits Tier 1)
             if (!$isGesamtBest && ($athGeschlecht2 === 'M' || $athGeschlecht2 === 'W')) {
                 $bestG = DB::fetchOne(
-                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id WHERE $hofWhere AND a.geschlecht=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
+                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id WHERE $hofWhere AND a.geschlecht=? AND e.geloescht_am IS NULL AND e.extern=0 AND " . wertbarSql() . " ORDER BY val $dir LIMIT 1",
                     [$hofParam, $athGeschlecht2]
                 );
                 if ($bestG && abs($myVal - (float)$bestG['val']) < 0.001) {
@@ -3495,19 +3506,19 @@ if ($res === 'athleten') {
             // Altersklasse(n) dieses Athleten in dieser Disziplin ermitteln
             // AKs dieses Athleten MIT merge (identisch zu HoF)
             $myAKs = DB::fetchAll(
-                "SELECT DISTINCT ($akExprAusz) AS altersklasse FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz) IS NOT NULL AND ($akExprAusz) != '' AND e.geloescht_am IS NULL AND e.extern=0",
+                "SELECT DISTINCT ($akExprAusz) AS altersklasse FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz) IS NOT NULL AND ($akExprAusz) != '' AND e.geloescht_am IS NULL AND e.extern=0 AND " . wertbarSql() . "",
                 [$hofParam, $athletId]
             );
             foreach ($myAKs as $akRow) {
                 $ak = $akRow['altersklasse'];
                 // Bestes in dieser (merged) AK über alle Athleten
                 $bestAK = DB::fetchOne(
-                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND ($akExprAusz)=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
+                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND ($akExprAusz)=? AND e.geloescht_am IS NULL AND e.extern=0 AND " . wertbarSql() . " ORDER BY val $dir LIMIT 1",
                     [$hofParam, $ak]
                 );
                 // Bestes dieses Athleten in dieser (merged) AK
                 $bestMeAK = DB::fetchOne(
-                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz)=? AND e.geloescht_am IS NULL AND e.extern=0 ORDER BY val $dir LIMIT 1",
+                    "SELECT ($valExpr) AS val FROM " . DB::tbl('ergebnisse') . " e WHERE $hofWhere AND e.athlet_id=? AND ($akExprAusz)=? AND e.geloescht_am IS NULL AND e.extern=0 AND " . wertbarSql() . " ORDER BY val $dir LIMIT 1",
                     [$hofParam, $athletId, $ak]
                 );
                 if ($bestAK && $bestMeAK && abs((float)$bestMeAK['val'] - (float)$bestAK['val']) < 0.001) {
@@ -3541,7 +3552,7 @@ if ($res === 'athleten') {
                     COALESCE(dm.fmt_override, dk.fmt, \'min\') AS fmt,
                     COALESCE(dk.name, \'Sonstige\') AS kat_name,
                     COALESCE(dk.reihenfolge, 99) AS kat_sort,
-                    COALESCE(dm.hof_exclude, 0) AS hof_exclude
+                    COALESCE(dm.hof_exclude, 0) AS hof_exclude, ' . fussnoteFelder() . '
              FROM ' . DB::tbl('ergebnisse') . ' e
              JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
              LEFT JOIN ' . DB::tbl('orte') . ' o ON o.id=v.ort_id
@@ -3569,7 +3580,7 @@ if ($res === 'athleten') {
                     COALESCE(dk.name, \'Sonstige\') AS kat_name,
                     COALESCE(dk.reihenfolge, 99) AS kat_sort,
                     COALESCE(dm.hof_exclude, 0) AS hof_exclude,
-                    COALESCE(dm.disziplin, e.disziplin) AS disziplin_mapped
+                    COALESCE(dm.disziplin, e.disziplin) AS disziplin_mapped, ' . fussnoteFelder() . '
              FROM ' . DB::tbl('ergebnisse') . ' e
              LEFT JOIN ' . DB::tbl('veranstaltungen') . ' v ON v.id=e.veranstaltung_id
              LEFT JOIN ' . DB::tbl('disziplin_mapping') . ' dm ON dm.id=e.disziplin_mapping_id
@@ -3850,7 +3861,7 @@ if ($res === 'rekorde') {
             "SELECT e.resultat $paceField, v.datum, $akExpr AS altersklasse,
                     $nameExpr AS athlet, a.id AS athlet_id, a.geschlecht
              FROM $tbl e JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id $joinVer
-             WHERE $diszCond AND e.geloescht_am IS NULL AND e.extern=0
+             WHERE $diszCond AND e.geloescht_am IS NULL AND e.extern=0 AND " . wertbarSql() . "
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
              ORDER BY $sortCol $dir", [$diszParam]);
 
@@ -3870,6 +3881,7 @@ if ($res === 'rekorde') {
              JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
              WHERE $diszCond AND e.altersklasse IS NOT NULL AND e.altersklasse != ''
                AND e.geloescht_am IS NULL AND e.extern=0 AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
+               AND " . wertbarSql() . "
              ORDER BY altersklasse", [$diszParam]);
         $all_ak = [];
         foreach ($aks_rows as $ak_row) {
@@ -3938,7 +3950,7 @@ if ($res === 'vereinsrekorde') {
              FROM $tbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
              JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
-             WHERE e.disziplin_mapping_id=? AND e.geloescht_am IS NULL AND e.extern=0
+             WHERE e.disziplin_mapping_id=? AND e.geloescht_am IS NULL AND e.extern=0 AND " . wertbarSql() . "
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL
                AND a.geschlecht = ?
              ORDER BY $sortCol $dir LIMIT 1", [$mid, $geschlecht]);
@@ -6177,7 +6189,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
              FROM $eTbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              JOIN $vTbl v ON v.id=e.veranstaltung_id
-             WHERE $diszCond AND v.serie_id=? AND e.geloescht_am IS NULL AND e.extern=0
+             WHERE $diszCond AND v.serie_id=? AND e.geloescht_am IS NULL AND e.extern=0 AND " . wertbarSql() . "
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL AND v.genehmigt=1
              ORDER BY _sv $sortDir", [$diszParam, $id]
         );
@@ -6370,7 +6382,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
                     e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
                     e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
                     COALESCE(m.fmt_override, k.fmt) AS fmt,
-                    0 AS extern
+                    0 AS extern, " . fussnoteFelder() . "
              FROM $eTbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
@@ -6384,7 +6396,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
                     e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
                     e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
                     COALESCE(m.fmt_override, k.fmt) AS fmt,
-                    1 AS extern, e.verein
+                    1 AS extern, e.verein, " . fussnoteFelder() . "
              FROM $eTbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
@@ -6393,6 +6405,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
             [$v['id']]
         );
         $v['ergebnisse'] = array_merge($vereinErg, $externErg);
+        $v['fussnoten']  = veranstFussnoten((int)$v['id']);
     }
     unset($v);
 
@@ -6775,6 +6788,24 @@ if ($res === 'offene-wettkaempfe' && empty($parts[1]) && $method === 'GET') {
 // ============================================================
 // VERANSTALTUNGEN
 // ============================================================
+// Fußnoten einer Veranstaltung inkl. Disziplinname (für Anzeige und Bearbeiten)
+function veranstFussnoten(int $vid): array {
+    try {
+        $rows = DB::fetchAll(
+            "SELECT f.id, f.disziplin_mapping_id, f.text, f.ohne_wertung, m.disziplin
+             FROM " . DB::tbl('veranstaltung_fussnoten') . " f
+             LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id = f.disziplin_mapping_id
+             WHERE f.veranstaltung_id = ? ORDER BY f.id", [$vid]);
+    } catch (\Exception $e) { return []; }
+    foreach ($rows as &$r) {
+        $r['id'] = (int)$r['id'];
+        $r['disziplin_mapping_id'] = $r['disziplin_mapping_id'] !== null ? (int)$r['disziplin_mapping_id'] : null;
+        $r['ohne_wertung'] = (int)$r['ohne_wertung'];
+    }
+    unset($r);
+    return $rows;
+}
+
 // Admin-Übersicht: alle Veranstaltungen (inkl. ungenehmigter), ohne Detail-Ergebnisse
 if ($res === 'veranstaltungen' && $method === 'GET' && !empty($_GET['admin'])) {
     Auth::requireRecht('veranstaltung_eintragen');
@@ -6986,7 +7017,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
                     e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
                     e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
                     COALESCE(m.fmt_override, k.fmt) AS fmt,
-                    0 AS extern
+                    0 AS extern, " . fussnoteFelder() . "
              FROM $eTbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
@@ -7000,7 +7031,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
                     e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
                     e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
                     COALESCE(m.fmt_override, k.fmt) AS fmt,
-                    1 AS extern, e.verein
+                    1 AS extern, e.verein, " . fussnoteFelder() . "
              FROM $eTbl e
              JOIN " . DB::tbl('athleten') . " a ON a.id=e.athlet_id
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id=e.disziplin_mapping_id
@@ -7009,6 +7040,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
             [$v['id']]
         );
         $v['ergebnisse'] = array_merge($vereinErg, $externErg);
+        $v['fussnoten']  = veranstFussnoten((int)$v['id']);
     }
     unset($v);
     // Serien mit Ergebnisanzahl, nach Suche gefiltert
@@ -7097,8 +7129,22 @@ if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
     if (array_key_exists('serie_id', $body)) { $felder[] = 'serie_id=?'; $params[] = $body['serie_id'] ? (int)$body['serie_id'] : null; }
     if (array_key_exists('datenquelle', $body)) { $felder[] = 'datenquelle=?'; $params[] = trim((string)$body['datenquelle']) ?: null; }
     if (!empty($body['restore']))    { $felder[] = 'geloescht_am=NULL'; } // Aus Papierkorb wiederherstellen
-    if (!$felder) jsonErr('Keine Änderungen.');
-    DB::updateById(DB::tbl('veranstaltungen'), $felder, $params, $id);
+    // Fußnoten: die übergebene Liste ersetzt alle bisherigen
+    $fnGeaendert = false;
+    if (isset($body['fussnoten']) && is_array($body['fussnoten'])) {
+        $fnTbl = DB::tbl('veranstaltung_fussnoten');
+        DB::query("DELETE FROM $fnTbl WHERE veranstaltung_id=?", [(int)$id]);
+        foreach ($body['fussnoten'] as $fn) {
+            $text = mb_substr(trim((string)sanitize($fn['text'] ?? '')), 0, 500);
+            if ($text === '') continue;
+            $mid = !empty($fn['disziplin_mapping_id']) ? (int)$fn['disziplin_mapping_id'] : null;
+            DB::query("INSERT INTO $fnTbl (veranstaltung_id, disziplin_mapping_id, text, ohne_wertung) VALUES (?,?,?,?)",
+                [(int)$id, $mid, $text, !empty($fn['ohne_wertung']) ? 1 : 0]);
+        }
+        $fnGeaendert = true;
+    }
+    if (!$felder && !$fnGeaendert) jsonErr('Keine Änderungen.');
+    if ($felder) DB::updateById(DB::tbl('veranstaltungen'), $felder, $params, $id);
     jsonOk('Gespeichert.');
 }
 
@@ -8051,7 +8097,7 @@ if ($res === 'hall-of-fame' && $method === 'GET') {
              JOIN " . DB::tbl('athleten') . " a ON a.id = e.athlet_id
              JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
              LEFT JOIN " . DB::tbl('benutzer') . " b ON b.athlet_id = a.id
-             WHERE $hofWhere AND e.geloescht_am IS NULL AND e.extern=0
+             WHERE $hofWhere AND e.geloescht_am IS NULL AND e.extern=0 AND " . wertbarSql() . "
                AND e.resultat IS NOT NULL
              ORDER BY v.datum ASC",
             [$hofParam]
@@ -8885,6 +8931,7 @@ if ($res === 'meine-veranstaltungen' && $method === 'GET') {
                     e.verein, e.extern, e.startnummer, e.pos_gesamt, e.pos_geschlecht, e.schuh, e.bemerkungen,
                     COALESCE(dm.fmt_override, dk.fmt, 'min') AS fmt,
                     dk.name AS kategorie_name, dk.tbl_key,
+                    " . fussnoteFelder() . ",
                     (SELECT COUNT(*) FROM $aeTbl ea
                       WHERE ea.ergebnis_id=e.id AND ea.typ='delete' AND ea.status='pending'
                         AND ea.ergebnis_tbl IN (?, ?)) AS loeschantrag,

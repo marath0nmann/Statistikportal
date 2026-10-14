@@ -297,7 +297,7 @@ a{color:#003087}.klein{color:#555;font-size:13px}
              JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id = e.disziplin_mapping_id
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
-             WHERE e.geloescht_am IS NULL AND e.extern = 0
+             WHERE e.geloescht_am IS NULL AND e.extern = 0 AND " . wertbarSql() . "
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL"
         );
     }
@@ -409,7 +409,7 @@ a{color:#003087}.klein{color:#555;font-size:13px}
              JOIN " . DB::tbl('veranstaltungen') . " v ON v.id = e.veranstaltung_id
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id = e.disziplin_mapping_id
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
-             WHERE e.athlet_id = ? AND e.extern = 0 AND e.geloescht_am IS NULL AND v.geloescht_am IS NULL",
+             WHERE e.athlet_id = ? AND e.extern = 0 AND e.geloescht_am IS NULL AND v.geloescht_am IS NULL AND " . wertbarSql() . "",
             [(int)$a['id']]
         );
         foreach ($akRows as $r) {
@@ -586,6 +586,17 @@ a{color:#003087}.klein{color:#555;font-size:13px}
         }
         $o .= '</ul>';
 
+        // Fußnoten: ohne Disziplin für die ganze Veranstaltung, sonst unter der Disziplin
+        $fnText = function(array $f) use ($h): string {
+            return $h(html_entity_decode($f['text'], ENT_QUOTES | ENT_HTML5, 'UTF-8'))
+                 . ((int)$f['ohne_wertung'] === 1 ? ' <em>(nicht in den Bestenlisten gewertet)</em>' : '');
+        };
+        $fussnoten = DB::fetchAll("SELECT disziplin_mapping_id AS mid, text, ohne_wertung FROM "
+            . DB::tbl('veranstaltung_fussnoten') . " WHERE veranstaltung_id = ? ORDER BY id", [$id]);
+        foreach ($fussnoten as $f) {
+            if (!$f['mid']) $o .= '<p>Hinweis: ' . $fnText($f) . '</p>';
+        }
+
         foreach ($gruppen as $rows) {
             $desc = self::absteigend($rows[0]['fmt'], $rows[0]['sort_dir']);
             usort($rows, function($x, $y) use ($desc) {
@@ -595,6 +606,9 @@ a{color:#003087}.klein{color:#555;font-size:13px}
             });
             $kat = $rows[0]['kat_name'];
             $o .= '<h2>' . $h($rows[0]['disz_name']) . ($kat && $kat !== 'Sonstige' ? ' <span class="klein">(' . $h($kat) . ')</span>' : '') . '</h2>';
+            foreach ($fussnoten as $f) {
+                if ($f['mid'] && (int)$f['mid'] === (int)$rows[0]['mid']) $o .= '<p>Hinweis: ' . $fnText($f) . '</p>';
+            }
             $z = [];
             foreach ($rows as $e) {
                 $n = self::name($e);

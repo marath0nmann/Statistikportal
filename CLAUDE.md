@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1584
+## Aktuelle Version: v1585
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -137,6 +137,12 @@ Modals schließen **ausschließlich per Button** – Klick außerhalb des Modals
 - Bearbeiten interner und externer Ergebnisse läuft durch dieselbe PUT-Logik
   (`PUT externe-ergebnisse/{id}` wird auf die Ergebnis-Route umgeleitet).
 - Admin → Wartung → 🏷️ Vereinszuordnung (`admin/extern-check`) findet widersprüchliche Zeilen.
+
+**Fußnoten / Wertungsausschluss (`veranstaltung_fussnoten`):**
+Fußnote je Veranstaltung (`disziplin_mapping_id` NULL) oder je Disziplin; `ohne_wertung=1`
+nimmt die Ergebnisse aus allen Bestleistungs-Berechnungen. Neue Bestenlisten-/Rekord-/PB-Abfragen
+brauchen deshalb `AND " . wertbarSql() . "` neben `e.extern=0`; Ergebnislisten liefern
+`fussnoteFelder()` (`ohne_wertung`, `fussnote`), Frontend: `fussnoteMarker(e)`, `_apBestOf()` ignoriert solche Zeilen.
 
 ## Datenmodell (wichtige Tabellen)
 
