@@ -1,3 +1,6 @@
+## v1587
+- **Fußnoten-Zusatz „nicht in den Bestenlisten gewertet“ vollständig sichtbar.** Er stand kursiv in Klammern. Barlow ist aber ohne Kursivschnitt eingebunden, der Browser neigt die Schrift deshalb künstlich. Zusammen mit `opacity` wurde dabei die Oberkante der schließenden Klammer abgeschnitten, sie sah aus wie ein Komma. Der Zusatz steht jetzt in normaler Schrift hinter einem Mittelpunkt.
+
 ## v1586
 - **Fußnoten unter einer Disziplin werden umbrochen statt abgeschnitten.** Die Zellen der Veranstaltungstabellen sind einzeilig (`nowrap` + `overflow:hidden`). Längere Fußnoten in der Disziplin-Kopfzeile verloren dadurch ihr Ende, z. B. die schließende Klammer von „(nicht in den Bestenlisten gewertet)“.
 

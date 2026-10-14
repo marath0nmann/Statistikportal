@@ -259,7 +259,9 @@ function fussnotenFuer(fussnoten, mappingId) {
 
 function fussnoteText(f) {
   return _esc(_eeDecode(f.text)) +
-    (parseInt(f.ohne_wertung) ? ' <em style="opacity:.8">(nicht in den Bestenlisten gewertet)</em>' : '');
+    // Kein <em>: Barlow ist ohne Kursivschnitt geladen, die künstliche Schräglage
+    // wird zusammen mit opacity am Rand abgeschnitten (aus „)" wird „,").
+    (parseInt(f.ohne_wertung) ? ' &middot; <span style="font-weight:600">nicht in den Bestenlisten gewertet</span>' : '');
 }
 
 // Block mit Fußnoten (z. B. unter dem Veranstaltungskopf oder einer Disziplin)
