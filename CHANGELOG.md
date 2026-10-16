@@ -1,3 +1,6 @@
+## v1590
+- **Externe Ergebnisse auf dem Smartphone erkennbar.** In den Ergebnistabellen einer Veranstaltung (Einzelseite, Liste, Dashboard) steht hinter externen Ergebnissen wieder „(ext.)“. Auf der Einzelseite fehlte der Hinweis ganz, sonst wurde er auf schmalen Bildschirmen mit dem Namen abgeschnitten – jetzt wird nur der Name gekürzt. Gemeinsame Hilfsfunktion `athletZelleHtml()`.
+
 ## v1589
 - **Fehler „Call to undefined function veranstFussnoten()“ auf der Seite einer regelmäßigen Veranstaltung behoben** (`#veranstaltungen/serie/<id>`). Die Funktion stand in `api/index.php` erst hinter der Serien-Route und war dort beim Aufruf noch nicht deklariert. Sie liegt jetzt in `includes/helfer.php`.
 

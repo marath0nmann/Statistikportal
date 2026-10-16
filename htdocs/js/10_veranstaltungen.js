@@ -134,7 +134,7 @@ function _buildVeranstErgTable(ergebnisse, fussnoten) {
       var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's' && fmt !== 'pkt';
       rows +=
         '<tr>' +
-          '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span>' + (e2.extern ? ' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>' : '') + '</td>' +
+          '<td>' + athletZelleHtml(e2) + '</td>' +
           '<td>' + akBadge(e2.altersklasse) + '</td>' +
           '<td class="result">' + res + fussnoteMarker(e2) + '</td>' +
           '<td class="ort-text">' + (showPace ? fmtTime(_ePace, 'min/km') : '') + '</td>' +

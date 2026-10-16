@@ -375,6 +375,9 @@ tr:hover td { background: var(--surf2); }
 .result { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 600; color: var(--result-color, var(--primary)); }
 .athlet-link { color: var(--text); font-weight: 600; text-decoration: none; cursor: pointer; border-bottom: 1px dotted var(--border); transition: border-color .1s; }
 .athlet-link:hover { border-color: var(--text2); }
+.ath-ext { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.ath-ext .athlet-link { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ext-marker { flex-shrink: 0; font-size: 10px; color: var(--text2); opacity: .7; white-space: nowrap; }
 .ort-text { color: var(--text2); font-size: 12px; }
 .disziplin-text { color: var(--primary2); font-size: 12px; font-weight: 600; }
 
