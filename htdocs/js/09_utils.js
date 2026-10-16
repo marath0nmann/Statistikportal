@@ -275,6 +275,14 @@ function fussnotenHtml(liste, stil) {
 }
 
 // Kennzeichen hinter einem Ergebnis mit Fußnote (Tooltip = Fußnotentext)
+// Athletenzelle in Veranstaltungstabellen: Name + „(ext.)" bei externen Ergebnissen.
+// Der Hinweis schrumpft nie mit – auf schmalen Bildschirmen wird nur der Name gekürzt.
+function athletZelleHtml(e) {
+  var link = '<span class="athlet-link" onclick="openAthletById(' + e.athlet_id + ')">' + e.athlet + '</span>';
+  if (!parseInt(e.extern)) return link;
+  return '<div class="ath-ext">' + link + '<span class="ext-marker" title="Externes Ergebnis \u2013 nicht f\u00fcr den Verein gestartet">(ext.)</span></div>';
+}
+
 function fussnoteMarker(e) {
   if (!e || !e.fussnote) return '';
   var titel = _eeDecode(e.fussnote) + (parseInt(e.ohne_wertung) ? '\nNicht in den Bestenlisten gewertet.' : '');

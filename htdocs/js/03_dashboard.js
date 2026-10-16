@@ -340,7 +340,7 @@ async function renderDashboard() {
         var vShowPace = _vPace && _vPace !== '00:00' && vfmt !== 'm' && vfmt !== 's' && vfmt !== 'pkt';
         vrows +=
           '<tr>' +
-            '<td><span class="athlet-link" onclick="openAthletById(' + e2.athlet_id + ')">' + e2.athlet + '</span>' + (parseInt(e2.extern) ? ' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>' : '') + '</td>' +
+            '<td>' + athletZelleHtml(e2) + '</td>' +
             '<td>' + akBadge(e2.altersklasse) + '</td>' +
             '<td class="result">' + vres + fussnoteMarker(e2) + '</td>' +
             '<td class="ort-text">' + (vShowPace ? fmtTime(_vPace, 'min/km') : '') + '</td>' +
@@ -605,7 +605,7 @@ async function renderDashboard() {
               var vvres = fmtErgebnis(ve2.resultat, vvfmt);
               var vvpace = diszKm(ve2.disziplin, ve2.disziplin_mapping_id) >= 1 ? calcPace(ve2.disziplin, ve2.resultat, ve2.disziplin_mapping_id) : '';
               var vvShowPace = vvpace && vvpace !== '00:00' && vvfmt !== 'm' && vvfmt !== 's' && vvfmt !== 'pkt';
-              var vvCells = { athlet: '<td><span class="athlet-link" onclick="openAthletById('+ve2.athlet_id+')">'+ve2.athlet+'</span>'+(parseInt(ve2.extern)?' <span title="Externes Ergebnis" style="font-size:10px;color:var(--text2);opacity:.7">(ext.)</span>':'')+'</td>', ak: '<td>'+akBadge(ve2.altersklasse)+'</td>', result: '<td class="result">'+vvres+fussnoteMarker(ve2)+'</td>', pace: '<td class="ort-text">'+(vvShowPace?fmtTime(vvpace,'min/km'):'')+'</td>', platz: '<td>'+medalBadge(ve2.ak_platzierung)+'</td>', ms: '<td>'+mstrBadge(ve2.meisterschaft)+'</td>' };
+              var vvCells = { athlet: '<td>'+athletZelleHtml(ve2)+'</td>', ak: '<td>'+akBadge(ve2.altersklasse)+'</td>', result: '<td class="result">'+vvres+fussnoteMarker(ve2)+'</td>', pace: '<td class="ort-text">'+(vvShowPace?fmtTime(vvpace,'min/km'):'')+'</td>', platz: '<td>'+medalBadge(ve2.ak_platzierung)+'</td>', ms: '<td>'+mstrBadge(ve2.meisterschaft)+'</td>' };
               var vvRow = '<tr>';
               for (var vci = 0; vci < visibleCols.length; vci++) vvRow += vvCells[visibleCols[vci]] || '<td></td>';
               vvrows += vvRow + '</tr>';
