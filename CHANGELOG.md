@@ -1,3 +1,7 @@
+## v1591
+- **ACN Timing: Strecken werden über das Inhaltsverzeichnis der Veranstaltung gefunden.** Beim TREK Antwerp Marathon kam „Keine Strecken gefunden“, weil die Ergebnislisten dort `LIVE1`–`LIVE3` heißen und die Auto-Discovery nur `LIVEA1`…`LIVEK9` durchprobierte. Jetzt liest der Import zuerst den CMS-Baum (`results/generic/uci/{ctx}/dh?key=cms`), so wie acn-timing.com selbst. Die Ordnernamen („10KM“, „HALF“, „MARA“) bestimmen die Disziplin. Das Durchprobieren bleibt als Rückfall.
+- **ACN: Marathon wird erkannt.** Ohne Hinweis aus dem CMS wurde jede Strecke mit einer Siegerzeit über 45 Minuten zum Halbmarathon, ab 100 Minuten ist es jetzt Marathon. Die Altersklassen „MSR“/„VSR“ werden als Hauptklasse (M/W sen) übernommen, die AK-Platzierung auch aus einer Spalte „Rang“.
+
 ## v1590
 - **Externe Ergebnisse auf dem Smartphone erkennbar.** In den Ergebnistabellen einer Veranstaltung (Einzelseite, Liste, Dashboard) steht hinter externen Ergebnissen wieder „(ext.)“. Auf der Einzelseite fehlte der Hinweis ganz, sonst wurde er auf schmalen Bildschirmen mit dem Namen abgeschnitten – jetzt wird nur der Name gekürzt. Gemeinsame Hilfsfunktion `athletZelleHtml()`.
 

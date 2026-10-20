@@ -194,7 +194,9 @@ Tabellenaufbau: `Pos | Stnr | Vorname | Nachname | Nation | Club/Team | Kategori
 Spalten werden über die Nation-Spalte verankert, damit es auch ohne mitkopierte Kopfzeile passt.
 
 ### ACN Timing API
-- Discovery: `results.chronorace.be/api/results/table/search/{ctx}/{raceId}?pageSize=1`
+- Discovery: CMS-Baum `results.chronorace.be/api/results/generic/uci/{ctx}/dh?key=cms` → Knoten mit
+  `Route.Params.key` = `LIVE…` (Ordner-`Name` wie „10KM“/„HALF“/„MARA“ = Disziplin, Ordner `ADMIN` ignorieren).
+  Rückfall: `LIVEA1`…`LIVEK9` per `results/table/search/{ctx}/{raceId}?pageSize=1` durchprobieren
 - Daten: `results.chronorace.be/api/results/table/search/{ctx}/{raceId}?pageSize=12000`
 - Event-Name: `prod.chronorace.be/api/Event/view/{uuid}` → `.Title`
 - ctx-Format: `YYYYMMDD_ort` (z.B. `20260329_venlo`)

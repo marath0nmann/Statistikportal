@@ -3944,13 +3944,55 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     } catch(e) { _bkDbgLine('Event-Name Fehler', e.message); }
   }
 
+  // Disziplin aus Ordnername im ACN-CMS ("10KM", "HALF", "MARA", "Halve marathon", â¦)
+  function acnDiszFromTitle(t) {
+    var s = (t || '').toLowerCase().replace(/\s+/g, '');
+    if (/half|halve|halb|semi/.test(s)) return 'Halve Marathon';
+    if (/^mara(thon)?$|^marathon/.test(s)) return 'Marathon';
+    var km = s.match(/^(\d+(?:[.,]\d+)?)k(m)?$/);
+    return km ? km[1].replace(',', '.') + 'km' : null;
+  }
+
   // Race-IDs ermitteln
   var raceIds = [];
+  var raceHints = {}; // raceId -> Disziplin-Hinweis aus dem CMS
   if (raceMatch && raceMatch[1]) {
     raceIds = [raceMatch[1]];
     _bkDbgLine('Modus', 'Einzelne Strecke: ' + raceIds[0]);
   } else {
     if (statusEl) statusEl.textContent = '\u23f3 Entdecke Strecken\u2026';
+    // 1. Ergebnis-Tabellen aus dem CMS-Baum der Veranstaltung (so lÃ¤dt sie auch acn-timing.com)
+    try {
+      var cmsR = await fetch('https://results.chronorace.be/api/results/generic/uci/' + ctx + '/dh?key=cms');
+      var cms  = (cmsR.ok && cmsR.status !== 204) ? await cmsR.json() : null;
+      var cmsKeys = [];
+      (function walk(node, hint) {
+        if (!node) return;
+        if ((node.Id || '') === 'ADMIN') return;
+        if ((node.Type || '').toLowerCase() === 'folder')
+          hint = acnDiszFromTitle(node.Name) || acnDiszFromTitle(node.DisplayName) || hint;
+        var route = null;
+        try { route = node.Route ? JSON.parse(node.Route) : null; } catch(e) {}
+        var key = route && route.Params && route.Params.key;
+        // Nur Ergebnislisten (LIVE…), keine Meldelisten (ENTRIES…) oder Statistiken
+        if (key && /^LIVE/i.test(key) && !cmsKeys.some(function(k) { return k.id === key; }))
+          cmsKeys.push({ id: key, hint: hint });
+        (node.Childs || []).forEach(function(c) { walk(c, hint); });
+      })(cms, null);
+      // Hauptlisten heißen LIVE1 / LIVEA1; Zusatzwertungen (z. B. LIVECRA1) nur, wenn es sonst keine gibt
+      var mainKeys = cmsKeys.filter(function(k) { return /^LIVE[A-Z]?\d+$/i.test(k.id); });
+      (mainKeys.length ? mainKeys : cmsKeys).forEach(function(k) {
+        raceIds.push(k.id);
+        if (k.hint) raceHints[k.id] = k.hint;
+      });
+    } catch(e) { _bkDbgLine('CMS Fehler', e.message); }
+  }
+  if (raceIds.length && !(raceMatch && raceMatch[1])) {
+    _bkDbgLine('Modus', 'CMS');
+    _bkDbgLine('Gefundene Strecken', raceIds.length);
+    raceIds.forEach(function(id) { _bkDbgLine('  ' + id, raceHints[id] || '?'); });
+  } else if (!raceIds.length) {
+    // 2. Fallback: gÃ¤ngige Tabellennamen LIVEA1â¦LIVEK9 durchprobieren
     _bkDbgLine('Modus', 'Auto-Discovery');
     var candidates = [];
     var letters = ['A','B','C','D','E','F','G','H','J','K'];
@@ -3986,7 +4028,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
     var a   = (akRaw || '').trim();
     var isF = a.charAt(0) === 'V' || gender === 'F';
     var pfx = isF ? 'W' : 'M';
-    if (a === 'Msen' || a === 'Vsen') return pfx + 'sen';
+    if (a === 'Msen' || a === 'Vsen' || a === 'MSR' || a === 'VSR') return pfx + 'sen';
     var num = a.match(/\d+/);
     return num ? pfx + num[0] : a;
   }
@@ -4024,7 +4066,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         var fi2 = cols[ci2].FieldIdx !== undefined ? cols[ci2].FieldIdx : ci2;
         if (dn2.indexOf('netto') >= 0 || cName2.toLowerCase().indexOf('netto') >= 0) nettoIdx = fi2;
         // AK-Platzierung: Spalte 'Pos' in Gruppe 'Categorie'
-        if (dn2 === 'pos' && gd2.indexOf('categ') >= 0) akPlatzIdx = fi2;
+        if ((dn2 === 'pos' || dn2 === 'rang') && gd2.indexOf('categ') >= 0) akPlatzIdx = fi2;
         // Name, Geschlecht, AK-Kategorie (Spaltenname kann Präfix haben wie sH_#GENDER)
         if (cName2.indexOf('#NAME')   >= 0) nameIdx   = fi2;
         if (cName2.indexOf('#GENDER') >= 0) genderIdx = fi2;
@@ -4055,7 +4097,7 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         var dn = (cols[ci3].DisplayName || '');
         if (/^\d+(\.\d+)?km$/i.test(dn)) splitNames.push(dn);
       }
-      var diszHint = acnDiszFromSplits(splitNames);
+      var diszHint = raceHints[id] || acnDiszFromSplits(splitNames);
 
       // Kein Split -> aus Siegerzeit ableiten
       if (!diszHint) {
@@ -4066,7 +4108,8 @@ async function bulkImportFromAcn(url, kat, statusEl) {
         if (totalMin < 5) { _bkDbgLine(id, 'Uebersprungen (Kids Run, ' + sampleNet.slice(0,8) + ')'); return null; }
         if      (totalMin < 20) diszHint = '5km';
         else if (totalMin < 45) diszHint = '10km';
-        else                    diszHint = 'Halve Marathon';
+        else if (totalMin < 100) diszHint = 'Halve Marathon';
+        else                    diszHint = 'Marathon';
         _bkDbgLine(id, 'Disz aus Siegerzeit ' + sampleNet.slice(0,8) + ' -> ' + diszHint);
       } else {
         _bkDbgLine(id, rows.length + ' Zeilen | Netto-Col:' + nettoIdx + ' | Disz:' + diszHint);
