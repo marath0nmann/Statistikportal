@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1589
+## Aktuelle Version: v1592
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -22,6 +22,7 @@ htdocs/               → Web-Root
     13_uitslagen.js   → uitslagen.nl + evenementen Importer
     14_maxfun.js      → MaxFun Sports (Copy-&-Paste-Importer)
     15_endu.js        → ENDU (endu.net) Importer
+    16_sportmaniacs.js → Sportmaniacs (sportmaniacs.com) Importer
   api/index.php       → REST-API (alle Endpunkte, ~5000 Zeilen)
   api/setup.php       → Ersteinrichtung
   opcache-clear.php   → Nach jedem Deploy aufrufen: /opcache-clear.php
@@ -170,6 +171,7 @@ system, benutzer, registrierungen, disziplinen, altersklassen, meisterschaften, 
 - Uitslagen.nl / Evenementen.uitslagen.nl
 - MaxFun Sports (`maxfunsports.com`) – **nur Copy & Paste**, siehe unten
 - ENDU (`endu.net`) – siehe unten
+- Sportmaniacs (`sportmaniacs.com`) – siehe unten
 
 ### ENDU (endu.net)
 Die Ergebnisseite ist eine SPA. Die Daten kommen von der JSON-API derselben Domain. Sie erlaubt
@@ -180,6 +182,16 @@ kein CORS, deshalb holt der Server sie (`endu-fetch` in `api/index.php`, Fronten
 Geladen wird die Gesamtliste (Kategorie 0, Option `type=general`). Vereinsstarter werden
 über `enduIstEigenerVerein()` erkannt (Name/Kürzel/Aliase, ohne Satzzeichen). Die robots.txt sperrt
 `/api/` für Crawler, deshalb **nur manueller Import, kein Scanner**.
+
+### Sportmaniacs (sportmaniacs.com)
+JSON-API `api-aws.sportmaniacs.com/api/` mit offenem CORS → Abruf direkt im Browser (`16_sportmaniacs.js`):
+- Veranstaltung: `races/{slug}` → `id`, `name`, `date`/`end_date`, `city`
+- Strecken: `events?race={raceId}` → `name`, `distanceInMeters`
+- Liste: `rankings?event={eventId}&page=N` (fest 25 je Seite, `totalPages`) → `name`, `dorsal`, `club`, `pos`, `officialTime`
+- Einzelergebnis: `athletes?event={eventId}&dorsal=D` → `gender`, `Category.name`, `Meta.splitTimeNet`, `Meta.categoryPosition`
+Antwort ohne Treffer: `{"status":"ko"}`. Einzelne Anfragen hängen gelegentlich → Timeout + Wiederholung.
+Die eingebettete Timingsense-Rangliste (`rankings-api.timingsense.cloud`) hat keine Vereinsspalte.
+Die robots.txt sperrt die Ergebnisseiten für Crawler → **nur manueller Import, kein Scanner**.
 
 ### MaxFun Sports (Copy & Paste)
 Kein automatischer Abruf möglich: Cloudflare Managed Challenge (jede serverseitige

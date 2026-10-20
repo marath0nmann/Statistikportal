@@ -1425,7 +1425,7 @@ function renderEintragen() {
         '<div id="bk-la-funde"></div>' +
         '<div style="margin-bottom:14px">' +
           '<label style="font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:6px">Ergebnisse einf&uuml;gen</label>' +
-          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;ENDU:         https://www.endu.net/de/events/…/results?eventId=102217&#10;Ergebnis-PDF/HTML URL: https://example.com/ergebnisse.pdf&#10;&#10;MaxFun Sports: Ergebnistabelle kopieren und hier einf&uuml;gen&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Ergebnis-PDF oder Seltec-HTML (.htm) hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
+          '<textarea id="bk-paste-area" rows="10" oninput="bulkPasteInput()" ondragover="bulkPdfDragOver(event)" ondragleave="bulkPdfDragLeave(event)" ondrop="bulkPdfDrop(event)" placeholder="URL oder Ergebnisse eingeben:&#10;&#10;RaceResult:   https://my.raceresult.com/354779/&#10;MikaTiming:   https://muenchen.r.mikatiming.com/2025/?pid=search&amp;pidp=start&#10;uitslagen.nl:     https://uitslagen.nl/uitslag?id=2025110916317&#10;evenementen:      https://evenementen.uitslagen.nl/2023/venloop/&#10;leichtathletik.de: https://ergebnisse.leichtathletik.de/Competitions/Resultoverview/18010&#10;ENDU:         https://www.endu.net/de/events/…/results?eventId=102217&#10;Sportmaniacs: https://sportmaniacs.com/es/races/tui-palma-marathon-mallorca-2026&#10;Ergebnis-PDF/HTML URL: https://example.com/ergebnisse.pdf&#10;&#10;MaxFun Sports: Ergebnistabelle kopieren und hier einf&uuml;gen&#10;&#10;Oder direkte Ergebnisse:&#10;W65 / 11.10.25 / 400m / Max Mustermann  1:43:15  7&#10;&#10;Ergebnis-PDF oder Seltec-HTML (.htm) hierher ziehen" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:monospace;background:var(--surface);color:var(--text);resize:vertical"></textarea>' +
           '<div id="bk-import-kat-wrap" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surf2);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
             '<span id="bk-import-source-label" style="font-size:12px;font-weight:600;color:var(--text2)"></span>' +
             '<label style="font-size:12px;color:var(--text2);white-space:nowrap">Importkategorie:</label>' +
@@ -2535,6 +2535,7 @@ function bulkDetectUrl(text) {
   if (MFS_URL_RE.test(t)) return 'maxfun';
   // endu.net (Italien): URL enthaelt "results" → vor dem RaceResult-Fallback pruefen
   if (ENDU_URL_RE.test(t)) return 'endu';
+  if (SPM_URL_RE.test(t)) return 'sportmaniacs';
   if (/^https?:\/\/.+\.pdf(\?[^#]*)?$/i.test(t))      return 'pdf';
   // RaceResult White-Label (eigene Domain, aber RRPublish): /{id}/results oder RR-Hash #N_HEX
   // z.B. https://portal.run-timing.de/977/results#8_D13BA9 → echte RR-Event-ID wird serverseitig aufgelöst
@@ -2565,6 +2566,7 @@ function bulkPasteInput() {
                   urlType === 'leichtathletik'  ? '🏃︎ leichtathletik.de' :
                   urlType === 'acn'             ? '🇳🇱 ACN Timing' :
                   urlType === 'endu'            ? '🇮🇹 ENDU' :
+                  urlType === 'sportmaniacs'    ? '🇪🇸 Sportmaniacs' :
                   urlType === 'maxfun'          ? '⛰︎ MaxFun Sports (nur Einfügen)' :
                   urlType === 'evenementen'     ? '🇳🇱 evenementen.uitslagen.nl' :
                   urlType === 'pdf'             ? '📄 Ergebnis-PDF (URL)' :
@@ -2639,6 +2641,7 @@ async function bulkImportUrl() {
                   urlType === 'leichtathletik' ? 'leichtathletik.de' :
                   urlType === 'acn'            ? 'ACN Timing' :
                   urlType === 'endu'           ? 'endu.net' :
+                  urlType === 'sportmaniacs'   ? 'sportmaniacs.com' :
                   urlType === 'evenementen'    ? 'evenementen.uitslagen.nl' : 'uitslagen.nl';
 
   // Datenquelle-Feld mit der eingelesenen URL vorbelegen
@@ -2664,6 +2667,8 @@ async function bulkImportUrl() {
       await bulkImportFromAcn(raw, kat, statusEl);
     } else if (urlType === 'endu') {
       await bulkImportFromEndu(raw, kat, statusEl);
+    } else if (urlType === 'sportmaniacs') {
+      await bulkImportFromSportmaniacs(raw, kat, statusEl);
     }
   } catch(e) {
     if (statusEl) statusEl.textContent = '❌ ' + e.message;
