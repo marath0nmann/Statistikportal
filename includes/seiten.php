@@ -588,13 +588,19 @@ a{color:#003087}.klein{color:#555;font-size:13px}
 
         // Fußnoten: ohne Disziplin für die ganze Veranstaltung, sonst unter der Disziplin
         $fnText = function(array $f) use ($h): string {
-            return $h(html_entity_decode($f['text'], ENT_QUOTES | ENT_HTML5, 'UTF-8'))
+            $wer = $f['athlet'] ? $h(html_entity_decode($f['athlet'], ENT_QUOTES | ENT_HTML5, 'UTF-8')) . ': ' : '';
+            return $wer . $h(html_entity_decode($f['text'], ENT_QUOTES | ENT_HTML5, 'UTF-8'))
                  . ((int)$f['ohne_wertung'] === 1 ? ' <em>(nicht in den Bestenlisten gewertet)</em>' : '');
         };
-        $fussnoten = DB::fetchAll("SELECT disziplin_mapping_id AS mid, text, ohne_wertung FROM "
-            . DB::tbl('veranstaltung_fussnoten') . " WHERE veranstaltung_id = ? ORDER BY id", [$id]);
+        // Fußnote zu einem einzelnen Ergebnis: unter dessen Disziplin, mit Namen
+        $fussnoten = DB::fetchAll("SELECT f.disziplin_mapping_id AS mid, f.ergebnis_id, f.text, f.ohne_wertung,
+                   CASE WHEN f.ergebnis_id IS NULL THEN NULL ELSE TRIM(CONCAT(COALESCE(a.vorname, ''), ' ', COALESCE(a.nachname, ''))) END AS athlet
+            FROM " . DB::tbl('veranstaltung_fussnoten') . " f
+            LEFT JOIN " . DB::tbl('ergebnisse') . " fe ON fe.id = f.ergebnis_id
+            LEFT JOIN " . DB::tbl('athleten') . " a ON a.id = fe.athlet_id
+            WHERE f.veranstaltung_id = ? ORDER BY f.id", [$id]);
         foreach ($fussnoten as $f) {
-            if (!$f['mid']) $o .= '<p>Hinweis: ' . $fnText($f) . '</p>';
+            if (!$f['mid'] && !$f['ergebnis_id']) $o .= '<p>Hinweis: ' . $fnText($f) . '</p>';
         }
 
         foreach ($gruppen as $rows) {

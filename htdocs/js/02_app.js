@@ -2337,7 +2337,8 @@ function _shareFussnoten(v, rows) {
     liste = (v.fussnoten || []).filter(function(f) { return f.disziplin_mapping_id && mids[f.disziplin_mapping_id]; });
   }
   return liste.map(function(f) {
-    return _eeDecode(f.text) + (parseInt(f.ohne_wertung) ? ' (nicht in den Bestenlisten gewertet)' : '');
+    return (f.ergebnis_id && f.athlet ? _eeDecode(f.athlet) + ': ' : '') +
+      _eeDecode(f.text) + (parseInt(f.ohne_wertung) ? ' (nicht in den Bestenlisten gewertet)' : '');
   });
 }
 

@@ -2208,7 +2208,7 @@ async function showVeranstEditModal(id) {
       '<div class="form-group full"><label>\uD83C\uDF10 Ergebnisquelle (URL, optional)</label>' +
         '<input type="url" id="ve-quelle" value="' + (v.datenquelle || '').replace(/"/g,'&quot;') + '" placeholder="z.B. https://my.raceresult.com/..."/></div>' +
       '<div class="form-group full"><label>* Fu&szlig;noten (optional)</label>' +
-        '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Erl&auml;uterung f&uuml;r die ganze Veranstaltung oder eine Disziplin, z.&nbsp;B. &bdquo;Strecke ca. 300&nbsp;m zu kurz&ldquo;. ' +
+        '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Erl&auml;uterung f&uuml;r die ganze Veranstaltung, eine Disziplin oder ein einzelnes Ergebnis, z.&nbsp;B. &bdquo;Strecke ca. 300&nbsp;m zu kurz&ldquo; oder &bdquo;f&uuml;r eine andere Person gelaufen&ldquo;. ' +
           'Mit &bdquo;Nicht werten&ldquo; bleiben die Ergebnisse sichtbar, z&auml;hlen aber nicht f&uuml;r Bestenlisten, Rekorde und PBs.</div>' +
         '<div id="ve-fn-liste"></div>' +
         '<button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="_veFnNeu()">+ Fu&szlig;note</button>' +
@@ -2244,11 +2244,21 @@ function _veFnStart(v) {
   var byLabel = function(a, b) { return diszSortKey(a.label) - diszSortKey(b.label) || a.label.localeCompare(b.label); };
   eigene.sort(byLabel); andere.sort(byLabel);
   var opt = function(d) { return '<option value="' + d.id + '">' + _esc(_eeDecode(d.label)) + '</option>'; };
+  // Einzelne Ergebnisse (Wert „e<id>“), z. B. „für X gelaufen“
+  var ergs = (v.ergebnisse || []).filter(function(e) { return e.id; }).slice().sort(function(a, b) {
+    return diszSortKey(a.disziplin) - diszSortKey(b.disziplin) || String(a.disziplin).localeCompare(String(b.disziplin)) ||
+      String(a.athlet).localeCompare(String(b.athlet));
+  });
+  var ergOpt = function(e) {
+    return '<option value="e' + e.id + '">' + _esc(_eeDecode(e.athlet) + ' \u2013 ' + _eeDecode(e.disziplin) + ' (' + (e.resultat || '') + ')') + '</option>';
+  };
   _veFn.opts = '<option value="">Ganze Veranstaltung</option>' +
     (eigene.length ? '<optgroup label="In dieser Veranstaltung">' + eigene.map(opt).join('') + '</optgroup>' : '') +
+    (ergs.length ? '<optgroup label="Einzelnes Ergebnis">' + ergs.map(ergOpt).join('') + '</optgroup>' : '') +
     (andere.length ? '<optgroup label="Weitere Disziplinen">' + andere.map(opt).join('') + '</optgroup>' : '');
   _veFn.liste = (v.fussnoten || []).map(function(f) {
-    return { disziplin_mapping_id: f.disziplin_mapping_id || '', text: _eeDecode(f.text), ohne_wertung: parseInt(f.ohne_wertung) ? 1 : 0 };
+    return { ziel: f.ergebnis_id ? 'e' + f.ergebnis_id : (f.disziplin_mapping_id ? String(f.disziplin_mapping_id) : ''),
+             text: _eeDecode(f.text), ohne_wertung: parseInt(f.ohne_wertung) ? 1 : 0 };
   });
   _veFnRender();
 }
@@ -2258,7 +2268,7 @@ function _veFnLesen() {
     var sel = document.getElementById('ve-fn-disz-' + i);
     var txt = document.getElementById('ve-fn-text-' + i);
     var cb  = document.getElementById('ve-fn-ow-' + i);
-    if (sel) f.disziplin_mapping_id = sel.value;
+    if (sel) f.ziel = sel.value;
     if (txt) f.text = txt.value;
     if (cb)  f.ohne_wertung = cb.checked ? 1 : 0;
   });
@@ -2282,13 +2292,13 @@ function _veFnRender() {
   }).join('');
   _veFn.liste.forEach(function(f, i) {
     var sel = document.getElementById('ve-fn-disz-' + i);
-    if (sel) sel.value = f.disziplin_mapping_id ? String(f.disziplin_mapping_id) : '';
+    if (sel) sel.value = f.ziel || '';
   });
 }
 
 function _veFnNeu() {
   _veFnLesen();
-  _veFn.liste.push({ disziplin_mapping_id: '', text: '', ohne_wertung: 1 });
+  _veFn.liste.push({ ziel: '', text: '', ohne_wertung: 1 });
   _veFnRender();
   var t = document.getElementById('ve-fn-text-' + (_veFn.liste.length - 1));
   if (t) t.focus();
@@ -2328,7 +2338,9 @@ async function saveVeranstaltung(id) {
     body.fussnoten = _veFn.liste
       .filter(function(f) { return f.text.trim(); })
       .map(function(f) {
-        return { disziplin_mapping_id: f.disziplin_mapping_id ? parseInt(f.disziplin_mapping_id) : null,
+        var erg = /^e\d+$/.test(f.ziel || '');
+        return { disziplin_mapping_id: !erg && f.ziel ? parseInt(f.ziel) : null,
+                 ergebnis_id: erg ? parseInt(f.ziel.slice(1)) : null,
                  text: f.text.trim(), ohne_wertung: f.ohne_wertung };
       });
   }

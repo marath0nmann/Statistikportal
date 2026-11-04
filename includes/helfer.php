@@ -74,9 +74,11 @@ function buildAkCaseExpr(bool $merge, string $alias = 'e'): string {
 // oder nur für eine Disziplin darin. Mit ohne_wertung=1 zählen die betroffenen
 // Ergebnisse nicht für Bestenlisten, Rekorde und PBs (z. B. Strecke zu kurz),
 // bleiben aber als Teilnahme sichtbar.
+// Mit ergebnis_id gilt sie nur für dieses eine Ergebnis (z. B. „für X gelaufen“).
 function fussnoteBedingung(string $fn, string $e): string {
     return "$fn.veranstaltung_id = $e.veranstaltung_id
-            AND ($fn.disziplin_mapping_id IS NULL OR $fn.disziplin_mapping_id = $e.disziplin_mapping_id)";
+            AND ($fn.disziplin_mapping_id IS NULL OR $fn.disziplin_mapping_id = $e.disziplin_mapping_id)
+            AND ($fn.ergebnis_id IS NULL OR $fn.ergebnis_id = $e.id)";
 }
 
 /** SQL-Bedingung: Ergebnis zählt für Bestenlisten. */
@@ -97,14 +99,18 @@ function fussnoteFelder(string $e = 'e'): string {
 function veranstFussnoten(int $vid): array {
     try {
         $rows = DB::fetchAll(
-            "SELECT f.id, f.disziplin_mapping_id, f.text, f.ohne_wertung, m.disziplin
+            "SELECT f.id, f.disziplin_mapping_id, f.ergebnis_id, f.text, f.ohne_wertung, m.disziplin,
+                    a.name_nv AS athlet
              FROM " . DB::tbl('veranstaltung_fussnoten') . " f
              LEFT JOIN " . DB::tbl('disziplin_mapping') . " m ON m.id = f.disziplin_mapping_id
+             LEFT JOIN " . DB::tbl('ergebnisse') . " fe ON fe.id = f.ergebnis_id
+             LEFT JOIN " . DB::tbl('athleten') . " a ON a.id = fe.athlet_id
              WHERE f.veranstaltung_id = ? ORDER BY f.id", [$vid]);
     } catch (\Exception $e) { return []; }
     foreach ($rows as &$r) {
         $r['id'] = (int)$r['id'];
         $r['disziplin_mapping_id'] = $r['disziplin_mapping_id'] !== null ? (int)$r['disziplin_mapping_id'] : null;
+        $r['ergebnis_id'] = $r['ergebnis_id'] !== null ? (int)$r['ergebnis_id'] : null;
         $r['ohne_wertung'] = (int)$r['ohne_wertung'];
     }
     unset($r);

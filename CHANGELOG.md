@@ -1,3 +1,6 @@
+## v1593
+- **Fußnote für ein einzelnes Ergebnis.** Im Bearbeiten-Dialog einer Veranstaltung lässt sich eine Fußnote jetzt auch einem einzelnen Ergebnis zuordnen (Gruppe „Einzelnes Ergebnis“), etwa wenn jemand mit der Startnummer einer anderen Person gelaufen ist. Mit „Nicht werten“ fällt nur dieses Ergebnis aus Bestenlisten, Rekorden und PBs. Die Fußnote steht mit dem Namen unter der Disziplin, das Ergebnis trägt das Sternchen. Neue Spalte `veranstaltung_fussnoten.ergebnis_id`.
+
 ## v1592
 - **Neue Importquelle Sportmaniacs (sportmaniacs.com, Spanien).** Veranstaltungs-URLs wie `https://sportmaniacs.com/es/races/tui-palma-marathon-mallorca-2026` lassen sich unter Eintragen einlesen; mit `/<Strecken-ID>/rankings` dahinter nur diese Strecke. Der Browser lädt die Gesamtliste jeder Strecke direkt über die JSON-API `api-aws.sportmaniacs.com` (CORS offen, 25 Zeilen je Seite, vier Anfragen parallel, hängende Anfragen werden wiederholt). Für Vereinsstarter und bekannte Athleten mit fremdem Verein (→ extern) werden die Einzelergebnisse nachgeladen: Geschlecht, Kategorie, Netto-Zeit, AK-Platz und Gesamtplatz. Die Disziplin kommt aus der Streckenlänge, die AK aus der spanischen Kategorie („M35“ → M35, „F SEN“ → WHK, „SUB 23“ → U23). Übernommen werden außerdem Veranstaltungsname, Datum und Ort. Neues Modul `16_sportmaniacs.js`.
 

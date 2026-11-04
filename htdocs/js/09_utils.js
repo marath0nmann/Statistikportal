@@ -251,14 +251,16 @@ function flagEmoji(code) {
 // v.fussnoten: [{disziplin_mapping_id|null, text, ohne_wertung}]. Ohne Disziplin
 // gilt eine Fußnote für die ganze Veranstaltung. Ergebnisse aus der API tragen
 // zusätzlich `fussnote` (Texte) und `ohne_wertung` (zählt nicht für Bestenlisten).
+// Mit ergebnis_id gilt sie nur für ein Ergebnis und steht unter dessen Disziplin.
 function fussnotenFuer(fussnoten, mappingId) {
   return (fussnoten || []).filter(function(f) {
-    return mappingId == null ? !f.disziplin_mapping_id : String(f.disziplin_mapping_id) === String(mappingId);
+    return mappingId == null ? !f.disziplin_mapping_id && !f.ergebnis_id : String(f.disziplin_mapping_id) === String(mappingId);
   });
 }
 
 function fussnoteText(f) {
-  return _esc(_eeDecode(f.text)) +
+  return (f.ergebnis_id && f.athlet ? '<span style="font-weight:600">' + _esc(_eeDecode(f.athlet)) + ':</span> ' : '') +
+    _esc(_eeDecode(f.text)) +
     // Kein <em>: Barlow ist ohne Kursivschnitt geladen, die künstliche Schräglage
     // wird zusammen mit opacity am Rand abgeschnitten (aus „)" wird „,").
     (parseInt(f.ohne_wertung) ? ' &middot; <span style="font-weight:600">nicht in den Bestenlisten gewertet</span>' : '');

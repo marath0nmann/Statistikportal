@@ -449,6 +449,8 @@ try { DB::query("CREATE TABLE IF NOT EXISTS " . DB::tbl('veranstaltung_fussnoten
     ohne_wertung         TINYINT(1) NOT NULL DEFAULT 0,
     INDEX idx_veranst (veranstaltung_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"); } catch (\Exception $e) {}
+// v1593: Fußnote für ein einzelnes Ergebnis (z. B. für jemand anderen gelaufen)
+try { DB::query("ALTER TABLE " . DB::tbl('veranstaltung_fussnoten') . " ADD COLUMN IF NOT EXISTS ergebnis_id INT NULL"); } catch (\Exception $e) {}
 // v1514: fester Veranstaltungsort einer Serie (leer => Ort der letzten Austragung)
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltung_serien') . " ADD COLUMN IF NOT EXISTS ort_id INT NULL"); } catch (\Exception $e) {}
 try { DB::query("ALTER TABLE " . DB::tbl('veranstaltung_serien') . " ADD COLUMN IF NOT EXISTS lat DECIMAL(9,6) NULL"); } catch (\Exception $e) {}
@@ -6378,7 +6380,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
 
     foreach ($veranst as &$v) {
         $vereinErg = DB::fetchAll(
-            "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
+            "SELECT e.id, a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
                     e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
                     e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
                     COALESCE(m.fmt_override, k.fmt) AS fmt,
@@ -6392,7 +6394,7 @@ if ($res === 'veranstaltung-serien' && $method === 'GET' && $id) {
             [$v['id']]
         );
         $externErg = DB::fetchAll(
-            "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
+            "SELECT e.id, a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
                     e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
                     e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
                     COALESCE(m.fmt_override, k.fmt) AS fmt,
@@ -6995,7 +6997,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
     }, $vSpalten);
     foreach ($veranst as &$v) {
         $vereinErg = DB::fetchAll(
-            "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
+            "SELECT e.id, a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
                     e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
                     e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
                     COALESCE(m.fmt_override, k.fmt) AS fmt,
@@ -7009,7 +7011,7 @@ if ($res === 'veranstaltungen' && $method === 'GET') {
             [$v['id']]
         );
         $externErg = DB::fetchAll(
-            "SELECT a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
+            "SELECT e.id, a.name_nv AS athlet, a.id AS athlet_id, e.altersklasse, e.disziplin,
                     e.disziplin_mapping_id, k.name AS kategorie_name, k.tbl_key,
                     e.resultat, e.meisterschaft, e.ak_platzierung, e.ak_platz_meisterschaft,
                     COALESCE(m.fmt_override, k.fmt) AS fmt,
@@ -7120,8 +7122,17 @@ if ($res === 'veranstaltungen' && $method === 'PUT' && $id) {
             $text = mb_substr(trim((string)sanitize($fn['text'] ?? '')), 0, 500);
             if ($text === '') continue;
             $mid = !empty($fn['disziplin_mapping_id']) ? (int)$fn['disziplin_mapping_id'] : null;
-            DB::query("INSERT INTO $fnTbl (veranstaltung_id, disziplin_mapping_id, text, ohne_wertung) VALUES (?,?,?,?)",
-                [(int)$id, $mid, $text, !empty($fn['ohne_wertung']) ? 1 : 0]);
+            $eid = null;
+            if (!empty($fn['ergebnis_id'])) {
+                // Einzelnes Ergebnis: muss zu dieser Veranstaltung gehören, Disziplin kommt vom Ergebnis
+                $erg = DB::fetchOne("SELECT id, disziplin_mapping_id FROM " . DB::tbl('ergebnisse')
+                    . " WHERE id=? AND veranstaltung_id=? AND geloescht_am IS NULL", [(int)$fn['ergebnis_id'], (int)$id]);
+                if (!$erg) continue;
+                $eid = (int)$erg['id'];
+                $mid = $erg['disziplin_mapping_id'] !== null ? (int)$erg['disziplin_mapping_id'] : null;
+            }
+            DB::query("INSERT INTO $fnTbl (veranstaltung_id, disziplin_mapping_id, ergebnis_id, text, ohne_wertung) VALUES (?,?,?,?,?)",
+                [(int)$id, $mid, $eid, $text, !empty($fn['ohne_wertung']) ? 1 : 0]);
         }
         $fnGeaendert = true;
     }
