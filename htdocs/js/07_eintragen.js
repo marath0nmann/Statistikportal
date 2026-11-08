@@ -1956,6 +1956,8 @@ function bkSerieHideDropdown() {
  *   "Düsseldorf Marathon"           → Serie "Düsseldorf Marathon" oder "Marathon"
  *   "40. Berliner Halbmarathon"    → Serie "Berliner Halbmarathon"
  */
+// Gattungswörter, die allein keine Serie identifizieren (Vergleich auf normalisierte Tokens)
+var _BK_SERIE_GENERISCH = /^(marathon|halbmarathon|halfmarathon|half|halve|maraton|maratona|marathonlauf|road|race|roadrace|running|runners|volkslauf|stadtlauf|citylauf|city|trail|cross|crosslauf|staffel|nacht|night|international|internationaler|int|festival|classic|series|serie|cup)$/;
 function _bkMatchSerie(eventName) {
   if (!eventName) return null;
   var serien = window._bkSerien || [];
@@ -1994,7 +1996,7 @@ function _bkMatchSerie(eventName) {
     if (!sTok.length) return;
 
     // Score: wieviele Event-Tokens sind in Serie-Tokens (Substring-Match für Toleranz)
-    var hits = 0;
+    var hits = 0, eigeneHits = 0;
     evTok.forEach(function(et) {
       var matched = sTok.some(function(st) {
         if (st === et) return true;
@@ -2003,8 +2005,10 @@ function _bkMatchSerie(eventName) {
         if (st.length >= 5 && et.indexOf(st) === 0) return true;
         return false;
       });
-      if (matched) hits++;
+      if (matched) { hits++; if (!_BK_SERIE_GENERISCH.test(et)) eigeneHits++; }
     });
+    // v1594: Nur Gattungswörter gemeinsam („Athens Marathon" ↔ „Boston Marathon") ist kein Treffer
+    if (!eigeneHits) return;
 
     // Score normalisieren: relativer Anteil der Serien-Tokens getroffen
     // (verhindert dass eine sehr generische Serie wie "Marathon" fälschlich alle matcht)

@@ -1,3 +1,7 @@
+## v1594
+- **MikaTiming: Athens Marathon findet Vereinsstarter.** Sites mit langen Event-IDs wie `42K_U1FSNCBSF2` (früher auf 8 Zeichen begrenzt und verworfen) werden jetzt durchsucht. Listet eine Site die Events mehrerer Jahre im selben Auswahlfeld (Jahresauswahl), bleibt nur das gewählte Jahr. Englische Feldbeschriftungen („Club“, „Age Group“, „Bib Number“) werden erkannt, AK „M60-64“ → M60, Ort Athen aus der Subdomain.
+- **Serien-Erkennung: Gattungswörter allein reichen nicht.** „Athens Marathon“ wurde als „Boston Marathon“ erkannt, weil nur „Marathon“ übereinstimmte. Ein Treffer braucht jetzt mindestens ein unterscheidendes Wort.
+
 ## v1593
 - **Fußnote für ein einzelnes Ergebnis.** Im Bearbeiten-Dialog einer Veranstaltung lässt sich eine Fußnote jetzt auch einem einzelnen Ergebnis zuordnen (Gruppe „Einzelnes Ergebnis“), etwa wenn jemand mit der Startnummer einer anderen Person gelaufen ist. Mit „Nicht werten“ fällt nur dieses Ergebnis aus Bestenlisten, Rekorden und PBs. Die Fußnote steht mit dem Namen unter der Disziplin, das Ergebnis trägt das Sternchen. Neue Spalte `veranstaltung_fussnoten.ergebnis_id`.
 

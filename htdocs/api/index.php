@@ -4610,9 +4610,28 @@ function mikaZeitAusLi(DOMXPath $xp, DOMNode $li): string {
     return '';
 }
 
+/**
+ * Altersklasse aus dem type-age_class-Feld einer Ergebniszeile (v1594).
+ * Manche Sites (Athen) führen die AK nicht als type-field "AK", sondern als
+ * eigenes Feld "Age Group" mit Werten wie "M60-64" → "M60".
+ */
+function mikaAkAusLi(DOMXPath $xp, DOMNode $li): string {
+    foreach ($xp->query('.//*[contains(@class,"type-age_class")]', $li) as $an) {
+        $lblEl = $xp->query('.//*[contains(@class,"list-label")]', $an)->item(0);
+        $lbl   = $lblEl ? trim($lblEl->textContent) : '';
+        $raw   = trim($lbl !== '' ? str_replace($lbl, '', $an->textContent) : $an->textContent);
+        if ($raw === '' || $raw === '–' || $raw === '-') continue;
+        if (preg_match('/\b([MWF])\s*\/\s*[MW]\s+(\d{2})\b/', $raw, $am)) return $am[1] . $am[2];
+        if (preg_match('/^([MWF])\s*-?\s*(\d{2})(?:\s*-\s*\d{2})?\b/i', $raw, $am))
+            return (strtoupper($am[1]) === 'F' ? 'W' : strtoupper($am[1])) . $am[2];
+        return $raw;
+    }
+    return '';
+}
+
 /** Label eines MikaTiming-Feldes als Startnummer erkennen ("Startnr.", "St.-Nr.", "Bib" …). */
 function mikaIstStartnummerLabel(string $label): bool {
-    return (bool)preg_match('/^(startnummer|startnr\.?|start-?nr\.?|st\.?-?nr\.?|stnr|bib(-?nummer|-?no\.?)?)$/i', trim($label));
+    return (bool)preg_match('/^(startnummer|startnr\.?|start-?nr\.?|st\.?-?nr\.?|stnr|bib(-?nummer|-?no\.?|\s*number|\s*no\.?)?)$/i', trim($label));
 }
 
 /**
@@ -4763,7 +4782,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 if (!$nameL) continue;
                 $evIdL = $evL;
                 foreach ($xL->query('.//a[@href]', $liL) as $aL) {
-                    if (preg_match('/[?&]event=([A-Z0-9]{1,8})/i', $aL->getAttribute('href'), $emL)) { $evIdL = $emL[1]; break; }
+                    if (preg_match('/[?&]event=([A-Z0-9_]{1,32})/i', $aL->getAttribute('href'), $emL)) { $evIdL = $emL[1]; break; }
                 }
                 // Zielzeit (Netto vor Brutto), Plätze, AK, Verein
                 $nettoL = mikaZeitAusLi($xL, $liL);
@@ -4777,10 +4796,11 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 foreach ($xL->query('.//*[contains(@class,"type-field")]', $liL) as $fnL) {
                     $lblL = trim(($xL->query('.//*[contains(@class,"list-label")]', $fnL)->item(0) ?: new DOMText(''))->textContent);
                     $rawL = trim(str_replace($lblL, '', $fnL->textContent));
-                    if ($lblL === 'AK' && $rawL && !$akL) { if (preg_match('/[MW]\d{2,3}/', $rawL, $mmL)) $akL = $mmL[0]; else $akL = $rawL; }
-                    if ($lblL === 'Verein' && $rawL && !$clubL) $clubL = $rawL;
+                    if (preg_match('/^(AK|Age\s*Group|Category|Kategorie)$/i', $lblL) && $rawL && !$akL) { if (preg_match('/[MW]\d{2,3}/', $rawL, $mmL)) $akL = $mmL[0]; else $akL = $rawL; }
+                    if (preg_match('/^(Verein|Club|Team|Verein\/Team|Club\/Team)$/i', $lblL) && $rawL && !$clubL) $clubL = $rawL;
                     if (preg_match('/^(startnummer|stnr|st\.-?nr\.?|bib)$/i', $lblL) && $rawL && !$snrL) $snrL = $rawL;
                 }
+                if (!$akL) $akL = mikaAkAusLi($xL, $liL);
                 $resL[$idpL] = [
                     'name'=>trim($nameL), 'contest'=>$evIdL, 'netto'=>$nettoL, 'ak'=>$akL,
                     'platz_ak'=>$paL, 'platz_ges'=>$pgL, 'event_id'=>$evIdL, 'idp'=>$idpL, 'club'=>$clubL,
@@ -4847,6 +4867,8 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 'vienna' => 'Wien',
                 'linzmarathon' => 'Linz',
                 'boston' => 'Boston',
+                'athens-iframe' => 'Athen',
+                'athens' => 'Athen',
                 'koelnmarathon' => 'Köln',
                 'frankfurtmarathon' => 'Frankfurt',
                 'hamburg-marathon' => 'Hamburg',
@@ -4888,10 +4910,30 @@ if ($res === 'mika-fetch' && $method === 'GET') {
             if (preg_match_all('/<option[^>]*value="([^"]*)"[^>]*>([^<]*)</i', $selInner, $optm)) {
                 for ($oi = 0; $oi < count($optm[1]); $oi++) {
                     $ov = trim($optm[1][$oi]);
-                    if ($ov === '' || $ov === '%' || strlen($ov) > 8) continue;
+                    // v1594: lange IDs zulassen (Athen: "42K_U1FSNCBSF2"), früher max. 8 Zeichen
+                    if ($ov === '' || $ov === '%' || strlen($ov) > 32 || !preg_match('/^[A-Za-z0-9_]+$/', $ov)) continue;
                     if (!isset($eventOptions[$ov])) $eventOptions[$ov] = trim($optm[2][$oi]);
                 }
             }
+        }
+    }
+    // v1594: Sites mit Jahresauswahl (event_main_group) listen die Events aller Jahre
+    // im selben <select>, unterscheidbar am Suffix ("42K_U1FSNCBSF2" = 2026, "…7A" = 2025).
+    // Nur die Gruppe des gewählten (ersten) Jahrs behalten – sonst mischen sich Vorjahre ein.
+    if (count($eventOptions) > 1) {
+        $_sfx = [];
+        foreach (array_keys($eventOptions) as $_ov) {
+            $_ov = (string)$_ov;
+            $_p = strrpos($_ov, '_');
+            $_sfx[$_ov] = ($_p !== false && strlen($_ov) - $_p > 4) ? substr($_ov, $_p + 1) : '';
+        }
+        $_gruppen = array_unique(array_filter($_sfx, 'strlen'));
+        if (count($_gruppen) > 1 && !in_array('', $_sfx, true)) {
+            $_wunsch = reset($_gruppen);
+            parse_str(parse_url($_GET['base_url'] ?? '', PHP_URL_QUERY) ?: '', $_uq);
+            $_uev = (string)($_uq['event'] ?? $_uq['search_event'] ?? '');
+            if ($_uev !== '' && isset($_sfx[$_uev])) $_wunsch = $_sfx[$_uev];
+            foreach ($_sfx as $_ov => $_g) if ($_g !== $_wunsch) unset($eventOptions[$_ov]);
         }
     }
     $debug['eventOptions'] = $eventOptions;
@@ -5178,7 +5220,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 $evId = "";
                 foreach ($xp2->query('.//a[@href]', $li) as $a) {
                     $href = $a->getAttribute('href');
-                    if (preg_match('/[?&]event=([A-Z0-9]{1,5})/i', $href, $evm)) { $evId = $evm[1]; break; }
+                    if (preg_match('/[?&]event=([A-Z0-9_]{1,32})/i', $href, $evm)) { $evId = $evm[1]; break; }
                 }
                 // Neue Interface: Felder via type-* Klassen + list-label extrahieren
                 // Hilfsfunktion: Wert = Gesamttext minus Label-Text
@@ -5190,10 +5232,11 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                     $labelEl = $xp2->query('.//*[contains(@class,"list-label")]', $fn)->item(0);
                     $label = $labelEl ? trim($labelEl->textContent) : '';
                     $raw = trim(str_replace($label, '', $fn->textContent));
-                    if ($label === 'AK' && $raw && !$liAK) $liAK = $raw;
-                    if ($label === 'Verein' && $raw && !$liClub) $liClub = $raw;
+                    if (preg_match('/^(AK|Age\s*Group|Category|Kategorie)$/i', $label) && $raw && !$liAK) $liAK = $raw;
+                    if (preg_match('/^(Verein|Club|Team|Verein\/Team|Club\/Team)$/i', $label) && $raw && !$liClub) $liClub = $raw;
                     if (mikaIstStartnummerLabel($label) && $raw && !$liSnr) $liSnr = $raw;
                 }
+                if (!$liAK) $liAK = mikaAkAusLi($xp2, $li);
                 if (!isset($allResults[$idp])) {
                     // Debug für ersten Fund
                     if (!isset($debug['firstLiClasses'])) {
@@ -5258,7 +5301,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         if (!$_name2) continue;
                         $_evId2 = $_evLoop;
                         foreach ($_x2->query('.//a[@href]', $_li2) as $_a2) {
-                            if (preg_match('/[?&]event=([A-Z0-9]{1,5})/i', $_a2->getAttribute('href'), $_em2)) { $_evId2 = $_em2[1]; break; }
+                            if (preg_match('/[?&]event=([A-Z0-9_]{1,32})/i', $_a2->getAttribute('href'), $_em2)) { $_evId2 = $_em2[1]; break; }
                         }
                         $_liNetto2 = mikaZeitAusLi($_x2, $_li2);
                         $_liAK2 = ''; $_liClub2 = ''; $_pg2 = ''; $_pa2 = ''; $_snr2 = '';
@@ -5271,10 +5314,11 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                         foreach ($_x2->query('.//*[contains(@class,"type-field")]', $_li2) as $_fn2) {
                             $_lbl2 = trim(($_x2->query('.//*[contains(@class,"list-label")]', $_fn2)->item(0) ?: new DOMText(''))->textContent);
                             $_raw2 = trim(str_replace($_lbl2, '', $_fn2->textContent));
-                            if ($_lbl2 === 'AK' && $_raw2 && !$_liAK2) $_liAK2 = $_raw2;
-                            if ($_lbl2 === 'Verein' && $_raw2 && !$_liClub2) $_liClub2 = $_raw2;
+                            if (preg_match('/^(AK|Age\s*Group|Category|Kategorie)$/i', $_lbl2) && $_raw2 && !$_liAK2) $_liAK2 = $_raw2;
+                            if (preg_match('/^(Verein|Club|Team|Verein\/Team|Club\/Team)$/i', $_lbl2) && $_raw2 && !$_liClub2) $_liClub2 = $_raw2;
                             if (mikaIstStartnummerLabel($_lbl2) && $_raw2 && !$_snr2) $_snr2 = $_raw2;
                         }
+                        if (!$_liAK2) $_liAK2 = mikaAkAusLi($_x2, $_li2);
                         $allResults[$_idp2] = [
                             'name' => trim($_name2), 'contest' => $_evId2,
                             'netto' => $_liNetto2, 'ak' => $_liAK2, 'platz_ak' => $_pa2, 'platz_ges' => $_pg2,
@@ -5351,7 +5395,7 @@ if ($res === 'mika-fetch' && $method === 'GET') {
                 $evIdFromLink = '';
                 foreach ($xpNE->query('.//a[@href]', $li) as $a) {
                     $href = $a->getAttribute('href');
-                    if (preg_match('/[?&]event=([A-Z0-9]{1,10})/i', $href, $em)) { $evIdFromLink = $em[1]; break; }
+                    if (preg_match('/[?&]event=([A-Z0-9_]{1,32})/i', $href, $em)) { $evIdFromLink = $em[1]; break; }
                 }
                 $name = '';
                 foreach ($xpNE->query('.//*[contains(@class,"fullname")]', $li) as $n) {
