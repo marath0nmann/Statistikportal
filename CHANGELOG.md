@@ -1,3 +1,6 @@
+## v1597
+- **„+ Externes Ergebnis“ im Athletenprofil funktioniert wieder.** Der Dialog rief noch die seit v1569 entfernte Route `athleten/{id}/pb` auf und speicherte nichts. Er legt das Ergebnis jetzt über `ergebnisse/bulk` als externes Ergebnis an (bei eigenem Verein intern), meldet Duplikate und fragt bei Crosslauf die Distanz ab. Den Button sehen nur noch Admins und Editoren, die die Route auch zulässt; Bearbeiten und Löschen laufen wie bisher über die Ergebnis-Dialoge.
+
 ## v1596
 - **Cross ohne feste Distanzen.** Alle Cross-Disziplinen (700 m … 7.880 m, 6,6 km, 16 km) sind zu einer Disziplin „Crosslauf“ zusammengeführt; die Streckenlänge wird je Ergebnis gespeichert (`ergebnisse.distanz`, Mapping-Kennzeichen `distanz_frei`). Bestehende Ergebnisse übernehmen die Distanz ihrer alten Disziplin, Fußnoten einer alten Cross-Distanz gelten jetzt für die betroffenen Einzelergebnisse. „16km Walking“ bleibt eigene Disziplin.
 - **Distanz ist Pflicht, beim Import einmal je Lauf.** Importe (RaceResult, uitslagen.nl u. a.) fragen im Dialog „Distanz je Lauf“ die Streckenlänge jedes Laufs ab (Vorschlag aus dem Laufnamen, z. B. „4,05 km“); in der Eintragen-Tabelle überträgt sich eine geänderte Distanz auf alle Zeilen desselben Laufs. Eigene Ergebnisse, CSV-Import und alle Bearbeiten-Dialoge haben ein Distanzfeld.

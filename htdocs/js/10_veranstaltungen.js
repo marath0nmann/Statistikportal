@@ -378,14 +378,13 @@ async function _mvNeuLaden() {
 // Berechtigte – externe Ergebnisse nachtragen.
 function _mvLeisteHtml(athlet) {
   var slug = athlet ? _athSlug(athlet.vorname, athlet.nachname) : '';
-  var darfExtern = !!(currentUser && (currentUser.rolle === 'admin' ||
-    (currentUser.rechte || []).indexOf('vollzugriff') >= 0 ||
-    (currentUser.rechte || []).indexOf('alle_ergebnisse') >= 0));
+  // Wie die API (ergebnisse/bulk → Auth::requireEditor): nur Admin und Editor
+  var darfExtern = !!(currentUser && (currentUser.rolle === 'admin' || currentUser.rolle === 'editor'));
   return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;' +
            'max-width:var(--seiten-breite);margin:0 auto 16px">' +
       '<button class="btn btn-ghost btn-sm" onclick="navigate(\'athleten\')">&#x2190; Alle Athleten</button>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-        (darfExtern && athlet ? '<button class="btn btn-ghost btn-sm" onclick="showPbModal(' + athlet.id + ',null)">+ Externes Ergebnis</button>' : '') +
+        (darfExtern && athlet ? '<button class="btn btn-ghost btn-sm" onclick="showPbModal(' + athlet.id + ')">+ Externes Ergebnis</button>' : '') +
         (slug ? '<button class="btn btn-ghost btn-sm" onclick="_athCopyLink(\'' + slug + '\')">&#x1F517; Link kopieren</button>' : '') +
       '</div>' +
     '</div>';

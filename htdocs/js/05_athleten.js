@@ -633,8 +633,8 @@ function _pbUpdateDiszDropdown() {
     }).join('');
 }
 
-function showPbModal(athletId, pbId) {
-  var isEdit = !!pbId;
+// Externes Ergebnis nachtragen (Bearbeiten/Löschen laufen über die Ergebnis-Dialoge)
+function showPbModal(athletId) {
   window._pbVid = null;
   window._pbVname = '';
 
@@ -649,7 +649,7 @@ function showPbModal(athletId, pbId) {
   });
 
   var html =
-    '<h2 style="margin:0 0 20px">' + (isEdit ? 'Externes Ergebnis bearbeiten' : 'Externes Ergebnis eintragen') +
+    '<h2 style="margin:0 0 20px">' + 'Externes Ergebnis eintragen' +
       ' <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
 
     '<div class="form-grid">' +
@@ -659,8 +659,9 @@ function showPbModal(athletId, pbId) {
       '</div>' +
       '<div class="form-group">' +
         '<label>Disziplin <span style="color:var(--accent)">*</span></label>' +
-        '<select id="_pb-disz"><option value="">-- erst Kategorie wählen --</option></select>' +
+        '<select id="_pb-disz" onchange="distanzFeldUmschalten(\'_pb-distanz\', this.value)"><option value="">-- erst Kategorie wählen --</option></select>' +
       '</div>' +
+      distanzFeldHtml('_pb-distanz', null, null) +
       '<div class="form-group">' +
         '<label>Ergebnis <span style="color:var(--accent)">*</span></label>' +
         '<input id="_pb-res" type="text" placeholder="z.B. 38:12 oder 7,42">' +
@@ -686,69 +687,38 @@ function showPbModal(athletId, pbId) {
     '<div id="_pb-err" style="color:var(--accent);font-size:13px;min-height:18px;margin-bottom:8px"></div>' +
     '<div class="modal-actions">' +
       '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-      '<button class="btn btn-primary" onclick="savePb(' + athletId + ',' + (pbId || 'null') + ')">Speichern</button>' +
+      '<button class="btn btn-primary" onclick="savePb(' + athletId + ')">Speichern</button>' +
     '</div>';
 
   showModal(html);
-
-  if (isEdit) {
-    apiGet('athleten/' + athletId + '/pb').then(function(r2) {
-      if (!r2 || !r2.ok) return;
-      var list = r2.data || [];
-      for (var i = 0; i < list.length; i++) {
-        if (String(list[i].id) === String(pbId)) {
-          document.getElementById('_pb-res').value   = list[i].resultat   || '';
-          if (list[i].veranstaltung_id) {
-            var vname = (list[i].wettkampf || '') + (list[i].datum ? ' (' + list[i].datum.slice(0,4) + ')' : '');
-            _pbVeranstSelect(list[i].veranstaltung_id, vname);
-            var pbSearchInp = document.getElementById('_pb-veranst-search');
-            if (pbSearchInp) pbSearchInp.value = window._pbVname;
-          }
-          if (document.getElementById('_pb-verein')) document.getElementById('_pb-verein').value = list[i].verein || '';
-          if (document.getElementById('_pb-ak')) document.getElementById('_pb-ak').value = list[i].altersklasse || '';
-          // Kategorie + Disziplin-Dropdown vorbelegen
-          if (list[i].disziplin_mapping_id) {
-            var dm2 = (state.disziplinen||[]).find(function(d){ return d.id == list[i].disziplin_mapping_id; });
-            if (dm2) {
-              var katEl = document.getElementById('_pb-kat');
-              if (katEl) { katEl.value = dm2.tbl_key; _pbUpdateDiszDropdown(); }
-              var diszEl2 = document.getElementById('_pb-disz');
-              if (diszEl2) setTimeout(function(){ diszEl2.value = dm2.id; }, 50);
-            }
-          }
-          break;
-        }
-      }
-    });
-  }
 }
 
-async function savePb(athletId, pbId) {
-  var disz = (document.getElementById('_pb-disz').value || '').trim();
-  var res  = (document.getElementById('_pb-res').value  || '').trim();
-  var vid  = window._pbVid || null;
+async function savePb(athletId) {
   var err  = document.getElementById('_pb-err');
-  if (!disz || !res) { err.textContent = 'Disziplin und Ergebnis sind Pflichtfelder.'; return; }
+  var res  = (document.getElementById('_pb-res').value || '').trim();
+  var dmId = parseInt(document.getElementById('_pb-disz').value) || null;
+  var vid  = window._pbVid || null;
+  if (!dmId || !res) { err.textContent = 'Kategorie, Disziplin und Ergebnis sind Pflichtfelder.'; return; }
   if (!vid) { err.textContent = 'Bitte eine Veranstaltung auswählen.'; return; }
-  var vr   = (document.getElementById('_pb-verein') ? document.getElementById('_pb-verein').value.trim() : '') || '';
-  var ak   = (document.getElementById('_pb-ak') ? document.getElementById('_pb-ak').value.trim() : '') || '';
-  var dmId = null;
-  var diszEl = document.getElementById('_pb-disz');
-  var diszOpt = diszEl ? diszEl.options[diszEl.selectedIndex] : null;
-  if (diszOpt && diszOpt.value) {
-    dmId = parseInt(diszOpt.value);
-    var dm = (state.disziplinen||[]).find(function(d){ return d.id == dmId; });
-    if (dm) disz = dm.disziplin;
+  var dm = (state.disziplinen || []).find(function(d) { return d.id == dmId; });
+  var distanz = distanzFeldWert('_pb-distanz', dmId);
+  if (distanz === '') { err.textContent = 'Bitte die Distanz in Metern angeben.'; return; }
+  var vr = (document.getElementById('_pb-verein').value || '').trim();
+  var ak = (document.getElementById('_pb-ak').value || '').trim();
+  // Externe Ergebnisse sind Zeilen in „ergebnisse“ mit extern=1 – angelegt über
+  // denselben Weg wie jeder Import. Ein Verein, der der eigene ist, wird intern.
+  var r = await apiPost('ergebnisse/bulk', { items: [{
+    athlet_id: athletId, veranstaltung_id: vid, disziplin: dm ? dm.disziplin : '',
+    disziplin_mapping_id: dmId, distanz: distanz, resultat: res,
+    altersklasse: ak, verein: vr, extern: 1
+  }] });
+  if (!r || !r.ok) { err.textContent = (r && r.fehler) || 'Fehler beim Speichern.'; return; }
+  if (!r.data.imported) {
+    err.textContent = (r.data.errors && r.data.errors[0]) || 'Dieses Ergebnis ist bereits erfasst.';
+    return;
   }
-  if (!dmId) { err.textContent = 'Bitte Kategorie und Disziplin wählen.'; return; }
-  var body = { disziplin: disz, resultat: res, veranstaltung_id: vid, verein: vr || null, altersklasse: ak || null, disziplin_mapping_id: dmId };
-  var r = pbId ? await apiPut('athleten/' + athletId + '/pb/' + pbId, body)
-               : await apiPost('athleten/' + athletId + '/pb', body);
-  if (!r || !r.ok) { err.textContent = r ? r.fehler : 'Fehler'; return; }
-  // Pbs neu laden und Tabelle aktualisieren
-  var reloaded = await apiGet('athleten/' + athletId + '/pb');
-  _apState.pbs = (reloaded && reloaded.ok) ? (reloaded.data || []) : _apState.pbs;
   closeModal();
+  notify('Externes Ergebnis gespeichert.', 'ok');
   _apNachPbAenderung();
 }
 
@@ -792,26 +762,6 @@ function _pbVeranstSelect(id, name) {
   if (box) box.innerHTML = '';
   var cur = document.getElementById('_pb-veranst-current');
   if (cur) cur.innerHTML = '&#x1F517; ' + name;
-}
-
-function deletePb(athletId, pbId, disz) {
-  showModal(
-    '<h2>Externes Ergebnis löschen <button class="modal-close" onclick="closeModal()">&#x2715;</button></h2>' +
-    '<p style="font-size:14px;color:var(--text2);margin:8px 0 20px">Externes Ergebnis <strong>' + (disz || '') + '</strong> wirklich löschen?</p>' +
-    '<div class="modal-actions">' +
-      '<button class="btn btn-ghost" onclick="closeModal()">Abbrechen</button>' +
-      '<button class="btn btn-danger" onclick="_doDeletePb(' + athletId + ',' + pbId + ')">Löschen</button>' +
-    '</div>'
-  );
-}
-
-async function _doDeletePb(athletId, pbId) {
-  closeModal();
-  var r = await apiDel('athleten/' + athletId + '/pb/' + pbId);
-  if (!r || !r.ok) { notify('Fehler beim Löschen.', 'err'); return; }
-  var reloaded2 = await apiGet('athleten/' + athletId + '/pb');
-  _apState.pbs = (reloaded2 && reloaded2.ok) ? (reloaded2.data || []) : _apState.pbs;
-  _apNachPbAenderung();
 }
 
 function _buildAthletCard(a, hof, letzteAkt) {
