@@ -1531,7 +1531,7 @@ function renderEintragen() {
             '<thead><tr style="background:var(--surf2);color:var(--text2)">' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">#</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Athlet*in *</th>' +
-              '<th style="padding:8px 6px;text-align:left;font-weight:600">Disziplin *</th>' +
+              '<th class="bk-disz-th" style="padding:8px 6px;text-align:left;font-weight:600">Disziplin *</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Ergebnis *</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">AK</th>' +
               '<th style="padding:8px 6px;text-align:left;font-weight:600">Platz AK</th>' +
@@ -1830,12 +1830,69 @@ function bkSyncDiszDisplay(tr) {
 }
 
 // Distanzfeld einer Zeile nur bei freier Distanz (Crosslauf) zeigen
+// Ist die Disziplin die Vorgabe der Kategorie (Cross → Crosslauf), steht in der
+// Spalte nur das Distanzfeld; „andere Disziplin" holt die Suche zurück.
 function bkDistanzSichtbar(tr) {
   var sel = tr && tr.querySelector('.bk-disz');
   var dEl = tr && tr.querySelector('.bk-distanz');
   if (!sel || !dEl) return;
+  var mid  = /^\d+$/.test(sel.value) ? sel.value : null;
+  var frei = diszIstFrei(mid);
+  var vorg = _bkVorgabeFrei();
+  var nurDistanz = frei && vorg && String(vorg.id) === String(mid) && tr.dataset.diszOffen !== '1';
+  var such = tr.querySelector('.bk-disz-search');
+  var link = tr.querySelector('.bk-disz-aendern');
+  if (such) such.style.display = nurDistanz ? 'none' : 'block';
+  if (link) link.style.display = nurDistanz ? 'inline-block' : 'none';
   // block: als Inline-Element liefe das Feld neben der Disziplin in die Ergebnis-Spalte
-  dEl.style.display = diszIstFrei(/^\d+$/.test(sel.value) ? sel.value : null) ? 'block' : 'none';
+  dEl.style.display = frei ? 'block' : 'none';
+  dEl.style.marginTop = nurDistanz ? '0' : '4px';
+  dEl.placeholder = nurDistanz ? 'Distanz (m) *' : 'Distanz (m)';
+  bkDiszKopf();
+}
+
+function bkDiszAendern(a) {
+  var tr = a.closest('tr');
+  if (!tr) return;
+  tr.dataset.diszOffen = '1';
+  bkDistanzSichtbar(tr);
+  var such = tr.querySelector('.bk-disz-search');
+  if (such) { such.select(); such.focus(); }
+}
+
+// Vorgabe-Disziplin der Tabellenkategorie: nur deren eigene freie Disziplin
+// (nicht die einer gruppierten Kategorie – sonst bekäme z.B. Straße Crosslauf)
+function _bkVorgabeFrei() {
+  var kat = _bkTabKat();
+  if (!kat) return null;
+  return (state.disziplinen || []).find(function(d) { return parseInt(d.distanz_frei) && d.tbl_key === kat; }) || null;
+}
+
+// Kategorie der Eintragen-Tabelle
+function _bkTabKat() {
+  return ((document.getElementById('bk-kat') || {}).value || (document.getElementById('bk-import-kat') || {}).value || '').trim();
+}
+
+// Leere Zeile mit der Vorgabe-Disziplin der Kategorie belegen (Cross → Crosslauf)
+function bkVorgabeDisziplin(tr) {
+  var sel = tr && tr.querySelector('.bk-disz');
+  if (!sel || sel.value) return;
+  var vorg = _bkVorgabeFrei();
+  if (!vorg) return;
+  for (var i = 0; i < sel.options.length; i++) {
+    if (String(sel.options[i].value) === String(vorg.id)) {
+      sel.value = sel.options[i].value;
+      sel.setAttribute('data-mid', String(vorg.id));
+      bkSyncDiszDisplay(tr);
+      return;
+    }
+  }
+}
+
+// Spaltenkopf: bei Cross heißt die Spalte „Distanz"
+function bkDiszKopf() {
+  var th = document.querySelector('.bk-disz-th');
+  if (th) th.textContent = _bkVorgabeFrei() ? 'Distanz (m) *' : 'Disziplin *';
 }
 
 // Distanz gilt je Lauf: Eingabe in leere Zeilen desselben Laufs übernehmen
@@ -2280,7 +2337,9 @@ function bkKatChanged() {
     if (prevMid) { for (var i = 0; i < sel.options.length; i++) { if (String(sel.options[i].value) === String(prevMid)) { sel.value = sel.options[i].value; _restored = true; break; } } }
     if (!_restored && prev) { for (var i = 0; i < sel.options.length; i++) { if (sel.options[i].value === prev) { sel.value = prev; break; } } }
     bkSyncDiszDisplay(sel.closest('tr'));
+    bkVorgabeDisziplin(sel.closest('tr'));
   });
+  bkDiszKopf();
 }
 
 // Pace berechnen: Disziplin-Name → Distanz in km → min:sec/km
@@ -2340,6 +2399,7 @@ function bulkRowHtml(idx) {
       // Freie Distanz (Crosslauf): Streckenlänge je Ergebnis
       '<input type="number" class="bk-distanz" min="1" step="1" placeholder="Distanz (m)" title="Distanz in Metern" style="' + fld + ';display:none;margin-top:4px"' +
         ' oninput="bkDistanzUebertragen(this)">' +
+      '<a href="#" class="bk-disz-aendern" onclick="bkDiszAendern(this);return false" style="display:none;font-size:11px;color:var(--text2);margin-top:2px">andere Disziplin</a>' +
     '</td>' +
     '<td style="padding:4px 6px"><input class="bk-res" type="text" placeholder="00:45:00" style="' + fld + '"/></td>' +
     '<td style="padding:4px 6px"><input type="text" class="bk-ak" id="bk-ak-' + idx + '" placeholder="z.B. M45" maxlength="8" style="' + fld + '"/></td>' +
@@ -2422,6 +2482,8 @@ function bulkAddRow() {
       zdEl.value = m ? m[3] + '.' + m[2] + '.' + m[1] : gd;
     }
   }
+  bkVorgabeDisziplin(newRow);
+  bkDiszKopf();
   _bulkRowCount++;
 }
 function bulkRemoveRow(idx) {

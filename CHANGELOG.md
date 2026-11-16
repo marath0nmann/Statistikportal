@@ -1,3 +1,6 @@
+## v1599
+- **Eintragen bei Cross: nur noch die Distanz.** In der Kategorie Cross ist „Crosslauf“ die Vorgabe: neue Zeilen und Importzeilen bekommen sie automatisch, die Spalte heißt „Distanz (m)“ und zeigt nur das Distanzfeld. Für Sonderfälle (z. B. 16km Walking) holt „andere Disziplin“ die Disziplinsuche zurück. Gilt nur für die Kategorie selbst, nicht für gruppierte Kategorien.
+
 ## v1598
 - **Eintragen-Tabelle: Distanzfeld überlappt nicht mehr.** Bei Crosslauf stand das Feld „Distanz (m)“ als Inline-Element neben der Disziplin und lief unter die Ergebnis-Spalte. Disziplin und Distanz stehen jetzt untereinander.
 
