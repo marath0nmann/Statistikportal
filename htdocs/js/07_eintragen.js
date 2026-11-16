@@ -1834,7 +1834,8 @@ function bkDistanzSichtbar(tr) {
   var sel = tr && tr.querySelector('.bk-disz');
   var dEl = tr && tr.querySelector('.bk-distanz');
   if (!sel || !dEl) return;
-  dEl.style.display = diszIstFrei(/^\d+$/.test(sel.value) ? sel.value : null) ? '' : 'none';
+  // block: als Inline-Element liefe das Feld neben der Disziplin in die Ergebnis-Spalte
+  dEl.style.display = diszIstFrei(/^\d+$/.test(sel.value) ? sel.value : null) ? 'block' : 'none';
 }
 
 // Distanz gilt je Lauf: Eingabe in leere Zeilen desselben Laufs übernehmen
@@ -2334,7 +2335,7 @@ function bulkRowHtml(idx) {
     '</td>' +
     '<td style="padding:4px 6px">' +
       '<select class="bk-disz" style="display:none">' + bkDiszOpts(kat) + '</select>' +
-      '<input type="text" class="bk-disz-search" placeholder="Disziplin suchen…" autocomplete="off" style="' + fld + '"' +
+      '<input type="text" class="bk-disz-search" placeholder="Disziplin suchen…" autocomplete="off" style="' + fld + ';display:block"' +
         ' oninput="bkRowDiszSearch(this)" onfocus="bkRowDiszSearch(this)" onblur="setTimeout(bkRowHideDropdown,200)">' +
       // Freie Distanz (Crosslauf): Streckenlänge je Ergebnis
       '<input type="number" class="bk-distanz" min="1" step="1" placeholder="Distanz (m)" title="Distanz in Metern" style="' + fld + ';display:none;margin-top:4px"' +

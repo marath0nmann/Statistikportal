@@ -1,3 +1,6 @@
+## v1598
+- **Eintragen-Tabelle: Distanzfeld überlappt nicht mehr.** Bei Crosslauf stand das Feld „Distanz (m)“ als Inline-Element neben der Disziplin und lief unter die Ergebnis-Spalte. Disziplin und Distanz stehen jetzt untereinander.
+
 ## v1597
 - **„+ Externes Ergebnis“ im Athletenprofil funktioniert wieder.** Der Dialog rief noch die seit v1569 entfernte Route `athleten/{id}/pb` auf und speicherte nichts. Er legt das Ergebnis jetzt über `ergebnisse/bulk` als externes Ergebnis an (bei eigenem Verein intern), meldet Duplikate und fragt bei Crosslauf die Distanz ab. Den Button sehen nur noch Admins und Editoren, die die Route auch zulässt; Bearbeiten und Löschen laufen wie bisher über die Ergebnis-Dialoge.
 
