@@ -19,6 +19,11 @@ function sortDisziplinen(array &$arr, string $key = 'disziplin'): void {
         $ka = diszSortKey($a[$key] ?? '');
         $kb = diszSortKey($b[$key] ?? '');
         if ($ka !== $kb) return $ka <=> $kb;
+        // Freie Distanz („Crosslauf 4.050 m“): innerhalb derselben Disziplin nach Strecke
+        if (!empty($a['distanz']) && !empty($b['distanz']) && isset($a['mapping_id'], $b['mapping_id'])
+            && $a['mapping_id'] == $b['mapping_id']) {
+            return (float)$a['distanz'] <=> (float)$b['distanz'];
+        }
         return strcmp($a[$key] ?? '', $b[$key] ?? '');
     });
 }
@@ -67,6 +72,39 @@ function buildAkCaseExpr(bool $merge, string $alias = 'e'): string {
         . "        WHEN $alias.altersklasse IN ('$wList') THEN 'WHK'\n"
         . "        {$mappingCases}"
         . "ELSE $alias.altersklasse END";
+}
+
+// ── Disziplinen mit freier Distanz (z. B. „Crosslauf“) ──────────────────────
+// disziplin_mapping.distanz_frei=1: keine feste Streckenlänge, die Distanz steht
+// je Ergebnis in ergebnisse.distanz. Bestleistungen werden je exakter Distanz
+// getrennt ermittelt (Gruppenschlüssel mapping_id + distanz).
+function freieDistanzIds(): array {
+    static $ids = null;
+    if ($ids === null) {
+        try {
+            $ids = array_map('intval', array_column(DB::fetchAll(
+                'SELECT id FROM ' . DB::tbl('disziplin_mapping') . ' WHERE distanz_frei = 1'), 'id'));
+        } catch (\Exception $e) { $ids = []; }
+    }
+    return $ids;
+}
+
+function istFreieDistanz($mappingId): bool {
+    return $mappingId && in_array((int)$mappingId, freieDistanzIds(), true);
+}
+
+/** 4050 → „4.050 m“ (leer bei fehlender Distanz). */
+function distanzText($meter): string {
+    $m = (float)$meter;
+    if ($m <= 0) return '';
+    return number_format($m, fmod($m, 1) ? 1 : 0, ',', '.') . ' m';
+}
+
+/** Anzeigename einer Disziplin, bei freier Distanz mit Streckenlänge („Crosslauf 4.050 m“). */
+function diszMitDistanz(string $disz, $mappingId, $distanz): string {
+    if (!istFreieDistanz($mappingId)) return $disz;
+    $t = distanzText($distanz);
+    return $t !== '' ? "$disz $t" : $disz;
 }
 
 // ── Fußnoten zu Veranstaltungen ─────────────────────────────────────────────

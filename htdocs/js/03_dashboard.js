@@ -115,14 +115,14 @@ async function _loadEigenesProfilWidget(elId, showErg) {
     ergs.forEach(function(e) {
       // Disziplinen mit "Aus Hall of Fame ausschließen" hier ebenfalls ausblenden
       if (e.hof_exclude == 1) return;
-      var key = e.disziplin_mapping_id ? 'm'+e.disziplin_mapping_id : 'd_'+e.disziplin;
-      if (!diszMap2[key]) diszMap2[key] = { ergs: [], pbs: [], fmt: fmt, label: e.disziplin };
+      var key = ergDiszKey(e);
+      if (!diszMap2[key]) diszMap2[key] = { ergs: [], pbs: [], fmt: fmt, label: diszMitDistanz(e.disziplin, e.disziplin_mapping_id, e.distanz) };
       diszMap2[key].ergs.push(e);
     });
     (kat.pbs||[]).forEach(function(p) {
       if (p.hof_exclude == 1) return;
-      var key = p.disziplin_mapping_id ? 'm'+p.disziplin_mapping_id : 'd_'+(p.disziplin_mapped||p.disziplin);
-      if (!diszMap2[key]) diszMap2[key] = { ergs: [], pbs: [], fmt: p.fmt||fmt, label: p.disziplin_mapped||p.disziplin };
+      var key = p.disziplin_mapping_id ? ergDiszKey(p) : 'd_'+(p.disziplin_mapped||p.disziplin);
+      if (!diszMap2[key]) diszMap2[key] = { ergs: [], pbs: [], fmt: p.fmt||fmt, label: diszMitDistanz(p.disziplin_mapped||p.disziplin, p.disziplin_mapping_id, p.distanz) };
       diszMap2[key].pbs.push(p);
     });
     var keys = Object.keys(diszMap2);
@@ -336,7 +336,7 @@ async function renderDashboard() {
         var e2 = ergs[ei2];
         var vfmt = e2.fmt || '';
         var vres = fmtErgebnis(e2.resultat, vfmt);
-        var _vPace = diszKm(e2.disziplin, e2.disziplin_mapping_id) >= 1 ? calcPace(e2.disziplin, e2.resultat, e2.disziplin_mapping_id) : '';
+        var _vPace = diszKm(e2.disziplin, e2.disziplin_mapping_id, e2.distanz) >= 1 ? calcPace(e2.disziplin, e2.resultat, e2.disziplin_mapping_id, e2.distanz) : '';
         var vShowPace = _vPace && _vPace !== '00:00' && vfmt !== 'm' && vfmt !== 's' && vfmt !== 'pkt';
         vrows +=
           '<tr>' +
@@ -590,8 +590,9 @@ async function renderDashboard() {
           var vvByDisz = {}; var vvDiszOrder = [];
           for (var vei = 0; vei < vv.ergebnisse.length; vei++) {
             var ve = vv.ergebnisse[vei];
-            if (!vvByDisz[ve.disziplin]) { vvByDisz[ve.disziplin]=[]; vvDiszOrder.push(ve.disziplin); }
-            vvByDisz[ve.disziplin].push(ve);
+            var veD = diszMitDistanz(ve.disziplin, ve.disziplin_mapping_id, ve.distanz);
+            if (!vvByDisz[veD]) { vvByDisz[veD]=[]; vvDiszOrder.push(veD); }
+            vvByDisz[veD].push(ve);
           }
           for (var vdi = 0; vdi < vvDiszOrder.length; vdi++) {
             var vdisz = vvDiszOrder[vdi];
@@ -603,7 +604,7 @@ async function renderDashboard() {
               var ve2 = vergs[vei2];
               var vvfmt = ve2.fmt || '';
               var vvres = fmtErgebnis(ve2.resultat, vvfmt);
-              var vvpace = diszKm(ve2.disziplin, ve2.disziplin_mapping_id) >= 1 ? calcPace(ve2.disziplin, ve2.resultat, ve2.disziplin_mapping_id) : '';
+              var vvpace = diszKm(ve2.disziplin, ve2.disziplin_mapping_id, ve2.distanz) >= 1 ? calcPace(ve2.disziplin, ve2.resultat, ve2.disziplin_mapping_id, ve2.distanz) : '';
               var vvShowPace = vvpace && vvpace !== '00:00' && vvfmt !== 'm' && vvfmt !== 's' && vvfmt !== 'pkt';
               var vvCells = { athlet: '<td>'+athletZelleHtml(ve2)+'</td>', ak: '<td>'+akBadge(ve2.altersklasse)+'</td>', result: '<td class="result">'+vvres+fussnoteMarker(ve2)+'</td>', pace: '<td class="ort-text">'+(vvShowPace?fmtTime(vvpace,'min/km'):'')+'</td>', platz: '<td>'+medalBadge(ve2.ak_platzierung)+'</td>', ms: '<td>'+mstrBadge(ve2.meisterschaft)+'</td>' };
               var vvRow = '<tr>';

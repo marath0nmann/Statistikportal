@@ -283,10 +283,27 @@ a{color:#003087}.klein{color:#555;font-size:13px}
 
     private static ?array $bestCache = null;
 
+    // Freie Distanz (Crosslauf): Name mit Streckenlänge, Gruppierschlüssel je Distanz.
+    // ohne_distanz=true → nicht für Bestleistungen werten (Distanz unbekannt).
+    private static function mitDistanz(array $rows): array {
+        foreach ($rows as &$r) {
+            $r['dkey'] = $r['mid'] ? 'm' . $r['mid'] : 'd' . $r['disziplin'];
+            $r['ohne_distanz'] = false;
+            if ($r['mid'] && istFreieDistanz($r['mid'])) {
+                $d = (float)($r['distanz'] ?? 0);
+                $r['dkey'] .= '@' . ($d > 0 ? $d : '');
+                $r['ohne_distanz'] = $d <= 0;
+                $r['disz_name'] = diszMitDistanz((string)$r['disz_name'], $r['mid'], $d);
+            }
+        }
+        unset($r);
+        return $rows;
+    }
+
     private static function vereinsErgebnisse(): array {
         $akExpr = buildAkCaseExpr(true);
-        return DB::fetchAll(
-            "SELECT e.athlet_id, e.disziplin, e.disziplin_mapping_id AS mid, e.resultat, e.resultat_num,
+        return self::mitDistanz(DB::fetchAll(
+            "SELECT e.athlet_id, e.disziplin, e.disziplin_mapping_id AS mid, e.distanz, e.resultat, e.resultat_num,
                     ($akExpr) AS ak, a.geschlecht, a.vorname, a.nachname, v.datum, v.id AS vid, v.genehmigt,
                     COALESCE(v.name, v.kuerzel) AS vname,
                     COALESCE(m.fmt_override, k.fmt, 'min') AS fmt, k.sort_dir, k.tbl_key, k.name AS kat_name,
@@ -299,7 +316,7 @@ a{color:#003087}.klein{color:#555;font-size:13px}
              LEFT JOIN " . DB::tbl('disziplin_kategorien') . " k ON k.id = m.kategorie_id
              WHERE e.geloescht_am IS NULL AND e.extern = 0 AND " . wertbarSql() . "
                AND a.geloescht_am IS NULL AND v.geloescht_am IS NULL"
-        );
+        ));
     }
 
     private static function geschlechtVon(array $r): string {
@@ -317,7 +334,8 @@ a{color:#003087}.klein{color:#555;font-size:13px}
         if (self::$bestCache !== null) return self::$bestCache;
         $best = [];
         foreach (self::vereinsErgebnisse() as $r) {
-            $key  = $r['mid'] ? 'm' . $r['mid'] : 'd' . $r['disziplin'];
+            if ($r['ohne_distanz']) continue;
+            $key  = $r['dkey'];
             $desc = self::absteigend($r['fmt'], $r['sort_dir']);
             $w    = self::wert($r['resultat'], $r['fmt'], $r['resultat_num']);
             if ($w === null) continue;
@@ -358,7 +376,7 @@ a{color:#003087}.klein{color:#555;font-size:13px}
         $mstr   = self::mstrMap();
 
         $alle = DB::fetchAll(
-            "SELECT e.id, e.disziplin, e.disziplin_mapping_id AS mid, e.resultat, e.resultat_num, e.altersklasse,
+            "SELECT e.id, e.disziplin, e.disziplin_mapping_id AS mid, e.distanz, e.resultat, e.resultat_num, e.altersklasse,
                     e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft, e.extern, e.verein,
                     v.id AS vid, COALESCE(v.name, v.kuerzel) AS vname, v.datum, v.genehmigt,
                     COALESCE(o.name, v.ort) AS ort,
@@ -374,6 +392,7 @@ a{color:#003087}.klein{color:#555;font-size:13px}
              ORDER BY v.datum DESC, e.id DESC",
             [(int)$a['id']]
         );
+        $alle = self::mitDistanz($alle);
 
         $anz    = count($alle);
         $anzExt = count(array_filter($alle, function($e) { return (int)$e['extern'] === 1; }));
@@ -384,8 +403,8 @@ a{color:#003087}.klein{color:#555;font-size:13px}
         // ── Persönliche Bestleistungen je Disziplin (Verein + extern, wie App)
         $pb = [];
         foreach ($alle as $e) {
-            if ((int)$e['hof_exclude'] === 1) continue;
-            $key = $e['mid'] ? 'm' . $e['mid'] : 'd' . $e['disziplin'];
+            if ((int)$e['hof_exclude'] === 1 || $e['ohne_distanz']) continue;
+            $key = $e['dkey'];
             $w   = self::wert($e['resultat'], $e['fmt'], $e['resultat_num']);
             if ($w === null) continue;
             $desc = self::absteigend($e['fmt'], $e['sort_dir']);
@@ -402,7 +421,7 @@ a{color:#003087}.klein{color:#555;font-size:13px}
         $eigen = [];   // key → ['w' => bester Wert, 'ak' => [ak => bester Wert]]
         $akExpr = buildAkCaseExpr(true);
         $akRows = DB::fetchAll(
-            "SELECT e.disziplin, e.disziplin_mapping_id AS mid, e.resultat, e.resultat_num, ($akExpr) AS ak,
+            "SELECT e.disziplin, e.disziplin_mapping_id AS mid, e.distanz, e.resultat, e.resultat_num, ($akExpr) AS ak,
                     COALESCE(m.fmt_override, k.fmt, 'min') AS fmt, k.sort_dir, COALESCE(m.hof_exclude, 0) AS hof_exclude,
                     COALESCE(m.disziplin, e.disziplin) AS disz_name, COALESCE(k.name, 'Sonstige') AS kat_name
              FROM " . DB::tbl('ergebnisse') . " e
@@ -412,9 +431,9 @@ a{color:#003087}.klein{color:#555;font-size:13px}
              WHERE e.athlet_id = ? AND e.extern = 0 AND e.geloescht_am IS NULL AND v.geloescht_am IS NULL AND " . wertbarSql() . "",
             [(int)$a['id']]
         );
-        foreach ($akRows as $r) {
-            if ((int)$r['hof_exclude'] === 1) continue;
-            $key  = $r['mid'] ? 'm' . $r['mid'] : 'd' . $r['disziplin'];
+        foreach (self::mitDistanz($akRows) as $r) {
+            if ((int)$r['hof_exclude'] === 1 || $r['ohne_distanz']) continue;
+            $key  = $r['dkey'];
             $w    = self::wert($r['resultat'], $r['fmt'], $r['resultat_num']);
             if ($w === null) continue;
             $desc = self::absteigend($r['fmt'], $r['sort_dir']);
@@ -547,7 +566,7 @@ a{color:#003087}.klein{color:#555;font-size:13px}
         $titel  = $v['name'] ?: $v['kuerzel'] ?: 'Veranstaltung';
 
         $ergs = DB::fetchAll(
-            "SELECT a.vorname, a.nachname, e.altersklasse, e.disziplin, e.disziplin_mapping_id AS mid,
+            "SELECT a.vorname, a.nachname, e.altersklasse, e.disziplin, e.disziplin_mapping_id AS mid, e.distanz,
                     e.resultat, e.resultat_num, e.ak_platzierung, e.meisterschaft, e.ak_platz_meisterschaft,
                     e.extern, e.verein, COALESCE(m.fmt_override, k.fmt, 'min') AS fmt, k.sort_dir,
                     COALESCE(k.name, 'Sonstige') AS kat_name, COALESCE(k.reihenfolge, 99) AS kat_sort,
@@ -559,11 +578,11 @@ a{color:#003087}.klein{color:#555;font-size:13px}
              WHERE e.veranstaltung_id = ? AND e.geloescht_am IS NULL AND a.geloescht_am IS NULL",
             [$id]
         );
+        $ergs = self::mitDistanz($ergs);
         // Nach Disziplin gruppieren, Disziplinen wie in der App sortieren, darin nach Ergebnis
         $gruppen = [];
         foreach ($ergs as $e) {
-            $key = $e['mid'] ? 'm' . $e['mid'] : 'd' . $e['disziplin'];
-            $gruppen[$key][] = $e;
+            $gruppen[$e['dkey']][] = $e;
         }
         uasort($gruppen, function($x, $y) {
             return [diszSortKey($x[0]['disz_name']), $x[0]['disz_name']] <=> [diszSortKey($y[0]['disz_name']), $y[0]['disz_name']];
@@ -696,9 +715,9 @@ a{color:#003087}.klein{color:#555;font-size:13px}
         if ($slug === '') {
             $je = [];   // mid → Liste der Ergebnisse
             foreach ($alle as $r) {
-                if (!$r['mid'] || !$r['tbl_key']) continue;
+                if (!$r['mid'] || !$r['tbl_key'] || $r['ohne_distanz']) continue;
                 if ($kat && $r['tbl_key'] !== $kat['tbl_key']) continue;
-                $je[$r['tbl_key']][$r['mid']][] = $r;
+                $je[$r['tbl_key']][$r['dkey']][] = $r;
             }
             $o = '<h1>Vereinsbestenlisten' . ($kat ? ' – ' . $h($kat['name']) : '') . '</h1>'
                . '<p>Beste Leistungen von ' . $h($verein) . ' je Disziplin (nur für den Verein erzielte Ergebnisse).</p>';
@@ -733,13 +752,13 @@ a{color:#003087}.klein{color:#555;font-size:13px}
         // ── Einzelne Disziplin (Slug; ältere Links enthalten die mapping_id)
         $rows = [];
         foreach ($alle as $r) {
-            if (!$r['mid'] || ($kat && $r['tbl_key'] !== $kat['tbl_key'])) continue;
+            if (!$r['mid'] || $r['ohne_distanz'] || ($kat && $r['tbl_key'] !== $kat['tbl_key'])) continue;
             if (ctype_digit($slug) ? (int)$r['mid'] === (int)$slug : self::diszSlug($r['disz_name']) === $slug) $rows[] = $r;
         }
         if (!$rows) { self::leer($pfad, 'rekorde' . ($kat ? '/' . $kat['tbl_key'] : ''), '', 404, 'Disziplin nicht gefunden.'); return; }
         // Gleichnamige Disziplinen verschiedener Kategorien nicht mischen
-        $mid  = (int)$rows[0]['mid'];
-        $rows = array_values(array_filter($rows, function($r) use ($mid) { return (int)$r['mid'] === $mid; }));
+        $dkey = $rows[0]['dkey'];
+        $rows = array_values(array_filter($rows, function($r) use ($dkey) { return $r['dkey'] === $dkey; }));
         $disz = $rows[0]['disz_name'];
         $kn   = $rows[0]['kat_name'];
 

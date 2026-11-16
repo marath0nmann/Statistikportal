@@ -65,8 +65,9 @@ function renderEigenesEintragen() {
         '</div>' +
         '<div class="form-group">' +
           '<label>Disziplin *</label>' +
-          '<select id="ee-disz"><option value="">-- erst Kategorie wählen --</option></select>' +
+          '<select id="ee-disz" onchange="distanzFeldUmschalten(\'ee-distanz\', this.value)"><option value="">-- erst Kategorie wählen --</option></select>' +
         '</div>' +
+        distanzFeldHtml('ee-distanz', null, null) +
         '<div class="form-group">' +
           '<label>Ergebnis *</label>' +
           '<input type="text" id="ee-res" placeholder="z.B. 38:12 oder 7,42"/>' +
@@ -285,6 +286,7 @@ function _eeUpdateDisz() {
   var disz = (state.disziplinen || []).filter(function(d) { return d.tbl_key === katKey; });
   sel.innerHTML = '<option value="">-- Disziplin wählen --</option>' +
     disz.map(function(d) { return '<option value="' + d.id + '" data-name="' + d.disziplin.replace(/"/g,'&quot;') + '">' + d.disziplin + '</option>'; }).join('');
+  distanzFeldUmschalten('ee-distanz', sel.value);
 }
 async function _eeAutoAk() {
   var datVal = document.getElementById('ee-datum') ? document.getElementById('ee-datum').value : '';
@@ -314,6 +316,8 @@ async function saveEigenesErgebnis(andNew) {
     if (errEl) errEl.textContent = 'Bitte Disziplin und Ergebnis ausfüllen.';
     return;
   }
+  var _eeDist = distanzFeldWert('ee-distanz', diszMappingId);
+  if (_eeDist === '') { if (errEl) errEl.textContent = 'Bitte die Distanz in Metern angeben.'; return; }
 
   var datum = '', ort = '', evname = '', veranstId = null;
   if (_eeVeranstModus === 'best') {
@@ -334,7 +338,7 @@ async function saveEigenesErgebnis(andNew) {
   var _v = function(id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; };
   var _n = function(id) { var s = _v(id); return s ? (parseInt(s, 10) || null) : null; };
   var body = {
-    disziplin: diszName, disziplin_mapping_id: diszMappingId,
+    disziplin: diszName, disziplin_mapping_id: diszMappingId, distanz: _eeDist || null,
     resultat: res, altersklasse: ak || null,
     startnummer: _v('ee-startnr') || null,
     ak_platzierung: _n('ee-pos-ak'),
@@ -739,6 +743,12 @@ async function eeCsvPruefen() {
   _eeCsvRenderPreview();
 }
 
+// Freie Distanz (Crosslauf): Strecke aus der Wettbewerbsbezeichnung der CSV
+function _eeCsvDistanz(row) {
+  if (!diszIstFrei(row.disziplin_mapping_id)) return null;
+  return row.distanz || bkDistanzAusText(row.wettbewerb) || bkDistanzAusText(row.veranstaltung_name) || null;
+}
+
 function _eeCsvItem(row) {
   var it = {
     datum: row.datum,
@@ -746,6 +756,7 @@ function _eeCsvItem(row) {
     ort: row.ort,
     disziplin: row.disziplin,
     disziplin_mapping_id: row.disziplin_mapping_id,
+    distanz: _eeCsvDistanz(row),
     resultat: row.resultat,
     altersklasse: row.altersklasse,
     startnummer: row.startnummer,
@@ -860,6 +871,7 @@ function _eeDiszWert(d) {
 function _eeCsvProblem(row) {
   return !row.datum ? 'Datum unlesbar'
        : !row.disziplin_mapping_id ? 'Disziplin fehlt'
+       : (diszIstFrei(row.disziplin_mapping_id) && !_eeCsvDistanz(row)) ? 'Distanz fehlt (z.B. „4,1 km“ im Wettbewerb)'
        : !row.resultat ? 'Ergebnis fehlt'
        : (!row.veranstaltung_id && !row.ort) ? 'Ort fehlt'
        : '';
@@ -1805,6 +1817,7 @@ function _bkRowDiszSelect(item) {
     if (mid) sel.setAttribute('data-mid', String(mid));
   }
   if (inp) inp.value = item.disziplin || '';
+  bkDistanzSichtbar(tr);
 }
 
 function bkSyncDiszDisplay(tr) {
@@ -1813,6 +1826,41 @@ function bkSyncDiszDisplay(tr) {
   if (!sel || !inp) return;
   var opt = sel.options[sel.selectedIndex];
   inp.value = (opt && opt.value) ? opt.text : '';
+  bkDistanzSichtbar(tr);
+}
+
+// Distanzfeld einer Zeile nur bei freier Distanz (Crosslauf) zeigen
+function bkDistanzSichtbar(tr) {
+  var sel = tr && tr.querySelector('.bk-disz');
+  var dEl = tr && tr.querySelector('.bk-distanz');
+  if (!sel || !dEl) return;
+  dEl.style.display = diszIstFrei(/^\d+$/.test(sel.value) ? sel.value : null) ? '' : 'none';
+}
+
+// Distanz gilt je Lauf: Eingabe in leere Zeilen desselben Laufs übernehmen
+function bkDistanzUebertragen(inp) {
+  var tr = inp.closest('tr');
+  var lauf = tr ? (tr.getAttribute('data-lauf') || '') : '';
+  if (!lauf || !inp.value) return;
+  document.querySelectorAll('#bulk-rows tr').forEach(function(t) {
+    if (t === tr || t.getAttribute('data-lauf') !== lauf) return;
+    var d = t.querySelector('.bk-distanz');
+    if (d && (!d.value || d.dataset.auto === '1')) { d.value = inp.value; d.dataset.auto = '1'; }
+  });
+}
+
+// Streckenangabe aus einem Lauf-/Disziplintext: "4.050m", "4,05 km", "6,6km", "3500 m"
+function bkDistanzAusText(t) {
+  t = String(t || '');
+  var m = t.match(/(\d{1,3}(?:\.\d{3})+|\d+(?:[.,]\d+)?)\s*(km|m)(?![a-z])/i);
+  if (!m) return null;
+  var zahl = m[1];
+  var km = m[2].toLowerCase() === 'km';
+  if (/^\d{1,3}(\.\d{3})+$/.test(zahl) && !km) zahl = zahl.replace(/\./g, '');
+  var v = parseFloat(zahl.replace(',', '.'));
+  if (!(v > 0)) return null;
+  v = km ? v * 1000 : v;
+  return v >= 100 && v <= 60000 ? Math.round(v) : null;
 }
 
 // Gibt alle tbl_keys zurück die für eine gewählte Kategorie angezeigt werden sollen
@@ -2238,11 +2286,13 @@ function bkKatChanged() {
 // Liefert die Streckenlänge in km anhand mapping_id (bevorzugt) oder Disziplin-Name.
 // Nutzt ausschließlich den konfigurierten distanz-Wert aus state.disziplinen –
 // kein Regex-Parsing des Namens.
-function diszKm(disz, mappingId) {
+function diszKm(disz, mappingId, distanz) {
   var disziplinen = (state && state.disziplinen) || [];
   // 1. Prio: exakte Suche per mapping_id
   if (mappingId) {
     var dById = disziplinen.find(function(d) { return d.id == mappingId; });
+    // Freie Distanz (Crosslauf): Streckenlänge steht im Ergebnis
+    if (dById && parseInt(dById.distanz_frei)) return (parseFloat(distanz) || 0) / 1000;
     if (dById && dById.distanz) return dById.distanz / 1000;
   }
   // 2. Suche per Disziplin-Name
@@ -2253,10 +2303,10 @@ function diszKm(disz, mappingId) {
   return 0;
 }
 
-function calcPace(disz, resultat, mappingId) {
+function calcPace(disz, resultat, mappingId, distanz) {
   if (!resultat) return '';
   resultat = dbRes(resultat); // Komma→Punkt für Berechnung
-  var km = diszKm(disz, mappingId);
+  var km = diszKm(disz, mappingId, distanz);
   if (km < 1) return ''; // unter 1 km keine Pace
   // Zeit in Sekunden
   var secs = 0;
@@ -2286,6 +2336,9 @@ function bulkRowHtml(idx) {
       '<select class="bk-disz" style="display:none">' + bkDiszOpts(kat) + '</select>' +
       '<input type="text" class="bk-disz-search" placeholder="Disziplin suchen…" autocomplete="off" style="' + fld + '"' +
         ' oninput="bkRowDiszSearch(this)" onfocus="bkRowDiszSearch(this)" onblur="setTimeout(bkRowHideDropdown,200)">' +
+      // Freie Distanz (Crosslauf): Streckenlänge je Ergebnis
+      '<input type="number" class="bk-distanz" min="1" step="1" placeholder="Distanz (m)" title="Distanz in Metern" style="' + fld + ';display:none;margin-top:4px"' +
+        ' oninput="bkDistanzUebertragen(this)">' +
     '</td>' +
     '<td style="padding:4px 6px"><input class="bk-res" type="text" placeholder="00:45:00" style="' + fld + '"/></td>' +
     '<td style="padding:4px 6px"><input type="text" class="bk-ak" id="bk-ak-' + idx + '" placeholder="z.B. M45" maxlength="8" style="' + fld + '"/></td>' +
@@ -2406,6 +2459,16 @@ async function bulkSubmit() {
     var disziplin = _diszObj ? _diszObj.disziplin : _diszVal;
     var resultat  = row.querySelector('.bk-res')    ? row.querySelector('.bk-res').value.trim()   : '';
     if (!athlet_id && !disziplin && !resultat) continue; // leere Zeile
+    var _distanz = null;
+    if (_diszMid && diszIstFrei(_diszMid)) {
+      var _dEl = row.querySelector('.bk-distanz');
+      _distanz = _dEl ? (parseFloat(String(_dEl.value).replace(',', '.')) || null) : null;
+      if (!_distanz) {
+        notify('Zeile ' + (i + 1) + ': Bitte die Distanz (m) für „' + disziplin + '“ angeben.', 'err');
+        if (_dEl) _dEl.focus();
+        return;
+      }
+    }
     items.push({
       datum: (function() {
         var zd = row.querySelector('.bk-zeilendatum') ? row.querySelector('.bk-zeilendatum').value.trim() : '';
@@ -2421,7 +2484,7 @@ async function bulkSubmit() {
       veranstaltung_id: veranstId ? parseInt(veranstId) : null,
       serie_id: _bkSelectedSerie ? parseInt(_bkSelectedSerie.id) : null,
       athlet_id: parseInt(athlet_id) || null,
-      disziplin: disziplin, disziplin_mapping_id: _diszMid || null, resultat: dbRes(resultat),
+      disziplin: disziplin, disziplin_mapping_id: _diszMid || null, distanz: _distanz, resultat: dbRes(resultat),
       altersklasse: row.querySelector('.bk-ak') ? row.querySelector('.bk-ak').value.trim() : '',
       _zeilendatum: row.querySelector('.bk-zeilendatum') ? row.querySelector('.bk-zeilendatum').value.trim() : '',
       ak_platzierung: row.querySelector('.bk-platz') && row.querySelector('.bk-platz').value ? parseInt(row.querySelector('.bk-platz').value) : null,
@@ -4338,6 +4401,9 @@ async function bulkFillFromImport(rows, statusEl) {
   // Fehlende Jahrgänge aus dem Import in die Stammdaten nachtragen
   await bkNachtragenJahrgang(rows, _bnadNameMap);
 
+  // Freie Distanz (Crosslauf): Distanz je Lauf erfragen
+  if (await bkFreieDistanzVorbereiten(rows) === null) { if (statusEl) statusEl.textContent = ''; return; }
+
   var tbody = document.getElementById('bulk-rows');
   if (!tbody) return;
 
@@ -4400,6 +4466,13 @@ async function bulkFillFromImport(rows, statusEl) {
         var _diszInp = tr.querySelector('.bk-disz-search');
         if (_diszInp) _diszInp.value = row.disziplin;
       }
+    }
+    // Freie Distanz: Lauf merken (Distanz gilt je Lauf) und Distanz eintragen
+    if (row._frei) {
+      tr.setAttribute('data-lauf', row._lauf || '');
+      var _dEl = tr.querySelector('.bk-distanz');
+      if (_dEl && row.distanz) _dEl.value = row.distanz;
+      bkDistanzSichtbar(tr);
     }
     // Ergebnis
     var resEl = tr.querySelector('.bk-res');
@@ -8125,6 +8198,95 @@ function rrukConfirm() {
 }
 
 // ── Neue-Athleten-Dialog (für alle URL-Imports) ──────────────
+// ── Freie Distanz beim Import (z.B. Cross) ───────────────────────────────────
+// Cross kennt keine festen Strecken: jede Zeile der Importkategorie, die keiner
+// festen Disziplin dieser Kategorie zugeordnet ist, wird zur Disziplin mit freier
+// Distanz („Crosslauf"). Die Distanz wird je Lauf einmal abgefragt (vorbelegt,
+// wenn Lauf- oder Disziplinname eine Strecke nennt). Rückgabe null = abgebrochen.
+function bkFreieDisziplin(kat) {
+  if (!kat) return null;
+  var erlaubt = bkKatMitGruppen(kat) || [kat];
+  return (state.disziplinen || []).find(function(d) {
+    return parseInt(d.distanz_frei) && d.tbl_key === kat;
+  }) || (state.disziplinen || []).find(function(d) {
+    return parseInt(d.distanz_frei) && erlaubt.indexOf(d.tbl_key) >= 0;
+  }) || null;
+}
+
+async function bkFreieDistanzVorbereiten(rows) {
+  var kat = ((document.getElementById('bk-import-kat') || {}).value || (document.getElementById('bk-kat') || {}).value || '').trim();
+  var frei = bkFreieDisziplin(kat);
+  var laeufe = [], laufIdx = {};
+  rows.forEach(function(row) {
+    var dObj = row.diszMid ? (state.disziplinen || []).find(function(d) { return (d.id || d.mapping_id) == row.diszMid; }) : null;
+    if (dObj && parseInt(dObj.distanz_frei)) {
+      row._frei = true;
+    } else if (frei && !(dObj && dObj.tbl_key === frei.tbl_key)) {
+      // keine feste Disziplin der Kategorie (z.B. „16km Walking") → freie Distanz
+      row._diszRoh = row.disziplin || '';
+      row.disziplin = frei.disziplin;
+      row.diszMid = frei.id;
+      row._frei = true;
+    }
+    if (!row._frei) return;
+    row._lauf = String(row.contestName || row._diszRoh || row.lauf || row.disziplin || '').trim();
+    if (!row.distanz) row.distanz = bkDistanzAusText(row._lauf) || bkDistanzAusText(row._diszRoh) || null;
+    if (!(row._lauf in laufIdx)) {
+      laufIdx[row._lauf] = laeufe.length;
+      laeufe.push({ lauf: row._lauf, distanz: row.distanz || '', anz: 0 });
+    }
+    var L = laeufe[laufIdx[row._lauf]];
+    L.anz++;
+    if (!L.distanz && row.distanz) L.distanz = row.distanz;
+  });
+  if (!laeufe.length) return true;
+  var antw = await bkDistanzDialog(laeufe, frei ? frei.disziplin : 'Crosslauf');
+  if (antw === null) return null;
+  rows.forEach(function(row) {
+    if (row._frei && antw[row._lauf]) row.distanz = antw[row._lauf];
+  });
+  return true;
+}
+
+function bkDistanzDialog(laeufe, diszName) {
+  return new Promise(function(resolve) {
+    var zeilen = laeufe.map(function(L, i) {
+      return '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:6px 8px;font-size:13px">' + (L.lauf ? _esc(L.lauf) : '<i>ohne Laufbezeichnung</i>') +
+          ' <span style="color:var(--text2);font-size:12px">(' + L.anz + ')</span></td>' +
+        '<td style="padding:6px 8px;width:130px"><input type="number" id="bk-dd-' + i + '" min="1" step="1" value="' + (L.distanz || '') + '"' +
+          ' placeholder="Meter" style="width:110px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)"></td>' +
+      '</tr>';
+    }).join('');
+    showModal(
+      modalH2('&#x1F4CF; Distanz je Lauf') +
+      '<p style="font-size:13px;color:var(--text2);margin:0 0 12px">' + _esc(diszName) + ' hat keine feste Strecke – bitte für jeden Lauf die Distanz in Metern angeben. ' +
+        'Bestleistungen werden nur innerhalb derselben Distanz verglichen.</p>' +
+      '<table style="width:100%;border-collapse:collapse">' + zeilen + '</table>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-ghost" id="bk-dd-abbr">Abbrechen</button>' +
+        '<button class="btn btn-ghost" id="bk-dd-spaeter">Später in den Zeilen</button>' +
+        '<button class="btn btn-primary" id="bk-dd-ok">Übernehmen</button>' +
+      '</div>', false, true);
+    function sammeln() {
+      var out = {};
+      laeufe.forEach(function(L, i) {
+        var v = parseFloat(String((document.getElementById('bk-dd-' + i) || {}).value || '').replace(',', '.'));
+        if (v > 0) out[L.lauf] = v;
+      });
+      return out;
+    }
+    document.getElementById('bk-dd-abbr').onclick = function() { closeModal(); resolve(null); };
+    document.getElementById('bk-dd-spaeter').onclick = function() { var o = sammeln(); closeModal(); resolve(o); };
+    document.getElementById('bk-dd-ok').onclick = function() {
+      var o = sammeln();
+      var fehlt = laeufe.filter(function(L) { return !o[L.lauf]; }).length;
+      if (fehlt) { notify(fehlt + ' Lauf/Läufe ohne Distanz – bitte ausfüllen oder „Später in den Zeilen".', 'err'); return; }
+      closeModal(); resolve(o);
+    };
+  });
+}
+
 async function bulkNewAthleteDialog(candidates) {
   return new Promise(function(resolve) {
     var athOpts = '<option value="">– vorhandenen Athleten zuordnen –</option>';

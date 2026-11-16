@@ -386,6 +386,9 @@ function uitsAutoDiszMatchKat(catRaw, disziplinen, selectedKat) {
     ? disziplinen.filter(function(d){ return d.tbl_key === selectedKat; })
     : disziplinen;
   if (!katDisz.length) return null;
+  // Cross hat keine festen Strecken: Disziplin mit freier Distanz („Crosslauf")
+  var freiD = katDisz.find(function(d) { return parseInt(d.distanz_frei); });
+  if (freiD && (!dl || dl.indexOf('cross') >= 0)) return freiD.mapping_id || freiD.id;
   // Disziplinname-Match innerhalb der Kategorie
   for (var i = 0; i < katDisz.length; i++) {
     var d = katDisz[i];
@@ -407,6 +410,11 @@ function uitsAutoDiszMatch(catRaw, disziplinen) {
   var diszName = uitsDiszFromCat(catRaw);
   if (!diszName) return null;
   var dl = diszName.toLowerCase();
+  // Cross hat keine festen Strecken: Disziplin mit freier Distanz („Crosslauf")
+  if (dl.indexOf('cross') >= 0) {
+    var freiD = disziplinen.find(function(d) { return parseInt(d.distanz_frei) && (d.kategorie_name || d.kategorie || '').toLowerCase().indexOf('cross') >= 0; });
+    if (freiD) return freiD.mapping_id || freiD.id;
+  }
   // Cross-Disziplinen suchen
   for (var i = 0; i < disziplinen.length; i++) {
     var d = disziplinen[i];
@@ -485,6 +493,7 @@ async function uitsImport() {
       ak_platzierung:   row.platz || null,
       meisterschaft:    null,
       import_quelle:    'uitslagen:' + parsed.eventId,
+      _kategorie:       row.kategorie || '',
     });
   }
 
@@ -492,6 +501,24 @@ async function uitsImport() {
     notify('Keine gültigen Einträge (Athlet + Disziplin benötigt).', 'err');
     return;
   }
+
+  // Freie Distanz (Crosslauf): Distanz je Lauf abfragen (Lauf = Wertungsbezeichnung)
+  var _freiItems = items.filter(function(it) { return diszIstFrei(it.disziplin_mapping_id); });
+  if (_freiItems.length) {
+    var _laeufe = [], _li = {};
+    _freiItems.forEach(function(it) {
+      var lauf = uitsDiszFromCat(it._kategorie) || it._kategorie || '';
+      it._lauf = lauf;
+      if (!(lauf in _li)) { _li[lauf] = _laeufe.length; _laeufe.push({ lauf: lauf, distanz: bkDistanzAusText(it._kategorie) || '', anz: 0 }); }
+      _laeufe[_li[lauf]].anz++;
+    });
+    var _dist = await bkDistanzDialog(_laeufe, 'Crosslauf');
+    if (_dist === null) return;
+    var _ohne = 0;
+    _freiItems.forEach(function(it) { it.distanz = _dist[it._lauf] || null; if (!it.distanz) _ohne++; });
+    if (_ohne) { notify(_ohne + ' Ergebnis(se) ohne Distanz – bitte alle Distanzen angeben.', 'err'); return; }
+  }
+  items.forEach(function(it) { delete it._kategorie; delete it._lauf; });
 
   var status = document.getElementById('uits-status');
   if (status) status.textContent = 'Importiere ' + items.length + ' Einträge\u2026';

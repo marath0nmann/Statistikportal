@@ -161,7 +161,9 @@ async function loadErgebnisseData() {
           editBtn.dataset.editAthletName,
           editBtn.dataset.editMappingId,
           editBtn.dataset.editMstrPlatz,
-          editBtn.dataset.editVerein
+          editBtn.dataset.editVerein,
+          undefined,
+          editBtn.dataset.editDistanz
         );
       }
       if (delBtn) deleteErgebnis(delBtn.dataset.delTab, delBtn.dataset.delId);
@@ -282,7 +284,7 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
       '<td>' + akBadge(rr.altersklasse) + '</td>' +
       '<td class="disziplin-text">' + (rr.disziplin_mapping_id ? ergDiszLabel(rr) : diszMitKat(rr.disziplin)) + '</td>' +
       '<td class="result">' + ergebnis + fussnoteMarker(rr) + '</td>';
-    var paceVal = diszKm(rr.disziplin, rr.disziplin_mapping_id) >= 1 ? calcPace(rr.disziplin, rr.resultat, rr.disziplin_mapping_id) : '';
+    var paceVal = diszKm(rr.disziplin, rr.disziplin_mapping_id, rr.distanz) >= 1 ? calcPace(rr.disziplin, rr.resultat, rr.disziplin_mapping_id, rr.distanz) : '';
     if (hasPace) cells += '<td class="ort-text">' + (paceVal ? fmtTime(paceVal, 'min/km') : '') + '</td>';
     cells += '<td>' + medalBadge(rr.ak_platzierung) + '</td>';
     if (subTab !== 'mittelstrecke') {
@@ -308,13 +310,13 @@ function buildErgebnisseTable(subTab, rows, canEdit) {
         // Externes Ergebnis: eigene Edit/Delete Buttons
         cells +=
           '<td style="white-space:nowrap">' +
-            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-ext-edit-id="' + rr.id + '" data-ext-disz="' + (rr.disziplin||'').replace(/"/g,'&quot;') + '" data-ext-res="' + (rr.resultat||'') + '" data-ext-ak="' + (rr.altersklasse||'') + '" data-ext-wettkampf="' + (rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-datum="' + (rr.datum||'').slice(0,10) + '" data-ext-vid="' + (rr.veranstaltung_id||'') + '" data-ext-vname="' + (rr.verknuepfte_veranstaltung_name||rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-verein="' + (rr.verein||'').replace(/"/g,'&quot;') + '" data-ext-athlet-id="' + (rr.athlet_id||'') + '" data-ext-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '" data-ext-mapping-id="' + (rr.disziplin_mapping_id||'') + '" data-ext-fmt="' + (rr.fmt||'') + '">&#x270E;</button>' +
+            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-ext-edit-id="' + rr.id + '" data-ext-disz="' + (rr.disziplin||'').replace(/"/g,'&quot;') + '" data-ext-res="' + (rr.resultat||'') + '" data-ext-ak="' + (rr.altersklasse||'') + '" data-ext-wettkampf="' + (rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-datum="' + (rr.datum||'').slice(0,10) + '" data-ext-vid="' + (rr.veranstaltung_id||'') + '" data-ext-vname="' + (rr.verknuepfte_veranstaltung_name||rr.veranstaltung||'').replace(/"/g,'&quot;') + '" data-ext-verein="' + (rr.verein||'').replace(/"/g,'&quot;') + '" data-ext-athlet-id="' + (rr.athlet_id||'') + '" data-ext-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '" data-ext-mapping-id="' + (rr.disziplin_mapping_id||'') + '" data-ext-distanz="' + (rr.distanz||'') + '" data-ext-fmt="' + (rr.fmt||'') + '">&#x270E;</button>' +
             '<button class="btn btn-danger btn-sm" data-ext-del-id="' + rr.id + '">&#x1F5D1;&#xFE0F;</button>' +
           '</td>';
       } else {
         cells +=
           '<td style="white-space:nowrap">' +
-            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-edit-id="' + rr.id + '" data-edit-tab="' + subTab + '" data-edit-disz="' + (rr.disziplin||'') + '" data-edit-mapping-id="' + (rr.disziplin_mapping_id||'') + '" data-edit-res="' + (rr.resultat||'') + '" data-edit-ak="' + (rr.altersklasse||'') + '" data-edit-akp="' + (rr.ak_platzierung||'') + '" data-edit-mstr="' + (rr.meisterschaft||'') + '" data-edit-mstr-platz="' + (rr.ak_platz_meisterschaft||'') + '" data-edit-fmt="' + (rr.fmt||'') + '" data-edit-athlet-id="' + (rr.athlet_id||'') + '" data-edit-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '" data-edit-verein="' + (rr.verein||'').replace(/"/g,'&quot;') + '">&#x270E;</button>' +
+            '<button class="btn btn-ghost btn-sm" style="margin-right:4px" data-edit-id="' + rr.id + '" data-edit-tab="' + subTab + '" data-edit-disz="' + (rr.disziplin||'') + '" data-edit-mapping-id="' + (rr.disziplin_mapping_id||'') + '" data-edit-distanz="' + (rr.distanz||'') + '" data-edit-res="' + (rr.resultat||'') + '" data-edit-ak="' + (rr.altersklasse||'') + '" data-edit-akp="' + (rr.ak_platzierung||'') + '" data-edit-mstr="' + (rr.meisterschaft||'') + '" data-edit-mstr-platz="' + (rr.ak_platz_meisterschaft||'') + '" data-edit-fmt="' + (rr.fmt||'') + '" data-edit-athlet-id="' + (rr.athlet_id||'') + '" data-edit-athlet-name="' + (rr.athlet||'').replace(/"/g,'&quot;') + '" data-edit-verein="' + (rr.verein||'').replace(/"/g,'&quot;') + '">&#x270E;</button>' +
             '<button class="btn btn-danger btn-sm" data-del-id="' + rr.id + '" data-del-tab="' + subTab + '">&#x1F5D1;&#xFE0F;</button>' +
           '</td>';
       }
@@ -353,7 +355,7 @@ function _editAthletPick(id, name) {
   if (box) box.innerHTML = '';
 }
 
-async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, athletName, mappingId, mstrPlatz, verein, extern) {
+async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athletId, athletName, mappingId, mstrPlatz, verein, extern, distanz) {
   mstr = parseInt(mstr, 10) || '';
   // Kategorie aus der Disziplin des Ergebnisses ableiten
   var _diszKat = '';
@@ -425,10 +427,11 @@ async function openEditErgebnis(id, subTab, disz, res, ak, akp, mstr, fmt, athle
           '</div>' +
           '<div style="flex:1">' +
             '<label style="display:block;margin-bottom:4px">Disziplin *</label>' +
-            '<select id="edit-disz" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">' + diszOptHtml + '</select>' +
+            '<select id="edit-disz" onchange="distanzFeldUmschalten(\'edit-distanz\', this.value)" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">' + diszOptHtml + '</select>' +
           '</div>' +
         '</div>' +
       '</div>' +
+      distanzFeldHtml('edit-distanz', mappingId, distanz) +
       '<div class="form-group"><label>Ergebnis</label><input type="text" id="edit-res" value="' + fmtRes(res||'') + '" placeholder="z.B. 01:45:30"/></div>' +
       '<div class="form-group"><label>Altersklasse</label><input type="text" id="edit-ak" value="' + (ak||'') + '" placeholder="z.B. M40"/></div>' +
       '<div class="form-group"><label>Platz AK</label><input type="number" id="edit-akp" value="' + (akp||'') + '" min="1"/></div>' +
@@ -475,8 +478,11 @@ async function saveEditErgebnis(id, subTab) {
     ak = _resolved[ak] || ak;
   }
   var newAthletId = ((document.getElementById('edit-athlet-id') || {}).value || '').trim();
-  var body = { disziplin: disz, resultat: res, altersklasse: ak, pace: calcPace(disz, res, editMappingId) };
+  var _dist = distanzFeldWert('edit-distanz', editMappingId);
+  if (_dist === '') { notify('Bitte die Distanz in Metern angeben.', 'err'); return; }
+  var body = { disziplin: disz, resultat: res, altersklasse: ak, pace: calcPace(disz, res, editMappingId, _dist) };
   if (editMappingId) body.disziplin_mapping_id = editMappingId;
+  if (_dist) body.distanz = _dist;
   if (akp)  body.ak_platzierung = parseInt(akp);
   if (mstr) body.meisterschaft = parseInt(mstr);
   body.ak_platz_meisterschaft = mstrPlatz ? parseInt(mstrPlatz) : null;
@@ -516,6 +522,7 @@ function editKatChanged() {
     html += '<option value="' + val + '"' + (val === prevVal ? ' selected' : '') + '>' + label + '</option>';
   }
   diszSel.innerHTML = html;
+  distanzFeldUmschalten('edit-distanz', diszSel.value);
 }
 
 
@@ -542,6 +549,7 @@ async function openEditExternErgebnis(ds) {
     modalH2('&#x270E; Externes Ergebnis bearbeiten') +
     '<div class="form-grid">' +
       '<div class="form-group"><label>Disziplin</label><input type="text" id="ext-disz" value="' + (ds.extDisz||'').replace(/"/g,'&quot;') + '"/></div>' +
+      distanzFeldHtml('ext-distanz', ds.extMappingId, ds.extDistanz) +
       '<div class="form-group"><label>Ergebnis</label><input type="text" id="ext-res" value="' + (ds.extRes||'') + '"/></div>' +
       '<div class="form-group"><label>Altersklasse</label><input type="text" id="ext-ak" value="' + (ds.extAk||'') + '" placeholder="z.B. M40"/></div>' +
       '<div class="form-group full"><label>Verein</label><input type="text" id="ext-verein" value="' + (ds.extVerein||'').replace(/"/g,'&quot;') + '" placeholder="z.B. SV Musterstadt" oninput="_extVereinHinweis()"/>' +
@@ -615,6 +623,9 @@ async function _saveExternErgebnis(id) {
     verein:           (document.getElementById('ext-verein') || {}).value || null,
     veranstaltung_id: vid,
   };
+  var _dist = distanzFeldWert('ext-distanz', (window._extDs || {}).extMappingId);
+  if (_dist === '') { notify('Bitte die Distanz in Metern angeben.', 'err'); return; }
+  if (_dist) body.distanz = _dist;
   var r = await apiPut('externe-ergebnisse/' + id, body);
   if (r && r.ok) {
     closeModal();
@@ -627,7 +638,7 @@ async function _saveExternErgebnis(id) {
       var ds = window._extDs || {};
       var dm = ds.extMappingId ? (state.disziplinen || []).find(function(x) { return x.id == ds.extMappingId; }) : null;
       openEditErgebnis(id, (dm && dm.tbl_key) || 'strasse', body.disziplin, body.resultat, body.altersklasse || '',
-        '', '', ds.extFmt || '', ds.extAthletId || '', ds.extAthletName || '', ds.extMappingId || '', '');
+        '', '', ds.extFmt || '', ds.extAthletId || '', ds.extAthletName || '', ds.extMappingId || '', '', undefined, undefined, body.distanz || ds.extDistanz);
     } else {
       notify('Gespeichert.', 'ok');
     }

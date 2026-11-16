@@ -85,7 +85,7 @@ async function renderRekorde() {
   for (var ti = 0; ti < topNames.length; ti++) {
     var td = topNames[ti];
     var cnt = topDisz[ti].cnt;
-    topHtml += '<button class="rek-top-btn' + (rs.disz === td ? ' active' : '') + '" data-disz="' + td.replace(/"/g, '&quot;') + '" onclick="setRekDisz(this.dataset.disz, this.dataset.mid)">' +
+    topHtml += '<button class="rek-top-btn' + (rs.disz === td ? ' active' : '') + '" data-disz="' + td.replace(/"/g, '&quot;') + '" data-mid="' + (topDisz[ti].mapping_id || '') + '" onclick="setRekDisz(this.dataset.disz, this.dataset.mid)">' +
       '<span class="rek-top-name">' + td + '</span>' +
       '<span class="rek-top-cnt">' + cnt + (cnt === 1 ? ' Ergebnis' : ' Ergebnisse') + '</span>' +
     '</button>';
@@ -334,7 +334,7 @@ function buildRekTable(rows, fmt, compact, showPace, athletLabel, disz) {
     var athletInner = r.athlet_id ? '<span class="athlet-link" data-athlet-id="' + r.athlet_id + '">' + (r.athlet || '&ndash;') + '</span>' : (r.athlet || '&ndash;');
     html += '<td style="font-weight:600"><div class="rek-name-cell">' + athletInner + '</div></td>';
     html += '<td class="result">' + result + '</td>';
-    if (showPace) html += '<td class="ort-text">' + (diszKm(_disz, r.disziplin_mapping_id) >= 1 && calcPace(_disz, r.resultat, r.disziplin_mapping_id) ? fmtTime(calcPace(_disz, r.resultat, r.disziplin_mapping_id), 'min/km') : '&ndash;') + '</td>';
+    if (showPace) html += '<td class="ort-text">' + (diszKm(_disz, r.disziplin_mapping_id, r.distanz) >= 1 && calcPace(_disz, r.resultat, r.disziplin_mapping_id, r.distanz) ? fmtTime(calcPace(_disz, r.resultat, r.disziplin_mapping_id, r.distanz), 'min/km') : '&ndash;') + '</td>';
     if (!compact) html += '<td>' + akBadge(r.altersklasse) + '</td>';
     html += '<td class="ort-text">' + formatDate(r.datum) + '</td>';
     html += '</tr>';

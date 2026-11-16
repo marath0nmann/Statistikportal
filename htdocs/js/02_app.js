@@ -160,15 +160,60 @@ function sortDisziplinen(arr, key) {
   return arr;
 }
 
-// Eindeutiger Gruppenkey für ein Ergebnis: mapping_id wenn vorhanden, sonst disziplin-Name
+// ── Freie Distanz (z.B. „Crosslauf“): Streckenlänge je Ergebnis statt je Disziplin ──
+function diszIstFrei(mappingId) {
+  if (!mappingId) return false;
+  var d = (state.disziplinen || []).find(function(x) { return x.id == mappingId; });
+  return !!(d && parseInt(d.distanz_frei));
+}
+// 4050 → „4.050 m“
+function distanzText(m) {
+  m = parseFloat(m);
+  if (!(m > 0)) return '';
+  return m.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' m';
+}
+// „Crosslauf“ + 4050 → „Crosslauf 4.050 m“ (feste Disziplinen und bereits ergänzte Namen bleiben)
+function diszMitDistanz(name, mappingId, distanz) {
+  name = name || '';
+  if (!diszIstFrei(mappingId)) return name;
+  var t = distanzText(distanz);
+  if (!t || / m$/.test(name)) return name;
+  return name + ' ' + t;
+}
+// Eingabefeld „Distanz (m)“ für Bearbeiten-Dialoge; nur sichtbar bei freier Distanz.
+// Umschalten beim Disziplinwechsel: distanzFeldUmschalten(id, neueMappingId)
+function distanzFeldHtml(id, mappingId, distanz, cls) {
+  var frei = diszIstFrei(mappingId);
+  return '<div class="' + (cls || 'form-group') + '" id="' + id + '-wrap"' + (frei ? '' : ' style="display:none"') + '>' +
+    '<label>Distanz (m)</label>' +
+    '<input type="number" id="' + id + '" min="1" step="1" value="' + (parseFloat(distanz) > 0 ? parseFloat(distanz) : '') + '" placeholder="z.B. 4050"/>' +
+  '</div>';
+}
+function distanzFeldUmschalten(id, mappingId) {
+  var w = document.getElementById(id + '-wrap');
+  if (w) w.style.display = diszIstFrei(mappingId) ? '' : 'none';
+}
+// Wert des Distanzfelds: null (feste Disziplin), '' (frei, aber leer) oder Meter
+function distanzFeldWert(id, mappingId) {
+  if (!diszIstFrei(mappingId)) return null;
+  var el = document.getElementById(id);
+  var v = el ? parseFloat(String(el.value).replace(',', '.')) : NaN;
+  return v > 0 ? v : '';
+}
+// Eindeutiger Gruppenkey für ein Ergebnis: mapping_id wenn vorhanden, sonst disziplin-Name.
+// Freie Distanz: jede Strecke ist eine eigene Gruppe (eigene Bestleistungen).
 function ergDiszKey(e) {
-  return e.disziplin_mapping_id ? 'm' + e.disziplin_mapping_id : 'd_' + e.disziplin;
+  if (!e.disziplin_mapping_id) return 'd_' + e.disziplin;
+  var k = 'm' + e.disziplin_mapping_id;
+  if (diszIstFrei(e.disziplin_mapping_id)) k += '@' + (parseFloat(e.distanz) || 0);
+  return k;
 }
 // Anzeigename für einen Gruppenkey aus einem Ergebnis-Objekt
 function ergDiszLabel(e) {
   if (e.kategorie_name) {
     var showSuffix;
     var disz = e.disziplin;
+    var dispDisz = diszMitDistanz(e.disziplin, e.disziplin_mapping_id, e.distanz);
     // Per-Disziplin-Override aus state.disziplinen prüfen
     var list = state.disziplinen || [];
     var override = '';
@@ -180,9 +225,10 @@ function ergDiszLabel(e) {
     if (override === 'ja') showSuffix = true;
     else if (override === 'nein') showSuffix = false;
     else showSuffix = (appConfig.disziplin_kategorie_suffix || '1') === '1';
-    if (showSuffix) return disz + '&nbsp;<span style="font-size:0.85em;opacity:0.6;white-space:nowrap">(' + e.kategorie_name + ')</span>';
+    if (showSuffix) return dispDisz + '&nbsp;<span style="font-size:0.85em;opacity:0.6;white-space:nowrap">(' + e.kategorie_name + ')</span>';
+    return dispDisz;
   }
-  return e.disziplin;
+  return diszMitDistanz(e.disziplin, e.disziplin_mapping_id, e.distanz);
 }
 
 var MSTR_MAP = {};
@@ -220,7 +266,18 @@ function diszBySlug(kat, slug) {
   var list = (typeof state !== 'undefined' && state.disziplinen) || [];
   return list.find(function(d) {
     return diszSlug(d.disziplin) === slug && (!kat || d.tbl_key === kat);
-  }) || list.find(function(d) { return diszSlug(d.disziplin) === slug; }) || null;
+  }) || list.find(function(d) { return diszSlug(d.disziplin) === slug; }) || _diszBySlugFrei(list, kat, slug);
+}
+// Freie Distanz: "crosslauf-4050-m" → { disziplin: "Crosslauf 4.050 m", id, tbl_key }
+function _diszBySlugFrei(list, kat, slug) {
+  var m = /^(.+)-(\d+(?:-\d+)?)-m$/.exec(slug || '');
+  if (!m) return null;
+  var d = list.find(function(x) {
+    return x.distanz_frei == 1 && diszSlug(x.disziplin) === m[1] && (!kat || x.tbl_key === kat);
+  });
+  if (!d) return null;
+  var meter = parseFloat(m[2].replace('-', '.'));
+  return Object.assign({}, d, { disziplin: diszMitDistanz(d.disziplin, d.id, meter) });
 }
 // Globale Hilfsfunktion: AK-Array → lesbarer Range-String (W45–W65, W35–W45 und W55–W65, …)
 function compressAKList(aks) {
@@ -2230,7 +2287,7 @@ function _shareBuildBadgeMap(timelineEvents) {
 }
 
 function _shareBadgesFor(badgeMap, e) {
-  var key = e.athlet_id + '|' + (e.disziplin || '');
+  var key = e.athlet_id + '|' + diszMitDistanz(e.disziplin, e.disziplin_mapping_id, e.distanz);
   return badgeMap[key] || [];
 }
 
@@ -2299,7 +2356,7 @@ function _shareGroupByDisz(v, mitExtern) {
   var byDisz = {}, diszOrder = [], externAus = 0;
   (v.ergebnisse || []).forEach(function(e) {
     if (parseInt(e.extern) === 1 && !mitExtern) { externAus++; return; }
-    var d = e.disziplin || '?';
+    var d = diszMitDistanz(e.disziplin, e.disziplin_mapping_id, e.distanz) || '?';
     if (!byDisz[d]) { byDisz[d] = []; diszOrder.push(d); }
     byDisz[d].push(e);
   });
@@ -2872,7 +2929,7 @@ async function renderVeranstaltungDetail(vid) {
       var e2 = dErgs[ei2];
       var fmt = e2.fmt || '';
       var res = fmtErgebnis(e2.resultat, fmt);
-      var _ePace = diszKm(e2.disziplin, e2.disziplin_mapping_id) >= 1 ? calcPace(e2.disziplin, e2.resultat, e2.disziplin_mapping_id) : '';
+      var _ePace = diszKm(e2.disziplin, e2.disziplin_mapping_id, e2.distanz) >= 1 ? calcPace(e2.disziplin, e2.resultat, e2.disziplin_mapping_id, e2.distanz) : '';
       var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's' && fmt !== 'pkt';
       rows +=
         '<tr>' +

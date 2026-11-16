@@ -3050,6 +3050,7 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
         'data-katsuffix="' + (d.kat_suffix_override||'') + '" ' +
         'data-hofexclude="' + (d.hof_exclude == 1 ? '1' : '0') + '" ' +
         'data-distanz="' + (d.distanz != null ? d.distanz : '') + '" ' +
+        'data-distanzfrei="' + (d.distanz_frei == 1 ? '1' : '0') + '" ' +
         'onclick="showDiszEditModal(this)">&#x270F;&#xFE0E;</button>';
       var anz = d.ergebnis_anzahl || 0;
       var anzBadge = '<span class="badge" style="background:' + (anz > 0 ? 'var(--surf2);color:var(--text2)' : 'var(--green);color:#fff') + ';font-size:11px">' + anz + '</span>';
@@ -3081,7 +3082,7 @@ function _buildDiszDetailHtml(kategorien, disziplinen) {
             return d.disziplin;
           })(d) + '</td>' +
           '<td style="font-size:13px;color:var(--text2)">' + fmtValue + '</td>' +
-          '<td style="font-size:13px;color:var(--text2);white-space:nowrap">' + (d.distanz != null ? (d.distanz % 1 === 0 ? d.distanz : d.distanz.toLocaleString('de-DE')) + ' m' : '<span style="opacity:0.4">–</span>') + '</td>' +
+          '<td style="font-size:13px;color:var(--text2);white-space:nowrap">' + (d.distanz_frei == 1 ? '<span title="Distanz wird je Ergebnis eingetragen">je Ergebnis</span>' : d.distanz != null ? (d.distanz % 1 === 0 ? d.distanz : d.distanz.toLocaleString('de-DE')) + ' m' : '<span style="opacity:0.4">–</span>') + '</td>' +
           '<td>' + selHtml + '</td>' +
           '<td style="text-align:right;padding-right:12px">' + anzBadge + '</td>' +
           '<td style="white-space:nowrap;display:flex;gap:4px">' + starBtn + hofBtn + editBtn + delBtn + '</td>' +
@@ -3412,6 +3413,7 @@ function showDiszEditModal(btn) {
   var katSuffix  = btn.dataset.katsuffix || '';
   var hofExclude = btn.dataset.hofexclude === '1';
   var distanzVal = btn.dataset.distanz !== undefined && btn.dataset.distanz !== '' ? btn.dataset.distanz : '';
+  var distanzFrei = btn.dataset.distanzfrei === '1';
   var fmtOpts = [
     { v:'',      label:'Standard (Kategorie: ' + (katfmt||'–') + ')' },
     { v:'min',   label:'Zeit (min) – z.B. 45:30 min' },
@@ -3447,6 +3449,11 @@ function showDiszEditModal(btn) {
         '<label>Strecke (Meter, optional)</label>' +
         '<input type="number" id="de-distanz" value="' + distanzVal + '" placeholder="z.B. 800"/>' +
         '<div style="font-size:11px;color:var(--text2);margin-top:4px">Für Pace-Berechnung bei neuen Disziplinen</div>' +
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;margin-top:8px">' +
+          '<input type="checkbox" id="de-distanzfrei"' + (distanzFrei ? ' checked' : '') + ' onchange="document.getElementById(\'de-distanz\').disabled=this.checked" style="width:16px;height:16px;cursor:pointer">' +
+          '<span>Keine feste Strecke – <strong>Distanz je Ergebnis</strong></span>' +
+        '</label>' +
+        '<div style="font-size:11px;color:var(--text2);margin-top:4px">Wie beim Crosslauf: Distanz wird beim Eintragen/Import angegeben, Bestleistungen je Distanz</div>' +
       '</div>' +
       '<div class="form-group">' +
         '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;padding-top:20px">' +
@@ -3465,6 +3472,7 @@ function showDiszEditModal(btn) {
     var distEl = document.getElementById('de-distanz');
     var nameEl = document.getElementById('de-name');
     var isField = katfmt === 'm' || katfmt === 'pkt';
+    if (distEl && distanzFrei) distEl.disabled = true;
     if (distEl && isField) {
       distEl.disabled = true;
       distEl.value = '';
@@ -3494,6 +3502,8 @@ async function updateDisz(btn) {
   var distanzEl = document.getElementById('de-distanz');
   var distanzBody = distanzEl && distanzEl.value.trim() !== '' ? parseFloat(distanzEl.value) : null;
   var body = { fmt_override: fmt, kat_suffix_override: katSuffix, hof_exclude: hofExclude, distanz: distanzBody };
+  var freiEl = document.getElementById('de-distanzfrei');
+  if (freiEl) body.distanz_frei = freiEl.checked ? 1 : 0;
   if (neuerName && neuerName !== origDisz) body.neuer_name = neuerName;
   var mId = btn.dataset.mappingid;
   var putPath = mId ? 'disziplin-mapping/' + mId : 'disziplin-mapping/' + encodeURIComponent(origDisz);

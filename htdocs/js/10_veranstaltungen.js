@@ -130,7 +130,7 @@ function _buildVeranstErgTable(ergebnisse, fussnoten) {
       var e2 = ergs[ei2];
       var fmt = e2.fmt || '';
       var res = fmtErgebnis(e2.resultat, fmt);
-      var _ePace = diszKm(e2.disziplin, e2.disziplin_mapping_id) >= 1 ? calcPace(e2.disziplin, e2.resultat, e2.disziplin_mapping_id) : '';
+      var _ePace = diszKm(e2.disziplin, e2.disziplin_mapping_id, e2.distanz) >= 1 ? calcPace(e2.disziplin, e2.resultat, e2.disziplin_mapping_id, e2.distanz) : '';
       var showPace = _ePace && _ePace !== '00:00' && fmt !== 'm' && fmt !== 's' && fmt !== 'pkt';
       rows +=
         '<tr>' +
@@ -445,8 +445,8 @@ async function _mvLaden() {
     for (var ei = 0; ei < ergs.length; ei++) {
       var e = ergs[ei];
       var fmt = e.fmt || 'min';
-      var _km = diszKm ? diszKm(e.disziplin, e.disziplin_mapping_id) : 0;
-      var pace = (_km >= 1 && fmt !== 'm' && fmt !== 's' && calcPace) ? calcPace(e.disziplin, e.resultat, e.disziplin_mapping_id) : '';
+      var _km = diszKm ? diszKm(e.disziplin, e.disziplin_mapping_id, e.distanz) : 0;
+      var pace = (_km >= 1 && fmt !== 'm' && fmt !== 's' && calcPace) ? calcPace(e.disziplin, e.resultat, e.disziplin_mapping_id, e.distanz) : '';
       allRows.push({
         erg_id:                e.id,
         tbl_key:               e.tbl_key || 'strasse',
@@ -459,8 +459,11 @@ async function _mvLaden() {
         datenquelle:           v.datenquelle || '',
         serie_id:              v.serie_id || null,
         serie_name:            v.serie_name || '',
-        disziplin:             e.disziplin || '',
-        disz_km:               diszKm(e.disziplin, e.disziplin_mapping_id),
+        // Anzeige mit Strecke bei freier Distanz („Crosslauf 4.050 m“) – eigene Gruppe/Bestleistung
+        disziplin:             diszMitDistanz(e.disziplin || '', e.disziplin_mapping_id, e.distanz),
+        disziplin_roh:         e.disziplin || '',
+        distanz:               e.distanz != null ? parseFloat(e.distanz) : null,
+        disz_km:               diszKm(e.disziplin, e.disziplin_mapping_id, e.distanz),
         altersklasse:          e.altersklasse || '',
         resultat:              e.resultat || '',
         resultat_num:          e.resultat_num != null ? parseFloat(e.resultat_num) : null,
@@ -507,7 +510,7 @@ async function _mvLaden() {
   allRows.forEach(function(r) {
     var d = null;
     if (r.disziplin_mapping_id) d = diszAlle.find(function(x) { return x.id == r.disziplin_mapping_id; });
-    if (!d && r.disziplin)      d = diszAlle.find(function(x) { return x.disziplin === r.disziplin; });
+    if (!d && r.disziplin)      d = diszAlle.find(function(x) { return x.disziplin === r.disziplin_roh; });
     r.kategorie    = (d && d.kategorie) || r.tbl_key || '';
     r.ist_favorit  = !!(d && favIds[d.id]);
   });
@@ -552,7 +555,9 @@ async function _mvLaden() {
     if (!r.ist_favorit || r.ohne_wertung) return;   // Fußnote „ohne Wertung" zählt nie als PB
     var wert = _mvErgebnisZahl(r);
     if (wert == null) return;
-    var k = r.disziplin_mapping_id ? 'm' + r.disziplin_mapping_id
+    // Freie Distanz (Crosslauf): PB nur innerhalb derselben Strecke (ohne Strecke keine PB)
+    if (r.disziplin_mapping_id && diszIstFrei(r.disziplin_mapping_id) && !(r.distanz > 0)) return;
+    var k = r.disziplin_mapping_id ? ergDiszKey(r)
           : 'd' + (r.kategorie || '') + '|' + (r.disziplin || '');
     var hochBesser = fmtHoeherBesser(r.fmt); // Weiten/Höhen/Punkte: mehr ist besser
     var best = pbBest[k];
@@ -1317,7 +1322,8 @@ function _openMeineErgEdit(ergId) {
       '<div class="form-group"><label>Kategorie</label>' +
         '<select id="mee-kat" onchange="_meeKatWechsel()">' + _meeKatOpts(r) + '</select></div>' +
       '<div class="form-group"><label>Disziplin</label>' +
-        '<select id="mee-disz">' + _meeDiszOpts(_meeKatKey(r), r.disziplin_mapping_id, r.disziplin) + '</select></div>'
+        '<select id="mee-disz" onchange="distanzFeldUmschalten(\'mee-distanz\', this.value)">' + _meeDiszOpts(_meeKatKey(r), r.disziplin_mapping_id, r.disziplin_roh || r.disziplin) + '</select></div>' +
+      distanzFeldHtml('mee-distanz', r.disziplin_mapping_id, r.distanz)
     ) +
     _meeAbschnitt('Ergebnis',
       '<div class="form-group"><label>Ergebnis</label>' +
@@ -1383,6 +1389,9 @@ async function _saveMeineErgEdit(ergId, tblKey) {
   if (!disz || !res) { notify('Disziplin und Ergebnis sind Pflicht!', 'err'); return; }
   var body = { disziplin: disz, resultat: res, altersklasse: ak };
   if (mapId) body.disziplin_mapping_id = parseInt(mapId);
+  var _dist = distanzFeldWert('mee-distanz', mapId);
+  if (_dist === '') { notify('Bitte die Distanz in Metern angeben.', 'err'); return; }
+  if (_dist) body.distanz = _dist;
   if (akp)   body.ak_platzierung = parseInt(akp);
   if (mstr)  body.meisterschaft = parseInt(mstr);
   body.ak_platz_meisterschaft = mstrP ? parseInt(mstrP) : null;
@@ -1901,8 +1910,8 @@ function _buildSerieMeineTeilnahmen(veranst) {
       var e = ergs[ei];
       if (parseInt(e.athlet_id) !== myId) continue;
       var fmt = e.fmt || 'min';
-      var _km = diszKm ? diszKm(e.disziplin, e.disziplin_mapping_id) : 0;
-      var pace = (_km >= 1 && fmt !== 'm' && fmt !== 's' && calcPace) ? calcPace(e.disziplin, e.resultat, e.disziplin_mapping_id) : '';
+      var _km = diszKm ? diszKm(e.disziplin, e.disziplin_mapping_id, e.distanz) : 0;
+      var pace = (_km >= 1 && fmt !== 'm' && fmt !== 's' && calcPace) ? calcPace(e.disziplin, e.resultat, e.disziplin_mapping_id, e.distanz) : '';
       rows.push({
         veranst_id: v.id, veranst_name: vName, datum: v.datum || '', jahr: v.jahr || '',
         disziplin: e.disziplin || '', altersklasse: e.altersklasse || '',

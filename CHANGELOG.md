@@ -1,3 +1,8 @@
+## v1596
+- **Cross ohne feste Distanzen.** Alle Cross-Disziplinen (700 m … 7.880 m, 6,6 km, 16 km) sind zu einer Disziplin „Crosslauf“ zusammengeführt; die Streckenlänge wird je Ergebnis gespeichert (`ergebnisse.distanz`, Mapping-Kennzeichen `distanz_frei`). Bestehende Ergebnisse übernehmen die Distanz ihrer alten Disziplin, Fußnoten einer alten Cross-Distanz gelten jetzt für die betroffenen Einzelergebnisse. „16km Walking“ bleibt eigene Disziplin.
+- **Distanz ist Pflicht, beim Import einmal je Lauf.** Importe (RaceResult, uitslagen.nl u. a.) fragen im Dialog „Distanz je Lauf“ die Streckenlänge jedes Laufs ab (Vorschlag aus dem Laufnamen, z. B. „4,05 km“); in der Eintragen-Tabelle überträgt sich eine geänderte Distanz auf alle Zeilen desselben Laufs. Eigene Ergebnisse, CSV-Import und alle Bearbeiten-Dialoge haben ein Distanzfeld.
+- **Bestleistungen je exakter Distanz.** Bestenlisten, Vereinsrekorde, PBs, Zeitstrahl, Hall of Fame, Auszeichnungen und die Textfassungen zeigen „Crosslauf 4.050 m“ usw. getrennt. Ergebnisse ohne Distanz werden bis zur Nachtragung nicht gewertet. Admin → Disziplinen: Schalter „Distanz je Ergebnis“.
+
 ## v1595
 - **RaceResult: Rückstand nicht mehr als Zeit übernommen.** Listen mit einer Spalte „Ziel.AUTORANK.GapTop“ (Abstand zum Ersten, z. B. Biegerparklauf Duisburg) lieferten „+3:17,80“ statt der Laufzeit, weil das Feld „ziel“ enthält und die echte `TIME`-Spalte überschrieb. Abstandsfelder (Gap, Rückstand, Abstand, Behind, TimeDiff) werden bei der Spaltenerkennung jetzt übersprungen.
 

@@ -1,6 +1,6 @@
 # Statistikportal Leichtathletik
 
-## Aktuelle Version: v1595
+## Aktuelle Version: v1596
 
 Live: https://statistik.tus-oedt.de  
 Hosting: all-inkl.com Shared Hosting → `/html/statistik/`
@@ -144,6 +144,14 @@ Fußnote je Veranstaltung (`disziplin_mapping_id` NULL) oder je Disziplin; `ohne
 nimmt die Ergebnisse aus allen Bestleistungs-Berechnungen. Neue Bestenlisten-/Rekord-/PB-Abfragen
 brauchen deshalb `AND " . wertbarSql() . "` neben `e.extern=0`; Ergebnislisten liefern
 `fussnoteFelder()` (`ohne_wertung`, `fussnote`), Frontend: `fussnoteMarker(e)`, `_apBestOf()` ignoriert solche Zeilen.
+
+**Freie Distanz (Cross, `disziplin_mapping.distanz_frei=1`):**
+Eine Disziplin „Crosslauf“ ohne feste Strecke; die Distanz steht je Ergebnis in `ergebnisse.distanz`
+(Pflicht, Schreibpfade über `ergDistanz($mappingId, $eingabe)`). Bestleistungen gelten je exakter
+Distanz: Schlüssel `mapping_id@distanz`, Anzeige `diszMitDistanz()` („Crosslauf 4.050 m“, PHP + JS),
+Frontend-Schlüssel `ergDiszKey()`. Ergebnisse ohne Distanz zählen nicht. Importe fragen die Distanz
+einmal je Lauf (`bkDistanzDialog()` in `07_eintragen.js`). Neue Bestleistungs-Abfragen müssen nach
+`e.distanz` trennen, wenn `istFreieDistanz()`.
 
 ## Datenmodell (wichtige Tabellen)
 
