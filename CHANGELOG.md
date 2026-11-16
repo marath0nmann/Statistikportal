@@ -1,3 +1,6 @@
+## v1595
+- **RaceResult: Rückstand nicht mehr als Zeit übernommen.** Listen mit einer Spalte „Ziel.AUTORANK.GapTop“ (Abstand zum Ersten, z. B. Biegerparklauf Duisburg) lieferten „+3:17,80“ statt der Laufzeit, weil das Feld „ziel“ enthält und die echte `TIME`-Spalte überschrieb. Abstandsfelder (Gap, Rückstand, Abstand, Behind, TimeDiff) werden bei der Spaltenerkennung jetzt übersprungen.
+
 ## v1594
 - **MikaTiming: Athens Marathon findet Vereinsstarter.** Sites mit langen Event-IDs wie `42K_U1FSNCBSF2` (früher auf 8 Zeichen begrenzt und verworfen) werden jetzt durchsucht. Listet eine Site die Events mehrerer Jahre im selben Auswahlfeld (Jahresauswahl), bleibt nur das gewählte Jahr. Englische Feldbeschriftungen („Club“, „Age Group“, „Bib Number“) werden erkannt, AK „M60-64“ → M60, Ort Athen aus der Subdomain.
 - **Serien-Erkennung: Gattungswörter allein reichen nicht.** „Athens Marathon“ wurde als „Boston Marathon“ erkannt, weil nur „Marathon“ übereinstimmte. Ein Treffer braucht jetzt mindestens ein unterscheidendes Wort.

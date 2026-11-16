@@ -1,3 +1,11 @@
+// RaceResult-Felder wie "Ziel.AUTORANK.GapTop" enthalten "ziel"/"time", sind aber
+// der Rückstand auf den Ersten ("+3:17,80") – nie als Zeitspalte verwenden.
+function rrIstAbstandFeld(f) {
+  f = String(f || '').toLowerCase();
+  return f.indexOf('gap') >= 0 || f.indexOf('rückstand') >= 0 || f.indexOf('rueckstand') >= 0 ||
+         f.indexOf('abstand') >= 0 || f.indexOf('behind') >= 0 || f.indexOf('timediff') >= 0;
+}
+
 // ── Eigenes Ergebnis eintragen ────────────────────────────
 var _eeSelectedVeranst = null;
 var _eeVeranstSearchTimer = null;
@@ -2885,6 +2893,7 @@ async function bulkImportFromRR(url, kat, statusEl) {
     var _hnf=false;
     for(var fi=0;fi<df.length;fi++){
       var f=df[fi].toLowerCase();
+      if (rrIstAbstandFeld(f)) continue; // Abstand zum Ersten, keine Zeit
       if(f.indexOf('anzeigename')>=0||f.indexOf('flname')>=0||f.indexOf('lfname')>=0||f==='displayname'||f==='fullname'||f==='name'||f.indexOf('es_name')>=0){iName=fi;_hnf=true;}
       else if((f.indexOf('lastname')>=0||f.indexOf('nachname')>=0||f.indexOf('surname')>=0)&&!_hnf)iName=fi;
       else if(f.indexOf('firstname')>=0||f.indexOf('vorname')>=0||f==='first')iFirstname=fi;
@@ -6788,6 +6797,7 @@ async function rrFetch() {
           var _hnf2 = false;
           for (var fi = 0; fi < df.length; fi++) {
             var f = df[fi].toLowerCase();
+            if (rrIstAbstandFeld(f)) continue; // Abstand zum Ersten, keine Zeit
             if (f.indexOf('anzeigename') >= 0 || f.indexOf('flname') >= 0 || f.indexOf('lfname') >= 0 || f === 'displayname' || f === 'fullname' || f === 'name' || f.indexOf('es_name') >= 0) { iName = fi; _hnf2 = true; }
             else if ((f.indexOf('lastname') >= 0 || f.indexOf('nachname') >= 0 || f.indexOf('surname') >= 0) && !_hnf2) iName = fi;
             else if (f.indexOf('firstname') >= 0 || f.indexOf('vorname') >= 0 || f === 'first') iFirstname = fi;
@@ -6840,6 +6850,7 @@ async function rrFetch() {
                 var _hnf3 = false;
                 for (var _fai = 0; _fai < _dfAll.length; _fai++) {
                   var _fa = _dfAll[_fai].toLowerCase();
+                  if (rrIstAbstandFeld(_fa)) continue; // Abstand zum Ersten, keine Zeit
                   if (_fa.indexOf('anzeigename') >= 0 || _fa.indexOf('flname') >= 0 || _fa.indexOf('lfname') >= 0 || _fa === 'displayname' || _fa === 'fullname' || _fa === 'name' || _fa.indexOf('es_name') >= 0) { iName = _fai; _hnf3 = true; }
                   else if ((_fa.indexOf('lastname') >= 0 || _fa.indexOf('nachname') >= 0 || _fa.indexOf('surname') >= 0) && !_hnf3) iName = _fai;
                   else if (_fa.indexOf('firstname') >= 0 || _fa.indexOf('vorname') >= 0 || _fa === 'first') iFirstname = _fai;
@@ -6966,6 +6977,7 @@ async function rrFetch() {
             var _hnf4 = false;
             for (var fi2 = 0; fi2 < df2.length; fi2++) {
               var f2 = df2[fi2].toLowerCase();
+              if (rrIstAbstandFeld(f2)) continue; // Abstand zum Ersten, keine Zeit
               if (f2.indexOf('anzeigename') >= 0 || f2.indexOf('flname') >= 0 || f2.indexOf('lfname') >= 0 || f2 === 'displayname' || f2 === 'fullname' || f2 === 'name' || f2.indexOf('es_name') >= 0) { iName = fi2; _hnf4 = true; }
               else if ((f2.indexOf('lastname') >= 0 || f2.indexOf('nachname') >= 0 || f2.indexOf('surname') >= 0) && !_hnf4) iName = fi2;
               else if (f2.indexOf('firstname') >= 0 || f2.indexOf('vorname') >= 0 || f2 === 'first') iFirstname = fi2;
@@ -7031,6 +7043,7 @@ async function rrFetch() {
           var _hnf5 = false;
           for (var _ffi = 0; _ffi < _fdf.length; _ffi++) {
             var _ff = _fdf[_ffi].toLowerCase();
+            if (rrIstAbstandFeld(_ff)) continue; // Abstand zum Ersten, keine Zeit
             if (_ff.indexOf('anzeigename') >= 0 || _ff.indexOf('flname') >= 0 || _ff.indexOf('lfname') >= 0 || _ff === 'displayname' || _ff === 'fullname' || _ff === 'name' || _ff.indexOf('es_name') >= 0) { iName = _ffi; _hnf5 = true; }
             else if ((_ff.indexOf('lastname') >= 0 || _ff.indexOf('nachname') >= 0 || _ff.indexOf('surname') >= 0) && !_hnf5) iName = _ffi;
             else if (_ff.indexOf('firstname') >= 0 || _ff.indexOf('vorname') >= 0 || _ff === 'first') iFirstname = _ffi;
