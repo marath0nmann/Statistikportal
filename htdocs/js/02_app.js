@@ -3486,7 +3486,8 @@ function syncHash() {
   else if (state.tab === 'veranstaltung' && state.veranstaltungId) hash += '/' + state.veranstaltungId;
   else if (state.tab === 'athlet' && state.athletSlug) hash = 'athlet/' + state.athletSlug;
   else if (state.tab === 'admin' && state.adminTab) hash += '/' + state.adminTab;
-  else if (state.tab === 'jahr' && state.jahrState && state.jahrState.jahr) hash += '/' + state.jahrState.jahr;
+  else if (state.tab === 'jahr' && state.jahrState && state.jahrState.jahr)
+    hash += '/' + state.jahrState.jahr + '/' + _jahrHashFilter(state.jahrState);
   else if (state.tab === 'rekorde') {
     // #rekorde/<kategorie>[/<disziplin-slug>] – Deep-Link auf eine Disziplin
     var _rs = state.rekState || {};
@@ -3529,9 +3530,11 @@ function restoreFromHash() {
   } else if (tab === 'veranstaltungen' && sub) {
     var validVSub = ['serien','letzte'];
     if (validVSub.indexOf(sub) >= 0) { state.veranstView = 'list'; state.veranstSubTab = sub; }
-  } else if (tab === 'jahr' && /^\d{4}$/.test(sub)) {
-    if (!state.jahrState) _jahrState();
-    state.jahrState.jahr = parseInt(sub, 10);
+  } else if (tab === 'jahr' && sub) {
+    // #jahr/<jahr>[/<filter>] – angewendet in _jahrState(), sobald die
+    // Benutzer-Prefs geladen sind (siehe 11_jahre.js)
+    state.jahrHash = _jahrParseHash(parts.slice(1));
+    if (state.jahrState) _jahrState();   // Zurück/Vor: Zustand existiert schon
   } else if (tab === 'rekorde' && sub) {
     // #rekorde/<kategorie>[/<disziplin-slug>] – numerisch = alter Link mit mapping_id
     state.subTab = sub;

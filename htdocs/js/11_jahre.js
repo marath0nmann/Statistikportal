@@ -34,7 +34,55 @@ function _jahrState() {
       view:  _up.jahr_view === 'chrono' ? 'chrono' : 'athlet',
     };
   }
+  // Aus dem URL-Hash übernommene Auswahl (geteilter Link) hat Vorrang vor den
+  // gespeicherten Einstellungen. Erst hier anwenden, nicht in restoreFromHash():
+  // dort sind die Benutzer-Prefs beim Seitenaufruf noch nicht geladen.
+  if (state.jahrHash) {
+    _jahrApplyHash(state.jahrState, state.jahrHash);
+    state.jahrHash = null;
+  }
   return state.jahrState;
+}
+
+// ── Filter im URL-Hash ──────────────────────────────────────
+// #jahr/2026/typen=gesamt,ak&podest=0&fav=1&ansicht=chrono
+// Der Filterteil steht immer vollständig in der URL, damit ein geteilter Link
+// beim Empfänger dieselbe Ansicht zeigt – unabhängig von dessen Einstellungen.
+function _jahrHashFilter(js) {
+  return 'typen=' + js.typen.join(',') +
+         '&podest=' + (js.ms ? '1' : '0') +
+         '&fav=' + (js.fav ? '1' : '0') +
+         '&ansicht=' + js.view;
+}
+
+// Hash-Teile nach „jahr" → { jahr, f } (f = null ohne Filterteil)
+function _jahrParseHash(teile) {
+  var h = { jahr: null, f: null };
+  if (/^\d{4}$/.test(teile[0] || '')) h.jahr = parseInt(teile[0], 10);
+  var q = String(teile[h.jahr ? 1 : 0] || '').toLowerCase();
+  if (q.indexOf('=') < 0) return h;
+  var f = {};
+  q.split('&').forEach(function(p) {
+    var i = p.indexOf('=');
+    if (i > 0) f[p.slice(0, i)] = decodeURIComponent(p.slice(i + 1));
+  });
+  h.f = f;
+  return h;
+}
+
+function _jahrApplyHash(js, h) {
+  if (h.jahr) js.jahr = h.jahr;
+  var f = h.f;
+  if (!f) return;
+  if (f.typen !== undefined) {
+    var gueltig = JAHR_TYP_DEFS.map(function(t) { return t.id; });
+    js.typen = f.typen.split(',').filter(function(t, i, a) {
+      return gueltig.indexOf(t) >= 0 && a.indexOf(t) === i;
+    });
+  }
+  if (f.podest !== undefined) js.ms  = f.podest !== '0';
+  if (f.fav    !== undefined) js.fav = f.fav !== '0';
+  if (f.ansicht === 'chrono' || f.ansicht === 'athlet') js.view = f.ansicht;
 }
 
 // Label-Typ eines Timeline-Labels – identisch zu jahrLabelTyp() in der API

@@ -1,3 +1,6 @@
+## v1601
+- **Jahresübersicht: Filter stehen in der URL.** Jahr, Ereignistypen, „Titel & Podestplätze“, „Nur Favoriten“ und die Ansicht werden in den Link geschrieben (z. B. `#jahr/2026/typen=gesamt,ak&podest=0&fav=1&ansicht=athlet`). Ein geteilter Link zeigt beim Empfänger dieselbe Ansicht, unabhängig von dessen gespeicherten Einstellungen. Nebenbei: Ein Direktlink `#jahr/2026` übernimmt jetzt wieder die eigenen gespeicherten Filter (vorher wurden sie beim Seitenaufruf überlesen).
+
 ## v1600
 - **Jahresübersicht: Titel & Podestplätze abwählbar.** Neuer Filterknopf „🥇 Titel & Podestplätze“ (Standard: an). Abgewählt zeigt die Seite ausschließlich die gewählten Bestleistungs-Ereignisse – in beiden Ansichten. Die Auswahl wird wie die übrigen Filter am Benutzerkonto gespeichert.
 
