@@ -1,3 +1,6 @@
+## v1600
+- **Jahresübersicht: Titel & Podestplätze abwählbar.** Neuer Filterknopf „🥇 Titel & Podestplätze“ (Standard: an). Abgewählt zeigt die Seite ausschließlich die gewählten Bestleistungs-Ereignisse – in beiden Ansichten. Die Auswahl wird wie die übrigen Filter am Benutzerkonto gespeichert.
+
 ## v1599
 - **Eintragen bei Cross: nur noch die Distanz.** In der Kategorie Cross ist „Crosslauf“ die Vorgabe: neue Zeilen und Importzeilen bekommen sie automatisch, die Spalte heißt „Distanz (m)“ und zeigt nur das Distanzfeld. Für Sonderfälle (z. B. 16km Walking) holt „andere Disziplin“ die Disziplinsuche zurück. Gilt nur für die Kategorie selbst, nicht für gruppierte Kategorien.
 

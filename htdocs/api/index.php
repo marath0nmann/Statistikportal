@@ -1035,7 +1035,7 @@ if ($res === 'auth') {
         $user = Auth::requireLogin();
         $prefs = $body ?? [];
         // Nur erlaubte Keys
-        $allowed = ['rek_merge_ak','rek_unique','rek_hl_cur','rek_hl_prev','jahr_fav'];
+        $allowed = ['rek_merge_ak','rek_unique','rek_hl_cur','rek_hl_prev','jahr_fav','jahr_ms'];
         $save = [];
         foreach ($allowed as $k) {
             if (array_key_exists($k, $prefs)) $save[$k] = (bool)$prefs[$k];

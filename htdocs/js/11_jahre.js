@@ -27,6 +27,9 @@ function _jahrState() {
       typen: Array.isArray(_up.jahr_typen) ? _up.jahr_typen.slice() : JAHR_TYPEN_DEFAULT.slice(),
       // Standard: nur favorisierte Disziplinen
       fav:   _up.jahr_fav === undefined ? true : !!_up.jahr_fav,
+      // Standard: Titel und Podestplätze anzeigen; abgewählt bleiben nur die
+      // Bestleistungs-Ereignisse übrig
+      ms:    _up.jahr_ms === undefined ? true : !!_up.jahr_ms,
       // Standard: nach Athlet*in zusammengefasst; 'chrono' = chronologische Liste
       view:  _up.jahr_view === 'chrono' ? 'chrono' : 'athlet',
     };
@@ -128,11 +131,12 @@ async function renderJahresBestleistungen() {
   syncHash();
 
   // Gefilterte Sicht auf die Rohdaten
-  var dv = { jahr: d.jahr, jahre: d.jahre, meisterschaften: d.meisterschaften,
+  var dv = { jahr: d.jahr, jahre: d.jahre,
+             meisterschaften: js.ms ? d.meisterschaften : [],
              timeline: _jahrFilterTimeline(d, js) };
 
   var body = js.view === 'chrono'
-    ? (_jahrMeisterschaften(dv) + _jahrTimeline(dv, js))
+    ? ((js.ms ? _jahrMeisterschaften(dv) : '') + _jahrTimeline(dv, js))
     : _jahrNachAthlet(dv, js);
   el.innerHTML = _jahrHeader(dv, js) + _jahrStatsBar(dv) + body;
 }
@@ -152,7 +156,8 @@ function _jahrHeader(d, js) {
   }
   if (!chips) chips = '<div style="color:var(--text2);font-size:13px;padding:8px 0">Keine Jahrg&auml;nge vorhanden.</div>';
 
-  var filter = '';
+  var filter = '<button class="rek-cat-btn jahr-filter-btn' + (js.ms ? ' active' : '') + '" onclick="toggleJahrMs()">' +
+    '&#x1F947; Titel &amp; Podestpl&auml;tze</button>';
   for (var t = 0; t < JAHR_TYP_DEFS.length; t++) {
     var td = JAHR_TYP_DEFS[t];
     var on = js.typen.indexOf(td.id) >= 0;
@@ -184,6 +189,13 @@ function toggleJahrTyp(id) {
   renderJahresBestleistungen();
 }
 
+function toggleJahrMs() {
+  var js = _jahrState();
+  js.ms = !js.ms;
+  _saveJahrPrefs();
+  renderJahresBestleistungen();
+}
+
 function toggleJahrFav() {
   var js = _jahrState();
   js.fav = !js.fav;
@@ -203,7 +215,7 @@ function setJahrView(v) {
 function _saveJahrPrefs() {
   if (!currentUser) return;
   var js = _jahrState();
-  var prefs = { jahr_typen: js.typen.slice(), jahr_fav: !!js.fav, jahr_view: js.view };
+  var prefs = { jahr_typen: js.typen.slice(), jahr_fav: !!js.fav, jahr_ms: !!js.ms, jahr_view: js.view };
   if (!state.userPrefs) state.userPrefs = {};
   Object.assign(state.userPrefs, prefs);
   apiPut('auth/prefs', prefs).catch(function(){});
@@ -414,7 +426,7 @@ function _jahrNachAthlet(d, js) {
   var head = '<div class="panel">' +
     '<div class="panel-header"><div class="panel-title">&#x1F464; Jahr ' + d.jahr + ' nach Athlet*in</div>' +
     '<div class="panel-count">' + list.length + (list.length === 1 ? ' Athlet*in' : ' Athlet*innen') + '</div></div>';
-  if (!js.typen.length && !(d.meisterschaften || []).length) {
+  if (!js.typen.length && !js.ms) {
     return head + '<div class="empty"><div class="empty-icon">&#x1F50D;</div>' +
       '<div class="empty-text">Kein Ereignistyp ausgew&auml;hlt</div></div></div>';
   }
